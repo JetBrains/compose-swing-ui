@@ -56,14 +56,13 @@ class SelectionFeedbackTest {
         setContent {
             Table(
                 rows = rows.toList(),
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
                     selection = it
                 },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -87,15 +86,16 @@ class SelectionFeedbackTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = {
+                    column("Name") { it.name }
+                    if (withAge) column("Age") { it.age }
+                },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
                     selection = it
                 },
-            ) {
-                column("Name") { it.name }
-                if (withAge) column("Age") { it.age }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -117,11 +117,10 @@ class SelectionFeedbackTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = { received += it },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -387,9 +386,7 @@ class SelectionFeedbackTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = rows, onSelectionChange = { received += it }) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } }, onSelectionChange = { received += it })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -408,9 +405,7 @@ class SelectionFeedbackTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = rows, onSelectionChange = { received += it }) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } }, onSelectionChange = { received += it })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -451,14 +446,13 @@ class SelectionFeedbackTest {
         setContent {
             Table(
                 rows = rows,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
                     selection = it
                 },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()

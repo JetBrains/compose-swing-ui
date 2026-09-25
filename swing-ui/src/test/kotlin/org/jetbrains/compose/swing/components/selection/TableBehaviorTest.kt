@@ -5,8 +5,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
-import org.jetbrains.compose.swing.click
-import org.jetbrains.compose.swing.drag
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
@@ -14,13 +12,10 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
-import java.awt.Point
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.ListSelectionModel
-import javax.swing.RowSorter.SortKey
 import javax.swing.table.DefaultTableModel
-import javax.swing.table.JTableHeader
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -44,10 +39,13 @@ class TableBehaviorTest {
     @Test
     fun rowsAndColumnsRenderIntoTheModel() = runComposeSwingTest {
         setContent {
-            Table(rows = listOf(Person("Ada", 36), Person("Alan", 41))) {
-                column("Name") { it.name }
-                column("Age") { it.age }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36), Person("Alan", 41)),
+                columns = {
+                    column("Name") { it.name }
+                    column("Age") { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -68,9 +66,7 @@ class TableBehaviorTest {
         setContent {
             // Read here, so each pass declares a column whose extractor holds a plain value.
             val declaredUnit = unit
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Age") { "${it.age} $declaredUnit" }
-            }
+            Table(rows = listOf(Person("Ada", 36)), columns = { column("Age") { "${it.age} $declaredUnit" } })
         }
 
         val model = onNodeOfType<JTable>().fetch().model
@@ -87,9 +83,7 @@ class TableBehaviorTest {
         var unit by mutableStateOf("years")
         setContent {
             val declaredUnit = unit
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Age") { "${it.age} $declaredUnit" }
-            }
+            Table(rows = listOf(Person("Ada", 36)), columns = { column("Age") { "${it.age} $declaredUnit" } })
         }
         val table = onNodeOfType<JTable>().fetch()
         withRecordedRepaints { recorded ->
@@ -108,9 +102,7 @@ class TableBehaviorTest {
     fun aPassThatKeepsTheColumnsLeavesTheTablesColumnsAlone() = runComposeSwingTest {
         var rowHeight by mutableStateOf(20)
         setContent {
-            Table(rows = listOf(Person("Ada", 36)), rowHeight = rowHeight) {
-                column("Age") { it.age }
-            }
+            Table(rows = listOf(Person("Ada", 36)), columns = { column("Age") { it.age } }, rowHeight = rowHeight)
         }
         val table = onNodeOfType<JTable>().fetch()
         table.columnModel.getColumn(0).minWidth = 50
@@ -128,11 +120,10 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 onSelectionChange = { received += it },
                 selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -157,10 +148,9 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41)),
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = setOf(0),
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -180,14 +170,16 @@ class TableBehaviorTest {
     fun editingAnEditableCellFiresOnCellEdit() = runComposeSwingTest {
         val edits = mutableListOf<Triple<String, Int, Any?>>()
         setContent {
-            Table(rows = listOf(Person("Ada", 36), Person("Alan", 41))) {
-                column("Name") { it.name }
-                column(
-                    header = "Age",
-                    isEditable = true,
-                    onCellEdit = { row, rowIndex, newValue -> edits += Triple(row.name, rowIndex, newValue) },
-                ) { it.age }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36), Person("Alan", 41)),
+                columns = {
+                    column("Name") { it.name }
+                    column(
+                        header = "Age",
+                        onCellEdit = { row, rowIndex, newValue -> edits += Triple(row.name, rowIndex, newValue) },
+                    ) { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -204,11 +196,14 @@ class TableBehaviorTest {
     @Test
     fun eachColumnAnswersWithTheClassOfTheValuesItHolds() = runComposeSwingTest {
         setContent {
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Name") { it.name }
-                column("Age") { it.age }
-                column("Senior") { it.age > 40 }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36)),
+                columns = {
+                    column("Name") { it.name }
+                    column("Age") { it.age }
+                    column("Senior") { it.age > 40 }
+                },
+            )
         }
 
         val model = onNodeOfType<JTable>().fetch().model
@@ -220,10 +215,13 @@ class TableBehaviorTest {
     @Test
     fun aBooleanColumnRendersAsACheckBox() = runComposeSwingTest {
         setContent {
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Name") { it.name }
-                column("Senior") { it.age > 40 }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36)),
+                columns = {
+                    column("Name") { it.name }
+                    column("Senior") { it.age > 40 }
+                },
+            )
         }
 
         // A table picks a cell's renderer by the column's class, so the class the column declares is
@@ -246,9 +244,12 @@ class TableBehaviorTest {
     fun anIntColumnCommitsItsEditAsAnInt() = runComposeSwingTest {
         val edits = mutableListOf<Any?>()
         setContent {
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Age", isEditable = true, onCellEdit = { _, _, newValue -> edits += newValue }) { it.age }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36)),
+                columns = {
+                    column("Age", onCellEdit = { _, _, newValue -> edits += newValue }) { it.age }
+                },
+            )
         }
 
         // The column's class picks the editor as well as the renderer. Driving the editor, not the
@@ -268,9 +269,7 @@ class TableBehaviorTest {
     fun stateDrivenRowsUpdateTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
         setContent {
-            Table(rows = rows.toList()) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows.toList(), columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -298,9 +297,7 @@ class TableBehaviorTest {
         // lead and the anchor stand as well.
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -320,9 +317,7 @@ class TableBehaviorTest {
     fun aSelectionTheUserMadeStandsWhenARowIsInsertedAboveIt() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -347,10 +342,9 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = rows,
+                columns = { column("Name") { it.name } },
                 onSelectionChange = { if (it.isEmpty()) lossReported = true },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -378,14 +372,13 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = rows,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     selection = it
                     changes++
                 },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.valueIsAdjusting = true
@@ -408,9 +401,7 @@ class TableBehaviorTest {
     fun aDeclaredRunOfRowsLeavesTheAnchorAtItsStart() = runComposeSwingTest {
         val rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45), Person("Edsger", 51))
         setContent {
-            Table(rows = rows, selectedRowIndices = setOf(1, 2, 3)) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } }, selectedRowIndices = setOf(1, 2, 3))
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -429,14 +420,13 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
                     selection = it
                 },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -466,9 +456,11 @@ class TableBehaviorTest {
     fun aPassThatChangedNoDataLeavesTheColumnsAlone() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
-            Table(rows = listOf(Person("Ada", 36)), modifier = SwingModifier.name(label)) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36)),
+                columns = { column("Name") { it.name } },
+                modifier = SwingModifier.name(label),
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -492,92 +484,13 @@ class TableBehaviorTest {
             content = { report ->
                 Table(
                     rows = listOf("Ada", "Alan"),
+                    columns = { column("Name") { it } },
                     selectedRowIndices = emptySet(),
                     onSelectionChange = { report() },
-                ) {
-                    column("Name") { it }
-                }
+                )
             },
             change = { it.setRowSelectionInterval(1, 1) },
             read = { it.selectedRows.toList() },
         )
     }
-
-    /**
-     * A sort order the user asks for is only mirrored, never reported from inside the change, so the pass
-     * that puts the declared order back is the one a runtime queues when the toolkit is handed the event -
-     * ahead of the repaint the re-sorted rows ask for.
-     */
-    @Test
-    fun aSortTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTable::class.java,
-            declared = emptyList<SortKey>(),
-            content = { report ->
-                Table(
-                    rows = listOf("Ada", "Alan"),
-                    sortable = true,
-                    sortKeys = emptyList(),
-                    onSortChange = { report() },
-                ) {
-                    column("Name") { it }
-                }
-            },
-            // The click lands on the column header, where a user asks a table to sort; the header's own
-            // UI is what toggles the sorter. A table standing outside a scroll pane carries its header
-            // unsized, so the header is given the bounds a scroll pane would have given it first.
-            change = { table -> table.tableHeader.sized(table).click(table.headerCenterOf(0)) },
-            read = { table -> table.rowSorter.sortKeys.toList() },
-        )
-    }
-
-    /**
-     * A column the user drags to another position is only mirrored, never reported from inside the change,
-     * so what puts the declared order back ahead of the repaint the reordered columns ask for is the
-     * settlement queued when the toolkit is handed the header's own event.
-     */
-    @Test
-    fun aColumnReorderTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        val declared = TableColumnLayout(listOf(0, 1), listOf(DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH))
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTable::class.java,
-            declared = declared,
-            content = { report ->
-                Table(
-                    rows = listOf(Person("Ada", 36)),
-                    columnLayout = declared,
-                    onColumnLayoutChange = { report() },
-                ) {
-                    column("Name") { it.name }
-                    column("Age") { it.age }
-                }
-            },
-            // The drag takes hold of the first column's header and carries it past the second, which is
-            // how a user reorders columns; the header's own UI is what moves the column. The header is
-            // sized first, as it is for a sort.
-            change = { table ->
-                table.tableHeader.sized(table).drag(table.headerCenterOf(0), table.headerCenterOf(1))
-            },
-            read = { table -> table.columnModel.readColumnLayout() },
-        )
-    }
-
-    private companion object {
-        /** The width a `TableColumn` is built with, which is what an undragged column's layout names. */
-        const val DEFAULT_COLUMN_WIDTH: Int = 75
-    }
-}
-
-/**
- * Gives this header the bounds a scroll pane would give it, so a gesture aimed at a column lands on
- * that column. A [JTable] standing outside a scroll pane never adds its header to the hierarchy, which
- * leaves it unsized and every position on it resolving to nothing.
- */
-private fun JTableHeader.sized(table: JTable): JTableHeader =
-    apply { setSize(table.width, preferredSize.height.coerceAtLeast(1)) }
-
-/** The middle of the header cell for the column at [index], in the header's own coordinates. */
-private fun JTable.headerCenterOf(index: Int): Point {
-    val x = (0 until index).sumOf { columnModel.getColumn(it).width }
-    return Point(x + columnModel.getColumn(index).width / 2, tableHeader.height / 2)
 }

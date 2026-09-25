@@ -372,13 +372,12 @@ is decides which one a component uses.
 
 - **A declared value with a change callback** is the ordinary shape. The composition holds the value
   and passes it in, and the component reports the user's change back through a callback beside it - a
-  text field's `value` and `onValueChange`, a table's `selectedRowIndices` and `onSelectionChange`, its
-  `columnLayout` and `onColumnLayoutChange`. A change the caller does not answer with a matching value
-  is settled back onto the declared one, so the state the composition holds is what is on screen, and
-  the component never stands on a value the caller has not adopted. A value the composition pushes in
-  is not reported back through the callback, so adopting a reported change cannot loop. Where declaring
-  is optional the value is nullable: leaving it out leaves that aspect to the widget, while the
-  callback still reports what the user did with it.
+  text field's `value` and `onValueChange`, a table's `selectedRowIndices` and `onSelectionChange`. A
+  change the caller does not answer with a matching value is settled back onto the declared one, so the
+  state the composition holds is what is on screen, and the component never stands on a value the
+  caller has not adopted. A value the composition pushes in is not reported back through the callback,
+  so adopting a reported change cannot loop. Where declaring is optional the value is nullable: leaving
+  it out leaves that aspect to the widget, while the callback still reports what the user did with it.
 
 - **A hoistable state holder** - an `XState` type with a matching `rememberXState` factory - carries
   state that is a group of related values rather than one, that includes values the component reports
@@ -391,6 +390,13 @@ is decides which one a component uses.
   same way; reading it is the only way to see that value, since no callback reports it. A holder is
   passed in as a parameter, beside or in place of the plain declared value, so a caller hoists one only
   where they want what it observes.
+
+  The arrangement a table's own gestures change - its sort order, and the order and widths of its
+  columns - is held only by its holder, `TableState`, and is never a declared value. Assigning a holder
+  property applies it, and the user's change writes back. Without a holder the arrangement is the
+  user's, and a callback still reports each change. Nothing settles an arrangement back, so to refuse a
+  gesture, turn it off with the widget's own veto: `sortable`, a column's `isSortable`, or
+  `Header(reorderingAllowed, resizingAllowed)`.
 
 - **An imperative handle** carries an interaction that is an event and leaves no value behind. A
   `FocusRequester` moves the keyboard when the application decides to - a validation failure, a

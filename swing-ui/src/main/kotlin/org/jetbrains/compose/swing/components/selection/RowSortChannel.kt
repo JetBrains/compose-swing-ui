@@ -4,9 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.node.AppliedWrite
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
-import java.awt.Component
+import org.jetbrains.compose.swing.node.settleWhenDue
+import org.jetbrains.compose.swing.util.fastFirstOrNull
+import org.jetbrains.compose.swing.util.fastForEachIndexed
 import javax.swing.JTable
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
@@ -26,14 +29,23 @@ import javax.swing.table.TableRowSorter
  * `JTable` is, and the sort order, the row filter and the columns' own sorting rules all reach the table
  * through that sorter, so they stand exactly while it does.
  *
- * [mirror] mirrors the order the rows are in, which is what makes a header click an ordinary composition
- * dependency and what tells that click from the writes this channel makes itself.
+ * The channel marks the writes it makes itself, which is what tells a header click from them.
  */
 internal class RowSortChannel(
-    private val mirror: MirrorState<List<SortKey>?>,
     target: State<RowSorterListener?>,
 ) {
+    private val ownWrite = AppliedWrite()
+
     private var sorter: TableRowSorter<TableModel>? = null
+
+    /**
+     * The order a [TableState] and the table last agreed on: the one [applyHeld] last applied, or the one a
+     * header click left the rows in and the state is written back with. It is stamped from both sides, so a
+     * click is never applied again as if the state had been assigned, and a state assigned back to the
+     * order it held before the click is still applied.
+     */
+    var appliedSortKeys: List<SortKey> = emptyList()
+        private set
 
     /** The filter this channel was last declared with, which every sorter it builds starts out on. */
     private var declaredFilter: RowFilter<in TableModel, in Int>? = null
@@ -58,22 +70,31 @@ internal class RowSortChannel(
     /** Reports the user's own sort-order changes. Installed on every sorter this channel builds. */
     private val listener =
         RowSorterListener { event ->
-            if (event.type == RowSorterEvent.Type.SORT_ORDER_CHANGED) mirror.observed(event.source.sortKeys.toList())
-            if (!mirror.isWriting) target.value?.sorterChanged(event)
+            if (!ownWrite.isWriting) {
+                if (event.type == RowSorterEvent.Type.SORT_ORDER_CHANGED) {
+                    appliedSortKeys = event.source.sortKeys.toList()
+                }
+                target.value?.sorterChanged(event)
+            }
         }
-
-    /** The order the rows are in, or no order at all while sorting is off. */
-    fun sortKeys(): List<SortKey> = sorter?.sortKeys?.toList().orEmpty()
 
     /**
      * Sorts by [keys], dropping a key that names a column the model does not hold - a sorter takes only
-     * columns it has. A `null` declaration leaves the order alone entirely, so it is never imposed, and
-     * while sorting is off there is no sorter for any order to reach.
+     * columns it has. While sorting is off there is no sorter for any order to reach.
      */
-    fun applySortKeys(keys: List<SortKey>?) {
+    private fun applySortKeys(keys: List<SortKey>) {
         val current = sorter ?: return
-        if (keys == null) return
         current.sortKeys = keys.filter { it.column in 0 until current.model.columnCount }
+    }
+
+    /**
+     * Sorts by [keys], the order a [TableState] was assigned. While sorting is off nothing is sorted, and
+     * the sorter that sorting on builds starts on the state's order through [preserveAcross].
+     */
+    fun applyHeld(keys: List<SortKey>) {
+        if (keys == appliedSortKeys) return
+        ownWrite.write { applySortKeys(keys) }
+        appliedSortKeys = keys
     }
 
     /**
@@ -91,51 +112,46 @@ internal class RowSortChannel(
 
     /**
      * Gives [table] new content through [install] over the sorter [sortable] asks for, puts the sorting
-     * rules of [columns] on that sorter, and leaves the rows in the order that should stand: [declared]
-     * where the caller declares one, and otherwise the order they were in before.
+     * rules of [columns] on that sorter, and leaves the rows in the order that should stand: [held] where a
+     * [TableState] holds one, and otherwise the order they were in before.
      *
      * Taking a sorter on or off empties the table's selection, and new content resets the order its rows
      * were in, which is why this belongs inside the write that puts the selection back and why the order is
-     * put back here - after the columns' own rules, since those are what the ordering is worked out by. The
-     * write and the read recording the order it left the rows in are one settlement of the mirror, so
-     * nothing the sorter publishes for it is reported as the user's, and the order it landed on is an
-     * answer rather than news.
+     * put back here - after the columns' own rules, since those are what the ordering is worked out by. It
+     * is this channel's own write, so nothing the sorter publishes for it is reported as the user's.
      */
     fun preserveAcross(
         table: JTable,
         sortable: Boolean,
-        declared: List<SortKey>?,
+        held: List<SortKey>?,
         columns: List<ColumnDeclaration<*>> = emptyList(),
         install: () -> Unit = {},
     ) {
-        val retained = declared ?: sortKeys()
-        mirror.settle {
-            mirror.write {
-                install()
-                bind(table, sortable)
-                sorter?.let { current ->
-                    // The order the rows are in ahead of the one this pass leaves them in.
-                    // `DefaultRowSorter.getSortKeys` hands back the list it holds and `setSortKeys` puts
-                    // a new one in its place, so this stays what the sorter was on.
-                    val standing = current.sortKeys
-                    var resortDue = false
-                    growRecord(columns.size)
-                    columns.forEachIndexed { index, column ->
-                        current.setSortable(index, column.isSortable)
-                        if (isRecompared(current, index, column.comparator)) {
-                            current.setComparator(index, column.comparator)
-                            writtenComparators[index] = column.comparator
-                            resortDue = resortDue || standing.any { it.column == index }
-                        }
+        val retained = held ?: sorter?.sortKeys?.toList().orEmpty()
+        ownWrite.write {
+            install()
+            bind(table, sortable)
+            sorter?.let { current ->
+                // The order the rows are in ahead of the one this pass leaves them in.
+                // `DefaultRowSorter.getSortKeys` hands back the list it holds and `setSortKeys` puts
+                // a new one in its place, so this stays what the sorter was on.
+                val standing = current.sortKeys
+                var resortDue = false
+                growRecord(columns.size)
+                columns.fastForEachIndexed { index, column ->
+                    current.setSortable(index, column.isSortable)
+                    if (isRecompared(current, index, column.comparator)) {
+                        current.setComparator(index, column.comparator)
+                        writtenComparators[index] = column.comparator
+                        resortDue = resortDue || standing.fastFirstOrNull { it.column == index } != null
                     }
-                    applySortKeys(retained)
-                    // A sorter only stores a comparator, so a column sorted by a new one keeps the order
-                    // the old one produced until it is told to sort again. An order that changed here has
-                    // already sorted by the new comparators, which is why the two are told apart.
-                    if (resortDue && current.sortKeys == standing) sortKeepingAnchor(table, current)
                 }
+                applySortKeys(retained)
+                // A sorter only stores a comparator, so a column sorted by a new one keeps the order
+                // the old one produced until it is told to sort again. An order that changed here has
+                // already sorted by the new comparators, which is why the two are told apart.
+                if (resortDue && current.sortKeys == standing) sortKeepingAnchor(table, current)
             }
-            answered(sortKeys())
         }
     }
 
@@ -181,7 +197,7 @@ internal class RowSortChannel(
     fun applyRowFilter(rowFilter: RowFilter<in TableModel, in Int>?) {
         val current = sorter ?: return
         if (current.rowFilter === rowFilter) return
-        mirror.write { current.rowFilter = rowFilter }
+        ownWrite.write { current.rowFilter = rowFilter }
     }
 
     /** Builds the sorter [table] is missing, or takes away the one it should no longer have. */
@@ -193,8 +209,8 @@ internal class RowSortChannel(
             detach(table)
             return
         }
-        val held = sorter
-        if (held != null && held === table.rowSorter && held.model === table.model) return
+        val current = sorter
+        if (current != null && current === table.rowSorter && current.model === table.model) return
         detach(table)
         val fresh = TableRowSorter(table.model)
         // A filter stands only as long as the sorter carrying it, so a sorter built here starts out on the
@@ -295,29 +311,10 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     // selection back and does nothing else.
     val selectionChanged = mirror.redeclare(declared)
     val filterChanged = sortChannel.redeclareRowFilter(rowFilter)
-    settleWhenDue(selectionChanged || filterChanged, { RowFilterInstall(rowFilter) }) { due ->
+    settleWhenDue(if (selectionChanged || filterChanged) RowFilterInstall(rowFilter) else null) { due ->
         installContent(mirror, declared, target) { sortChannel.applyRowFilter(due.filter) }
     }
 }
-
-/**
- * Carries the settlement [token] builds when [due], and runs [settle] against the component with it once
- * the composition applies its changes. Nothing runs on a pass where nothing is due.
- *
- * This is how a declaration whose settling depends on more than its own value reaches its widget: what such
- * a pass is compared against lives on the mirrors it settles rather than in the composition, so the slot
- * carries a token standing for a due settlement instead of the declaration behind it. A fresh token is
- * never what the slot already holds, so a settle that is due always runs; the one comparison the slot can
- * hold back is the null that follows a settlement, and that pass has nothing to do.
- *
- * The slot is taken whether or not anything is due, so a call inside a conditional shifts every later slot
- * of the same `update` block. State the condition in [due], not in whether the call happens.
- */
-internal inline fun <C : Component, D : Any> SwingNodeUpdater<C>.settleWhenDue(
-    due: Boolean,
-    token: () -> D,
-    crossinline settle: C.(D) -> Unit,
-): Unit = set(if (due) token() else null) { pending -> if (pending != null) settle(pending) }
 
 /** One due install of a row filter: the filter to leave the sorter on. */
 private class RowFilterInstall(
@@ -326,12 +323,9 @@ private class RowFilterInstall(
 
 /** A [RowSortChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
-internal fun rememberRowSortChannel(
-    mirror: MirrorState<List<SortKey>?>,
-    listener: RowSorterListener?,
-): RowSortChannel {
+internal fun rememberRowSortChannel(listener: RowSorterListener?): RowSortChannel {
     val target = rememberUpdatedState(listener)
-    return remember { RowSortChannel(mirror, target) }
+    return remember { RowSortChannel(target) }
 }
 
 /**

@@ -79,11 +79,10 @@ class SelectionDeclarationTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
                 onSelectionChange = { received += it },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -102,9 +101,11 @@ class SelectionDeclarationTest {
         val rows = mutableStateListOf(*people.toTypedArray())
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = rows.toList(), onSelectionChange = { received += it }) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = rows.toList(),
+                columns = { column("Name") { it.name } },
+                onSelectionChange = { received += it },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -224,11 +225,10 @@ class SelectionDeclarationTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
                 selectedRowIndices = setOf(0),
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -245,9 +245,12 @@ class SelectionDeclarationTest {
     fun aDeclaredEmptySelectionClearsWhatTheUserPicked() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
-            Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = emptySet()) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                modifier = SwingModifier.name(label),
+                selectedRowIndices = emptySet(),
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -281,9 +284,12 @@ class SelectionDeclarationTest {
         var label by mutableStateOf("first")
         var selection by mutableStateOf<Set<Int>?>(null)
         setContent {
-            Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                modifier = SwingModifier.name(label),
+                selectedRowIndices = selection,
+            )
         }
 
         label = "second"
@@ -331,9 +337,7 @@ class SelectionDeclarationTest {
     @Test
     fun aTableSelectionIsAppliedAscendingWhateverOrderItIsDeclaredIn() = runComposeSwingTest {
         setContent {
-            Table(rows = people, selectedRowIndices = linkedSetOf(2, 0, 1)) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = linkedSetOf(2, 0, 1))
         }
 
         val table = onNodeOfType<JTable>().fetch()

@@ -35,9 +35,13 @@ class TableStateProjectionTest {
         lateinit var state: TableState
         setContent {
             state = rememberTableState()
-            Table(rows = people, state = state, sortable = true, rowFilter = filter) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                state = state,
+                sortable = true,
+                rowFilter = filter,
+            )
         }
 
         assertEquals(people.size, state.rowCount, "every declared row is a row the table shows")
@@ -61,9 +65,7 @@ class TableStateProjectionTest {
         lateinit var state: TableState
         setContent {
             state = rememberTableState()
-            Table(rows = people, state = state) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, state = state)
         }
 
         state.selectedRowIndices = setOf(0, people.size)
@@ -82,9 +84,12 @@ class TableStateProjectionTest {
         lateinit var state: TableState
         setContent {
             state = rememberTableState()
-            Table(rows = people, state = state, selectionMode = ListSelectionModel.SINGLE_SELECTION) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                state = state,
+                selectionMode = ListSelectionModel.SINGLE_SELECTION,
+            )
         }
 
         state.selectedRowIndices = setOf(0, 1, 2)
@@ -109,9 +114,13 @@ class TableStateProjectionTest {
         lateinit var state: TableState
         setContent {
             state = rememberTableState()
-            Table(rows = people, state = state, sortable = true, rowFilter = hidingRow(1)) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                state = state,
+                sortable = true,
+                rowFilter = hidingRow(1),
+            )
         }
 
         state.selectedRowIndices = setOf(0, 1)
@@ -130,9 +139,7 @@ class TableStateProjectionTest {
         lateinit var state: TableState
         setContent {
             state = rememberTableState()
-            Table(rows = people, state = state) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, state = state)
         }
 
         val table = onNodeOfType<JTable>().fetch()

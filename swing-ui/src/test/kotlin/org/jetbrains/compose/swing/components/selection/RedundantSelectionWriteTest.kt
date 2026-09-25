@@ -59,11 +59,10 @@ class RedundantSelectionWriteTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
                 selectedRowIndices = linkedSetOf(2, 0, 1),
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -84,13 +83,15 @@ class RedundantSelectionWriteTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
-                selectedRowIndices = linkedSetOf(2, 0, 1),
+                state =
+                    rememberTableState(
+                        initialSelectedRowIndices = linkedSetOf(2, 0, 1),
+                        initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING)),
+                    ),
                 sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)),
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         // The declared rows are the model's; the descending sort draws them bottom to top, the reverse of
@@ -118,13 +119,12 @@ class RedundantSelectionWriteTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
                 selectedRowIndices = linkedSetOf(2, 0, 1),
                 sortable = true,
                 rowFilter = filter,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()

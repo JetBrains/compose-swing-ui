@@ -184,10 +184,9 @@ class RawComponentListenerOverloadTest {
                 Viewport {
                     Table(
                         rows = listOf("a", "b"),
+                        columns = { column("C") { it } },
                         listSelectionListener = listener,
-                    ) {
-                        column("C") { it }
-                    }
+                    )
                 }
             }
         }

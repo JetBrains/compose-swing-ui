@@ -30,9 +30,7 @@ class TableSelectionModeTest {
     fun theDeclaredModeReachesTheRowAndTheColumnSelectionModel() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
         setContent {
-            Table(rows = people, selectionMode = mode) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectionMode = mode)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -56,9 +54,12 @@ class TableSelectionModeTest {
         var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                onSelectionChange = { received += it },
+                selectionMode = mode,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -99,12 +100,11 @@ class TableSelectionModeTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = setOf(1),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -124,9 +124,12 @@ class TableSelectionModeTest {
         val fromTable = mutableListOf<Set<Int>>()
         val fromList = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = people, onSelectionChange = { fromTable += it }, selectionMode = mode) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                onSelectionChange = { fromTable += it },
+                selectionMode = mode,
+            )
             ListBox(items = colors, onSelectionChange = { fromList += it }, selectionMode = mode)
         }
 

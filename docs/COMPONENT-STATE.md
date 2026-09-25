@@ -312,11 +312,10 @@ the required callback whether or not a content slot exists to claim the trailing
 `MenuScope.Item` takes `onClick` last instead; `MenuItem` here follows `DropdownMenuItem`. Its `Tray`
 defaults `onAction` to `{}`; `Tray` here requires it, by the rule for action callbacks.
 
-A callback a sibling flag gates stays optional. A table column's `onCellEdit` and a tree's `onNodeEdit`
-are only reachable while `isEditable` is `true`, and `isEditable` defaults to `false`. Requiring them
-would make every read-only column and every read-only tree declare a handler that is never called. The
-pairing is real but conditional, the signature cannot express it, and a runtime check is not worth
-closing it.
+A callback can be the switch for what it reports. A table column is editable exactly when it sets
+`onCellEdit`, so a read-only column declares no handler and every edit the table accepts reaches one.
+A callback that only a sibling flag, defaulting to off, can reach stays optional: `Tree`'s `onNodeEdit`
+sits behind `isEditable`.
 
 ### A callback your component calls itself
 

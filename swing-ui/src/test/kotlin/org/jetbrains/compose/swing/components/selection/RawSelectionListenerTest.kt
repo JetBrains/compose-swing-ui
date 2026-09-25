@@ -46,10 +46,9 @@ class RawSelectionListenerTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 listSelectionListener = listener,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -92,10 +91,9 @@ class RawSelectionListenerTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                columns = { column("Name") { it.name } },
                 listSelectionListener = listener,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val selection = onNodeOfType<JTable>().fetch().selectionModel

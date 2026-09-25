@@ -104,9 +104,10 @@ class ModifierRestoreCheckWiringTest {
         var failing by mutableStateOf(false)
         var text by mutableStateOf("first")
         setContent {
-            Table(rows = listOf(if (failing) FAILING_ROW else "row")) {
-                column("Name") { row -> if (row == FAILING_ROW) throw CellValueFailure() else row }
-            }
+            Table(
+                rows = listOf(if (failing) FAILING_ROW else "row"),
+                columns = { column("Name") { row -> if (row == FAILING_ROW) throw CellValueFailure() else row } },
+            )
             Label(text)
         }
 

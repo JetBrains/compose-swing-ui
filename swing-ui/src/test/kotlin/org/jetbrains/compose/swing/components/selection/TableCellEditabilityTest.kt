@@ -6,16 +6,21 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
+import javax.swing.JTextField
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Which cells of a column can be edited in place: the whole column, as `isEditable` says, or the rows a
- * per-row `isCellEditable` admits - which answers for every row of the column while it is declared.
+ * Which cells of a column can be edited in place: every cell of a column that sets `onCellEdit`, narrowed
+ * to the rows a per-row `isCellEditable` admits - which answers for every row of the column while it is
+ * declared. A column without `onCellEdit` edits nothing.
  *
  * The rows a predicate is asked about are the ones the table was declared with, whatever order they are
  * drawn in, and an edit committed on a cell it admits reaches `onCellEdit` like any other.
@@ -24,33 +29,90 @@ class TableCellEditabilityTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41))
 
     @Test
-    fun aPerRowPredicateDecidesWhichCellsCanBeEdited() = runComposeSwingTest {
+    fun onlyAColumnWithOnCellEditStartsAnEditorAndItsEditArrivesInTheColumnsClass() = runComposeSwingTest {
+        val edits = mutableListOf<Any?>()
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-                column("Age", isCellEditable = { row, _ -> row.age > 40 }) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    column("Age", onCellEdit = { _, _, age -> edits += age }) { it.age }
+                },
+            )
+        }
+
+        val table = onNodeOfType<JTable>().fetch<JTable>()
+        assertFalse(table.editCellAt(0, 0), "a column without onCellEdit should not start an editor")
+        assertTrue(table.editCellAt(0, 1), "a column with onCellEdit should start one")
+        (table.editorComponent as JTextField).text = "37"
+        table.cellEditor.stopCellEditing()
+
+        val age = edits.single()
+        assertIs<Int>(age, "the edit should arrive as the column's class")
+        assertEquals(37, age)
+    }
+
+    @Test
+    fun aPerRowPredicateNarrowsEditingToTheRowsItAdmits() = runComposeSwingTest {
+        setContent {
+            Table(
+                rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    column("Age", isCellEditable = { row, _ -> row.age > 40 }, onCellEdit = { _, _, _ -> }) { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
         assertFalse(table.isCellEditable(0, 1), "the predicate should keep the younger row's cell read-only")
         assertTrue(table.isCellEditable(1, 1), "and make the older row's cell editable")
-        assertFalse(table.isCellEditable(1, 0), "a column that declares neither stays read-only")
+        assertFalse(table.isCellEditable(1, 0), "a column without onCellEdit stays read-only")
     }
 
     @Test
-    fun aPerRowPredicateAnswersForAColumnDeclaredEditable() = runComposeSwingTest {
-        setContent {
-            Table(rows = people) {
-                column("Age", isEditable = true, isCellEditable = { _, rowIndex -> rowIndex == 0 }) { it.age }
+    fun aPerRowPredicateWithoutOnCellEditIsRefused() = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                setContent {
+                    Table(
+                        rows = people,
+                        columns = { column("Age", isCellEditable = { _, _ -> true }) { it.age } },
+                    )
+                }
+                awaitIdle()
             }
+
+        assertContains(
+            failure.message.orEmpty(),
+            "isCellEditable is set on column \"Age\" but onCellEdit is not",
+            message = "the refusal must name the column and the missing callback",
+        )
+        assertContains(failure.message.orEmpty(), "Set onCellEdit", message = "and say what to do")
+    }
+
+    @Test
+    fun togglingOnCellEditTurnsEditingOffAndOn() = runComposeSwingTest {
+        var editable by mutableStateOf(false)
+        val onCellEdit: (Person, Int, Int?) -> Unit = { _, _, _ -> }
+        setContent {
+            Table(
+                rows = people,
+                columns = { column("Age", onCellEdit = if (editable) onCellEdit else null) { it.age } },
+            )
         }
 
-        // A per-row answer is what the column is asked for while it declares one, so it decides the rows a
-        // column-wide `isEditable` would otherwise have settled for all of.
-        val table = onNodeOfType<JTable>().fetch()
-        assertTrue(table.isCellEditable(0, 0), "the row the predicate admits should be editable")
-        assertFalse(table.isCellEditable(1, 0), "the row it refuses should not be, despite isEditable")
+        val table = onNodeOfType<JTable>().fetch<JTable>()
+        assertFalse(table.editCellAt(0, 0), "the column starts read-only")
+
+        editable = true
+        awaitIdle()
+        assertTrue(table.editCellAt(0, 0), "setting onCellEdit should make the column editable")
+        table.cellEditor.cancelCellEditing()
+
+        editable = false
+        awaitIdle()
+        assertFalse(table.editCellAt(0, 0), "taking onCellEdit away should make it read-only again")
     }
 
     @Test
@@ -59,17 +121,19 @@ class TableCellEditabilityTest {
         setContent {
             Table(
                 rows = people,
+                columns = {
+                    column(
+                        header = "Name",
+                        isCellEditable = { row, rowIndex ->
+                            asked += row.name to rowIndex
+                            true
+                        },
+                        onCellEdit = { _, _, _ -> },
+                    ) { it.name }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
                 sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)),
-            ) {
-                column(
-                    header = "Name",
-                    isCellEditable = { row, rowIndex ->
-                        asked += row.name to rowIndex
-                        true
-                    },
-                ) { it.name }
-            }
+            )
         }
 
         // Sorted by name descending, "Alan" is drawn first; the predicate is asked about the row that cell
@@ -84,9 +148,14 @@ class TableCellEditabilityTest {
     fun aChangedPredicateDecidesTheNextAnswer() = runComposeSwingTest {
         var threshold by mutableStateOf(40)
         setContent {
-            Table(rows = people) {
-                column("Age", isCellEditable = { row, _ -> row.age > threshold }) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Age", isCellEditable = { row, _ -> row.age > threshold }, onCellEdit = { _, _, _ -> }) {
+                        it.age
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -101,13 +170,16 @@ class TableCellEditabilityTest {
     fun anEditOnAPerRowEditableCellCommits() = runComposeSwingTest {
         val edits = mutableListOf<Triple<String, Int, Any?>>()
         setContent {
-            Table(rows = people) {
-                column(
-                    header = "Age",
-                    isCellEditable = { row, _ -> row.age > 40 },
-                    onCellEdit = { row, rowIndex, newValue -> edits += Triple(row.name, rowIndex, newValue) },
-                ) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column(
+                        header = "Age",
+                        isCellEditable = { row, _ -> row.age > 40 },
+                        onCellEdit = { row, rowIndex, newValue -> edits += Triple(row.name, rowIndex, newValue) },
+                    ) { it.age }
+                },
+            )
         }
 
         // Committing an edit routes through JTable.setValueAt -> model.setValueAt, the same path the cell

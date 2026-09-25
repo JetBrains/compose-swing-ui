@@ -110,10 +110,21 @@ class RestartScopeCountTest {
         assertRestartScopeCount(1) { TextPane(value = "hello", onValueChange = {}) }
     }
 
+    // A table that declares no content opens only its own scope, on the state-driven overload as on the lambda one.
     @Test
-    fun aTableOpensOneRestartScope() = runComposeSwingTest {
+    fun aTableOpensNoScopeBeyondItsContent() = runComposeSwingTest {
         assertRestartScopeCount(1) {
             Table(model = DefaultTableModel(arrayOf(arrayOf<Any>("a")), arrayOf<Any>("col")), selectedRowIndices = null)
+        }
+    }
+
+    @Test
+    fun aStateDrivenTableOpensNoScopeBeyondItsContent() = runComposeSwingTest {
+        assertRestartScopeCount(1) {
+            Table(
+                model = DefaultTableModel(arrayOf(arrayOf<Any>("a")), arrayOf<Any>("col")),
+                state = rememberTableState(),
+            )
         }
     }
 
@@ -157,16 +168,6 @@ class RestartScopeCountTest {
     fun aStateDrivenTreeOpensOneRestartScope() = runComposeSwingTest {
         assertRestartScopeCount(1) {
             Tree(root = "root", children = { emptyList() }, state = rememberTreeState(), label = { it })
-        }
-    }
-
-    @Test
-    fun aStateDrivenTableOpensOneRestartScope() = runComposeSwingTest {
-        assertRestartScopeCount(1) {
-            Table(
-                model = DefaultTableModel(arrayOf(arrayOf<Any>("a")), arrayOf<Any>("col")),
-                state = rememberTableState(),
-            )
         }
     }
 

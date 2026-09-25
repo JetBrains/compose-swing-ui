@@ -17,9 +17,9 @@ class UnheldColumnComparatorTest {
             import org.jetbrains.compose.swing.components.selection.Table
 
             fun table() {
-                Table(rows = emptyList<String>()) {
+                Table(rows = emptyList<String>(), columns = {
                     $body
-                }
+                })
             }
             """.trimIndent(),
         )
@@ -89,11 +89,11 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         run {
                             column("Name", comparator = compareBy<String> { it }) { it }
                         }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -112,11 +112,11 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         run {
                             column("Name", comparator = compareBy<String> { it }) { it }
                         }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -136,11 +136,11 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         run {
                             column("Name", comparator = compareBy<String> { it }) { it }
                         }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -159,11 +159,11 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         withScope {
                             column("Name", comparator = compareBy<String> { it }) { it }
                         }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -213,9 +213,9 @@ class UnheldColumnComparatorTest {
 
                 fun people(names: List<String>) {
                     val byName = compareBy<String> { it }
-                    Table(names) {
+                    Table(names, columns = {
                         column("Name", comparator = byName) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -266,10 +266,10 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         val byName = remember { compareBy<String> { it } }
                         column("Name", comparator = byName) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -288,9 +288,9 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = retain { compareBy<String> { it } }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -324,9 +324,9 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = remember { compareBy<String> { it } }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -355,9 +355,9 @@ class UnheldColumnComparatorTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = remember { compareBy<String> { it } }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -387,9 +387,9 @@ class UnheldColumnComparatorTest {
 
                 fun table() {
                     fun <T> remember(block: () -> T): T = block()
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = remember { compareBy<String> { it } }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -409,9 +409,9 @@ class UnheldColumnComparatorTest {
 
                 fun table() {
                     val remember: (() -> Comparator<String>) -> Comparator<String> = { it() }
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = remember { compareBy<String> { it } }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -433,9 +433,9 @@ class UnheldColumnComparatorTest {
                     fun <T> remember(block: () -> T): T = block()
 
                     fun table() {
-                        Table(rows = emptyList<String>()) {
+                        Table(rows = emptyList<String>(), columns = {
                             column("Name", comparator = remember { compareBy<String> { it } }) { it }
-                        }
+                        })
                     }
                 }
                 """.trimIndent(),
@@ -455,9 +455,9 @@ class UnheldColumnComparatorScopeTest {
             import org.jetbrains.compose.swing.components.selection.Table
 
             fun table() {
-                Table(rows = emptyList<String>()) {
+                Table(rows = emptyList<String>(), columns = {
                     $body
-                }
+                })
             }
             """.trimIndent(),
         )
@@ -473,9 +473,9 @@ class UnheldColumnComparatorScopeTest {
                 import org.jetbrains.compose.swing.components.selection.Table
 
                 fun table(byName: Comparator<String>) {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = byName) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -497,9 +497,9 @@ class UnheldColumnComparatorScopeTest {
                         val byName = compareBy<String> { it }
                         consume(byName)
                     }
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = byName) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -519,9 +519,9 @@ class UnheldColumnComparatorScopeTest {
                 private val byName = compareBy<String> { it }
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = byName) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -594,9 +594,9 @@ class UnheldColumnComparatorScopeTest {
                 package sample
 
                 fun table() {
-                    org.jetbrains.compose.swing.components.selection.Table(rows = emptyList<String>()) {
+                    org.jetbrains.compose.swing.components.selection.Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = compareBy<String> { it }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -614,9 +614,9 @@ class UnheldColumnComparatorScopeTest {
                 import org.jetbrains.compose.swing.components.selection.*
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = compareBy<String> { it }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -632,9 +632,9 @@ class UnheldColumnComparatorScopeTest {
                 package org.jetbrains.compose.swing.components.selection
 
                 fun table() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column("Name", comparator = compareBy<String> { it }) { it }
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,
@@ -654,9 +654,9 @@ class UnheldColumnComparatorScopeTest {
                 fun column(comparator: Comparator<String>) = comparator
 
                 fun sortRows() {
-                    Table(rows = emptyList<String>()) {
+                    Table(rows = emptyList<String>(), columns = {
                         column(comparator = compareBy<String> { it })
-                    }
+                    })
                 }
                 """.trimIndent(),
             ).size,

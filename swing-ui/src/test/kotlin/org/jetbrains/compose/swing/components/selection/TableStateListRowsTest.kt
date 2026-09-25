@@ -36,9 +36,7 @@ class TableStateListRowsTest : TracedTest() {
     fun addingToADeclaredStateListNotifiesTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -66,9 +64,7 @@ class TableStateListRowsTest : TracedTest() {
     fun removingFromADeclaredStateListNotifiesTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -85,9 +81,7 @@ class TableStateListRowsTest : TracedTest() {
     fun replacingARowInADeclaredStateListNotifiesTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -104,9 +98,7 @@ class TableStateListRowsTest : TracedTest() {
     fun insertingIntoADeclaredStateListNamesTheInsertedRow() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Grace", 45))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -123,9 +115,7 @@ class TableStateListRowsTest : TracedTest() {
     fun aWholesaleChangeOfADeclaredStateListNotifiesTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -147,9 +137,7 @@ class TableStateListRowsTest : TracedTest() {
     fun theModelAnswersOutOfTheRowsItReportedUntilAPassCarriesTheChange() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
         awaitIdle()
         mainClock.autoAdvance = false
@@ -180,9 +168,7 @@ class TableStateListRowsTest : TracedTest() {
         val rows = mutableStateListOf(Person("Ada", 36))
         var rowHeight by mutableStateOf(20)
         setContent {
-            Table(rows = rows, rowHeight = rowHeight) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } }, rowHeight = rowHeight)
         }
 
         val table = onNodeOfType<JTable>().fetch()

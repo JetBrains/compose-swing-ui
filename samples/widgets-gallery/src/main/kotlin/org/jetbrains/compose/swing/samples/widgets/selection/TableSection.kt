@@ -15,8 +15,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Table
-import org.jetbrains.compose.swing.components.selection.TableColumnLayout
 import org.jetbrains.compose.swing.components.selection.column
+import org.jetbrains.compose.swing.components.selection.rememberTableState
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -33,7 +33,6 @@ import javax.swing.BoxLayout
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
-import javax.swing.RowSorter.SortKey
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableModel
 
@@ -125,26 +124,26 @@ private fun ColumnScope.SelectableTableCard() {
             Viewport {
                 Table(
                     rows = people,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Role") { it.role }
+                        column(
+                            header = "Age",
+                            onCellEdit = { _, rowIndex, age ->
+                                if (age != null) {
+                                    people =
+                                        people.mapIndexed { index, person ->
+                                            if (index == rowIndex) person.copy(age = age) else person
+                                        }
+                                }
+                            },
+                        ) { it.age }
+                    },
                     modifier = SwingModifier.testTag(PRIMARY_TABLE_TAG),
                     selectedRowIndices = selection,
                     onSelectionChange = { selection = it },
                     selectionMode = tableSelectionModes[selectionModeIndex].second,
-                ) {
-                    column("Name") { it.name }
-                    column("Role") { it.role }
-                    column(
-                        header = "Age",
-                        isEditable = true,
-                        onCellEdit = { _, rowIndex, age ->
-                            if (age != null) {
-                                people =
-                                    people.mapIndexed { index, person ->
-                                        if (index == rowIndex) person.copy(age = age) else person
-                                    }
-                            }
-                        },
-                    ) { it.age }
-                }
+                )
             }
         }
 
@@ -179,7 +178,7 @@ private fun SelectionModeControl(
 private fun ColumnScope.SortingFilteringTableCard() {
     ExampleCard("Table sorting, filtering & layout") {
         var sortableEnabled by remember { mutableStateOf(true) }
-        var sortKeys by remember { mutableStateOf<List<SortKey>>(emptyList()) }
+        val tableState = rememberTableState()
         var filterText by remember { mutableStateOf("") }
         val rowFilter =
             remember(filterText) {
@@ -191,7 +190,6 @@ private fun ColumnScope.SortingFilteringTableCard() {
             }
 
         val layout = remember { TableLayoutState() }
-        var columnLayout by remember { mutableStateOf<TableColumnLayout?>(null) }
 
         SortFilterControls(
             sortableEnabled = sortableEnabled,
@@ -205,33 +203,35 @@ private fun ColumnScope.SortingFilteringTableCard() {
             Viewport {
                 Table(
                     rows = sampleBooks,
+                    columns = {
+                        column("Title") { it.title }
+                        column(header = "Author", comparator = authorCaseInsensitive) { it.author }
+                        column("Year", minWidth = 60, maxWidth = 100) { it.year }
+                        column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
+                            it.rating
+                        }
+                    },
+                    state = tableState,
                     modifier = SwingModifier.testTag(SORT_FILTER_TABLE_TAG),
                     sortable = sortableEnabled,
-                    sortKeys = sortKeys,
-                    onSortChange = { sortKeys = it },
                     rowFilter = rowFilter,
                     rowHeight = layout.rowHeight,
                     autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
                     fillsViewportHeight = layout.fillsViewportHeight,
-                    columnLayout = columnLayout,
-                    onColumnLayoutChange = { columnLayout = it },
                 ) {
-                    column("Title") { it.title }
-                    column(header = "Author", comparator = authorCaseInsensitive) { it.author }
-                    column("Year", minWidth = 60, maxWidth = 100) { it.year }
-                    column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
-                        it.rating
-                    }
+                    Header(reorderingAllowed = layout.reorderingAllowed)
                 }
             }
         }
 
         val sortDescription =
-            sortKeys.firstOrNull()?.let { key -> "${bookColumns.getOrElse(key.column) { "?" }} ${key.sortOrder}" }
+            tableState.sortKeys
+                .firstOrNull()
+                ?.let { key -> "${bookColumns.getOrElse(key.column) { "?" }} ${key.sortOrder}" }
                 ?: "unsorted"
         Label("Sort: $sortDescription")
         Label(
-            columnLayout?.let { "Columns: ${it.modelIndices} @ ${it.preferredWidths}" }
+            tableState.columnLayout?.let { "Columns: ${it.modelIndices} @ ${it.preferredWidths}" }
                 ?: "Columns: default order and widths - drag a header to reorder or resize",
         )
     }
@@ -256,12 +256,13 @@ private fun SortFilterControls(
     }
 }
 
-// Auto-resize mode, row height and fills-viewport-height are grouped in one state holder because
+// Auto-resize mode, row height, fills-viewport-height and header reordering are grouped in one state holder because
 // SortingFilteringTableCard only ever reads or offers them together, as the table's layout controls.
 private class TableLayoutState {
     var resizeModeIndex by mutableIntStateOf(2)
     var rowHeight by mutableIntStateOf(22)
     var fillsViewportHeight by mutableStateOf(false)
+    var reorderingAllowed by mutableStateOf(true)
 }
 
 @Composable
@@ -281,6 +282,11 @@ private fun TableLayoutControls(state: TableLayoutState) {
             text = "Fills viewport height",
             checked = state.fillsViewportHeight,
             onCheckedChange = { state.fillsViewportHeight = it },
+        )
+        CheckBox(
+            text = "Reorder columns",
+            checked = state.reorderingAllowed,
+            onCheckedChange = { state.reorderingAllowed = it },
         )
     }
 }

@@ -44,26 +44,6 @@ internal suspend fun Component.click(position: Point = center) {
 }
 
 /**
- * Drags the primary mouse button from [from] to [to] in one step, both in this component's own
- * coordinates: the press, the step and the release, each from an event-queue cycle of its own.
- *
- * The step carries [MouseEvent.NOBUTTON] with [InputEvent.BUTTON1_DOWN_MASK] still set, which is how the
- * toolkit reports motion with a button held: the mask names the button for as long as it is down, and the
- * button field names only the button whose own press or release the event is. A UI reading the held
- * button from the mask - a column header, a slider thumb, a split-pane divider - therefore follows it.
- */
-internal suspend fun Component.drag(
-    from: Point,
-    to: Point,
-) {
-    deliverEvent(mouseEvent(MouseEvent.MOUSE_PRESSED, from, InputEvent.BUTTON1_DOWN_MASK))
-    yield()
-    deliverEvent(mouseEvent(MouseEvent.MOUSE_DRAGGED, to, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON))
-    yield()
-    deliverEvent(mouseEvent(MouseEvent.MOUSE_RELEASED, to, 0))
-}
-
-/**
  * Presses and releases the key [keyCode], an event-queue cycle apart.
  *
  * The events travel the component's own key handling: its key listeners run and its input and action
@@ -114,8 +94,11 @@ internal fun Component.typeBurst(text: String) {
 /** The middle of this component, in its own coordinates. */
 internal val Component.center: Point get() = Point(width / 2, height / 2)
 
-/** A mouse event of [id] at [position] on this component, shaped the way the toolkit delivers one. */
-private fun Component.mouseEvent(
+/**
+ * A mouse event of [id] at [position] on this component, shaped the way the toolkit delivers one. Motion with a
+ * button held carries [MouseEvent.NOBUTTON] as [button] and names the held button in [modifiersEx].
+ */
+internal fun Component.mouseEvent(
     id: Int,
     position: Point,
     modifiersEx: Int,

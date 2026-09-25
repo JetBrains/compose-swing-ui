@@ -44,7 +44,7 @@ class AnimatedScrollableTest {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
                     Viewport {
                         AnimatedVisibility(visible = true) {
-                            Table(rows = people) { column("Name") { it.name } }
+                            Table(rows = people, columns = { column("Name") { it.name } })
                         }
                     }
                 }
@@ -69,12 +69,15 @@ class AnimatedScrollableTest {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
                     Viewport {
                         AnimatedVisibility(visible = true) {
-                            Table(rows = people) {
-                                column("Name") { it.name }
-                                column("Age") { it.age }
-                                column("Also name") { it.name }
-                                column("Also age") { it.age }
-                            }
+                            Table(
+                                rows = people,
+                                columns = {
+                                    column("Name") { it.name }
+                                    column("Age") { it.age }
+                                    column("Also name") { it.name }
+                                    column("Also age") { it.age }
+                                },
+                            )
                         }
                     }
                 }
@@ -97,7 +100,7 @@ class AnimatedScrollableTest {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
                     Viewport {
                         AnimatedContent(targetState = state) { shown ->
-                            Table(rows = people) { column("Name $shown") { it.name } }
+                            Table(rows = people, columns = { column("Name $shown") { it.name } })
                         }
                     }
                 }

@@ -13,23 +13,33 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import javax.swing.JTable
+import javax.swing.RowSorter.SortKey
 
 /**
- * A hoistable state holder for what a [Table] has selected, carrying the gesture that brings one of its
- * rows into view.
+ * A hoistable state holder for what a [Table] has selected, the order it sorts its rows in and the layout of
+ * its columns, carrying the gesture that brings one of its rows into view.
  *
  * Each row is named by its index into the table's rows - the model's own row space, never the position the
  * row is drawn at - so a sort order and a row filter move where a row is shown and leave the index that
  * names it alone.
  *
- * [selectedRowIndices] is two-way: assigning it selects those rows, and the user selecting other ones - by
- * click, drag or keyboard - writes them back here. It is snapshot-observable, so reading it inside a
- * composable (or a `snapshotFlow` collector) subscribes to the user's later selecting as well.
+ * [selectedRowIndices], [sortKeys] and [columnLayout] are two-way: assigning one applies it to the table,
+ * and the user's own change - selecting rows by click, drag or keyboard, sorting by a header click,
+ * dragging a column header or divider - is written back here. All three are snapshot-observable, so
+ * reading one inside a composable (or a `snapshotFlow` collector) subscribes to the user's later changes as
+ * well.
  *
  * The rows this state names are the composition's own and are re-applied on every pass, so a table driven
  * by a state never stands on a selection the state does not hold, and a row the table's rows do not reach
  * is left out of the selection while it goes on being named here - rows that reach it again show it
  * selected.
+ *
+ * The sort order and the column layout are applied when they are assigned, and this state is the only place
+ * they are held. A table built again over this state starts on them, and so does a table that turns
+ * sorting on. The rows and columns a table is declared with, a new model and a new column model keep them.
+ * A column the table no longer has goes on being named here, so columns that bring it back put it in its
+ * place again. A structure change the caller makes to their own model in place starts the order and the
+ * columns over, as it does on a `JTable`, and this state is written back with the result.
  *
  * [revealRow] brings one row into view when the application decides to - a row just added, a search hit:
  *
@@ -40,9 +50,7 @@ import javax.swing.JTable
  * LaunchedEffect(people) { state.revealRow(people.lastIndex) }
  * ScrollPane {
  *     Viewport {
- *         Table(rows = people, state = state) {
- *             column("Name") { it.name }
- *         }
+ *         Table(rows = people, columns = { column("Name") { it.name } }, state = state)
  *     }
  * }
  * ```
@@ -57,10 +65,10 @@ import javax.swing.JTable
  * A state drives at most one table: passing it to a second one moves it there and leaves the first
  * unbound.
  *
- * The order and the widths of the columns are not this state's: [Table] declares them through its own
- * `columnLayout`.
- *
  * @param initialSelectedRowIndices the rows selected until the caller or the user moves the selection.
+ * @param initialSortKeys the order the rows are sorted in until the caller or the user sorts them again.
+ * @param initialColumnLayout the layout the columns start in; `null` holds none, leaving them in their
+ *   declared layout.
  * @see javax.swing.JTable
  */
 @Stable
@@ -68,6 +76,8 @@ public class TableState
     @RememberInComposition
     constructor(
         initialSelectedRowIndices: Set<Int> = emptySet(),
+        initialSortKeys: List<SortKey> = emptyList(),
+        initialColumnLayout: TableColumnLayout? = null,
     ) {
         /**
          * The selected rows as indices into the table's rows, expressed as the general multi-select shape
@@ -76,6 +86,22 @@ public class TableState
          * @see javax.swing.JTable.setRowSelectionInterval
          */
         public var selectedRowIndices: Set<Int> by mutableStateOf(initialSelectedRowIndices)
+
+        /**
+         * The order the rows are sorted in while the table is `sortable`; an empty list leaves them unsorted,
+         * in the order the table's rows hold them.
+         *
+         * @see javax.swing.RowSorter.setSortKeys
+         */
+        public var sortKeys: List<SortKey> by mutableStateOf(initialSortKeys)
+
+        /**
+         * The order and the widths of the columns; `null` holds no layout, leaving the columns in the
+         * layout they are already in, which starts as their declared layout.
+         *
+         * @see javax.swing.table.TableColumnModel
+         */
+        public var columnLayout: TableColumnLayout? by mutableStateOf(initialColumnLayout)
 
         // The table this state drives, or null when unbound. Only the binding modifier node writes it,
         // whose lifecycle owns the relationship.
@@ -134,16 +160,24 @@ public class TableState
     }
 
 /**
- * Creates and remembers a [TableState] starting on [initialSelectedRowIndices].
+ * Creates and remembers a [TableState] starting on [initialSelectedRowIndices], [initialSortKeys] and
+ * [initialColumnLayout].
  *
- * A later change to [initialSelectedRowIndices] neither recreates the state nor moves the selection; select
- * afterwards through the returned state's [TableState.selectedRowIndices].
+ * A later change to any of the three neither recreates the state nor changes the table; change them
+ * afterwards through the returned state's [TableState.selectedRowIndices], [TableState.sortKeys] and
+ * [TableState.columnLayout].
  *
  * @param initialSelectedRowIndices the rows selected until the caller or the user moves the selection.
+ * @param initialSortKeys the order the rows are sorted in until the caller or the user sorts them again.
+ * @param initialColumnLayout the layout the columns start in; `null` holds none, leaving them in their
+ *   declared layout.
  */
 @Composable
-public fun rememberTableState(initialSelectedRowIndices: Set<Int> = emptySet()): TableState =
-    remember { TableState(initialSelectedRowIndices) }
+public fun rememberTableState(
+    initialSelectedRowIndices: Set<Int> = emptySet(),
+    initialSortKeys: List<SortKey> = emptyList(),
+    initialColumnLayout: TableColumnLayout? = null,
+): TableState = remember { TableState(initialSelectedRowIndices, initialSortKeys, initialColumnLayout) }
 
 /** Binds [state] to the composable's table through the modifier chain; see [binding]. */
 internal fun SwingModifier.tableStateBinding(state: TableState): SwingModifier =

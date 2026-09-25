@@ -40,7 +40,7 @@ import kotlin.test.fail
  *
  * @param type the class the widget under test is built as
  * @param declared the value [content] declares, which the widget must be holding at every paint
- * @param content the content under test, declaring exactly one component
+ * @param content the content under test, declaring exactly one component of [type]
  * @param change the user's own change, made on the widget itself
  * @param read the widget property [declared] is measured against
  */
@@ -64,24 +64,67 @@ internal suspend fun <C : JComponent> assertUnadoptedChangeIsNeverPainted(
     change: UserChange<C>,
     read: (C) -> Any?,
 ) {
-    val composition = JPanel()
+    var reported = false
+    val shown =
+        paintsOf(
+            type,
+            content = { content { reported = true } },
+            read = read,
+            before = { widget ->
+                assertEquals(declared, read(widget), "the widget must mount holding what the content declares")
+                change.earlier(widget)
+                assertEquals(
+                    declared,
+                    read(widget),
+                    "what the user did before the change must leave the declaration standing",
+                )
+            },
+            made = { widget ->
+                change.made(widget)
+                assertTrue(
+                    reported,
+                    "the change must reach the ${type.simpleName} and be reported before paints are counted",
+                )
+            },
+        )
+
+    assertTrue(shown.isNotEmpty(), "the change must provoke a paint of the ${type.simpleName}")
+    assertEquals(
+        emptyList(),
+        shown.filter { it != declared },
+        "a change the caller does not adopt must be off the ${type.simpleName} before the paint it " +
+            "asked for is served, so that the user is shown the declaration and nothing else; the paints " +
+            "showed $shown",
+    )
+}
+
+/**
+ * What the widget of [type] that [content] declares holds at each paint [made] provokes, read with [read]
+ * as the paint is served. [before] runs once the composition is laid out, since a widget still sized at
+ * nothing asks for no repaint at all.
+ */
+internal suspend fun <C : JComponent> paintsOf(
+    type: Class<C>,
+    content: @Composable () -> Unit,
+    read: (C) -> Any?,
+    before: suspend (C) -> Unit,
+    made: suspend (C) -> Unit,
+): List<Any?> {
+    // Displayable, as a composition in a window is, so a component that finishes its own setup when it is added
+    // to one does so: a table in a scroll pane installs its header there. It stands in no window, so it never
+    // shows.
+    val composition =
+        object : JPanel() {
+            override fun isShowing(): Boolean = false
+        }.apply { addNotify() }
     val recomposer = SwingRecomposer.create(composition)
     var mounted: DisposableHandle? = null
     try {
-        var reported = false
-        mounted = composition.setContent(parent = recomposer.compositionContext) { content { reported = true } }
+        mounted = composition.setContent(parent = recomposer.compositionContext) { content() }
         val widget = singleDescendant(composition, type)
-        assertEquals(declared, read(widget), "the widget must mount holding what the content declares")
-        // A widget still sized at nothing asks for no repaint at all, so the composition is laid out
-        // before the change is made.
         composition.setSize(composition.preferredSize)
-        composition.layoutDeeply()
-        change.earlier(widget)
-        assertEquals(
-            declared,
-            read(widget),
-            "what the user did before the change must leave the declaration standing",
-        )
+        composition.validate()
+        before(widget)
 
         val shown = mutableListOf<Any?>()
         val recorded =
@@ -93,23 +136,12 @@ internal suspend fun <C : JComponent> assertUnadoptedChangeIsNeverPainted(
                 }
             }
         withRecordedRepaints(recorded) {
-            change.made(widget)
-            assertTrue(
-                reported,
-                "the change must reach the ${type.simpleName} and be reported before paints are counted",
-            )
+            made(widget)
             repeat(PAINT_CYCLES) { yield() }
         }
-
-        assertTrue(shown.isNotEmpty(), "the change must provoke a paint of the ${type.simpleName}")
-        assertEquals(
-            emptyList(),
-            shown.filter { it != declared },
-            "a change the caller does not adopt must be off the ${type.simpleName} before the paint it " +
-                "asked for is served, so that the user is shown the declaration and nothing else; the paints " +
-                "showed $shown",
-        )
+        return shown
     } finally {
+        composition.removeNotify()
         mounted?.dispose()
         recomposer.dispose()
     }
@@ -131,20 +163,6 @@ internal class UserChange<C>(
     val made: suspend (C) -> Unit,
     val earlier: suspend (C) -> Unit = {},
 )
-
-/**
- * Lays this container out and every container under it, so that each descendant is left with the bounds
- * its own layout gives it.
- *
- * A realized tree reaches this state through [Container.validate], which an unrealized one - a container
- * with no peer, which is every composition here - answers with nothing at all. Walking it by hand is what
- * gives a nested widget the area it needs to ask for a repaint: the editor a spinner holds, or an option
- * standing in a group's own panel, is laid out by its parent rather than by the composition.
- */
-private fun Container.layoutDeeply() {
-    doLayout()
-    components.filterIsInstance<Container>().forEach { it.layoutDeeply() }
-}
 
 /**
  * The one component of [type] anywhere under [composition], failing where the count is not exactly one.

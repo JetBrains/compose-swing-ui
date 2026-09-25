@@ -110,8 +110,9 @@ the new items are too few to hold it, what falls outside them leaves and the cal
 left.
 
 A `ListBox`, a `Table` and a `Tree` also take a `ListState`, a `TableState` or a `TreeState` in place
-of those parameters, which holds the same facets as two-way state, reveals a row and reads back what
-the widget shows besides; see [Lists and tables](#lists-and-tables).
+of those parameters, which holds the same facets as two-way state (a `TableState` also holds the sort
+order and the column layout), reveals a row and reads back what the widget shows besides; see
+[Lists and tables](#lists-and-tables).
 
 Either way the callback reports the user's changes only, once per settled change - dragging across
 rows produces one call at the end, and rendering fresh items produces none. A `ComboBox` is always
@@ -389,57 +390,73 @@ A `ComboBox` renders its selected item in a display area whose height its look a
 whatever the cell asks for, so a cell taller than that is cut off there. Check a tall cell against the
 look and feel the application actually runs under, since each one sets that height for itself.
 
-A `Table`'s columns are declared with a header and a value extractor over the row type. A column is
-**typed**: the class the extractor returns is what the table renders and edits the column's cells as,
-so a `Boolean` column draws a checkbox and hands `onCellEdit` a `Boolean`, and an `Int` column hands
-it an `Int`. Where the class is not the extractor's own, declare it with the overload that takes a
-`columnClass`. Put a table in a `ScrollPane` to scroll it and to show its column header.
+A `Table`'s columns are declared in `columns`, each with a header and a value extractor over the row
+type. A column is **typed**: the class the extractor returns is what the table renders and edits the
+column's cells as, so a `Boolean` column draws a checkbox and hands `onCellEdit` a `Boolean`, and an
+`Int` column hands it an `Int`. Where the class is not the extractor's own, declare it with the
+overload that takes a `columnClass`. Put a table in a `ScrollPane` to scroll it and to show its
+column header.
 
 A row is always named by its index into `rows` - the model's own row space, the space
 `TableColumnLayout.modelIndices` names columns in - and never by the position it is drawn at. Sorting
 and filtering move where a row is shown and leave the row each index names alone, so a selection, a
 cell edit and a column layout all keep meaning what they meant.
 
-Editing is per column and, where you want it, per row: `isEditable` opens a whole column, and
-`isCellEditable` answers for one row of it. A committed edit arrives at `onCellEdit` with the row, its
-index and the new value; the displayed value changes when the next composition supplies fresh `rows`. An
-open edit ends and commits nothing when a composition no longer puts the same row under it - the row went
-away, was rewritten in place, or the columns were rebuilt. An edit follows its row across rows a later
-composition inserts or removes elsewhere. A composition that both adds and removes rows ends an edit on
-any row at or past the first row where the two lists differ - and on any row at all where the table is
-sorted or filtered.
+Editing is per column and, where you want it, per row: a column is editable exactly when it sets
+`onCellEdit`, and `isCellEditable` narrows it to the rows it answers `true` for. A committed edit
+arrives at `onCellEdit` with the row, its index and the new value; the displayed value changes when the
+next composition supplies fresh `rows`. An open edit ends and commits nothing when a composition no
+longer puts the same row under it - the row went away, was rewritten in place, or the columns were
+rebuilt. An edit follows its row across rows a later composition inserts or removes elsewhere. A
+composition that both adds and removes rows ends an edit on any row at or past the first row where the
+two lists differ - and on any row at all where the table is sorted or filtered.
 
 Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
-column header sorts by that column, `sortKeys` declares the order the rows are in and `onSortChange`
-reports the order a click leaves them in, and `rowFilter` decides which of them are shown at all. Each
-column brings its own `isSortable` and `comparator` to that sorting. A declared order is the
-composition's state and is re-applied on every pass, so a header click the caller does not adopt does
-not stand; left undeclared, the order is the user's alone and is never imposed.
+column header sorts by that column and `onSortChange` reports the order the click leaves the rows in,
+and `rowFilter` decides which of them are shown at all. Each column brings its own `isSortable` and
+`comparator` to that sorting.
 
-The sizing surface is the same shape. `columnLayout` declares the order and the preferred widths of
-the columns and `onColumnLayoutChange` reports where a header drag or a divider drag left them; a
-column's own `minWidth` and `maxWidth` bound every width it can be left at, a drag's as much as a
-declaration's; `autoResizeMode` decides how the columns share out a change to the table's width; and
-`fillsViewportHeight` stretches the table to the viewport showing it rather than to the rows it holds.
+The sizing surface is the same shape. `onColumnLayoutChange` reports the order and the preferred widths
+a header drag or a divider drag left the columns in; a column's own `minWidth` and `maxWidth` bound
+every width it can be left at; `autoResizeMode` decides how the columns share out a change to the
+table's width; and `fillsViewportHeight` stretches the table to the viewport showing it rather than to
+the rows it holds.
+
+The sort order and the column layout are the user's: a table never imposes them, and the rows and
+columns it is declared with and a new `model` keep them. A structure change the caller makes to their
+own model in place starts them over, as it does on a `JTable`. To set them, drive the table with a
+[`TableState`](#tablestate). To refuse a gesture, turn it off: `sortable` or a column's `isSortable` for
+a sort, and `Header(reorderingAllowed, resizingAllowed)` for a reorder or a resize.
+
+The trailing content configures the parts a table builds itself. `Header` configures the table's own
+`JTableHeader`, the one its scroll pane shows as the column header: `modifier` reaches the header,
+and `reorderingAllowed` and `resizingAllowed` decide whether dragging a header reorders the columns
+and dragging the divider between two headers resizes them. When `Header` leaves, the header gets
+back the values the `Header` declaration replaced. The content holds nothing else: a child that is
+not a part is refused, and so is a second `Header`.
 
 ```kotlin
 var selection by remember { mutableStateOf(emptySet<Int>()) }
-var order by remember { mutableStateOf(listOf(SortKey(1, SortOrder.ASCENDING))) }
 
 ScrollPane {
     Viewport {
         Table(
             rows = people,
+            columns = {
+                column("Name", onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
+                column(
+                    header = "Age",
+                    isCellEditable = { row, _ -> row.isDraft },
+                    onCellEdit = { row, _, age -> setAge(row, age) },
+                ) { it.age }
+                column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
+            },
             selectedRowIndices = selection,
             onSelectionChange = { selection = it },
             sortable = true,
-            sortKeys = order,
-            onSortChange = { order = it },
             rowHeight = 28,
         ) {
-            column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
-            column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
-            column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
+            Header(reorderingAllowed = false)
         }
     }
 }
@@ -492,12 +509,13 @@ Tree(
 
 <!--- CLEAR -->
 
-A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, and
-a `TreeState` what one `Tree` has selected and open. Each also carries the gesture that brings one row
-into view when the application decides to - a row just added, a search hit, a node a load has just
-filled in. Hoist one with `rememberListState()`, `rememberTableState()` or `rememberTreeState()` and
-pass it as `state`; a widget driven by a state takes no selection or expansion parameter and no
-`onSelectionChange`/`onExpansionChange`, since the state is where those facets live.
+A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, how it
+sorts its rows and how its columns are laid out, and a `TreeState` what one `Tree` has selected and open.
+Each also carries the gesture that brings one row into view when the application decides to - a row just
+added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`,
+`rememberTableState()` or `rememberTreeState()` and pass it as `state`; a widget driven by a state takes no
+parameter for a facet the state holds and no callback reporting it, since the state is where those facets
+live.
 
 `revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and
 `revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it
@@ -1305,9 +1323,18 @@ second moves it there. See [Lists and tables](#lists-and-tables).
 
 ### `TableState`
 
-The same for one `Table`, over row indices. `selectedRowIndices` is two-way and re-applied on every
-pass, and an index names a row in the model's own row space and never the position the row is drawn
-at, so sorting and filtering move where a row is shown and leave the index naming it alone.
+The same for one `Table`, over row indices, holding three facets: `selectedRowIndices`, `sortKeys` and
+`columnLayout`. All three are two-way. The selection is re-applied on every pass. The sort order and the
+column layout are applied when assigned, and the state is the only place they are held: a table built
+again over the state starts on them, and the rows and columns a table is declared with, a new `model`
+and a new column model keep them. A column the table drops goes on being named here until columns that
+bring it back put it in its place again. A structure change the caller makes to their own model in place
+starts the order and the columns over, as it does on a `JTable`, and the state is written back with the
+result. An index names a row in the model's own row space and never the position the row is drawn at, so
+sorting and filtering move where a row is shown and leave the index naming it alone. `sortKeys` applies
+while the table is `sortable`; an empty list leaves the rows unsorted. `columnLayout` holds no layout
+while `null`, leaving the columns in the layout they are already in, which starts as declared; the
+user's own column drag or resize writes it back.
 
 `revealRow(rowIndex)` brings a row into view and answers whether the table held one to reveal. A row
 hidden by a row filter has nowhere to be shown, so revealing it reaches nothing.
@@ -1317,8 +1344,9 @@ shows - its model's rows, less the ones a row filter hides - and which rows it h
 model index like `selectedRowIndices`. A row a filter hides has nowhere to be shown, so it is not
 among them.
 
-Create it with `rememberTableState(initialSelectedRowIndices)` and pass it to `Table` as `state`, in
-place of `selectedRowIndices` and `onSelectionChange`. A state drives one table at a time.
+Create it with `rememberTableState(initialSelectedRowIndices, initialSortKeys, initialColumnLayout)`
+and pass it to `Table` as `state`, in place of `selectedRowIndices`/`onSelectionChange`,
+`onSortChange` and `onColumnLayoutChange`. A state drives one table at a time.
 
 ### `TreeState`
 

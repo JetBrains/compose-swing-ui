@@ -50,13 +50,16 @@ class TableComposableCellTest {
     @Test
     fun cellContentRealizesAComposableCellPerCell() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-                column(
-                    header = "Age",
-                    cellContent = { row -> Panel { Label("${row.name}: ${row.age}") } },
-                ) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    column(
+                        header = "Age",
+                        cellContent = { row -> Panel { Label("${row.name}: ${row.age}") } },
+                    ) { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -76,10 +79,13 @@ class TableComposableCellTest {
     @Test
     fun aColumnRendersThroughItsOwnCellsAlone() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name", cellContent = { row -> Label("<${row.name}>") }) { it.name }
-                column("Age", cellContent = { row -> Label("[${row.age}]") }) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name", cellContent = { row -> Label("<${row.name}>") }) { it.name }
+                    column("Age", cellContent = { row -> Label("[${row.age}]") }) { it.age }
+                },
+            )
         }
 
         // Two columns declaring cells hold a cell composition each, so neither is rebuilt by the other's renders.
@@ -100,12 +106,15 @@ class TableComposableCellTest {
     fun aNullRowRendersThroughTheCellBodyLikeAnyOther() = runComposeSwingTest {
         val rows: List<Person?> = listOf(null, Person("Alan", 41))
         setContent {
-            Table(rows = rows) {
-                column(
-                    header = "Name",
-                    cellContent = { row -> Label(row?.name ?: "(none)") },
-                ) { it?.name }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column(
+                        header = "Name",
+                        cellContent = { row -> Label(row?.name ?: "(none)") },
+                    ) { it?.name }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -124,11 +133,14 @@ class TableComposableCellTest {
     @Test
     fun theCellScopeReflectsSelection() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name", cellContent = { row -> Label(if (isSelected) "${row.name}*" else row.name) }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name", cellContent = { row -> Label(if (isSelected) "${row.name}*" else row.name) }) {
+                        it.name
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -149,12 +161,13 @@ class TableComposableCellTest {
         setContent {
             Table(
                 rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    column("Age", cellContent = { row -> Label("$rowIndex/$columnIndex ${row.name}") }) { it.age }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(1, SortOrder.DESCENDING))),
                 sortable = true,
-                sortKeys = listOf(SortKey(1, SortOrder.DESCENDING)),
-            ) {
-                column("Name") { it.name }
-                column("Age", cellContent = { row -> Label("$rowIndex/$columnIndex ${row.name}") }) { it.age }
-            }
+            )
         }
 
         // Sorted by age descending, the oldest row is drawn first; the cell is named by the row and the
@@ -175,9 +188,11 @@ class TableComposableCellTest {
         setContent {
             ScrollPane {
                 Viewport {
-                    Table(rows = people, selectedRowIndices = setOf(0)) {
-                        column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name }
-                    }
+                    Table(
+                        rows = people,
+                        columns = { column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name } },
+                        selectedRowIndices = setOf(0),
+                    )
                 }
             }
         }
@@ -193,10 +208,13 @@ class TableComposableCellTest {
     @Test
     fun aColumnWithoutACellBodyRendersThroughTheTablesOwnRenderer() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-                column("Age", cellContent = { row -> Label("${row.age}!") }) { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    column("Age", cellContent = { row -> Label("${row.age}!") }) { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -213,17 +231,20 @@ class TableComposableCellTest {
     fun aCellBodyTakenAwayRendersThroughTheTablesOwnRenderer() = runComposeSwingTest {
         var composableCells by mutableStateOf(true)
         setContent {
-            Table(rows = people) {
-                column(
-                    header = "Name",
-                    cellContent =
-                        if (composableCells) {
-                            { row -> Panel { Label(row.name) } }
-                        } else {
-                            null
-                        },
-                ) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column(
+                        header = "Name",
+                        cellContent =
+                            if (composableCells) {
+                                { row -> Panel { Label(row.name) } }
+                            } else {
+                                null
+                            },
+                    ) { it.name }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -250,18 +271,21 @@ class TableComposableCellTest {
         var showBadge by mutableStateOf(true)
         val composed = mutableListOf<String>()
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-                if (showBadge) {
-                    column(
-                        header = "Badge",
-                        cellContent = { row ->
-                            composed += "${row.name} $badge"
-                            Label("${row.name} $badge")
-                        },
-                    ) { badge }
-                }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name") { it.name }
+                    if (showBadge) {
+                        column(
+                            header = "Badge",
+                            cellContent = { row ->
+                                composed += "${row.name} $badge"
+                                Label("${row.name} $badge")
+                            },
+                        ) { badge }
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -300,17 +324,21 @@ class TableComposableCellTest {
         var showTable by mutableStateOf(true)
         setContent {
             if (showTable) {
-                Table(rows = people, selectedRowIndices = setOf(0)) {
-                    column(
-                        header = "Name",
-                        cellContent =
-                            if (composableCells) {
-                                { row -> Label(row.name) }
-                            } else {
-                                null
-                            },
-                    ) { it.name }
-                }
+                Table(
+                    rows = people,
+                    columns = {
+                        column(
+                            header = "Name",
+                            cellContent =
+                                if (composableCells) {
+                                    { row -> Label(row.name) }
+                                } else {
+                                    null
+                                },
+                        ) { it.name }
+                    },
+                    selectedRowIndices = setOf(0),
+                )
             }
         }
 

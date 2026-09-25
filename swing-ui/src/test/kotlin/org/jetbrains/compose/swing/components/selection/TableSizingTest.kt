@@ -28,9 +28,7 @@ class TableSizingTest {
     @Test
     fun undeclaredSizingLeavesTheTablesOwnDefaults() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } })
         }
 
         val rows = people.map { arrayOf<Any?>(it.name) }.toTypedArray()
@@ -45,12 +43,11 @@ class TableSizingTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 rowHeight = rowHeight,
                 autoResizeMode = autoResizeMode,
                 fillsViewportHeight = fillsViewportHeight,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -71,9 +68,7 @@ class TableSizingTest {
     fun aWithdrawnRowHeightGoesBackToTheLookAndFeelsOwn() = runComposeSwingTest {
         var declared: Int? by mutableStateOf(null)
         setContent {
-            Table(rows = people, rowHeight = declared) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, rowHeight = declared)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -100,10 +95,13 @@ class TableSizingTest {
         var minWidth by mutableStateOf(80)
         var maxWidth by mutableStateOf(200)
         setContent {
-            Table(rows = people) {
-                column("Name", minWidth = minWidth, maxWidth = maxWidth) { it.name }
-                column("Age") { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name", minWidth = minWidth, maxWidth = maxWidth) { it.name }
+                    column("Age") { it.age }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -129,12 +127,14 @@ class TableSizingTest {
     @Test
     fun aColumnIsNeverLeftOutsideItsDeclaredWidths() = runComposeSwingTest {
         setContent {
-            Table(rows = people, columnLayout = TableColumnLayout(listOf(0), listOf(500))) {
-                column("Name", maxWidth = 120) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name", maxWidth = 120) { it.name } },
+                state = rememberTableState(initialColumnLayout = TableColumnLayout(listOf(0), listOf(500))),
+            )
         }
 
-        // A declared layout is put back after the widths that bound the column, so the width it asks for is
+        // A state's layout is put back after the widths that bound the column, so the width it asks for is
         // the one the column can actually hold.
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(120, table.columnModel.getColumn(0).preferredWidth, "a preferred width beyond the maximum")

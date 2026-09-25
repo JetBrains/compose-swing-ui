@@ -107,23 +107,18 @@ class TableModelBehaviorTest {
 
     @Test
     fun aSelectedRowIsNamedByItsPlaceInTheModel() = runComposeSwingTest {
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING)))
         setContent {
-            Table(
-                model = tableModel("Ada", "Alan", "Grace"),
-                onSelectionChange = { received += it },
-                sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)),
-            )
+            Table(model = tableModel("Ada", "Alan", "Grace"), state = state, sortable = true)
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals("Grace", table.getValueAt(0, 0), "the declared order should put the last row on top")
+        assertEquals("Grace", table.getValueAt(0, 0), "the state's order should put the last row on top")
 
         table.setRowSelectionInterval(0, 0)
         awaitIdle()
 
-        assertEquals(setOf(2), received.last(), "the row on top is reported by its place in the model")
+        assertEquals(setOf(2), state.selectedRowIndices, "the row on top is reported by its place in the model")
     }
 
     @Test

@@ -14,9 +14,7 @@ class TableScrollPaneHeaderTest {
         setContent {
             ScrollPane {
                 Viewport {
-                    Table(rows = listOf("Ada")) {
-                        column("Name") { it }
-                    }
+                    Table(rows = listOf("Ada"), columns = { column("Name") { it } })
                 }
             }
         }

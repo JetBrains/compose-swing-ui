@@ -17,10 +17,10 @@ import kotlin.test.assertNull
 /**
  * What a pass that moves a [Table]'s sorting costs.
  *
- * One pass: the pass that takes the sorter away writes the row order and reads back what the table was
- * left in as one settlement of the sort mirror, so the order it lands on is an answer rather than news.
- * A read-back left outside would count the wrapper's own move as the user's, invalidate the scope that
- * read the mirror, and buy a further pass to put a declaration back that already stands.
+ * One pass: the pass that takes the sorter away writes the row order as the wrapper's own write, so the
+ * order it lands on is not written back into the [TableState]. A write counted as the user's would change
+ * the state, invalidate the scope that reads it, and buy a further pass to apply an order that already
+ * stands.
  *
  * The frames are driven by the test, which is what makes the passes countable: each frame carries one, and
  * the idle gate publishes a declaration without sending a frame of its own, so the frame that follows is
@@ -31,7 +31,7 @@ import kotlin.test.assertNull
  */
 class TableSortingSettlesInOnePassTest : TracedTest() {
     @Test
-    fun takingTheSorterAwayUnderADeclaredOrderBuysNoSuccessorPass() = runComposeSwingTest {
+    fun takingTheSorterAwayUnderAStatesOrderBuysNoSuccessorPass() = runComposeSwingTest {
         // One model instance across the test, so nothing but `sortable` moves: the sorter change runs
         // through the pass that declares it and through nothing else.
         val model =
@@ -40,10 +40,9 @@ class TableSortingSettlesInOnePassTest : TracedTest() {
                 arrayOf<Any?>("Name"),
             )
         var sortable by mutableStateOf(true)
-        // No selection is declared and no row is selected, so the selection mirror has nothing to report.
-        setContent {
-            Table(model = model, sortable = sortable, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)))
-        }
+        val state = TableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING)))
+        // No row is selected, so the selection mirror has nothing to report.
+        setContent { Table(model = model, state = state, sortable = sortable) }
         awaitIdle()
         mainClock.autoAdvance = false
 
@@ -51,7 +50,7 @@ class TableSortingSettlesInOnePassTest : TracedTest() {
         assertEquals(
             listOf("Grace", "Alan", "Ada"),
             (0 until table.rowCount).map { table.getValueAt(it, 0) },
-            "the declared order should reach the rows the table sorts",
+            "the state's order should reach the rows the table sorts",
         )
 
         sortable = false

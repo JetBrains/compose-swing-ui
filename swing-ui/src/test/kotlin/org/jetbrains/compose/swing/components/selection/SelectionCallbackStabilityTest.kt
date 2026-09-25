@@ -33,10 +33,9 @@ class SelectionCallbackStabilityTest {
             val captured = declared
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41)),
+                columns = { column("Name") { it.name } },
                 onSelectionChange = { reported = captured },
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()

@@ -26,18 +26,16 @@ public sealed interface TableScope<R>
  *
  * ```
  * column("Name") { it.name }
- * column("Done", isEditable = true, onCellEdit = { row, _, done -> setDone(row, done) }) { it.isDone }
+ * column("Done", onCellEdit = { row, _, done -> setDone(row, done) }) { it.isDone }
  * column("Owner", cellContent = { row -> Panel { Label(row.owner) } }) { it.owner }
  * ```
  *
  * Where the class is not the extractor's own, declare the column with the overload that takes it.
  *
  * @param header the column's header text
- * @param isEditable whether this column's cells can be edited in place; `false` (the default) makes the
- *   whole column read-only
- * @param isCellEditable decides per row whether that row's cell in this column can be edited in place,
- *   answering for every row of the column while it is declared; `null` (the default) leaves the answer to
- *   [isEditable]
+ * @param isCellEditable narrows the editing [onCellEdit] turns on to the rows it answers `true` for,
+ *   answering for every row of the column while it is declared; `null` (the default) leaves editing to
+ *   [onCellEdit] alone. Declaring it without [onCellEdit] is refused
  * @param isSortable whether a click on this column's header sorts the rows by it; `true` (the default)
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
@@ -49,10 +47,11 @@ public sealed interface TableScope<R>
  * @param maxWidth the widest this column may be dragged or stretched to; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
- *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
- *   backing state from here so the next composition reflects the edit. An edit still open on a cell a
- *   later composition no longer describes - its row gone, rewritten in place, or its column rebuilt - ends
- *   there and commits nothing. An edit follows its row across rows inserted or removed elsewhere; a
+ *   row, the row index, and the newly entered value; update the backing state from here so the next
+ *   composition reflects the edit. The column's cells can be edited in place exactly while it is set;
+ *   `null` (the default) makes the column read-only. An edit still open on a cell a later composition no
+ *   longer describes - its row gone, rewritten in place, or its column rebuilt - ends there and commits
+ *   nothing. An edit follows its row across rows inserted or removed elsewhere; a
  *   composition that both adds and removes rows ends an edit on any row at or past the first row where the
  *   two lists differ, and one on any row at all where the table is sorted or filtered, since a `JTable`
  *   cancels an editor over a change it cannot map an index across
@@ -69,20 +68,18 @@ public sealed interface TableScope<R>
 // optional and named at the call site.
 public inline fun <R, reified V : Any> TableScope<R>.column(
     header: @Nls String,
-    isEditable: Boolean = false,
     noinline isCellEditable: ((row: R, rowIndex: Int) -> Boolean)? = null,
     isSortable: Boolean = true,
     comparator: Comparator<Any?>? = null,
     minWidth: Int = COLUMN_MIN_WIDTH,
     maxWidth: Int = COLUMN_MAX_WIDTH,
-    noinline onCellEdit: (row: R, rowIndex: Int, newValue: V?) -> Unit = { _, _, _ -> },
+    noinline onCellEdit: ((row: R, rowIndex: Int, newValue: V?) -> Unit)? = null,
     noinline cellContent: (@Composable TableCellScope.(row: R) -> Unit)? = null,
     noinline value: (row: R) -> V?,
 ) {
     column(
         header = header,
         columnClass = V::class.javaObjectType,
-        isEditable = isEditable,
         isCellEditable = isCellEditable,
         isSortable = isSortable,
         comparator = comparator,
@@ -90,7 +87,7 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
         maxWidth = maxWidth,
         // Handed over as the same instance, so a pass declaring the same callback declares the same column.
         // The model casts each committed value to the column class, V, before it reaches the callback.
-        onCellEdit = @Suppress("UNCHECKED_CAST") (onCellEdit as (row: R, rowIndex: Int, newValue: Any?) -> Unit),
+        onCellEdit = @Suppress("UNCHECKED_CAST") (onCellEdit as ((row: R, rowIndex: Int, newValue: Any?) -> Unit)?),
         cellContent = cellContent,
         value = value,
     )
@@ -106,11 +103,9 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  *
  * @param header the column's header text
  * @param columnClass the class of the values this column holds
- * @param isEditable whether this column's cells can be edited in place; `false` (the default) makes the
- *   whole column read-only
- * @param isCellEditable decides per row whether that row's cell in this column can be edited in place,
- *   answering for every row of the column while it is declared; `null` (the default) leaves the answer to
- *   [isEditable]
+ * @param isCellEditable narrows the editing [onCellEdit] turns on to the rows it answers `true` for,
+ *   answering for every row of the column while it is declared; `null` (the default) leaves editing to
+ *   [onCellEdit] alone. Declaring it without [onCellEdit] is refused
  * @param isSortable whether a click on this column's header sorts the rows by it; `true` (the default)
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
@@ -122,10 +117,11 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  * @param maxWidth the widest this column may be dragged or stretched to; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
- *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
- *   backing state from here so the next composition reflects the edit. An edit still open on a cell a
- *   later composition no longer describes - its row gone, rewritten in place, or its column rebuilt - ends
- *   there and commits nothing. An edit follows its row across rows inserted or removed elsewhere; a
+ *   row, the row index, and the newly entered value; update the backing state from here so the next
+ *   composition reflects the edit. The column's cells can be edited in place exactly while it is set;
+ *   `null` (the default) makes the column read-only. An edit still open on a cell a later composition no
+ *   longer describes - its row gone, rewritten in place, or its column rebuilt - ends there and commits
+ *   nothing. An edit follows its row across rows inserted or removed elsewhere; a
  *   composition that both adds and removes rows ends an edit on any row at or past the first row where the
  *   two lists differ, and one on any row at all where the table is sorted or filtered, since a `JTable`
  *   cancels an editor over a change it cannot map an index across
@@ -143,20 +139,22 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
 public fun <R> TableScope<R>.column(
     header: @Nls String,
     columnClass: Class<*>,
-    isEditable: Boolean = false,
     isCellEditable: ((row: R, rowIndex: Int) -> Boolean)? = null,
     isSortable: Boolean = true,
     comparator: Comparator<Any?>? = null,
     minWidth: Int = COLUMN_MIN_WIDTH,
     maxWidth: Int = COLUMN_MAX_WIDTH,
-    onCellEdit: (row: R, rowIndex: Int, newValue: Any?) -> Unit = { _, _, _ -> },
+    onCellEdit: ((row: R, rowIndex: Int, newValue: Any?) -> Unit)? = null,
     cellContent: (@Composable TableCellScope.(row: R) -> Unit)? = null,
     value: (row: R) -> Any?,
 ) {
+    require(isCellEditable == null || onCellEdit != null) {
+        "isCellEditable is set on column \"$header\" but onCellEdit is not, so no edit would be reported. " +
+            "Set onCellEdit to make the column editable."
+    }
     (this as TableScopeImpl<R>).addColumn(
         header = header,
         columnClass = columnClass,
-        isEditable = isEditable,
         isCellEditable = isCellEditable,
         isSortable = isSortable,
         comparator = comparator,
@@ -182,13 +180,12 @@ public fun <R> TableScope<R>.column(
 internal class ColumnDeclaration<R>(
     val header: @Nls String,
     val columnClass: Class<*>,
-    val isEditable: Boolean,
     val isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
     val isSortable: Boolean,
     val comparator: Comparator<Any?>?,
     val minWidth: Int,
     val maxWidth: Int,
-    val onCellEdit: (row: R, rowIndex: Int, newValue: Any?) -> Unit,
+    val onCellEdit: ((row: R, rowIndex: Int, newValue: Any?) -> Unit)?,
     val cellContent: (@Composable TableCellScope.(row: R) -> Unit)?,
     val value: (row: R) -> Any?,
 ) {
@@ -196,7 +193,6 @@ internal class ColumnDeclaration<R>(
         other is ColumnDeclaration<*> &&
             header == other.header &&
             columnClass == other.columnClass &&
-            isEditable == other.isEditable &&
             isCellEditable === other.isCellEditable &&
             isSortable == other.isSortable &&
             comparator === other.comparator &&
@@ -209,7 +205,6 @@ internal class ColumnDeclaration<R>(
     override fun hashCode(): Int {
         var result = header.hashCode()
         result = 31 * result + columnClass.hashCode()
-        result = 31 * result + isEditable.hashCode()
         result = 31 * result + System.identityHashCode(isCellEditable)
         result = 31 * result + isSortable.hashCode()
         result = 31 * result + System.identityHashCode(comparator)
@@ -231,13 +226,12 @@ internal class TableScopeImpl<R> : TableScope<R> {
     internal fun addColumn(
         header: @Nls String,
         columnClass: Class<*>,
-        isEditable: Boolean,
         isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
         isSortable: Boolean,
         comparator: Comparator<Any?>?,
         minWidth: Int,
         maxWidth: Int,
-        onCellEdit: (row: R, rowIndex: Int, newValue: Any?) -> Unit,
+        onCellEdit: ((row: R, rowIndex: Int, newValue: Any?) -> Unit)?,
         cellContent: (@Composable TableCellScope.(row: R) -> Unit)?,
         value: (row: R) -> Any?,
     ) {
@@ -245,7 +239,6 @@ internal class TableScopeImpl<R> : TableScope<R> {
             ColumnDeclaration(
                 header = header,
                 columnClass = columnClass,
-                isEditable = isEditable,
                 isCellEditable = isCellEditable,
                 isSortable = isSortable,
                 comparator = comparator,
@@ -406,15 +399,12 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         columnIndex: Int,
     ): Any? = columns[columnIndex].value(rows[rowIndex])
 
-    // A column that decides editability per row answers for every one of its rows, since that is what a
-    // per-row answer is for; a column that does not is editable, or not, as a whole.
     override fun isCellEditable(
         rowIndex: Int,
         columnIndex: Int,
     ): Boolean {
         val column = columns[columnIndex]
-        val perRow = column.isCellEditable ?: return column.isEditable
-        return perRow(rows[rowIndex], rowIndex)
+        return column.onCellEdit != null && (column.isCellEditable?.invoke(rows[rowIndex], rowIndex) ?: true)
     }
 
     override fun setValueAt(
@@ -424,7 +414,7 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
     ) {
         val column = columns[columnIndex]
         val valueClass = column.columnClass.kotlin.javaObjectType
-        column.onCellEdit(rows[rowIndex], rowIndex, valueClass.cast(aValue))
+        column.onCellEdit?.invoke(rows[rowIndex], rowIndex, valueClass.cast(aValue))
     }
 
     /**
@@ -476,7 +466,7 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
             return old.indices.any { i ->
                 old[i].header != new[i].header ||
                     old[i].columnClass != new[i].columnClass ||
-                    old[i].isEditable != new[i].isEditable ||
+                    (old[i].onCellEdit == null) != (new[i].onCellEdit == null) ||
                     (old[i].cellContent == null) != (new[i].cellContent == null)
             }
         }

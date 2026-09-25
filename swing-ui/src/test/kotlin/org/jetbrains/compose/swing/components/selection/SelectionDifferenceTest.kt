@@ -47,9 +47,7 @@ class SelectionDifferenceTest {
     fun aTableSelectionDeclaredTwiceLeavesTheSameSelectionLeadAndAnchor() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(1, 2, 4))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -85,9 +83,7 @@ class SelectionDifferenceTest {
     fun aTableSelectionThatShrinksKeepsTheRowsItStillNames() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(0, 1, 2, 3))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -105,9 +101,7 @@ class SelectionDifferenceTest {
     fun aTableSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(0, 1, 4))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
         awaitIdle()
         mainClock.autoAdvance = false
@@ -149,9 +143,7 @@ class SelectionDifferenceTest {
     fun theTableAnchorAndLeadFollowTheDeclarationAndNotTheRowsThatJoinedIt() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(4, 5))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -187,9 +179,7 @@ class SelectionDifferenceTest {
     fun aTableWritesOnlyTheRowsThatChangedAndNotTheOnesItAlreadyHeld() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(0, 1, 2, 3))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -229,9 +219,7 @@ class SelectionDifferenceTest {
     fun aTableSelectionDeclaredEmptyLeavesNoRowSelected() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(1, 2))
         setContent {
-            Table(rows = people, selectedRowIndices = selection) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
         val table = onNodeOfType<JTable>().fetch()

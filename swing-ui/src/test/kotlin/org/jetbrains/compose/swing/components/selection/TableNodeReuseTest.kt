@@ -46,10 +46,13 @@ class TableNodeReuseTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36)))
         setContent {
             ReusableContentHost(active = active) {
-                Table(rows = rows) {
-                    column("Name") { it.name }
-                    column("Age") { it.age }
-                }
+                Table(
+                    rows = rows,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                )
             }
         }
         val table = onNodeOfType<JTable>().fetch()
@@ -79,10 +82,9 @@ class TableNodeReuseTest {
             ReusableContentHost(active = active) {
                 Table(
                     rows = people,
+                    columns = { column("Name") { it.name } },
                     selectedRowIndices = setOf(1),
-                ) {
-                    column("Name") { it.name }
-                }
+                )
             }
         }
         val table = onNodeOfType<JTable>().fetch()
@@ -129,9 +131,10 @@ class TableNodeReuseTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                Table(rows = people) {
-                    column(header = "Name", cellContent = { row -> Label("<${row.name}>") }) { it.name }
-                }
+                Table(
+                    rows = people,
+                    columns = { column(header = "Name", cellContent = { row -> Label("<${row.name}>") }) { it.name } },
+                )
             }
         }
         val table = onNodeOfType<JTable>().fetch()

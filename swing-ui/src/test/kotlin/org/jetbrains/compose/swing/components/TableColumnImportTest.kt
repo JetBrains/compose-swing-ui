@@ -25,10 +25,13 @@ class TableColumnImportTest {
     @Test
     fun aColumnTakesItsClassFromTheValueExtractor() = runComposeSwingTest {
         setContent {
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Name") { it.name }
-                column("Age") { it.age }
-            }
+            Table(
+                rows = listOf(Person("Ada", 36)),
+                columns = {
+                    column("Name") { it.name }
+                    column("Age") { it.age }
+                },
+            )
         }
 
         val model = onNodeOfType<JTable>().fetch().model
@@ -41,9 +44,7 @@ class TableColumnImportTest {
     @Test
     fun aColumnHoldsTheClassItDeclares() = runComposeSwingTest {
         setContent {
-            Table(rows = listOf(Person("Ada", 36))) {
-                column("Age", Number::class.java) { it.age }
-            }
+            Table(rows = listOf(Person("Ada", 36)), columns = { column("Age", Number::class.java) { it.age } })
         }
 
         val model = onNodeOfType<JTable>().fetch().model

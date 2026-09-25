@@ -81,9 +81,12 @@ class SelectionLossFeedbackTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                onSelectionChange = { received += it },
+                selectionMode = mode,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -276,15 +279,14 @@ class SelectionLossFeedbackTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
                     selection = it
                 },
                 selectionMode = mode,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -360,12 +362,11 @@ class SelectionLossFeedbackTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = setOf(0, 1, 2),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -492,12 +493,11 @@ class SelectionLossFeedbackTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 listSelectionListener = listener,
                 selectedRowIndices = setOf(0, 1, 2),
                 selectionMode = mode,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()

@@ -425,6 +425,12 @@ public abstract interface class org/jetbrains/compose/swing/components/menu/Radi
 	public static synthetic fun option$default (Lorg/jetbrains/compose/swing/components/menu/RadioButtonMenuGroupScope;Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;ILjava/lang/Object;)V
 }
 
+public final class org/jetbrains/compose/swing/components/selection/ComposableSingletons$TableContentScopeKt {
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/selection/ComposableSingletons$TableContentScopeKt;
+	public fun <init> ()V
+	public final fun getLambda$113759404$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function3;
+}
+
 public abstract interface class org/jetbrains/compose/swing/components/selection/ListItemScope {
 	public abstract fun getCellHasFocus ()Z
 	public abstract fun getIndex ()I
@@ -456,24 +462,24 @@ public final class org/jetbrains/compose/swing/components/selection/SelectionCom
 	public static final fun ListBox (Ljavax/swing/ListModel;Lorg/jetbrains/compose/swing/components/selection/ListState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILjava/lang/Object;IILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ListBox (Ljavax/swing/ListModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IIILjava/lang/Object;IILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 	public static final fun RadioGroup (ILkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Table (Ljava/util/List;Ljavax/swing/event/ListSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;IZLjava/util/List;Ljavax/swing/event/RowSorterListener;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Ljavax/swing/event/TableColumnModelListener;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Table (Ljava/util/List;Lorg/jetbrains/compose/swing/components/selection/TableState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjava/util/List;Lkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Table (Ljava/util/List;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IZLjava/util/List;Lkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Table (Ljavax/swing/table/TableModel;Ljavax/swing/event/ListSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;IZLjava/util/List;Ljavax/swing/event/RowSorterListener;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Ljavax/swing/event/TableColumnModelListener;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Table (Ljavax/swing/table/TableModel;Lorg/jetbrains/compose/swing/components/selection/TableState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjava/util/List;Lkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Table (Ljavax/swing/table/TableModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IZLjava/util/List;Lkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Table (Ljava/util/List;Lkotlin/jvm/functions/Function1;Ljavax/swing/event/ListSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;IZLjavax/swing/event/RowSorterListener;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLjavax/swing/event/TableColumnModelListener;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Table (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/components/selection/TableState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjavax/swing/RowFilter;Ljava/lang/Integer;IZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Table (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IZLkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Table (Ljavax/swing/table/TableModel;Ljavax/swing/event/ListSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;IZLjavax/swing/event/RowSorterListener;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLjavax/swing/event/TableColumnModelListener;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Table (Ljavax/swing/table/TableModel;Lorg/jetbrains/compose/swing/components/selection/TableState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjavax/swing/RowFilter;Ljava/lang/Integer;IZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Table (Ljavax/swing/table/TableModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IZLkotlin/jvm/functions/Function1;Ljavax/swing/RowFilter;Ljava/lang/Integer;IZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun Tree (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Ljavax/swing/event/TreeSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/util/Set;Ljava/util/Set;Ljavax/swing/event/TreeExpansionListener;Ljavax/swing/event/TreeWillExpandListener;ZLkotlin/jvm/functions/Function3;IZLjava/lang/Boolean;Ljava/lang/Integer;IILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 	public static final fun Tree (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/components/selection/TreeState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function3;IZLjava/lang/Boolean;Ljava/lang/Integer;IILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 	public static final fun Tree (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function3;IZLjava/lang/Boolean;Ljava/lang/Integer;IILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 	public static final fun Tree (Ljavax/swing/tree/TreeModel;Ljavax/swing/event/TreeSelectionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Ljava/util/Set;Ljavax/swing/event/TreeExpansionListener;IZLjava/lang/Boolean;Ljava/lang/Integer;IILandroidx/compose/runtime/Composer;III)V
 	public static final fun Tree (Ljavax/swing/tree/TreeModel;Lorg/jetbrains/compose/swing/components/selection/TreeState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjava/lang/Boolean;Ljava/lang/Integer;IILandroidx/compose/runtime/Composer;II)V
 	public static final fun Tree (Ljavax/swing/tree/TreeModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Ljava/util/Set;Lkotlin/jvm/functions/Function1;IZLjava/lang/Boolean;Ljava/lang/Integer;IILandroidx/compose/runtime/Composer;III)V
-	public static final fun column (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function2;ZLjava/util/Comparator;IILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;)V
-	public static synthetic fun column$default (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function2;ZLjava/util/Comparator;IILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun column (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;Ljava/lang/Class;Lkotlin/jvm/functions/Function2;ZLjava/util/Comparator;IILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun column$default (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;Ljava/lang/Class;Lkotlin/jvm/functions/Function2;ZLjava/util/Comparator;IILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static final fun listItemRenderer (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/ListCellRenderer;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun rememberListItemRenderer (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;I)Ljavax/swing/ListCellRenderer;
 	public static final fun rememberListState (Ljava/util/Set;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/selection/ListState;
-	public static final fun rememberTableState (Ljava/util/Set;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/selection/TableState;
+	public static final fun rememberTableState (Ljava/util/Set;Ljava/util/List;Lorg/jetbrains/compose/swing/components/selection/TableColumnLayout;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/selection/TableState;
 	public static final fun rememberTreeState (Ljava/util/Set;Ljava/util/Set;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/selection/TreeState;
 }
 
@@ -494,19 +500,31 @@ public final class org/jetbrains/compose/swing/components/selection/TableColumnL
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class org/jetbrains/compose/swing/components/selection/TableContentScope {
+	public abstract fun Header (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZZLandroidx/compose/runtime/Composer;I)V
+}
+
+public final class org/jetbrains/compose/swing/components/selection/TableContentScope$ComposeDefaultImpls {
+	public static final fun Header$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZZLorg/jetbrains/compose/swing/components/selection/TableContentScope;Landroidx/compose/runtime/Composer;II)V
+}
+
 public abstract interface class org/jetbrains/compose/swing/components/selection/TableScope {
 }
 
 public final class org/jetbrains/compose/swing/components/selection/TableState {
 	public static final field $stable I
 	public fun <init> ()V
-	public fun <init> (Ljava/util/Set;)V
-	public synthetic fun <init> (Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/util/Set;Ljava/util/List;Lorg/jetbrains/compose/swing/components/selection/TableColumnLayout;)V
+	public synthetic fun <init> (Ljava/util/Set;Ljava/util/List;Lorg/jetbrains/compose/swing/components/selection/TableColumnLayout;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getColumnLayout ()Lorg/jetbrains/compose/swing/components/selection/TableColumnLayout;
 	public final fun getRowCount ()I
 	public final fun getSelectedRowIndices ()Ljava/util/Set;
 	public final fun getShownSelectedRowIndices ()Ljava/util/Set;
+	public final fun getSortKeys ()Ljava/util/List;
 	public final fun revealRow (I)Z
+	public final fun setColumnLayout (Lorg/jetbrains/compose/swing/components/selection/TableColumnLayout;)V
 	public final fun setSelectedRowIndices (Ljava/util/Set;)V
+	public final fun setSortKeys (Ljava/util/List;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/selection/TreeNodeScope {

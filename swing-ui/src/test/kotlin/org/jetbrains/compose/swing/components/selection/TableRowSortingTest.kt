@@ -3,14 +3,19 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.GraphicsEnvironment
+import java.awt.event.InputEvent
 import javax.swing.JTable
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
 import javax.swing.event.RowSorterEvent
 import javax.swing.table.DefaultTableModel
+import javax.swing.table.JTableHeader
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
 import kotlin.test.Test
@@ -29,13 +34,11 @@ import kotlin.test.assertTrue
  * the table. A table that neither sorts nor filters shows the model row by row, so the two spaces hold the
  * same numbers.
  *
- * Sorting is the table's own state, the same as selection: a declared sort is re-asserted on every pass
- * and survives a rebuild of the rows or a swap of the model. An undeclared sort belongs to the user and is
- * never imposed.
+ * A sort order belongs to the user and is never imposed; a [TableState] sets one, and keeps it across a
+ * rebuild of the rows or a swap of the model.
  *
- * Headless caveat: no native peer realizes, so a header click is driven through `RowSorter.toggleSortOrder`,
- * the call a table header makes when clicked, and a user selection is driven through the table's own
- * selection model, where a real mouse gesture would land.
+ * A header click is a mouse gesture on the header the scroll pane shows, and a row click one on the table the
+ * pane lays out.
  */
 class TableRowSortingTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
@@ -49,15 +52,10 @@ class TableRowSortingTest {
     private val byNameAscending =
         Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
 
-    /** The names the table shows, top to bottom. */
-    private fun JTable.shownNames(): List<Any?> = (0 until rowCount).map { getValueAt(it, 0) }
-
     @Test
     fun aTableDoesNotSortUntilItIsAskedTo() = runComposeSwingTest {
         setContent {
-            Table(rows = people) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } })
         }
 
         assertNull(onNodeOfType<JTable>().fetch().rowSorter, "a table sorts nothing until sortable turns it on")
@@ -65,15 +63,21 @@ class TableRowSortingTest {
 
     @Test
     fun withoutASorterAModelRowIsTheRowOnScreen() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = people, selectedRowIndices = null, onSelectionChange = { received += it }) {
-                column("Name") { it.name }
+            HeaderPane {
+                Table(
+                    rows = people,
+                    columns = { column("Name") { it.name } },
+                    selectedRowIndices = null,
+                    onSelectionChange = { received += it },
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(2, 2)
+        onNodeOfType<JTable>().performClick(table.rowCenter(2))
         awaitIdle()
 
         assertEquals(setOf(2), received.last(), "the row the user picked is reported by its model index")
@@ -85,56 +89,73 @@ class TableRowSortingTest {
         setContent {
             Table(
                 rows = people,
-                selectedRowIndices = setOf(0),
+                columns = {
+                    column("Name") { it.name }
+                    column("Age") { it.age }
+                },
+                state =
+                    rememberTableState(
+                        initialSelectedRowIndices = setOf(0),
+                        initialSortKeys = listOf(SortKey(1, SortOrder.DESCENDING)),
+                    ),
                 sortable = true,
-                sortKeys = listOf(SortKey(1, SortOrder.DESCENDING)),
-            ) {
-                column("Name") { it.name }
-                column("Age") { it.age }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared order should reach the rows")
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
         assertEquals(listOf(2), table.selectedRows.toList(), "the declared model row is selected where it is drawn")
         assertEquals("Ada", table.getValueAt(2, 0), "and that screen row is the one the declared index names")
     }
 
     @Test
     fun aClickOnASortedRowReportsTheModelRow() = runComposeSwingTest {
-        val received = mutableListOf<Set<Int>>()
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = TableState(initialSortKeys = listOf(SortKey(1, SortOrder.DESCENDING)))
         setContent {
-            Table(
-                rows = people,
-                onSelectionChange = { received += it },
-                sortable = true,
-                sortKeys = listOf(SortKey(1, SortOrder.DESCENDING)),
-            ) {
-                column("Name") { it.name }
-                column("Age") { it.age }
+            HeaderPane {
+                Table(
+                    rows = people,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                    state = state,
+                    sortable = true,
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(0, 0)
+        onNodeOfType<JTable>().performClick(table.rowCenter(0))
         awaitIdle()
 
-        assertEquals(setOf(2), received.last(), "the top row on screen is the last row of the model")
+        assertEquals(setOf(2), state.selectedRowIndices, "the top row on screen is the last row of the model")
     }
 
     @Test
     fun aFilterThatHidesASelectedRowDropsItFromTheReport() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(rows = people, onSelectionChange = { received += it }, sortable = true, rowFilter = filter) {
-                column("Name") { it.name }
-                column("Age") { it.age }
+            HeaderPane {
+                Table(
+                    rows = people,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                    onSelectionChange = { received += it },
+                    sortable = true,
+                    rowFilter = filter,
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(0, 2)
+        onNodeOfType<JTable>().performClick(table.rowCenter(0))
+        onNodeOfType<JTable>().performClick(table.rowCenter(2), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
         assertEquals(setOf(0, 1, 2), received.last(), "every row is selected to start with")
 
@@ -153,6 +174,7 @@ class TableRowSortingTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
@@ -160,9 +182,7 @@ class TableRowSortingTest {
                 },
                 sortable = true,
                 rowFilter = filter,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -186,9 +206,13 @@ class TableRowSortingTest {
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
         var selection by mutableStateOf(setOf(0))
         setContent {
-            Table(rows = people, selectedRowIndices = selection, sortable = true, rowFilter = filter) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                selectedRowIndices = selection,
+                sortable = true,
+                rowFilter = filter,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -206,9 +230,7 @@ class TableRowSortingTest {
         var rows by mutableStateOf(people)
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
         setContent {
-            Table(rows = rows, sortable = true, rowFilter = filter) {
-                column("Name") { it.name }
-            }
+            Table(rows = rows, columns = { column("Name") { it.name } }, sortable = true, rowFilter = filter)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -227,9 +249,13 @@ class TableRowSortingTest {
         var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
         var selection by mutableStateOf(setOf(0))
         setContent {
-            Table(rows = people, selectedRowIndices = selection, sortable = true, rowFilter = filter) {
-                column("Name") { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column("Name") { it.name } },
+                selectedRowIndices = selection,
+                sortable = true,
+                rowFilter = filter,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -249,9 +275,7 @@ class TableRowSortingTest {
         var sortable by mutableStateOf(false)
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
         setContent {
-            Table(rows = people, sortable = sortable, rowFilter = filter) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, sortable = sortable, rowFilter = filter)
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -287,15 +311,21 @@ class TableRowSortingTest {
     fun sortingByAColumnHeaderReachesOnSortChange() = runComposeSwingTest {
         val received = mutableListOf<List<SortKey>>()
         setContent {
-            Table(rows = people, sortable = true, onSortChange = { received += it }) {
-                column("Name") { it.name }
-                column("Age") { it.age }
+            HeaderPane {
+                Table(
+                    rows = people,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                    sortable = true,
+                    onSortChange = { received += it },
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.rowSorter.toggleSortOrder(1)
-        awaitIdle()
+        onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(1))
 
         assertEquals(
             listOf(SortKey(1, SortOrder.ASCENDING)),
@@ -305,60 +335,46 @@ class TableRowSortingTest {
     }
 
     @Test
-    fun aSortOrderTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
-        val declared = listOf(SortKey(0, SortOrder.ASCENDING))
-        setContent {
-            Table(rows = people, sortable = true, sortKeys = declared) {
-                column("Name") { it.name }
-                column("Age") { it.age }
-            }
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(declared, table.rowSorter.sortKeys.toList(), "the declared order should reach the sorter")
-
-        table.rowSorter.toggleSortOrder(1)
-        awaitIdle()
-
-        assertEquals(declared, table.rowSorter.sortKeys.toList(), "an order the caller does not adopt does not stand")
-    }
-
-    @Test
-    fun aDeclaredSortOrderOutlivesTheSorterAModelSwapRebuilds() = runComposeSwingTest {
+    fun aStatesSortOrderOutlivesTheSorterAModelSwapRebuilds() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
         val declared = listOf(SortKey(0, SortOrder.DESCENDING))
-        val received = mutableListOf<List<SortKey>>()
-        setContent { Table(model = model, sortable = true, sortKeys = declared, onSortChange = { received += it }) }
+        val state = TableState(initialSortKeys = declared)
+        setContent { Table(model = model, state = state, sortable = true) }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared order should reach the rows")
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
 
-        // The sorter the swap builds starts out unsorted, so the declared order has to be put back onto it.
+        // The sorter the swap builds starts out unsorted, so the state's order has to be put back onto it.
         model = tableModel("Bob", "Zoe", "Ada")
         awaitIdle()
 
         assertEquals(
             declared,
             table.rowSorter.sortKeys.toList(),
-            "the sorter built for the new model should carry the declared order",
+            "the sorter built for the new model should carry the state's order",
         )
         assertEquals(listOf("Zoe", "Bob", "Ada"), table.shownNames(), "and should order the new rows by it")
-        assertEquals(emptyList(), received, "an order the wrapper put back is its own doing, not the user's")
+        assertEquals(declared, state.sortKeys, "an order the wrapper put back is its own doing, not the user's")
     }
 
     @Test
     fun anUndeclaredSortOrderIsNeverImposed() = runComposeSwingTest {
         var rows by mutableStateOf(people)
         setContent {
-            Table(rows = rows, sortable = true) {
-                column("Name") { it.name }
-                column("Age") { it.age }
+            HeaderPane {
+                Table(
+                    rows = rows,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                    sortable = true,
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.rowSorter.toggleSortOrder(1)
-        awaitIdle()
+        onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(1))
 
         rows = people + Person("Nikola", 25)
         awaitIdle()
@@ -374,10 +390,14 @@ class TableRowSortingTest {
     @Test
     fun aColumnDeclaredUnsortableIsNotSortedBy() = runComposeSwingTest {
         setContent {
-            Table(rows = people, sortable = true) {
-                column("Name", isSortable = false) { it.name }
-                column("Age") { it.age }
-            }
+            Table(
+                rows = people,
+                columns = {
+                    column("Name", isSortable = false) { it.name }
+                    column("Age") { it.age }
+                },
+                sortable = true,
+            )
         }
 
         val sorter = onNodeOfType<JTable>().fetch().rowSorter as TableRowSorter<*>
@@ -390,12 +410,13 @@ class TableRowSortingTest {
         setContent {
             Table(
                 rows = people,
+                columns = {
+                    column(header = "Name", comparator = byLengthDescending) { it.name }
+                    column("Age") { it.age }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
                 sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
-            ) {
-                column(header = "Name", comparator = byLengthDescending) { it.name }
-                column("Age") { it.age }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -414,9 +435,12 @@ class TableRowSortingTest {
         val byLastLetter = Comparator<Any?> { first, second -> (first as String).last() - (second as String).last() }
         var comparator by mutableStateOf(byLength)
         setContent {
-            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
-                column(header = "Name", comparator = comparator) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column(header = "Name", comparator = comparator) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -432,9 +456,12 @@ class TableRowSortingTest {
     fun aColumnsComparatorSurvivesARebuildOfTheColumns() = runComposeSwingTest {
         var header by mutableStateOf("Name")
         setContent {
-            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
-                column(header = header, comparator = byLengthDescending) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column(header = header, comparator = byLengthDescending) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -455,9 +482,12 @@ class TableRowSortingTest {
         val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
         var comparator by mutableStateOf<Comparator<Any?>?>(byLength)
         setContent {
-            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
-                column(header = "Name", comparator = comparator) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column(header = "Name", comparator = comparator) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -480,11 +510,14 @@ class TableRowSortingTest {
         // comparator or by the rows' own ordering.
         val byLastLetter = Comparator<Any?> { first, second -> (first as String).last() - (second as String).last() }
         var comparator by mutableStateOf(byLength)
-        var order by mutableStateOf(SortOrder.ASCENDING)
+        val state = TableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING)))
         setContent {
-            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, order))) {
-                column(header = "Name", comparator = comparator) { it.name }
-            }
+            Table(
+                rows = people,
+                columns = { column(header = "Name", comparator = comparator) { it.name } },
+                state = state,
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -495,7 +528,7 @@ class TableRowSortingTest {
         }
 
         comparator = byLastLetter
-        order = SortOrder.DESCENDING
+        state.sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))
         awaitIdle()
 
         assertSame(sorter, table.rowSorter, "the sorter the count was taken on should still be the table's")
@@ -509,12 +542,11 @@ class TableRowSortingTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name") { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
                 sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
                 rowHeight = rowHeight,
-            ) {
-                column("Name") { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -540,12 +572,11 @@ class TableRowSortingTest {
         setContent {
             Table(
                 rows = people,
+                columns = { column("Name", comparator = byNameAscending) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
                 sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
                 rowHeight = rowHeight,
-            ) {
-                column("Name", comparator = byNameAscending) { it.name }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -562,31 +593,31 @@ class TableRowSortingTest {
 
     @Test
     fun aShiftExtensionAfterAnUnrelatedPassRunsFromTheRowTheSelectionStartedOn() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val rows = List(10) { "row $it" }
         var rowHeight by mutableStateOf(20)
         setContent {
-            Table(
-                rows = rows,
-                sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
-                rowHeight = rowHeight,
-            ) {
-                column("Name", comparator = byNameAscending) { it }
+            HeaderPane {
+                Table(
+                    rows = rows,
+                    columns = { column("Name", comparator = byNameAscending) { it } },
+                    state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
+                    sortable = true,
+                    rowHeight = rowHeight,
+                )
             }
         }
 
-        // The two gestures a click and a shift-click make, which leave the selection anchored on row 2
-        // and led by row 5.
         val table = onNodeOfType<JTable>().fetch()
-        table.changeSelection(2, 0, false, false)
-        table.changeSelection(5, 0, false, true)
+        onNodeOfType<JTable>().performClick(table.rowCenter(2))
+        onNodeOfType<JTable>().performClick(table.rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
         assertEquals((2..5).toList(), table.selectedRows.toList(), "the shift-click covers the rows it spans")
 
         rowHeight = 24
         awaitIdle()
 
-        table.changeSelection(8, 0, false, true)
+        onNodeOfType<JTable>().performClick(table.rowCenter(8), modifiers = InputEvent.SHIFT_DOWN_MASK)
 
         assertEquals(
             (2..8).toList(),
@@ -597,6 +628,7 @@ class TableRowSortingTest {
 
     @Test
     fun theAnchorCarriedAcrossASortIsNotReportedAsTheUsersSelection() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val rows = List(10) { "row $it" }
         // Two instances ordering alike: handing over the second is an ordering the caller redeclared, which
         // is what has the rows sorted again, while the order they land in is the one they were already in.
@@ -605,20 +637,21 @@ class TableRowSortingTest {
         var comparator by mutableStateOf(byName)
         val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(
-                rows = rows,
-                selectedRowIndices = null,
-                onSelectionChange = { received += it },
-                sortable = true,
-                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
-            ) {
-                column("Name", comparator = comparator) { it }
+            HeaderPane {
+                Table(
+                    rows = rows,
+                    columns = { column("Name", comparator = comparator) { it } },
+                    selectedRowIndices = null,
+                    onSelectionChange = { received += it },
+                    sortable = true,
+                )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.changeSelection(2, 0, false, false)
-        table.changeSelection(5, 0, false, true)
+        onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+        onNodeOfType<JTable>().performClick(table.rowCenter(2))
+        onNodeOfType<JTable>().performClick(table.rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
         val reported = received.size
 
@@ -631,15 +664,14 @@ class TableRowSortingTest {
 
     @Test
     fun turningSortingOnKeepsTheRowsTheUserHadSelected() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var sortable by mutableStateOf(false)
         setContent {
-            Table(rows = people, sortable = sortable) {
-                column("Name") { it.name }
-            }
+            Table(rows = people, columns = { column("Name") { it.name } }, sortable = sortable)
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(1, 1)
+        onNodeOfType<JTable>().performClick(table.rowCenter(1))
         awaitIdle()
 
         sortable = true
@@ -652,16 +684,20 @@ class TableRowSortingTest {
     fun aSorterFollowsTheModelTheTableIsGiven() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
         setContent {
-            Table(model = model, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)))
+            Table(
+                model = model,
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared order should reach the rows")
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
 
         model = tableModel("Nikola", "Marie")
         awaitIdle()
 
         assertSame(model, (table.rowSorter as TableRowSorter<*>).model, "the sorter should follow the new model")
-        assertEquals(listOf("Nikola", "Marie"), table.shownNames(), "the declared order should survive the swap")
+        assertEquals(listOf("Nikola", "Marie"), table.shownNames(), "the state's order should survive the swap")
     }
 }

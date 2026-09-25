@@ -232,9 +232,12 @@ class ModifierInspectionTest {
                     modifier = SwingModifier.testTag("spinner"),
                     editor = { Label("value") },
                 )
-                Table(rows = listOf("a"), modifier = SwingModifier.testTag("table"), rowHeight = 20) {
-                    column("c", cellContent = { Label("cell") }) { it }
-                }
+                Table(
+                    rows = listOf("a"),
+                    columns = { column("c", cellContent = { Label("cell") }) { it } },
+                    modifier = SwingModifier.testTag("table"),
+                    rowHeight = 20,
+                )
                 Tree(root = "root", children = { emptyList() }, modifier = SwingModifier.testTag("tree"))
                 FormattedTextField(
                     value = "v",
@@ -424,9 +427,12 @@ class ModifierInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent {
             Panel {
-                Table(rows = listOf("a"), modifier = SwingModifier.testTag("table"), rowHeight = 20) {
-                    column("c", cellContent = { Label("cell") }) { it }
-                }
+                Table(
+                    rows = listOf("a"),
+                    columns = { column("c", cellContent = { Label("cell") }) { it } },
+                    modifier = SwingModifier.testTag("table"),
+                    rowHeight = 20,
+                )
                 Spinner(
                     model = SpinnerNumberModel(),
                     changeListener = ChangeListener { },

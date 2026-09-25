@@ -27,11 +27,14 @@ class TableEditInFlightTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         val edited = mutableListOf<Pair<Person, Any?>>()
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -49,9 +52,7 @@ class TableEditInFlightTest {
     fun aRowTakingAnothersPlaceUnderAnEditorEndsTheEdit() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true) { it.name }
-            }
+            Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -68,9 +69,7 @@ class TableEditInFlightTest {
     fun aChangeElsewhereLeavesAnEditStanding() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true) { it.name }
-            }
+            Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } })
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -92,11 +91,16 @@ class TableEditInFlightTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         val edited = mutableListOf<Pair<Person, Any?>>()
         setContent {
-            Table(rows = rows, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -123,11 +127,14 @@ class TableEditInFlightTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         val edited = mutableListOf<Pair<Person, Any?>>()
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -151,9 +158,12 @@ class TableEditInFlightTest {
         // A delete re-points a standing editor the same way an insert does, in the other direction.
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Grace", 45), Person("Alan", 41)))
         setContent {
-            Table(rows = rows, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true) { it.name }
-            }
+            Table(
+                rows = rows,
+                columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -179,9 +189,12 @@ class TableEditInFlightTest {
         // edit on its own.
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45)))
         setContent {
-            Table(rows = rows, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true) { it.name }
-            }
+            Table(
+                rows = rows,
+                columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -200,9 +213,7 @@ class TableEditInFlightTest {
         // A row list holds whatever the caller declares, `null` among it.
         var rows by mutableStateOf(listOf<String?>("Ada", null))
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true) { it }
-            }
+            Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it } })
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -225,11 +236,14 @@ class TableEditInFlightTest {
             )
         val edited = mutableListOf<Pair<Person, Any?>>()
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -259,11 +273,14 @@ class TableEditInFlightTest {
         var rows by mutableStateOf(listOf<String?>("Ada", null))
         val edited = mutableListOf<Pair<String?, Any?>>()
         setContent {
-            Table(rows = rows) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it
+                    }
+                },
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -287,9 +304,12 @@ class TableEditInFlightTest {
         // whether the edit still stands, so the two have to be told apart.
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41)))
         setContent {
-            Table(rows = rows, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true) { it.name }
-            }
+            Table(
+                rows = rows,
+                columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = true,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -309,11 +329,16 @@ class TableEditInFlightTest {
         val edited = mutableListOf<Pair<Person, Any?>>()
         val rows = listOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows, sortable = sortable, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = sortable,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -329,30 +354,57 @@ class TableEditInFlightTest {
     }
 
     @Test
-    fun aColumnWidthDeclaredUnderAnEditorCommitsTheEditRatherThanDiscardingIt() = runComposeSwingTest {
+    fun turningOnCellEditOffUnderAnEditorEndsTheEdit() = runComposeSwingTest {
+        // onCellEdit turning off is a structure change: it rebuilds the columns, the editor's among them.
+        var editable by mutableStateOf(true)
+        val onCellEdit: (Person, Int, Any?) -> Unit = { _, _, _ -> }
+        val rows = listOf(Person("Ada", 36), Person("Alan", 41))
+        setContent {
+            Table(
+                rows = rows,
+                columns = { column("Name", onCellEdit = if (editable) onCellEdit else null) { it.name } },
+            )
+        }
+
+        val table = onNodeOfType<JTable>().fetch<JTable>()
+        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
+        (table.editorComponent as JTextField).text = "Turing"
+
+        editable = false
+        awaitIdle()
+
+        assertFalse(table.isEditing, "the edit should end with the column that stopped taking edits")
+    }
+
+    @Test
+    fun aColumnWidthAssignedUnderAnEditorCommitsTheEditRatherThanDiscardingIt() = runComposeSwingTest {
         // Applying a layout writes a width onto every column it names, and only a column it actually
         // moves re-points the editor. A width is answered by the table itself, which commits the edit
         // over the margin change it publishes; ending the edit here would discard what was typed.
-        var layout by mutableStateOf(TableColumnLayout(listOf(0, 1), listOf(100, 100)))
+        val state = TableState(initialColumnLayout = TableColumnLayout(listOf(0, 1), listOf(100, 100)))
         val edited = mutableListOf<Pair<String, Any?>>()
         val rows = listOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows, columnLayout = layout) {
-                column("Name", isEditable = true, onCellEdit = { _, _, value -> edited += "Name" to value }) {
-                    it.name
-                }
-                column("Age") { it.age }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { _, _, value -> edited += "Name" to value }) {
+                        it.name
+                    }
+                    column("Age") { it.age }
+                },
+                state = state,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
         assertTrue(table.editCellAt(0, 0), "the name cell should open for editing")
         (table.editorComponent as JTextField).text = "Turing"
 
-        layout = TableColumnLayout(listOf(0, 1), listOf(150, 100))
+        state.columnLayout = TableColumnLayout(listOf(0, 1), listOf(150, 100))
         awaitIdle()
 
-        assertEquals(150, table.columnModel.getColumn(0).preferredWidth, "the declared width should reach the column")
+        assertEquals(150, table.columnModel.getColumn(0).preferredWidth, "the assigned width should reach the column")
         assertEquals(
             listOf<Pair<String, Any?>>("Name" to "Turing"),
             edited,
@@ -363,26 +415,29 @@ class TableEditInFlightTest {
     @Test
     fun reorderingColumnsUnderAnEditorEndsTheEdit() = runComposeSwingTest {
         // The editor names a view column, and a reorder re-points that column at another of the model's.
-        var layout by mutableStateOf(TableColumnLayout(listOf(0, 1), listOf(100, 100)))
+        val state = TableState(initialColumnLayout = TableColumnLayout(listOf(0, 1), listOf(100, 100)))
         val edited = mutableListOf<Pair<String, Any?>>()
         val rows = listOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows, columnLayout = layout) {
-                column("Name", isEditable = true, onCellEdit = { _, _, value -> edited += "Name" to value }) {
-                    it.name
-                }
-                // The column the move draws in the editor's place, listening so that a commit into it is
-                // seen: `JTable.editingStopped` writes through the model without asking whether the column
-                // it converted the editor's index to is editable at all.
-                column("Age", onCellEdit = { _, _, value -> edited += "Age" to value }) { it.age }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { _, _, value -> edited += "Name" to value }) {
+                        it.name
+                    }
+                    // The column the move draws in the editor's place, listening so that a commit into it is
+                    // seen.
+                    column("Age", onCellEdit = { _, _, value -> edited += "Age" to value }) { it.age }
+                },
+                state = state,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
         assertTrue(table.editCellAt(0, 0), "the name cell should open for editing")
         (table.editorComponent as JTextField).text = "Turing"
 
-        layout = TableColumnLayout(listOf(1, 0), listOf(100, 100))
+        state.columnLayout = TableColumnLayout(listOf(1, 0), listOf(100, 100))
         awaitIdle()
 
         assertFalse(table.isEditing, "the edit should end with the column order it was opened under")
@@ -398,11 +453,16 @@ class TableEditInFlightTest {
         val edited = mutableListOf<Pair<Person, Any?>>()
         val rows = listOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows, sortable = sortable, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
+                sortable = sortable,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -429,11 +489,16 @@ class TableEditInFlightTest {
         val edited = mutableListOf<Pair<Person, Any?>>()
         val rows = listOf(Person("Ada", 36), Person("Alan", 41))
         setContent {
-            Table(rows = rows, sortable = sortable, sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            Table(
+                rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
+                state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.DESCENDING))),
+                sortable = sortable,
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -463,13 +528,14 @@ class TableEditInFlightTest {
         setContent {
             Table(
                 rows = rows,
+                columns = {
+                    column("Name", onCellEdit = { row, _, value -> edited += row to value }) {
+                        it.name
+                    }
+                },
                 sortable = sortable,
                 rowFilter = RowFilter.regexFilter("Alan", 0),
-            ) {
-                column("Name", isEditable = true, onCellEdit = { row, _, value -> edited += row to value }) {
-                    it.name
-                }
-            }
+            )
         }
 
         val table = onNodeOfType<JTable>().fetch<JTable>()

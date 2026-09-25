@@ -28,7 +28,8 @@ class ContainerContentScopeCompilationTest {
                 "Window(onCloseRequest = {}) { %s }",
                 "Dialog(onCloseRequest = {}) { %s }",
                 "ListBox(items = listOf(\"x\"), itemContent = { %s })",
-                "Table(rows = listOf(\"x\")) { column(header = \"h\", cellContent = { %s }) { it } }",
+                "Table(rows = listOf(\"x\"), columns = { column(header = \"h\", cellContent = { %s }) { it } })",
+                "Table(rows = listOf(\"x\"), columns = { column(header = \"h\") { it } }) { %s }",
                 "Tree(root = \"x\", children = { emptyList() }, nodeContent = { %s })",
             )
         assertWeightHiddenInEveryHost(
@@ -84,6 +85,22 @@ class ContainerContentScopeCompilationTest {
             }
             """,
         ).assertRejected(listOf("GlassPane"))
+    }
+
+    @Test
+    fun aScrollPanesPartComposedInsideATablesContentDoesNotCompile() {
+        compile(
+            """
+            @Composable
+            fun Nested() {
+                ScrollPane {
+                    Viewport {
+                        Table(rows = listOf("x"), columns = { column(header = "h") { it } }) { VerticalScrollbar() }
+                    }
+                }
+            }
+            """,
+        ).assertRejected(listOf("VerticalScrollbar"))
     }
 
     @Test

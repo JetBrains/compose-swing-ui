@@ -548,11 +548,12 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     // The accessors are handed to the mirror as they are, together with the component they read and write:
     // a settling pass builds the settlement itself and nothing besides.
     settleWhenDue(
-        mirror.redeclare(value),
-        {
+        if (mirror.redeclare(value)) {
             Settlement<C> { component ->
                 mirror.settleThrough(component, value, read, { _, written -> write(written) }, onSettled)
             }
+        } else {
+            null
         },
     ) { settlement -> settlement.applyTo(this) }
 }
@@ -584,29 +585,33 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
 ) {
     applyMirror(mirror)
     settleWhenDue(
-        mirror.redeclare(value),
-        { Settlement<C> { component -> mirror.settleThrough(component, value, read, write, onSettled) } },
+        if (mirror.redeclare(value)) {
+            Settlement<C> { component -> mirror.settleThrough(component, value, read, write, onSettled) }
+        } else {
+            null
+        },
     ) { settlement -> settlement.applyTo(this) }
 }
 
 /**
- * Carries the settlement [token] builds when [due], and runs [settle] against the component with it once
- * the composition applies its changes. Nothing runs on a pass where nothing is due.
+ * Carries [pending], the token of a due settlement or `null` where none is due, and runs [settle] against
+ * the component with it once the composition applies its changes. Nothing runs on a pass where nothing is
+ * due.
  *
  * This is how a declaration whose settling depends on more than its own value reaches its widget: what such
  * a pass is compared against lives on the mirrors it settles rather than in the composition, so the slot
- * carries a token standing for a due settlement instead of the declaration behind it. A fresh token is
- * never what the slot already holds, so a settle that is due always runs; the one comparison the slot can
- * hold back is the null that follows a settlement, and that pass has nothing to do.
+ * carries a token standing for a due settlement instead of the declaration behind it. Build a fresh token
+ * for every due settlement: a fresh token is never what the slot already holds, so a settle that is due
+ * always runs; the one comparison the slot can hold back is the null that follows a settlement, and that
+ * pass has nothing to do.
  *
  * The slot is taken whether or not anything is due, so a call inside a conditional shifts every later slot
- * of the same `update` block. State the condition in [due], not in whether the call happens.
+ * of the same `update` block. State the condition in [pending], not in whether the call happens.
  */
 internal inline fun <C : Component, D : Any> SwingNodeUpdater<C>.settleWhenDue(
-    due: Boolean,
-    token: () -> D,
+    pending: D?,
     crossinline settle: C.(D) -> Unit,
-): Unit = set(if (due) token() else null) { pending -> if (pending != null) settle(pending) }
+): Unit = set(pending) { due -> if (due != null) settle(due) }
 
 /** Stands for a value no declaration has reached yet, so the first one made always settles. */
 private val Undeclared: Any = Any()
