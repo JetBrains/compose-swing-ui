@@ -100,6 +100,19 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    fun componentsOfOneClassDeclaringNoModifierShareOneEffectiveChain() = runComposeSwingTest {
+        val defaults = ComponentDefaults.Empty.withProvision(DefaultBackground provides Color.YELLOW)
+
+        val undeclared = defaults.effectiveModifier(JLabel::class.java, SwingModifier)
+
+        assertSame(
+            undeclared,
+            defaults.effectiveModifier(JLabel::class.java, SwingModifier),
+            "a label declaring no modifier must take the effective chain another such label holds",
+        )
+    }
+
+    @Test
     fun defaultsAndModifierChangedTogetherDiffTheNodeOnce() = runComposeSwingTest {
         var dark by mutableStateOf(false)
         var declaredWrites = 0

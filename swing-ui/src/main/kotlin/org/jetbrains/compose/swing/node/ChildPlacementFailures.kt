@@ -45,7 +45,7 @@ internal fun hostCannotMeasureChild(
 ): String {
     val chain = child.modifierState?.chain.orEmpty()
     val declared =
-        child.declaration.parentLayoutElements.joinToString { standing ->
+        child.declaration.layoutElementsUnder(host).joinToString { standing ->
             // A layout node stands in its element's place; the error names the element a caller declared.
             val element = chain.fastFirstOrNull { it.node === standing }?.element as? ParentLayoutElement ?: standing
             "SwingModifier.${element.name}()"

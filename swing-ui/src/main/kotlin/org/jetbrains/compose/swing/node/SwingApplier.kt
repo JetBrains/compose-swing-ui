@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Container
@@ -757,7 +758,10 @@ private fun SwingNodeHolder<*>.checkChildKind(
     } else {
         check(!fillsRegion) { hostHasNoRegions(host, child) }
     }
-    check(child.declaration.parentLayoutElements.isEmpty() || host.layout is MeasurementLayoutManager) {
+    check(
+        child.declaration.parentLayoutElements.fastFirstOrNull { !it.isLeftOutUnder(host) } == null ||
+            host.layout is MeasurementLayoutManager,
+    ) {
         hostCannotMeasureChild(host, child)
     }
 }

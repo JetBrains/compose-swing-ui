@@ -230,6 +230,8 @@ private data object AmbiguousElement :
 
     override val additive: Boolean get() = false
 
+    override val inheritable: Boolean get() = false
+
     override val parentProtocol: ParentProtocol get() = TestParentProtocol
 
     override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()

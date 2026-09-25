@@ -7,6 +7,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.defaults.DefaultBackground
+import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
+import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
@@ -16,6 +19,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Color
 import java.awt.GraphicsEnvironment
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JLabel
@@ -351,6 +355,32 @@ class PopupMenuTest {
         awaitIdle()
         assertFalse(wrap, "the item's callback must drive its hoisted state")
         assertFalse(item.isSelected, "and the open menu must reflect the new state")
+    }
+
+    @Test
+    fun anOpenMenuFollowsAChangedComponentDefault() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var color by mutableStateOf(Color.MAGENTA)
+        setWindowContent {
+            ProvideComponentDefaults(DefaultBackground provides color) {
+                val anchor = rememberPopupAnchor()
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+                PopupMenu(
+                    anchor,
+                    expanded = true,
+                    display = { popup, _, _, _ -> captured = popup },
+                    onDismiss = {},
+                ) {
+                    MenuItem("Cut", onClick = { })
+                }
+            }
+        }
+        val item = (captured ?: error("the menu did not open")).getComponent(0)
+        assertEquals(Color.MAGENTA, item.background, "the item takes the default it was composed under")
+
+        color = Color.RED
+        awaitIdle()
+        assertEquals(Color.RED, item.background, "and the open menu must take the changed default")
     }
 
     @Test

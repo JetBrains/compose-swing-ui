@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
+import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.util.fastForEach
 
@@ -115,9 +116,11 @@ internal class ModifierPartition(
     /**
      * Records every parent declaration so keyed and additive declarations share one order. A node-backed layout
      * declaration also takes its place in [chain], which it gives up to a later declaration of its key, as
-     * [retainedParentDeclarations] does.
+     * [retainedParentDeclarations] does. A layout declaration is
+     * [refused where inheritable and additive][requireInheritableIsNotAdditive].
      */
     private fun takeParentElement(element: ParentElement) {
+        if (element is ParentLayoutElement) element.requireInheritableIsNotAdditive()
         resolvedParentDeclarations = null
         pendingParentDeclarations += element
         if (!element.additive) {

@@ -64,9 +64,3 @@ internal fun SwingNodeHolder<*>.notifyDeclaredNodes(
     if (!chainChanged || (chain.isEmpty() && !handedNodes)) return
     (component as? DeclaredNodesListener)?.onDeclaredNodesChanged(chain.map { it.node })
 }
-
-/** This [SlotChange] where it is not a write [listener] declines, else [SlotChange.Unchanged]. */
-internal fun SlotChange.countedFor(
-    listener: DeclaredNodesListener?,
-    node: SwingModifier.Node,
-): SlotChange = if (this == SlotChange.Unchanged || listener.takesWrite(node)) this else SlotChange.Unchanged

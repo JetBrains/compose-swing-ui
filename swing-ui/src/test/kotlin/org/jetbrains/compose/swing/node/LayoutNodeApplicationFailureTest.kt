@@ -1,8 +1,10 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
@@ -300,6 +302,64 @@ class LayoutNodeApplicationFailureTest {
         assertEquals(listOf("onDetach"), events, "release detaches the node once")
         owner.dispose()
     }
+
+    @Test
+    fun aLayoutNodeUpdatedByAnElementDeclaringAnotherInheritableIsRefused() {
+        val owner = TestCompositionOwner()
+        val child = attachedLayoutNode(owner)
+        child.applyDeclaredModifier(SwingModifier.then(InheritableByInstanceElement(inheritable = false)))
+
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                child.applyDeclaredModifier(SwingModifier.then(InheritableByInstanceElement(inheritable = true)))
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.contains(RecordingLayoutNode::class.java.name) &&
+                message.contains(InheritableByInstanceElement::class.java.name),
+            "The refusal must name the node and its element, but said: $message",
+        )
+        owner.dispose()
+    }
+
+    @Test
+    fun anInheritableLayoutNodeUpdatedByAnAdditiveElementIsRefused() {
+        val owner = TestCompositionOwner()
+        val child = attachedLayoutNode(owner)
+        child.applyDeclaredModifier(SwingModifier.then(AdditiveByInstanceElement(additive = false)))
+
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                child.applyDeclaredModifier(SwingModifier.then(AdditiveByInstanceElement(additive = true)))
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.startsWith(AdditiveByInstanceElement::class.java.name) &&
+                message.endsWith("an inheritable element is not additive."),
+            "The refusal must name the element and the rule, but said: $message",
+        )
+        owner.dispose()
+    }
+
+    @Test
+    fun inheritableParentDataItsParentRefusesIsRefusedBeforeALayoutNodeIsWritten() {
+        val owner = TestCompositionOwner()
+        val child = attachedLayoutNode(owner)
+        val events = mutableListOf<String>()
+        child.declare(listOf(RecordingLayoutNodeElement("a", events)))
+        events.clear()
+
+        val refusal =
+            assertFailsWith<IllegalStateException> {
+                child.declare(listOf(RecordingLayoutNodeElement("b", events), RefusedInheritableParentData))
+            }
+
+        assertTrue(refusal.message.orEmpty().startsWith("refusing parent can be declared only under"))
+        assertEquals(emptyList(), events, "the refusal comes before the modifier writes a layout node")
+        owner.dispose()
+    }
 }
 
 /** Applies a modifier declaring [elements], in order. */
@@ -309,6 +369,45 @@ private fun SwingNodeHolder<*>.declare(elements: List<SwingModifier.Element>) =
 /** The layout nodes the holder's modifier records, in declaration order. */
 private fun SwingNodeHolder<*>.layoutNodes(): List<ParentLayoutNode> =
     buildList { visitDeclaredNodes { if (it is ParentLayoutNode) add(it) } }
+
+/** Inheritable parent data for a parent no component stands under. */
+private data object RefusedInheritableParentData : ParentDataModifier {
+    override val parentProtocol: ParentProtocol = parentProtocolOf("refusing parent") { false }
+
+    override val inheritable: Boolean get() = true
+
+    override fun modifyParentData(parentData: Any?): Any? = parentData
+}
+
+/** A layout node element declaring [inheritable], which its node declares `false` whatever this says. */
+private data class InheritableByInstanceElement(
+    override val inheritable: Boolean,
+) : ParentLayoutNodeElement<RecordingLayoutNode>() {
+    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+
+    override fun create(): RecordingLayoutNode = RecordingLayoutNode(mutableListOf()) {}
+
+    override fun update(node: RecordingLayoutNode) = Unit
+}
+
+/** An inheritable layout node element declaring [additive]; one declaring the other value updates its node in place. */
+private data class AdditiveByInstanceElement(
+    override val additive: Boolean,
+) : ParentLayoutNodeElement<InheritableLayoutNode>() {
+    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+
+    override val inheritable: Boolean get() = true
+
+    override fun create(): InheritableLayoutNode = InheritableLayoutNode()
+
+    override fun update(node: InheritableLayoutNode) = Unit
+}
+
+private class InheritableLayoutNode : ParentLayoutNode() {
+    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+
+    override val inheritable: Boolean get() = true
+}
 
 /** A layout node element updating its node with [value], failing to update it with `"failing"`. */
 private class ValueLayoutNodeElement(

@@ -27,7 +27,8 @@ public abstract class ParentLayoutNodeElement<N : ParentLayoutNode> : ParentLayo
  *
  * Implements [ParentLayoutElement] itself, because a diffed slot's node - not the throwaway element that
  * last updated it - is what a measuring parent reads from then on. A concrete subclass declares its
- * [parentProtocol], the same one its element declares.
+ * [parentProtocol] and [inheritable], the same ones its element declares; creating or updating the node fails
+ * otherwise.
  */
 public abstract class ParentLayoutNode :
     SwingModifier.Node(),

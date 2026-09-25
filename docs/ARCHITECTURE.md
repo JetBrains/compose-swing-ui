@@ -248,12 +248,13 @@ own beside a declared import. Removing the last such element restores the compon
 
 ## Component defaults
 
-`ProvideComponentDefaults` scopes inherited modifier property declarations over a composition subtree.
+`ProvideComponentDefaults` scopes inherited modifier declarations over a composition subtree.
 It applies each matching declaration to every composed Swing or menu node below it, including custom
 components, menu content, rendered cells, and subcompositions that use the provider's composition
 context. It does not walk arbitrary native Swing children or components created outside the composition.
-A declaration is skipped for components it does not target, so a mixed subtree is valid. New or
-reactivated nodes receive the defaults currently scoped around them.
+A property declaration is skipped for components it does not target, and a parent-layout declaration is
+left out under a parent whose protocol refuses it, so a mixed subtree is valid. New or reactivated nodes
+receive the defaults currently scoped around them.
 
 The library ships atomic `Default...` keys for broad component properties. The public API and KDoc
 define the exact current set; the keys provide no implicit values and each declares only its named
@@ -304,8 +305,11 @@ ProvideComponentDefaults(
 
 One key can declare several related properties, such as a background and opacity. The key's `apply`
 function must be deterministic for its value. It may return only inheritable, non-additive property
-declarations; custom property declarations opt in with `property(..., inheritable = true)`. Listeners,
-focus behavior, bindings, layout declarations, and other additive elements are not component defaults. See
+declarations; custom property declarations opt in with `property(..., inheritable = true)`. It may also
+return an inheritable parent-layout declaration, which applies to every component and is left out under a
+parent that refuses it; see
+[Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers). Listeners,
+focus behavior, bindings, other layout declarations, and additive elements are not component defaults. See
 [`Keyed and additive slots`](MODIFIERS.md#keyed-and-additive-slots).
 
 The single-value and vararg overloads both accept `key provides value`. A nested provision replaces the

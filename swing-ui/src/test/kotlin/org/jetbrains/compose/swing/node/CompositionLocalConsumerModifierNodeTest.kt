@@ -152,7 +152,7 @@ class CompositionLocalConsumerModifierNodeTest {
         val relayout: (StaticReadingLayoutNode) -> Unit = { parent?.revalidate() }
         val layout = mockk<MeasurementLayoutManager>(relaxed = true)
         every { layout.declareComponentLayout(any(), any(), any()) } answers {
-            node = thirdArg<List<ParentLayoutElement>>().filterIsInstance<StaticReadingLayoutNode>().single()
+            node = thirdArg<List<ParentLayoutElement>>().filterIsInstance<StaticReadingLayoutNode>().singleOrNull()
         }
         // Measures under observeReads, as a parent reading a layout node does.
         every { layout.layoutContainer(any()) } answers {

@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("NodeKt")
+
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Updater

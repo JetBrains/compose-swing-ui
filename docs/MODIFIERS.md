@@ -78,9 +78,11 @@ modifier takes the slot of the k-th additive element the modifier applied last. 
 are counted, so a property element entering or leaving shifts no additive slot.
 
 Set `inheritable = true` only on a non-additive property that makes sense across a whole subtree, such
-as a color or a font. Only such an element may be provided to descendants as a
+as a color or a font. Of the property elements, only such an element may be provided to descendants as a
 [component default](ARCHITECTURE.md#component-defaults);
-a default applies to each descendant whose component the element targets.
+a default applies to each descendant whose component the element targets. An inheritable parent-layout
+declaration can be a component default too, and applies to every component; see
+[Parent declarations](#parent-declarations).
 
 ### What stands and what is recreated
 
@@ -144,7 +146,10 @@ declaration repeated counts once.
 Some elements are read by the component's immediate parent rather than applied to the component: where
 it sits in a `BorderLayout`, its `GridBagConstraints`, a weight in a `Row`. Each such declaration names
 the family of parents that understands it, and one placed under any other parent fails with an error
-naming that family. Writing a declaration of your own, and what the parent receives, is covered in
+naming that family. An inheritable declaration, one that can be given as a
+[component default](ARCHITECTURE.md#component-defaults), is left out under such a parent instead, whether
+a default provides it or the component declares it. Writing a declaration of your own, and what the
+parent receives, is covered in
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers).
 
 ## Node capabilities

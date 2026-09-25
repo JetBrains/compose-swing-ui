@@ -685,6 +685,7 @@ public abstract interface class org/jetbrains/compose/swing/layout/ParentElement
 }
 
 public abstract interface class org/jetbrains/compose/swing/layout/ParentLayoutElement : org/jetbrains/compose/swing/layout/ParentElement {
+	public fun getInheritable ()Z
 }
 
 public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node, org/jetbrains/compose/swing/layout/ParentLayoutElement {
@@ -733,11 +734,6 @@ public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescrip
 public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor$ComponentPropertyAccessor {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Class;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
-}
-
-public final class org/jetbrains/compose/swing/modifier/ComposedModifierKt {
-	public static final fun composed (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
@@ -824,7 +820,9 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun applyCompositionLocalMap-pWFREzI (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;)V
 	public static final fun applyModifier-7gJpb6k (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
+	public static final fun composed (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun property-zFZRf9k (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun property-zFZRf9k$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
@@ -1061,10 +1059,6 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistr
 public abstract interface class org/jetbrains/compose/swing/node/CompositionLocalConsumerModifierNode {
 }
 
-public final class org/jetbrains/compose/swing/node/CompositionLocalConsumerModifierNodeKt {
-	public static final fun currentValueOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Landroidx/compose/runtime/CompositionLocal;)Ljava/lang/Object;
-}
-
 public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
 	public fun <init> (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
@@ -1099,21 +1093,20 @@ public abstract interface class org/jetbrains/compose/swing/node/MirrorState$Set
 }
 
 public final class org/jetbrains/compose/swing/node/NodeKt {
+	public static final fun currentValueOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Landroidx/compose/runtime/CompositionLocal;)Ljava/lang/Object;
 	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)V
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
+	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
+	public static final fun reconcileWithChildren-pWFREzI (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun rememberMirrorState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/MirrorState;
 	public static final fun report (Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/ObserverModifierNode {
 	public abstract fun onObservedReadsChanged ()V
-}
-
-public final class org/jetbrains/compose/swing/node/ObserverModifierNodeKt {
-	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
-	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/ReconcileWithChildrenScope {
@@ -1169,10 +1162,6 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
 	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
-}
-
-public final class org/jetbrains/compose/swing/node/SwingNodeUpdaterKt {
-	public static final fun reconcileWithChildren-pWFREzI (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class org/jetbrains/compose/swing/text/TextRange {

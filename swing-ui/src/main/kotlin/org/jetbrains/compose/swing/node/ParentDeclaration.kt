@@ -7,9 +7,12 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
+import org.jetbrains.compose.swing.layout.mayBeLeftOut
 import org.jetbrains.compose.swing.modifier.LayoutNodeRecord
+import org.jetbrains.compose.swing.modifier.ModifierChange
 import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Container
@@ -49,36 +52,40 @@ internal class ParentDeclaration(
     /**
      * The declarations that a measuring parent interprets after parent-data declarations have folded, in
      * modifier declaration order, with each [ParentLayoutNodeElement] among them replaced by its node. Empty where
-     * the modifier declares none.
+     * the modifier declares none. Kept whole under any parent; [layoutElementsUnder] leaves out what a parent refuses.
      */
     var parentLayoutElements: List<ParentLayoutElement> = emptyList()
         private set
 
     /**
-     * Applies the complete parent-layout declaration the modifier currently makes to this node.
-     *
-     * A capable parent receives [parentData] and [parentLayoutElements] atomically. A conventional
-     * parent is re-registered only when its folded parent data changes, as `LayoutManager2` requires.
-     *
-     * The k-th [ParentLayoutNodeElement] of [parentLayoutElements] is replaced by the k-th layout node standing in the
-     * modifier's [chain][org.jetbrains.compose.swing.modifier.SwingModifierState.chain], so this runs once the modifier
-     * diff has brought the layout nodes up to date. One the chain does not hold - after a diff that threw partway - is
-     * left out. The declaration is applied again whenever [layoutNodesChanged], that is where a layout node of the
-     * chain attached, detached or was written with [ParentLayoutNode.shouldAutoInvalidate] since the last call;
-     * otherwise the other elements are compared, and a node element needs only a layout node in its place.
+     * Publishes parent data and resolved layout nodes together when the declaration changes or a node read by the
+     * measuring parent is updated. After a failed node update, only the remaining attached nodes are included.
+     * Conventional Swing parents receive parent data through `LayoutManager2` when that data changes.
      */
     fun applyComponentLayout(
         parentData: Any?,
         parentProtocol: ParentProtocol?,
         parentLayoutElements: List<ParentLayoutElement>,
-        layoutNodesChanged: Boolean = false,
+        layoutChange: Set<ModifierChange> = emptySet(),
     ) {
-        if (!layoutNodesChanged && isApplied(parentData, parentProtocol, parentLayoutElements)) return
+        val unchanged =
+            ModifierChange.NodesAddedOrRemoved !in layoutChange && ModifierChange.ParentLayoutUpdated !in layoutChange
+        if (unchanged && isApplied(parentData, parentProtocol, parentLayoutElements)) return
         checkParentAccepts(parentProtocol, parentLayoutElements)
+        val parentDataChanged = parentData != this.parentData || parentProtocol !== this.parentProtocol
+        val parent = measuringParent
+        val received = parent?.let { layoutElementsUnder(it) }
         this.parentData = parentData
         this.parentProtocol = parentProtocol
         this.parentLayoutElements = chain.withLayoutNodes(parentLayoutElements, this.parentLayoutElements)
-        reapply()
+        // Adding or removing a node changes the list; updating a node preserves its identity.
+        if (parentDataChanged) {
+            reapply()
+        } else if (parent != null &&
+            (ModifierChange.ParentLayoutUpdated in layoutChange || layoutElementsUnder(parent) != received)
+        ) {
+            reapply()
+        }
     }
 
     /** Whether this node holds the declaration given, taking the layout nodes applied as the ones standing. */
@@ -91,10 +98,22 @@ internal class ParentDeclaration(
             parentProtocol === this.parentProtocol &&
             parentLayoutElements.standsAs(this.parentLayoutElements)
 
-    /** Drops the layout nodes a reset modifier detached. The next [applyComponentLayout] declares its own. */
-    fun dropLayoutNodes() {
-        if (parentLayoutElements.none { it is ParentLayoutNode }) return
-        parentLayoutElements = emptyList()
+    /**
+     * Drops the layout nodes that have detached from [parentLayoutElements], and declares the elements left to a
+     * measuring parent that received one of the nodes dropped. With [layOut] set the parent also lays the component
+     * out anew; without it the parent is declared to and is not laid out, for a component that is being released,
+     * which no pass lays out again. Called as a layout node detaches, so a parent holds no detached node while
+     * another node of the modifier runs.
+     */
+    fun dropLayoutNodes(layOut: Boolean = true) {
+        val elements = parentLayoutElements
+        if (elements.fastFirstOrNull { it.isDetachedNode } == null) return
+        val parent = measuringParent
+        val received = parent?.let { layoutElementsUnder(it) }
+        parentLayoutElements = elements.filterNot { it.isDetachedNode }
+        if (parent != null && layoutElementsUnder(parent) != received) {
+            if (layOut) reapply() else declareComponentLayout()
+        }
     }
 
     /**
@@ -114,7 +133,10 @@ internal class ParentDeclaration(
         checkParentElementsAccepted(parentElements, resolvedHost)
     }
 
-    /** Refuses a declaration whose parent-family token does not accept [host], before host mutation. */
+    /**
+     * Refuses a declaration whose parent-family token does not accept [host], before host mutation, unless it
+     * [may be left out][mayBeLeftOut].
+     */
     internal fun checkParentElementsAccepted(
         elements: List<ParentElement>,
         candidateHost: Container? = this.host,
@@ -122,7 +144,8 @@ internal class ParentDeclaration(
         if ((node.awaitingAttachment || node.deactivated) && candidateHost === this.host) return
         val resolvedHost = candidateHost ?: return
         elements.fastForEach { element ->
-            check(element.parentProtocol.accepts(resolvedHost)) {
+            val mayBeLeftOut = element is ParentLayoutElement && element.mayBeLeftOut
+            check(mayBeLeftOut || element.parentProtocol.accepts(resolvedHost)) {
                 wrongParentHost(resolvedHost, element)
             }
         }
@@ -130,8 +153,9 @@ internal class ParentDeclaration(
 
     /** Gives the attached component's complete layout declaration to a capable layout manager. */
     private fun declareComponentLayout() {
-        val manager = component.parent?.layout as? MeasurementLayoutManager ?: return
-        manager.declareComponentLayout(component, parentData, parentLayoutElements)
+        val parent = component.parent ?: return
+        val manager = parent.layout as? MeasurementLayoutManager ?: return
+        manager.declareComponentLayout(component, parentData, layoutElementsUnder(parent))
     }
 
     /**
@@ -180,7 +204,40 @@ internal class ParentDeclaration(
         }
         parent.revalidate()
     }
+
+    /**
+     * Whether this component's layout is declared again to its measuring parent, which lays it out anew, after the
+     * layout node [written] took another declaration: where [written] has its parent lay the component out again
+     * ([ParentLayoutNode.shouldAutoInvalidate]) and the parent receives it. Where [written] is
+     * [left out][isLeftOutUnder] under that parent, the list the parent receives is the one it holds. A parent that
+     * does not measure receives no parent-layout element and keeps its registration.
+     */
+    fun parentReads(written: ParentLayoutNode): Boolean =
+        written.shouldAutoInvalidate && measuringParent?.let { !written.isLeftOutUnder(it) } == true
+
+    /** The measuring parent the applier attached this component to, or `null` where it stands under none. */
+    private val measuringParent: Container?
+        get() = component.parent?.takeIf { it === host && it.layout is MeasurementLayoutManager }
 }
+
+/**
+ * The [parentLayoutElements][ParentDeclaration.parentLayoutElements] [host] receives: all but each
+ * [inheritable][ParentLayoutElement.inheritable] one whose protocol refuses [host]. The stored list itself where
+ * none is left out.
+ */
+internal fun ParentDeclaration.layoutElementsUnder(host: Container): List<ParentLayoutElement> {
+    val elements = parentLayoutElements
+    if (elements.fastFirstOrNull { it.isLeftOutUnder(host) } == null) return elements
+    return elements.filterNot { it.isLeftOutUnder(host) }.ifEmpty { emptyList() }
+}
+
+/** Whether this element is a layout node that is not attached. */
+private val ParentLayoutElement.isDetachedNode: Boolean
+    get() = this is ParentLayoutNode && !isAttached
+
+/** Whether this element [may be left out][mayBeLeftOut] and [host]'s protocol refuses it. */
+internal fun ParentLayoutElement.isLeftOutUnder(host: Container): Boolean =
+    mayBeLeftOut && !parentProtocol.accepts(host)
 
 /** Whether each of these elements equals the one [applied] at its place, or is a node element where a node stands. */
 private fun List<ParentLayoutElement>.standsAs(applied: List<ParentLayoutElement>): Boolean {
@@ -210,15 +267,15 @@ private fun List<NodeRecord<*, *>>.withLayoutNodes(
             break
         }
     }
-    // No node element to replace: skip the mapNotNull below. toList() returns the shared empty list when
+    // No node element to replace: skip the mapping below. toList() returns the shared empty list when
     // declared is empty, and a defensive copy of declared otherwise.
     val resolved =
         if (!hasNodeElement) {
             declared.toList()
         } else {
             var next = 0
-            declared.mapNotNull { element ->
-                if (element !is ParentLayoutNodeElement<*>) return@mapNotNull element
+            declared.mapNotNullTo(ArrayList(declared.size)) { element ->
+                if (element !is ParentLayoutNodeElement<*>) return@mapNotNullTo element
                 while (next < size && this[next] !is LayoutNodeRecord) next++
                 getOrNull(next++)?.node as ParentLayoutNode?
             }

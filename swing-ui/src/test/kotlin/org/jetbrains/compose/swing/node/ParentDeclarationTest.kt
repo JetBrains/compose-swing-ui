@@ -1,9 +1,14 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.mutableIntStateOf
+import io.mockk.mockk
+import io.mockk.verifyOrder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.KeyReadingElement
+import org.jetbrains.compose.swing.LayoutDeclaration
+import org.jetbrains.compose.swing.RecordingLayout
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -22,10 +27,8 @@ import org.jetbrains.compose.swing.modifier.layout.slot
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
-import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.LayoutManager
-import java.awt.LayoutManager2
 import java.lang.ref.WeakReference
 import javax.swing.JButton
 import javax.swing.JLayeredPane
@@ -58,11 +61,11 @@ class ParentDeclarationTest {
         child.declaration.attachedUnder(root)
 
         assertEquals(
-            ComponentLayout(child.component, "first constraint", listOf(first, second)),
+            LayoutDeclaration(child.component, "first constraint", listOf(first, second)),
             layout.declarations.last(),
         )
         assertEquals(1, layout.declarations.size, "attachment declares the complete initial state once")
-        assertEquals(0, layout.removedComponents, "capable layouts retain the attached child")
+        assertEquals(0, layout.removals.size, "capable layouts retain the attached child")
 
         child.declaration.applyComponentLayout(
             "second constraint",
@@ -71,7 +74,7 @@ class ParentDeclarationTest {
         )
 
         assertEquals(
-            ComponentLayout(child.component, "second constraint", listOf(first, second)),
+            LayoutDeclaration(child.component, "second constraint", listOf(first, second)),
             layout.declarations.last(),
         )
         assertEquals(2, layout.declarations.size, "a parent-data change must make one atomic call")
@@ -83,11 +86,11 @@ class ParentDeclarationTest {
         )
 
         assertEquals(
-            ComponentLayout(child.component, "second constraint", listOf(second, first)),
+            LayoutDeclaration(child.component, "second constraint", listOf(second, first)),
             layout.declarations.last(),
         )
         assertEquals(3, layout.declarations.size, "an element change must make one atomic call")
-        assertEquals(0, layout.removedComponents, "an update must not re-register the component")
+        assertEquals(0, layout.removals.size, "an update must not re-register the component")
     }
 
     @Test
@@ -107,8 +110,11 @@ class ParentDeclarationTest {
             applier.up()
             applier.onEndChanges()
 
-            assertEquals(listOf<Any?>(null), layout.constraintsAtAdd)
-            assertEquals(ComponentLayout(child.component, "constraint", listOf(element)), layout.declarations.single())
+            assertEquals(listOf<Any?>(null), layout.registrations.map { it.constraints })
+            assertEquals(
+                LayoutDeclaration(child.component, "constraint", listOf(element)),
+                layout.declarations.single(),
+            )
         } finally {
             owner.dispose()
         }
@@ -131,7 +137,10 @@ class ParentDeclarationTest {
             applier.up()
             applier.onEndChanges()
 
-            assertEquals(ComponentLayout(child.component, "constraint", listOf(padding)), layout.declarations.single())
+            assertEquals(
+                LayoutDeclaration(child.component, "constraint", listOf(padding)),
+                layout.declarations.single(),
+            )
         } finally {
             owner.dispose()
         }
@@ -195,26 +204,27 @@ class ParentDeclarationTest {
 
     @Test
     fun conventionalLayoutManagersKeepTheirConstraintRegistrationPath() {
-        val layout = RecordingLayoutManager()
+        val layout = RecordingLayout()
         val root = JPanel(layout)
         val child = attached(root)
 
         child.declaration.applyComponentLayout("replacement", RawParentProtocol, emptyList())
 
-        assertSame(child.component, layout.removedComponent)
-        assertEquals("replacement", layout.constraintOf(child.component))
+        assertSame(child.component, layout.removals.single())
+        assertEquals("replacement", layout.registrations.last().constraints)
     }
 
     @Test
     fun legacyLayoutManagerIsReregisteredWhenParentDataIsNull() {
-        val layout = RecordingLegacyLayoutManager()
+        val layout = mockk<LayoutManager>(relaxed = true)
         val child = attached(JPanel(layout))
-        layout.lastName = "not null"
 
         child.declaration.applyComponentLayout(null, RawParentProtocol, emptyList())
 
-        assertSame(child.component, layout.removedComponent)
-        assertEquals(null, layout.lastName)
+        verifyOrder {
+            layout.removeLayoutComponent(child.component)
+            layout.addLayoutComponent(null, child.component)
+        }
     }
 
     @Test
@@ -741,12 +751,13 @@ class ParentDeclarationTest {
 internal fun attachedLayoutNode(owner: TestCompositionOwner): SwingNodeHolder<JButton> =
     attachedChild(owner, JButton("child"))
 
-/** [component]'s holder, attached to [owner] under a measuring parent. */
+/** [component]'s holder, attached to [owner] under a parent measuring with [layout]. */
 internal fun <T : Component> attachedChild(
     owner: TestCompositionOwner,
     component: T,
+    layout: MeasurementLayoutManager = RecordingMeasurementLayout(),
 ): SwingNodeHolder<T> {
-    val root = JPanel(RecordingMeasurementLayout())
+    val root = JPanel(layout)
     val child = SwingNodeHolder(component).attachedTo(owner)
     root.add(child.component)
     child.declaration.attachedUnder(root)
@@ -894,7 +905,7 @@ private class AnyHostLayoutNode : ParentLayoutNode() {
     override val parentProtocol: ParentProtocol get() = AnyHostLayoutNodeElement.parentProtocol
 }
 
-private data class TestParentLayoutElement(
+internal data class TestParentLayoutElement(
     override val name: String,
 ) : ParentLayoutElement {
     override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
@@ -906,122 +917,4 @@ private data object BorderOnlyParentData : ParentProtocol {
     override val description: String get() = "BorderLayout parent data"
 
     override fun accepts(parent: Container): Boolean = parent.layout is BorderLayout
-}
-
-private data class ComponentLayout(
-    val component: Component,
-    val constraint: Any?,
-    val elements: List<ParentLayoutElement>,
-)
-
-private class RecordingMeasurementLayout :
-    LayoutManager2,
-    MeasurementLayoutManager {
-    val declarations = mutableListOf<ComponentLayout>()
-
-    val constraintsAtAdd = mutableListOf<Any?>()
-
-    var removedComponents: Int = 0
-        private set
-
-    override fun declareComponentLayout(
-        component: Component,
-        parentData: Any?,
-        elements: List<ParentLayoutElement>,
-    ) {
-        declarations += ComponentLayout(component, parentData, elements)
-    }
-
-    override fun addLayoutComponent(
-        component: Component,
-        constraints: Any?,
-    ) {
-        constraintsAtAdd += constraints
-    }
-
-    override fun addLayoutComponent(
-        name: String?,
-        component: Component,
-    ): Unit = Unit
-
-    override fun removeLayoutComponent(component: Component) {
-        removedComponents++
-    }
-
-    override fun preferredLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun minimumLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-
-    override fun getLayoutAlignmentX(target: Container): Float = 0.5f
-
-    override fun getLayoutAlignmentY(target: Container): Float = 0.5f
-
-    override fun invalidateLayout(target: Container): Unit = Unit
-
-    override fun layoutContainer(parent: Container): Unit = Unit
-}
-
-private class RecordingLayoutManager : LayoutManager2 {
-    private val constraints = mutableMapOf<Component, Any?>()
-
-    var removedComponent: Component? = null
-        private set
-
-    override fun addLayoutComponent(
-        component: Component,
-        constraints: Any?,
-    ) {
-        this.constraints[component] = constraints
-    }
-
-    override fun addLayoutComponent(
-        name: String?,
-        component: Component,
-    ): Unit = Unit
-
-    override fun removeLayoutComponent(component: Component) {
-        removedComponent = component
-    }
-
-    fun constraintOf(component: Component): Any? = constraints[component]
-
-    override fun preferredLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun minimumLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-
-    override fun getLayoutAlignmentX(target: Container): Float = 0.5f
-
-    override fun getLayoutAlignmentY(target: Container): Float = 0.5f
-
-    override fun invalidateLayout(target: Container): Unit = Unit
-
-    override fun layoutContainer(parent: Container): Unit = Unit
-}
-
-private class RecordingLegacyLayoutManager : LayoutManager {
-    var removedComponent: Component? = null
-        private set
-
-    var lastName: String? = null
-
-    override fun addLayoutComponent(
-        name: String?,
-        component: Component,
-    ) {
-        lastName = name
-    }
-
-    override fun removeLayoutComponent(component: Component) {
-        removedComponent = component
-    }
-
-    override fun preferredLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun minimumLayoutSize(parent: Container): Dimension = Dimension()
-
-    override fun layoutContainer(parent: Container): Unit = Unit
 }

@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.mayBeLeftOut
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Container
 
@@ -138,13 +139,15 @@ internal class SlotElement(
  * holds a child either under a constraint its layout manager registers the component by, or in a region
  * of its own reached through a setter written for that region, and the two are what different containers
  * offer: a modifier declaring one of each names a place in a parent that holds children the other way.
+ * A declaration that [may be left out][mayBeLeftOut] may stand beside a region, and is left out where the host's
+ * protocol refuses it.
  */
 internal fun checkOnePlacement(
     slot: ParentSlotElement?,
     parentDeclarations: List<ParentElement>,
 ) {
     if (slot == null) return
-    val layoutDeclarations = parentDeclarations.filterIsInstance<ParentLayoutElement>()
+    val layoutDeclarations = parentDeclarations.filter { it is ParentLayoutElement && !it.mayBeLeftOut }
     require(layoutDeclarations.isEmpty()) {
         val declared = layoutDeclarations.joinToString { "SwingModifier.${it.name}()" }
         "A component filling a region of its host is laid out by that host's own setter rather than " +

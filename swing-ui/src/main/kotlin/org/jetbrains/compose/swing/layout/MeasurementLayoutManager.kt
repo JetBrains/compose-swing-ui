@@ -8,10 +8,12 @@ import java.awt.LayoutManager2
  * A parent layout manager that interprets its children's [ParentLayoutElement]s.
  *
  * The runtime gives a manager the child's folded `parentData` and all remaining parent-layout
- * `elements` in one call, after the child has been added to the parent. It calls again when either
- * declaration changes, without removing and adding the child, so implementations retain whatever
- * per-child state belongs to the component. `elements` are in modifier declaration order, outermost
- * first.
+ * `elements` in one call, after the child has been added to the parent. It leaves out an
+ * [inheritable][ParentLayoutElement.inheritable] element whose protocol refuses this parent. It calls
+ * again when either declaration changes, without removing and adding the child, so implementations
+ * retain whatever per-child state belongs to the component. `elements` are in modifier declaration
+ * order, outermost first. Every [ParentLayoutNode] among them is attached: the runtime calls again as one
+ * detaches, before it runs another node of the child's modifier.
  *
  * A layout manager that does not implement this interface receives ordinary `LayoutManager2` parent-data
  * registration and cannot accept remaining parent-layout elements.

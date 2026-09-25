@@ -143,22 +143,36 @@ instance.
 
 **Keys.** A declaration has a `key`, its class by default; an `additive` declaration stands beside every
 other, in declaration order. A modifier declares either a host slot or other parent declarations, and
-one declaring both is refused.
+one declaring both is refused, unless each of the other declarations is inheritable and folds no parent
+data.
+
+**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
+[component default](ARCHITECTURE.md#component-defaults). Under a parent its protocol refuses, it is also
+left out of the declaration instead of refused, whether a default provides it or the component declares
+it directly: that parent never receives it, and a conventional manager is never registered again because
+of it. A left-out declaration taking another value does not have a measuring parent declared to again,
+in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is
+not additive: one that is both is refused.
+`inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier`
+cannot be a component default, folds, and fails under a parent its protocol refuses. A `ParentLayoutNode`
+declares the same `parentProtocol` and `inheritable` as its element.
 
 **What the parent receives.** A declaration reaches the component's immediate parent and travels no
 further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data
-and the other parent-layout elements, in declaration order, through
-`declareComponentLayout(component, parentData, elements)` once the component is added, and again
-whenever either changes, without the component being removed and added again. Any other `LayoutManager2`
-is handed the parent data through `addLayoutComponent`, and is handed it again, after a
-`removeLayoutComponent`, when it changes. Give a parent-layout element a protocol that accepts only
-parents able to interpret it, as `MeasurementLayoutManager.parentProtocol` does.
+and the other parent-layout elements, in declaration order and without each inheritable one its protocol
+refuses, through `declareComponentLayout(component, parentData, elements)` once the component is added,
+and again whenever what it is handed changes, without the component being removed and added again. Any
+other `LayoutManager2` is handed the parent data through `addLayoutComponent`, and is handed it again,
+after a `removeLayoutComponent`, when it changes. Give a parent-layout element a protocol that accepts
+only parents able to interpret it, as `MeasurementLayoutManager.parentProtocol` does.
 
 **Stateful declarations.** A `ParentLayoutNodeElement` creates its `ParentLayoutNode` once per slot and
 runs `update(node)` when a later declaration is unequal to it, as a `NodeElement` does; the parent finds
-the node in the element's place in `elements`. Stateful declarations are paired by position among
-themselves, as [additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of
-another kind entering or leaving shifts none of them. A layout node has the
+the node in the element's place in `elements`. Every node among `elements` is attached: the parent is
+handed the elements again as a node detaches, before another node of the modifier runs. Stateful
+declarations are paired by position among themselves, as
+[additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering
+or leaving shifts none of them. A layout node has the
 [lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
 of any other node, and it stays attached through a `key` change.
 

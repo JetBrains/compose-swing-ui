@@ -7,6 +7,7 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -219,7 +220,7 @@ class LayoutConstraintTest {
 
     @Test
     fun aChangedConstraintReachesTheLayoutManagerExactlyOnce() = runComposeSwingTest {
-        val layout = RecordingLayout()
+        val layout = RecordingLayout(BorderLayout())
         var region by mutableStateOf(BorderLayout.NORTH)
         var text by mutableStateOf("one")
         setContent {
@@ -227,23 +228,31 @@ class LayoutConstraintTest {
                 Label(text, SwingModifier.layoutConstraint(region))
             }
         }
-        assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registered, "attaching registers the child once")
+        assertEquals(
+            listOf<Any?>(BorderLayout.NORTH),
+            layout.registrations.map { it.constraints },
+            "attaching registers the child once",
+        )
 
         // A composition that leaves the placement alone must not touch the layout manager at all: the
         // child keeps the registration it already has.
         text = "two"
         awaitIdle()
-        assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registered, "an unchanged placement is not re-registered")
-        assertEquals(0, layout.unregistered, "an unchanged placement is not cleared")
+        assertEquals(
+            listOf<Any?>(BorderLayout.NORTH),
+            layout.registrations.map { it.constraints },
+            "an unchanged placement is not re-registered",
+        )
+        assertEquals(0, layout.removals.size, "an unchanged placement is not cleared")
 
         region = BorderLayout.SOUTH
         awaitIdle()
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH, BorderLayout.SOUTH),
-            layout.registered,
+            layout.registrations.map { it.constraints },
             "the new placement is registered once",
         )
-        assertEquals(1, layout.unregistered, "the old placement is cleared once")
+        assertEquals(1, layout.removals.size, "the old placement is cleared once")
     }
 
     @Test
@@ -275,14 +284,18 @@ class LayoutConstraintTest {
 
     @Test
     fun aChainThatDeclaresNoConstraintLeavesTheChildPlacedByIndex() = runComposeSwingTest {
-        val layout = RecordingLayout()
+        val layout = RecordingLayout(BorderLayout())
         var placed by mutableStateOf(true)
         setContent {
             RecordingContainer(layout) {
                 Label("free", if (placed) SwingModifier.layoutConstraint(BorderLayout.NORTH) else SwingModifier)
             }
         }
-        assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registered, "the declared placement is registered")
+        assertEquals(
+            listOf<Any?>(BorderLayout.NORTH),
+            layout.registrations.map { it.constraints },
+            "the declared placement is registered",
+        )
 
         placed = false
         awaitIdle()
@@ -291,10 +304,10 @@ class LayoutConstraintTest {
         // index alone.
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH, null),
-            layout.registered,
+            layout.registrations.map { it.constraints },
             "giving up the constraint re-registers the child under none",
         )
-        assertEquals(1, layout.unregistered, "the placement it gave up is cleared once")
+        assertEquals(1, layout.removals.size, "the placement it gave up is cleared once")
     }
 
     @Test
@@ -495,32 +508,6 @@ class LayoutConstraintTest {
 
         private companion object {
             val CELL = Dimension(40, 20)
-        }
-    }
-
-    /**
-     * A [BorderLayout] that records the placement of every child registered with it and counts the
-     * registrations cleared again, so a test can tell how often a child's placement reaches the layout.
-     */
-    private class RecordingLayout(
-        private val delegate: BorderLayout = BorderLayout(),
-    ) : LayoutManager2 by delegate {
-        val registered: MutableList<Any?> = mutableListOf()
-
-        var unregistered: Int = 0
-            private set
-
-        override fun addLayoutComponent(
-            comp: Component,
-            constraints: Any?,
-        ) {
-            registered += constraints
-            delegate.addLayoutComponent(comp, constraints)
-        }
-
-        override fun removeLayoutComponent(comp: Component) {
-            unregistered++
-            delegate.removeLayoutComponent(comp)
         }
     }
 }

@@ -232,17 +232,23 @@ internal class SwingNodeHolder<out T : Component>
             childSettle = null
         }
 
-        /** The node is leaving the composition for good. */
+        /**
+         * The node is leaving the composition for good. The region it fills is released and its teardown runs
+         * whether or not the reset throws.
+         */
         override fun onRelease() {
-            reset(resetNodes = false)
-            // The applier frees a region when it removes or moves a node. Whole-subtree disposal goes
-            // through neither path: SwingApplier.onClear() drops the root subtree with
-            // Container.removeAll() and clears the root's child list, releasing no region on the way.
-            // A node installed in a region is therefore still installed when the runtime releases it.
-            // The call is unguarded because both the installed and the uninstalled state are
-            // legitimate: an ordinary remove or move has already freed the region.
-            releaseInstalledSlot()
-            release()
+            try {
+                reset(resetNodes = false)
+            } finally {
+                // The applier frees a region when it removes or moves a node. Whole-subtree disposal goes
+                // through neither path: SwingApplier.onClear() drops the root subtree with
+                // Container.removeAll() and clears the root's child list, releasing no region on the way.
+                // A node installed in a region is therefore still installed when the runtime releases it.
+                // The call is unguarded because both the installed and the uninstalled state are
+                // legitimate: an ordinary remove or move has already freed the region.
+                releaseInstalledSlot()
+                release()
+            }
         }
 
         /**
@@ -264,22 +270,26 @@ internal class SwingNodeHolder<out T : Component>
          *
          * A parked node is never driven again - the runtime releases it and the content that reactivates
          * inserts a fresh node in its place - so nothing here is kept for a later pass to restore. The
-         * component is removed from its Swing parent, and the region it filled, if any, is released.
+         * component is removed from its Swing parent, and the region it filled, if any, is released, whether or
+         * not the reset throws.
          */
         override fun onDeactivate() {
             deactivated = true
-            reset(resetNodes = true)
-            // No batch runs here, so the parent repaints the area the component leaves itself, once it has
-            // revalidated: `Container.remove` only invalidates. Both are read before the region is released,
-            // which can take the component out of its parent.
-            val parent = component.parent
-            val area = component.bounds
-            releaseInstalledSlot()
-            release()
-            if (parent != null) {
-                parent.remove(component)
-                parent.revalidate()
-                parent.repaint(area.x, area.y, area.width, area.height)
+            try {
+                reset(resetNodes = true)
+            } finally {
+                // No batch runs here, so the parent repaints the area the component leaves itself, once it has
+                // revalidated: `Container.remove` only invalidates. Both are read before the region is released,
+                // which can take the component out of its parent.
+                val parent = component.parent
+                val area = component.bounds
+                releaseInstalledSlot()
+                release()
+                if (parent != null) {
+                    parent.remove(component)
+                    parent.revalidate()
+                    parent.repaint(area.x, area.y, area.width, area.height)
+                }
             }
         }
 

@@ -9,7 +9,7 @@ import androidx.compose.runtime.Stable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
 /**
- * An identity key naming an independent part of a scoped cascade of modifier property declarations.
+ * An identity key naming an independent part of a scoped cascade of inheritable modifier declarations.
  *
  * Keys compare by identity (`===`). [name] is used for diagnostics, validation failures and [toString];
  * two keys with the same name remain independent. The type parameter `V` is the type of value this key

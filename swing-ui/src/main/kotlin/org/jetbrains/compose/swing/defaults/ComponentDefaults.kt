@@ -6,6 +6,9 @@ package org.jetbrains.compose.swing.defaults
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
+import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
 import org.jetbrains.compose.swing.modifier.CombinedSwingModifier
 import org.jetbrains.compose.swing.modifier.KeyElement
 import org.jetbrains.compose.swing.modifier.PropertyElement
@@ -18,8 +21,9 @@ import java.awt.Component
  * Validates that all elements in [modifier] returned by a [ComponentDefaultKey.apply] function are
  * eligible to cascade as defaults.
  *
- * Rejects non-inheritable node elements, additive elements, slot attachments, layout constraints,
- * layout measurement elements, and unknown raw [SwingModifier.Element] instances.
+ * Accepts keys, and inheritable, non-additive node elements and parent-layout elements that fold no parent data.
+ * Rejects every other element: non-inheritable, additive and parent-data elements, slot attachments, and unknown raw
+ * [SwingModifier.Element] instances.
  */
 internal fun validateDefaultModifier(
     key: ComponentDefaultKey<*>,
@@ -38,6 +42,17 @@ internal fun validateDefaultModifier(
                 }
                 require(!element.additive) {
                     "ComponentDefaultKey '${key.name}' cannot declare additive element: $element"
+                }
+                elements.add(element)
+            }
+
+            is ParentLayoutElement -> {
+                require(element.inheritable) {
+                    "ComponentDefaultKey '${key.name}' cannot declare non-inheritable element: $element"
+                }
+                element.requireInheritableIsNotAdditive()
+                require(element !is ParentDataModifier) {
+                    "ComponentDefaultKey '${key.name}' cannot declare parent data: $element"
                 }
                 elements.add(element)
             }
@@ -78,7 +93,8 @@ internal class ComponentDefaults internal constructor(
     private val entries: Map<ComponentDefaultKey<*>, DefaultEntry<*>>,
 ) {
     // Scoped to this logically immutable defaults snapshot.
-    // Populated only for concrete component classes rendered under it.
+    // Populated only for concrete component classes rendered under it, each with the effective chain of a component
+    // of that class that declares no modifier: SwingModifier itself where no default applies to the class.
     private val cache = HashMap<Class<*>, SwingModifier>()
 
     fun <V : Any> get(key: ComponentDefaultKey<V>): V? {
@@ -106,24 +122,38 @@ internal class ComponentDefaults internal constructor(
         }
     }
 
-    /** [declared] behind the defaults that apply to a component of [componentClass]. */
+    /**
+     * [declared] behind the defaults that apply to a component of [componentClass]. Components of one class that
+     * declare no modifier share one chain.
+     */
     fun effectiveModifier(
         componentClass: Class<*>,
         declared: SwingModifier,
     ): SwingModifier {
-        val inherited = modifierFor(componentClass)
-        return if (inherited === SwingModifier) declared else InheritingSwingModifier(inherited, declared)
+        val undeclared = undeclaredModifierFor(componentClass)
+        return when {
+            undeclared !is InheritingSwingModifier -> declared
+            declared === SwingModifier -> undeclared
+            else -> InheritingSwingModifier(undeclared.outer, declared)
+        }
     }
 
-    fun modifierFor(componentClass: Class<*>): SwingModifier {
+    fun modifierFor(componentClass: Class<*>): SwingModifier =
+        (undeclaredModifierFor(componentClass) as? InheritingSwingModifier)?.outer ?: SwingModifier
+
+    private fun undeclaredModifierFor(componentClass: Class<*>): SwingModifier {
         if (entries.isEmpty()) return SwingModifier
-        return cache.getOrPut(componentClass) { buildModifierFor(componentClass) }
+        return cache.getOrPut(componentClass) {
+            val inherited = buildModifierFor(componentClass)
+            if (inherited === SwingModifier) inherited else InheritingSwingModifier(inherited, SwingModifier)
+        }
     }
 
     private fun buildModifierFor(componentClass: Class<*>): SwingModifier {
         var result: SwingModifier = SwingModifier
         for (entry in entries.values) {
-            // Validation leaves only keys and node elements; a key stays only beside a property that applies.
+            // Validation leaves only keys, node elements and inheritable parent-layout elements; a key stays only
+            // beside an element that applies.
             val applicable = entry.elements.filter { it is KeyElement || it.appliesTo(componentClass) }
             if (applicable.any { it !is KeyElement }) applicable.forEach { result = result then it }
         }
@@ -150,14 +180,16 @@ internal class ComponentDefaults internal constructor(
 }
 
 /**
- * Whether this node element can be applied to a component of [componentClass]: for a [PropertyElement],
+ * Whether this element can be applied to a component of [componentClass]: for a [PropertyElement],
  * whichever classes its [org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor] handle
  * serves, rather than [SwingModifier.NodeElement.targetType], which a multi-type property leaves at
- * `Component` so its own mismatch message is the one a direct declaration sees.
+ * `Component` so its own mismatch message is the one a direct declaration sees. A parent-layout element
+ * applies to every component.
  */
 private fun SwingModifier.Element.appliesTo(componentClass: Class<*>): Boolean =
     when (this) {
         is PropertyElement<*, *> -> handles(componentClass)
+        is ParentLayoutElement -> true
         else -> (this as SwingModifier.NodeElement<*, *>).targetType.isAssignableFrom(componentClass)
     }
 

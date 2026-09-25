@@ -17,6 +17,9 @@
  * ui; see this module's META-INF/NOTICE for the synced version.
  */
 
+@file:JvmMultifileClass
+@file:JvmName("SwingModifierKt")
+
 package org.jetbrains.compose.swing.modifier
 
 import androidx.compose.runtime.Composable
