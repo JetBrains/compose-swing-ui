@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.MainScope
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
@@ -32,7 +33,6 @@ import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.tooling.Preview
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.DialogState
-import org.jetbrains.compose.swing.window.GlassPane
 import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowPosition
@@ -53,7 +53,7 @@ import javax.swing.SwingConstants
 // onCloseRequest flips the state back. The dialog's modality is switched live between the three AWT
 // modality types. Every reactive Window/Dialog argument - resizable, alwaysOnTop, undecorated,
 // iconImage, minimumSize, visible - is driven by a check box beside it, and each peer's geometry is
-// demonstrated as two-way state. The secondary window also demonstrates MenuBar and GlassPane.
+// demonstrated as two-way state. The secondary window also demonstrates MenuBar and a Layer's GlassPane.
 @Preview
 @Composable
 internal fun WindowsSection() {
@@ -67,7 +67,7 @@ internal fun WindowsSection() {
 
 @Composable
 private fun ColumnScope.SecondaryWindowCard() {
-    ExampleCard("Window (secondary top-level frame, with its MenuBar and GlassPane)") {
+    ExampleCard("Window (secondary top-level frame, with its MenuBar and a Layer's GlassPane)") {
         var open by remember { mutableStateOf(false) }
         // Hoisted above the `if (open)` so the readout survives closing and reopening the window.
         val state = rememberWindowState(size = Dimension(320, 200))
@@ -191,27 +191,26 @@ private fun WindowScope.SecondaryWindowContent(
         }
     }
     val background = if (dark) DarkThemeBackground else Color.WHITE
-    Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(true).background(background)) {
-        Label(
-            "A second top-level window, composed declaratively.",
-            modifier =
-                SwingModifier
-                    .center()
-                    .horizontalAlignment(SwingConstants.CENTER)
-                    .foreground(if (dark) Color.WHITE else Color.BLACK),
-        )
-        Panel(PanelLayout.Flow(), SwingModifier.south()) {
-            Button("Click me", onClick = onClick)
+    Layer {
+        Panel(
+            PanelLayout.Border(),
+            modifier = SwingModifier.background(background),
+        ) {
+            Label(
+                "A second top-level window, composed declaratively.",
+                modifier =
+                    SwingModifier
+                        .center()
+                        .horizontalAlignment(SwingConstants.CENTER)
+                        .foreground(if (dark) Color.WHITE else Color.BLACK),
+            )
+            Panel(PanelLayout.Flow(), SwingModifier.south()) {
+                Button("Click me", onClick = onClick)
+            }
         }
-    }
-    // A glass pane covers the whole window for as long as it is composed. A click goes to the deepest
-    // component under the pointer that listens for the mouse, so the panel filling the pane listens,
-    // and the button above goes on being visible while it stops answering clicks. The pane is
-    // transparent where its content paints nothing: the banner is held to the top of a non-opaque
-    // panel, leaving the rest of the window showing through.
-    if (blocking) {
-        GlassPane {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false).mouseListener {}) {
+        // The pane listens, so the button under it stops answering clicks while it is up.
+        if (blocking) {
+            GlassPane(PanelLayout.Border(), modifier = SwingModifier.mouseListener {}) {
                 Label(
                     "Input is blocked while this pane is up",
                     modifier =

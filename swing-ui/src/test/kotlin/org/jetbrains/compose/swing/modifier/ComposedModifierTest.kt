@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Layer
+import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -21,7 +21,7 @@ import java.awt.Color
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JLayer
+import javax.swing.JScrollPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -85,18 +85,18 @@ class ComposedModifierTest {
     }
 
     @Test
-    fun aLayerTakesAViewSlotDeclaredThroughAFactory() = runComposeSwingTest {
-        val tag = "layer"
+    fun aScrollPaneTakesARegionDeclaredThroughAFactory() = runComposeSwingTest {
+        val tag = "pane"
         setContent {
-            Layer(modifier = SwingModifier.testTag(tag), onMouseEvent = {}) {
-                Label("", modifier = SwingModifier.preferredSize(32, 32).composed { view() })
+            ScrollPane(modifier = SwingModifier.testTag(tag)) {
+                Label("", modifier = SwingModifier.preferredSize(32, 32).composed { rowHeader() })
             }
         }
 
         assertSame(
             onNodeOfType<JLabel>().fetch(),
-            onNodeWithTag(tag).fetch<JLayer<*>>().view,
-            "the label the factory declares a view is the layer's view",
+            onNodeWithTag(tag).fetch<JScrollPane>().rowHeader?.view,
+            "the label the factory declares a row header is the pane's row header",
         )
     }
 

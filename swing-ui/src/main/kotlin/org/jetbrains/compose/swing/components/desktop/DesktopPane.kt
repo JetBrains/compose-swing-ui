@@ -153,7 +153,7 @@ public sealed interface DesktopPaneScope {
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body
+     * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
      */
     @Composable
@@ -163,7 +163,7 @@ public sealed interface DesktopPaneScope {
         onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     )
 
     /**
@@ -178,7 +178,7 @@ public sealed interface DesktopPaneScope {
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body
+     * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
      */
     @Composable
@@ -188,7 +188,7 @@ public sealed interface DesktopPaneScope {
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     )
 
     /**
@@ -206,7 +206,7 @@ public sealed interface DesktopPaneScope {
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body
+     * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
      */
     @Composable
@@ -216,7 +216,7 @@ public sealed interface DesktopPaneScope {
         onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     )
 
     /**
@@ -231,7 +231,7 @@ public sealed interface DesktopPaneScope {
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body
+     * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
      */
     @Composable
@@ -241,7 +241,7 @@ public sealed interface DesktopPaneScope {
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     )
 }
 
@@ -260,7 +260,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         onClose: () -> Unit,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     ) {
         FrameNode(
             title = title,
@@ -280,7 +280,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     ) {
         FrameNode(
             title = title,
@@ -300,7 +300,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         onClose: () -> Unit,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     ) {
         StateClaim(state)
         FrameNode(
@@ -321,7 +321,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        content: @Composable () -> Unit,
+        content: @Composable InternalFrameScope.() -> Unit,
     ) {
         StateClaim(state)
         FrameNode(
@@ -410,7 +410,7 @@ private inline fun FrameNode(
     noinline onClose: (() -> Unit)?,
     rawListener: InternalFrameListener?,
     modifier: SwingModifier,
-    noinline content: @Composable () -> Unit,
+    noinline content: @Composable InternalFrameScope.() -> Unit,
 ) {
     // The onClose overload routes the close control through a listener that reads the declared callback
     // when the frame reports closing (the close operation stays do-nothing, so the frame is only closed
@@ -446,6 +446,7 @@ private inline fun FrameNode(
                 .hierarchyListener(attachSync)
         }
 
+    val scope = remember { InternalFrameScopeImpl() }
     SwingNode(
         factory = {
             JInternalFrame(
@@ -493,7 +494,7 @@ private inline fun FrameNode(
             set(declaredMaximized) { value -> applyMaximized(value, applied, target.value) }
             set(declaredIconified) { value -> applyIconified(value, applied, target.value) }
         },
-        content = content,
+        content = { scope.content() },
     )
 }
 

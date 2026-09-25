@@ -1,10 +1,9 @@
 package org.jetbrains.compose.swing.window
 
 /**
- * The serve/withdraw protocol a window-carried decoration ([MenuBar], [GlassPane]) shares: a window
- * carries at most one of a kind, this holds the [payload] one declaration puts on the window and the
- * [displaced] one it takes the window's place from, and [install] is how that kind puts either on a
- * [javax.swing.JRootPane].
+ * The serve/withdraw protocol of a window-carried decoration ([MenuBar]): a window carries at most one,
+ * this holds the [payload] one declaration puts on the window and the [displaced] one it takes the
+ * window's place from, and [install] is how either is put on a [javax.swing.JRootPane].
  */
 internal class WindowDecoration<T>(
     private val payload: T,

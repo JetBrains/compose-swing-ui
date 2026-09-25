@@ -19,17 +19,16 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.AWTEvent
 import java.awt.AlphaComposite
 import java.awt.Color
-import java.awt.Container
 import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
-import javax.swing.JComponent
 import javax.swing.JLayer
 import javax.swing.plaf.LayerUI
 import kotlin.test.Test
@@ -42,24 +41,24 @@ import kotlin.test.assertTrue
  * Behavioral tests for the callback overload of [Layer]: what a paint callback shows, which events the
  * layer observes, and what a pass rewriting the callbacks costs.
  *
- * Painting is forced against an off-screen [BufferedImage] and the layer is laid out by hand first,
- * because a layer's delegate is what gives the view its bounds. The view of most tests here fills itself
- * with one color, so every pixel a callback leaves behind is known rather than compared with a golden.
+ * Painting is forced through an off-screen capture of a layer declared at [SIZE]. The view of most tests
+ * here fills itself with one color, so every pixel a callback leaves behind is known rather than compared
+ * with a golden.
  */
 class LayerCallbackTest {
     @Test
     fun anUndeclaredPaintCallbackPaintsTheViewAsTheBareComponentPaints() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                Layer(modifier = SwingModifier.testTag(LAYER), onMouseEvent = {}) {
-                    Label(text = VIEW_TEXT, modifier = SwingModifier.view())
+                Layer(modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE), onMouseEvent = {}) {
+                    Label(text = VIEW_TEXT)
                 }
-                Label(text = VIEW_TEXT, modifier = SwingModifier.testTag(BARE))
+                Label(text = VIEW_TEXT, modifier = SwingModifier.testTag(BARE).preferredSize(SIZE))
             }
         }
 
-        val layered = render(onNodeWithTag(LAYER).fetch<JLayer<*>>())
-        val bare = render(onNodeWithTag(BARE).fetch<JComponent>())
+        val layered = onNodeWithTag(LAYER).captureToImage()
+        val bare = onNodeWithTag(BARE).captureToImage()
 
         assertTrue(
             pixelsOf(bare).any { it != 0 },
@@ -75,17 +74,17 @@ class LayerCallbackTest {
     fun aPaintCallbackThatNeverPaintsTheViewLeavesItUnpainted() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                Layer(modifier = SwingModifier.testTag(LAYER), onPaint = { _, _, _, _ -> }) {
+                Layer(modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE), onPaint = { _, _, _, _ -> }) {
                     FilledView()
                 }
-                Layer(modifier = SwingModifier.testTag(PLAIN), onMouseEvent = {}) {
+                Layer(modifier = SwingModifier.testTag(PLAIN).preferredSize(SIZE), onMouseEvent = {}) {
                     FilledView()
                 }
             }
         }
 
-        val painted = pixelsOf(render(onNodeWithTag(LAYER).fetch<JLayer<*>>()))
-        val plain = pixelsOf(render(onNodeWithTag(PLAIN).fetch<JLayer<*>>()))
+        val painted = pixelsOf(onNodeWithTag(LAYER).captureToImage())
+        val plain = pixelsOf(onNodeWithTag(PLAIN).captureToImage())
 
         assertTrue(
             plain.all { alphaOf(it) == OPAQUE },
@@ -102,7 +101,7 @@ class LayerCallbackTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Layer(
-                    modifier = SwingModifier.testTag(LAYER),
+                    modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                     onPaint = { g, _, _, paintView ->
                         g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f)
                         paintView()
@@ -110,14 +109,14 @@ class LayerCallbackTest {
                 ) {
                     FilledView()
                 }
-                Layer(modifier = SwingModifier.testTag(PLAIN), onMouseEvent = {}) {
+                Layer(modifier = SwingModifier.testTag(PLAIN).preferredSize(SIZE), onMouseEvent = {}) {
                     FilledView()
                 }
             }
         }
 
-        val dimmed = pixelsOf(render(onNodeWithTag(LAYER).fetch<JLayer<*>>()))
-        val plain = pixelsOf(render(onNodeWithTag(PLAIN).fetch<JLayer<*>>()))
+        val dimmed = pixelsOf(onNodeWithTag(LAYER).captureToImage())
+        val plain = pixelsOf(onNodeWithTag(PLAIN).captureToImage())
 
         assertTrue(
             plain.all { alphaOf(it) == OPAQUE },
@@ -139,7 +138,7 @@ class LayerCallbackTest {
         var handed: Dimension? = null
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER),
+                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                 onPaint = { g, width, height, _ ->
                     handed = Dimension(width, height)
                     g.color = OVERLAY
@@ -150,7 +149,7 @@ class LayerCallbackTest {
             }
         }
 
-        val painted = render(onNodeWithTag(LAYER).fetch<JLayer<*>>())
+        val painted = onNodeWithTag(LAYER).captureToImage()
 
         assertEquals(SIZE, handed, "the callback should be handed the layer's own size")
         assertTrue(
@@ -163,7 +162,7 @@ class LayerCallbackTest {
     fun aPaintCallbackDrawingAfterTheViewPaintsOverIt() = runComposeSwingTest {
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER),
+                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                 onPaint = { g, width, height, paintView ->
                     paintView()
                     // The color is chosen after the view paints: painting the view writes the layer's own
@@ -176,7 +175,7 @@ class LayerCallbackTest {
             }
         }
 
-        val painted = render(onNodeWithTag(LAYER).fetch<JLayer<*>>())
+        val painted = onNodeWithTag(LAYER).captureToImage()
 
         assertTrue(
             rowsAre(painted, 0 until SIZE.height / 2, OVERLAY),
@@ -193,7 +192,7 @@ class LayerCallbackTest {
         var kept: (() -> Unit)? = null
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER),
+                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                 onPaint = { _, _, _, paintView ->
                     paintView()
                     kept = paintView
@@ -203,7 +202,7 @@ class LayerCallbackTest {
             }
         }
 
-        val painted = pixelsOf(render(onNodeWithTag(LAYER).fetch<JLayer<*>>()))
+        val painted = pixelsOf(onNodeWithTag(LAYER).captureToImage())
         assertTrue(painted.all { it == VIEW_FILL.rgb }, "paintView called during the paint should paint the view")
         val paintView = checkNotNull(kept) { "the paint should have handed the callback paintView" }
 
@@ -220,7 +219,7 @@ class LayerCallbackTest {
             // Read here, in the composition, so each pass hands the layer a fresh lambda of its own.
             val captured = declaration
             Layer(
-                modifier = SwingModifier.testTag(LAYER),
+                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                 onPaint = { _, _, _, paintView ->
                     painted += captured
                     paintView()
@@ -232,7 +231,7 @@ class LayerCallbackTest {
 
         val layer = onNodeWithTag(LAYER).fetch<JLayer<*>>()
         val delegate: LayerUI<*> = layer.getUI()
-        render(layer)
+        onNodeWithTag(LAYER).captureToImage()
         assertEquals(listOf(1), painted, "the first paint should run the callback the first pass declared")
 
         declaration = 2
@@ -245,7 +244,7 @@ class LayerCallbackTest {
             "a pass writing fresh callbacks should leave the delegate it wrote them into installed",
         )
 
-        render(layer)
+        onNodeWithTag(LAYER).captureToImage()
         assertEquals(
             listOf(1, 2),
             painted,
@@ -325,7 +324,7 @@ class LayerCallbackTest {
             recorded.assertAskedToRepaint(layer, "declaring a new paint callback")
         }
 
-        render(layer)
+        onNodeWithTag(LAYER).captureToImage()
         assertEquals(
             listOf("second paint"),
             ran,
@@ -355,7 +354,7 @@ class LayerCallbackTest {
 
         val layer = onNodeWithTag(LAYER).fetch<JLayer<*>>()
         // The first paint is what registers the callback's read of `veil`.
-        render(layer)
+        onNodeWithTag(LAYER).captureToImage()
         assertEquals(listOf(1), painted, "the first paint should run the callback on the value it reads")
 
         withRecordedRepaints { recorded ->
@@ -366,7 +365,7 @@ class LayerCallbackTest {
             recorded.assertAskedToRepaint(layer, "a change to state the paint callback read")
         }
 
-        render(layer)
+        onNodeWithTag(LAYER).captureToImage()
         assertEquals(
             listOf(1, 2),
             painted,
@@ -423,7 +422,7 @@ class LayerCallbackTest {
         var declared by mutableStateOf(true)
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER),
+                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
                 onPaint =
                     if (declared) {
                         { g, width, height, _ ->
@@ -445,7 +444,12 @@ class LayerCallbackTest {
             layer.layerEventMask,
             "both declared event callbacks should be observed",
         )
-        assertTrue(pixelsOf(render(layer)).all { it == OVERLAY.rgb }, "the declared paint should replace the view")
+        assertTrue(
+            pixelsOf(onNodeWithTag(LAYER).captureToImage()).all {
+                it == OVERLAY.rgb
+            },
+            "the declared paint should replace the view",
+        )
 
         declared = false
         awaitIdle()
@@ -456,26 +460,8 @@ class LayerCallbackTest {
             "a withdrawn motion callback should take its bit off the mask and leave the one still declared",
         )
         assertTrue(
-            pixelsOf(render(layer)).all { it == VIEW_FILL.rgb },
+            pixelsOf(onNodeWithTag(LAYER).captureToImage()).all { it == VIEW_FILL.rgb },
             "a withdrawn paint callback should leave the layer painting the view unchanged",
-        )
-    }
-
-    @Test
-    fun aLayerDeclaringNoCallbackIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalArgumentException>("a layer that neither paints nor watches should be refused") {
-                setContent {
-                    Layer(modifier = SwingModifier.testTag(LAYER)) {
-                        Label(text = VIEW_TEXT, modifier = SwingModifier.view())
-                    }
-                }
-                awaitIdle()
-            }
-
-        assertTrue(
-            failure.message.orEmpty().startsWith("Layer declares no callback"),
-            "the refusal should name the layer, but said: ${failure.message}",
         )
     }
 
@@ -494,7 +480,6 @@ class LayerCallbackTest {
                     modifier =
                         SwingModifier
                             .testTag(VIEW)
-                            .view()
                             .mouseListener(onMousePressed = { reported += "view sees ${it.describedId}" }),
                 )
             }
@@ -527,7 +512,7 @@ class LayerCallbackTest {
  */
 @Composable
 private fun LayerScope.FilledView() {
-    Canvas(modifier = SwingModifier.view()) { g, width, height ->
+    Canvas { g, width, height ->
         g.color = VIEW_FILL
         g.fillRect(0, 0, width, height)
     }
@@ -535,32 +520,6 @@ private fun LayerScope.FilledView() {
 
 /** The events the layer tagged [tag] observes, as the layer itself reports them. */
 private fun ComposeSwingTest.maskOf(tag: String): Long = onNodeWithTag(tag).fetch<JLayer<*>>().layerEventMask
-
-/**
- * Sizes [component] to [SIZE], lays its tree out at that size and rasterizes it off-screen. The layout
- * pass is what gives a layer's view its bounds: a layer lays its view out through its delegate rather
- * than through a layout manager.
- */
-private fun render(component: JComponent): BufferedImage {
-    component.size = SIZE
-    layOutTree(component)
-    val image = BufferedImage(SIZE.width, SIZE.height, BufferedImage.TYPE_INT_ARGB)
-    val graphics = image.createGraphics()
-    try {
-        component.paint(graphics)
-    } finally {
-        graphics.dispose()
-    }
-    return image
-}
-
-/** Runs each container's layout, top down, giving every child the bounds a paint pass reads. */
-private fun layOutTree(container: Container) {
-    container.doLayout()
-    for (child in container.components) {
-        if (child is Container) layOutTree(child)
-    }
-}
 
 /** Every pixel of [image], row by row, as the packed ARGB values the assertions read. */
 private fun pixelsOf(image: BufferedImage): IntArray =

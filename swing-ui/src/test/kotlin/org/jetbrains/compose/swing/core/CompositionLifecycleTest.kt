@@ -20,11 +20,11 @@ import org.jetbrains.compose.swing.assumeFrameDeiconifies
 import org.jetbrains.compose.swing.assumeFrameIconifies
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
+import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Dialog
-import org.jetbrains.compose.swing.window.GlassPane
 import org.jetbrains.compose.swing.window.LocalWindow
 import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
@@ -478,13 +478,16 @@ class CompositionLifecycleTest {
         val windowContent = LifecycleReader()
         val menuContent = LifecycleReader()
         val overlayContent = LifecycleReader()
-        // A menu bar and a glass pane are hosted in their own Swing containers, but they are parts of
-        // the window the declaration is written in - which is what an owner of one window answers for.
+        // A menu bar and a layer's glass pane are hosted in their own Swing containers, but they are
+        // parts of the window the declaration is written in - which is what an owner of one window
+        // answers for.
         setContent {
             Window(onCloseRequest = {}, title = HOSTED_CONTENT_TITLE, visible = false) {
                 windowContent.Observe()
                 MenuBar { menuContent.Observe() }
-                GlassPane { overlayContent.Observe() }
+                Layer {
+                    GlassPane { overlayContent.Observe() }
+                }
             }
         }
         awaitIdle()

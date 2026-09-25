@@ -151,7 +151,7 @@ class InheritableLayoutDefaultTest {
                 TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                     Label("tab", SwingModifier.tab("tab"))
                 }
-                Layer(onMouseEvent = {}) { Label("view", SwingModifier.view()) }
+                Layer(onMouseEvent = {}) { Label("view") }
             }
         }
         val north = onNodeWithText("north").fetch()

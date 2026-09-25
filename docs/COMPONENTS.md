@@ -753,8 +753,8 @@ ToolBar(floatable = false, rollover = true) {
 
 `Layer` wraps one component in a `JLayer` while keeping that component as the layer's view, so its
 preferred size and component-specific behavior continue through the layer. Use the callback overload
-for painting or observing mouse events; it requires at least one callback. `onPaint` may call `paintView`
-before or after its own drawing, more than once, or not at all. The graphics copy and `paintView` are
+for painting or observing mouse events. `onPaint` may call `paintView` before or after its own drawing,
+more than once, or not at all. The graphics copy and `paintView` are
 valid only during the callback. Snapshot state read by `onPaint` causes the layer to repaint when that
 state changes.
 
@@ -773,28 +773,30 @@ Layer(
     },
     onMouseEvent = { event -> log(event) },
 ) {
-    Table(model = model, modifier = SwingModifier.view())
+    Table(model = model)
 }
 ```
 
-`Layer` content receives a `LayerScope` with two slots. A child using
-`modifier = SwingModifier.view()` becomes the wrapped view, not an ordinary indexed child.
-`GlassPane { ... }` places one transparent overlay pane over the view, with its content laid out inside that pane.
-Every child must declare exactly one slot, and each slot accepts only one child. Removing a glass pane
-restores the pane the layer carried before it, including its previous visibility. Use an ordinary `if` for
-a conditional overlay.
+`Layer` content receives a `LayerScope` that offers `GlassPane` only. The child that declares no region
+becomes the wrapped view, as with `new JLayer(view)`. `GlassPane { ... }` shows the layer's own
+transparent glass pane over the view. Its content is laid out under an optional layout passed first, as
+`Panel` lays out its own panel - `GlassPane(PanelLayout.Border()) { ... }` lets a single child fill it -
+and its `modifier` reaches the pane itself. A layer shows one view, so a second child that declares no
+region is refused, and so is a second `GlassPane` composed at once. An `if` makes a conditional overlay:
+removing the glass pane hides it and removes its children.
 
 The overlay is transparent where its content paints nothing. It takes pointer targeting where a visible
 child lies, where it has a mouse, motion or wheel listener, or where it has an explicit cursor. Empty
-areas continue through to the view. Give an overlay child or its pane a listener when it must take the
-pointer.
+areas continue through to the view. Give an overlay child or the pane's `modifier` a listener when it must
+take the pointer.
 
-`Layer` is a normal Swing component in its parent, and its `view()` and `GlassPane` declarations are valid
-only in the `LayerScope` that supplied them. The composition owns the `JLayer`, its view and overlay,
-their placement, the delegate, callbacks and event mask. Do not mutate that structure behind the
-composition. For a layer built from `SwingNode`, `factory` creates its component once, `update` reapplies
-state during recomposition, and `onRelease` is for teardown when the node leaves the composition. A
-parked node is released; content that becomes active later receives a new component.
+`Layer` is a normal Swing component in its parent, and its `GlassPane` declarations are valid
+only in the `LayerScope` that supplied them. The composition owns the `JLayer`, its view, the glass
+pane's declared properties and content, the delegate, callbacks and event mask; the glass pane itself
+is the layer's. Do not mutate that structure behind the composition. For a layer built from `SwingNode`,
+`factory` creates its component once, `update` reapplies state during recomposition, and `onRelease` is
+for teardown when the node leaves the composition. A parked node is released; content that becomes
+active later receives a new component.
 
 Mount compositions and mutate Swing components on the Event Dispatch Thread. Layer painting and event
 callbacks run on the EDT; use `Dispatchers.Swing` for coroutines that touch the layer or its children,
@@ -853,6 +855,12 @@ DesktopPane {
 
 <!--- CLEAR -->
 
+A frame's content receives an `InternalFrameScope`: what it composes lands in the frame's content pane,
+and `GlassPane { ... }` shows the frame's own glass pane over it. It is valid only directly in the frame's
+content; composed anywhere else it is refused. Otherwise it behaves as a `Layer`'s `GlassPane` does: it
+takes a layout and a `modifier`, a second one composed at once is refused, and removing it gives back what
+it declared.
+
 To place children under a layout manager of your own, `layoutConstraint` is the builder a container you
 write yourself names its own placements over - see
 [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
@@ -874,32 +882,24 @@ Windows and dialogs composed inside one run as part of that application's compos
 application-scope state and `CompositionLocal`s flow into their content.
 
 A window's content is given the window as its scope, and what the window carries besides that content
-is declared there: `MenuBar { }` and `GlassPane { }` are those declarations, so each can only be
-written directly in the content of a window, not in that of a container inside it.
+is declared there: `MenuBar { }` can only be written directly in the content of a window, not in
+that of a container inside it.
 
-`GlassPane { }` is the sheet above everything else in the window: it covers the whole window and is
-transparent where its content paints nothing - a drag-and-drop hint, a progress veil, anything drawn
-over the window rather than in it. A mouse event reaches the deepest component under the pointer that
-listens for it, so a button in the overlay gets its clicks and a click anywhere else goes on to the
-window's content underneath; fill the pane with content that listens for the mouse to keep the window
-out of reach.
-The content fills the pane, so a layout composable inside it places what the overlay is made of. The
-pane is over the window while the declaration is composed, and the window carries the glass pane it
-carried before once the declaration leaves, so an overlay that comes and goes is an `if` around the
-call. A window carries one glass pane, so one declaration serves a window.
+A window-wide overlay is a `Layer` wrapped around the window's content, with the content as its view
+and the overlay in the layer's own glass pane. It covers the window's content pane, not its menu bar:
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {
     var loading by remember { mutableStateOf(true) }
 
-    if (loading) {
-        GlassPane {
-            Panel(PanelLayout.GridBag) {
+    Layer {
+        Button("Done", onClick = { loading = false })
+        if (loading) {
+            GlassPane(PanelLayout.GridBag) {
                 ProgressBar(value = 0, indeterminate = true)
             }
         }
     }
-    Button("Done", onClick = { loading = false })
 }
 ```
 

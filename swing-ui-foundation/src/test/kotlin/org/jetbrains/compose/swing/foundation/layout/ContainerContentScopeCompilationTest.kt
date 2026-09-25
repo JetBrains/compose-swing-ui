@@ -43,16 +43,9 @@ class ContainerContentScopeCompilationTest {
             """
             @Composable
             fun Nested() {
-                Layer { GlassPane { Label("x", modifier = SwingModifier.view()) } }
-                DesktopPane {
-                    InternalFrame(title = "a", bounds = Rectangle(), onClose = {}) {
-                        InternalFrame(title = "b", bounds = Rectangle(), onClose = {}) {}
-                    }
-                }
                 TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                     Label("a", modifier = SwingModifier.tab("a", header = { Label("h", modifier = SwingModifier.tab("h")) }))
                 }
-                Window(onCloseRequest = {}) { GlassPane { GlassPane {} } }
                 Window(onCloseRequest = {}) { MenuBar { MenuBar {} } }
                 PopupMenu(anchor = rememberPopupAnchor(), expanded = true, onDismiss = {}) {
                     Menu("m") { MenuItem("x", onClick = {}, modifier = SwingModifier.$SHADOW) }
@@ -63,6 +56,34 @@ class ContainerContentScopeCompilationTest {
             }
             """,
         ).assertCompiled()
+    }
+
+    @Test
+    fun anInternalFramesGlassPaneComposedInsideAContainerOfItsContentDoesNotCompile() {
+        compile(
+            """
+            @Composable
+            fun Nested() {
+                DesktopPane {
+                    InternalFrame(title = "a", bounds = Rectangle(), onClose = {}) {
+                        Panel { GlassPane {} }
+                    }
+                }
+            }
+            """,
+        ).assertRejected(listOf("GlassPane"))
+    }
+
+    @Test
+    fun aGlassPaneComposedInsideAGlassPanesContentDoesNotCompile() {
+        compile(
+            """
+            @Composable
+            fun Nested() {
+                Layer { GlassPane { GlassPane {} } }
+            }
+            """,
+        ).assertRejected(listOf("GlassPane"))
     }
 
     @Test
@@ -88,8 +109,12 @@ class ContainerContentScopeCompilationTest {
                 application {
                     Window(onCloseRequest = ::exitApplication) {
                         MenuBar { Menu("File") { MenuItem("Quit", onClick = ::exitApplication) } }
-                        GlassPane { Label("Busy") }
-                        Row { Button("Quit", onClick = ::exitApplication, modifier = SwingModifier.weight(1f)) }
+                        Layer {
+                            GlassPane { Label("Busy") }
+                            Row {
+                                Button("Quit", onClick = ::exitApplication, modifier = SwingModifier.weight(1f))
+                            }
+                        }
                     }
                 }
             """,

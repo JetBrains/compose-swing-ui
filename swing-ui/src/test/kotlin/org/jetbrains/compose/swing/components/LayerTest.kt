@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
@@ -10,6 +11,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.Table
+import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -18,26 +20,25 @@ import org.jetbrains.compose.swing.test.interaction.performMousePress
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.AWTEvent
 import java.awt.Color
 import java.awt.Component
-import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
-import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JLayer
+import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JTable
 import javax.swing.plaf.LayerUI
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -50,16 +51,16 @@ import kotlin.test.assertTrue
  */
 class LayerTest {
     @Test
-    fun theChildDeclaringTheViewBecomesTheLayersView() = runComposeSwingTest {
+    fun theChildNamingNoRegionBecomesTheLayersView() = runComposeSwingTest {
         setContent {
             Layer(ui = remember { LayerUI<Component>() }) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
         val layer = onNodeOfType<JLayer<*>>().fetch()
         val label = onNodeOfType<JLabel>().fetch()
-        assertSame(label, layer.view, "the child declaring the view region should be the layer's view")
+        assertSame(label, layer.view, "the child naming no region should be the layer's view")
         assertSame(layer, label.parent, "and the layer should hold it")
     }
 
@@ -68,7 +69,7 @@ class LayerTest {
         var present by mutableStateOf(true)
         setContent {
             Layer(ui = remember { LayerUI<Component>() }) {
-                if (present) Label(text = "body", modifier = SwingModifier.view())
+                if (present) Label(text = "body")
             }
         }
 
@@ -92,9 +93,9 @@ class LayerTest {
                 // Two declarations of one region, one at a time: the pass that swaps them may hold both
                 // children while it runs, and one child in the slot is what it settles at.
                 if (alternate) {
-                    Label(text = "second", modifier = SwingModifier.view())
+                    Label(text = "second")
                 } else {
-                    Label(text = "first", modifier = SwingModifier.view())
+                    Label(text = "first")
                 }
             }
         }
@@ -109,25 +110,50 @@ class LayerTest {
     }
 
     @Test
-    fun aChildNamingNoRegionIsRefused() = runComposeSwingTest {
-        // A layer reaches its two children through setters of its own and refuses an indexed add
-        // outright, so a child naming no region would be held by nothing.
-        val failure =
-            assertFailsWith<IllegalStateException> {
+    fun twoChildrenNamingNoRegionAreRefused() = runComposeSwingTest {
+        // A layer shows one view, so a second child that names no region has no place to be.
+        val message =
+            failureOf {
                 setContent {
                     Layer(ui = remember { LayerUI<Component>() }) {
-                        Label(text = "loose")
+                        Label(text = "one")
+                        Table(model = rows())
                     }
                 }
+                awaitIdle()
             }
+        assertTrue("shows one unnamed child as its content" in message, "the refusal should say why: $message")
+        assertTrue("JLayer" in message, "the refusal should name the layer: $message")
+        assertTrue("JLabel" in message && "JTable" in message, "the refusal should name both children: $message")
+    }
 
-        val message = failure.message.orEmpty()
-        assertTrue("names none" in message, "the refusal should say the child named no region: $message")
-        assertTrue("JLayer" in message, "the refusal should name the host that holds the regions: $message")
-        assertTrue(
-            "SwingModifier.view()" in message && "GlassPane { }" in message,
-            "the refusal should name both builders that would place the child: $message",
-        )
+    @Test
+    fun contentMovedBetweenAPanelAndALayerLandsInBoth() = runComposeSwingTest {
+        var inLayer by mutableStateOf(false)
+        setContent {
+            val content = remember { movableContentOf { Table(model = rows(), rowHeight = ROW_HEIGHT) } }
+            Panel(PanelLayout.Box()) {
+                Panel(modifier = SwingModifier.testTag(PANEL)) { if (!inLayer) content() }
+                Layer(ui = remember { LayerUI<Component>() }, modifier = SwingModifier.testTag(RAW_LAYER)) {
+                    if (inLayer) content()
+                }
+            }
+        }
+        val table = onNodeOfType<JTable>().fetch()
+        val panel = onNodeWithTag(PANEL).fetch<JPanel>()
+        val layer = onNodeWithTag(RAW_LAYER).fetch<JLayer<*>>()
+        assertSame(panel, table.parent, "the content starts in the panel, added by index")
+        assertNull(layer.view, "the layer starts with no view")
+
+        inLayer = true
+        awaitIdle()
+        assertSame(table, layer.view, "the content moved to the layer should be its view")
+        assertEquals(0, panel.componentCount, "the panel should have given the content up")
+
+        inLayer = false
+        awaitIdle()
+        assertNull(layer.view, "the layer should be released of the view that left")
+        assertSame(panel, table.parent, "the content moved back to the panel should be held by index")
     }
 
     @Test
@@ -142,7 +168,7 @@ class LayerTest {
                         Layer(
                             onPaint = { _, _, _, paintView -> paintView() },
                         ) {
-                            Table(model = rows(), rowHeight = ROW_HEIGHT, modifier = SwingModifier.view())
+                            Table(model = rows(), rowHeight = ROW_HEIGHT)
                         }
                     }
                 }
@@ -174,16 +200,16 @@ class LayerTest {
     }
 
     @Test
-    fun aGlassPanePaintsOverTheViewAndTheLayerKeepsThePaneItHadBefore() = runComposeSwingTest {
+    fun aGlassPanePaintsOverTheViewUntilItLeaves() = runComposeSwingTest {
         var showPane by mutableStateOf(false)
         setContent {
             Layer(onPaint = { _, _, _, paintView -> paintView() }) {
-                Canvas(modifier = SwingModifier.view().preferredSize(SIZE)) { g, width, height ->
+                Canvas(modifier = SwingModifier.preferredSize(SIZE)) { g, width, height ->
                     g.color = VIEW_COLOR
                     g.fillRect(0, 0, width, height)
                 }
                 if (showPane) {
-                    GlassPane {
+                    GlassPane(PanelLayout.Border()) {
                         Canvas { g, width, height ->
                             g.color = PANE_COLOR
                             g.fillRect(0, 0, width, height)
@@ -194,66 +220,34 @@ class LayerTest {
         }
 
         val layer = onNodeOfType<JLayer<*>>().fetch()
-        val carried = assertNotNull(layer.glassPane, "a layer builds a glass pane of its own in its constructor")
-        assertFalse(carried.isVisible, "the pane a layer builds for itself starts hidden")
-        assertEquals(VIEW_COLOR.rgb, centerPixelOf(layer), "with no pane declared the view is what shows")
+        val own = assertNotNull(layer.glassPane, "a layer builds a glass pane of its own in its constructor")
+        assertEquals(
+            VIEW_COLOR.rgb,
+            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+            "with no pane declared the view is what shows",
+        )
 
         showPane = true
         awaitIdle()
 
-        val declared = assertNotNull(layer.glassPane, "the declaration should install a pane of its own")
-        assertNotSame(carried, declared, "the declared pane should displace the one the layer carried")
-        assertFalse(declared.isOpaque, "the pane must be transparent where its content paints nothing")
-        assertTrue(declared.isVisible, "an installed pane starts hidden, so the declaration must show it")
-        assertEquals(PANE_COLOR.rgb, centerPixelOf(layer), "the pane's content must paint over the view")
+        assertSame(own, layer.glassPane, "the declaration should show the layer's own pane")
+        assertFalse(own.isOpaque, "the pane must be transparent where its content paints nothing")
+        assertEquals(
+            PANE_COLOR.rgb,
+            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+            "the pane's content must paint over the view",
+        )
 
         showPane = false
         awaitIdle()
 
-        // setGlassPane(null) would empty the slot, and a layer builds its own pane only in its
-        // constructor - so what an outgoing declaration puts back is the pane it displaced.
-        assertSame(carried, layer.glassPane, "the layer should carry the pane it had before the declaration")
-        assertFalse(carried.isVisible, "and it should be shown as it was shown, which is not at all")
-        assertEquals(VIEW_COLOR.rgb, centerPixelOf(layer), "the view shows again once the pane is gone")
-    }
-
-    @Test
-    fun swappingWhichDeclarationFillsTheGlassPaneStillRestoresTheLayersOwnPane() = runComposeSwingTest {
-        // A pass that swaps one declaration for another installs the arriving pane before the outgoing
-        // one is taken out, so the pane put back at the end has to be the layer's own rather than the
-        // dead panel of whichever declaration came first.
-        var present by mutableStateOf(true)
-        var alternate by mutableStateOf(false)
-        setContent {
-            Layer(onPaint = { _, _, _, paintView -> paintView() }) {
-                Label(text = "body", modifier = SwingModifier.view())
-                if (present) {
-                    if (alternate) {
-                        GlassPane { Label(text = "second") }
-                    } else {
-                        GlassPane { Label(text = "first") }
-                    }
-                }
-            }
-        }
-
-        val layer = onNodeOfType<JLayer<*>>().fetch()
-        val first = assertNotNull(layer.glassPane, "the first declaration should fill the slot")
-
-        alternate = true
-        awaitIdle()
-
-        val second = assertNotNull(layer.glassPane, "the branch now declared should fill the slot")
-        assertNotSame(first, second, "each declaration builds a pane of its own")
-        assertTrue(second.isVisible, "the pane now declared should be shown")
-
-        present = false
-        awaitIdle()
-
-        val restored = assertNotNull(layer.glassPane, "the layer should be left with a pane")
-        assertNotSame(first, restored, "the pane put back must not be the first declaration's dead panel")
-        assertNotSame(second, restored, "nor the second's")
-        assertFalse(restored.isVisible, "the layer's own pane comes back hidden, as it was")
+        assertSame(own, layer.glassPane, "the layer should keep its own pane")
+        assertFalse(own.isVisible, "hidden again once the declaration leaves")
+        assertEquals(
+            VIEW_COLOR.rgb,
+            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+            "the view shows again once the pane is gone",
+        )
     }
 
     @Test
@@ -266,7 +260,7 @@ class LayerTest {
         var installed by mutableStateOf(plain)
         setContent {
             Layer(ui = installed, eventMask = AWTEvent.MOUSE_WHEEL_EVENT_MASK) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
@@ -294,7 +288,7 @@ class LayerTest {
         var installed by mutableStateOf<LayerUI<Component>>(first, referentialEqualityPolicy())
         setContent {
             Layer(ui = installed, eventMask = AWTEvent.MOUSE_EVENT_MASK) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
@@ -323,7 +317,7 @@ class LayerTest {
         var mask by mutableStateOf(AWTEvent.MOUSE_EVENT_MASK)
         setContent {
             Layer(ui = delegate, eventMask = mask) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
@@ -347,14 +341,14 @@ class LayerTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Layer(ui = opinionated, eventMask = mask, modifier = SwingModifier.testTag(OPINIONATED_LAYER)) {
-                    Label(text = "body", modifier = SwingModifier.view())
+                    Label(text = "body")
                 }
                 Layer(
                     ui = remember { LayerUI<Component>() },
                     eventMask = mask,
                     modifier = SwingModifier.testTag(RAW_LAYER),
                 ) {
-                    Label(text = "body", modifier = SwingModifier.view())
+                    Label(text = "body")
                 }
             }
         }
@@ -389,10 +383,10 @@ class LayerTest {
                     modifier = SwingModifier.testTag(CALLBACK_LAYER),
                     onPaint = { _, _, _, paintView -> paintView() },
                 ) {
-                    Label(text = "body", modifier = SwingModifier.view().preferredSize(VIEW_SIZE))
+                    Label(text = "body", modifier = SwingModifier.preferredSize(VIEW_SIZE))
                 }
                 Layer(ui = remember { LayerUI<Component>() }, modifier = SwingModifier.testTag(RAW_LAYER)) {
-                    Label(text = "body", modifier = SwingModifier.view().preferredSize(VIEW_SIZE))
+                    Label(text = "body", modifier = SwingModifier.preferredSize(VIEW_SIZE))
                 }
             }
         }
@@ -413,7 +407,7 @@ class LayerTest {
                 onMouseMotionEvent = { seen += "motion" },
                 onMouseWheelEvent = { seen += "wheel" },
             ) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
@@ -438,7 +432,7 @@ class LayerTest {
         setContent {
             val value = declared.intValue
             Layer(onMouseEvent = { seen = value }) {
-                Label(text = "body", modifier = SwingModifier.view())
+                Label(text = "body")
             }
         }
 
@@ -455,33 +449,6 @@ class LayerTest {
         assertSame(delegate, layer.fetch().ui, "and the delegate should not have been installed again")
     }
 
-    /** Gives [component] and everything under it the bounds a paint pass reads. */
-    private fun layOut(component: JComponent) {
-        component.size = SIZE
-        layOutTree(component)
-    }
-
-    /** The color [component] shows in its middle, rasterized off-screen at [SIZE]. */
-    private fun centerPixelOf(component: JComponent): Int {
-        layOut(component)
-        val image = BufferedImage(SIZE.width, SIZE.height, BufferedImage.TYPE_INT_ARGB)
-        val graphics = image.createGraphics()
-        try {
-            component.paint(graphics)
-        } finally {
-            graphics.dispose()
-        }
-        return image.getRGB(SIZE.width / 2, SIZE.height / 2)
-    }
-
-    /** Runs each container's layout, top down, giving every child the bounds a paint pass reads. */
-    private fun layOutTree(container: Container) {
-        container.doLayout()
-        for (child in container.components) {
-            if (child is Container) layOutTree(child)
-        }
-    }
-
     private fun rows(): DefaultTableModel =
         DefaultTableModel(arrayOf(arrayOf<Any>("a"), arrayOf<Any>("b"), arrayOf<Any>("c")), arrayOf<Any>("col"))
 
@@ -490,6 +457,7 @@ class LayerTest {
         const val BARE_PANE = "bare-pane"
         const val WRAPPED_PANE = "wrapped-pane"
         const val CALLBACK_LAYER = "callback-layer"
+        const val PANEL = "plain-panel"
         const val RAW_LAYER = "raw-layer"
         const val OPINIONATED_LAYER = "opinionated-layer"
 

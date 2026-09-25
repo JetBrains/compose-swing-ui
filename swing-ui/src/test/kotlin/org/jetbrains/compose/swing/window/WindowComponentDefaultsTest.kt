@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.defaults.DefaultBackground
 import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
@@ -12,16 +13,14 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
-import java.awt.Container
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * A component default changed above a [Window] or a [Dialog], or above the [MenuBar] or the [GlassPane]
- * declared in one, reaches the components already composed there: each is a composition nested in the
- * one declaring it.
+ * A component default changed above a [Window], a [Dialog], a [MenuBar] or a [Layer] reaches the
+ * components already composed there, including the layer's glass pane.
  *
  * The peers are composed `visible = false`: sizing to content realizes a peer, which is all the
  * component-tree queries need. Skipped in headless environments where no real peer can be realized.
@@ -90,12 +89,11 @@ class WindowComponentDefaultsTest {
         setContent {
             Window(onCloseRequest = {}, title = "glass-pane-defaults", visible = false) {
                 ProvideComponentDefaults(DefaultBackground provides color) {
-                    GlassPane { Label("overlay") }
+                    Layer { GlassPane { Label("overlay") } }
                 }
             }
         }
-        val pane = onWindowWithTitle("glass-pane-defaults").fetch<JFrame>().rootPane.glassPane as Container
-        val label = pane.getComponent(0)
+        val label = onWindowWithTitle("glass-pane-defaults").onNodeWithText("overlay").fetch()
         assertEquals(Color.MAGENTA, label.background)
 
         color = Color.RED

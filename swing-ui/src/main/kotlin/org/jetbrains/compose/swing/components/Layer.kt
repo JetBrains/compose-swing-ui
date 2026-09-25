@@ -28,7 +28,7 @@ import javax.swing.plaf.LayerUI
  * A layer over one live component - a `JLayer` - that paints over what the component paints and
  * watches the mouse events that reach it, while the component goes on being itself.
  *
- * The component it wraps is declared as content, on the view region of [LayerScope]; an overlay over
+ * The component it wraps is the child that names no region, as `new JLayer(view)` holds it; an overlay over
  * that component goes in the glass pane beside it. The view keeps answering for itself: a widget that tells
  * a scroll pane how far to scroll it goes on telling it that through the layer, which a panel wrapping the
  * widget would not.
@@ -41,7 +41,7 @@ import javax.swing.plaf.LayerUI
  *         g.fillRect(0, 0, width, height)
  *     },
  * ) {
- *     Table(model = rows, modifier = SwingModifier.view())
+ *     Table(model = rows)
  * }
  * ```
  *
@@ -64,8 +64,6 @@ import javax.swing.plaf.LayerUI
  * view is a disabled view, or a glass pane over it with a mouse, motion or wheel listener of its own - not
  * merely a callback here. A cursor set on the glass pane changes only the cursor shown over the view, and
  * the view still receives the events.
- *
- * Declaring no callback at all is refused: a layer that neither paints nor watches does nothing.
  *
  * Reach for the overload taking a `LayerUI` where a layer needs the rest of that type - the events
  * these callbacks do not cover, a preferred size of its own, a layout of the view of its own.
@@ -97,19 +95,8 @@ public fun Layer(
     onMouseWheelEvent: (MouseWheelEvent) -> Unit = UNDECLARED,
     content: @Composable LayerScope.() -> Unit,
 ) {
-    require(
-        declared(onPaint) ||
-            declared(onMouseEvent) ||
-            declared(onMouseMotionEvent) ||
-            declared(onMouseWheelEvent),
-    ) {
-        "Layer declares no callback, so it paints its view unchanged and watches nothing; declare at " +
-            "least one, or leave the layer out"
-    }
-
     // One delegate per layer, never one shared between two - see CallbackLayerUI.
     val delegate = remember { CallbackLayerUI() }
-
     LayerNode<Component>(
         ui = delegate,
         eventMask = declaredEventMask(onMouseEvent, onMouseMotionEvent, onMouseWheelEvent),
@@ -135,18 +122,18 @@ public fun Layer(
  * which is the whole of what the JDK type offers: the events the callback overload of [Layer] does not
  * cover, a preferred size the delegate answers for, a layout of the view of its own.
  *
- * The wrapped component and the overlay over it are declared as content, on the regions of
- * [LayerScope], exactly as for the callback overload.
+ * The wrapped component is the child that names no region, and the overlay over it is declared in the
+ * glass pane of [LayerScope], exactly as for the callback overload.
  *
  * ```
  * Layer(ui = remember { HoverHighlightLayerUI() }, eventMask = AWTEvent.MOUSE_MOTION_EVENT_MASK) {
- *     Table(model = rows, modifier = SwingModifier.view())
+ *     Table(model = rows)
  * }
  * ```
  *
  * The type parameter is the view type [ui] is written against. It fixes which delegates this call
  * accepts - a `LayerUI<JComponent>`, a `LayerUI<Component>` and a `LayerUI<JTable>` all bind without a
- * type argument at the call site - and says nothing about the child that fills the view region: no type
+ * type argument at the call site - and says nothing about the child that is the view: no type
  * relates the two.
  *
  * @param ui the delegate the layer installs: what paints it, lays its view out, and answers for its
@@ -205,10 +192,7 @@ private fun <V : Component> LayerNode(
     declareCallbacks: SwingNodeUpdater<JLayer<V>>.() -> Unit,
     content: @Composable LayerScope.() -> Unit,
 ) {
-    // Remembered with the layer: it holds the glass pane the layer carried before a declaration took that
-    // slot, which is what an outgoing declaration puts back.
     val scope = remember { LayerScopeImpl() }
-
     SwingNode(
         factory = { JLayer<V>() },
         modifier = modifier,

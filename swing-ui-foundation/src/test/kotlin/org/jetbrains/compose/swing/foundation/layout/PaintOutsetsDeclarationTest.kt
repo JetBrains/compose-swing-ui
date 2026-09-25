@@ -119,7 +119,7 @@ class PaintOutsetsDeclarationTest {
                     TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                         LinedField("tab", SwingModifier.tab("tab"))
                     }
-                    Layer(onPaint = { _, _, _, paintView -> paintView() }) { LinedField("layer", SwingModifier.view()) }
+                    Layer(onPaint = { _, _, _, paintView -> paintView() }) { LinedField("layer") }
                 }
             }
             val foundation = onNodeWithTag("foundation").fetch()

@@ -8,9 +8,8 @@ import javax.swing.JRootPane
  * The receiver of the content of a [Window] and of a [Dialog]: the window that content fills.
  *
  * What a window carries besides its content is declared on this scope, so such a declaration is only
- * available where there is a window to carry it. [MenuBar] and [GlassPane] are such declarations: each
- * reaches the window whose content it is composed in, and a call to either anywhere else does not
- * compile.
+ * available where there is a window to carry it. [MenuBar] is such a declaration: it reaches the window
+ * whose content it is composed in, and a call to it anywhere else does not compile.
  *
  * A scope is received, never made: every value of this type is one a window handed its content, so a
  * declaration made on it reaches the window that content is in and no other.
@@ -20,7 +19,7 @@ import javax.swing.JRootPane
 public class WindowScope private constructor(
     /**
      * The root pane of the window this is the scope of, the library's own handle on that window, held for
-     * the sake of what the window carries around its content: its menu bar and its glass pane.
+     * the sake of what the window carries around its content: its menu bar.
      *
      * The getter is synthetic on the JVM. Kotlin gives an `internal` member of a class a mangled JVM name
      * but public bytecode access, and a mangled name is still one javac resolves, so the annotation is what
@@ -41,14 +40,6 @@ public class WindowScope private constructor(
     @get:JvmSynthetic
     @set:JvmSynthetic
     internal var declaredMenuBar: WindowDecoration<*>? = null
-
-    /**
-     * The [WindowDecoration] currently serving this window as its glass pane, or `null` while none
-     * does, the same way [declaredMenuBar] answers for the menu bar.
-     */
-    @get:JvmSynthetic
-    @set:JvmSynthetic
-    internal var declaredGlassPane: WindowDecoration<*>? = null
 
     internal companion object {
         /**

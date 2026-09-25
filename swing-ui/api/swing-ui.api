@@ -125,8 +125,13 @@ public final class org/jetbrains/compose/swing/components/ComposableSingletons$T
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/LayerScope {
-	public abstract fun GlassPane (Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public abstract fun view (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun GlassPane (Lorg/jetbrains/compose/swing/components/layout/PanelLayout;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun GlassPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class org/jetbrains/compose/swing/components/LayerScope$ComposeDefaultImpls {
+	public static final fun GlassPane$default (Lorg/jetbrains/compose/swing/components/layout/PanelLayout;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/LayerScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun GlassPane$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/LayerScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class org/jetbrains/compose/swing/components/button/ButtonComponentsKt {
@@ -147,17 +152,17 @@ public final class org/jetbrains/compose/swing/components/desktop/DesktopCompone
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/desktop/DesktopPaneScope {
-	public abstract fun InternalFrame (Ljava/lang/String;Ljava/awt/Rectangle;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public abstract fun InternalFrame (Ljava/lang/String;Ljava/awt/Rectangle;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public abstract fun InternalFrame (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public abstract fun InternalFrame (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun InternalFrame (Ljava/lang/String;Ljava/awt/Rectangle;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun InternalFrame (Ljava/lang/String;Ljava/awt/Rectangle;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun InternalFrame (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun InternalFrame (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class org/jetbrains/compose/swing/components/desktop/DesktopPaneScope$ComposeDefaultImpls {
-	public static final fun InternalFrame$default (Ljava/lang/String;Ljava/awt/Rectangle;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
-	public static final fun InternalFrame$default (Ljava/lang/String;Ljava/awt/Rectangle;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
-	public static final fun InternalFrame$default (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
-	public static final fun InternalFrame$default (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun InternalFrame$default (Ljava/lang/String;Ljava/awt/Rectangle;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun InternalFrame$default (Ljava/lang/String;Ljava/awt/Rectangle;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun InternalFrame$default (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun InternalFrame$default (Ljava/lang/String;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class org/jetbrains/compose/swing/components/desktop/InternalFrameControls {
@@ -169,6 +174,16 @@ public final class org/jetbrains/compose/swing/components/desktop/InternalFrameC
 	public final fun getIconifiable ()Z
 	public final fun getMaximizable ()Z
 	public final fun getResizable ()Z
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/desktop/InternalFrameScope {
+	public abstract fun GlassPane (Lorg/jetbrains/compose/swing/components/layout/PanelLayout;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun GlassPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class org/jetbrains/compose/swing/components/desktop/InternalFrameScope$ComposeDefaultImpls {
+	public static final fun GlassPane$default (Lorg/jetbrains/compose/swing/components/layout/PanelLayout;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun GlassPane$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class org/jetbrains/compose/swing/components/desktop/InternalFrameState {
@@ -1261,7 +1276,6 @@ public final class org/jetbrains/compose/swing/window/DialogState {
 
 public final class org/jetbrains/compose/swing/window/WindowKt {
 	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/awt/Window;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
-	public static final fun GlassPane (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun MenuBar (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun Window (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/WindowState;Ljava/lang/String;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun application (ZLkotlin/jvm/functions/Function3;)V

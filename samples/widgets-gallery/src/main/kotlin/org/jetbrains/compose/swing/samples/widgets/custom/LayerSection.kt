@@ -54,10 +54,7 @@ internal fun LayerSection() {
                 },
                 onMouseEvent = { event -> if (event.id == MouseEvent.MOUSE_PRESSED) presses++ },
             ) {
-                ListBox(
-                    items = listOf("Apples", "Bananas", "Cherries", "Dates", "Elderberries"),
-                    modifier = SwingModifier.view(),
-                )
+                ListBox(items = listOf("Apples", "Bananas", "Cherries", "Dates", "Elderberries"))
             }
         }
     }
