@@ -254,7 +254,7 @@ private fun SwingModifier.reportedSize(
 ): SwingModifier = this then ReportedSizeElement(width, height)
 
 /** Records the clip each of its paints ran under. */
-private class ClipRecordingChild : JComponent() {
+internal class ClipRecordingChild : JComponent() {
     val clips = ArrayList<Rectangle>()
 
     override fun paintComponent(g: Graphics) {

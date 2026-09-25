@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.drawingOn
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.inset
 import org.jetbrains.compose.swing.foundation.graphics.invalidateDraw
+import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
+import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
 import org.jetbrains.compose.swing.foundation.layout.fillsViewport
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -183,6 +185,24 @@ private class CanvasComponent :
         decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
 
     override fun paint(g: Graphics) = decoration.paint(this, g, paintContent)
+
+    override fun repaint(
+        tm: Long,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) = decoration.repaint(this, tm, x, y, width, height)
+
+    override fun paintImmediately(
+        x: Int,
+        y: Int,
+        w: Int,
+        h: Int,
+    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
+        // Not the Rectangle overload, which calls back here.
+        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
+    }
 
     /** A decoration that fades or cuts away part of the area leaves what is behind it showing through. */
     override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)

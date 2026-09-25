@@ -166,7 +166,9 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
                 layerOrNull?.placedWithoutLayer()
                 if (standingDecorator != null && standingDecorator === layerOrNull) {
                     standingDecorator = null
-                    previous?.decoratable?.let { publishDecoration(it, declaredNodes()) }
+                    // A detached node visits none of its component's nodes; the modifier pass or holder reset that
+                    // detached it hands the component the nodes it is left with, none after a reset, as it ends.
+                    if (isAttached) previous?.decoratable?.let { publishDecoration(it, declaredNodes()) }
                 }
             }
             if (value != null && decorationStep != null) value.requireDecoratable

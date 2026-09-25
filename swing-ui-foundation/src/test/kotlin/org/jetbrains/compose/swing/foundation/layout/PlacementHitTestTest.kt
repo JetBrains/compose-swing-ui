@@ -297,12 +297,9 @@ class PlacementHitTestTest {
             assertEquals(1, presses, "a press inside the scaled outline past the containers must hit")
         }
 
-    /**
-     * A child wider than its container is hit past the container's layout bounds only while a layer transforms it:
-     * a mirror image leaves every bound as it was, so nothing but the layer tells the container.
-     */
+    /** A child wider than its container is hit past the container's layout bounds, mirrored by a layer or not. */
     @Test
-    fun aChildOverflowingItsContainerIsHitPastItOnlyWhileMirrored() =
+    fun aChildOverflowingItsContainerIsHitPastItMirroredOrNot() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var presses = 0
@@ -330,50 +327,12 @@ class PlacementHitTestTest {
             assertTrue(past.x < windowNode(OUTER_TAG).unturnedAt(0, 0).x, "the point is past the container: $past")
 
             click(past)
-            assertEquals(0, presses, "an untransformed child is not hit past its container")
+            assertEquals(1, presses, "an untransformed child is hit past its container")
 
             scaleX = -1f
             awaitIdle()
             click(past)
-            assertEquals(1, presses, "a mirrored child is hit past its container")
-        }
-
-    @Test
-    fun aPlainChildsOverflowIsHitOnlyWhileASiblingTurns() =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            var presses = 0
-            var rotation by mutableFloatStateOf(30f)
-            setWindowContent {
-                Box {
-                    Stage {
-                        Box(
-                            modifier = SwingModifier.testTag(OUTER_TAG).size(40, 40).shadow(8, Color.BLACK),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(
-                                modifier =
-                                    SwingModifier
-                                        .testTag(INNER_TAG)
-                                        .requiredSize(52, 52)
-                                        .mouseListener(onMousePressed = { presses++ }),
-                            )
-                            Box(modifier = SwingModifier.size(10, 10).placementLayer { rotationZ = rotation })
-                        }
-                    }
-                }
-            }
-            // 3 into the child, which overflows the container by 6 on each side.
-            val overflow = windowNode(INNER_TAG).unturnedAt(3, 26)
-            assertTrue(overflow.x < windowNode(OUTER_TAG).unturnedAt(0, 0).x, "the point is past the container")
-
-            click(overflow)
-            assertEquals(1, presses, "while a sibling turns, the child's overflow is hit")
-
-            rotation = 0f
-            awaitIdle()
-            click(overflow)
-            assertEquals(1, presses, "once the sibling stops turning, the overflow is not hit")
+            assertEquals(2, presses, "a mirrored child is hit past its container")
         }
 
     @Test
@@ -1174,13 +1133,13 @@ private fun Component.charAt(
     return paintedAt(field, (start.x + end.x) / 2 - (end.x - start.x) / 4, start.centerY, turn)
 }
 
-private fun ComposeSwingTest.windowNode(tag: String): JComponent =
+internal fun ComposeSwingTest.windowNode(tag: String): JComponent =
     onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(tag).fetch<JComponent>()
 
-private fun ComposeSwingTest.frame(): JFrame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
+internal fun ComposeSwingTest.frame(): JFrame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
 
 /** A primary-button press, release and click at [at], in the window's coordinates. */
-private suspend fun ComposeSwingTest.click(at: Point) {
+internal suspend fun ComposeSwingTest.click(at: Point) {
     sendMouse(frame(), MouseEvent.MOUSE_PRESSED, at, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1)
     sendMouse(frame(), MouseEvent.MOUSE_RELEASED, at, 0, MouseEvent.BUTTON1)
     sendMouse(frame(), MouseEvent.MOUSE_CLICKED, at, 0, MouseEvent.BUTTON1)

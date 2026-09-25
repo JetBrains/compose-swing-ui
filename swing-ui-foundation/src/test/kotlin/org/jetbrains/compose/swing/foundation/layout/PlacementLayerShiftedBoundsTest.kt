@@ -6,15 +6,17 @@ import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.background
-import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
 import java.awt.Component
+import java.awt.GraphicsEnvironment
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
@@ -33,22 +35,6 @@ class PlacementLayerShiftedBoundsTest {
             setContent { ShiftedLayerFixture(identityLayer) }
 
             assertShiftedLayerPainted()
-        }
-
-    @Test
-    fun ordinaryChildOverflowStaysClippedWithoutAPlacementLayer() =
-        runComposeSwingTest {
-            setContent { OrdinaryOverflowFixture() }
-
-            val layered = onNodeWithTag("layered").fetch<JComponent>()
-            val spill = layered.layoutBounds.x + layered.layoutBounds.width + 5
-            val pixel = onNodeWithTag("root").captureToImage().getRGB(spill, 20)
-            assertEquals(
-                0,
-                pixel and 0xFFFFFF,
-                "no-layer control at ($spill, 20); component=${layered.bounds}, " +
-                    "layout=${layered.layoutBounds}, outsets=${layered.paintOutsets()}",
-            )
         }
 
     @Test
@@ -211,6 +197,29 @@ class PlacementLayerShiftedBoundsTest {
             )
         }
 
+    /**
+     * A fade moves nothing off the child's box, so a widget inside the faded child that repaints on its own, under a
+     * decorated row, repaints what it asks for and no more.
+     */
+    @Test
+    fun aWidgetInsideAFadedChildRepaintsWhatItAsksFor() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val widget = ClipRecordingChild()
+            setWindowContent {
+                Row(modifier = SwingModifier.background(Brush.of(Color.WHITE))) {
+                    Box(modifier = SwingModifier.placementLayer { alpha = 0.5f }) {
+                        SwingNode(factory = { widget }, modifier = SwingModifier.size(20, 20))
+                    }
+                }
+            }
+            widget.clips.clear()
+
+            widget.paintImmediately(0, 0, 5, 5)
+
+            assertEquals(Rectangle(0, 0, 5, 5), widget.clips.lastOrNull())
+        }
+
     private fun ComposeSwingTest.assertShiftedLayerPainted() {
         val layered = onNodeWithTag("layered").fetch<JComponent>()
         val leaf = onNodeWithTag("leaf").fetch<JComponent>()
@@ -268,27 +277,6 @@ class PlacementLayerShiftedBoundsTest {
         }
     }
 
-    @Composable
-    private fun OrdinaryOverflowFixture() {
-        Box(modifier = SwingModifier.testTag("root").preferredSize(120, 80)) {
-            Row {
-                Box(modifier = SwingModifier.size(20, 40))
-                Box(
-                    contentAlignment = Alignment.TopStart,
-                    modifier = SwingModifier.testTag("layered").preferredSize(40, 40),
-                ) {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .requiredSize(56, 56)
-                                .offset(x = 20)
-                                .background(Brush.of(Color.RED)),
-                    )
-                }
-            }
-        }
-    }
-
     private class CapturingOffsetLayerElement(
         private val alpha: Float,
         private val clip: Boolean = false,
@@ -335,7 +323,7 @@ class PlacementLayerShiftedBoundsTest {
                         this.scaleY = this@CapturingOffsetLayerNode.scale
                     }
                 } else {
-                    placeable.place(offsetX, 0)
+                    placeable.place(0, 0)
                 }
             }
         }

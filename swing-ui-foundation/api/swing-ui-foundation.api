@@ -62,7 +62,9 @@ public final class org/jetbrains/compose/swing/foundation/graphics/Decoration {
 	public final fun isOpaque (Ljava/awt/Component;)Z
 	public final fun localLayoutBounds (Ljava/awt/Component;)Ljava/awt/Rectangle;
 	public final fun paint (Ljava/awt/Component;Ljava/awt/Graphics;Lkotlin/jvm/functions/Function1;)V
+	public final fun paintImmediately (Ljavax/swing/JComponent;IIIILkotlin/jvm/functions/Function4;)V
 	public final fun paintOutsets ()Ljava/awt/Insets;
+	public final fun repaint (Ljavax/swing/JComponent;JIIII)V
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/Decoration$Companion {

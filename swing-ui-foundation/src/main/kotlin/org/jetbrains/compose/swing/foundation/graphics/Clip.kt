@@ -22,8 +22,9 @@ import java.awt.Shape as AwtShape
  * the content into an offscreen raster and masking it, which a hard clip does not need. A rectangle has
  * no edge to soften and is better left hard.
  *
- * A clip changes how a component looks, not what it does: input is unaffected, so a circle-clipped
- * container still takes a click in its corners.
+ * Inside its layout bounds, a clip changes how a component looks, not what it does: a circle-clipped
+ * container still takes a click in its corners. A child placed past the decorated box is cut away there,
+ * and a press there does not reach it.
  *
  * @param shape the outline to cut to, resolved against the [decorated box][decoration].
  * @param antialias whether a pixel the outline covers in part is kept in part; `false` by default.

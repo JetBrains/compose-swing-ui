@@ -5,6 +5,9 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.clippedPaintBounds
+import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
+import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
+import org.jetbrains.compose.swing.foundation.graphics.movesContent
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import java.awt.Component
@@ -13,53 +16,52 @@ import java.awt.Insets
 import java.awt.Rectangle
 
 /**
- * Walks the children the last layout pass placed, once: finds [hasChildToGather] and, where
- * [hasFoundationParent], adds to [bounds], or to a rectangle allocated on the first child that needs it where
- * [bounds] is null, the bounds of each child that [needs gathering][Decoration.needsGathering], or of every one
- * where [all], in the layout coordinates of this container, whose paint outsets are [outsets]. A child whose placed
- * layer clips adds only [what that clip lets paint][clippedPaintBounds], and nothing where that is empty.
- * The [panel] holds its [glass pane][ConstrainedPanel.glassPane] while a layer rotates or scales one of these
- * children.
+ * Walks the children the last layout pass placed: where [hasFoundationParent], adds the bounds of each visible one
+ * that reaches past this container's layout bounds of [layoutWidth] by [layoutHeight], in its layout coordinates, to
+ * [bounds], or to a rectangle allocated on the first child added where [bounds] is null. This container's paint
+ * outsets are [outsets]. A child whose placed layer clips adds only [what that clip lets paint][clippedPaintBounds],
+ * and one with no area to paint adds nothing. The [panel] holds its [glass pane][ConstrainedPanel.glassPane] while a
+ * layer rotates or scales one of these children. [hasChildRepaintingWhole] is worked out again.
  *
- * @return [bounds] grown by the gathered children, a rectangle allocated for them where [bounds] is null, or
- *   [bounds] where nothing was gathered.
+ * @return [bounds] grown by the gathered children, a rectangle allocated for them where [bounds] is null, or null
+ *   where nothing was gathered.
  */
 internal fun ChildMeasurables.gatherPaintBounds(
     bounds: Rectangle?,
     outsets: Insets,
-    all: Boolean,
+    layoutWidth: Int,
+    layoutHeight: Int,
     hasFoundationParent: Boolean,
 ): Rectangle? {
-    var gathered = bounds
-    var gathers = false
+    var gathered: Rectangle? = null
     var transformed = false
     layoutPass.fastForEach { child ->
         if (child.isLeftUnplaced) return@fastForEach
         val decoration = child.decoratable?.decoration
         transformed = transformed || decoration?.steps?.isTransformed == true
-        val needsGathering = decoration?.needsGathering == true
-        gathers = gathers || needsGathering
-        if (hasFoundationParent && (all || needsGathering)) {
-            val component = child.component
+        val component = child.component
+        if (hasFoundationParent && component.isVisible) {
             var x = component.x - outsets.left
             var y = component.y - outsets.top
             var width = component.width
             var height = component.height
             decoration?.clippedPaintBounds(component)?.let {
-                if (it.isEmpty) return@fastForEach
                 x += it.x
                 y += it.y
                 width = it.width
                 height = it.height
             }
+            // How far inside the layout bounds the child's nearest edge lies; negative where one reaches past.
+            val clearance = minOf(x, y, minOf(layoutWidth - x - width, layoutHeight - y - height))
+            if (width <= 0 || height <= 0 || clearance >= 0) return@fastForEach
             gathered =
-                gathered?.apply {
+                (gathered ?: bounds)?.apply {
                     add(x, y)
                     add(x + width, y + height)
                 } ?: Rectangle(x, y, width, height)
         }
     }
-    hasChildToGather = gathers
+    updateHasChildRepaintingWhole()
     panel.updateGlassPane(transformed)
     return gathered
 }
@@ -131,11 +133,10 @@ internal fun ChildMeasurables.childPaintOutsetsChanged(
  *
  * Only a Foundation container, [parentMeasurables], gives paint outsets: the steps' own, grown by the box of a layout
  * node a step paints at, by a rotating or scaling layer, and, where [childMeasurables] holds [component]'s own
- * children, by what those children paint past it. Such a container gathers every placed child while its own steps
- * [need paint bounds][DecorationSteps.needsPaintBounds], and otherwise only the children that
- * [need gathering][Decoration.needsGathering]. The walk of [childMeasurables] runs under any parent, since it also
- * settles whether the container holds its glass pane. Nothing is allocated for a component whose steps need no
- * paint bounds and whose children, if any, need no gathering.
+ * children, by the bounds of each visible one: a child placed or painting past the layout bounds grows them. The
+ * walk of [childMeasurables] runs under any parent, since it also settles whether the container holds its glass
+ * pane. Nothing is allocated for a component whose steps need no paint bounds and whose visible children all lie
+ * inside its layout bounds.
  */
 internal fun Decoration.fitted(
     component: Component,
@@ -148,21 +149,14 @@ internal fun Decoration.fitted(
     val width = layoutWidth(component)
     val height = layoutHeight(component)
     val hasFoundationParent = parentMeasurables != null
-    val needs = hasFoundationParent && steps.needsPaintBounds(width, height)
-    val seed = if (needs) Rectangle(0, 0, width, height) else null
+    val seed =
+        if (hasFoundationParent && steps.needsPaintBounds(width, height)) Rectangle(0, 0, width, height) else null
     val bounds =
-        panelChildMeasurables?.gatherPaintBounds(
-            seed,
-            heldPaintOutsets,
-            all = needs,
-            hasFoundationParent,
-        ) ?: seed
+        panelChildMeasurables?.gatherPaintBounds(seed, heldPaintOutsets, width, height, hasFoundationParent) ?: seed
     val holdsTransform =
-        steps.isTransformed ||
-            panelChildMeasurables?.layoutPass?.fastAny {
-                !it.isLeftUnplaced && it.decoratable?.decoration?.holdsTransform == true
-            } == true
-    val outsets = if (bounds != null) outsetsAround(bounds, steps, width, height) else NoPaintOutsets
+        steps.isTransformed || steps.movesContent(width, height) ||
+            panelChildMeasurables?.hasChildHoldingTransform == true
+    val outsets = outsetsAround(bounds, steps, width, height)
     return when {
         holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) && outsets == heldPaintOutsets &&
             holdsTransform == this.holdsTransform -> {
@@ -179,6 +173,10 @@ internal fun Decoration.fitted(
     }
 }
 
+/** Whether a child the last layout pass placed [holds a transform][Decoration.holdsTransform]. */
+private val ChildMeasurables.hasChildHoldingTransform: Boolean
+    get() = layoutPass.fastAny { !it.isLeftUnplaced && it.decoratable?.decoration?.holdsTransform == true }
+
 /** Whether this value holds [steps], [hasOpaqueSteps] and the links [parentMeasurables] and [childMeasurables]. */
 private fun Decoration.holds(
     steps: DecorationSteps,
@@ -192,16 +190,19 @@ private fun Decoration.holds(
         childMeasurables === this.childMeasurables
 
 /**
- * The outsets around layout bounds of [width] by [height] that [bounds], those layout bounds grown by what the children
- * paint past them, take once [steps] grow them in turn: the shared [NoPaintOutsets], the steps' own or this value's,
- * wherever they are equal, or new ones.
+ * The outsets around layout bounds of [width] by [height] that [bounds] take once [steps] grow them in turn. [bounds]
+ * are those of the visible children reaching past the layout bounds, joined with the layout bounds where [steps]
+ * [need paint bounds][DecorationSteps.needsPaintBounds], or null where there is neither, which gives
+ * [NoPaintOutsets]. Otherwise the shared [NoPaintOutsets], the steps' own or this value's, wherever they are equal,
+ * or new ones.
  */
 private fun Decoration.outsetsAround(
-    bounds: Rectangle,
+    bounds: Rectangle?,
     steps: DecorationSteps,
     width: Int,
     height: Int,
 ): Insets {
+    if (bounds == null) return NoPaintOutsets
     steps.growToPaintBounds(bounds, width, height)
     bounds.add(0, 0)
     bounds.add(width, height)
@@ -231,6 +232,10 @@ private fun Insets.hasSides(
  * or stopped rotating or scaling it. A Foundation container's own children keep where its last pass placed them, and
  * its Foundation parent fits its bounds around the layout bounds it placed, and works out its own paint outsets in
  * turn. The invalidations this causes lay nothing out; see [RunningCause.PaintOutsetFit].
+ *
+ * Where none of these changed, nothing is fitted; the Foundation parent only works out
+ * [whether it holds a child a repaint may have to grow for][updateHasChildRepaintingWhole], if
+ * [that][Decoration.holdsRepaintingWhole] changed for the component.
  */
 internal fun writeFitted(
     component: Component,
@@ -240,10 +245,15 @@ internal fun writeFitted(
     transformChanged: Boolean = false,
 ) {
     if (value !== held) decoratable.decoration = value
+    val parent = value.parentMeasurables
     val previous = held.heldPaintOutsets
     val outsets = value.heldPaintOutsets
-    if (outsets == previous && value.holdsTransform == held.holdsTransform && !transformChanged) return
-    val parent = value.parentMeasurables
+    if (outsets == previous && value.holdsTransform == held.holdsTransform && !transformChanged) {
+        if (value !== held && value.holdsRepaintingWhole != held.holdsRepaintingWhole) {
+            parent?.updateHasChildRepaintingWhole(component.takeIf { value.holdsRepaintingWhole })
+        }
+        return
+    }
     val childMeasurables = value.childMeasurables
     if (childMeasurables == null) {
         parent?.childPaintOutsetsChanged(component, previous)

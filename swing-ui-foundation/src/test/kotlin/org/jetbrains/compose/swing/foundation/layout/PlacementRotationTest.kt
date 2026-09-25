@@ -160,7 +160,7 @@ class PlacementRotationTest {
             assertEquals(placedRuns, runs)
         }
 
-    /** The layer is hit at the turned center of its box, and not past the turned left edge. */
+    /** The layer is hit at the turned center of its box and on the unclipped overflow, and not past the child. */
     private fun assertHitsTheTurnedBox(
         layer: JComponent,
         values: RotationValues,
@@ -169,15 +169,14 @@ class PlacementRotationTest {
         val center = values.point(80.0, 44.0)
         val overflow = values.point(-8.0, 44.0)
         val pastTheChild = values.point(-14.0, 44.0)
-        val turns = values.rotation != 0f || values.scaleX != 1f || values.scaleY != 1f
         assertTrue(
             layer.contains(center.x.toInt() - paintBounds.x, center.y.toInt() - paintBounds.y),
             "$values hit at the turned center of the box",
         )
         assertEquals(
-            turns && !values.clipped,
+            !values.clipped,
             layer.contains(overflow.x.toInt() - paintBounds.x, overflow.y.toInt() - paintBounds.y),
-            "$values: past the turned edge of the box, the child's overflow is hit only while the layer turns it " +
+            "$values: past the turned edge of the box, the child's overflow is hit only while the layer leaves it " +
                 "unclipped",
         )
         assertFalse(
@@ -746,12 +745,9 @@ private fun RotationValues.transform(): AffineTransform {
     return AffineTransform(x.x - origin.x, x.y - origin.y, y.x - origin.x, y.y - origin.y, origin.x, origin.y)
 }
 
-/** Whether the artwork is cut to the box: by the clip, or where the layer neither turns nor scales it. */
-private val RotationValues.cutToTheBox: Boolean get() = clipped || (rotation == 0f && scaleX == 1f && scaleY == 1f)
-
 /** The paint bounds of the turned artwork, around the box they never shrink below. */
 private fun RotationValues.paintBounds(): Rectangle {
-    val source = if (cutToTheBox) Rectangle(0, 0, 160, 88) else Rectangle(-10, -8, 180, 104)
+    val source = if (clipped) Rectangle(0, 0, 160, 88) else Rectangle(-10, -8, 180, 104)
     return transform().createTransformedShape(source).bounds.union(Rectangle(0, 0, 160, 88))
 }
 
@@ -763,7 +759,7 @@ private fun RotationValues.artwork(paintBounds: Rectangle): BufferedImage =
     renderImage(paintBounds.width, paintBounds.height) { graphics ->
         graphics.translate(-paintBounds.x, -paintBounds.y)
         graphics.transform(transform())
-        if (cutToTheBox) graphics.clipRect(0, 0, 160, 88)
+        if (clipped) graphics.clipRect(0, 0, 160, 88)
         graphics.clipRect(-10, -8, 180, 104)
         graphics.color = Color.RED
         graphics.fillRect(-10, -8, 180, 104)

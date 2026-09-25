@@ -3,7 +3,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
-import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
+import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Container
@@ -75,47 +76,26 @@ internal open class ConstrainedPanel(
      */
     public override fun isPaintingOrigin(): Boolean = decoration.isDecorated || glassPane != null
 
+    override fun repaint(
+        tm: Long,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) = decoration.repaint(this, tm, x, y, width, height)
+
     /**
-     * Paints the whole panel while a layer rotates or scales it. Otherwise, while a child holds such a layer or has
-     * paint outsets, it paints the area grown by the whole of each visible child the area touches, and then by the
-     * decoration's outsets, which a blur or a shadow spreads a change in the area into. A repaint a descendant asks
-     * for names the area it would take unturned and unscaled, and without the paint outsets of the containers between
-     * them, which Swing does not ask to grow it when it merges that repaint into this panel's own.
+     * A repaint a stock descendant records on itself and Swing merges into a dirty Swing ancestor is painted from that
+     * ancestor alone, so no container between them that spreads or moves what it paints grows it, as for a `JLayer`.
      */
     override fun paintImmediately(
         x: Int,
         y: Int,
         w: Int,
         h: Int,
-    ) {
-        val steps = decoration.steps
-        if (steps.isTransformed) return super.paintImmediately(0, 0, width, height)
-        val reach = steps.outsets
-        val measurables = policyLayout.measurables
-        if (!measurables.hasChildToGather) {
-            return super.paintImmediately(
-                x - reach.left,
-                y - reach.top,
-                w + reach.left + reach.right,
-                h + reach.top + reach.bottom,
-            )
-        }
-        val area = Rectangle(x, y, w, h)
-        val bounds = Rectangle()
-        measurables.layoutPass.fastForEach {
-            val child = it.component
-            if (child.isVisible && it.decoratable?.decoration?.needsGathering == true) {
-                child.getBounds(bounds)
-                if (area.intersects(bounds)) area.add(bounds)
-            }
-        }
+    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
         // Not the Rectangle overload, which calls back here.
-        super.paintImmediately(
-            area.x - reach.left,
-            area.y - reach.top,
-            area.width + reach.left + reach.right,
-            area.height + reach.top + reach.bottom,
-        )
+        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
     }
 
     /**

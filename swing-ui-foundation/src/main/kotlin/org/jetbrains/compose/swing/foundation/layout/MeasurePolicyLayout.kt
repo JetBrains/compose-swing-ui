@@ -4,6 +4,9 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
+import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
+import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
+import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -75,8 +78,8 @@ internal class MeasurePolicyLayout(
         constraints: Any?,
     ) {
         if (component === measurables.panel.glassPane) return
-        measurables.updateParentData(component, constraints)
         val measurable = measurables.of(component)
+        measurable.parentData = constraints
         measurable.decoratable?.linkTo(parentMeasurables = measurables)
         if (isNotPlaced) measurable.unplace(joining = true)
     }
@@ -161,6 +164,9 @@ internal class MeasurePolicyLayout(
         }
 
     override fun layoutContainer(parent: Container) {
+        // Resized by its parent's fit to the paint outsets its own placement replay left, the panel validates at once
+        // inside that replay, which has placed every child where the fit keeps it.
+        if (measurables.isPlacingAgain && measurables.isFittingPaintOutsets) return
         if (isNotPlaced) {
             measurables.panel.stackingOrder.order
                 .fastForEach { measurables.of(it).unplace() }
@@ -347,15 +353,6 @@ internal class ChildMeasurables(
     /** The measurable for [child], or null where this container has made none. */
     fun find(child: Component): ChildMeasurable? = measurables[child]
 
-    /** Stores [parentData] once the parent-data protocol of [owner] has accepted it. */
-    fun updateParentData(
-        component: Component,
-        parentData: Any?,
-    ) {
-        owner.parentDataProtocol?.validateParentData(component, parentData)
-        of(component).parentData = parentData
-    }
-
     /** Counts the runs of the placement block; see [ChildMeasurable.isPlacedByParent]. */
     internal var placementRun: Int = 0
 
@@ -363,10 +360,33 @@ internal class ChildMeasurables(
     var zIndexChanged: Boolean = false
 
     /**
-     * Whether a child the last layout pass placed [needs gathering][Decoration.needsGathering], as [gatherPaintBounds]
-     * last found.
+     * Whether a repaint that touches a child the last layout pass placed
+     * [may have to grow][Decoration.holdsRepaintingWhole]: the child repaints whole, or is a Foundation container
+     * this is true for in turn. [Decoration.paintImmediately] walks the children only while it is.
      */
-    var hasChildToGather: Boolean = false
+    var hasChildRepaintingWhole: Boolean = false
+        private set
+
+    /**
+     * Works [hasChildRepaintingWhole] out from what the children hold and, where it changed, has the Foundation parent
+     * work its own out, and so on up. [holding] is a child a repaint
+     * [may have to grow for][Decoration.holdsRepaintingWhole]: unless the last placement left it unplaced, it answers
+     * for all the children; null walks them.
+     *
+     * [gatherPaintBounds] calls it whenever this container's paint outsets are fitted: at the end of each of its
+     * layout passes, when its Foundation parent places it, when its own decoration steps change, and when a child's
+     * paint outsets or transform change. [writeFitted] calls it for a child whose own answer changed with neither. A
+     * validation lays a container out before its children, so no layout pass of the parent follows a change here.
+     * Once a validation ends, every container holds what its children give it.
+     */
+    fun updateHasChildRepaintingWhole(holding: Component? = null) {
+        val value =
+            holding?.let(::find)?.isLeftUnplaced == false ||
+                layoutPass.fastAny { !it.isLeftUnplaced && it.decoratable?.decoration?.holdsRepaintingWhole == true }
+        if (value == hasChildRepaintingWhole) return
+        hasChildRepaintingWhole = value
+        panel.decoration.parentMeasurables?.updateHasChildRepaintingWhole(panel.takeIf { value })
+    }
 
     /**
      * Gives up the measurable for [child], for a child leaving the container, which leaves it with no paint outsets.
@@ -578,7 +598,12 @@ internal class ChildMeasurable(
     /** [component] itself, where it answers constraints on its own. */
     val constrainable: Constrainable?,
 ) : Measurable {
+    /** What the child is registered under, once the parent-data protocol of its container has accepted it. */
     override var parentData: Any? = null
+        set(value) {
+            owner.owner.parentDataProtocol?.validateParentData(component, value)
+            field = value
+        }
 
     /**
      * The measurable of this child's outermost layout modifier, which measures through the next one inward, the
@@ -724,7 +749,7 @@ internal class ChildMeasurable(
                 }
         }
         val changed = this.parentData != parentData || chainChanged
-        owner.updateParentData(component, parentData)
+        this.parentData = parentData
         if (changed) owner.measured = null
     }
 

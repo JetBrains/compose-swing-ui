@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import java.awt.AlphaComposite
 import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.Insets
@@ -92,6 +93,27 @@ internal fun JComponent.paintOnto(
         it.clip(clip)
         paint(it)
     }
+
+/**
+ * How many levels of one channel, at most, [before], what this component painted before a change, painted again over
+ * [areas] alone, in its own coordinates, is off what this component paints whole now.
+ */
+internal fun JComponent.levelsOffAWholeRepaint(
+    before: BufferedImage,
+    areas: List<Rectangle>,
+): Int {
+    val partial =
+        renderImage(width, height) { graphics ->
+            graphics.drawImage(before, 0, 0, null)
+            areas.forEach { area ->
+                graphics.composite = AlphaComposite.Clear
+                graphics.fill(area)
+                graphics.composite = AlphaComposite.SrcOver
+                graphics.drawImage(paintOnto(width, height, clip = area), 0, 0, null)
+            }
+        }
+    return partial.channelDifference(paintOnto(width, height))
+}
 
 /** The paint outsets of this decorated component. */
 internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()

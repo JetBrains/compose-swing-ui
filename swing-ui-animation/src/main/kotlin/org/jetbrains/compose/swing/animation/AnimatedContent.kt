@@ -39,10 +39,8 @@ import org.jetbrains.compose.swing.animation.core.createDeferredAnimation
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
-import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.clip
-import org.jetbrains.compose.swing.foundation.graphics.decoration
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.Constraints
@@ -65,20 +63,9 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.ComponentOrientation
 import java.awt.Dimension
-import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.geom.Point2D
 import kotlin.math.max
-
-/** Gathers overflowing children because the unscoped size animation has no layout modifier. */
-private object AnimatedContentOverflowBoundsDecorator : Decorator {
-    override fun paint(
-        graphics: Graphics2D,
-        width: Int,
-        height: Int,
-        content: (Graphics2D, Int, Int) -> Unit,
-    ): Unit = content(graphics, width, height)
-}
 
 // Derived from androidx.compose.animation.AnimatedContent: the entry points, the list of currently visible states,
 // the content map keyed by contentKey, the spec each content runs under, the size animation and the measure policy
@@ -549,9 +536,8 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
     val clipsAnimatedSize = hasAnimatedSize && contentTransform.sizeTransform?.clip != false
     val animatedSizeModifier =
         when {
-            parentScope != null || !hasAnimatedSize -> modifier
-            clipsAnimatedSize -> modifier.clip(RectangleShape)
-            else -> modifier.decoration(AnimatedContentOverflowBoundsDecorator)
+            parentScope == null && clipsAnimatedSize -> modifier.clip(RectangleShape)
+            else -> modifier
         }
     Layout(
         modifier =

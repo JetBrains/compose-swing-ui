@@ -528,7 +528,8 @@ fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outli
 
 An effect that reads the content's pixels calls the continuation inside `ImageLayer.record` and draws the layer.
 Override `paintBounds` when painting or clipping changes the area the decorator can paint. Its default includes
-the decorated box, the content's bounds, and the declared `outsets`.
+the decorated box, the content's bounds, and the declared `outsets`. Past the layout bounds, a press reaches a child
+only where `paintBounds` keeps the content.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
 `ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
@@ -555,11 +556,13 @@ A decorated component, one that implements `Decoratable`, has these rectangles:
 
 - Its *bounds* are Swing's rectangle, which Swing clips its painting to.
 - Its *layout bounds* are what its parent measured and placed. Sibling placement, alignment, offsets,
-  `onPlaced`, `onSizeChanged` and hit testing use them. A container is also hit where a rotated or scaled
-  descendant paints past its layout bounds.
+  `onPlaced`, `onSizeChanged` and hit testing use them. A container is also hit past its layout bounds where a
+  child is hit, such as a child placed there or a rotated or scaled descendant, as androidx hit-tests a child
+  past its parent's bounds. A `clip`, `alpha` or `clipToBounds` of the container that cuts the child away there
+  cuts the hit too.
 - Its *paint outsets* are how far it paints past its layout bounds on each side, such as a shadow's falloff, content
-  a layer scales past its box, a background declared before a `padding`, or a child's shadow spilling past a
-  container that no `clip` or `alpha` of its own cuts.
+  a layer scales past its box, a background declared before a `padding`, or, on a container that no `clip` or
+  `alpha` of its own cuts, a child placed past the layout bounds or a child's shadow spilling past them.
 - Its *paint bounds* are everything it paints, children's overflow included: its bounds.
 - Its *content area* is where its children are placed: the layout bounds less its border.
 

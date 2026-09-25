@@ -249,7 +249,7 @@ class DecoratedTest {
             )
         }
 
-    /** The recipe `docs/FOUNDATION.md` documents, painting one red square of its own. */
+    /** A `Decoratable` panel that paints through its decoration, painting one red square of its own. */
     private class DecoratedSurface : DecoratedPanel() {
         override fun paint(g: Graphics) {
             decoration.paint(this, g) { target -> paintUndecorated(target) }

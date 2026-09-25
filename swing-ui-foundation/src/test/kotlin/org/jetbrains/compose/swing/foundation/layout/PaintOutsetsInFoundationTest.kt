@@ -472,47 +472,6 @@ class PaintOutsetsInFoundationTest {
         }
 
     @Test
-    fun removingTheShadowOfABoxWithAnOverflowingChildClipsTheChild() =
-        runComposeSwingTest {
-            var shadowed by mutableStateOf(true)
-            setContent {
-                Row(modifier = SwingModifier.testTag("row")) {
-                    Box(modifier = SwingModifier.size(20, 40))
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                            SwingModifier.testTag("box").preferredSize(40, 40).opaque(true).let {
-                                if (shadowed) it.shadow(8, Color.BLACK) else it
-                            },
-                    ) {
-                        Box(modifier = SwingModifier.requiredSize(56, 56).background(Brush.of(Color.BLUE)))
-                    }
-                }
-            }
-            val box = onNodeWithTag("box").fetch<JComponent>()
-            val spilled = Point(box.layoutBounds.x - 4, 20)
-            assertTrue(box.paintOutsets().left >= 8, "the shadow's outsets take in the child's overflow")
-            assertFalse(box.isOpaque, "the parent shows under the shadow")
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("row").captureToImage().getRGB(spilled.x, spilled.y),
-                "the child's overflow paints inside the shadow's outsets",
-            )
-
-            shadowed = false
-            awaitIdle()
-
-            assertEquals(Insets(0, 0, 0, 0), box.paintOutsets(), "a plain child's overflow takes no outsets")
-            assertTrue(box.isOpaque, "without outsets the box is opaque again")
-            assertEquals(Rectangle(20, 0, 40, 40), box.bounds, "without outsets the box's bounds are its layout bounds")
-            assertEquals(
-                0,
-                onNodeWithTag("row").captureToImage().getRGB(spilled.x, spilled.y),
-                "the child is clipped at the box's bounds",
-            )
-        }
-
-    @Test
     fun aBorderLayoutPanelWhoseOutsetsChangeSidesLaysItsChildOutInsideTheNewInsets() =
         runComposeSwingTest {
             var outsets by mutableStateOf(Insets(0, 8, 0, 0))

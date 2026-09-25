@@ -14,8 +14,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * - `contains` answers [Decoration.contains];
  * - `isOpaque` answers `super.isOpaque() && decoration.isOpaque(this)`, and the component paints its background
  *   inside [Decoration.localLayoutBounds] where `super.isOpaque()`;
- * - a component with children also answers `isPaintingOrigin` with [Decoration.isDecorated], and grows the area
- *   `paintImmediately` is given by [Decoration.paintOutsets] on each side, as `JLayer` does.
+ * - `repaint(long, int, int, int, int)` answers `decoration.repaint(this, tm, x, y, width, height)`;
+ * - `paintImmediately(int, int, int, int)` answers
+ *   `decoration.paintImmediately(this, x, y, w, h) { x, y, w, h -> super.paintImmediately(x, y, w, h) }`;
+ * - a component with children also answers `isPaintingOrigin` with [Decoration.isDecorated], as `JLayer` does, so a
+ *   repaint a child records is painted through its decoration.
  *
  * Its size getters answer as for any Swing component: a size worked out from its content includes `getInsets()`, and
  * a set size answers as set. Only a Foundation container gives it paint outsets. Under any other parent it has none,

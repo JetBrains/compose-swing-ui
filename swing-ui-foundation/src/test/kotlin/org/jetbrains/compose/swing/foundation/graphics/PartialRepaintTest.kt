@@ -1,8 +1,12 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.WINDOW_TITLE
 import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
@@ -317,6 +321,129 @@ class PartialRepaintTest {
             Rectangle(-outsets.left, -outsets.top, 40 + outsets.left + outsets.right, 40 + outsets.top + outsets.bottom)
         assertTrue(repainted.any { it.contains(reach) }, "the child's repaint must reach $reach: $repainted")
     }
+
+    /** A leaf repainting part of itself repaints its whole shadow, through the plain box around it. */
+    @Test
+    fun aPartialRepaintOfAShadowedLeafInAPlainBoxInADecoratedOneRepaintsTheLeafWhole() =
+        assertLeafRepaintCoversTheLeaf(padded = false) { it.shadow(8, Color(0, 0, 0, 160)) }
+
+    /**
+     * The same holds where the leaf's shadow lies inside the plain box, which then has no paint outsets for the box
+     * above it to find.
+     */
+    @Test
+    fun aPartialRepaintOfAShadowedLeafInsideAPaddedPlainBoxRepaintsTheLeafWhole() =
+        assertLeafRepaintCoversTheLeaf(padded = true) { it.shadow(8, Color(0, 0, 0, 160)) }
+
+    /** The same holds for a shadow the leaf declares once every box around it is laid out. */
+    @Test
+    fun aPartialRepaintOfALeafInsideAPaddedPlainBoxShadowedLaterRepaintsTheLeafWhole() =
+        assertLeafRepaintCoversTheLeaf(padded = true, decoratedLater = true) { it.shadow(8, Color(0, 0, 0, 160)) }
+
+    /**
+     * A repaint of part of a blurred leaf that Swing merges into an outer container's repaint covers what the blur
+     * spreads that part into, inside a plain box that has no paint outsets.
+     */
+    @Test
+    fun aPartialRepaintOfABlurredLeafInsideAPaddedPlainBoxMergedIntoAnOuterRepaintRepaintsTheLeafWhole() =
+        assertLeafRepaintCoversTheLeaf(padded = true, mergedIntoOuter = true) { it.blur(6) }
+
+    /**
+     * The same holds for a blur a clip declared before it cuts to the leaf's layout bounds, both declared once every
+     * box around the leaf is laid out: the leaf takes no paint outsets for them.
+     */
+    @Test
+    fun aPartialRepaintOfALeafClippedAndBlurredLaterMergedIntoAnOuterRepaintRepaintsTheLeafWhole() =
+        assertLeafRepaintCoversTheLeaf(padded = true, mergedIntoOuter = true, decoratedLater = true) {
+            it.clip(RectangleShape).blur(6)
+        }
+
+    /**
+     * Composes a 40 by 40 leaf decorated by [decorate], from the start or, where [decoratedLater], once it is laid
+     * out, in a plain box, 30 larger than the leaf on each side where [padded], in a box with a background. Repaints
+     * one pixel of the leaf, alone or, where [mergedIntoOuter], together with a corner of the outermost box, which
+     * makes Swing paint both from that box, and checks that the leaf repainted whole, with its paint outsets, in its
+     * layout coordinates.
+     */
+    private fun assertLeafRepaintCoversTheLeaf(
+        padded: Boolean,
+        mergedIntoOuter: Boolean = false,
+        decoratedLater: Boolean = false,
+        decorate: (SwingModifier) -> SwingModifier,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val repainted = ArrayList<Rectangle>()
+        var decorated by mutableStateOf(!decoratedLater)
+        setWindowContent {
+            Box(modifier = SwingModifier.testTag("outer")) {
+                Box(modifier = SwingModifier.padding(40).background(Brush.of(Color.WHITE))) {
+                    Box(modifier = SwingModifier.testTag("plain")) {
+                        val placed = SwingModifier.testTag("leaf").let { if (padded) it.padding(30) else it }
+                        val recording = placed.size(40, 40).drawBehind { graphics.clipBounds?.let { repainted += it } }
+                        Canvas(modifier = if (decorated) decorate(recording) else recording) {}
+                    }
+                }
+            }
+        }
+        val window = onWindowWithTitle(WINDOW_TITLE)
+        val leaf = window.onNodeWithTag("leaf").fetch<JComponent>()
+        val outer = window.onNodeWithTag("outer").fetch<JComponent>()
+        decorated = true
+        awaitIdle()
+        val outsets = leaf.paintOutsets
+        val plainBoxHoldsTheLeaf = window.onNodeWithTag("plain").fetch<JComponent>().paintOutsets == Insets(0, 0, 0, 0)
+        assertEquals(padded, plainBoxHoldsTheLeaf, "the plain box has paint outsets only where the leaf paints past it")
+        repainted.clear()
+
+        leaf.repaint(outsets.left + 30, outsets.top + 30, 1, 1)
+        if (mergedIntoOuter) outer.repaint(outer.width - 2, outer.height - 2, 1, 1)
+        awaitIdle()
+
+        val whole = Rectangle(-outsets.left, -outsets.top, leaf.width, leaf.height)
+        assertTrue(repainted.any { it.contains(whole) }, "the leaf's repaint must reach $whole: $repainted")
+    }
+
+    /**
+     * A leaf repainting part of itself repaints whole, and the leaves beside it whose shadows overlap its own do not:
+     * a leaf's shadow is cast by that leaf's content alone.
+     */
+    @Test
+    fun aPartialRepaintOfOneOfSeveralLeavesWhoseShadowsOverlapRepaintsThatLeafAlone() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val repainted = ArrayList<Rectangle>()
+            setWindowContent {
+                Box {
+                    Box(modifier = SwingModifier.padding(40)) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .drawBehind { graphics.clipBounds?.let { repainted += it } }
+                                    .background(Brush.of(Color.WHITE)),
+                        ) {
+                            Column {
+                                repeat(3) {
+                                    val leaf = SwingModifier.testTag("leaf$it").size(40, 120)
+                                    Canvas(modifier = leaf.shadow(8, Color(0, 0, 0, 160))) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            val window = onWindowWithTitle(WINDOW_TITLE)
+            val leaves = List(3) { window.onNodeWithTag("leaf$it").fetch<JComponent>() }
+            val outsets = leaves[0].paintOutsets
+            assertTrue(leaves[0].bounds.intersects(leaves[1].bounds), "the shadows overlap")
+            awaitIdle()
+            repainted.clear()
+
+            leaves[0].repaint(outsets.left + 20, outsets.top + 5, 1, 1)
+            awaitIdle()
+
+            val whole = Rectangle(-outsets.left, -outsets.top, leaves[0].width, leaves[0].height)
+            assertEquals(listOf(whole), repainted, "the first leaf repaints whole, and nothing more")
+        }
 
     /**
      * The halo strips of each of [canvases] where a repaint clipped to the strip differs from a repaint of the whole

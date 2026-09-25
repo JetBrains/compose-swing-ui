@@ -282,7 +282,8 @@ class CompositionLocalConsumerLayoutNodeTest {
             var x by mutableStateOf(0)
             setWindowContent {
                 CompositionLocalProvider(local provides x) {
-                    // A parent policy measures the Row, so the Row's layout pass settles on that measure.
+                    // A parent policy measures the Row, so the Row's layout pass settles on that measure. The panel
+                    // moves past the Row's layout bounds, so each move fits the Row's paint outsets too.
                     Box {
                         Row {
                             SwingNode(

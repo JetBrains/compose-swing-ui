@@ -12,6 +12,8 @@ import java.awt.Rectangle
 import java.awt.Shape
 import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
+import java.awt.geom.Rectangle2D
+import kotlin.math.floor
 
 /**
  * The steps a component's modifier declares, outermost first, and what they report together. Two are equal when they
@@ -78,9 +80,6 @@ internal class DecorationSteps private constructor(
     /** Whether a placement layer among the steps rotates or scales what is inside it. */
     val isTransformed: Boolean get() = decorators.fastAny { it is PlacementLayer && it.transform != null }
 
-    /** Whether a placement layer among the steps has placed its content with a layer. */
-    val hasPlacedLayer: Boolean get() = decorators.fastAny { it is PlacementLayer && it.hasPlacedLayer }
-
     /** Whether a placement layer among the steps rotates, scales or clips what is inside it. */
     val isClippedOrTransformed: Boolean get() =
         decorators.fastAny {
@@ -98,6 +97,26 @@ internal class DecorationSteps private constructor(
         point: Point2D.Double,
         clipped: Boolean,
     ): Boolean = decorators.fastAll { it !is PlacementLayer || it.toContent(point, clipped) }
+
+    /**
+     * Maps [point] as [toContent] does with the layers' clips, to where the component's children paint; false also
+     * where the paint bounds of another step, at layout bounds of [width] by [height], cut [point] away.
+     */
+    fun toChildContent(
+        point: Point2D.Double,
+        width: Int,
+        height: Int,
+    ): Boolean {
+        var pixel: Rectangle2D.Double? = null
+        return decorators.fastAll { decorator ->
+            if (decorator is PlacementLayer) {
+                decorator.toContent(point, clipped = true)
+            } else {
+                val seed = pixel ?: Rectangle2D.Double().also { pixel = it }
+                decorator.paintsContentAt(seed, point.x, point.y, width, height)
+            }
+        }
+    }
 
     /**
      * Paints [content] inside the steps, outermost first, each in a graphics of its own so what one leaves on it
@@ -252,7 +271,7 @@ private class BoxedStep(
     private val layoutBox = Rectangle()
 
     /** The box it paints at, in the component's layout coordinates, whose layout size is [width] by [height]. */
-    private fun box(
+    fun box(
         width: Int,
         height: Int,
     ): Rectangle {
@@ -325,5 +344,40 @@ private class BoxedStep(
     override fun hashCode(): Int = 31 * decorator.hashCode() + layoutNode.hashCode()
 }
 
+/**
+ * Whether this step, in a box of [width] by [height], paints its content at ([x], [y]): whether its paint bounds of
+ * content filling the pixel there cover the point. [pixel] is set to that content; a [BoxedStep] asks its decorator at
+ * its box.
+ */
+private fun Decorator.paintsContentAt(
+    pixel: Rectangle2D.Double,
+    x: Double,
+    y: Double,
+    width: Int,
+    height: Int,
+): Boolean {
+    if (this is BoxedStep) {
+        val box = box(width, height)
+        return decorator.paintsContentAt(pixel, x - box.x, y - box.y, box.width, box.height)
+    }
+    pixel.setRect(floor(x), floor(y), 1.0, 1.0)
+    return paintBounds(pixel, width, height).contains(x, y)
+}
+
 /** Insets of zero on every edge, shared and never modified. */
 internal val NoPaintOutsets: Insets = Insets(0, 0, 0, 0)
+
+/**
+ * Whether the paint bounds these steps give content the size of layout bounds of [width] by [height] reach past those
+ * bounds further than the steps' [outsets][DecorationSteps.outsets] do on a side: a step moves the content, as a step
+ * translating it does, and not only spreads it.
+ */
+internal fun DecorationSteps.movesContent(
+    width: Int,
+    height: Int,
+): Boolean {
+    if (!needsPaintBounds(width, height)) return false
+    val painted = Rectangle(0, 0, width, height).also { growToPaintBounds(it, width, height) }
+    return -painted.x > outsets.left || -painted.y > outsets.top ||
+        painted.x + painted.width - width > outsets.right || painted.y + painted.height - height > outsets.bottom
+}

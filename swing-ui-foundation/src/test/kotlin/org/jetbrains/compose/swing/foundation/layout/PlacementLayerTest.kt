@@ -360,9 +360,9 @@ class PlacementLayerTest {
             assertEquals(128.0, paintTagged("layered", setUp = { setXORMode(Color.WHITE) }).alphaAt(10, 10), 1.0)
         }
 
-    /** A fade moves nothing off the child's box, so content overflowing the box takes no paint outsets. */
+    /** A fade moves nothing off the child's box, so content overflowing the box takes the paint outsets it paints. */
     @Test
-    fun aFadeAloneTakesNoPaintOutsets() =
+    fun aFadeAloneTakesOnlyThePaintOutsetsOfTheOverflow() =
         runComposeSwingTest {
             setContent {
                 Column {
@@ -372,7 +372,7 @@ class PlacementLayerTest {
                 }
             }
 
-            onNodeWithTag("layered").assertProperty(Dimension(40, 40)) { size }
+            onNodeWithTag("layered").assertProperty(Dimension(60, 60)) { size }
         }
 
     /** Placing again with the block and box the layer already has repaints nothing. */

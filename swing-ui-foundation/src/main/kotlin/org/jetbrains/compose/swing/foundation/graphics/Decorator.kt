@@ -55,8 +55,9 @@ public fun interface Decorator {
     /**
      * The area this decorator and its [content] can paint, in a box of [width] by [height]. The default
      * includes the box and the content's bounds, grown by [outsets]. Override this when painting, clipping,
-     * or transforming content changes that area. The returned shape is used to reserve paint space, not for
-     * clipping.
+     * or transforming content changes that area. The returned shape reserves paint space, not a clip. It also
+     * decides hit testing past the layout bounds: a press there reaches a child only where the paint bounds of a
+     * one-pixel content at the point cover the point.
      */
     public fun paintBounds(
         content: Shape,
@@ -65,8 +66,11 @@ public fun interface Decorator {
     ): Shape = Rectangle(0, 0, width, height).apply { add(content.bounds) }.outsetBy(outsets)
 
     /**
-     * Whether to calculate paint bounds when no child has reported any; `true` by default. Return `false`
-     * only when this decorator cannot enlarge a box-sized content's paint bounds beyond its [outsets].
+     * Whether this decorator needs the component's paint bounds worked out, through [paintBounds], while no visible
+     * child has an edge past the layout bounds and no decorator has [outsets]; `true` by default. A child with an
+     * edge past the layout bounds, or a decorator with outsets, has them worked out whatever this answers. Return
+     * `false` only when this decorator, in a box of [width] by [height], cannot enlarge a box-sized content's paint
+     * bounds beyond its [outsets].
      */
     public fun needsPaintBounds(
         width: Int,
