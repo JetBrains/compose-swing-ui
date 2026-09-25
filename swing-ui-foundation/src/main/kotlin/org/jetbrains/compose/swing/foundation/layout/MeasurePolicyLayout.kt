@@ -20,6 +20,7 @@ import java.awt.Rectangle
 import java.util.EnumSet
 import java.util.IdentityHashMap
 import java.util.function.BiConsumer
+import javax.swing.CellRendererPane
 
 /**
  * The layout manager a [MeasurePolicy] drives: it holds one [Measurable] per child, answers the three
@@ -105,11 +106,13 @@ internal class MeasurePolicyLayout(
         // Invalidation reaches a valid parent on its own but schedules no layout pass, and a child that is
         // its own validate root, such as a JTextField, schedules the validation of itself alone. Revalidating
         // the parent schedules the pass that measures this container again; revalidating the target itself
-        // would call back here. A Foundation parent gives up only the extent it holds for this container.
+        // would call back here. A Foundation parent gives up only the extent it holds for this container. A
+        // CellRendererPane is left alone: its invalidate() does nothing, whoever renders the cell validates it, and
+        // revalidate() on a parent that is no JComponent validates the validate root above it at once.
         if (!measurables.invalidate()) return
         val parent = measurables.panel.decoration.parentMeasurables
         if (parent == null) {
-            target.parent?.revalidate()
+            if (target.parent !is CellRendererPane) target.parent?.revalidate()
         } else {
             parent.find(target)?.preferred = null
             parent.during(RunningCause.ChildInvalidation) { target.parent?.revalidate() }
@@ -238,6 +241,8 @@ internal enum class RunningCause {
     PaintOutsetFit,
     GlassPaneChange,
     ChildInvalidation,
+    SizeQuery,
+    Validation,
 }
 
 /**
@@ -332,6 +337,16 @@ internal class ChildMeasurables(
     /** Whether this container adds or removes its glass pane. */
     val isChangingGlassPane: Boolean get() = RunningCause.GlassPaneChange in runningCauses
 
+    /** Whether this container's panel is being validated, or validates the children its placement replay resized. */
+    val isValidating: Boolean get() = RunningCause.Validation in runningCauses
+
+    /**
+     * Whether a validation may be running through this container: it [is validating][isValidating], runs a block of
+     * its policy, or answers a Swing size query, which runs none; see [askedSize].
+     */
+    val isInValidation: Boolean
+        get() = layoutState != LayoutState.Idle || isValidating || RunningCause.SizeQuery in runningCauses
+
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
         private set
@@ -389,9 +404,10 @@ internal class ChildMeasurables(
     }
 
     /**
-     * Gives up the measurable for [child], for a child leaving the container, which leaves it with no paint outsets.
-     * Where it had some, it is revalidated, so it is sized and laid out without them. Its next parent may keep its
-     * bounds and give it other layout bounds, so it posts a move event.
+     * Gives up the measurable for [child], for a child leaving the container, which leaves it with the paint outsets
+     * a parent that is not a Foundation container gives: the part its `paintOutsets` value leaves in layout, none by
+     * default. Where they changed, it is revalidated, so it is sized and laid out with them. Its next parent may keep
+     * its bounds and give it other layout bounds, so it posts a move event.
      */
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
@@ -480,7 +496,9 @@ internal class ChildMeasurables(
         this.mode = mode
         measured = null
         try {
-            owner.observe(if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads, askBlock)
+            during(RunningCause.SizeQuery) {
+                owner.observe(if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads, askBlock)
+            }
         } finally {
             this.mode = retainedMode
             measured = retainedResult
@@ -630,6 +648,17 @@ internal class ChildMeasurable(
     var measuredByParent: LayoutState = LayoutState.Idle
 
     /**
+     * Whether a request of one of this child's layout nodes waits for a measure of the child that a layout pass of its
+     * container runs, as androidx's `measurePending`: set by a measurement request the running event defers, or by a
+     * placement request that revalidates the container and is deferred, and cleared as such a measure starts.
+     */
+    var measurePending: Boolean = false
+
+    /** Whether this child's [measure] runs in a layout pass of its container, as androidx's `Measuring` state. */
+    var isMeasuring: Boolean = false
+        private set
+
+    /**
      * The block of its container's policy that read one of this child's alignment lines in its running or last run,
      * [LayoutState.Measuring] where both did; [LayoutState.Idle] where neither did. Placing the child again then moves
      * a line that block depended on.
@@ -647,7 +676,15 @@ internal class ChildMeasurable(
 
     override fun measure(constraints: Constraints): Placeable {
         trackMeasurementByParent()
-        return outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+        // A container that is not valid lays out what it measures, unlike a valid one its own container measures.
+        val inLayoutPass = !owner.panel.isValid
+        if (inLayoutPass) measurePending = false
+        isMeasuring = inLayoutPass
+        try {
+            return outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+        } finally {
+            isMeasuring = false
+        }
     }
 
     // Each reads the field once rather than through a safe call, which would box the Int it answers.

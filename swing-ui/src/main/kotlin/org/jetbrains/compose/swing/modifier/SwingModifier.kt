@@ -1142,8 +1142,8 @@ private fun SwingNodeHolder<Component>.adoptDeclaration(
  * that declares what [applied] does, and is written in place with one unequal but of [applied]'s own class, as
  * androidx's `NodeChain.updateNode` updates a node in place. Answers [Adoption.diverged] where the slot holds another
  * element, or where [next] is of another class. A parent-layout slot written so that its parent lays the component
- * out again declares it again to a parent that receives the slot's node; a component slot written with a node the
- * holder's [DeclaredNodesListener] needs has the nodes handed over once the walk ends.
+ * out again declares it again to a parent that receives the slot's node; a slot written with a node the holder's
+ * [DeclaredNodesListener] needs has the nodes handed over once the walk ends.
  */
 private fun SwingNodeHolder<Component>.adoptElement(
     applied: SwingModifier.Element,
@@ -1168,11 +1168,7 @@ private fun SwingNodeHolder<Component>.adoptElement(
         else -> {
             record.rebindAndWrite(next, component, owner?.diagnostics)
             if (record is LayoutNodeRecord && declaration.parentReads(record.node)) declaration.reapply()
-            adopted.nextSlot(
-                handsOver =
-                    record is ElementRecord<*, *> &&
-                        (component as? DeclaredNodesListener)?.needsNodesAfterWrite(record.node) == true,
-            )
+            adopted.nextSlot((component as? DeclaredNodesListener)?.needsNodesAfterWrite(record.node) == true)
         }
     }
 }

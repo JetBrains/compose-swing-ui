@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import java.awt.Component
 
 /**
  * A [ParentLayoutElement] backed by a stateful [ParentLayoutNode] rather than a plain value, mirroring
@@ -33,6 +34,9 @@ public abstract class ParentLayoutNodeElement<N : ParentLayoutNode> : ParentLayo
 public abstract class ParentLayoutNode :
     SwingModifier.Node(),
     ParentLayoutElement {
+    /** The component whose modifier declares this node. Reading it while the node is not attached fails. */
+    public val component: Component get() = checkNotNull(holder) { "Node is not attached" }.component
+
     /**
      * Whether an update from a later declaration has the parent lay this node's component out again, measuring
      * it anew, as androidx's `Modifier.Node.shouldAutoInvalidate` does. `true` by default.

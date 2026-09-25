@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode
+import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
+import org.jetbrains.compose.swing.foundation.layout.PaintOutsetsNode
 import org.jetbrains.compose.swing.foundation.layout.PlacementLayer
 import org.jetbrains.compose.swing.foundation.util.fastAll
 import org.jetbrains.compose.swing.foundation.util.fastAny
@@ -17,10 +19,15 @@ import kotlin.math.floor
 
 /**
  * The steps a component's modifier declares, outermost first, and what they report together. Two are equal when they
- * hold the same steps reporting the same outsets.
+ * hold the same steps reporting the same outsets, and the same [paintOutsets].
  */
 internal class DecorationSteps private constructor(
     private val decorators: List<Decorator>,
+    /**
+     * The value the modifier's `paintOutsets` declaration holds, or null where it declares none or
+     * [PaintOutsets.Decoration].
+     */
+    val paintOutsets: PaintOutsets?,
 ) {
     /** The [Decorator.outsets] of the steps, added together. */
     val outsets: Insets =
@@ -74,7 +81,11 @@ internal class DecorationSteps private constructor(
         }
         val skipped = if (held == null) 0 else 1
         decorators.addAll(this.decorators.subList(skipped, this.decorators.size))
-        return if (decorators.isEmpty()) None else DecorationSteps(decorators)
+        return if (decorators.isEmpty() && paintOutsets == null) {
+            None
+        } else {
+            DecorationSteps(decorators, paintOutsets)
+        }
     }
 
     /** Whether a placement layer among the steps rotates or scales what is inside it. */
@@ -198,13 +209,19 @@ internal class DecorationSteps private constructor(
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is DecorationSteps && decorators == other.decorators && outsets == other.outsets)
+        this === other ||
+            (
+                other is DecorationSteps &&
+                    decorators == other.decorators &&
+                    outsets == other.outsets &&
+                    paintOutsets == other.paintOutsets
+            )
 
     override fun hashCode(): Int = decorators.hashCode()
 
     companion object {
         /** No steps. */
-        val None: DecorationSteps = DecorationSteps(emptyList())
+        val None: DecorationSteps = DecorationSteps(emptyList(), null)
 
         /**
          * The [DecorationModifierNode]s, leaving out those that paint nothing, and the
@@ -213,7 +230,8 @@ internal class DecorationSteps private constructor(
          *
          * A step declared before a layout node paints at the box of the first layout node declared after it; one
          * declared after every layout node paints at the component's layout bounds. A layout node's decorator paints
-         * at the node's own box, and its layer in the component's coordinates.
+         * at the node's own box, and its layer in the component's coordinates. A [PaintOutsetsNode] boxes no step;
+         * the steps hold its value.
          */
         fun of(
             nodes: List<SwingModifier.Node>,
@@ -225,8 +243,13 @@ internal class DecorationSteps private constructor(
             }
             // The steps declared since the last layout node, which paint at the next one's box.
             var unboxed = decorators.size
+            var paintOutsets: PaintOutsets? = null
             nodes.fastForEach { node ->
                 when (node) {
+                    is PaintOutsetsNode -> {
+                        paintOutsets = node.outsets.takeIf { it != PaintOutsets.Decoration }
+                    }
+
                     is LayoutModifierNode -> {
                         for (index in unboxed until decorators.size) {
                             decorators[index] = BoxedStep(decorators[index], node)
@@ -246,8 +269,8 @@ internal class DecorationSteps private constructor(
                     }
                 }
             }
-            if (decorators.isEmpty()) return None
-            return DecorationSteps(decorators)
+            if (decorators.isEmpty() && paintOutsets == null) return None
+            return DecorationSteps(decorators, paintOutsets)
         }
     }
 }
@@ -268,16 +291,16 @@ private class BoxedStep(
     val layoutNode: LayoutModifierNode,
 ) : Decorator {
     /** The layout box, reused by every paint and query; both run only on the event dispatch thread. */
-    private val layoutBox = Rectangle()
+    private val fallbackDecorationLayoutBounds = Rectangle()
 
-    /** The box it paints at, in the component's layout coordinates, whose layout size is [width] by [height]. */
-    fun box(
+    /** The decoration's bounds, in the component's layout coordinates, at layout size [width] by [height]. */
+    fun decorationLayoutBounds(
         width: Int,
         height: Int,
     ): Rectangle {
         val placed = layoutNode.box
         return if (layoutNode.child == null || placed == null) {
-            layoutBox.apply { setBounds(0, 0, width, height) }
+            fallbackDecorationLayoutBounds.apply { setBounds(0, 0, width, height) }
         } else {
             placed
         }
@@ -288,7 +311,7 @@ private class BoxedStep(
         width: Int,
         height: Int,
     ): Boolean {
-        val box = box(width, height)
+        val box = decorationLayoutBounds(width, height)
         return box.x == 0 && box.y == 0 && box.width == width && box.height == height
     }
 
@@ -296,7 +319,7 @@ private class BoxedStep(
         width: Int,
         height: Int,
     ): Boolean {
-        val box = box(width, height)
+        val box = decorationLayoutBounds(width, height)
         return box.x != 0 || box.y != 0 || box.width != width || box.height != height ||
             decorator.needsPaintBounds(box.width, box.height)
     }
@@ -310,7 +333,7 @@ private class BoxedStep(
         width: Int,
         height: Int,
     ): Shape {
-        val box = box(width, height)
+        val box = decorationLayoutBounds(width, height)
         val bounds = content.bounds
         bounds.translate(-box.x, -box.y)
         return decorator.paintBounds(bounds, box.width, box.height).bounds.apply { translate(box.x, box.y) }
@@ -323,7 +346,7 @@ private class BoxedStep(
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
         if (!layoutNode.isAttached || !decorator.isAttached) return content(graphics, width, height)
-        val box = box(width, height)
+        val box = decorationLayoutBounds(width, height)
         val x = box.x
         val y = box.y
         graphics.translate(x, y)
@@ -347,7 +370,7 @@ private class BoxedStep(
 /**
  * Whether this step, in a box of [width] by [height], paints its content at ([x], [y]): whether its paint bounds of
  * content filling the pixel there cover the point. [pixel] is set to that content; a [BoxedStep] asks its decorator at
- * its box.
+ * its decoration bounds.
  */
 private fun Decorator.paintsContentAt(
     pixel: Rectangle2D.Double,
@@ -357,7 +380,7 @@ private fun Decorator.paintsContentAt(
     height: Int,
 ): Boolean {
     if (this is BoxedStep) {
-        val box = box(width, height)
+        val box = decorationLayoutBounds(width, height)
         return decorator.paintsContentAt(pixel, x - box.x, y - box.y, box.width, box.height)
     }
     pixel.setRect(floor(x), floor(y), 1.0, 1.0)
@@ -370,14 +393,15 @@ internal val NoPaintOutsets: Insets = Insets(0, 0, 0, 0)
 /**
  * Whether the paint bounds these steps give content the size of layout bounds of [width] by [height] reach past those
  * bounds further than the steps' [outsets][DecorationSteps.outsets] do on a side: a step moves the content, as a step
- * translating it does, and not only spreads it.
+ * translating it does, and not only spreads it. [paintedBounds] holds these steps' already-computed paint bounds.
  */
 internal fun DecorationSteps.movesContent(
     width: Int,
     height: Int,
+    paintedBounds: Rectangle? = null,
 ): Boolean {
     if (!needsPaintBounds(width, height)) return false
-    val painted = Rectangle(0, 0, width, height).also { growToPaintBounds(it, width, height) }
+    val painted = paintedBounds ?: Rectangle(0, 0, width, height).also { growToPaintBounds(it, width, height) }
     return -painted.x > outsets.left || -painted.y > outsets.top ||
         painted.x + painted.width - width > outsets.right || painted.y + painted.height - height > outsets.bottom
 }

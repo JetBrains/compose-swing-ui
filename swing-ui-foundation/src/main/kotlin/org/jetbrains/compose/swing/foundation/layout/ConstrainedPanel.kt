@@ -13,11 +13,13 @@ import java.awt.Graphics
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.Window
 import java.awt.event.InputEvent
 import java.awt.event.MouseEvent
 import javax.accessibility.Accessible
 import javax.accessibility.AccessibleContext
 import javax.accessibility.AccessibleRole
+import javax.swing.CellRendererPane
 import javax.swing.JComponent
 import javax.swing.JViewport
 import javax.swing.Scrollable
@@ -38,7 +40,9 @@ import javax.swing.SwingUtilities
  * declared here as `JPanel.AccessibleJPanel` does. Without it, a name set through the `accessibleName` modifier has
  * nowhere to land.
  */
-@Suppress("TooManyFunctions") // Swing and Constrainable require these methods on the panel.
+@Suppress("TooManyFunctions")
+// The Swing component of a Foundation container: what Swing calls on a component, what its container's layout calls
+// on it, and the validation it runs are its own.
 internal open class ConstrainedPanel(
     val policyLayout: MeasurePolicyLayout,
 ) : JComponent(),
@@ -163,9 +167,40 @@ internal open class ConstrainedPanel(
     /**
      * Validates this panel and its descendants inside one snapshot that observes no read. Each answer a policy
      * computes during the validation observes its reads through that snapshot instead of entering one of its own, and
-     * a read made outside an answer is not observed.
+     * a read made outside an answer is not observed. The panel holds [RunningCause.Validation] while it runs; see
+     * [mayBeValidating].
      */
-    override fun validateTree() = Snapshot.withoutReadObservation { super.validateTree() }
+    override fun validateTree() =
+        policyLayout.measurables.during(RunningCause.Validation) {
+            Snapshot.withoutReadObservation { super.validateTree() }
+        }
+
+    /**
+     * Whether a validation may be running: one [may be running through][ChildMeasurables.isInValidation] this panel
+     * or a Foundation container above it, whatever stands between them, or the thread holds the AWT tree lock, which
+     * `Container.validate` holds for a whole validation, as one only Swing containers take part in. A validation marks
+     * each container it lays out valid as it ends, which drops an invalidation made during it. A window is validated
+     * on its own. A `CellRendererPane` passes no invalidation to a container above it, so waiting for a validation
+     * above the pane to end would leave the cell valid at its old size for whoever renders it.
+     */
+    val mayBeValidating: Boolean
+        get() {
+            var ancestor: Container? = this
+            while (ancestor != null && ancestor !is Window) {
+                if (ancestor is CellRendererPane) return false
+                if (ancestor is ConstrainedPanel && ancestor.policyLayout.measurables.isInValidation) return true
+                ancestor = ancestor.parent
+            }
+            return Thread.holdsLock(treeLock)
+        }
+
+    /**
+     * Revalidates this panel: once the running event is over where a validation [may be running][mayBeValidating],
+     * and at once otherwise.
+     */
+    fun revalidateOutsideValidation() {
+        if (mayBeValidating) SwingUtilities.invokeLater(::revalidate) else revalidate()
+    }
 
     override fun addImpl(
         comp: Component,
@@ -203,7 +238,7 @@ internal open class ConstrainedPanel(
      *
      * Resized by its parent's fit, the panel keeps its layout bounds but answers other sizes, which carry its paint
      * outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
-     * [ChildMeasurables.childPaintOutsetsChanged] for its layout. Its parent, fitting it, lays nothing out.
+     * [ChildMeasurables.childPaintOutsetsChanged] for when it is laid out again.
      */
     override fun invalidate() {
         val measurables = policyLayout.measurables

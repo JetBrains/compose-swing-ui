@@ -174,7 +174,8 @@ declarations are paired by position among themselves, as
 [additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering
 or leaving shifts none of them. A layout node has the
 [lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
-of any other node, and it stays attached through a `key` change.
+of any other node, and it stays attached through a `key` change. It reads the component whose modifier
+declares it through `component`, which fails while the node is not attached.
 
 ## Hosting a layout manager you did not write
 

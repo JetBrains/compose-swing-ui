@@ -18,7 +18,9 @@ import java.awt.Component
  * The library gathers [outsets] and [isOpaque] after each modifier pass that attaches, detaches, moves or writes a
  * step, so an element's `update` needs no call for them. A node that changes one of them between passes calls
  * [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`. The outsets a step reserves
- * reach the component's insets under a Foundation container.
+ * reach the component's insets under a Foundation container. Under any other parent only the part of them the
+ * component's [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value leaves in layout does,
+ * none by default.
  */
 public abstract class DecorationModifierNode<T : Component> :
     SwingModifier.ComponentNode<T>(),

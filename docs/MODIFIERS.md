@@ -148,8 +148,9 @@ it sits in a `BorderLayout`, its `GridBagConstraints`, a weight in a `Row`. Each
 the family of parents that understands it, and one placed under any other parent fails with an error
 naming that family. An inheritable declaration, one that can be given as a
 [component default](ARCHITECTURE.md#component-defaults), is left out under such a parent instead, whether
-a default provides it or the component declares it. Writing a declaration of your own, and what the
-parent receives, is covered in
+a default provides it or the component declares it, as Foundation's
+[`paintOutsets`](FOUNDATION.md#paint-outsets-taken-from-the-insets) is under a Swing parent. Writing
+a declaration of your own, and what the parent receives, is covered in
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers).
 
 ## Node capabilities

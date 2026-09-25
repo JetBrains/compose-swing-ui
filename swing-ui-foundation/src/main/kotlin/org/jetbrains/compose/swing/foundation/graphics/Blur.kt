@@ -15,10 +15,10 @@ import kotlin.math.abs
 /**
  * Softens everything inside it, by [radius]: the component's content, its border and its children.
  *
- * The blur fades into transparency around the content, and its falloff takes paint outsets. Only a Foundation
- * container gives paint outsets: the component's bounds grow by it while its layout bounds stay. Under any other
- * parent there are none, and what is painted past the bounds is clipped. A clip declared before this can still cut
- * the halo.
+ * The blur fades into transparency around the content, and its falloff takes paint outsets. A Foundation container
+ * grows the component's bounds by them while its layout bounds stay; any other parent clips what is painted past the
+ * bounds. `paintOutsets(PaintOutsets.None)` gives them layout space under either. A clip declared before this can
+ * still cut the halo.
  *
  * @param radius how far each pixel is spread, in the component's own units; `0` or less softens nothing.
  * @return this chain with the blur declared on it.

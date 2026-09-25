@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
+import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -30,7 +31,8 @@ import kotlin.test.assertTrue
 
 /**
  * A card's paint outsets change outside a layout pass: its Foundation containers fit it in place and measure nothing,
- * while a change of the parent data they read measures them again.
+ * while a change of the parent data they read measures them again. A change a layout node makes as its container is
+ * measured is fitted in place too, and the running pass lays the container out.
  */
 class PaintOutsetsFitTest {
     @Test
@@ -148,6 +150,75 @@ class PaintOutsetsFitTest {
             assertEquals(Dimension(80, 40), row.preferredSize, "the row asks for its layout size and outsets")
             assertEquals(Dimension(40, 50), column.preferredSize, "the column measures the row at its layout size")
             assertEquals(Rectangle(0, 0, 40, 40), placed, "and places it there")
+        }
+
+    /**
+     * The last box's new width lays the column out while the row is valid. The size ahead of the node answers the
+     * column's size query, so the node reads its new reach as the row measures the box.
+     */
+    @Test
+    fun outsetsALayoutNodeChangesAsItsValidContainerIsMeasuredAreFittedInThatPass() =
+        runComposeSwingTest {
+            var taken = 8
+            val reach = { taken }
+            var width by mutableIntStateOf(10)
+            setContent {
+                Column {
+                    Row(modifier = SwingModifier.testTag("row")) {
+                        Box(modifier = SwingModifier.testTag("reaching").size(40, 40).then(ReachingElement(reach)))
+                        Box(modifier = SwingModifier.testTag("beside").size(10, 40))
+                    }
+                    Box(modifier = SwingModifier.testTag("below").size(width, 10))
+                }
+            }
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            val reaching = onNodeWithTag("reaching").fetch<JComponent>()
+            assertEquals(Insets(8, 8, 8, 0), row.paintOutsets(), "the row spreads by what the box paints past it")
+
+            taken = 12
+            width = 20
+            awaitIdle()
+
+            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets(), "the box takes the new reach")
+            assertEquals(Rectangle(0, 0, 40, 40), reaching.layoutBounds, "and keeps its layout bounds")
+            assertEquals(Rectangle(40, 0, 10, 40), onNodeWithTag("beside").fetch().layoutBounds)
+            assertEquals(Insets(12, 12, 12, 2), row.paintOutsets(), "the row spreads by the new reach")
+            assertEquals(Rectangle(0, 0, 50, 40), row.layoutBounds, "and keeps its layout bounds")
+            assertEquals(Rectangle(0, 40, 20, 10), onNodeWithTag("below").fetch().layoutBounds)
+        }
+
+    /** The box's padding holds its new reach inside the row, so the pass fits the box and leaves the row's bounds. */
+    @Test
+    fun aContainerFittedAsItIsMeasuredIsLaidOutByThatPass() =
+        runComposeSwingTest {
+            var taken = 8
+            val reach = { taken }
+            var width by mutableIntStateOf(10)
+            setContent {
+                Column {
+                    Row(modifier = SwingModifier.testTag("row")) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("reaching")
+                                    .padding(16)
+                                    .size(40, 40)
+                                    .then(ReachingElement(reach)),
+                        )
+                    }
+                    Box(modifier = SwingModifier.size(width, 10))
+                }
+            }
+            val reaching = onNodeWithTag("reaching").fetch<JComponent>()
+
+            taken = 12
+            width = 20
+            awaitIdle()
+
+            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets(), "the box takes the new reach")
+            assertEquals(Rectangle(16, 16, 40, 40), reaching.layoutBounds, "and keeps its layout bounds")
+            assertEquals(Insets(0, 0, 0, 0), onNodeWithTag("row").fetch().paintOutsets(), "inside the row")
+            assertTrue(reaching.isValid, "the pass that measured the box validates it")
         }
 
     /** Measures its one child at its own size and places it at the x its [Shift] reads, counting its measure passes. */

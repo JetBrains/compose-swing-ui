@@ -45,17 +45,10 @@ internal class LayoutObservationNode : SwingModifier.ComponentNode<ConstrainedPa
     }
 
     /**
-     * Revalidates the panel, for a changed read behind an answer it measured. A change made while the panel runs a
-     * block of its policy is revalidated once the running event is over: a layout pass marks the panel valid as it
-     * ends, which would drop an invalidation made during it.
+     * Revalidates the panel, for a changed read behind an answer it measured; see
+     * [ConstrainedPanel.revalidateOutsideValidation].
      */
-    fun remeasure() {
-        if (component.policyLayout.measurables.layoutState == LayoutState.Idle) {
-            component.revalidate()
-        } else {
-            SwingUtilities.invokeLater(component::revalidate)
-        }
-    }
+    fun remeasure() = component.revalidateOutsideValidation()
 }
 
 /**
@@ -80,8 +73,21 @@ internal fun MeasurePolicyLayout.observe(
  * container above it put are then dirty, and the next read of one works them out again. Where a container above read
  * such a line in its last measure, the panel is revalidated instead; where it read one only in its last placement, that
  * container places its children again too.
+ *
+ * While this panel runs a block of its policy, all of that is left to the end of the running event: a placement run
+ * inside a block would place children that block goes on to measure or place. The same holds while the panel
+ * validates the children its own replay resized, and while a validation
+ * [may be running][ConstrainedPanel.mayBeValidating]: a placement run there would lay out a container that validation
+ * has not finished with. A valid panel answering a size query places at once, since the query lays nothing out.
  */
 internal fun ConstrainedPanel.placeChildrenAgain() {
+    val measurables = policyLayout.measurables
+    val running = measurables.layoutState != LayoutState.Idle || measurables.isValidating
+    // Outside a block and a validation of its own, the panel is in a validation only while it answers a size query.
+    val queriedWhileValid = isValid && measurables.isInValidation
+    if (running || (mayBeValidating && !queriedWhileValid)) {
+        return SwingUtilities.invokeLater(this::placeChildrenAgain)
+    }
     var panel = this
     var readBy = LayoutState.Idle
     while (readBy == LayoutState.Idle) {
@@ -90,10 +96,12 @@ internal fun ConstrainedPanel.placeChildrenAgain() {
         readBy = record.lineReadDuring
         panel = record.owner.panel
     }
-    if (readBy == LayoutState.Measuring) return revalidate()
-    policyLayout.measurables.during(RunningCause.PlacementReplay) { doLayout() }
+    if (readBy == LayoutState.Measuring) return revalidateOutsideValidation()
+    measurables.during(RunningCause.PlacementReplay) { doLayout() }
     // A child this pass resized is left invalid, and nothing above it is: no validation is coming to lay
     // it out, so it is laid out here, as a validation laying this panel out would.
-    policyLayout.measurables.layoutPass.fastForEach { if (!it.component.isValid) it.component.validate() }
+    measurables.during(RunningCause.Validation) {
+        measurables.layoutPass.fastForEach { if (!it.component.isValid) it.component.validate() }
+    }
     if (readBy == LayoutState.LayingOut) panel.placeChildrenAgain()
 }

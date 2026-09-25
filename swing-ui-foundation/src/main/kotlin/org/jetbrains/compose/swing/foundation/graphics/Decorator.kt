@@ -44,9 +44,10 @@ public fun interface Decorator {
     /**
      * How far this decorator paints past the content's box; nothing by default, and never negative.
      *
-     * These are paint outsets and take no layout space. Only a Foundation container gives paint outsets: the
-     * component's bounds grow by them while its layout bounds stay. Under any other parent there are none, and
-     * what is painted past the bounds is clipped.
+     * These are paint outsets and take no layout space: a Foundation container grows the component's bounds by them
+     * while its layout bounds stay, and any other parent clips what is painted past the bounds. A
+     * [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value of the component can leave
+     * them in layout instead.
      *
      * Callers read the value and never modify it, so it may be shared.
      */

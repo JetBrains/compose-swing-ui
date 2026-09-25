@@ -191,12 +191,12 @@ class DeclaredNodesTest {
     }
 
     @Test
-    fun aPassThatAttachesOnlyAPropertyNodeOrWritesOnlyALayoutNodeHandsNothingOver() {
+    fun aPassThatAttachesOnlyAPropertyNodeHandsNothingOver() {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
 
-        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("m")).opaque(false))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).opaque(false))
 
         assertEquals(listOf(listOf("a", "l")), child.component.received, "only the attaching pass hands the nodes over")
         owner.dispose()
@@ -640,7 +640,7 @@ private val SwingModifier.Node.label: String
         }
 
 /** Records the labels of every node list it is handed; [needsAfterWrite] answers a written node's hand-over. */
-private class ListeningPanel(
+internal class ListeningPanel(
     private val needsAfterWrite: (SwingModifier.Node) -> Boolean = { true },
 ) : JPanel(),
     DeclaredNodesListener {
@@ -661,7 +661,7 @@ private fun visitedLabels(node: SwingModifier.Node): List<String> {
 }
 
 /** An additive element; each `update` adds what its node visits to [visits]. */
-private open class Additive(
+internal open class Additive(
     private val label: String,
     private var failsOnce: Boolean = false,
     private val visits: MutableList<List<String>>? = null,
@@ -825,7 +825,7 @@ private class VisitingOnAttach : SwingModifier.NodeElement<Component, VisitingOn
     }
 }
 
-private open class LabelNode : SwingModifier.ComponentNode<Component>() {
+internal open class LabelNode : SwingModifier.ComponentNode<Component>() {
     var label = ""
 
     var attaches = 0
@@ -859,10 +859,14 @@ private class FailingToAttach(
     override fun hashCode(): Int = System.identityHashCode(this)
 }
 
-/** A parent-layout element; each `update` adds what its node visits to [visits]. */
-private class Layout(
+/**
+ * A parent-layout element; each `update` adds what its node visits to [visits]. Its node has the parent lay the
+ * component out again after an update only where [autoInvalidates].
+ */
+internal class Layout(
     private val label: String,
     private val visits: MutableList<List<String>>? = null,
+    private val autoInvalidates: Boolean = true,
 ) : ParentLayoutNodeElement<LabelLayoutNode>() {
     override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
 
@@ -870,7 +874,7 @@ private class Layout(
 
     val created = ArrayList<LabelLayoutNode>()
 
-    override fun create(): LabelLayoutNode = LabelLayoutNode().also { created += it }
+    override fun create(): LabelLayoutNode = LabelLayoutNode(autoInvalidates).also { created += it }
 
     override fun update(node: LabelLayoutNode) {
         node.label = label
@@ -882,7 +886,9 @@ private class Layout(
     override fun hashCode(): Int = label.hashCode()
 }
 
-private class LabelLayoutNode : ParentLayoutNode() {
+internal class LabelLayoutNode(
+    override val shouldAutoInvalidate: Boolean,
+) : ParentLayoutNode() {
     override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
 
     var label = ""

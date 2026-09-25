@@ -14,6 +14,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Insets
 import java.awt.Rectangle
+import javax.swing.SwingUtilities
 
 /**
  * Walks the children the last layout pass placed: where [hasFoundationParent], adds the bounds of each visible one
@@ -101,19 +102,22 @@ internal fun ChildMeasurables.fitContainerPaintOutsets() {
  * of the pass, which works it out once every child is placed. A child this container holds no record of, or left
  * unplaced, keeps its bounds until placed again. A child holding children another layout manager places against
  * its insets lays them out at once, and a valid Foundation container invalidated by its new bounds is validated at
- * once, which places its children where they stand.
+ * once, which places its children where they stand. One measured by the block this container is running is left to
+ * the running pass instead, since validating it would measure its children a second time in that pass: this
+ * container is invalidated with it, so the validation that lays this container out reaches it, unless this container
+ * is placing its children again, in which case that replay validates the child as it ends.
  */
 internal fun ChildMeasurables.childPaintOutsetsChanged(
     child: Component,
     previous: Insets,
 ) {
-    val record = find(child)
-    val decoration = record?.decoratable?.decoration
-    if (decoration == null || record.isLeftUnplaced) return
+    val record = find(child)?.takeUnless { it.isLeftUnplaced }
+    val decoration = record?.decoratable?.decoration ?: return
     val outsets = decoration.heldPaintOutsets
     val width = (child.width - previous.left - previous.right).coerceAtLeast(0)
     val height = (child.height - previous.top - previous.bottom).coerceAtLeast(0)
-    val wasValid = child.isValid
+    val wasValidContainer = decoration.childMeasurables != null && child.isValid
+    val measuredByRunningBlock = layoutState != LayoutState.Idle && record.measuredByParent == layoutState
     during(RunningCause.PaintOutsetFit) {
         child.setBoundsAround(child.x + previous.left, child.y + previous.top, width, height, outsets)
         val laysOutChildren = decoration.childMeasurables == null && child is Container && child.componentCount > 0
@@ -121,8 +125,9 @@ internal fun ChildMeasurables.childPaintOutsetsChanged(
             child.invalidate()
             child.validate()
         }
-        if (decoration.childMeasurables != null && wasValid && !child.isValid) child.validate()
+        if (wasValidContainer && !measuredByRunningBlock) child.validate()
     }
+    if (wasValidContainer && !child.isValid && panel.isValid) panel.invalidate()
     if (layoutState != LayoutState.LayingOut) fitContainerPaintOutsets()
 }
 
@@ -131,12 +136,14 @@ internal fun ChildMeasurables.childPaintOutsetsChanged(
  * out again for the layout bounds [component] holds; this value itself where every field is unchanged, and the shared
  * [Decoration.None] where it has no steps and no links.
  *
- * Only a Foundation container, [parentMeasurables], gives paint outsets: the steps' own, grown by the box of a layout
- * node a step paints at, by a rotating or scaling layer, and, where [childMeasurables] holds [component]'s own
+ * A Foundation container, [parentMeasurables], gives all the paint outsets: the steps' own, grown by the box of a
+ * layout node a step paints at, by a rotating or scaling layer, and, where [childMeasurables] holds [component]'s own
  * children, by the bounds of each visible one: a child placed or painting past the layout bounds grows them. The
  * walk of [childMeasurables] runs under any parent, since it also settles whether the container holds its glass
  * pane. Nothing is allocated for a component whose steps need no paint bounds and whose visible children all lie
  * inside its layout bounds.
+ * Any other parent gives the part of the steps' own outsets that the steps' `paintOutsets` value leaves in layout,
+ * and clips the rest; none where they hold no value.
  */
 internal fun Decoration.fitted(
     component: Component,
@@ -151,12 +158,16 @@ internal fun Decoration.fitted(
     val hasFoundationParent = parentMeasurables != null
     val seed =
         if (hasFoundationParent && steps.needsPaintBounds(width, height)) Rectangle(0, 0, width, height) else null
-    val bounds =
-        panelChildMeasurables?.gatherPaintBounds(seed, heldPaintOutsets, width, height, hasFoundationParent) ?: seed
+    val gathered = panelChildMeasurables?.gatherPaintBounds(seed, heldPaintOutsets, width, height, hasFoundationParent)
+    val outsets =
+        if (hasFoundationParent) {
+            outsetsAround(gathered ?: seed, steps, width, height)
+        } else {
+            grantedOutsets(component, steps)
+        }
     val holdsTransform =
-        steps.isTransformed || steps.movesContent(width, height) ||
+        steps.isTransformed || steps.movesContent(width, height, seed.takeIf { gathered == null }) ||
             panelChildMeasurables?.hasChildHoldingTransform == true
-    val outsets = outsetsAround(bounds, steps, width, height)
     return when {
         holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) && outsets == heldPaintOutsets &&
             holdsTransform == this.holdsTransform -> {
@@ -219,7 +230,7 @@ private fun Decoration.outsetsAround(
 }
 
 /** Whether these insets are [top], [left], [bottom] and [right]. */
-private fun Insets.hasSides(
+internal fun Insets.hasSides(
     top: Int,
     left: Int,
     bottom: Int,
@@ -227,15 +238,22 @@ private fun Insets.hasSides(
 ): Boolean = this.top == top && this.left == left && this.bottom == bottom && this.right == right
 
 /**
- * Writes [value] to [decoratable], which is [component], in place of [held], and fits what depends on it where the
- * paint outsets or [Decoration.holdsTransform] changed, or [transformChanged] says a layer of the component started
- * or stopped rotating or scaling it. A Foundation container's own children keep where its last pass placed them, and
- * its Foundation parent fits its bounds around the layout bounds it placed, and works out its own paint outsets in
- * turn. The invalidations this causes lay nothing out; see [RunningCause.PaintOutsetFit].
- *
- * Where none of these changed, nothing is fitted; the Foundation parent only works out
+ * Writes [value] to [decoratable], which is [component], in place of [held], and fits what depends on it. Under a
+ * Foundation parent, that is where the paint outsets or [Decoration.holdsTransform] changed, or [transformChanged]
+ * says a layer of the component started or stopped rotating or scaling it: a Foundation container's own children keep
+ * where its last pass placed them, and the parent fits its bounds around the layout bounds it placed, and works out its
+ * own paint outsets in turn; see [childPaintOutsetsChanged]. The invalidations this causes lay nothing out; see
+ * [RunningCause.PaintOutsetFit]. Where none of these changed, the parent only works out
  * [whether it holds a child a repaint may have to grow for][updateHasChildRepaintingWhole], if
- * [that][Decoration.holdsRepaintingWhole] changed for the component.
+ * [that][Decoration.holdsRepaintingWhole] changed for the component. Where the outsets the steps take changed, the
+ * parent is measured again if the component's `paintOutsets` value takes its layout box to another size; see
+ * [revalidateForExcess].
+ *
+ * Under any other parent, where the paint outsets changed, a Foundation container's own children keep where its last
+ * pass placed them, and [component] is revalidated, as `setBorder` does when the insets differ: once the running event
+ * is over where a validation [may be running][ConstrainedPanel.mayBeValidating], or, for a component that is not a
+ * Foundation container, where the thread holds the AWT tree lock. One that has a size posts a move event: its layout
+ * bounds changed where its parent may keep its bounds.
  */
 internal fun writeFitted(
     component: Component,
@@ -245,22 +263,33 @@ internal fun writeFitted(
     transformChanged: Boolean = false,
 ) {
     if (value !== held) decoratable.decoration = value
-    val parent = value.parentMeasurables
+    val childMeasurables = value.childMeasurables
     val previous = held.heldPaintOutsets
     val outsets = value.heldPaintOutsets
-    if (outsets == previous && value.holdsTransform == held.holdsTransform && !transformChanged) {
-        if (value !== held && value.holdsRepaintingWhole != held.holdsRepaintingWhole) {
-            parent?.updateHasChildRepaintingWhole(component.takeIf { value.holdsRepaintingWhole })
+    val parent = value.parentMeasurables
+    if (parent == null) {
+        if (outsets != previous) {
+            childMeasurables?.during(RunningCause.PaintOutsetFit) {
+                childMeasurables.moveChildren(outsets.left - previous.left, outsets.top - previous.top)
+            }
+            val mayBeValidating =
+                (component as? ConstrainedPanel)?.mayBeValidating ?: Thread.holdsLock(component.treeLock)
+            if (mayBeValidating) SwingUtilities.invokeLater(component::revalidate) else component.revalidate()
+            if (component.width > 0 && component.height > 0) component.postComponentMoved()
         }
-        return
-    }
-    val childMeasurables = value.childMeasurables
-    if (childMeasurables == null) {
-        parent?.childPaintOutsetsChanged(component, previous)
     } else {
-        childMeasurables.during(RunningCause.PaintOutsetFit) {
-            childMeasurables.moveChildren(outsets.left - previous.left, outsets.top - previous.top)
-            parent?.childPaintOutsetsChanged(component, previous)
+        parent.revalidateForExcess(component, value, held.steps.outsets)
+        if (outsets != previous || value.holdsTransform != held.holdsTransform || transformChanged) {
+            if (childMeasurables == null) {
+                parent.childPaintOutsetsChanged(component, previous)
+            } else {
+                childMeasurables.during(RunningCause.PaintOutsetFit) {
+                    childMeasurables.moveChildren(outsets.left - previous.left, outsets.top - previous.top)
+                    parent.childPaintOutsetsChanged(component, previous)
+                }
+            }
+        } else if (value !== held && value.holdsRepaintingWhole != held.holdsRepaintingWhole) {
+            parent.updateHasChildRepaintingWhole(component.takeIf { value.holdsRepaintingWhole })
         }
     }
 }

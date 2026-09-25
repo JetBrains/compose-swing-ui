@@ -254,6 +254,41 @@ class LayoutObservationTest {
         }
 
     /**
+     * A policy writing, from the placement block of a layout pass, a state that same block read places its children
+     * by the written value, each of them once in that run of the block.
+     */
+    @Test
+    fun aPlacementStateWrittenFromThePlacementBlockOfALayoutPassPlacesEachChildOnceInThatRun() =
+        runComposeSwingTest {
+            val offset = mutableIntStateOf(0)
+            val trigger = mutableIntStateOf(0)
+            var written = false
+            setContent {
+                Layout(
+                    content = { SizedChild(0) },
+                    measurePolicy = { measurables, constraints ->
+                        val writes = trigger.intValue != 0
+                        val placeable = measurables.single().measure(constraints.copy(minHeight = 0))
+                        layout(constraints.maxWidth, constraints.maxHeight) {
+                            if (writes && !written && offset.intValue == 0) {
+                                written = true
+                                offset.intValue = CHILD_HEIGHT
+                                Snapshot.sendApplyNotifications()
+                            }
+                            placeable.place(0, offset.intValue)
+                        }
+                    },
+                    modifier = containerModifier(CHILD_WIDTH, 2 * CHILD_HEIGHT),
+                )
+            }
+
+            trigger.intValue = 1
+            awaitIdle()
+
+            assertEquals(columnRows(CHILD_HEIGHT), childBounds(), "the children must be placed by the written value")
+        }
+
+    /**
      * A read in the policy of a layout nested in another is observed under that layout alone: its change
      * invalidates that layout and leaves a sibling layout, whose policy never read it, valid. Read at once, with no
      * harness pass in between, in a showing window, where validity is real.

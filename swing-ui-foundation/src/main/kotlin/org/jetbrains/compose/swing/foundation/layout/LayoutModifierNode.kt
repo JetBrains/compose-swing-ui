@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import java.awt.Dimension
 import java.awt.Rectangle
 import java.util.function.BiConsumer
+import javax.swing.SwingUtilities
 
 /**
  * A layout modifier: declares a [LayoutModifierNode] that measures one child between the constraints its parent
@@ -112,32 +113,42 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
     }
 
     /**
-     * Has the container place this node's component again at once, without measuring it: the placement of the
-     * last measure result reruns before this returns, reading this node's state as it stands. Unlike androidx's
-     * `LayoutModifierNode.invalidatePlacement`, which schedules the placement, a node updates its state first
-     * and calls this last. A node whose [shouldAutoInvalidate] is `false` calls this from an update that changes
-     * only where it places its content. A container awaiting a layout pass already measures and places the
-     * component in that pass. One whose measure read an alignment line of the component, such as a `Row` aligning it
-     * by its baseline, is measured again, since the line moves with the content, and so is a container above it that
-     * read a line of a container holding the component in its measure; one that read it only in its placement places
-     * its children again. Does nothing before the container has received the node.
+     * Has the container place this node's component again, without measuring it, by the last measure result and this
+     * node's state as it stands: a node updates its state first and calls this last. A node whose
+     * [shouldAutoInvalidate] is `false` calls this from an update that changes only where it places its content.
+     *
+     * A valid container places the component again before this returns, or, while a layout of it or of a container
+     * around it may be running, once the running event is over. A container awaiting a
+     * layout pass measures and places the component in that pass. Called while the container places its children, or
+     * while a layout pass of the container measures them from this component on, this does nothing: the running pass
+     * places the component. A container whose measure read an alignment line of the component, such as a `Row`
+     * aligning it by its baseline, measures it again, since the line moves with the content, and so does a container
+     * above it that read a line of a container holding the component in its measure; one that read it only in its
+     * placement places its children again. Does nothing before the container has received the node.
      */
     public fun invalidatePlacement() {
         val child = child ?: return
-        val panel = child.owner.panel
-        if (panel.isValid && child.lineReadDuring != LayoutState.Measuring) {
-            panel.placeChildrenAgain()
+        val container = child.owner
+        if (container.layoutState == LayoutState.LayingOut || child.isMeasuredByRunningPass) return
+        if (container.panel.isValid && child.lineReadDuring != LayoutState.Measuring) {
+            container.panel.placeChildrenAgain()
         } else {
-            panel.revalidate()
+            child.revalidateUnlessMeasured()
         }
     }
 
     /**
-     * Has the container measure this node's component again and lay it out by that measure, as androidx's
-     * `LayoutModifierNode.invalidateMeasurement` does. Does nothing before the container has received the node.
+     * Has the container measure this node's component again and lay it out by that measure. Called while a layout
+     * pass of the container measures the component, this does nothing: the running pass lays the component out by the
+     * measure it runs. Otherwise it takes effect at once, or, while a layout of the container or of a container
+     * around it may be running, once the running event is over, unless a layout pass of the
+     * container has measured the component since. A request made from a `measure` that a size query runs therefore
+     * leaves the size that query answered standing where a layout pass of the container measures the component after
+     * it. Does nothing before the container has received the node.
      */
     public fun invalidateMeasurement() {
-        child?.owner?.panel?.revalidate()
+        val child = child ?: return
+        if (!child.isMeasuring) child.revalidateUnlessMeasured()
     }
 
     /** The layer this node's placement paints, made by its first placement with one. */
@@ -222,6 +233,39 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         if (value == null && standing == null) return
         publishDecoration(child.requireDecoratable, declaredNodes())
     }
+}
+
+/**
+ * Whether a layout pass of this child's container is running its measure block and has started measuring the child:
+ * the pass goes on to place what that block measures. A valid container runs its measure block for its own
+ * container, which may leave it as it is laid out. [LayoutModifierNode.invalidatePlacement] drops a request made
+ * then, or while the container places its children, as androidx drops a request to place a node that is being
+ * measured or placed; [LayoutModifierNode.invalidateMeasurement] drops one made while the child
+ * [is measuring][ChildMeasurable.isMeasuring], as androidx drops a request to measure a node that is being measured.
+ * Unlike androidx's `LayoutModifierNode.invalidatePlacement`, which schedules the placement, a placement request to
+ * a valid container outside a validation places the child before it returns.
+ */
+private val ChildMeasurable.isMeasuredByRunningPass: Boolean
+    get() =
+        owner.layoutState == LayoutState.Measuring &&
+            measuredByParent == LayoutState.Measuring &&
+            !owner.panel.isValid
+
+/**
+ * Revalidates the panel of this child's container for a request of one of the child's layout nodes: at once, or,
+ * where a validation [may be running][ConstrainedPanel.mayBeValidating], once the running event is over and only
+ * where the child is still [measurePending][ChildMeasurable.measurePending]. A layout pass of the container that
+ * measures the child after the request clears it, and lays the child out by that measure, which is what the request
+ * asks for, as androidx's `MeasurePassDelegate.performMeasure` clears `measurePending`: androidx drops a request to
+ * place a node whose `measurePending` is set, and measures a node again only where its `measurePending` is still set.
+ * A request made from a `measure` that a size query runs, as the default intrinsic hooks run it, then leaves the size
+ * that query answered standing, as in androidx, where the ancestor that asked is measuring and drops its own request.
+ */
+private fun ChildMeasurable.revalidateUnlessMeasured() {
+    val panel = owner.panel
+    if (!panel.mayBeValidating) return panel.revalidate()
+    measurePending = true
+    SwingUtilities.invokeLater { if (measurePending) panel.revalidate() }
 }
 
 /** Runs [LayoutModifierNode.measure] against an intrinsic-mode stand-in for the real child. */

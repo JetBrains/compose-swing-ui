@@ -64,7 +64,7 @@ class InheritableLayoutDefaultTest {
         val masked = onNodeWithText("masked").fetch()
         val node = layout.elementsOf(inheriting).filterIsInstance<InsetNode>().single()
         assertEquals(1, node.amount)
-        assertTrue(node.isAttached)
+        assertSame(inheriting, node.component, "an attached node reaches the component whose modifier declares it")
         assertEquals(
             emptyList(),
             layout.elementsOf(masked).filterIsInstance<InsetNode>(),
@@ -87,7 +87,7 @@ class InheritableLayoutDefaultTest {
             layout.elementsOf(inheriting).filterIsInstance<InsetNode>(),
             "a withdrawn default leaves the parent's declaration",
         )
-        assertTrue(!node.isAttached)
+        assertFailsWith<IllegalStateException>("a detached node has no component") { node.component }
     }
 
     @Test
@@ -240,7 +240,7 @@ class InheritableLayoutDefaultTest {
 
         assertSame(moved, onNodeWithText("moved").fetch())
         assertTrue(moved.parent.layout is OtherMeasuringLayout, "the component stands under the refusing parent")
-        assertTrue(node.isAttached, "the node stays attached where it is left out")
+        assertSame(moved, node.component, "the node stays attached where it is left out")
 
         accepted = true
         awaitIdle()

@@ -300,7 +300,9 @@ container offers these scopes:
 
 `weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope`
 and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their
-component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component.
+component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component;
+[`paintOutsets`](#paint-outsets-taken-from-the-insets) needs no scope, and under a parent that is not a Foundation
+container changes only what a `Decoratable` component reports and clips.
 
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
 cannot declare the row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a
@@ -454,15 +456,18 @@ component's layout bounds when none follows. A layout modifier's own box is the 
 | `background(red).padding(8)` | 8 in from the slot | fills the slot: the component and the padding around it |
 | `background(red).padding(8).size(100)` | 100 square, in a 116 slot | fills the 116 slot |
 
-`shadow` and `blur` paint into [paint outsets](#bounds) outside the layout bounds: in a `Row`, `Column` or `Box` they
-move no sibling.
+A `padding` declared after a decoration takes layout space between it and the content. `shadow` and `blur` paint
+into [paint outsets](#bounds) outside the layout bounds: in a `Row`, `Column` or `Box` they move no sibling. Under a
+Swing parent there are no paint outsets by default, and the decoration is clipped at the bounds; see
+[Under a Swing parent](#under-a-swing-parent). `paintOutsets(PaintOutsets.None)` gives them layout space under any
+parent; see [Paint outsets taken from the insets](#paint-outsets-taken-from-the-insets).
 
 - `background(color)` without a shape is the Swing property; pass a `Shape` or a `Brush` for the decoration.
 - A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to
   follow it.
 - A clip outside a blur can cut its halo.
 
-A card with a shadow, given space for it with padding inside a Swing container:
+A card with a shadow, given space for it inside a Swing container with padding, and with `PaintOutsets.None`:
 
 <!--- INCLUDE .*foundation-card.*
 import androidx.compose.runtime.*
@@ -485,6 +490,17 @@ fun PaddedCard() {
         Box {
             Box(modifier = SwingModifier.padding(16).card()) {
                 Label("Padded")
+            }
+        }
+    }
+}
+
+@Composable
+fun SpacedCard() {
+    Panel(PanelLayout.Flow()) {
+        Box {
+            Box(modifier = SwingModifier.paintOutsets(PaintOutsets.None).card()) {
+                Label("Spaced")
             }
         }
     }
@@ -568,8 +584,123 @@ A decorated component, one that implements `Decoratable`, has these rectangles:
 
 ![Bounds of a decorated component](images/foundation-bounds.svg)
 
-When the outsets change, the Foundation container that placed the component sets its bounds around the unchanged
-layout bounds at once, and measures nothing again.
+The component keeps only its paint outsets: its layout bounds are its bounds less the outsets, so any `setBounds`,
+`setSize` or `setLocation` moves them. When the outsets change, the Foundation container that placed the component
+sets its bounds around the unchanged layout bounds at once, and measures nothing again, unless a `shadow`, a `blur`
+or another decoration step changed its outsets and the component's `paintOutsets` value leaves another amount of
+them in layout, as it does under `PaintOutsets.None`: then the container measures the component again.
+
+The component's children and the content it paints are in its Swing coordinates, so it paints its own fill and
+border inside its layout bounds, at the paint outsets' top-left corner. Decorators draw at the
+[decorated box](#decorations), as a `DrawScope` does. A component under a Swing parent has no paint outsets, as one
+that does not implement `Decoratable`, unless its `paintOutsets` value leaves part of its decoration in layout; see
+[Under a Swing parent](#under-a-swing-parent).
+
+#### Paint outsets taken from the insets
+
+A stock widget paints its border and focus ring inside its bounds, so in a Foundation layout its border line sits
+inside the box its parent places, off the edge of a label beside it. `paintOutsets(value)` declares which part of a
+component's `getInsets()` is paint outsets, taken from the outside of the insets inward; `DefaultPaintOutsets`
+provides a value to a subtree. The part it names paints past the box the parent places:
+
+| Value | Foundation parent | Swing parent |
+|---|---|---|
+| `PaintOutsets.None` | A decoration's outsets take layout space: the box the parent places grows by them | A decoration's outsets take layout space: `getInsets()` and the sizes carry them |
+| `PaintOutsets.Decoration`, what nothing declared gives | A decoration's outsets are past the layout bounds | A decoration is clipped; `getInsets()` answers the border |
+| `PaintOutsets.FullInsets` | The parent places the content area | As `PaintOutsets.Decoration`, except that on a side where the border inset is negative, that much of a decoration's outsets stays in layout |
+| `PaintOutsets(top, left, bottom, right)`, `PaintOutsets(all)` | That much of each side from the outside, clamped to the insets; where a decoration's outsets reach further, the rest of them takes layout space | Where a decoration's outsets reach further than that much, the rest of them takes layout space; otherwise as `PaintOutsets.Decoration` |
+
+A value counts the component's border insets and the outsets its decoration steps take, such as the reach of a
+`shadow` or a `blur`. What the component paints past its layout bounds for another reason takes no layout space under
+any value: a decoration declared before a `padding` or an `offset`, which paints at that modifier's box, content a
+layer rotates or scales past its box, and a child placed or painting past the edge.
+
+A stock widget has no decoration: under `None` and `Decoration` its parent places its bounds, and under
+`FullInsets` its content area. `FullInsets` counts every margin a component keeps in its insets, such as a button's
+margin, a label's `EmptyBorder` or a `TitledBorder`'s title, so it lines up text. To reserve space for a shadow,
+declare `None` rather than a `padding`. Under a Swing parent a stock widget is unchanged. A component that is not a
+`JComponent` keeps its layout box under every value.
+
+The declaration acts where it is declared, as a layout modifier does. Its excess is the paint outsets it names less
+the outsets of the decoration steps, on both sides of an axis:
+
+| Declaration | Box the parent places | Component |
+|---|---|---|
+| `width(100).paintOutsets(value)` | 100 | 100 + excess |
+| `paintOutsets(value).width(100)` | 100 - excess | 100 |
+| `paintOutsets(value).fillMaxWidth()` | the offered width | the offered width + excess |
+
+The excess is negative where the value names less than the outsets of the decoration steps, as `PaintOutsets.None`
+does for a component with a shadow: the box the parent places is then larger than the component's layout bounds.
+
+A provided value comes first in the modifier; a declaration on the component replaces it at its own position. The
+parent aligns the box it places, baselines included; `onPlaced` and `onSizeChanged` report the component's layout
+bounds, which reach the excess past that box, as past a `padding`.
+
+Siblings closer than their facing paint outsets overlap, and the later one is on top for input and paint: space them
+by at least the sum of the facing outsets. A Foundation container paints and hits a child past its layout bounds,
+but a Foundation container under a Swing parent clips it there: give that container a `padding` at least as wide.
+
+A value is an object or a class with `equals`, and changes its answer only with the component's insets or look and
+feel. A form whose fields line their text up with their labels, and a value of the app's own that keeps a 2 px focus
+ring past the decoration's outsets:
+
+<!--- INCLUDE .*foundation-paint-outsets.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.text.*
+import org.jetbrains.compose.swing.defaults.*
+import org.jetbrains.compose.swing.foundation.layout.*
+import org.jetbrains.compose.swing.modifier.*
+import java.awt.Insets
+import javax.swing.JComponent
+
+-->
+
+```kotlin
+@Composable
+fun AlignedForm() {
+    ProvideComponentDefaults(DefaultPaintOutsets provides PaintOutsets.FullInsets) {
+        Column {
+            Label("Name")
+            TextField("", onValueChange = {})
+        }
+    }
+}
+
+object FocusRing : PaintOutsets {
+    override fun outsetsOf(component: JComponent, insets: Insets, decorationOutsets: Insets): Insets {
+        val d = decorationOutsets
+        return Insets(d.top + 2, d.left + 2, d.bottom + 2, d.right + 2)
+    }
+}
+
+@Composable
+fun RingedField() {
+    Column {
+        TextField("", onValueChange = {}, modifier = SwingModifier.paintOutsets(FocusRing))
+    }
+}
+```
+
+<!--- KNIT example-foundation-paint-outsets-01.kt -->
+
+Under a look and feel that keeps a focus ring in the insets, as FlatLaf's `FlatBorder` does, `FullInsets` lines up the
+text and not the border line. A value that reads the ring's width lines up the border line:
+
+```kotlin
+object FlatFocusRing : PaintOutsets {
+    override fun outsetsOf(component: JComponent, insets: Insets, decorationOutsets: Insets): Insets {
+        val w = Math.round(FlatUIUtils.getBorderFocusWidth(component))
+        val d = decorationOutsets
+        return Insets(d.top + w, d.left + w, d.bottom + w, d.right + w)
+    }
+}
+
+ProvideComponentDefaults(DefaultPaintOutsets provides FlatFocusRing) { App() }
+```
+
+<!--- CLEAR -->
 
 ### Phases
 
@@ -583,24 +714,28 @@ layout bounds at once, and measures nothing again.
 
 ### Under a Swing parent
 
-A parent that is not a Foundation container, such as a stock Swing container, a `Panel` or a window, gives a
-decorated component no paint outsets:
+A parent that is not a Foundation container, such as a stock Swing container, a `Panel`, a window, or a
+custom `Decoratable` with a layout manager of its own, gives a decorated component only the paint outsets its
+`paintOutsets` value leaves in layout, none by default:
 
-- `getInsets()` answers the border alone;
+- `getInsets()` answers the border, plus the part of the decoration its
+  [`paintOutsets` value](#paint-outsets-taken-from-the-insets) leaves in layout, all of it under `PaintOutsets.None`;
 - its sizes are plain Swing sizes, and a size set on the component answers as set;
-- its layout bounds are its bounds;
-- every decoration paints at the bounds, and Swing clips what a shadow, a blur or a child paints past them.
+- its layout bounds are its bounds less that part;
+- every decoration paints at the layout bounds, and Swing clips what a shadow, a blur or a child paints past the
+  bounds.
 
 A Foundation container under a Swing parent likewise clips what its children paint past its bounds.
 
 In a Foundation layout, `padding` belongs to the child's layout and takes space, and the child's paint outsets
 overlap it, as `Modifier.padding(16).shadow(8)` does in androidx. A decoration declared before the padding
 paints over that space, as `Modifier.background(color).padding(16)` does in androidx. A widget that is not
-`Decoratable` keeps its full bounds in a Foundation container: it is measured, placed and baseline-aligned by them,
-so space its look and feel reserves inside them, such as for a focus ring, counts as part of the widget.
+`Decoratable` keeps its full bounds in a Foundation container unless a `paintOutsets` value says otherwise: it is
+measured, placed and baseline-aligned by them, so space its look and feel reserves inside them, such as for a focus
+ring, counts as part of the widget.
 
-To keep a descendant's shadow visible under a Swing parent, give it space inside a `Box` with padding, as the
-[card example](#decorations) does.
+To keep a descendant's shadow visible under a Swing parent, give it space inside a `Box` with padding, or declare
+`paintOutsets(PaintOutsets.None)` on it, as the [card example](#decorations) does.
 
 ## Relationship to Compose UI/Foundation
 

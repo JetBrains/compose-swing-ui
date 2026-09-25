@@ -18,16 +18,17 @@ import kotlin.math.floor
 
 /**
  * What a [Decoratable] component paints through, and how far it paints past its layout bounds: the steps its modifier
- * declares and the paint outsets its Foundation container worked out for it. The library creates each value for one
- * component and writes it to [Decoratable.decoration]; a value never changes, and a change is a new value.
+ * declares and the paint outsets its parent gives it. The library creates each value for one component and writes it
+ * to [Decoratable.decoration]; a value never changes, and a change is a new value.
  *
  * Each step is a [Decorator], the first outermost: it paints at the layout bounds, or, when a layout modifier is
  * declared after it, at the box of the first such modifier. The *layout bounds* are the box measurement, placement,
  * alignment, `onPlaced`, `onSizeChanged` and hit testing see. The component's *bounds*, Swing's rectangle, are the
- * layout bounds plus the *paint outsets*, how far the component paints past them on each side. Only a Foundation
- * container gives a component paint outsets: the steps' [outsets][Decorator.outsets], the box of a layout modifier a
- * step paints at, what a rotating or scaling placement layer adds and, for a Foundation container, what its children
- * paint past it.
+ * layout bounds plus the *paint outsets*, how far the component paints past them on each side. A Foundation
+ * container gives a component all its paint outsets: the steps' [outsets][Decorator.outsets], the box of a layout
+ * modifier a step paints at, what a rotating or scaling placement layer adds and, for a Foundation container, what its
+ * children paint past it. Any other parent gives only the part of the steps' outsets the component's
+ * [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value leaves in layout.
  */
 public class Decoration internal constructor(
     /** The steps the component's modifier declares. */
@@ -61,8 +62,9 @@ public class Decoration internal constructor(
             steps.paintsAtLayoutBox(component.width, component.height)
 
     /**
-     * How far the component paints past its layout bounds on each side; a new [Insets] the caller owns. None under a
-     * parent that is not a Foundation container.
+     * How far the component paints past its layout bounds on each side; a new [Insets] the caller owns. Under a parent
+     * that is not a Foundation container, the part of its decoration its `paintOutsets` value leaves in layout, none
+     * by default.
      */
     public fun paintOutsets(): Insets =
         Insets(heldPaintOutsets.top, heldPaintOutsets.left, heldPaintOutsets.bottom, heldPaintOutsets.right)

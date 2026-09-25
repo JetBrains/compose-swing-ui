@@ -23,9 +23,9 @@ import kotlin.math.roundToInt
  * blurred and laid down behind it. Rounded corners, a cut-out, a line of text - whatever the content's edge is,
  * the shadow has it.
  *
- * The outsets the blur needs are this step's [outsets][Decorator.outsets]. Only a Foundation container gives paint
- * outsets: the component's bounds grow by them while its layout bounds stay. Under any other parent there are none,
- * and what is painted past the bounds is clipped. See "Bounds" in `docs/FOUNDATION.md`.
+ * The outsets the blur needs are this step's [outsets][Decorator.outsets]. A Foundation container grows the
+ * component's bounds by them while its layout bounds stay; any other parent clips what is painted past the bounds.
+ * `paintOutsets(PaintOutsets.None)` gives them layout space under either. See "Bounds" in `docs/FOUNDATION.md`.
  *
  * @param radius how far the silhouette is spread, in the component's own units; `0` or less casts a hard edge.
  * @param color the shadow's fill, usually translucent.

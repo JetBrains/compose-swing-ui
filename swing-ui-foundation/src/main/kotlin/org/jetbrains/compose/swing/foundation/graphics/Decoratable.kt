@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.layout.PaintOutsetsNode
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
@@ -21,8 +22,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  *   repaint a child records is painted through its decoration.
  *
  * Its size getters answer as for any Swing component: a size worked out from its content includes `getInsets()`, and
- * a set size answers as set. Only a Foundation container gives it paint outsets. Under any other parent it has none,
- * and its decoration is clipped at its bounds.
+ * a set size answers as set. A Foundation container gives it all its paint outsets. Any other parent gives it only
+ * the part of its decoration its [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value
+ * leaves in layout, none by default, and clips the rest at its bounds.
  */
 public interface Decoratable : DeclaredNodesListener {
     /**
@@ -30,7 +32,10 @@ public interface Decoratable : DeclaredNodesListener {
      *
      * Only the library writes it, on the event dispatch thread, and only with a value that differs from the one held.
      * An implementation stores the value and does nothing else: after writing, the library repaints the component,
-     * and where the paint outsets changed, its Foundation parent fits its bounds around its layout bounds.
+     * and where the paint outsets changed, its Foundation parent fits its bounds around its layout bounds, and under
+     * any other parent the library revalidates it. A superclass constructor that repaints, as `JPanel`'s does, runs
+     * before the implementation's own fields are set; such an implementation answers [Decoration.None] from a getter
+     * while no value is stored.
      */
     public var decoration: Decoration
 
@@ -44,10 +49,10 @@ public interface Decoratable : DeclaredNodesListener {
     }
 
     /**
-     * Takes a written [DecorationModifierNode] other than a [DrawModifierNode], since its element may have changed
-     * the node's `outsets` or `isOpaque`, and declines every other node. A draw node's `outsets` and `isOpaque`
-     * never change, and it repaints its own change. Not to be overridden.
+     * Takes a written [DecorationModifierNode] other than a [DrawModifierNode], whose element may have changed its
+     * `outsets` or `isOpaque`, and a written `paintOutsets` node, whose value may have changed; declines every other
+     * node. A draw node's `outsets` and `isOpaque` never change, and it repaints its own change. Not to be overridden.
      */
     override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean =
-        node is DecorationModifierNode<*> && node !is DrawModifierNode<*>
+        (node is DecorationModifierNode<*> && node !is DrawModifierNode<*>) || node is PaintOutsetsNode
 }

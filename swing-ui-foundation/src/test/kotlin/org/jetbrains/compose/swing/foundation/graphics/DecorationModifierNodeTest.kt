@@ -9,8 +9,10 @@ import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.padding
+import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -29,6 +31,7 @@ import java.awt.Graphics2D
 import java.awt.Insets
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -243,6 +246,33 @@ class DecorationModifierNodeTest {
             awaitIdle()
 
             assertEquals(1, panel.writes, "The steps one pass attaches reach the component as one decoration.")
+        }
+
+    @Test
+    fun aPaintOutsetsValueAndAStepChangingInOnePassAreHandedToTheComponentOnce() =
+        runComposeSwingTest {
+            var changed by mutableStateOf(false)
+            setContent {
+                SwingNode(factory = { JPanel() }) {
+                    SwingNode(
+                        factory = { WriteCountingPanel() },
+                        modifier =
+                            SwingModifier
+                                .testTag("panel")
+                                .preferredSize(Dimension(32, 32))
+                                .paintOutsets(if (changed) PaintOutsets.None else PaintOutsets.Decoration)
+                                .then(Step(if (changed) 2 else 1)),
+                    )
+                }
+            }
+            val panel = onNodeWithTag("panel").fetch<WriteCountingPanel>()
+            panel.writes = 0
+
+            changed = true
+            awaitIdle()
+
+            assertEquals(1, panel.writes, "The value and the step one pass changes reach it as one decoration.")
+            assertEquals(Insets(2, 2, 2, 2), panel.insets, "The new value leaves the step's new outsets in layout.")
         }
 
     @Test
