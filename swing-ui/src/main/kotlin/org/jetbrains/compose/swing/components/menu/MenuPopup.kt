@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.SwingContentComposition
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.MenuApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.util.DeferredAction
 import javax.swing.JPopupMenu
 import javax.swing.event.PopupMenuEvent
@@ -31,7 +31,7 @@ internal class MenuPopup(
 
     private val composition =
         SwingContentComposition.nested(parentContext) { owner ->
-            MenuApplier(SwingNodeHolder(popup).attachedTo(owner))
+            MenuApplier(CreatedNodeHolder(popup).attachedTo(owner))
         }
 
     // Whether the menu has closed, by close() or by the popup closing itself. Hiding the popup here

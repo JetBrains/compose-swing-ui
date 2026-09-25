@@ -120,7 +120,7 @@ class SwingApplierRegionTest {
     private fun applierFor(root: Container): SwingApplier {
         val owner = TestCompositionOwner()
         owners += owner
-        return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
+        return SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
     }
 
     @AfterTest
@@ -142,13 +142,13 @@ class SwingApplierRegionTest {
         component: Component,
         name: String = VIEWPORT_CALL,
         attachment: SlotAttachment = HoldsNothing,
-    ): SwingNodeHolder<Component> = SwingNodeHolder(component).apply {
+    ): SwingNodeHolder<Component> = CreatedNodeHolder(component).apply {
         applyModifierDiff(SwingModifier.slot(RawParentProtocol, name, attachment))
     }
 
     /** A `JSplitPane` holding its children on the two sides it offers, with neither side taken. */
     private fun splitHost(pane: JSplitPane): SwingNodeHolder<Component> =
-        SwingNodeHolder(pane).apply { childPlacement = SplitSides }
+        CreatedNodeHolder(pane).apply { childPlacement = SplitSides }
 
     @Test
     fun aChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = runSwingTest {
@@ -176,7 +176,7 @@ class SwingApplierRegionTest {
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
         val failure =
-            assertFailsWith<IllegalStateException> { applier.insertChild(0, SwingNodeHolder(JLabel("by index"))) }
+            assertFailsWith<IllegalStateException> { applier.insertChild(0, CreatedNodeHolder(JLabel("by index"))) }
 
         val message = failure.message.orEmpty()
         assertTrue(
@@ -184,7 +184,7 @@ class SwingApplierRegionTest {
             "the failure should say why: $message",
         )
         assertTrue(
-            message.contains("Add $VIEWPORT_CALL."),
+            message.contains("Name the region it fills through $VIEWPORT_CALL."),
             "the failure should name the call that would place the child: $message",
         )
     }
@@ -194,7 +194,7 @@ class SwingApplierRegionTest {
         // A node's children are one index space, and the two kinds are reached through different Swing
         // calls, so the placement a host states holds for as long as that host holds children.
         val applier = applierFor(JPanel())
-        applier.insertChild(0, SwingNodeHolder(JLabel("by index")))
+        applier.insertChild(0, CreatedNodeHolder(JLabel("by index")))
 
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
         val failure =
@@ -270,7 +270,7 @@ class SwingApplierRegionTest {
             "the failure should say why: $message",
         )
         assertTrue(
-            message.contains("Add one of: $FIRST_SIDE_CALL"),
+            message.contains("Name the region it fills through one of: $FIRST_SIDE_CALL"),
             "the failure should name the calls that would place the child: $message",
         )
     }
@@ -382,16 +382,16 @@ class SwingApplierRegionTest {
     fun aRelocatedChildIsAttachedOnceTheChangePassHasSettled() = runSwingTest {
         val root = JPanel()
         val applier = applierFor(root)
-        val moved = SwingNodeHolder(namedButton("moved"))
+        val moved = CreatedNodeHolder(namedButton("moved"))
 
         // The relocated child stands between two freshly composed siblings, so the place it takes is one
         // the pass has to count rather than compose: while it waits, the sibling after it is attached at
         // the position the children already attached give it.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, SwingNodeHolder(namedButton("a")))
+            insertChild(0, CreatedNodeHolder(namedButton("a")))
             relocateChild(1, moved)
-            insertChild(2, SwingNodeHolder(namedButton("b")))
+            insertChild(2, CreatedNodeHolder(namedButton("b")))
         }
 
         assertEquals(listOf("a", "b"), childNames(root), "a relocated child is not attached as it arrives")
@@ -491,7 +491,7 @@ class SwingApplierRegionTest {
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
         applier.onBeginChanges()
-        applier.onContainer(applier.root) { relocateChild(0, SwingNodeHolder(JLabel("by index"))) }
+        applier.onContainer(applier.root) { relocateChild(0, CreatedNodeHolder(JLabel("by index"))) }
         val failure = assertFailsWith<IllegalStateException> { applier.onEndChanges() }
 
         val message = failure.message.orEmpty()
@@ -500,7 +500,7 @@ class SwingApplierRegionTest {
             "the failure should say why: $message",
         )
         assertTrue(
-            message.contains("Add $VIEWPORT_CALL."),
+            message.contains("Name the region it fills through $VIEWPORT_CALL."),
             "the failure should name the call that would place the child: $message",
         )
     }
@@ -509,7 +509,7 @@ class SwingApplierRegionTest {
     fun aChainNamingBothARegionAndALayoutConstraintIsRefused() {
         // A parent holds a child by one of the two, so a modifier declaring both says something no parent
         // can carry out, and neither placement is recorded.
-        val child = SwingNodeHolder(JLabel("placed twice"))
+        val child = CreatedNodeHolder(JLabel("placed twice"))
 
         val failure =
             assertFailsWith<IllegalArgumentException> {

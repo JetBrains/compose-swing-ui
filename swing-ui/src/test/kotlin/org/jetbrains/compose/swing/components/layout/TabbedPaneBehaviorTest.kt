@@ -616,7 +616,7 @@ class TabbedPaneBehaviorTest {
             "the failure should name the pane that refused the child: $message",
         )
         assertTrue(
-            message.contains("Add SwingModifier.tab(title)."),
+            message.contains("Name the region it fills through SwingModifier.tab(title)."),
             "the failure should name the call that would place the child: $message",
         )
     }

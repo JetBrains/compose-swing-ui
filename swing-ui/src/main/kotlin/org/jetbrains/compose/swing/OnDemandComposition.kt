@@ -7,11 +7,13 @@ import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.disposingOnFailure
+import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.RootSlotPolicy
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
-import org.jetbrains.compose.swing.node.checkRootShowsOneChild
+import org.jetbrains.compose.swing.node.checkOneChildPerRegion
+import org.jetbrains.compose.swing.node.compositionEmitsTwo
 import java.awt.Component
 import java.awt.Container
 
@@ -42,7 +44,7 @@ public class OnDemandComposition(
 ) : DisposableHandle {
     // Holds the top-level component currently composed.
     private var current: Component? = null
-    private val rootHolder = SwingNodeHolder(Container())
+    private val rootHolder = CreatedNodeHolder(Container())
 
     // Attaches the top-level component without placing it.
     private val slot =
@@ -64,11 +66,11 @@ public class OnDemandComposition(
 
     init {
         checkEventDispatchThread()
+        rootHolder.childPlacement = ChildPlacement.Slots(content = slot)
         val built =
             SwingContentComposition.nested(parent) { owner ->
                 SwingApplier(
                     rootHolder.attachedTo(owner),
-                    rootSlot = slot,
                     rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() },
                 )
             }
@@ -125,14 +127,14 @@ public class OnDemandComposition(
     /**
      * Holds this composition to the one top-level component its content is allowed to compose after its
      * synchronous application has settled. A plain `index` naming where the applier installed a component
-     * says nothing here, since every one of them fills the same single-occupancy root slot.
+     * says nothing here, since every one of them is the root's content.
      *
-     * Reuses [checkRootShowsOneChild]'s account of live root occupants; when it finds more than one, it
+     * Reuses [checkOneChildPerRegion]'s account of live root occupants; when it finds more than one, it
      * clears [current], disposes this composition, and reports the refusal as an [IllegalStateException].
      */
     private fun requireOneTopLevelComponent() {
         try {
-            rootHolder.checkRootShowsOneChild()
+            rootHolder.checkOneChildPerRegion(::compositionEmitsTwo)
         } catch (overflow: IllegalStateException) {
             current = null
             composition.dispose()

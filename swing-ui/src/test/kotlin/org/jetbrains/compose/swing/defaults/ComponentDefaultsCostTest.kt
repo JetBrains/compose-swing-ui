@@ -12,8 +12,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -205,7 +205,7 @@ class ComponentDefaultsCostTest {
             }
         }
 
-        val holder = SwingNodeHolder(JLabel()).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JLabel()).attachedTo(TestCompositionOwner())
         holder.applyDeclaredModifier(SwingModifier)
         holder.compositionLocalMap = checkNotNull(firstMap)
         // Two or more defaults (DefaultBackground and DefaultForeground) apply to this label; this first

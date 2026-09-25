@@ -282,6 +282,9 @@ internal inline fun <R> disposingOnFailure(
     } catch (
         @Suppress("TooGenericExceptionCaught") failure: Throwable,
     ) {
-        dispose()
+        runCatching(dispose).onFailure { cleanupFailure ->
+            // First-pass failure keeps its identity even when the owner's cleanup also fails.
+            if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+        }
         throw failure
     }

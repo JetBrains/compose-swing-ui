@@ -7,8 +7,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.ObserverModifierNode
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.observeReads
 import javax.swing.JButton
@@ -28,7 +28,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aChainAttachedWholeWhosePropertyNodeFailsToUpdateComesApartOnce() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
 
         assertFailsWith<IllegalStateException> {
             holder.applyModifierDiff(
@@ -45,7 +45,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aChainAttachedWholeWhoseSubscriptionNodeFailsToUpdateComesApartOnce() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
 
         assertFailsWith<IllegalStateException> {
             holder.applyModifierDiff(
@@ -64,7 +64,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aPropertyNodeEnteringAStandingChainThatFailsToUpdateComesApartOnce() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(LifecycleElement("first", events)))
         events.clear()
 
@@ -84,7 +84,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aReplacementSubscriptionNodeThatFailsToUpdateTakesItsSlotAndComesApartOnce() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(OtherSubscriptionElement(events)))
         events.clear()
 
@@ -102,7 +102,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aSubscriptionNodeWhoseUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val element = FailingOnceElement("once", events, additive = true)
         assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.then(element)) }
 
@@ -120,7 +120,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun anAdditiveNodeWhoseInPlaceUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val first = FailingOnceElement("once", events, additive = true)
         assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.then(first)) }
         holder.applyModifierDiff(SwingModifier.then(first))
@@ -147,7 +147,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aKeyedReplacementWhoseUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(LifecycleElement("key", events)))
         val element = FailingOnceElement("key", events, additive = false)
         assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.then(element)) }
@@ -167,7 +167,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aPropertyNodeWhoseUpdateThrewTakesBackTheModifierDeclaredBeforeIt() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val standing = SwingModifier.then(SlotValueElement("a", events))
         holder.applyDeclaredModifier(standing)
         assertFailsWith<IllegalStateException> {
@@ -192,7 +192,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aLocalConsumerNodeWhoseRefreshThrewIsUpdatedAgainWhenDeclaredAgain() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val element = LocalConsumerElement(events)
         val modifier = SwingModifier.then(element)
         holder.applyDeclaredModifier(modifier)
@@ -211,7 +211,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aNodeWhoseOnAttachThrowsIsDetachedAndTheNodesMarkedAfterItAreUnwound() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val watched = mutableIntStateOf(0)
         val first = LifecycleElement("first", events, additive = true)
         val failing = FailingAttachElement(watched)
@@ -254,7 +254,7 @@ class ModifierNodeUpdateFailureTest {
     @Test
     fun aNodeThatFailsToCreateUnwindsTheNodesMarkedBeforeItInTheSameChainWalk() {
         val events = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val first = LifecycleElement("first", events, additive = true)
 
         assertFailsWith<IllegalStateException> {

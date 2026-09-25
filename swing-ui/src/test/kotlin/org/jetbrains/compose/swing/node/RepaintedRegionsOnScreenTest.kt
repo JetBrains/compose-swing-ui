@@ -42,7 +42,7 @@ class RepaintedRegionsOnScreenTest {
     fun aChildArrivingWithItsOwnBoundsIsShown() = onScreen(blocks = 2) { applier, colorAt ->
         assertShows(Color.WHITE, colorAt(100), "the area is empty before the child arrives")
 
-        applier.pass(applier.root) { insert(2, SwingNodeHolder(block(Color.BLUE, x = 80))) }
+        applier.pass(applier.root) { insert(2, CreatedNodeHolder(block(Color.BLUE, x = 80))) }
         settle()
 
         assertShows(Color.BLUE, colorAt(100), "the arriving child is on screen")
@@ -79,10 +79,10 @@ class RepaintedRegionsOnScreenTest {
                 frame.toFront()
                 val colors = listOf(Color.BLUE, Color.RED, Color.GREEN).take(blocks)
                 val applier =
-                    SwingApplier(SwingNodeHolder(content).attachedTo(owner)).apply {
+                    SwingApplier(CreatedNodeHolder(content).attachedTo(owner)).apply {
                         pass(root) {
                             colors.forEachIndexed { index, color ->
-                                insert(index, SwingNodeHolder(block(color, x = index * 40)))
+                                insert(index, CreatedNodeHolder(block(color, x = index * 40)))
                             }
                         }
                     }

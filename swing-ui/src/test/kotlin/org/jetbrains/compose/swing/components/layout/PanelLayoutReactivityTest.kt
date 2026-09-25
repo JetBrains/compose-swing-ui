@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
@@ -110,6 +111,24 @@ class PanelLayoutReactivityTest {
                 recorded.relayouts,
                 "a new alignment revalidates neither the panel nor any ancestor",
             )
+        }
+    }
+
+    @Test
+    fun aFlowPanelsNewGapRevalidatesIt() = runComposeSwingTest {
+        var hgap by mutableIntStateOf(FIRST_GAP)
+        setContent {
+            Panel(PanelLayout.Flow(hgap = hgap)) {
+                Label("child")
+            }
+        }
+
+        val panel = onRoot().onChild().fetch<JPanel>()
+        withRecordedRepaints { recorded ->
+            hgap = SECOND_GAP
+            awaitIdle()
+
+            recorded.assertAskedForLayout(panel, "a new gap")
         }
     }
 

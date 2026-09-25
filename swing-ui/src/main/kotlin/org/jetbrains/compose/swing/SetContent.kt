@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.mountUnderNamedParent
 import org.jetbrains.compose.swing.core.mountWhenParentResolves
 import org.jetbrains.compose.swing.core.setCompositionContext
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.MenuApplier
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.window.ProvideContentLocals
 import java.awt.Container
 import java.awt.Window
@@ -112,7 +112,7 @@ private fun JComponent.mountContent(
 ): SwingContentComposition {
     val composition =
         SwingContentComposition.nested(parent.context) { owner ->
-            SwingApplier(SwingNodeHolder(this).attachedTo(owner))
+            SwingApplier(CreatedNodeHolder(this).attachedTo(owner))
         }
     composition.setContent { ProvideContentLocals(window, this, content = content) }
     return composition
@@ -148,7 +148,7 @@ internal fun Container.setContentAsInteropHost(
 
     val composition =
         SwingContentComposition.nested(parent) { owner ->
-            SwingApplier(SwingNodeHolder(this).attachedTo(owner))
+            SwingApplier(CreatedNodeHolder(this).attachedTo(owner))
         }
     composition.setContent(content)
     return DisposableHandle {
@@ -218,7 +218,7 @@ public fun JMenuBar.setContent(
     return mountWhenParentResolves(this) { parent, window ->
         val composition =
             SwingContentComposition.nested(parent.context) { owner ->
-                MenuApplier(SwingNodeHolder(this).attachedTo(owner))
+                MenuApplier(CreatedNodeHolder(this).attachedTo(owner))
             }
         composition.setContent { ProvideContentLocals(window, this, content = content) }
         composition
@@ -252,7 +252,7 @@ internal fun JMenuBar.setContentAsMenuInteropHost(
     checkEventDispatchThread()
     val composition =
         SwingContentComposition.nested(parent) { owner ->
-            MenuApplier(SwingNodeHolder(this).attachedTo(owner))
+            MenuApplier(CreatedNodeHolder(this).attachedTo(owner))
         }
     composition.setContent(content)
     return DisposableHandle { composition.dispose() }

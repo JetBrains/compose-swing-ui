@@ -14,7 +14,8 @@ Where a container of your own starts depends on where its placement rules live:
 - **They are yours to write.** Hand a `MeasurePolicy` of your own to `Layout`. `Row`, `Column` and
   `Box` are each such a policy, and a policy you write is asked the same questions theirs are.
 - **They belong to a `LayoutManager` you did not write** - one of Swing's that `PanelLayout` does not
-  name, or a third party's. Build the container around that manager in a `SwingNode` factory.
+  name, or a third party's. Subclass `PanelLayout` to lay a `Panel` out under that manager, or build a
+  container of your own around it in a `SwingNode` factory.
 
 ## Measuring and placing children: `Layout`
 
@@ -177,49 +178,54 @@ or leaving shifts none of them. A layout node has the
 of any other node, and it stays attached through a `key` change. It reads the component whose modifier
 declares it through `component`, which fails while the node is not attached.
 
-## Hosting a layout manager you did not write
+## A layout of your own
 
-`Panel` takes its layout manager from the closed set `PanelLayout` names, so a manager outside that
-set - one of Swing's that the library does not model, or a third party's - is hosted by a container of
-your own.
-
-A custom manager that interprets parent-layout declarations implements `MeasurementLayoutManager`;
-[Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes what it and a regular
-`LayoutManager2` receive.
-
-Use the `content` overload and create a `Container` under that manager in the factory; children emitted
-by `content` are added by the framework's applier:
+To lay a `Panel` out under a manager `PanelLayout` does not name, subclass it. The library's own layouts
+are subclasses, and a manager they do not name is declared the same way:
 
 <!--- INCLUDE .*custom-container-02.*
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.annotations.SwingComposable
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import java.awt.FlowLayout
-import javax.swing.JPanel
-import javax.swing.border.TitledBorder
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.layout.PanelScope
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import java.awt.Container
+import javax.swing.OverlayLayout
 -->
 
 ```kotlin
+data object Overlay : PanelLayout<PanelScope>(object : PanelScope {}) {
+    override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+        updater.installManager(create = { OverlayLayout(this) })
+    }
+}
+
 @Composable
-fun TitledGroup(
-    title: String,
-    modifier: SwingModifier = SwingModifier,
-    content: @Composable @SwingComposable () -> Unit,
-) {
-    SwingNode(
-        factory = { JPanel(FlowLayout()).apply { border = TitledBorder("") } },
-        modifier = modifier,
-        update = { set(title) { (this.border as TitledBorder).title = it } },
-        content = content,
-    )
+fun Badge() {
+    Panel(Overlay) {
+        Label("3")
+        Label("Inbox")
+    }
 }
 ```
 
 <!--- KNIT example-custom-container-02.kt -->
 
-A container takes a `modifier` because it is also a child. That modifier places the group above in a
-`PanelLayout.Border` region or a `PanelLayout.GridBag` cell in its parent.
+A layout whose children carry constraints hands a scope that extends `PanelScope`, whose placement calls
+append the constraint with `layoutConstraint` - see
+[Placing children under constraints](#placing-children-under-constraints). Any node's container is laid
+out the same way, including a container an `ExistingSwingNode` claims; the KDoc on `PanelLayout` gives
+the steps.
+
+## A container of your own
+
+A container that needs a component class of its own is a `SwingNode` of your own: use the `content`
+overload and create the `Container` in the factory; the children `content` emits are added to it. A
+custom manager that interprets parent-layout declarations implements `MeasurementLayoutManager`;
+[Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes what it and a regular
+`LayoutManager2` receive. A container takes a `modifier` because it is also a child: that modifier places
+it in a `PanelLayout.Border` region or a `PanelLayout.GridBag` cell of its parent.
 
 ## Placing children under constraints
 

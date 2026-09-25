@@ -17,7 +17,9 @@ import java.awt.Container
 internal class CardDeckLayout : CardLayout() {
     private val cardNames = HashMap<Component, String>()
 
-    private var targetCard: String? = null
+    /** The card the deck is to show, or `null` until [showCard] names one. */
+    var targetCard: String? = null
+        private set
 
     /**
      * Checks the deck holds one child per card, on the turn of the event queue after the one the children

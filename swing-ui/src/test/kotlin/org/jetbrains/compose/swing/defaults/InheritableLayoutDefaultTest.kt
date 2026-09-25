@@ -22,7 +22,9 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.node.ExistingSwingNode
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.recordAddsAndRemovesOf
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -48,6 +50,31 @@ import kotlin.test.assertTrue
  * whose protocol accepts it, and is left out under every other parent without the parent being told.
  */
 class InheritableLayoutDefaultTest {
+    @Test
+    fun aClaimedComponentIgnoresADefaultItsParentDoesNotAccept() = runComposeSwingTest {
+        var provided by mutableStateOf<Int?>(1)
+        setContent {
+            ProvideComponentDefaults(DefaultInset provides provided) {
+                SwingNode(factory = { JPanel().apply { add(JLabel("claimed")) } }) {
+                    ExistingSwingNode<JPanel, JLabel>(claim = { getComponent(0) as JLabel })
+                }
+            }
+        }
+        val claimed = onNodeWithText("claimed").fetch<JLabel>()
+        val parent = claimed.parent
+        val events = parent.recordAddsAndRemovesOf(claimed)
+        provided = null
+        awaitIdle()
+        provided = 2
+        awaitIdle()
+        assertEquals(
+            emptyList(),
+            events,
+            "a default the parent does not accept never adds, removes or moves the claimed component",
+        )
+        assertSame(parent, claimed.parent)
+    }
+
     @Test
     fun anInheritableLayoutDefaultReachesTheChildrenOfAParentThatAcceptsIt() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)

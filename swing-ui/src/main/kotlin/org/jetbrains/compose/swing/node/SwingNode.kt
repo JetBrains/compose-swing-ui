@@ -58,7 +58,7 @@ public inline fun <reified T : Component> SwingNode(
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        factory = { SwingNodeHolder(factory()) },
+        factory = { CreatedNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
             val updater = SwingNodeUpdater(this)
@@ -130,7 +130,7 @@ public inline fun <reified T : Component> SwingNode(
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        factory = { SwingNodeHolder(factory()) },
+        factory = { CreatedNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
             val updater = SwingNodeUpdater(this)

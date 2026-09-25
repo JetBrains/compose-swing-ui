@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -23,7 +23,7 @@ class ContentCompositionObserverTest {
 
         val composition =
             SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(SwingNodeHolder(JPanel()).attachedTo(owner))
+                SwingApplier(CreatedNodeHolder(JPanel()).attachedTo(owner))
             }
         try {
             var shown by mutableStateOf(true)

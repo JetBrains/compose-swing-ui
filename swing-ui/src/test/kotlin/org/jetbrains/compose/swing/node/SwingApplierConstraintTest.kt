@@ -34,7 +34,7 @@ class SwingApplierConstraintTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also {
+    ): SwingNodeHolder<*> = CreatedNodeHolder(component).also {
         it.declaration.applyComponentLayout(constraint, RawParentProtocol, emptyList())
     }
 
@@ -47,7 +47,7 @@ class SwingApplierConstraintTest {
     private fun applierFor(root: Container): SwingApplier {
         val owner = TestCompositionOwner()
         owners += owner
-        return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
+        return SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
     }
 
     @AfterTest

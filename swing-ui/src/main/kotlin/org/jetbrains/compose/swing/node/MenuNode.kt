@@ -40,7 +40,7 @@ public inline fun <reified T : Component> MenuNode(
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, MenuApplier>(
-        factory = { SwingNodeHolder(factory()) },
+        factory = { CreatedNodeHolder(factory()) },
         update = {
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)

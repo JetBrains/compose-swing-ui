@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
@@ -20,8 +21,8 @@ class PanelParentDataValidationTest {
     fun aHoistedBorderScopeDeclarationIsRefusedBeforeAFlowPanelAddsTheChild() {
         val root = JPanel(FlowLayout())
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child: SwingNodeHolder<Component> = SwingNodeHolder(JLabel("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JLabel("child"))
         child.applyModifierDiff(with(BorderPanelScopeImpl) { SwingModifier.north() })
 
         try {
@@ -40,8 +41,8 @@ class PanelParentDataValidationTest {
     fun rawLayoutConstraintRemainsAnUntypedEscapeHatch() {
         val root = JPanel(FlowLayout())
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child: SwingNodeHolder<Component> = SwingNodeHolder(JLabel("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JLabel("child"))
         child.applyModifierDiff(SwingModifier.layoutConstraint(BorderLayout.NORTH))
 
         try {

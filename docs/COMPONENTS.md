@@ -541,7 +541,7 @@ For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout m
 
 | Component     | What it is                                                                           |
 |---------------|--------------------------------------------------------------------------------------|
-| `Panel`       | A `JPanel` under the layout manager its `layout` names, from `PanelLayout`'s set.    |
+| `Panel`       | A `JPanel` under the layout manager its `layout` names.                              |
 | `TabbedPane`  | Tabs over `JTabbedPane`, each child the body of the tab it declares with `tab(...)`. |
 | `SplitPane`   | Two sides and a draggable divider over `JSplitPane`.                                 |
 | `ScrollPane`  | A scrolled viewport plus header and corner regions over `JScrollPane`.               |
@@ -550,7 +550,7 @@ For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout m
 | `LayeredPane` | Children stacked on integer depth layers over `JLayeredPane`.                        |
 | `DesktopPane` | Floating internal frames over `JDesktopPane`.                                        |
 
-`Panel` hands the arranging to a Swing layout manager, one of the closed set `PanelLayout` names:
+`Panel` hands the arranging to a Swing layout manager, one of those `PanelLayout` names:
 
 | `layout`             | What it lays out                                                                          |
 |----------------------|-------------------------------------------------------------------------------------------|
@@ -564,10 +564,10 @@ For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout m
 A `Panel` that names no layout takes the one a `JPanel` builds itself with, a `PanelLayout.Flow()`.
 
 Each layout carries its own parameters and hands the content the scope through which children declare
-their placement under it. Changing those parameters applies to the panel already standing; changing
-the layout to another kind rebuilds the panel, because the constraints its children carry belong to
-the manager that was there. A manager outside this set is declared with a `SwingNode` of your own -
-see [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md).
+their placement under it. Changing those parameters applies to the manager already standing; changing
+the layout to another kind installs the new manager on the same panel and builds its children anew. A
+manager these do not name is declared by subclassing `PanelLayout` - see
+[A layout of your own](CUSTOM-CONTAINERS.md#a-layout-of-your-own).
 
 Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where
 it declares it belongs, dropping the child takes it out, and declaring a different placement moves it

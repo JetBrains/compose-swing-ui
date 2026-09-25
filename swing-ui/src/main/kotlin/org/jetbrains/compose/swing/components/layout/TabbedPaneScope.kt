@@ -11,17 +11,19 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.disposingOnFailure
+import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.RootSlotPolicy
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
-import org.jetbrains.compose.swing.node.checkRootShowsOneChild
+import org.jetbrains.compose.swing.node.checkOneChildPerRegion
+import org.jetbrains.compose.swing.node.compositionEmitsTwo
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Color
 import java.awt.Component
@@ -377,7 +379,7 @@ private class DirectTabHeaderComposition(
 ) : DisposableHandle {
     private var current: Component? = null
     private var disposed = false
-    private val rootHolder = SwingNodeHolder(Container())
+    private val rootHolder = CreatedNodeHolder(Container())
     private val rootSlot =
         SlotAttachment { _, component, _ ->
             current = component
@@ -394,11 +396,11 @@ private class DirectTabHeaderComposition(
 
     init {
         checkEventDispatchThread()
+        rootHolder.childPlacement = ChildPlacement.Slots(content = rootSlot)
         composition =
             SwingContentComposition.nested(parent) { owner ->
                 SwingApplier(
                     rootHolder.attachedTo(owner),
-                    rootSlot = rootSlot,
                     rootSlotPolicy =
                         RootSlotPolicy {
                             if (!disposed) requireRoot()
@@ -423,12 +425,10 @@ private class DirectTabHeaderComposition(
 
     private fun requireRoot(): Component {
         try {
-            rootHolder.checkRootShowsOneChild()
+            rootHolder.checkOneChildPerRegion(::compositionEmitsTwo)
         } catch (overflow: IllegalStateException) {
             throw IllegalStateException(
-                "A custom tab header must emit exactly one direct Component root. " +
-                    "Emit one component, wrapping several in a container of your own. " +
-                    overflow.message.orEmpty(),
+                "A custom tab header must emit exactly one direct Component root. " + overflow.message.orEmpty(),
                 overflow,
             )
         }

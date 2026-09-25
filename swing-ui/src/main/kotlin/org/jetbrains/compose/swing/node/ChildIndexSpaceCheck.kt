@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import java.awt.Component
 import java.awt.Container
 import java.util.IdentityHashMap
@@ -12,20 +13,17 @@ import java.util.IdentityHashMap
  * [SwingCompositionDiagnostics]; a violation reaches the event dispatch thread's uncaught-exception handler
  * exactly like any other failure the library raises there.
  *
- * Deferred a turn, on the same one `checkOneChildPerRegion` and `checkRootShowsOneChild` are called on -
- * see `DeferredRegionCheck` for what that turn is worth. Checked mid-pass instead, this would refuse
+ * Deferred a turn, on the same one `checkOneChildPerRegion` is called on -
+ * see `DeferredChildCheck` for what that turn is worth. Checked mid-pass instead, this would refuse
  * states the composition itself allows while a pass is still running: a relocated child stands in its
  * new host's children before its component is attached anywhere, and a region may briefly hold two
  * children while a replacement arrives before the child it replaces leaves.
  */
 internal fun SwingNodeHolder<*>.checkChildIndexSpace() {
-    checkChildIndexSpace(root = this, owners = IdentityHashMap())
+    checkChildIndexSpace(owners = IdentityHashMap())
 }
 
-private fun SwingNodeHolder<*>.checkChildIndexSpace(
-    root: SwingNodeHolder<*>,
-    owners: MutableMap<SwingNodeHolder<*>, SwingNodeHolder<*>>,
-) {
+private fun SwingNodeHolder<*>.checkChildIndexSpace(owners: MutableMap<SwingNodeHolder<*>, SwingNodeHolder<*>>) {
     for (child in children) {
         check(!child.awaitingAttachment) { childStillAwaitingAttachment(component, child.component) }
         val earlierHost = owners.put(child, this)
@@ -37,18 +35,16 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(
             // A deactivated child already gave its region up in onDeactivate, and stands here only
             // until the composition removes it for good - see SwingNodeHolder.deactivated.
             if (child.deactivated) continue
-            val installed = child.installedSlot
-            check(installed != null && installed.name == child.declaredSlot?.name) {
+            val installed = child.installation
+            check(installed != null && installed.fillsRegion && installed.region == child.declaredSlot?.name) {
                 childNotInstalledWhereDeclared(component, child.component, child.declaredSlot?.name)
             }
         }
-        if (placement is ChildPlacement.Slots) {
-            if (this === root) checkRootShowsOneChild() else checkOneChildPerRegion()
-        }
+        if (placement is ChildPlacement.Slots) checkOneChildPerRegion()
     } else {
         checkIndexedChildrenAreInReal()
     }
-    for (child in children) child.checkChildIndexSpace(root, owners)
+    for (child in children) child.checkChildIndexSpace(owners)
 }
 
 /**
@@ -69,6 +65,9 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(
  * stands in [SwingNodeHolder.children] only until the composition removes it for good - see
  * [SwingNodeHolder.deactivated].
  *
+ * So is a child [ExistingSwingNode] claims: its component stands where its parent put it, which the applier
+ * never decides.
+ *
  * So is a child standing under some other container, because a component's own look-and-feel may take it
  * out of the host the composition put it in and hold it elsewhere: a floating `JToolBar` is reparented
  * into a window the UI opens and docks back into this same host, so the applier is right to go on holding
@@ -77,7 +76,7 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(
  */
 private fun SwingNodeHolder<*>.checkIndexedChildrenAreInReal() {
     val container = component as? Container ?: return
-    val lost = children.firstOrNull { !it.deactivated && it.component.parent == null } ?: return
+    val lost = children.fastFirstOrNull { it.displaced } ?: return
     error(indexedChildMissing(component, lost.component, container.childHost.components.toList()))
 }
 

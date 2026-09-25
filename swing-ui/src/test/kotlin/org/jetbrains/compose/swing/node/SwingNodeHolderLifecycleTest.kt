@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -53,7 +52,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onRelease_runsReleaseBlockOnceAndDetachesListeners() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
         val releaseCount = IntArray(1)
         holder.releaseBlock = { releaseCount[0]++ }
 
@@ -74,7 +73,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onReuse_detachesAndClearsStateSoNextApplyReattaches() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
 
         // First composition: applying the modifier attaches exactly one listener.
         holder.applyModifierDiff(listenerModifier())
@@ -97,11 +96,11 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun reuseKeepsTheComponentInItsHostSlotAndParkingGivesItUp() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
         val released = IntArray(1)
         // A node installed in a host slot: the applier captured an uninstall handle when it installed
         // the component through the slot's dedicated setter.
-        holder.installedSlot = InstalledSlot(SlotAttachment { _, _, _ -> {} }, "region") { released[0]++ }
+        holder.installation = Installation.Region("region") { released[0]++ }
 
         // Recycling changes what drives the component, never where it lives: the new content takes over
         // the slot the old one filled, with no pass in between at which the slot stands empty.
@@ -120,9 +119,9 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onRelease_releasesAStillInstalledHostSlotOnce() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
         val released = IntArray(1)
-        holder.installedSlot = InstalledSlot(SlotAttachment { _, _, _ -> {} }, "region") { released[0]++ }
+        holder.installation = Installation.Region("region") { released[0]++ }
 
         holder.onRelease()
         assertEquals(1, released[0], "release must release a still-installed host slot")
@@ -134,7 +133,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onDeactivate_detachesAndClearsStateSoLaterActivationReattaches() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
 
         holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "applying the modifier must attach exactly one listener")
@@ -168,7 +167,7 @@ class SwingNodeHolderLifecycleTest {
         parent.setSize(200, 100)
         val button = JButton("b").apply { setBounds(10, 20, 50, 30) }
         parent.add(button)
-        val holder = SwingNodeHolder(button)
+        val holder = CreatedNodeHolder(button).apply { installation = Installation.Indexed }
         repaints.clear()
 
         holder.onDeactivate()
@@ -183,7 +182,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onDeactivate_runsTheReleaseBlockOnce() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
         val releaseCount = IntArray(1)
         holder.releaseBlock = { releaseCount[0]++ }
 
@@ -198,7 +197,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun repeatedReuseCyclesKeepListenerCountBalanced() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
 
         repeat(4) {
             holder.applyModifierDiff(listenerModifier())
@@ -212,7 +211,7 @@ class SwingNodeHolderLifecycleTest {
 
     @Test
     fun onReuse_withoutListenerIsHarmlessAndLaterApplyStillAttaches() {
-        val holder = SwingNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("b")).attachedTo(TestCompositionOwner())
         // No modifier applied yet - reuse must be a harmless no-op.
         holder.onReuse()
 

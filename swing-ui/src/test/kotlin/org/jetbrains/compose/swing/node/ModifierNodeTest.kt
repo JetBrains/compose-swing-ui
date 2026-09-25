@@ -190,7 +190,7 @@ class ModifierNodeTest {
         setContent {
             ReusableContent(item) {
                 ReusableComposeNode<SwingNodeHolder<JPanel>, SwingApplier>(
-                    factory = { SwingNodeHolder(JPanel()) },
+                    factory = { CreatedNodeHolder(JPanel()) },
                     update = { SwingNodeUpdater(this).applyModifier(CompositionLocalMap.Empty, modifier) },
                 )
             }

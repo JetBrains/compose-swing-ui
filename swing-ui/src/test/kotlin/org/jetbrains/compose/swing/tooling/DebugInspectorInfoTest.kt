@@ -20,9 +20,9 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -386,7 +386,7 @@ class DebugInspectorInfoTest {
         val compositionHost = JPanel()
         val stale =
             SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(SwingNodeHolder(compositionHost).attachedTo(owner))
+                SwingApplier(CreatedNodeHolder(compositionHost).attachedTo(owner))
             }
         stale.setContent { Label(text = "stale") }
         // Declared only once the stale composition is gone: disposing one empties the container it is
@@ -394,7 +394,7 @@ class DebugInspectorInfoTest {
         var showTheLabel by mutableStateOf(false)
         val live =
             SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(SwingNodeHolder(compositionHost).attachedTo(owner))
+                SwingApplier(CreatedNodeHolder(compositionHost).attachedTo(owner))
             }
         try {
             live.setContent { if (showTheLabel) Label(text = "live") }

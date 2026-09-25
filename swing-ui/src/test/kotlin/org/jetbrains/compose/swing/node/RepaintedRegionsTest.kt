@@ -55,13 +55,13 @@ class RepaintedRegionsTest {
         case("a child inserted with bounds of its own") {
             val (panel, applier) = panelOfBlocks(blocks = 2)
             val arriving = block(Color.GREEN, x = 80)
-            served(panel) { applier.pass(applier.root) { insert(2, SwingNodeHolder(arriving)) } }
+            served(panel) { applier.pass(applier.root) { insert(2, CreatedNodeHolder(arriving)) } }
         },
         case("a child moved over a sibling it overlaps", minimal = false) {
             val (panel, applier) = panelOfBlocks(blocks = 0)
             applier.pass(applier.root) {
-                insert(0, SwingNodeHolder(block(Color.BLUE, x = 0, width = 60)))
-                insert(1, SwingNodeHolder(block(Color.RED, x = 20, width = 60)))
+                insert(0, CreatedNodeHolder(block(Color.BLUE, x = 0, width = 60)))
+                insert(1, CreatedNodeHolder(block(Color.RED, x = 20, width = 60)))
             }
             served(panel) { applier.pass(applier.root) { move(0, 2, 1) } }
         },
@@ -71,7 +71,7 @@ class RepaintedRegionsTest {
         },
         case("a parked child") {
             val (panel, applier) = panelOfBlocks(blocks = 1)
-            val parking = SwingNodeHolder(block(Color.RED, x = 40))
+            val parking = CreatedNodeHolder(block(Color.RED, x = 40))
             applier.pass(applier.root) { insert(1, parking) }
             served(panel) { parking.onDeactivate() }
         },
@@ -95,8 +95,8 @@ class RepaintedRegionsTest {
                 }
             val applier = applierOver(pane)
             applier.pass(applier.root) {
-                insert(0, SwingNodeHolder(block(Color.BLUE, x = 0)))
-                insert(1, SwingNodeHolder(block(Color.RED, x = 40)))
+                insert(0, CreatedNodeHolder(block(Color.BLUE, x = 0)))
+                insert(1, CreatedNodeHolder(block(Color.RED, x = 40)))
             }
             served(pane) { applier.pass(applier.root) { remove(1, 1) } }
         },
@@ -177,7 +177,7 @@ class RepaintedRegionsTest {
         change: () -> Unit,
     ): ServedRepaints = servedRepaintsOf(host, change)
 
-    private fun applierOver(root: Container): SwingApplier = SwingApplier(SwingNodeHolder(root).attachedTo(owner()))
+    private fun applierOver(root: Container): SwingApplier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner()))
 
     private fun owner(): TestCompositionOwner = TestCompositionOwner().also { owners += it }
 
@@ -202,7 +202,7 @@ class RepaintedRegionsTest {
         val applier = applierOver(panel)
         val colors = listOf(Color.BLUE, Color.RED, Color.GREEN)
         applier.pass(applier.root) {
-            repeat(blocks) { index -> insert(index, SwingNodeHolder(block(colors[index], x = index * 40))) }
+            repeat(blocks) { index -> insert(index, CreatedNodeHolder(block(colors[index], x = index * 40))) }
         }
         return panel to applier
     }
@@ -228,7 +228,7 @@ class RepaintedRegionsTest {
         val colors = listOf(Color.BLUE, Color.RED, Color.GREEN)
         applier.pass(host) {
             colors.forEachIndexed { index, color ->
-                val block = SwingNodeHolder(block(color, x = index * 40, width = width))
+                val block = CreatedNodeHolder(block(color, x = index * 40, width = width))
                 block.applyModifierDiff(SwingModifier.slot(RawParentProtocol, ORDERED_REGION, AddedAtIndex))
                 insert(index, block)
             }
@@ -245,7 +245,7 @@ class RepaintedRegionsTest {
                 setSize(200, 40)
             }
         val applier = applierOver(root)
-        val host = SwingNodeHolder(panel).apply { childPlacement = placement }
+        val host = CreatedNodeHolder(panel).apply { childPlacement = placement }
         applier.pass(applier.root) { insert(0, host) }
         return RegionHost(panel, applier, host)
     }
@@ -254,15 +254,15 @@ class RepaintedRegionsTest {
     private fun regionBlock(
         color: Color,
         region: String,
-    ): SwingNodeHolder<*> = SwingNodeHolder(block(color, x = 0)).apply { applyModifierDiff(regionModifier(region)) }
+    ): SwingNodeHolder<*> = CreatedNodeHolder(block(color, x = 0)).apply { applyModifierDiff(regionModifier(region)) }
 
     /** A 300x20 menu bar holding three menus, and the applier over it. */
     private fun barOfMenus(): Pair<JMenuBar, MenuApplier> {
         val bar = JMenuBar().apply { setSize(300, 20) }
-        val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(owner()))
+        val applier = MenuApplier(CreatedNodeHolder(bar).attachedTo(owner()))
         applier.pass(applier.root) {
             listOf("File", "Edit", "View").forEachIndexed { index, text ->
-                insertBottomUp(index, SwingNodeHolder(JMenu(text)))
+                insertBottomUp(index, CreatedNodeHolder(JMenu(text)))
             }
         }
         return bar to applier

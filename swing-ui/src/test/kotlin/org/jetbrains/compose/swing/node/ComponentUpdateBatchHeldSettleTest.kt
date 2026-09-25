@@ -14,7 +14,7 @@ class ComponentUpdateBatchHeldSettleTest {
     fun aSettleHeldByAnAbandonedPassDoesNotFireInTheBatchThatFollows() {
         val batch = ComponentUpdateBatch()
         var settled = 0
-        val holder = SwingNodeHolder(JPanel()).apply { childSettle = { settled++ } }
+        val holder = CreatedNodeHolder(JPanel()).apply { childSettle = { settled++ } }
 
         batch.begin()
         batch.holdForChildSettle(holder)
@@ -34,7 +34,7 @@ class ComponentUpdateBatchHeldSettleTest {
     fun aSettleHeldAfterBeginStillFiresWhenItsOwnBatchEnds() {
         val batch = ComponentUpdateBatch()
         var settled = 0
-        val holder = SwingNodeHolder(JPanel()).apply { childSettle = { settled++ } }
+        val holder = CreatedNodeHolder(JPanel()).apply { childSettle = { settled++ } }
 
         batch.begin()
         batch.holdForChildSettle(holder)

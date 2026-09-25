@@ -37,7 +37,7 @@ class AfterValidationActionTest {
     private fun attachedNode(owner: TestCompositionOwner): Pair<JPanel, RequestNode> {
         val component = JPanel()
         val node = RequestNode()
-        node.attach(SwingNodeHolder(component).attachedTo(owner))
+        node.attach(CreatedNodeHolder(component).attachedTo(owner))
         return component to node
     }
 
@@ -65,7 +65,7 @@ class AfterValidationActionTest {
         val owner = TestCompositionOwner()
         val other = TestCompositionOwner()
         val component = LayoutPanel()
-        val holder = SwingNodeHolder(component).attachedTo(owner)
+        val holder = CreatedNodeHolder(component).attachedTo(owner)
 
         SwingUtilities.invokeAndWait {
             component.resetCounts()
@@ -239,7 +239,7 @@ class AfterValidationActionTest {
         SwingUtilities.invokeAndWait {
             synchronized(component.treeLock) { node.requestAfterValidation { calls++ } }
             node.detach()
-            node.attach(SwingNodeHolder(component).attachedTo(owner))
+            node.attach(CreatedNodeHolder(component).attachedTo(owner))
         }
         SwingUtilities.invokeAndWait { posted.removeAt(0)() }
         assertEquals(0, calls)
@@ -318,7 +318,7 @@ class AfterValidationActionTest {
         val targetAction: (RequestNode) -> Unit = { calls++ }
         val triggerAction: (RequestNode) -> Unit = {
             target.detach()
-            target.attach(SwingNodeHolder(targetComponent).attachedTo(owner))
+            target.attach(CreatedNodeHolder(targetComponent).attachedTo(owner))
             synchronized(targetComponent.treeLock) { target.requestAfterValidation(targetAction) }
         }
 
@@ -345,7 +345,7 @@ class AfterValidationActionTest {
         val pane = CellRendererPane()
         val component = JPanel()
         pane.add(component)
-        val node = RequestNode().also { it.attach(SwingNodeHolder(component).attachedTo(owner)) }
+        val node = RequestNode().also { it.attach(CreatedNodeHolder(component).attachedTo(owner)) }
         var calls = 0
 
         SwingUtilities.invokeAndWait {
@@ -366,7 +366,7 @@ class AfterValidationActionTest {
         val posted = mutableListOf<() -> Unit>()
         val owner = TestCompositionOwner(AfterValidationCoordinator(posted::add))
         val component = LayoutPanel()
-        val holder = SwingNodeHolder(component).attachedTo(owner)
+        val holder = CreatedNodeHolder(component).attachedTo(owner)
 
         SwingUtilities.invokeAndWait {
             component.resetCounts()
@@ -390,7 +390,7 @@ class AfterValidationActionTest {
         val posted = mutableListOf<() -> Unit>()
         val owner = TestCompositionOwner(AfterValidationCoordinator(posted::add))
         val component = LayoutPanel()
-        val holder = SwingNodeHolder(component).attachedTo(owner)
+        val holder = CreatedNodeHolder(component).attachedTo(owner)
         val node = RequestNode().also { it.attach(holder) }
 
         SwingUtilities.invokeAndWait {
@@ -428,7 +428,7 @@ class AfterValidationActionTest {
         val posted = mutableListOf<() -> Unit>()
         val owner = TestCompositionOwner(AfterValidationCoordinator(posted::add))
         val component = LayoutPanel()
-        val holder = SwingNodeHolder(component).attachedTo(owner)
+        val holder = CreatedNodeHolder(component).attachedTo(owner)
         holder.releaseBlock = {
             synchronized(component.treeLock) { holder.invalidateLayout() }
             error("release failed")

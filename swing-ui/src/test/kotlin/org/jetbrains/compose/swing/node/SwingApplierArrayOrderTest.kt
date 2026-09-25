@@ -36,7 +36,7 @@ class SwingApplierArrayOrderTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also {
+    ): SwingNodeHolder<*> = CreatedNodeHolder(component).also {
         it.declaration.applyComponentLayout(constraint, RawParentProtocol, emptyList())
     }
 
@@ -49,7 +49,7 @@ class SwingApplierArrayOrderTest {
     private fun applierFor(root: Container): SwingApplier {
         val owner = TestCompositionOwner()
         owners += owner
-        return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
+        return SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
     }
 
     @AfterTest
@@ -184,7 +184,7 @@ class SwingApplierArrayOrderTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
-            insertBottomUp(1, SwingNodeHolder(namedButton("plain")))
+            insertBottomUp(1, CreatedNodeHolder(namedButton("plain")))
             insertBottomUp(2, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
         }
         applier.onEndChanges()

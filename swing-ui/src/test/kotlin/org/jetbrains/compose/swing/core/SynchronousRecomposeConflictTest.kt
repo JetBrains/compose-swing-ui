@@ -7,8 +7,8 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotApplyConflictException
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -38,7 +38,7 @@ class SynchronousRecomposeConflictTest {
         val host = JPanel()
         val composition =
             SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(SwingNodeHolder(host).attachedTo(owner))
+                SwingApplier(CreatedNodeHolder(host).attachedTo(owner))
             }
         try {
             composition.setContent {

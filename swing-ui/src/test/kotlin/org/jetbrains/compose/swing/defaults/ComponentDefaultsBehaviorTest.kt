@@ -19,8 +19,8 @@ import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -688,7 +688,7 @@ class ComponentDefaultsBehaviorTest {
                 withDefaults = currentComposer.currentCompositionLocalMap
             }
         }
-        val holder = SwingNodeHolder(JLabel()).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JLabel()).attachedTo(TestCompositionOwner())
         holder.applyDeclaredModifier(SwingModifier)
         holder.compositionLocalMap = checkNotNull(withDefaults)
         assertFailsWith<IllegalStateException> { holder.refreshInheritedDefaults() }

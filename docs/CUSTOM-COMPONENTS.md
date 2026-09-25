@@ -63,6 +63,10 @@ Two things about every component belong to the composition rather than to your c
   records what the component had, and puts that back when the declaration goes;
 - **the children of any container it builds** - insertion, order and removal are the applier's.
 
+A component a parent built and keeps - a scroll pane's scroll bar, a layer's glass pane - stays its
+parent's; the composition owns only what it declares on it (see
+[Configuring a component its parent owns](#configuring-a-component-its-parent-owns)).
+
 So a component your composition built is not a component to reach into. Writing a property the
 composition also writes means the next recomposition asserts what the composition declares and your
 write is gone; adding or removing a child behind the applier's back leaves the two disagreeing about
@@ -155,6 +159,13 @@ through `SwingModifier.slot(parentProtocol, name, attachment)` - and a child tha
 that names a region of a container that has none, is refused as it arrives, naming the component and the
 calls that would place it.
 
+`ChildPlacement.Slots` can also declare a main child that needs no name, the way `JLayer` holds its
+view: `ChildPlacement.Slots("GlassPane { }", content = viewAttachment)`, where `viewAttachment` is a
+`SlotAttachment` of your own. A `SlotAttachment` passed as `content` installs the one created child that
+names no region, and the host shows at most one such child; a second one, or a component claimed with
+`ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is
+refused. Declare the attachment once, as a `val`, since it is compared by identity.
+
 ### Writing a `SlotAttachment`
 
 A `SlotAttachment` installs one child into one region and returns the action that removes it again. It
@@ -244,6 +255,41 @@ rather than composing inline (see *A container example* in
 [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md)) - type that parameter
 `@Composable @SwingComposable () -> Unit`, matching `SwingNode`'s own signature above, so the types
 line up at the call.
+
+## Configuring a component its parent owns
+
+Some Swing components build parts of themselves and keep them: a `JScrollPane` builds its viewport and
+both scroll bars, a `JLayer` its glass pane, a `JTable` its header. `ExistingSwingNode` configures such a
+part the way `SwingNode` configures a component its `factory` builds, with the same `modifier`, `update`
+and, for a container, `content`. `claim` runs once, on the parent - the component of the node this one is
+composed directly under - and returns the part; a function reference infers both type parameters, a lambda
+needs them written. `TitledPanel` builds its `title` label and keeps it:
+
+<!--- INCLUDE .*custom-02.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.node.ExistingSwingNode
+import org.jetbrains.compose.swing.node.SwingNode
+import javax.swing.JLabel
+import javax.swing.JPanel
+-->
+
+```kotlin
+class TitledPanel : JPanel() { val title = JLabel().also { add(it) } }
+
+@Composable
+fun Titled(text: String) {
+    SwingNode(factory = { TitledPanel() }) {
+        ExistingSwingNode(claim = TitledPanel::title, update = { set(text) { this.text = it } })
+    }
+}
+```
+
+<!--- KNIT example-custom-02.kt -->
+
+A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc
+holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given
+back through the modifier. Within one composition, a component is claimed by at most one node at a time;
+a second claim is refused.
 
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 
@@ -387,7 +433,7 @@ automatically - you do not need to remove them in `onRelease`.
 Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`/`Slider` are built
 - a `value` in, an `onValueChange` out:
 
-<!--- INCLUDE .*custom-02.*
+<!--- INCLUDE .*custom-03.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -426,7 +472,7 @@ fun MySpinner(
 private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNumberModel
 ```
 
-<!--- KNIT example-custom-02.kt -->
+<!--- KNIT example-custom-03.kt -->
 
 The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the
 incoming state would itself fire the change listener.

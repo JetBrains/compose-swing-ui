@@ -1260,6 +1260,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     val parentDeclarations = incoming.parentDeclarations
     val declaredKeys = incoming.keys
     checkOnePlacement(slot, parentDeclarations)
+    checkDeclaredPlacement(slot, parentDeclarations)
     declaration.checkParentElementsAccepted(parentDeclarations)
     declaredSlot = slot?.let { DeclaredSlot(it.parentProtocol, it.attachment, it.regionName) }
 

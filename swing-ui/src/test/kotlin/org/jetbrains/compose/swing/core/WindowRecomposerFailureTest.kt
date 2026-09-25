@@ -12,8 +12,8 @@ import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -243,7 +243,7 @@ class WindowRecomposerFailureTest {
         // no handle: the observer is only reachable from the composition setContent discards.
         val composition =
             SwingContentComposition.nested(recomposer.compositionContext) { owner ->
-                SwingApplier(SwingNodeHolder(host).attachedTo(owner))
+                SwingApplier(CreatedNodeHolder(host).attachedTo(owner))
             }
         try {
             val observer = composition.snapshotObserver.observer

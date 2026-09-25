@@ -34,11 +34,10 @@ import javax.swing.JPanel
  *
  * Children are written plainly; what a child declares to [layout]'s scope places it under that manager.
  *
- * A change of layout kind rebuilds the panel and its children, because the constraints those children
- * carry belong to the manager that was there; a change of a layout's parameters applies to the panel
- * already standing.
+ * A change of layout kind installs the new manager on the panel standing and builds the children anew;
+ * a change of a layout's parameters applies to the manager standing.
  *
- * @param layout the layout the panel is built under; see [PanelLayout]
+ * @param layout the layout the panel's children are laid out under; see [PanelLayout]
  * @param modifier the [SwingModifier] applied to the panel
  * @param content the composable content of the panel, with [layout]'s scope as its receiver
  */
@@ -48,14 +47,12 @@ public fun <S : PanelScope> Panel(
     modifier: SwingModifier = SwingModifier,
     content: @Composable S.() -> Unit,
 ) {
-    key(layout.javaClass) {
-        SwingNode<JPanel>(
-            factory = { JPanel() },
-            modifier = modifier,
-            update = { layout.installOn(this) },
-            content = { layout.contentScope.content() },
-        )
-    }
+    SwingNode<JPanel>(
+        factory = { JPanel() },
+        modifier = modifier,
+        update = { layout.installOn(this) },
+        content = { key(layout.javaClass) { layout.contentScope.content() } },
+    )
 }
 
 /**
@@ -72,23 +69,59 @@ public fun Panel(
 ): Unit = Panel(PanelLayout.Flow(), modifier, content)
 
 /**
- * The layout a [Panel] is built under: the Swing layout manager the panel holds, the parameters that
- * manager takes, and the scope [S] through which the panel's children declare their placement under it.
+ * The layout of a container the composition lays out: the Swing layout manager the container holds, the
+ * parameters that manager takes, and the scope [S] through which the container's children declare their
+ * placement under it.
  *
- * A layout not modeled here is declared with a `SwingNode` of your own that builds the container, its
- * children naming their constraints with `SwingModifier.layoutConstraint` - see
- * `docs/CUSTOM-CONTAINERS.md`.
+ * A [Panel] lays its `JPanel` out through three pieces, and any node's container is laid out through the
+ * same three: `update = { layout.installOn(this) }`, [contentScope] as the content's receiver, and
+ * `key(layout.javaClass)` around the content, since the constraints the children carry belong to the
+ * manager that was there. The node itself is not keyed: [installOn] changes the manager's kind in place.
+ *
+ * A layout not modeled here is declared by subclassing this class, with [installOn] writing through
+ * [installManager], or held by a container of your own whose children place themselves with
+ * `SwingModifier.layoutConstraint` - see `docs/CUSTOM-CONTAINERS.md` for both. A subclass is immutable,
+ * holding its parameters in `val`s, and its `equals` compares them: a layout equal to the one before
+ * writes nothing.
+ *
+ * @property contentScope the scope the container's content is composed in
  */
 @Immutable
-public sealed class PanelLayout<S : PanelScope> private constructor(
-    internal val contentScope: S,
+public abstract class PanelLayout<S : PanelScope>(
+    public val contentScope: S,
 ) {
     /**
-     * Installs this layout's manager on the panel and declares this layout's parameters on [updater],
-     * each written to that manager on the pass that builds the panel and on every pass that changes the
-     * parameter.
+     * Lays the container out under this layout. An implementation makes one write on [updater] through
+     * [installManager].
+     *
+     * @param updater the updater of the container this layout lays out
      */
-    internal abstract fun installOn(updater: SwingNodeUpdater<JPanel>)
+    public abstract fun <C : Container> installOn(updater: SwingNodeUpdater<C>)
+
+    /**
+     * Makes one write on the receiver, keyed on this layout: where the container's manager is not exactly
+     * an [L], installs one built by [create] and revalidates the container; then hands the manager
+     * standing to [update], which writes the parameters that differ in place.
+     *
+     * The manager is told apart by its exact class, so a subclass of [L] is replaced. The container is
+     * revalidated only when a manager is installed; [update] asks for any layout its own writes need.
+     *
+     * @receiver the updater of the container this layout lays out
+     * @param create builds a manager for the container from this layout's parameters
+     * @param update writes this layout's parameters that differ from the manager's current values; does
+     *   nothing by default
+     */
+    protected inline fun <reified L : LayoutManager> SwingNodeUpdater<out Container>.installManager(
+        crossinline create: Container.() -> L,
+        crossinline update: Container.(manager: L) -> Unit = {},
+    ): Unit =
+        set(this@PanelLayout) {
+            if (layout?.javaClass != L::class.java) {
+                layout = create()
+                revalidate()
+            }
+            update(layout as L)
+        }
 
     /**
      * Lays the children out one after another along a single axis, in declaration order.
@@ -103,13 +136,15 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
     public class Box(
         @param:BoxAxis public val axis: Int = BoxLayout.Y_AXIS,
     ) : PanelLayout<PanelScope>(PanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            // A BoxLayout fixes its axis at construction and serves only the container it was built
-            // for, so a new axis means a new instance for this panel. It holds no per-child data, so
-            // recreating it loses nothing.
-            updater.set(axis) {
-                layout = BoxLayout(this, it)
-                revalidate()
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ BoxLayout(this, axis) }) { manager ->
+                // A BoxLayout fixes its axis at construction and serves only the container it was built
+                // for, so a new axis means a new instance for this container. It holds no per-child data,
+                // so recreating it loses nothing.
+                if (manager.axis != axis) {
+                    layout = BoxLayout(this, axis)
+                    revalidate()
+                }
             }
         }
 
@@ -135,11 +170,21 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
         public val hgap: Int = 5,
         public val vgap: Int = 5,
     ) : PanelLayout<PanelScope>(PanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            updater.init { layout = FlowLayout() }
-            updater.setOnPlacement<FlowLayout, _>(alignment) { this.alignment = it }
-            updater.setOnLayout<FlowLayout, _>(hgap) { this.hgap = it }
-            updater.setOnLayout<FlowLayout, _>(vgap) { this.vgap = it }
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ FlowLayout(alignment, hgap, vgap) }) { manager ->
+                // A flow measures a container by its gaps and its children alone, so an alignment only
+                // moves the children.
+                val measured = manager.hgap != hgap || manager.vgap != vgap
+                val placed = manager.alignment != alignment
+                manager.alignment = alignment
+                manager.hgap = hgap
+                manager.vgap = vgap
+                if (measured) {
+                    revalidate()
+                } else if (placed) {
+                    doLayout()
+                }
+            }
         }
 
         override fun equals(other: Any?): Boolean =
@@ -170,12 +215,23 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
         public val hgap: Int = 0,
         public val vgap: Int = 0,
     ) : PanelLayout<PanelScope>(PanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            updater.init { layout = GridLayout() }
-            updater.setOnLayout<GridLayout, _>(rows) { applyDimensions(it, this@Grid.cols) }
-            updater.setOnLayout<GridLayout, _>(cols) { applyDimensions(this@Grid.rows, it) }
-            updater.setOnLayout<GridLayout, _>(hgap) { this.hgap = it }
-            updater.setOnLayout<GridLayout, _>(vgap) { this.vgap = it }
+        init {
+            require(rows != 0 || cols != 0) {
+                "PanelLayout.Grid needs a row or a column count: rows and cols cannot both be 0."
+            }
+        }
+
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ GridLayout(rows, cols, hgap, vgap) }) { manager ->
+                val sameCells = manager.rows == rows && manager.columns == cols
+                val sameGaps = manager.hgap == hgap && manager.vgap == vgap
+                if (!sameCells || !sameGaps) {
+                    manager.applyDimensions(rows, cols)
+                    manager.hgap = hgap
+                    manager.vgap = vgap
+                    revalidate()
+                }
+            }
         }
 
         override fun equals(other: Any?): Boolean =
@@ -210,10 +266,14 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
         public val hgap: Int = 0,
         public val vgap: Int = 0,
     ) : PanelLayout<BorderPanelScope>(BorderPanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            updater.init { layout = BorderLayout() }
-            updater.setOnLayout<BorderLayout, _>(hgap) { this.hgap = it }
-            updater.setOnLayout<BorderLayout, _>(vgap) { this.vgap = it }
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ BorderLayout(hgap, vgap) }) { manager ->
+                if (manager.hgap != hgap || manager.vgap != vgap) {
+                    manager.hgap = hgap
+                    manager.vgap = vgap
+                    revalidate()
+                }
+            }
         }
 
         override fun equals(other: Any?): Boolean = other is Border && hgap == other.hgap && vgap == other.vgap
@@ -247,8 +307,8 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
      * @see java.awt.GridBagLayout
      */
     public object GridBag : PanelLayout<GridBagPanelScope>(GridBagPanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            updater.init { layout = GridBagLayout() }
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ GridBagLayout() })
         }
     }
 
@@ -288,11 +348,15 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
         public val hgap: Int = 0,
         public val vgap: Int = 0,
     ) : PanelLayout<CardPanelScope>(CardPanelScopeImpl) {
-        override fun installOn(updater: SwingNodeUpdater<JPanel>) {
-            updater.init { layout = CardDeckLayout() }
-            updater.set(selectedCard) { (layout as CardDeckLayout).showCard(this, it) }
-            updater.setOnLayout<CardDeckLayout, _>(hgap) { this.hgap = it }
-            updater.setOnLayout<CardDeckLayout, _>(vgap) { this.vgap = it }
+        override fun <C : Container> installOn(updater: SwingNodeUpdater<C>) {
+            updater.installManager({ CardDeckLayout() }) { manager ->
+                if (manager.hgap != hgap || manager.vgap != vgap) {
+                    manager.hgap = hgap
+                    manager.vgap = vgap
+                    revalidate()
+                }
+                if (manager.targetCard != selectedCard) manager.showCard(this, selectedCard)
+            }
         }
 
         override fun equals(other: Any?): Boolean =
@@ -303,16 +367,19 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
 }
 
 /**
- * The receiver of a [Panel]'s content. Each [PanelLayout] names the scope it hands its children, through
- * which they declare their own placement under that layout; a layout that places children by declaration
- * order alone hands this one, which offers nothing.
+ * The receiver of the content of a container a [PanelLayout] lays out. Each [PanelLayout] names the scope
+ * it hands its children, through which they declare their own placement under that layout; a layout that
+ * places children by declaration order alone hands this one, which offers nothing.
+ *
+ * A layout written outside the library extends this interface with a scope of its own, holding the
+ * placement calls its manager understands.
  *
  * It is the innermost scope inside a panel's content, so a declaration meant for an enclosing row or
  * column does not resolve there: the panel's layout manager would never read it. Such a declaration
  * belongs on the panel's own modifier, outside the content lambda.
  */
 @LayoutScopeMarker
-public sealed interface PanelScope
+public interface PanelScope
 
 /** The [PanelScope] handed to the content of a layout that places children by declaration order alone. */
 internal object PanelScopeImpl : PanelScope

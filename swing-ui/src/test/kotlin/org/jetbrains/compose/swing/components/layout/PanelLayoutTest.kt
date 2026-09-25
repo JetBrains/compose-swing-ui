@@ -24,6 +24,8 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -36,6 +38,13 @@ import kotlin.test.assertTrue
  * component tree (count and order).
  */
 class PanelLayoutTest {
+    @Test
+    fun aGridWithNoRowAndNoColumnCountIsRefusedAtConstruction() {
+        val failure = assertFailsWith<IllegalArgumentException> { PanelLayout.Grid(rows = 0, cols = 0) }
+
+        assertTrue(failure.message.orEmpty().contains("PanelLayout.Grid"), "the refusal should name the call: $failure")
+    }
+
     @Test
     fun anUndeclaredBorderPanelIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { Panel(PanelLayout.Border()) { Label("a") } }
@@ -296,20 +305,37 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun aNewLayoutKindBuildsANewPanel() = runComposeSwingTest {
-        var flow by mutableStateOf(false)
+    fun aNewLayoutKindKeepsThePanelAndBuildsItsChildrenAnew() = runComposeSwingTest {
+        var layout by mutableStateOf<PanelLayout<*>>(PanelLayout.Grid())
         setContent {
-            Panel(if (flow) PanelLayout.Flow() else PanelLayout.Grid()) { Label("a") }
+            Panel(layout) {
+                val cards = this as? CardPanelScope
+                Label("a", cards?.run { SwingModifier.card("a") } ?: SwingModifier)
+                Label("b", cards?.run { SwingModifier.card("b") } ?: SwingModifier)
+            }
         }
-        val grid = onNodeWithText("a").onParent().fetch<JPanel>()
-        assertTrue(grid.layout is GridLayout, "the panel should start under the layout declared first")
+        val panel = onNodeWithText("a").onParent().fetch<JPanel>()
+        val gridChild = onNodeWithText("a").fetch<JLabel>()
+        assertTrue(panel.layout is GridLayout, "the panel should start under the layout declared first")
 
-        flow = true
+        layout = PanelLayout.Flow()
         awaitIdle()
 
-        val flowed = onNodeWithText("a").onParent().fetch<JPanel>()
-        assertNotSame(grid, flowed, "a new layout kind should build a new panel")
-        assertTrue(flowed.layout is FlowLayout, "the new panel should hold the layout declared for it")
+        val flowedChild = onNodeWithText("a").fetch<JLabel>()
+        assertSame(panel, flowedChild.parent, "a new layout kind should keep the panel")
+        assertTrue(panel.layout is FlowLayout, "the panel should hold the layout declared later")
+        assertNotSame(gridChild, flowedChild, "a new layout kind should build the children anew")
+        assertEquals(2, panel.componentCount, "the children built for the earlier layout should be gone")
+
+        layout = PanelLayout.Card(selectedCard = "b")
+        awaitIdle()
+
+        val a = onNodeWithText("a").fetch<JLabel>()
+        val b = onNodeWithText("b").fetch<JLabel>()
+        assertSame(panel, b.parent, "a switch to cards should keep the panel")
+        assertTrue(panel.layout is CardLayout, "the panel should hold the card layout")
+        assertTrue(b.isVisible, "the selected card should be shown")
+        assertFalse(a.isVisible, "the card not selected should be hidden")
     }
 
     @Test

@@ -60,9 +60,11 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *
  * A host that holds its children this way says so, through
  * [org.jetbrains.compose.swing.layout.ChildPlacement] on its own node, and every child composed under it
- * names a region: a modifier declaring none is refused there, and a modifier declaring one is refused under a
- * host that adds its children by index. The last region declared in a modifier chain wins, and a modifier declaring
- * a region as well as a [layoutConstraint] is refused, since a parent holds a child by one of the two.
+ * names a region, or is installed as the host's content where the host declares a content attachment. A
+ * modifier declaring none is refused under a host that declares no content attachment, and a modifier
+ * declaring one is refused under a host that adds its children by index. The last region declared in a
+ * modifier chain wins, and a modifier declaring a region as well as a [layoutConstraint] is refused, since a
+ * parent holds a child by one of the two.
  *
  * The placement follows the region named: a modifier naming another region moves the component there,
  * released from the region it fills through the [SlotAttachment] that filled it and installed through the
@@ -79,13 +81,16 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *   `"SwingModifier.viewport()"`, `"SwingModifier.corner(UPPER_LEFT)"`. It identifies the region among
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
  *   typing it.
- * @param attachment installs the component into the host and returns its uninstall action.
+ * @param attachment installs the component into the host and returns its uninstall action. A component an
+ *   [org.jetbrains.compose.swing.node.ExistingSwingNode] claims names its region with `null`: its host put
+ *   the component there itself, so nothing is installed. A created component is refused without an
+ *   attachment, since nothing would install it, and a claimed one with an attachment, which would never run.
  * @return this modifier with the region declared on it.
  */
 public fun SwingModifier.slot(
     parentProtocol: ParentProtocol,
     name: String,
-    attachment: SlotAttachment,
+    attachment: SlotAttachment? = null,
 ): SwingModifier = this then SlotElement(parentProtocol, name, attachment)
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */
@@ -102,7 +107,8 @@ internal data class LayoutConstraintElement(
 }
 
 /**
- * The host slot a node's component is installed into, and the name of the region it fills.
+ * The host slot a node's component is installed into, and the name of the region it fills. The
+ * [attachment] is `null` for a component [org.jetbrains.compose.swing.node.ExistingSwingNode] claims.
  *
  * The [attachment] is compared by identity, so this is not a data class: it is what installs the
  * component, and a caller's implementation may carry an `equals` of its own - a function reference
@@ -117,7 +123,7 @@ internal data class LayoutConstraintElement(
 internal class SlotElement(
     override val parentProtocol: ParentProtocol,
     val regionName: String,
-    val attachment: SlotAttachment,
+    val attachment: SlotAttachment?,
 ) : ParentSlotElement {
     override val name: String get() = "slot"
 

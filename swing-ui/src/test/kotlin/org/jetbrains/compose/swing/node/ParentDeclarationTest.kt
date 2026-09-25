@@ -48,7 +48,7 @@ class ParentDeclarationTest {
     fun attachmentAndChangesDeclareConstraintAndElementsAtomicallyInOrder() {
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child = SwingNodeHolder(JButton("child"))
+        val child = CreatedNodeHolder(JButton("child"))
         val first = TestParentLayoutElement("first")
         val second = TestParentLayoutElement("second")
 
@@ -98,8 +98,8 @@ class ParentDeclarationTest {
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child = SwingNodeHolder(JButton("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child = CreatedNodeHolder(JButton("child"))
         val element = TestParentLayoutElement("padding")
         child.declaration.applyComponentLayout("constraint", RawParentProtocol, listOf(element))
 
@@ -125,8 +125,8 @@ class ParentDeclarationTest {
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child: SwingNodeHolder<Component> = SwingNodeHolder(JButton("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JButton("child"))
         val padding = TestParentLayoutElement("padding")
         child.applyModifierDiff(SwingModifier.layoutConstraint("constraint") then padding)
 
@@ -175,7 +175,7 @@ class ParentDeclarationTest {
     @Test
     fun initialParentLayoutElementsUnderAnUnsupportedParentAreRefusedOnAttachment() {
         val root = JPanel(BorderLayout())
-        val child = SwingNodeHolder(JButton("child"))
+        val child = CreatedNodeHolder(JButton("child"))
         child.declaration.applyComponentLayout(null, null, listOf(TestParentLayoutElement("padding")))
         root.add(child.component)
 
@@ -231,8 +231,8 @@ class ParentDeclarationTest {
     fun applierRefusesWrongTypedParentDataBeforeItAddsTheChild() {
         val root = JPanel(FlowLayout())
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child = SwingNodeHolder(JButton("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child = CreatedNodeHolder(JButton("child"))
         child.declaration.applyComponentLayout("region", BorderOnlyParentData, emptyList())
 
         try {
@@ -251,8 +251,8 @@ class ParentDeclarationTest {
     fun applierRefusesWrongSlotFamilyBeforeItsAttachmentMutatesTheHost() {
         val root = JPanel()
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child = SwingNodeHolder(JButton("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child = CreatedNodeHolder(JButton("child"))
         var installs = 0
         val scrollPaneSlot = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
         child.applyModifierDiff(
@@ -286,8 +286,8 @@ class ParentDeclarationTest {
     fun aHostThatCannotMeasureNamesTheLayoutElementDeclaredRatherThanTheNodeStandingForIt() {
         val root = JPanel(FlowLayout())
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         child.applyModifierDiff(SwingModifier.then(AnyHostLayoutNodeElement))
 
         try {
@@ -310,8 +310,8 @@ class ParentDeclarationTest {
     fun rawParentDataCanAttachToALayeredPaneWithoutALayoutManager() {
         val root = JLayeredPane()
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
-        val child = SwingNodeHolder(JButton("child"))
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child = CreatedNodeHolder(JButton("child"))
         child.declaration.applyComponentLayout(200, RawParentProtocol, emptyList())
 
         try {
@@ -329,7 +329,7 @@ class ParentDeclarationTest {
     }
 
     private fun attached(root: JPanel): SwingNodeHolder<JButton> {
-        val child = SwingNodeHolder(JButton("child"))
+        val child = CreatedNodeHolder(JButton("child"))
         root.add(child.component)
         child.declaration.attachedUnder(root)
         return child
@@ -339,7 +339,7 @@ class ParentDeclarationTest {
     fun aLayoutNodeElementCreatesAttachesThenUpdatesItsNodeOnce() {
         val owner = TestCompositionOwner()
         val root = JPanel(RecordingMeasurementLayout())
-        val child = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        val child = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
         val events = mutableListOf<String>()
 
@@ -403,7 +403,7 @@ class ParentDeclarationTest {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        val child = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
         child.declaration.attachedUnder(root)
         val events = mutableListOf<String>()
@@ -429,7 +429,7 @@ class ParentDeclarationTest {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child: SwingNodeHolder<Component> = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
         child.declaration.attachedUnder(root)
         val keyed = KeyReadingElement()
@@ -472,7 +472,7 @@ class ParentDeclarationTest {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child = SwingNodeHolder(ListenerButton()).attachedTo(owner)
+        val child = CreatedNodeHolder(ListenerButton()).attachedTo(owner)
         root.add(child.component)
         child.declaration.attachedUnder(root)
         val events = mutableListOf<String>()
@@ -513,10 +513,10 @@ class ParentDeclarationTest {
     @Test
     fun aLayoutNodeSurvivesTheChildMovingBetweenTwoCapableParents() {
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(SwingNodeHolder(JPanel()).attachedTo(owner))
-        val firstHost = SwingNodeHolder(JPanel(RecordingMeasurementLayout()))
-        val secondHost = SwingNodeHolder(JPanel(RecordingMeasurementLayout()))
-        val child = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        val applier = SwingApplier(CreatedNodeHolder(JPanel()).attachedTo(owner))
+        val firstHost = CreatedNodeHolder(JPanel(RecordingMeasurementLayout()))
+        val secondHost = CreatedNodeHolder(JPanel(RecordingMeasurementLayout()))
+        val child = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         val events = mutableListOf<String>()
         child.applyModifierDiff(SwingModifier.then(RecordingLayoutNodeElement("a", events)))
 
@@ -758,7 +758,7 @@ internal fun <T : Component> attachedChild(
     layout: MeasurementLayoutManager = RecordingMeasurementLayout(),
 ): SwingNodeHolder<T> {
     val root = JPanel(layout)
-    val child = SwingNodeHolder(component).attachedTo(owner)
+    val child = CreatedNodeHolder(component).attachedTo(owner)
     root.add(child.component)
     child.declaration.attachedUnder(root)
     return child

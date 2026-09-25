@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -474,7 +474,7 @@ class ModifierReapplicationTest {
     @Test
     fun aSubscriptionSlotRefusingTheElementDeclaredForItKeepsTheOneItHolds() {
         var enterCount = 0
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(HoverCallbackElement { enterCount++ }))
         val button = holder.component
         button.dispatchEvent(mouseEntered(button))
@@ -500,7 +500,7 @@ class ModifierReapplicationTest {
     @Test
     fun aPropertySlotRefusingTheElementDeclaredForItComesApartOnce() {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("tip", order)))
 
         // The key is declared through an element of another kind, whose target the component is not. The slot
@@ -609,7 +609,7 @@ class ModifierReapplicationTest {
         // slots the pass did not reach, so the next pass has to write against what the slots hold
         // rather than against the order the failed pass left behind.
         val writes = AtomicInteger()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.background(Color.BLUE))
 
         assertFailsWith<IllegalStateException> {
@@ -633,7 +633,7 @@ class ModifierReapplicationTest {
     @Test
     fun aSlotAPassThatThrewInstalledComesApartBeforeTheDeclaredOnes() {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(
             SwingModifier.then(DetachOrderElement("first", order)).then(DetachOrderElement("second", order)),
         )
@@ -659,7 +659,7 @@ class ModifierReapplicationTest {
     @Test
     fun aChainAttachedAfterAPassThatThrewHavingTakenEverySlotApartComesApartOnce() {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("first", order)))
 
         // The pass takes "first" apart, then throws before it records what it declares, so the order it
@@ -676,7 +676,7 @@ class ModifierReapplicationTest {
     @Test
     fun aChainWhoseNodeFailsToAttachComesApartOnlyWhereItAttached() {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
 
         assertFailsWith<IllegalStateException> {
             holder.applyModifierDiff(
@@ -706,7 +706,7 @@ class ModifierReapplicationTest {
 
     private fun assertSlotTakenApartByAFailedPassAttachesAgain(failOnAttach: Boolean) {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val standing = SwingModifier.then(DetachOrderElement("tip", order))
         holder.applyDeclaredModifier(standing)
         assertFailsWith<IllegalStateException> {

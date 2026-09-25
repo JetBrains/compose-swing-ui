@@ -63,6 +63,7 @@ internal class MenuApplier(
         val container = parent.menuContainer("add menu child ${instance.component}")
         batch.holdForChildSettle(parent)
         container.add(instance.component, parent.attachedSiblingsBefore(index))
+        instance.installation = Installation.Indexed
         // A child that arrives where the container places it would stay unpainted, since no relayout changes
         // its bounds.
         batch.markChanged(container, instance.component.bounds)

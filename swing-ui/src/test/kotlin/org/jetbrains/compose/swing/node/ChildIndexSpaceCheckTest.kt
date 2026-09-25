@@ -15,11 +15,6 @@ import kotlin.test.assertTrue
  * owner names [SwingCompositionDiagnostics]. Each test builds a small [SwingNodeHolder] graph by hand - no
  * [org.jetbrains.compose.swing.node.SwingApplier], composition, or EDT involved - and calls
  * `checkChildIndexSpace()` directly on its outermost holder, standing in for the applier's own root.
- *
- * A holder under test is always nested one level under that outermost holder rather than passed
- * directly, because the walk special-cases the applier's actual root (the one-child slot content mounts
- * into is refused differently than an ordinary host's) - see
- * [aRootDeclaringASingleSlotRefusesASecondChild].
  */
 class ChildIndexSpaceCheckTest {
     private val attachment = SlotAttachment { _, _, _ -> {} }
@@ -30,6 +25,7 @@ class ChildIndexSpaceCheckTest {
         child: SwingNodeHolder<*>,
     ) {
         (host.component as JPanel).add(child.component)
+        child.installation = Installation.Indexed
         host.children += child
     }
 
@@ -40,27 +36,27 @@ class ChildIndexSpaceCheckTest {
         name: String,
     ) {
         child.declaredSlot = DeclaredSlot(RawParentProtocol, attachment, name)
-        child.installedSlot = InstalledSlot(attachment, name) {}
+        child.installation = Installation.Region(name) {}
         host.children += child
     }
 
     @Test
     fun aTreeMatchingTheRealSwingStateThroughoutPassesSilently() {
-        val root = SwingNodeHolder(JPanel())
-        val indexedChild = SwingNodeHolder(JLabel("a"))
+        val root = CreatedNodeHolder(JPanel())
+        val indexedChild = CreatedNodeHolder(JLabel("a"))
         attachIndexed(root, indexedChild)
 
-        val slotsHost = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("region") }
+        val slotsHost = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("region") }
         attachIndexed(root, slotsHost)
-        installSlot(slotsHost, SwingNodeHolder(JLabel("b")), "region")
+        installSlot(slotsHost, CreatedNodeHolder(JLabel("b")), "region")
 
         root.checkChildIndexSpace()
     }
 
     @Test
     fun aChildStillAwaitingAttachmentIsReported() {
-        val root = SwingNodeHolder(JPanel())
-        val child = SwingNodeHolder(JLabel("a")).apply { awaitingAttachment = true }
+        val root = CreatedNodeHolder(JPanel())
+        val child = CreatedNodeHolder(JLabel("a")).apply { awaitingAttachment = true }
         root.children += child
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }
@@ -72,13 +68,13 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aChildHeldByTwoHostsIsReported() {
-        val root = SwingNodeHolder(JPanel())
-        val hostA = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
-        val hostB = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("b") }
+        val root = CreatedNodeHolder(JPanel())
+        val hostA = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
+        val hostB = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("b") }
         attachIndexed(root, hostA)
         attachIndexed(root, hostB)
 
-        val shared = SwingNodeHolder(JLabel("shared"))
+        val shared = CreatedNodeHolder(JLabel("shared"))
         installSlot(hostA, shared, "a")
         hostB.children += shared
 
@@ -91,14 +87,14 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aRegionHostingChildNotInstalledWhereItDeclaresIsReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
         attachIndexed(root, host)
 
-        // Declares a region but was never installed into one: declaredSlot is set, but installedSlot
+        // Declares a region but was never installed into one: declaredSlot is set, but installation
         // is left null.
         val child =
-            SwingNodeHolder(
+            CreatedNodeHolder(
                 JLabel("a"),
             ).apply { declaredSlot = DeclaredSlot(RawParentProtocol, attachment, "a") }
         host.children += child
@@ -112,12 +108,12 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun twoChildrenInstalledInOneSlotsRegionAreReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
         attachIndexed(root, host)
 
-        installSlot(host, SwingNodeHolder(JLabel("1")), "a")
-        installSlot(host, SwingNodeHolder(JLabel("2")), "a")
+        installSlot(host, CreatedNodeHolder(JLabel("1")), "a")
+        installSlot(host, CreatedNodeHolder(JLabel("2")), "a")
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }
         assertTrue(
@@ -127,26 +123,27 @@ class ChildIndexSpaceCheckTest {
     }
 
     @Test
-    fun aRootDeclaringASingleSlotRefusesASecondChild() {
-        val root = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("content") }
-        installSlot(root, SwingNodeHolder(JLabel("1")), "content")
-        installSlot(root, SwingNodeHolder(JLabel("2")), "content")
+    fun aHostWithContentRefusesASecondUnnamedChild() {
+        val root = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots(content = attachment) }
+        for (text in listOf("1", "2")) {
+            root.children += CreatedNodeHolder(JLabel(text)).apply { installation = Installation.Region(null) {} }
+        }
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }
         assertTrue(
-            failure.message.orEmpty().contains("emits two"),
+            failure.message.orEmpty().contains("shows one unnamed child as its content"),
             "the failure should say why: ${failure.message}",
         )
     }
 
     @Test
     fun aComposedChildMissingFromTheRealContainerIsReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel())
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel())
         attachIndexed(root, host)
 
         // In the applier's own children bookkeeping, but never actually added to the real JPanel.
-        host.children += SwingNodeHolder(JLabel("ghost"))
+        host.children += CreatedNodeHolder(JLabel("ghost")).apply { installation = Installation.Indexed }
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }
         assertTrue(
@@ -157,15 +154,15 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun composedChildrenOutOfCompositionOrderInTheRealContainerAreNotReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel())
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel())
         attachIndexed(root, host)
 
         // Composed in the order first, second, but attached to the real JLayeredPane in the reverse
         // order - what happens when two composed siblings sit on different layers, which a JLayeredPane
         // sorts its real children by rather than by composition order.
-        val first = SwingNodeHolder(JLabel("first"))
-        val second = SwingNodeHolder(JLabel("second"))
+        val first = CreatedNodeHolder(JLabel("first"))
+        val second = CreatedNodeHolder(JLabel("second"))
         (host.component as JPanel).add(second.component)
         (host.component as JPanel).add(first.component)
         host.children += first
@@ -176,14 +173,14 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aLookAndFeelDecorationAmongTheRealChildrenIsNotReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel())
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel())
         attachIndexed(root, host)
 
         // A composed child, plus a real Swing child no composable declared - standing in for what a
         // look-and-feel delegate gives a widget of its own (JComboBox's arrow button, JTree's
         // CellRendererPane), which SwingNodeHolder.children never hears about.
-        val composed = SwingNodeHolder(JLabel("composed"))
+        val composed = CreatedNodeHolder(JLabel("composed"))
         (host.component as JPanel).add(JPanel())
         (host.component as JPanel).add(composed.component)
         host.children += composed
@@ -193,8 +190,8 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aComposedChildReparentedIntoAnotherContainerIsNotReported() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel())
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel())
         attachIndexed(root, host)
 
         // Standing in for a floating JToolBar: its own look-and-feel delegate has taken the component
@@ -202,7 +199,7 @@ class ChildIndexSpaceCheckTest {
         // look-and-feel opens while the bar floats, say - and the applier is right to go on holding it
         // here through that.
         val elsewhere = JPanel()
-        val reparented = SwingNodeHolder(JLabel("reparented"))
+        val reparented = CreatedNodeHolder(JLabel("reparented"))
         elsewhere.add(reparented.component)
         host.children += reparented
 
@@ -211,27 +208,27 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aDeactivatedIndexedChildIsSkipped() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel())
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel())
         attachIndexed(root, host)
 
         // onDeactivate already detached this child's component from the real JPanel; it still stands in
         // host.children only because nothing has removed it from the composition for good yet.
-        host.children += SwingNodeHolder(JLabel("parked")).apply { deactivated = true }
+        host.children += CreatedNodeHolder(JLabel("parked")).apply { deactivated = true }
 
         root.checkChildIndexSpace()
     }
 
     @Test
     fun aDeactivatedSlotsChildIsSkipped() {
-        val root = SwingNodeHolder(JPanel())
-        val host = SwingNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
+        val root = CreatedNodeHolder(JPanel())
+        val host = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots("a") }
         attachIndexed(root, host)
 
-        // onDeactivate already released this child's region (installedSlot is back to null) while it
+        // onDeactivate already released this child's region (installation is back to null) while it
         // still declares one; it stands in host.children only until the composition removes it for good.
         val parked =
-            SwingNodeHolder(JLabel("parked")).apply {
+            CreatedNodeHolder(JLabel("parked")).apply {
                 declaredSlot = DeclaredSlot(RawParentProtocol, attachment, "a")
                 deactivated = true
             }
