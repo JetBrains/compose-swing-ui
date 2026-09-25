@@ -57,21 +57,23 @@ private fun ColumnScope.MarkupPreviewCard() {
 
         Label("Source")
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 90))) {
-            TextArea(
-                value = markup,
-                onValueChange = { markup = it },
-                modifier = SwingModifier.viewport(),
-                lineWrap = true,
-            )
+            Viewport {
+                TextArea(
+                    value = markup,
+                    onValueChange = { markup = it },
+                    lineWrap = true,
+                )
+            }
         }
         Label("Rendered")
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120))) {
-            EditorPane(
-                markup = markup,
-                onLinkActivate = { activated = it },
-                modifier = SwingModifier.viewport(),
-                contentType = "text/html",
-            )
+            Viewport {
+                EditorPane(
+                    markup = markup,
+                    onLinkActivate = { activated = it },
+                    contentType = "text/html",
+                )
+            }
         }
         Label("Link activated: $activated")
     }
@@ -89,7 +91,7 @@ private fun ColumnScope.RichTextEditorCard() {
 
         CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120))) {
-            EditorPane(state = notes, modifier = SwingModifier.viewport(), editable = editable)
+            Viewport { EditorPane(state = notes, editable = editable) }
         }
         Label("Length: ${notes.text.length}   Undo available: ${if (notes.canUndo) "yes" else "no"}")
     }
@@ -134,12 +136,13 @@ private fun ColumnScope.TextPaneCard() {
 
         CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
-            TextPane(
-                value = notes,
-                onValueChange = { notes = it },
-                modifier = SwingModifier.viewport(),
-                editable = editable,
-            )
+            Viewport {
+                TextPane(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    editable = editable,
+                )
+            }
         }
         Label("Length: ${notes.length}")
     }
@@ -156,7 +159,7 @@ private fun ColumnScope.TextPaneStateCard() {
             )
         Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
-            TextPane(state = state, modifier = SwingModifier.viewport())
+            Viewport { TextPane(state = state) }
         }
         Label("Length: ${state.text.length}")
     }

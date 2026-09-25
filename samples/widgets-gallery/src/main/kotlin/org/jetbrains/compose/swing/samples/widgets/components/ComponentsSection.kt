@@ -127,17 +127,18 @@ private fun ColumnScope.TextAreaOptionsCard() {
             Spinner(tabSize, onValueChange = { tabSize = it.toInt() }, min = 1, max = 16, step = 1)
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
-            TextArea(
-                value = notes,
-                onValueChange = { notes = it },
-                modifier = SwingModifier.viewport(),
-                rows = 4,
-                columns = 40,
-                editable = editable,
-                lineWrap = lineWrap,
-                wrapStyleWord = wrapStyleWord,
-                tabSize = tabSize,
-            )
+            Viewport {
+                TextArea(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    rows = 4,
+                    columns = 40,
+                    editable = editable,
+                    lineWrap = lineWrap,
+                    wrapStyleWord = wrapStyleWord,
+                    tabSize = tabSize,
+                )
+            }
         }
     }
 }

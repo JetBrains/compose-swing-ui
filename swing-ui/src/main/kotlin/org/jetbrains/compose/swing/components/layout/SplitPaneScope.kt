@@ -108,7 +108,7 @@ private fun JSplitPane.holdOn(
 /**
  * The pane a side-filling child is hosted by. [SplitPaneScope.first] and [SplitPaneScope.second] install
  * through a `JSplitPane` setter, so a child carrying one under another container's host - a scroll pane's
- * `viewport()`, say, composed under a split pane - is refused here, naming the side's own builder and the
+ * `Viewport { }`, say, composed under a split pane - is refused here, naming the side's own builder and the
  * host that actually holds it, rather than failing later as a bare `ClassCastException`.
  */
 private fun splitPaneHost(

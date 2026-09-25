@@ -39,7 +39,7 @@ import javax.swing.JTree
  *
  * Button("Find", onClick = { state.revealPath(search(query)) })
  * ScrollPane {
- *     Tree(root = root, children = ::childrenOf, state = state, modifier = SwingModifier.viewport())
+ *     Viewport { Tree(root = root, children = ::childrenOf, state = state) }
  * }
  * ```
  *

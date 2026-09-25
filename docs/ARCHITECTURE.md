@@ -182,7 +182,7 @@ A `PanelLayout.Border` panel is the canonical one: its regions are modifier buil
 constraint it names. Emitting a child adds it in the region it declares, dropping the child removes
 it, and declaring a different region moves it. A child that declares no region is a center child. The
 same mechanism extends to other constraint-based layouts, and to hosts whose children are installed
-through dedicated setters (such as a scroll pane's viewport, headers, and corners) rather than a
+through dedicated setters (such as a scroll pane's headers and corners) rather than a
 generic add.
 
 `layoutConstraint` is public, which makes a container over a layout manager the library does not model

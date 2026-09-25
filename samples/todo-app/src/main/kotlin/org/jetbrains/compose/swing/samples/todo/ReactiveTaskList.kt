@@ -118,22 +118,24 @@ private fun TaskRows(
 ) {
     // Rows are added to and removed from the Swing tree as the list changes, not merely shown or hidden.
     ScrollPane(modifier = modifier.preferredSize(0, 320)) {
-        Column(SwingModifier.viewport(), verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
-            if (tasks.isEmpty()) {
-                Card("Tasks") {
-                    Label("No tasks yet - add one above.")
-                }
-            } else {
-                tasks.forEach { task ->
-                    // Keyed by the stable task id so a row keeps its identity (and any in-progress
-                    // edit) when other rows are added, removed, or reordered around it.
-                    key(task.id) {
-                        TaskRow(
-                            task = task,
-                            onToggle = { checked -> onToggle(task.id, checked) },
-                            onRename = { title -> onRename(task.id, title) },
-                            onRemove = { onRemove(task.id) },
-                        )
+        Viewport {
+            Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
+                if (tasks.isEmpty()) {
+                    Card("Tasks") {
+                        Label("No tasks yet - add one above.")
+                    }
+                } else {
+                    tasks.forEach { task ->
+                        // Keyed by the stable task id so a row keeps its identity (and any in-progress
+                        // edit) when other rows are added, removed, or reordered around it.
+                        key(task.id) {
+                            TaskRow(
+                                task = task,
+                                onToggle = { checked -> onToggle(task.id, checked) },
+                                onRename = { title -> onRename(task.id, title) },
+                                onRemove = { onRemove(task.id) },
+                            )
+                        }
                     }
                 }
             }

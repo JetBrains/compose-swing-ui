@@ -65,21 +65,22 @@ internal fun ColumnScope.ListBoxCard() {
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
             // itemContent renders each row as a composable cell: a bullet glyph plus the row text,
             // with the glyph reflecting whether that row is selected.
-            ListBox(
-                items = rows,
-                modifier = SwingModifier.viewport(),
-                selectedIndices = selection,
-                onSelectionChange = { selection = it },
-                selectionMode = listBoxSelectionModes[selectionModeIndex].second,
-                visibleRowCount = visibleRows,
-                layoutOrientation = listBoxOrientations[orientationIndex].second,
-            ) { row ->
-                Panel(
-                    PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
-                    modifier = SwingModifier.opaque(false),
-                ) {
-                    Label(if (this@ListBox.isSelected) "●" else "○")
-                    Label(row)
+            Viewport {
+                ListBox(
+                    items = rows,
+                    selectedIndices = selection,
+                    onSelectionChange = { selection = it },
+                    selectionMode = listBoxSelectionModes[selectionModeIndex].second,
+                    visibleRowCount = visibleRows,
+                    layoutOrientation = listBoxOrientations[orientationIndex].second,
+                ) { row ->
+                    Panel(
+                        PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
+                        modifier = SwingModifier.opaque(false),
+                    ) {
+                        Label(if (this@ListBox.isSelected) "●" else "○")
+                        Label(row)
+                    }
                 }
             }
         }
@@ -145,13 +146,14 @@ internal fun ColumnScope.ListBoxSizingCard() {
             sizingModes.forEach { option(it) }
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            ListBox(
-                items = rows,
-                modifier = SwingModifier.viewport(),
-                prototypeCellValue = if (sizingIndex == 1) "Item 88" else null,
-                fixedCellWidth = if (sizingIndex == 2) FIXED_CELL_WIDTH else -1,
-                fixedCellHeight = if (sizingIndex == 2) FIXED_CELL_HEIGHT else -1,
-            )
+            Viewport {
+                ListBox(
+                    items = rows,
+                    prototypeCellValue = if (sizingIndex == 1) "Item 88" else null,
+                    fixedCellWidth = if (sizingIndex == 2) FIXED_CELL_WIDTH else -1,
+                    fixedCellHeight = if (sizingIndex == 2) FIXED_CELL_HEIGHT else -1,
+                )
+            }
         }
         Label("Sizing: ${sizingModes[sizingIndex]}")
     }
@@ -175,7 +177,7 @@ internal fun ColumnScope.ListBoxModelCard() {
             )
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            ListBox(model = model, state = state, modifier = SwingModifier.viewport())
+            Viewport { ListBox(model = model, state = state) }
         }
         Label("Entries: $entryCount, selected: ${state.selectedIndices.size}")
         WrappedCaption("The list renders this DefaultListModel as-is; adding an entry reveals it.")

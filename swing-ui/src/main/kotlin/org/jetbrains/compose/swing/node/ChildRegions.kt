@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.fastForEachIndexed
@@ -29,22 +30,47 @@ internal class ChildRegions(
     private val changes: ChangeRecord,
     private val claims: ClaimedComponents,
 ) {
-    /** The hosts still to be held to one child per region. */
+    /**
+     * The hosts still to be held to one child per region, and the indexed hosts still to be held to the
+     * children added to them.
+     */
     private val childCheck =
         DeferredChildCheck { host ->
-            if (host === this.root) rootSlotPolicy?.onSettled()
-            host.checkOneChildPerRegion()
+            if (!host.childPlacement.holdsRegions) {
+                // A composed child of an indexed host that stands in no container was displaced by a
+                // sibling its container added after it.
+                val displaced = host.children.fastFirstOrNull { it.displaced } ?: return@DeferredChildCheck
+                // Names the call that declares the host where it fills a region, since that call is where
+                // the children are composed.
+                val declared = host.declaredSlot?.let { " declared through ${it.name}" }.orEmpty()
+                error(
+                    "A ${host.component.declaredName}$declared shows one child at a time, so a child added to it " +
+                        "took out the ${displaced.component.declaredName} it held. Compose one child there, " +
+                        "wrapping several in a container of their own such as a Column or a Panel.",
+                )
+            } else {
+                if (host === this.root) rootSlotPolicy?.onSettled()
+                host.checkOneChildPerRegion()
+            }
         }
 
-    /** The debug-only child-index-space walk, deferred the same turn and for the same reason as [childCheck]. */
-    private val indexSpaceCheck = DeferredAction { this.root.checkChildIndexSpace() }
+    /**
+     * The debug-only child-index-space walk, deferred the same turn and for the same reason as [childCheck].
+     * The hosts [childCheck] holds are checked first, so a refusal is reported as it is outside diagnostics
+     * even where an earlier pass scheduled this walk ahead of them.
+     */
+    private val indexSpaceCheck =
+        DeferredAction {
+            childCheck.checkPending()
+            this.root.checkChildIndexSpace()
+        }
 
     /**
      * Attaches [child], composed at [index], to [container]: installed into the region of this host it names,
      * or added to the host's index space where it names none.
      *
      * A region is reached through a dedicated Swing setter (e.g. a JScrollPane region via
-     * setViewportView/setRowHeaderView/...), not the generic Container.add. The holder records what installed
+     * setRowHeaderView/setColumnHeaderView/...), not the generic Container.add. The holder records what installed
      * it and how the region is released again, the container is marked dirty so the new content gets laid out
      * and the area it covers repainted, and a [ChildPlacement.Slots] host is held to one child per region once
      * the pass ends.
@@ -64,9 +90,15 @@ internal class ChildRegions(
             changes.recordSlotFilled(this)
             batch.markSlotChanged(container, child)
         } else {
+            val childHost = container.childHost
+            val standing = childHost.componentCount
             addToHost(container, child, index)
             child.installation = Installation.Indexed
-            batch.markChanged(container.childHost, child.component.bounds)
+            // A container that shows one child, such as a JViewport, takes the one it holds out as it adds
+            // another. A pass replacing the child adds the new one before it removes the old one, so only
+            // the settled pass tells a replacement from a second child.
+            if (childHost.componentCount == standing) childCheck.hold(this)
+            batch.markChanged(childHost, child.component.bounds)
         }
     }
 
@@ -228,23 +260,25 @@ internal class ChildRegions(
 }
 
 /**
- * The hosts to hold to one child per region, checked by [check] on the turn of the event queue after the
- * one the change pass was applied in. Only there has a parked node's deactivation - dispatched by the
- * runtime once the changes applying it are themselves applied - actually run, so only there does a host
- * hold the children the composition means it to.
+ * The hosts to hold to one child per region, or to the children added to them, checked by [check] on the
+ * turn of the event queue after the one the change pass was applied in. Only there has a parked node's
+ * deactivation - dispatched by the runtime once the changes applying it are themselves applied - actually
+ * run, so only there does a host hold the children the composition means it to.
  */
 private class DeferredChildCheck(
-    check: (SwingNodeHolder<*>) -> Unit,
+    private val check: (SwingNodeHolder<*>) -> Unit,
 ) {
     private val hosts: MutableSet<SwingNodeHolder<*>> = Collections.newSetFromMap(IdentityHashMap())
-    private val turn =
-        DeferredAction {
-            val pending = hosts.toList()
-            hosts.clear()
-            for (host in pending) check(host)
-        }
+    private val turn = DeferredAction(::checkPending)
 
-    /** Records [host] as one to hold to its regions once the pass in flight has settled. */
+    /** Checks the hosts held so far, ahead of the turn [schedule] asked for. */
+    fun checkPending() {
+        val pending = hosts.toList()
+        hosts.clear()
+        for (host in pending) check(host)
+    }
+
+    /** Records [host] as one to hold to its children once the pass in flight has settled. */
     fun hold(host: SwingNodeHolder<*>) {
         hosts += host
     }

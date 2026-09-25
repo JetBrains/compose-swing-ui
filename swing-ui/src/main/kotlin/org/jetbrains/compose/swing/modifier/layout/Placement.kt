@@ -54,7 +54,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
 
 /**
  * Installs the component into its parent through [attachment] - one of the host's own dedicated setters
- * rather than the generic `Container.add` (e.g. a `JScrollPane` region reached via `setViewportView`).
+ * rather than the generic `Container.add` (e.g. a `JScrollPane` region reached via `setRowHeaderView`).
  * The attachment belongs to the host: a container composable wrapping such a host is what hands each of
  * its regions the attachment that installs a component there and takes it out again.
  *
@@ -78,7 +78,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *
  * @param parentProtocol the stable protocol identity for the host that owns this slot.
  * @param name which region of the host this fills, written exactly as the call that fills it -
- *   `"SwingModifier.viewport()"`, `"SwingModifier.corner(UPPER_LEFT)"`. It identifies the region among
+ *   `"Viewport { }"`, `"SwingModifier.corner(UPPER_LEFT)"`. It identifies the region among
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
  *   typing it.
  * @param attachment installs the component into the host and returns its uninstall action. A component an

@@ -250,11 +250,9 @@ class ParkedContentTest : TracedTest() {
         var body by mutableStateOf("first")
         setContent {
             ScrollPane {
-                ReusableContentHost(active = active) {
-                    Label(text = body, modifier = SwingModifier.viewport())
-                }
-                if (!active) {
-                    Label(text = "placeholder", modifier = SwingModifier.viewport())
+                Viewport {
+                    ReusableContentHost(active = active) { Label(text = body) }
+                    if (!active) Label(text = "placeholder")
                 }
             }
         }
@@ -302,7 +300,7 @@ class ParkedContentTest : TracedTest() {
 
     @Test
     fun aRelocatedRegionChildFillsTheRegionAParkedSiblingGaveUp() = runComposeSwingTest {
-        // A Slots host (a ScrollPane's viewport) holding a parked sibling that named the same region: the
+        // A Slots host (a ScrollPane's row header) holding a parked sibling that named the same region: the
         // parked holder's declared region survives deactivation while its installed one does not (see
         // SwingNodeHolder.onDeactivate), so a permanent mismatch must not be read as one to restore.
         var parked by mutableStateOf(false)
@@ -311,11 +309,11 @@ class ParkedContentTest : TracedTest() {
             val moved = remember { movableContentOf<SwingModifier> { modifier -> Label("moved", modifier) } }
             Panel {
                 ScrollPane(modifier = SwingModifier.testTag(TARGET)) {
-                    ReusableContentHost(active = !parked) { Label("parked", SwingModifier.viewport()) }
-                    if (inTarget) moved(SwingModifier.viewport())
+                    ReusableContentHost(active = !parked) { Label("parked", SwingModifier.rowHeader()) }
+                    if (inTarget) moved(SwingModifier.rowHeader())
                 }
                 ScrollPane {
-                    if (!inTarget) moved(SwingModifier.viewport())
+                    if (!inTarget) moved(SwingModifier.rowHeader())
                 }
             }
         }
@@ -323,7 +321,7 @@ class ParkedContentTest : TracedTest() {
         val target = onNodeWithTag(TARGET).fetch<JScrollPane>()
         assertSame(
             onNodeWithText("parked").fetch(),
-            target.viewport.view,
+            target.rowHeader?.view,
             "the driven child fills the region",
         )
 
@@ -336,7 +334,7 @@ class ParkedContentTest : TracedTest() {
 
         assertSame(
             onNodeWithText("moved").fetch(),
-            target.viewport.view,
+            target.rowHeader?.view,
             "the relocated child fills the region the parked sibling gave up, undisturbed by the parked " +
                 "holder's stale mismatch",
         )

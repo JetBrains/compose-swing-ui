@@ -143,18 +143,20 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
         ) {
             // fillMaxHeight gives the sidebar the region's height, which it cannot ask for itself.
             ScrollPane(modifier = SwingModifier.fillMaxHeight().preferredSize(180, 0)) {
-                ListBox(
-                    items = showcaseSections.map { it.title },
-                    selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current }),
-                    // Driving the selection from the back stack does not re-enter this callback, so a pop
-                    // moves the highlight without pushing the row it lands on.
-                    onSelectionChange = { indices ->
-                        indices.firstOrNull()?.let { backStack += SectionKey(showcaseSections[it].title) }
-                    },
-                    selectionMode = ListSelectionModel.SINGLE_SELECTION,
-                    visibleRowCount = showcaseSections.size,
-                    modifier = SwingModifier.viewport().accessibleName("Sections"),
-                )
+                Viewport {
+                    ListBox(
+                        items = showcaseSections.map { it.title },
+                        selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current }),
+                        // Driving the selection from the back stack does not re-enter this callback, so a pop
+                        // moves the highlight without pushing the row it lands on.
+                        onSelectionChange = { indices ->
+                            indices.firstOrNull()?.let { backStack += SectionKey(showcaseSections[it].title) }
+                        },
+                        selectionMode = ListSelectionModel.SINGLE_SELECTION,
+                        visibleRowCount = showcaseSections.size,
+                        modifier = SwingModifier.accessibleName("Sections"),
+                    )
+                }
             }
         }
         // The entry names no region, so BorderLayout gives it the center by default.

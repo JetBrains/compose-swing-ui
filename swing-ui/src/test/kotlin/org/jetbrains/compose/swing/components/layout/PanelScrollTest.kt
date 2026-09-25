@@ -57,7 +57,7 @@ class PanelScrollTest {
     private fun assertScrollsAsAJPanel(content: @Composable (SwingModifier) -> Unit) = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                content(SwingModifier.viewport().preferredSize(400, 400))
+                Viewport { content(SwingModifier.preferredSize(400, 400)) }
             }
         }
 
@@ -97,10 +97,12 @@ class PanelScrollTest {
     private fun assertLaidOutAsARawPaneWould(contentSize: Dimension) = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Panel(
-                    PanelLayout.Box(),
-                    SwingModifier.viewport().preferredSize(contentSize.width, contentSize.height),
-                ) {}
+                Viewport {
+                    Panel(
+                        PanelLayout.Box(),
+                        SwingModifier.preferredSize(contentSize.width, contentSize.height),
+                    ) {}
+                }
             }
         }
 

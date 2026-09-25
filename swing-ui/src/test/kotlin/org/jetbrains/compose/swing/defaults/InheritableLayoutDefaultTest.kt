@@ -143,7 +143,7 @@ class InheritableLayoutDefaultTest {
                 }
                 Panel(PanelLayout.Box()) { Label("box") }
                 SwingNode(factory = { JPanel(other) }) { Label("measured elsewhere") }
-                ScrollPane { Label("viewport", SwingModifier.viewport()) }
+                ScrollPane { Viewport { Label("viewport") } }
                 SplitPane {
                     Label("first", SwingModifier.first())
                     Label("second", SwingModifier.second())
@@ -471,7 +471,12 @@ class InheritableLayoutDefaultTest {
             assertFailsWith<IllegalArgumentException> {
                 runComposeSwingTest {
                     setContent {
-                        ScrollPane { Label("refused", SwingModifier.viewport() then InheritableParentData) }
+                        ScrollPane {
+                            Label(
+                                "refused",
+                                SwingModifier.corner(JScrollPane.UPPER_LEFT_CORNER) then InheritableParentData,
+                            )
+                        }
                     }
                 }
             }

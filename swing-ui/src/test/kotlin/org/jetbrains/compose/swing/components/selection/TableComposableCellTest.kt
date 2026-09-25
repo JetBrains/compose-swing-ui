@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -175,8 +174,10 @@ class TableComposableCellTest {
         // install themselves as the viewport's view.
         setContent {
             ScrollPane {
-                Table(rows = people, modifier = SwingModifier.viewport(), selectedRowIndices = setOf(0)) {
-                    column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name }
+                Viewport {
+                    Table(rows = people, selectedRowIndices = setOf(0)) {
+                        column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name }
+                    }
                 }
             }
         }

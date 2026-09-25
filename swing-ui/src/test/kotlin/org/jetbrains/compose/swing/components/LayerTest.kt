@@ -138,19 +138,22 @@ class LayerTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 ScrollPane(modifier = SwingModifier.testTag(LAYERED_PANE)) {
-                    Layer(
-                        modifier = SwingModifier.viewport(),
-                        onPaint = { _, _, _, paintView -> paintView() },
-                    ) {
-                        Table(model = rows(), rowHeight = ROW_HEIGHT, modifier = SwingModifier.view())
+                    Viewport {
+                        Layer(
+                            onPaint = { _, _, _, paintView -> paintView() },
+                        ) {
+                            Table(model = rows(), rowHeight = ROW_HEIGHT, modifier = SwingModifier.view())
+                        }
                     }
                 }
                 ScrollPane(modifier = SwingModifier.testTag(BARE_PANE)) {
-                    Table(model = rows(), rowHeight = ROW_HEIGHT, modifier = SwingModifier.viewport())
+                    Viewport { Table(model = rows(), rowHeight = ROW_HEIGHT) }
                 }
                 ScrollPane(modifier = SwingModifier.testTag(WRAPPED_PANE)) {
-                    Panel(PanelLayout.Box(), SwingModifier.viewport()) {
-                        Table(model = rows(), rowHeight = ROW_HEIGHT)
+                    Viewport {
+                        Panel(PanelLayout.Box()) {
+                            Table(model = rows(), rowHeight = ROW_HEIGHT)
+                        }
                     }
                 }
             }

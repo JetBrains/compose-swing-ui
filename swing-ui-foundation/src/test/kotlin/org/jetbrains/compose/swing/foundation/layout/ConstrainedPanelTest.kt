@@ -159,7 +159,9 @@ class ConstrainedPanelTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(60, 50)) {
-                    Box(modifier = SwingModifier.viewport().testTag("container-under-test").preferredSize(100, 80)) {}
+                    Viewport {
+                        Box(modifier = SwingModifier.testTag("container-under-test").preferredSize(100, 80)) {}
+                    }
                 }
             }
 
@@ -201,8 +203,10 @@ class ConstrainedPanelTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(100, 80)) {
-                    Box(modifier = SwingModifier.viewport()) {
-                        TextArea(value = "word ".repeat(200), onValueChange = {}, lineWrap = true)
+                    Viewport {
+                        Box {
+                            TextArea(value = "word ".repeat(200), onValueChange = {}, lineWrap = true)
+                        }
                     }
                 }
             }
@@ -245,8 +249,10 @@ class ConstrainedPanelTest {
                 }
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(100, 80)) {
-                    Box(modifier = SwingModifier.viewport()) {
-                        SwingNode(factory = { content })
+                    Viewport {
+                        Box {
+                            SwingNode(factory = { content })
+                        }
                     }
                 }
             }
@@ -268,9 +274,11 @@ class ConstrainedPanelTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(400, 80)) {
-                    Column(modifier = SwingModifier.viewport()) {
-                        Box(modifier = SwingModifier.preferredSize(100, 80)) {}
-                        Box(modifier = SwingModifier.preferredSize(200, 240)) {}
+                    Viewport {
+                        Column {
+                            Box(modifier = SwingModifier.preferredSize(100, 80)) {}
+                            Box(modifier = SwingModifier.preferredSize(200, 240)) {}
+                        }
                     }
                 }
             }

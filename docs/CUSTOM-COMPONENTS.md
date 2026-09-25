@@ -148,9 +148,9 @@ public inline fun <reified T : Component> SwingNode(
 
 `childPlacement` says how the component holds the children `content` emits. The default,
 `ChildPlacement.Indexed`, adds them to the container by index and lets its layout manager place them.
-A component that instead shows one child per region of its own - a `JScrollPane`'s viewport, row
-header, column header and corners, reached through `setViewportView` and friends rather than through
-`Container.add` - declares `ChildPlacement.Slots("SwingModifier.viewport()", ...)`; one that holds any
+A component that instead shows one child per region of its own - a `JScrollPane`'s row header,
+column header and corners, reached through `setRowHeaderView` and friends rather than through
+`Container.add` - declares `ChildPlacement.Slots("SwingModifier.rowHeader()", ...)`; one that holds any
 number of them in order, as a `JTabbedPane` holds pages, declares
 `ChildPlacement.OrderedSlots("SwingModifier.tab(title)")`. Each name is the call that fills the region,
 written exactly as a caller of your container writes it, because a refusal prints those names and a
@@ -164,7 +164,7 @@ view: `ChildPlacement.Slots("GlassPane { }", content = viewAttachment)`, where `
 `SlotAttachment` of your own. A `SlotAttachment` passed as `content` installs the one created child that
 names no region, and the host shows at most one such child; a second one, or a component claimed with
 `ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is
-refused. Declare the attachment once, as a `val`, since it is compared by identity.
+refused. A `Slots` declaration names at least one region or declares `content`. Declare the attachment once, as a `val`, since it is compared by identity.
 
 ### Writing a `SlotAttachment`
 

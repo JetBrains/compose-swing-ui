@@ -29,7 +29,7 @@ class ScrollPaneReactivityTest {
         var policy by mutableIntStateOf(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
         setContent {
             ScrollPane(verticalScrollbar = policy) {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
             }
         }
 
@@ -70,7 +70,7 @@ class ScrollPaneReactivityTest {
         var policy by mutableIntStateOf(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
         setContent {
             ScrollPane(horizontalScrollbar = policy) {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
             }
         }
 
@@ -111,7 +111,7 @@ class ScrollPaneReactivityTest {
         var cornerKey by mutableStateOf(JScrollPane.UPPER_LEFT_CORNER)
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
                 // A fresh node per corner, since a slot is read when the child arrives in the pane.
                 key(cornerKey) { Label(text = "badge", modifier = SwingModifier.corner(cornerKey)) }
             }
@@ -144,7 +144,7 @@ class ScrollPaneReactivityTest {
         var caption by mutableStateOf("first")
         setContent {
             ScrollPane {
-                Label(text = "body $caption", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body $caption") }
                 Label(text = "rows $caption", modifier = SwingModifier.rowHeader())
                 Label(text = "cols $caption", modifier = SwingModifier.columnHeader())
                 Label(

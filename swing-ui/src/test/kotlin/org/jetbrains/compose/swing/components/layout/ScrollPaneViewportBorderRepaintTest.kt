@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -33,7 +32,7 @@ class ScrollPaneViewportBorderRepaintTest {
         var border by mutableStateOf<Border?>(thin)
         setContent {
             ScrollPane(viewportBorder = border) {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
             }
         }
         awaitIdle()

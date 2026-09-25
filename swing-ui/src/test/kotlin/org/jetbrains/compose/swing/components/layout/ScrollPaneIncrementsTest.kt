@@ -23,7 +23,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertSame
 
 /**
- * The increments a [ScrollPane]'s content declares through [ScrollPaneScope.viewport] are set on the
+ * The increments a [ScrollPane]'s viewport declares through [ScrollPaneScope.Viewport] are set on the
  * pane's scroll bars, and the content stays the viewport's own view, so it scrolls and lays out as it
  * does in a plain `JScrollPane`.
  */
@@ -33,13 +33,14 @@ class ScrollPaneIncrementsTest {
         var unitIncrement by mutableStateOf(17)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Label(
-                    text = "Body",
-                    modifier =
-                        SwingModifier
-                            .preferredSize(400, 400)
-                            .viewport(unitIncrement = unitIncrement, blockIncrement = 130),
-                )
+                Viewport(unitIncrement = unitIncrement, blockIncrement = 130) {
+                    Label(
+                        text = "Body",
+                        modifier =
+                            SwingModifier
+                                .preferredSize(400, 400),
+                    )
+                }
             }
         }
 
@@ -59,11 +60,31 @@ class ScrollPaneIncrementsTest {
     }
 
     @Test
+    fun aChangedIncrementIsSetOnTheBarsThePaneHolds() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf(10)
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+                Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val verticalBar = pane.verticalScrollBar
+        val horizontalBar = pane.horizontalScrollBar
+        unitIncrement = 12
+        awaitIdle()
+
+        assertSame(verticalBar, pane.verticalScrollBar, "a changed increment keeps the vertical bar")
+        assertSame(horizontalBar, pane.horizontalScrollBar, "and the horizontal bar")
+        assertEquals(12, verticalBar.getUnitIncrement(1), "which scroll by the increment declared now")
+    }
+
+    @Test
     fun anIncrementDeclaredLaterAsksForNoLayout() = runComposeSwingTest {
         var unitIncrement by mutableStateOf(17)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Label(text = "Body", modifier = SwingModifier.viewport(unitIncrement = unitIncrement))
+                Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
             }
         }
 
@@ -86,11 +107,12 @@ class ScrollPaneIncrementsTest {
     fun anUndeclaredIncrementIsTheContentsOwn() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                TextArea(
-                    value = "line\n".repeat(40),
-                    onValueChange = {},
-                    modifier = SwingModifier.viewport(blockIncrement = 130),
-                )
+                Viewport(blockIncrement = 130) {
+                    TextArea(
+                        value = "line\n".repeat(40),
+                        onValueChange = {},
+                    )
+                }
             }
         }
 
@@ -108,10 +130,12 @@ class ScrollPaneIncrementsTest {
     fun contentDeclaringNoIncrementScrollsAsInAPlainScrollPane() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Label(
-                    text = "Body",
-                    modifier = SwingModifier.preferredSize(400, 400).viewport(),
-                )
+                Viewport {
+                    Label(
+                        text = "Body",
+                        modifier = SwingModifier.preferredSize(400, 400),
+                    )
+                }
             }
         }
 
@@ -130,11 +154,12 @@ class ScrollPaneIncrementsTest {
         val scroll = ScrollState(0, 0)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100), state = scroll) {
-                TextArea(
-                    value = "line\n".repeat(40),
-                    onValueChange = {},
-                    modifier = SwingModifier.viewport(unitIncrement = unitIncrement),
-                )
+                Viewport(unitIncrement = unitIncrement) {
+                    TextArea(
+                        value = "line\n".repeat(40),
+                        onValueChange = {},
+                    )
+                }
             }
         }
 
@@ -160,11 +185,12 @@ class ScrollPaneIncrementsTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                TextArea(
-                    value = "line\n".repeat(40),
-                    onValueChange = {},
-                    modifier = SwingModifier.viewport(unitIncrement = unitIncrement, blockIncrement = 130),
-                )
+                Viewport(unitIncrement = unitIncrement, blockIncrement = 130) {
+                    TextArea(
+                        value = "line\n".repeat(40),
+                        onValueChange = {},
+                    )
+                }
             }
         }
 
@@ -188,11 +214,12 @@ class ScrollPaneIncrementsTest {
         var blockIncrement by mutableStateOf<Int?>(130)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                TextArea(
-                    value = "line\n".repeat(40),
-                    onValueChange = {},
-                    modifier = SwingModifier.viewport(unitIncrement = 17, blockIncrement = blockIncrement),
-                )
+                Viewport(unitIncrement = 17, blockIncrement = blockIncrement) {
+                    TextArea(
+                        value = "line\n".repeat(40),
+                        onValueChange = {},
+                    )
+                }
             }
         }
 
@@ -217,10 +244,12 @@ class ScrollPaneIncrementsTest {
         val scroll = ScrollState(0, 0)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100), state = scroll) {
-                Label(
-                    text = "Body",
-                    modifier = SwingModifier.preferredSize(400, 400).viewport(unitIncrement = unitIncrement),
-                )
+                Viewport(unitIncrement = unitIncrement) {
+                    Label(
+                        text = "Body",
+                        modifier = SwingModifier.preferredSize(400, 400),
+                    )
+                }
             }
         }
 
@@ -240,10 +269,12 @@ class ScrollPaneIncrementsTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Label(
-                    text = "Body",
-                    modifier = SwingModifier.preferredSize(400, 400).viewport(unitIncrement = unitIncrement),
-                )
+                Viewport(unitIncrement = unitIncrement) {
+                    Label(
+                        text = "Body",
+                        modifier = SwingModifier.preferredSize(400, 400),
+                    )
+                }
             }
         }
 
@@ -260,13 +291,35 @@ class ScrollPaneIncrementsTest {
     }
 
     @Test
+    fun aPaneLeavingWithDeclaredIncrementsIsGivenNoNewScrollBars() = runComposeSwingTest {
+        var shown by mutableStateOf(true)
+        setContent {
+            if (shown) {
+                ScrollPane {
+                    Viewport(unitIncrement = 17, blockIncrement = 130) { Label(text = "Body") }
+                }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val verticalBar = pane.verticalScrollBar
+        val horizontalBar = pane.horizontalScrollBar
+        shown = false
+        awaitIdle()
+
+        assertSame(verticalBar, pane.verticalScrollBar, "a pane leaving the composition keeps its vertical bar")
+        assertSame(horizontalBar, pane.horizontalScrollBar, "and its horizontal bar")
+    }
+
+    @Test
     fun aTableDeclaringAnIncrementKeepsItsHeaderAndItsHeight() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                Table(
-                    model = DefaultTableModel(arrayOf(arrayOf<Any>("a", "b")), arrayOf<Any>("one", "two")),
-                    modifier = SwingModifier.viewport(unitIncrement = 17),
-                )
+                Viewport(unitIncrement = 17) {
+                    Table(
+                        model = DefaultTableModel(arrayOf(arrayOf<Any>("a", "b")), arrayOf<Any>("one", "two")),
+                    )
+                }
             }
         }
 

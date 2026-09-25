@@ -3,13 +3,10 @@ package org.jetbrains.compose.swing.animation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.layout.Alignment
@@ -25,14 +22,12 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -388,49 +383,6 @@ class AnimateContentSizeTest {
                 initial.width > COLLAPSED.width,
                 "the animation was handed the size the content had left rather than the size the container " +
                     "stood at when it was retargeted: $initial",
-            )
-        }
-
-    @Test
-    fun `a retarget clicked while frames are held settles at the new target`() =
-        runComposeSwingTest {
-            var lastRun by mutableStateOf<Pair<Dimension, Dimension>?>(null)
-            setContent {
-                var lines by remember { mutableIntStateOf(1) }
-                // A viewport lays the column out, so no policy container above it measures it first.
-                ScrollPane {
-                    Column(SwingModifier.viewport()) {
-                        Box(
-                            modifier =
-                                SwingModifier
-                                    .lineBorder(Color.GRAY)
-                                    .animateContentSize(
-                                        finishedListener = { initial, target -> lastRun = initial to target },
-                                    ),
-                        ) {
-                            Label(text = List(lines) { "line $it" }.joinToString("<br>", "<html>", "</html>"))
-                        }
-                        Label(text = "Last animation: $lastRun")
-                        Button("More", onClick = { lines++ })
-                    }
-                }
-            }
-            val container = onNodeWithText("line 0", substring = true).fetch<JComponent>().parent
-            val collapsedHeight = container.height
-
-            mainClock.autoAdvance = false
-            repeat(2) {
-                onNodeWithText("More").performClick()
-                repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
-            }
-            mainClock.autoAdvance = true
-            awaitIdle()
-
-            val (initial, target) = checkNotNull(lastRun) { "no animation was reported finished" }
-            assertEquals(container.size, target, "the animation did not settle at the size of the last target")
-            assertTrue(
-                initial.height > collapsedHeight && initial.height < target.height,
-                "the second animation started over rather than bending from where the container stood: $initial",
             )
         }
 

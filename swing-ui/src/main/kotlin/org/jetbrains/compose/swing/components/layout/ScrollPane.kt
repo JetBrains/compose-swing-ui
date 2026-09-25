@@ -17,17 +17,17 @@ import javax.swing.border.Border
 
 /**
  * A scrolling view onto content larger than the room it has - a `JScrollPane`, with the viewport it
- * scrolls and the headers and corners that stay put beside it declared as content.
+ * scrolls, its scroll bars, and the headers and corners that stay put beside them declared as content.
  *
- * The pane holds each of its children in one of its own regions - the viewport, the row header, the
- * column header, and each of the four corners - rather than as an indexed child. So every child names
- * the region it goes in, through [ScrollPaneScope], and a child naming none is refused. Each region
- * holds one view, so two children naming the same one are refused as well, and a child that goes away
- * releases the region it held:
+ * The pane builds its viewport and both scroll bars itself; [ScrollPaneScope.Viewport],
+ * [ScrollPaneScope.VerticalScrollbar] and [ScrollPaneScope.HorizontalScrollbar] configure them, and the
+ * content of `Viewport` is the view the pane scrolls. The row header, the column header and each of the
+ * four corners are regions a child fills by naming one through [ScrollPaneScope]. A child declaring none
+ * of these is refused, and so are two declarations of one part or one region:
  *
  * ```
  * ScrollPane {
- *     LongList(modifier = SwingModifier.viewport())
+ *     Viewport { LongList() }
  *     ColumnTitles(modifier = SwingModifier.columnHeader())
  *     CornerBadge(modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
  * }
@@ -42,12 +42,12 @@ import javax.swing.border.Border
  * val scroll = rememberScrollState()
  * Button(text = "To the bottom", onClick = { scroll.y = scroll.maxY })
  * ScrollPane(state = scroll) {
- *     LongList(modifier = SwingModifier.viewport())
+ *     Viewport { LongList() }
  * }
  * ```
  *
- * How far the pane scrolls per arrow button and per page is declared with the content - see
- * [ScrollPaneScope.viewport].
+ * How far the pane scrolls per arrow button and per page is declared on the viewport - see
+ * [ScrollPaneScope.Viewport].
  *
  * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
  * @param state the pane's two-way scroll position; see [ScrollState]. Left out, the pane gets a state
@@ -73,12 +73,10 @@ public fun ScrollPane(
     wheelScrollingEnabled: Boolean = true,
     content: @Composable ScrollPaneScope.() -> Unit,
 ) {
-    // Remembered with the pane: the increments the content declares are written into it as that
-    // content's modifier is applied, and outlive the pass that declared them.
     val scope = remember { ScrollPaneScopeImpl() }
 
     SwingNode(
-        factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar) },
+        factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar).also { scope.pane = it } },
         modifier = modifier.scrollStateBinding(state).declaredViewportBorder(viewportBorder),
         update = {
             set(verticalScrollbar) { verticalScrollBarPolicy = it }
@@ -86,7 +84,7 @@ public fun ScrollPane(
             set(wheelScrollingEnabled) { isWheelScrollingEnabled = it }
         },
         childPlacement = ScrollPaneRegions,
-        content = { scope.content() },
+        content = { scope.Content(content) },
     )
 }
 

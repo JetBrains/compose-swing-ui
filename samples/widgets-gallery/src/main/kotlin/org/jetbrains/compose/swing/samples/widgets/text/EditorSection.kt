@@ -92,7 +92,7 @@ private fun ColumnScope.DocumentEditorCard() {
             Button(text = "Redo", onClick = state::redo, modifier = SwingModifier.enabled(state.canRedo))
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 200))) {
-            TextArea(state = state, modifier = SwingModifier.viewport(), rows = 12, columns = 60)
+            Viewport { TextArea(state = state, rows = 12, columns = 60) }
         }
         Label("$lines lines · $words words · $characters characters")
     }
@@ -212,18 +212,19 @@ private fun ColumnScope.CaretCard() {
             CARET_UPDATE_POLICIES.forEach { (name, _) -> option(name) }
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 90))) {
-            TextArea(
-                value = text,
-                onValueChange = { text = it },
-                modifier =
-                    SwingModifier
-                        .viewport()
-                        .caretListener(caretMoveListener)
-                        .documentListener(documentEditListener)
-                        .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
-                rows = 6,
-                columns = 40,
-            )
+            Viewport {
+                TextArea(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier =
+                        SwingModifier
+                            .caretListener(caretMoveListener)
+                            .documentListener(documentEditListener)
+                            .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
+                    rows = 6,
+                    columns = 40,
+                )
+            }
         }
         Button("Append a line at the end", onClick = { text += "Appended line.\n" })
         Label("Caret: $caretInfo")

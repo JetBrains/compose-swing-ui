@@ -245,13 +245,15 @@ class AnimatedVisibilityContainerTest {
             var visible by mutableStateOf(false)
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(40, 40)) {
-                    AnimatedVisibility(
-                        visible = visible,
-                        modifier = SwingModifier.viewport().testTag(CONTAINER),
-                        enter = fadeIn(tween(TRANSITION_MILLIS)) + expandIn(tween(TRANSITION_MILLIS)),
-                        exit = ExitTransition.None,
-                    ) {
-                        Filled(width = 80, height = 80)
+                    Viewport {
+                        AnimatedVisibility(
+                            visible = visible,
+                            modifier = SwingModifier.testTag(CONTAINER),
+                            enter = fadeIn(tween(TRANSITION_MILLIS)) + expandIn(tween(TRANSITION_MILLIS)),
+                            exit = ExitTransition.None,
+                        ) {
+                            Filled(width = 80, height = 80)
+                        }
                     }
                 }
             }

@@ -12,6 +12,8 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.onAncestors
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
@@ -36,7 +38,7 @@ import kotlin.test.assertTrue
  * A relocation is not a reorder, and the churn the applier reports is the only thing that says so: the
  * content is released by the host it leaves on one pass and given its place at the host it moved to on
  * the next, which is what lets the pass in between see a region nobody fills. A move routed through the
- * reorder path would leave the content holding the region it declared at its old host - a viewport never
+ * reorder path would leave the content holding the region it declared at its old host - a header never
  * released, a tab never vacated - and the tree the happy case ends on would look the same.
  */
 class MovableContentPlacementTest : TracedTest() {
@@ -47,7 +49,7 @@ class MovableContentPlacementTest : TracedTest() {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
             Panel {
                 ScrollPane(modifier = SwingModifier.testTag("pane")) {
-                    if (inPane) content(SwingModifier.viewport())
+                    if (inPane) content(SwingModifier.rowHeader())
                 }
                 Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panel")) {
                     if (!inPane) content(SwingModifier)
@@ -57,7 +59,7 @@ class MovableContentPlacementTest : TracedTest() {
 
         val label = onNodeWithText("body").fetch()
         val pane = onNodeWithTag("pane").fetch<JScrollPane>()
-        assertSame(label, pane.viewport.view, "the content fills the region it names while it is composed there")
+        assertSame(label, pane.rowHeader?.view, "the content fills the region it names while it is composed there")
         tracer.clear()
 
         inPane = false
@@ -66,7 +68,7 @@ class MovableContentPlacementTest : TracedTest() {
         val panel = onNodeWithTag("panel").fetch<JPanel>()
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
         assertEquals(listOf<Component>(label), panel.components.toList(), "the host it moved to holds it by index")
-        assertNull(pane.viewport.view, "the region it left holds nothing")
+        assertNull(pane.rowHeader?.view, "the region it left holds nothing")
 
         val passes = tracer.passes()
         assertTrue(
@@ -97,7 +99,7 @@ class MovableContentPlacementTest : TracedTest() {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
             Panel {
                 ScrollPane(modifier = SwingModifier.testTag("pane")) {
-                    if (inPane) content(SwingModifier.viewport())
+                    if (inPane) content(SwingModifier.rowHeader())
                 }
                 Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panel")) {
                     if (!inPane) content(SwingModifier)
@@ -114,7 +116,7 @@ class MovableContentPlacementTest : TracedTest() {
 
         val pane = onNodeWithTag("pane").fetch<JScrollPane>()
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
-        assertSame(label, pane.viewport.view, "the region it names at the host it moved to holds it")
+        assertSame(label, pane.rowHeader?.view, "the region it names at the host it moved to holds it")
         assertEquals(emptyList<Component>(), panel.components.toList(), "the host it left holds nothing")
     }
 
@@ -125,7 +127,7 @@ class MovableContentPlacementTest : TracedTest() {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
             Panel {
                 ScrollPane(modifier = SwingModifier.testTag("first")) {
-                    if (!inSecond) content(SwingModifier.viewport())
+                    Viewport { if (!inSecond) content(SwingModifier) }
                 }
                 ScrollPane(modifier = SwingModifier.testTag("second")) {
                     if (inSecond) content(SwingModifier.rowHeader())
@@ -147,7 +149,7 @@ class MovableContentPlacementTest : TracedTest() {
     }
 
     @Test
-    fun contentMovedBetweenPanesDeclaresItsScrollingToThePaneItIsIn() = runComposeSwingTest {
+    fun contentMovedBetweenViewportsIsScrolledAsThePaneItIsInDeclares() = runComposeSwingTest {
         var inSecond by mutableStateOf(false)
         var refilled by mutableStateOf(false)
         var blockIncrement by mutableStateOf<Int?>(null)
@@ -155,59 +157,54 @@ class MovableContentPlacementTest : TracedTest() {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
             Panel {
                 ScrollPane(modifier = SwingModifier.testTag("first")) {
-                    if (!inSecond) {
-                        content(
-                            SwingModifier.viewport(
-                                unitIncrement = 19,
-                                blockIncrement = blockIncrement,
-                            ),
-                        )
+                    Viewport(unitIncrement = 7) {
+                        if (!inSecond) content(SwingModifier)
+                        if (refilled) Label("other")
                     }
-                    if (refilled) Label("other", SwingModifier.viewport())
                 }
                 ScrollPane(modifier = SwingModifier.testTag("second")) {
-                    if (inSecond) {
-                        content(
-                            SwingModifier.viewport(
-                                unitIncrement = 19,
-                                blockIncrement = blockIncrement,
-                            ),
-                        )
+                    Viewport(unitIncrement = 19, blockIncrement = blockIncrement) {
+                        if (inSecond) content(SwingModifier)
                     }
                 }
             }
         }
 
+        // The pane currently hosting the moved content, found through the AWT tree rather than through
+        // either testTag: a reparenting bug that left it under the wrong pane would still leave this
+        // assertion looking at the pane the content actually scrolls through.
+        fun paneHosting(): JScrollPane = onNodeWithText("body")
+            .onAncestors()
+            .filter(SwingMatcher.isOfType<JScrollPane>())
+            .onFirst()
+            .fetch<JScrollPane>()
+
         val label = onNodeWithText("body").fetch()
         val first = onNodeWithTag("first").fetch<JScrollPane>()
         val second = onNodeWithTag("second").fetch<JScrollPane>()
+        assertEquals(7, paneHosting().verticalScrollBar.getUnitIncrement(1), "starts out in the first pane")
 
         inSecond = true
         awaitIdle()
         assertSame(label, second.viewport.view, "the pane it moved to shows it as the viewport's own view")
         assertEquals(
             19,
-            second.verticalScrollBar.getUnitIncrement(1),
-            "the pane it moved to scrolls by the increment it declares",
+            paneHosting().verticalScrollBar.getUnitIncrement(1),
+            "the moved content scrolls by the increment the pane it is in now declares",
         )
 
         // The pane it left goes on to show content of its own, which is what fills its viewport from now on.
         refilled = true
         awaitIdle()
         assertSame(onNodeWithText("other").fetch(), first.viewport.view, "the pane it left shows its own content")
-        assertEquals(
-            1,
-            first.verticalScrollBar.getUnitIncrement(1),
-            "the pane it left scrolls as a pane scrolls a view that answers nothing, one unit at a time",
-        )
 
         blockIncrement = 71
         awaitIdle()
 
         assertEquals(
             71,
-            second.verticalScrollBar.getBlockIncrement(1),
-            "an increment declared after the move reaches the pane it is in",
+            paneHosting().verticalScrollBar.getBlockIncrement(1),
+            "an increment declared after the move reaches the pane the content is now in",
         )
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
     }

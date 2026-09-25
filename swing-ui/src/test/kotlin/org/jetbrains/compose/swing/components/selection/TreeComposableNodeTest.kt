@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -274,14 +273,15 @@ class TreeComposableNodeTest {
         // not install themselves as the viewport's view.
         setContent {
             ScrollPane {
-                Tree(
-                    root = sample,
-                    children = { it.children },
-                    modifier = SwingModifier.viewport(),
-                    label = { it.name },
-                    selectedPaths = setOf(emptyList()),
-                ) { value ->
-                    Panel { Label(value.name) }
+                Viewport {
+                    Tree(
+                        root = sample,
+                        children = { it.children },
+                        label = { it.name },
+                        selectedPaths = setOf(emptyList()),
+                    ) { value ->
+                        Panel { Label(value.name) }
+                    }
                 }
             }
         }

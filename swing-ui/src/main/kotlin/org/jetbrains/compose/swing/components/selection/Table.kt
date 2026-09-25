@@ -38,7 +38,7 @@ import javax.swing.table.TableModel
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         Table(
  *             rows = people,
  *             selectedRowIndices = selection,
@@ -343,7 +343,7 @@ private inline fun <R> TableRowsImpl(
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         Table(
  *             model = myTableModel,
  *             selectedRowIndices = selection,
@@ -582,8 +582,10 @@ private inline fun TableImpl(
  * val state = rememberTableState()
  *
  * ScrollPane {
- *     Table(rows = people, state = state, modifier = SwingModifier.viewport()) {
- *         column("Name") { it.name }
+ *     Viewport {
+ *         Table(rows = people, state = state) {
+ *             column("Name") { it.name }
+ *         }
  *     }
  * }
  * Label("Selected: ${state.selectedRowIndices.size}")

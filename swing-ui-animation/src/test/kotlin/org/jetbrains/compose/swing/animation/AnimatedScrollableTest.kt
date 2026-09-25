@@ -42,8 +42,10 @@ class AnimatedScrollableTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
-                    AnimatedVisibility(visible = true, modifier = SwingModifier.viewport()) {
-                        Table(rows = people) { column("Name") { it.name } }
+                    Viewport {
+                        AnimatedVisibility(visible = true) {
+                            Table(rows = people) { column("Name") { it.name } }
+                        }
                     }
                 }
             }
@@ -65,12 +67,14 @@ class AnimatedScrollableTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
-                    AnimatedVisibility(visible = true, modifier = SwingModifier.viewport()) {
-                        Table(rows = people) {
-                            column("Name") { it.name }
-                            column("Age") { it.age }
-                            column("Also name") { it.name }
-                            column("Also age") { it.age }
+                    Viewport {
+                        AnimatedVisibility(visible = true) {
+                            Table(rows = people) {
+                                column("Name") { it.name }
+                                column("Age") { it.age }
+                                column("Also name") { it.name }
+                                column("Also age") { it.age }
+                            }
                         }
                     }
                 }
@@ -91,8 +95,10 @@ class AnimatedScrollableTest {
             var state by mutableStateOf(0)
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
-                    AnimatedContent(targetState = state, modifier = SwingModifier.viewport()) { shown ->
-                        Table(rows = people) { column("Name $shown") { it.name } }
+                    Viewport {
+                        AnimatedContent(targetState = state) { shown ->
+                            Table(rows = people) { column("Name $shown") { it.name } }
+                        }
                     }
                 }
             }
@@ -136,8 +142,10 @@ class AnimatedScrollableTest {
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
-                    AnimatedVisibility(visible = true, modifier = SwingModifier.viewport()) {
-                        Column(SwingModifier.preferredSize(contentSize.width, contentSize.height)) {}
+                    Viewport {
+                        AnimatedVisibility(visible = true) {
+                            Column(SwingModifier.preferredSize(contentSize.width, contentSize.height)) {}
+                        }
                     }
                 }
             }

@@ -107,7 +107,11 @@ class PaintOutsetsDeclarationTest {
                     Column { LinedField("foundation") }
                     Panel(PanelLayout.Border()) { LinedField("border", SwingModifier.center()) }
                     Panel(PanelLayout.Box()) { LinedField("box") }
-                    ScrollPane { LinedField("viewport", SwingModifier.viewport()) }
+                    ScrollPane {
+                        Viewport {
+                            LinedField("viewport", SwingModifier)
+                        }
+                    }
                     SplitPane {
                         LinedField("first", SwingModifier.first())
                         LinedField("second", SwingModifier.second())

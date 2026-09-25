@@ -1,20 +1,25 @@
 package org.jetbrains.compose.swing.components.layout
 
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.awt.ComponentOrientation
 import javax.swing.JScrollPane
 import javax.swing.JViewport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -37,7 +42,7 @@ class ScrollPaneBehaviorTest {
     fun contentIsHostedInTheViewportViewNotAddedToTheScrollPane() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
             }
         }
 
@@ -66,10 +71,12 @@ class ScrollPaneBehaviorTest {
         var flag by mutableStateOf(true)
         setContent {
             ScrollPane {
-                if (flag) {
-                    Label(text = "First", modifier = SwingModifier.viewport())
-                } else {
-                    Label(text = "Second", modifier = SwingModifier.viewport())
+                Viewport {
+                    if (flag) {
+                        Label(text = "First")
+                    } else {
+                        Label(text = "Second")
+                    }
                 }
             }
         }
@@ -91,7 +98,7 @@ class ScrollPaneBehaviorTest {
     fun rowHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
                 Label(text = "RowHead", modifier = SwingModifier.rowHeader())
             }
         }
@@ -112,7 +119,7 @@ class ScrollPaneBehaviorTest {
     fun columnHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
                 Label(text = "ColHead", modifier = SwingModifier.columnHeader())
             }
         }
@@ -133,7 +140,7 @@ class ScrollPaneBehaviorTest {
     fun anAbsentHeaderInstallsNothing() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
             }
         }
 
@@ -154,7 +161,7 @@ class ScrollPaneBehaviorTest {
         var declareCorner by mutableStateOf(false)
         setContent {
             ScrollPane {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
                 if (declareCorner) {
                     Label(text = "CornerView", modifier = SwingModifier.corner(JScrollPane.UPPER_LEADING_CORNER))
                 }
@@ -181,7 +188,7 @@ class ScrollPaneBehaviorTest {
     fun scrollbarPolicyMapsThrough() = runComposeSwingTest {
         setContent {
             ScrollPane(verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS) {
-                Label(text = "Body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "Body") }
             }
         }
 
@@ -198,7 +205,7 @@ class ScrollPaneBehaviorTest {
         setContent {
             if (show) {
                 ScrollPane {
-                    Label(text = "Body", modifier = SwingModifier.viewport())
+                    Viewport { Label(text = "Body") }
                 }
             }
         }
@@ -211,5 +218,61 @@ class ScrollPaneBehaviorTest {
 
         onNodeOfType<JScrollPane>().assertDoesNotExist()
         onNodeWithText("Body").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSecondChildOfTheViewportIsRefused() = runComposeSwingTest {
+        // A viewport shows one view and replaces it on every add, so the first child would be held by the
+        // composition while standing in no container.
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    ScrollPane {
+                        Viewport {
+                            Label(text = "First")
+                            Label(text = "Second")
+                        }
+                    }
+                }
+                awaitIdle()
+            }
+
+        assertEquals(
+            "A JViewport declared through Viewport { } shows one child at a time, so a child added to it took " +
+                "out the JLabel it held. Compose one child there, wrapping several in a container of their own " +
+                "such as a Column or a Panel.",
+            failure.message,
+            "the refusal should name Viewport { }, the child taken out, and how to compose several",
+        )
+    }
+
+    @Test
+    fun reactivationBuildsAFreshScrollPaneCarryingEveryDeclaration() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        setContent {
+            ReusableContentHost(active = active) {
+                ScrollPane {
+                    Viewport(modifier = SwingModifier.background(Color.RED), unitIncrement = 13) { Label("Body") }
+                    VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
+                    HorizontalScrollbar(modifier = SwingModifier.background(Color.GREEN))
+                }
+            }
+        }
+
+        val first = onNodeOfType<JScrollPane>().fetch()
+        active = false
+        awaitIdle()
+        onNodeOfType<JScrollPane>().assertDoesNotExist()
+
+        active = true
+        awaitIdle()
+
+        val second = onNodeOfType<JScrollPane>().fetch()
+        assertNotSame(first, second, "reactivation must create the pane through SwingNode.factory again")
+        assertEquals(Color.RED, second.viewport.background, "the viewport declaration reaches the fresh viewport")
+        assertEquals(Color.BLUE, second.verticalScrollBar.background, "the vertical bar declaration too")
+        assertEquals(Color.GREEN, second.horizontalScrollBar.background, "and the horizontal one")
+        assertEquals(13, second.verticalScrollBar.getUnitIncrement(1), "the fresh pane scrolls as declared")
+        assertSame(onNodeWithText("Body").fetch(), second.viewport.view, "the fresh pane must receive its view")
     }
 }

@@ -39,8 +39,10 @@ import javax.swing.JTable
  * Button("Add", onClick = { people = people + Person() })
  * LaunchedEffect(people) { state.revealRow(people.lastIndex) }
  * ScrollPane {
- *     Table(rows = people, state = state, modifier = SwingModifier.viewport()) {
- *         column("Name") { it.name }
+ *     Viewport {
+ *         Table(rows = people, state = state) {
+ *             column("Name") { it.name }
+ *         }
  *     }
  * }
  * ```

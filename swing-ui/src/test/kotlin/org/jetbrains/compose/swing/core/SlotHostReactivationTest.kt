@@ -93,7 +93,7 @@ class SlotHostReactivationTest {
             },
         ) {
             ScrollPane {
-                Label("body", SwingModifier.viewport())
+                Viewport { Label("body") }
                 Label("rows", SwingModifier.rowHeader())
                 Label("columns", SwingModifier.columnHeader())
             }

@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 class SlotHostMismatchTest {
     @Test
     fun aScrollPanePlacementUnderASplitPaneIsRefusedByName() = runComposeSwingTest {
-        val misplaced = with(ScrollPaneScopeImpl()) { SwingModifier.viewport() }
+        val misplaced = with(ScrollPaneScopeImpl()) { SwingModifier.rowHeader() }
 
         val failure =
             assertFailsWith<IllegalStateException> {
@@ -32,7 +32,7 @@ class SlotHostMismatchTest {
 
         val message = failure.message.orEmpty()
         assertTrue(
-            "SwingModifier.viewport()" in message,
+            "SwingModifier.rowHeader()" in message,
             "the refusal should name the builder that would place the child: $message",
         )
         assertTrue("JScrollPane" in message, "the refusal should name the host type the builder expects: $message")

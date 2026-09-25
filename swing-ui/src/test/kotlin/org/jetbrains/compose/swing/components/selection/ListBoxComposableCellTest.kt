@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -140,12 +139,13 @@ class ListBoxComposableCellTest {
         // the enclosing composition's apply pass, which is exactly when such leakage surfaces.
         setContent {
             ScrollPane {
-                ListBox(
-                    items = listOf("first", "second"),
-                    modifier = SwingModifier.viewport(),
-                    selectedIndices = setOf(0),
-                ) { item ->
-                    Panel { Label(item) }
+                Viewport {
+                    ListBox(
+                        items = listOf("first", "second"),
+                        selectedIndices = setOf(0),
+                    ) { item ->
+                        Panel { Label(item) }
+                    }
                 }
             }
         }

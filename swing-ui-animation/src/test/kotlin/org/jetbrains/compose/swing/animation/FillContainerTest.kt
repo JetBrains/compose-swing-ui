@@ -140,11 +140,12 @@ private fun Region(
             when {
                 scrolling -> {
                     ScrollPane(modifier = SwingModifier.fillMaxHeight()) {
-                        RedCanvas(
-                            SwingModifier
-                                .viewport()
-                                .preferredSize(CONTENT_WIDTH, REGION_HEIGHT * 2),
-                        )
+                        Viewport {
+                            RedCanvas(
+                                SwingModifier
+                                    .preferredSize(CONTENT_WIDTH, REGION_HEIGHT * 2),
+                            )
+                        }
                     }
                 }
 

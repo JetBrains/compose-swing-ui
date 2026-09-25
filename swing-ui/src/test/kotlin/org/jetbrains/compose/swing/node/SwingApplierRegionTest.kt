@@ -540,7 +540,7 @@ class SwingApplierRegionTest {
 }
 
 /** A region call standing in for the ones a real container's scope offers. */
-private const val VIEWPORT_CALL: String = "SwingModifier.viewport()"
+private const val VIEWPORT_CALL: String = "Viewport { }"
 
 /** The call filling the leading side of a `JSplitPane`, as a child of one writes it. */
 private const val FIRST_SIDE_CALL: String = "SwingModifier.first()"

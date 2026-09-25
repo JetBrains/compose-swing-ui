@@ -117,7 +117,17 @@ public class ScrollState internal constructor(
     // declaration and none of them keeps a pane alive past its composition.
     private val claimants = mutableListOf<JScrollPane>()
 
-    private val viewportListener = ChangeListener { viewport?.let { bound -> syncFrom(bound) } }
+    private val viewportListener =
+        ChangeListener {
+            viewport?.let { bound ->
+                syncFrom(bound)
+                val rect = pendingReveal
+                if (rect != null && bound.view?.isValid == true) {
+                    pendingReveal = null
+                    revealRect(rect)
+                }
+            }
+        }
 
     // A position can only be delivered to a viewport that has content to move - Swing ignores it
     // otherwise - and a pane binds before its content is installed, so the install is what the position
@@ -128,8 +138,23 @@ public class ScrollState internal constructor(
         object : ContainerAdapter() {
             override fun componentAdded(event: ContainerEvent) {
                 deliverPosition()
+                val rect = pendingReveal
+                if (rect != null && event.child.let { it.width > 0 && it.height > 0 }) {
+                    pendingReveal = null
+                    // The pane this state drives is laid out with the view before the region is measured. The
+                    // viewport's own changes come mid-layout, before the scroll bar the view brings shrinks the
+                    // extent, so a region measured on one of them would be left partly out of view.
+                    claimants.last().validate()
+                    revealRect(rect)
+                }
             }
         }
+
+    // A reveal issued while the bound viewport has no view yet. It is delivered by the first viewport change
+    // published while the view is valid - the viewport's ViewListener fires one when the view is resized in
+    // the pane's layout - or, for a view that arrives already sized, on its arrival, once the pane this state
+    // drives is laid out with it.
+    private var pendingReveal: Rectangle? = null
 
     /**
      * The view coordinate shown at the viewport's left edge.
@@ -142,6 +167,7 @@ public class ScrollState internal constructor(
         get() = xState
         set(value) {
             preempt()
+            pendingReveal = null
             xState = value
             deliverPosition()
         }
@@ -157,6 +183,7 @@ public class ScrollState internal constructor(
         get() = yState
         set(value) {
             preempt()
+            pendingReveal = null
             yState = value
             deliverPosition()
         }
@@ -239,25 +266,31 @@ public class ScrollState internal constructor(
      * whether it was reached.
      *
      * Revealing is a gesture rather than a declaration: it scrolls where it is called and leaves nothing
-     * behind, so no later pass scrolls back and where the user scrolls afterwards stands. Wherever it
-     * lands is reported back through [x] and [y], like the user's own scrolling, and a landing that
-     * moves the pane while a [scroll] block runs ends that block.
+     * behind once delivered, so no later pass scrolls back and where the user scrolls afterwards stands.
+     * Wherever it lands is reported back through [x] and [y], like the user's own scrolling, and a landing
+     * that moves the pane while a [scroll] block runs ends that block.
      *
-     * `false` means nothing was revealed: no pane renders this state, or the pane holds no content to
-     * scroll. `true` means the pane was asked to show that region, which scrolls it as far as the content
-     * reaches: a region larger than the viewport is shown from its leading edge, and one already in view
-     * leaves the pane where it stands.
+     * `false` means nothing was revealed: no pane renders this state. `true` means the pane was asked to
+     * show that region, or will be when its content is laid out; a later reveal or position write
+     * replaces one still waiting, and one waiting for a pane that stops rendering this state is discarded.
+     * A pane shows a region as far as the content reaches: a region larger than the viewport is shown from
+     * its leading edge, and one already in view leaves the pane where it stands.
      *
-     * @param rect the region asked for, read during the call and neither kept nor modified.
-     * @return whether the pane was asked to show the region.
+     * @param rect the region asked for, in the content's coordinates; not modified.
+     * @return whether a pane renders this state to show the region in.
      * @see javax.swing.JViewport.scrollRectToVisible
      */
     public fun revealRect(rect: Rectangle): Boolean {
-        val target = viewport
-        val view = target?.view ?: return false
-        // The viewport takes the region in its own coordinates, which the view's position - the scrolled
-        // offset, negated - translates the content's into.
-        target.scrollRectToVisible(Rectangle(rect.x + view.x, rect.y + view.y, rect.width, rect.height))
+        val target = viewport ?: return false
+        val view = target.view
+        pendingReveal = null
+        if (view == null) {
+            pendingReveal = Rectangle(rect)
+        } else {
+            // The viewport takes the region in its own coordinates, which the view's position - the scrolled
+            // offset, negated - translates the content's into.
+            target.scrollRectToVisible(Rectangle(rect.x + view.x, rect.y + view.y, rect.width, rect.height))
+        }
         return true
     }
 
@@ -364,6 +397,7 @@ public class ScrollState internal constructor(
         y: Int,
     ) {
         movingFromBlock = true
+        pendingReveal = null
         try {
             if (viewport == null) {
                 xState = x
@@ -434,6 +468,7 @@ public class ScrollState internal constructor(
 
     // Drops the bound viewport, along with the metrics that belong to it.
     private fun release() {
+        pendingReveal = null
         viewport?.removeContainerListener(contentListener)
         viewport?.removeChangeListener(viewportListener)
         viewport = null

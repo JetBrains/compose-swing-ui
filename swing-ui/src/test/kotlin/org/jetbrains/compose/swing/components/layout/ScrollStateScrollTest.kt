@@ -497,10 +497,12 @@ class ScrollStateScrollTest {
             pane.state = rememberScrollState()
             pane.scope = rememberCoroutineScope()
             ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = pane.state) {
-                Label(
-                    "body",
-                    modifier = SwingModifier.preferredSize(pane.contentWidth, pane.contentHeight).viewport(),
-                )
+                Viewport {
+                    Label(
+                        "body",
+                        modifier = SwingModifier.preferredSize(pane.contentWidth, pane.contentHeight),
+                    )
+                }
             }
         }
         return pane

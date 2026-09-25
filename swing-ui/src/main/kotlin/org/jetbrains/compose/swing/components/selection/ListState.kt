@@ -35,7 +35,7 @@ import javax.swing.JList
  * Button("Add", onClick = { items = items + Item() })
  * LaunchedEffect(items) { state.revealIndex(items.lastIndex) }
  * ScrollPane {
- *     ListBox(items = items, state = state, modifier = SwingModifier.viewport())
+ *     Viewport { ListBox(items = items, state = state) }
  * }
  * ```
  *

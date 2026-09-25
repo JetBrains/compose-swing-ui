@@ -118,7 +118,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aScrollPaneFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("ScrollPane") { modifier ->
-            ScrollPane(modifier = modifier) { Label("child", SwingModifier.viewport()) }
+            ScrollPane(modifier = modifier) { Viewport { Label("child") } }
         }
     }
 

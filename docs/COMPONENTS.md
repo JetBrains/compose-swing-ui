@@ -427,19 +427,20 @@ var selection by remember { mutableStateOf(emptySet<Int>()) }
 var order by remember { mutableStateOf(listOf(SortKey(1, SortOrder.ASCENDING))) }
 
 ScrollPane {
-    Table(
-        rows = people,
-        modifier = SwingModifier.viewport(),
-        selectedRowIndices = selection,
-        onSelectionChange = { selection = it },
-        sortable = true,
-        sortKeys = order,
-        onSortChange = { order = it },
-        rowHeight = 28,
-    ) {
-        column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
-        column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
-        column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
+    Viewport {
+        Table(
+            rows = people,
+            selectedRowIndices = selection,
+            onSelectionChange = { selection = it },
+            sortable = true,
+            sortKeys = order,
+            onSortChange = { order = it },
+            rowHeight = 28,
+        ) {
+            column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
+            column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
+            column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
+        }
     }
 }
 ```
@@ -513,7 +514,7 @@ val state = rememberListState()
 Button("Add", onClick = { items = items + Item() })
 LaunchedEffect(items) { state.revealIndex(items.lastIndex) }
 ScrollPane {
-    ListBox(items = items, state = state, modifier = SwingModifier.viewport())
+    Viewport { ListBox(items = items, state = state) }
 }
 ```
 
@@ -708,19 +709,24 @@ SplitPane(
 
 <!--- CLEAR -->
 
-A `ScrollPane` holds nothing but its regions, so every child declares one: `viewport()`, `rowHeader()`,
-`columnHeader()` or `corner(...)`. `viewport()` also carries how far the pane scrolls per arrow button
-and per page - each `null` by default, which leaves the increment to the content, as a table, list, tree
-or text area answers with its own rows or lines. Both scrollbar policies default to as-needed.
-`viewportBorder` draws a border around the viewport, inside the pane's own border and outside the
-scrolled content, and leaves it to the look and feel while it is `null`; `wheelScrollingEnabled` decides
-whether the mouse wheel scrolls the pane at all. The scroll position is hoisted into a
-[`ScrollState`](#scrollstate).
+A `ScrollPane` builds its viewport and both scroll bars itself, and every child declares either one
+of those parts or one of the regions that stay empty until filled. `Viewport { }` configures the
+pane's viewport and holds the one child it scrolls - a second child there is refused;
+`VerticalScrollbar()` and `HorizontalScrollbar()` configure the bars; `rowHeader()`,
+`columnHeader()` and `corner(...)` name a region on a child's `modifier`. A part gets back the
+values its modifier replaced when its declaration goes. `Viewport` also carries how far the pane
+scrolls per arrow button and per page - each `null` by default, which leaves the increment to the
+content, as a table, list, tree or text area answers with its own rows or lines. Both scrollbar
+policies default to as-needed. `viewportBorder` draws a border around the viewport, inside the
+pane's own border and outside the scrolled content, and leaves it to the look and feel while it is
+`null`; `wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all. The scroll
+position is hoisted into a [`ScrollState`](#scrollstate).
 
 ```kotlin
 ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
+    Viewport(modifier = SwingModifier.background(surface), unitIncrement = 16) { Body() }
+    VerticalScrollbar(modifier = SwingModifier.background(surface))
     Label("Rows", modifier = SwingModifier.columnHeader())
-    Body(modifier = SwingModifier.viewport())
     Label("#", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
 }
 ```
@@ -1259,9 +1265,10 @@ comes back where the user left it.
 
 `revealRect(rect)` scrolls to a region of the content instead of to a coordinate, for a caller that knows
 where something is but not where the pane has to stand to show it. The rectangle is in the content's own
-coordinates, whatever the pane is currently scrolled to, and the call answers whether a pane with content
-was there to scroll. Wherever it lands is reported back through `x` and `y`, like the user's own
-scrolling.
+coordinates, whatever the pane is currently scrolled to, and the call answers whether a pane renders the
+state. Wherever it lands is reported back through `x` and `y`, like the user's own
+scrolling. A reveal issued before the pane's content arrives is delivered once that content is laid out; a later
+reveal replaces one still waiting, and one waiting for a pane that stops rendering the state is discarded.
 
 `scroll { }` runs a block that holds the position for as long as it lasts, for a caller that moves the
 pane over time - a step per frame - rather than in one write: `state.scroll { scrollTo(0, state.maxY) }`,

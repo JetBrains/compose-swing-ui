@@ -362,7 +362,7 @@ private suspend fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
         state = declared
         scope = rememberCoroutineScope()
         ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = declared) {
-            Label("body", modifier = SwingModifier.preferredSize(300, 400).viewport())
+            Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
         }
     }
     driveOneFrame()

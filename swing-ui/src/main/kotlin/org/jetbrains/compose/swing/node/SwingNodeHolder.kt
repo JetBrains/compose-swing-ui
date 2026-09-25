@@ -35,7 +35,7 @@ import javax.swing.SwingUtilities
  * @property parentProtocol the protocol identity for the host that owns this region.
  * @property attachment the host's method for installing a component into the region, or `null` for a
  *   component [ExistingSwingNode] claims, which its parent already holds there
- * @property name the region's name, such as `viewport` or `corner(UPPER_LEFT)`
+ * @property name the region's name, such as `Viewport { }` or `corner(UPPER_LEFT)`
  */
 internal class DeclaredSlot(
     val parentProtocol: ParentProtocol,

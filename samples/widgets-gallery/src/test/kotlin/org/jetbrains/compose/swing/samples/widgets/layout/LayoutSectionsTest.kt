@@ -6,6 +6,8 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import java.awt.Color
+import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JButton
@@ -553,6 +555,53 @@ class LayoutSectionsTest {
             val firstHeader = onNodeWithText("Col 0")
             val captured = firstHeader.captureToImage()
             assertTrue(captured.width > 0 && captured.height > 0, "the captured header cell has real size")
+        }
+
+    @Test
+    fun theScrollPaneSectionStylesThePanesOwnPartsAndFillsItsRegions() =
+        runComposeSwingTest {
+            openSection("ScrollPane")
+
+            val pane =
+                onAllNodesOfType<JScrollPane>().fetchAll<JScrollPane>().single {
+                    it.getCorner(JScrollPane.UPPER_LEADING_CORNER) != null
+                }
+            assertEquals(
+                Color(0x90, 0xA4, 0xAE),
+                pane.viewport.background,
+                "Viewport's modifier styles the pane's own viewport",
+            )
+            assertEquals(
+                Color(0xCF, 0xD8, 0xDC),
+                pane.verticalScrollBar.background,
+                "VerticalScrollbar styles the pane's own bar",
+            )
+            assertEquals(
+                Color(0xCF, 0xD8, 0xDC),
+                pane.horizontalScrollBar.background,
+                "HorizontalScrollbar styles the pane's own bar",
+            )
+            assertTrue(
+                pane.viewport.width > 0 && pane.viewport.height > 0,
+                "the viewport is laid out large enough to show its view",
+            )
+            assertTrue(
+                onAllNodesWithText("R0,C0").fetchAll().any { (pane.viewport.view as Container).isAncestorOf(it) },
+                "the grid is the view the viewport scrolls",
+            )
+            assertTrue(
+                onAllNodesWithText("Col 0").fetchAll().any { (pane.columnHeader.view as Container).isAncestorOf(it) },
+                "the column header holds the column labels",
+            )
+            assertTrue(
+                onAllNodesWithText("Row 0").fetchAll().any { (pane.rowHeader.view as Container).isAncestorOf(it) },
+                "the row header holds the row labels",
+            )
+            assertEquals(
+                "⌗",
+                (pane.getCorner(JScrollPane.UPPER_LEADING_CORNER) as JLabel).text,
+                "the upper-leading corner holds the badge",
+            )
         }
 
     @Test

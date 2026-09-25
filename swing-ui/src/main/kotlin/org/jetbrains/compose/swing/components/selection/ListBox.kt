@@ -33,7 +33,7 @@ import javax.swing.event.ListSelectionListener
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         ListBox(items = rows, selectedIndices = sel, onSelectionChange = { sel = it }) { row ->
  *             Panel { Label(row.icon); Label(row.name) }
  *         }
@@ -214,7 +214,7 @@ private inline fun <T> ListBoxItemsImpl(
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         ListBox(model = myModel, selectedIndices = sel, onSelectionChange = { sel = it })
  *     }
  * }
@@ -388,7 +388,7 @@ private inline fun <T> ListBoxModelImpl(
  * val state = rememberListState()
  *
  * ScrollPane {
- *     ListBox(items = rows, state = state, modifier = SwingModifier.viewport())
+ *     Viewport { ListBox(items = rows, state = state) }
  * }
  * Label("Selected: ${state.selectedIndices.size}")
  * ```

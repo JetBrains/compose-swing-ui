@@ -122,27 +122,29 @@ private fun ColumnScope.SelectableTableCard() {
         )
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
-            Table(
-                rows = people,
-                modifier = SwingModifier.viewport().testTag(PRIMARY_TABLE_TAG),
-                selectedRowIndices = selection,
-                onSelectionChange = { selection = it },
-                selectionMode = tableSelectionModes[selectionModeIndex].second,
-            ) {
-                column("Name") { it.name }
-                column("Role") { it.role }
-                column(
-                    header = "Age",
-                    isEditable = true,
-                    onCellEdit = { _, rowIndex, age ->
-                        if (age != null) {
-                            people =
-                                people.mapIndexed { index, person ->
-                                    if (index == rowIndex) person.copy(age = age) else person
-                                }
-                        }
-                    },
-                ) { it.age }
+            Viewport {
+                Table(
+                    rows = people,
+                    modifier = SwingModifier.testTag(PRIMARY_TABLE_TAG),
+                    selectedRowIndices = selection,
+                    onSelectionChange = { selection = it },
+                    selectionMode = tableSelectionModes[selectionModeIndex].second,
+                ) {
+                    column("Name") { it.name }
+                    column("Role") { it.role }
+                    column(
+                        header = "Age",
+                        isEditable = true,
+                        onCellEdit = { _, rowIndex, age ->
+                            if (age != null) {
+                                people =
+                                    people.mapIndexed { index, person ->
+                                        if (index == rowIndex) person.copy(age = age) else person
+                                    }
+                            }
+                        },
+                    ) { it.age }
+                }
             }
         }
 
@@ -200,24 +202,26 @@ private fun ColumnScope.SortingFilteringTableCard() {
         TableLayoutControls(layout)
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 160))) {
-            Table(
-                rows = sampleBooks,
-                modifier = SwingModifier.viewport().testTag(SORT_FILTER_TABLE_TAG),
-                sortable = sortableEnabled,
-                sortKeys = sortKeys,
-                onSortChange = { sortKeys = it },
-                rowFilter = rowFilter,
-                rowHeight = layout.rowHeight,
-                autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
-                fillsViewportHeight = layout.fillsViewportHeight,
-                columnLayout = columnLayout,
-                onColumnLayoutChange = { columnLayout = it },
-            ) {
-                column("Title") { it.title }
-                column(header = "Author", comparator = authorCaseInsensitive) { it.author }
-                column("Year", minWidth = 60, maxWidth = 100) { it.year }
-                column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
-                    it.rating
+            Viewport {
+                Table(
+                    rows = sampleBooks,
+                    modifier = SwingModifier.testTag(SORT_FILTER_TABLE_TAG),
+                    sortable = sortableEnabled,
+                    sortKeys = sortKeys,
+                    onSortChange = { sortKeys = it },
+                    rowFilter = rowFilter,
+                    rowHeight = layout.rowHeight,
+                    autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
+                    fillsViewportHeight = layout.fillsViewportHeight,
+                    columnLayout = columnLayout,
+                    onColumnLayoutChange = { columnLayout = it },
+                ) {
+                    column("Title") { it.title }
+                    column(header = "Author", comparator = authorCaseInsensitive) { it.author }
+                    column("Year", minWidth = 60, maxWidth = 100) { it.year }
+                    column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
+                        it.rating
+                    }
                 }
             }
         }
@@ -315,12 +319,13 @@ private fun ColumnScope.ModelBackedTableCard() {
             )
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(280, 140))) {
-            Table(
-                model = model,
-                modifier = SwingModifier.viewport(),
-                selectedRowIndices = selection,
-                onSelectionChange = { selection = it },
-            )
+            Viewport {
+                Table(
+                    model = model,
+                    selectedRowIndices = selection,
+                    onSelectionChange = { selection = it },
+                )
+            }
         }
         Label("Rows in the model: $rowCount")
         WrappedCaption("The table renders this DefaultTableModel as-is; the library never mutates it.")

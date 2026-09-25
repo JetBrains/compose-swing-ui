@@ -15,7 +15,8 @@ public sealed interface ChildPlacement {
      * Named regions that each hold at most one child, plus at most one unnamed child that fills the host's
      * content when it declares one.
      *
-     * Every other child names the region it fills.
+     * Every other child names the region it fills. A declaration names at least one region or declares
+     * [content].
      */
     public class Slots(
         /** The calls that fill the host's regions, as a caller writes them. */
@@ -26,7 +27,14 @@ public sealed interface ChildPlacement {
          */
         public val content: SlotAttachment? = null,
     ) : ChildPlacement {
-        /** The same declaration written as `Slots("SwingModifier.viewport()")`. */
+        init {
+            require(names.isNotEmpty() || content != null) {
+                "ChildPlacement.Slots needs a region name or a content attachment: " +
+                    "a host declared with neither can hold no child."
+            }
+        }
+
+        /** The same declaration written as `Slots("Viewport { }")`. */
         public constructor(vararg names: String, content: SlotAttachment? = null) : this(names.toList(), content)
 
         override fun equals(other: Any?): Boolean =

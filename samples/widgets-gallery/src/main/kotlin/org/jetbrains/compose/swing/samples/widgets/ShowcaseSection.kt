@@ -126,8 +126,10 @@ internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
         verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
         horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
     ) {
-        Column(SwingModifier.background(UIManager.getColor("Panel.background")).opaque(true).viewport()) {
-            cards()
+        Viewport {
+            Column(SwingModifier.background(UIManager.getColor("Panel.background")).opaque(true)) {
+                cards()
+            }
         }
     }
 }

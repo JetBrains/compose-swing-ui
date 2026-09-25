@@ -46,7 +46,7 @@ import javax.swing.tree.TreeSelectionModel
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         Tree(
  *             root = fileSystem,
  *             children = { it.entries },
@@ -343,7 +343,7 @@ private inline fun <T> TreeValuesImpl(
  *
  * ```
  * ScrollPane {
- *     content {
+ *     Viewport {
  *         Tree(
  *             model = fileSystemModel,
  *             selectedPaths = selection,
@@ -535,7 +535,7 @@ private inline fun TreeModelImpl(
  * val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
  *
  * ScrollPane {
- *     Tree(root = fileSystem, children = { it.entries }, state = state, modifier = SwingModifier.viewport())
+ *     Viewport { Tree(root = fileSystem, children = { it.entries }, state = state) }
  * }
  * Label("Selected: ${describe(state.selectedPaths)}")
  * ```

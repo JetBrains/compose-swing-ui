@@ -134,8 +134,10 @@ class TableStateTest {
         val state = TableState()
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
-                Table(rows = rows, state = state, modifier = SwingModifier.viewport()) {
-                    column("Name") { it.name }
+                Viewport {
+                    Table(rows = rows, state = state) {
+                        column("Name") { it.name }
+                    }
                 }
             }
         }

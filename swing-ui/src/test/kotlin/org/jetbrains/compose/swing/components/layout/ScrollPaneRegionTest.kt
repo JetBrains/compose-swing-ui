@@ -6,12 +6,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
+import java.awt.event.MouseEvent
 import javax.swing.JLabel
 import javax.swing.JScrollPane
 import kotlin.test.Test
@@ -25,10 +28,10 @@ import kotlin.test.assertTrue
 
 /**
  * End-to-end tests for [ScrollPane]'s region installation, asserting against the rendered
- * [JScrollPane]'s actual structure: the region a child declares on its own modifier must reach its
- * dedicated slot (`viewport.view`, `rowHeader`/`columnHeader`, `getCorner`), replacing a region's child
- * must replace its content, and removing a child must clear the corresponding JScrollPane slot with no
- * leftover.
+ * [JScrollPane]'s actual structure: the content of `Viewport` must be the viewport's view, the region a
+ * child declares on its own modifier must reach its dedicated slot (`rowHeader`/`columnHeader`,
+ * `getCorner`), replacing a region's child must replace its content, and removing a child must clear the
+ * corresponding JScrollPane slot with no leftover.
  *
  * The pane holds every child in a region of its own, so a child that names none and a second child
  * naming a region already spoken for are both refused, each with a message the caller can act on.
@@ -39,7 +42,6 @@ class ScrollPaneRegionTest {
     @Test
     fun everyRegionAppendsToTheChainWithoutRepeatingIt() {
         with(ScrollPaneScopeImpl()) {
-            assertDeclaredChainCarriedOnce { viewport(unitIncrement = 17) }
             assertDeclaredChainCarriedOnce { rowHeader() }
             assertDeclaredChainCarriedOnce { columnHeader() }
             assertDeclaredChainCarriedOnce { corner(JScrollPane.UPPER_LEADING_CORNER) }
@@ -47,10 +49,32 @@ class ScrollPaneRegionTest {
     }
 
     @Test
+    fun everyPartReportsAnEventToTheListenerDeclaredOnItOnce() = runComposeSwingTest {
+        val presses = mutableMapOf<String, Int>()
+
+        fun counting(part: String) =
+            SwingModifier.mouseListener { if (it.id == MouseEvent.MOUSE_PRESSED) presses.merge(part, 1, Int::plus) }
+        setContent {
+            ScrollPane {
+                Viewport(modifier = counting("viewport")) { Label(text = "body") }
+                VerticalScrollbar(modifier = counting("vertical"))
+                HorizontalScrollbar(modifier = counting("horizontal"))
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        for (part in listOf(pane.viewport, pane.verticalScrollBar, pane.horizontalScrollBar)) {
+            part.dispatchEvent(MouseEvent(part, MouseEvent.MOUSE_PRESSED, 0L, 0, 1, 1, 1, false))
+        }
+
+        assertEquals(mapOf("viewport" to 1, "vertical" to 1, "horizontal" to 1), presses)
+    }
+
+    @Test
     fun contentReachesTheCentralViewport() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
             }
         }
 
@@ -62,7 +86,7 @@ class ScrollPaneRegionTest {
     fun headersAndCornerReachTheirDedicatedSlots() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
                 Label(text = "rows", modifier = SwingModifier.rowHeader())
                 Label(text = "cols", modifier = SwingModifier.columnHeader())
                 Label(text = "corner", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
@@ -85,7 +109,7 @@ class ScrollPaneRegionTest {
         var label by mutableStateOf("first")
         setContent {
             ScrollPane {
-                Label(text = label, modifier = SwingModifier.viewport())
+                Viewport { Label(text = label) }
             }
         }
 
@@ -104,7 +128,7 @@ class ScrollPaneRegionTest {
         var content by mutableStateOf("first")
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
-                key(content) { Label(text = content, modifier = SwingModifier.viewport()) }
+                Viewport { key(content) { Label(text = content) } }
             }
         }
 
@@ -131,7 +155,7 @@ class ScrollPaneRegionTest {
         var showHeaders by mutableStateOf(true)
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
                 if (showHeaders) {
                     Label(text = "rows", modifier = SwingModifier.rowHeader())
                     Label(text = "cols", modifier = SwingModifier.columnHeader())
@@ -165,7 +189,7 @@ class ScrollPaneRegionTest {
         setContent {
             ScrollPane {
                 if (showContent) {
-                    Label(text = "body", modifier = SwingModifier.viewport())
+                    Viewport { Label(text = "body") }
                 }
             }
         }
@@ -187,10 +211,10 @@ class ScrollPaneRegionTest {
         var asHeader by mutableStateOf(false)
         setContent {
             ScrollPane {
-                // A fresh node per region, since a region is read when the child arrives in the pane.
-                key(asHeader) {
-                    val placement = if (asHeader) SwingModifier.rowHeader() else SwingModifier.viewport()
-                    Label(text = "moving", modifier = placement)
+                if (asHeader) {
+                    Label(text = "moving", modifier = SwingModifier.rowHeader())
+                } else {
+                    Viewport { Label(text = "moving") }
                 }
             }
         }
@@ -211,7 +235,7 @@ class ScrollPaneRegionTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport(unitIncrement = unitIncrement))
+                Viewport(unitIncrement = unitIncrement) { Label(text = "body") }
             }
         }
 
@@ -248,8 +272,9 @@ class ScrollPaneRegionTest {
         assertTrue("names none" in message, "the refusal should say the child named no region: $message")
         assertTrue("JScrollPane" in message, "the refusal should name the host that holds the regions: $message")
         assertTrue(
-            "SwingModifier.viewport()" in message,
-            "the refusal should name a builder that would place the child: $message",
+            "Name the region it fills through one of: Viewport { }, VerticalScrollbar(), HorizontalScrollbar(), " +
+                "SwingModifier.rowHeader(), SwingModifier.columnHeader(), SwingModifier.corner(position)." in message,
+            "the refusal should list every call that would place the child: $message",
         )
     }
 
@@ -259,7 +284,7 @@ class ScrollPaneRegionTest {
             assertFailsWith<IllegalStateException> {
                 setContent {
                     ScrollPane {
-                        Label(text = "body", modifier = SwingModifier.viewport())
+                        Viewport { Label(text = "body") }
                         Label(text = "rows", modifier = SwingModifier.rowHeader())
                         Label(text = "more rows", modifier = SwingModifier.rowHeader())
                     }
@@ -274,10 +299,28 @@ class ScrollPaneRegionTest {
     }
 
     @Test
+    fun twoViewportsAreRefusedAsTwoClaimsOfOneViewport() = runComposeSwingTest {
+        val message =
+            failureOf {
+                setContent {
+                    ScrollPane {
+                        Viewport { Label(text = "body") }
+                        Viewport {}
+                    }
+                }
+                awaitIdle()
+            }
+        assertTrue(
+            "Viewport { } is declared twice at once in one JScrollPane" in message,
+            "the refusal should say the viewport is declared twice: $message",
+        )
+    }
+
+    @Test
     fun eachCornerIsARegionOfItsOwn() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                Label(text = "body", modifier = SwingModifier.viewport())
+                Viewport { Label(text = "body") }
                 Label(text = "upper", modifier = SwingModifier.corner(JScrollPane.UPPER_LEFT_CORNER))
                 Label(text = "lower", modifier = SwingModifier.corner(JScrollPane.LOWER_RIGHT_CORNER))
             }
@@ -381,13 +424,15 @@ class ScrollPaneRegionTest {
         var alternate by mutableStateOf(false)
         setContent {
             ScrollPane {
-                // Two declarations of the same region, one at a time. The pass that swaps them may hold
-                // both children in the viewport while it runs, in whichever order the incoming child
-                // arrives and the outgoing one leaves; one region, one child, is what it settles at.
-                if (alternate) {
-                    Label(text = "second", modifier = SwingModifier.viewport())
-                } else {
-                    Label(text = "first", modifier = SwingModifier.viewport())
+                // Two views of the one viewport, one at a time. The pass that swaps them may hold both
+                // children in the viewport while it runs, in whichever order the incoming child arrives
+                // and the outgoing one leaves; one viewport, one view, is what it settles at.
+                Viewport {
+                    if (alternate) {
+                        Label(text = "second")
+                    } else {
+                        Label(text = "first")
+                    }
                 }
             }
         }

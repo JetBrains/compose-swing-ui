@@ -119,19 +119,21 @@ private fun ColumnScope.SelectableTreeCard() {
         }
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 220))) {
-            Tree(
-                root = sampleTree,
-                children = { it.children },
-                modifier = SwingModifier.viewport().testTag(PRIMARY_TREE_TAG),
-                label = { it.name },
-                selectedPaths = selection,
-                onSelectionChange = { selection = it },
-                selectionMode = selectionModes[selectionModeIndex].second,
-                rootVisible = rootVisible,
-                showsRootHandles = showsRootHandles,
-                rowHeight = rowHeight,
-                toggleClickCount = toggleClicks,
-            )
+            Viewport {
+                Tree(
+                    root = sampleTree,
+                    children = { it.children },
+                    modifier = SwingModifier.testTag(PRIMARY_TREE_TAG),
+                    label = { it.name },
+                    selectedPaths = selection,
+                    onSelectionChange = { selection = it },
+                    selectionMode = selectionModes[selectionModeIndex].second,
+                    rootVisible = rootVisible,
+                    showsRootHandles = showsRootHandles,
+                    rowHeight = rowHeight,
+                    toggleClickCount = toggleClicks,
+                )
+            }
         }
         Label(text = "Selected path: ${describeSelection(selection)}")
     }
@@ -155,14 +157,16 @@ private fun ColumnScope.ExpansionTreeCard() {
         )
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
-            Tree(
-                root = sampleTree,
-                children = { it.children },
-                state = state,
-                modifier = SwingModifier.viewport().testTag(EXPANSION_TREE_TAG),
-                label = { it.name },
-                onWillExpand = if (lockDocs) ({ value, _ -> value.name != "docs" }) else null,
-            )
+            Viewport {
+                Tree(
+                    root = sampleTree,
+                    children = { it.children },
+                    state = state,
+                    modifier = SwingModifier.testTag(EXPANSION_TREE_TAG),
+                    label = { it.name },
+                    onWillExpand = if (lockDocs) ({ value, _ -> value.name != "docs" }) else null,
+                )
+            }
         }
         Label("Expanded nodes: ${state.expandedPaths.size}")
         WrappedCaption(
@@ -179,23 +183,26 @@ private fun ColumnScope.EditableTreeCard() {
         var renamed by remember { mutableStateOf<Map<Node, String>>(emptyMap()) }
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 180))) {
-            Tree(
-                root = sampleTree,
-                children = { it.children },
-                modifier = SwingModifier.viewport(),
-                label = { renamed[it] ?: it.name },
-                isEditable = true,
-                onNodeEdit = { value, _, newValue -> renamed = renamed + (value to newValue.toString()) },
-            ) { value ->
-                Panel(
-                    PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
-                    modifier = SwingModifier.opaque(false),
-                ) {
-                    // The look-and-feel's own file icons, so a node reads the same on every platform.
-                    val icon =
-                        UIManager.getIcon(if (this@Tree.isLeaf) "FileView.fileIcon" else "FileView.directoryIcon")
-                    Label("", modifier = SwingModifier.icon(icon))
-                    Label(renamed[value] ?: value.name)
+            Viewport {
+                Tree(
+                    root = sampleTree,
+                    children = { it.children },
+                    label = { renamed[it] ?: it.name },
+                    isEditable = true,
+                    onNodeEdit = { value, _, newValue -> renamed = renamed + (value to newValue.toString()) },
+                ) { value ->
+                    Panel(
+                        PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
+                        modifier = SwingModifier.opaque(false),
+                    ) {
+                        // The look-and-feel's own file icons, so a node reads the same on every platform.
+                        val icon =
+                            UIManager.getIcon(
+                                if (this@Tree.isLeaf) "FileView.fileIcon" else "FileView.directoryIcon",
+                            )
+                        Label("", modifier = SwingModifier.icon(icon))
+                        Label(renamed[value] ?: value.name)
+                    }
                 }
             }
         }
@@ -219,12 +226,13 @@ private fun ColumnScope.ModelBackedTreeCard() {
         var selection by remember { mutableStateOf<Set<List<Int>>>(emptySet()) }
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(280, 140))) {
-            Tree(
-                model = model,
-                modifier = SwingModifier.viewport(),
-                selectedPaths = selection,
-                onSelectionChange = { selection = it },
-            )
+            Viewport {
+                Tree(
+                    model = model,
+                    selectedPaths = selection,
+                    onSelectionChange = { selection = it },
+                )
+            }
         }
         Label("Selected: ${selection.firstOrNull()?.joinToString(",") ?: "none"}")
         WrappedCaption("The tree renders this DefaultTreeModel as-is; the library never mutates it.")

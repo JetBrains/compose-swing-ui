@@ -26,6 +26,7 @@ import javax.swing.JPanel
 import javax.swing.JSeparator
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -36,6 +37,16 @@ import kotlin.test.assertTrue
  * here is written with public API only.
  */
 class ContentRegionTest {
+    @Test
+    fun aHostDeclaringNoRegionAndNoContentIsRefusedWhenItIsDeclared() {
+        val refusal = assertFailsWith<IllegalArgumentException> { ChildPlacement.Slots() }
+        assertEquals(
+            "ChildPlacement.Slots needs a region name or a content attachment: " +
+                "a host declared with neither can hold no child.",
+            refusal.message,
+        )
+    }
+
     @Test
     fun anUnnamedChildIsInstalledAsTheHostsContent() = runComposeSwingTest {
         setContent {
