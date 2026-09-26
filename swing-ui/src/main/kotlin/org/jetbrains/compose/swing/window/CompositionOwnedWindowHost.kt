@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
@@ -42,7 +43,10 @@ import javax.swing.SwingUtilities
  * The shape of the two directions matches the two-way geometry model: [applyDeclaredGeometry] reads the
  * hoisted state under a snapshot observer, so a window system reporting a drag or a resize - which
  * [setPosition] and [setSize] carry back into that same state - re-runs the apply rather than
- * recomposing anything.
+ * recomposing anything. Swing work in the observed apply that lays the content out, such as a pack or a
+ * show, runs under [Snapshot.withoutReadObservation]: what the content reads while laid out is not the
+ * window's state, and a write applied during that layout - a composed cell renderer applies one each time
+ * it is measured - would otherwise apply the window again inside its own layout.
  *
  * Everything that is specific to one kind of peer is threaded in as a lambda: [installExtras] alongside
  * the wiring this function installs, [applyExtras] at the tail of the observed apply (after geometry, so

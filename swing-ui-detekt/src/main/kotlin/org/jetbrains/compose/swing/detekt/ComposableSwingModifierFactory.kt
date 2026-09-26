@@ -12,10 +12,9 @@ import org.jetbrains.kotlin.psi.KtProperty
 /**
  * Reports a `SwingModifier` factory marked `@Composable`.
  *
- * A chain is plain data. A factory that composes ties the value it builds to the composition that
- * called it, so the chain can no longer be hoisted, held across passes, or built anywhere but inside a
- * composable - and a caller who does hold it gets a value whose state belongs to a composition that has
- * since left.
+ * A chain is plain data, built in place wherever it is declared. A factory that composes ties the value
+ * it builds to the composition that called it, so the chain can be built only inside a composable, and
+ * its state belongs to that composition.
  *
  * A factory that needs something remembered takes it: `remember` it at the call site, or state it as a
  * `remember*` function of its own that returns the value the plain factory then takes. State private to

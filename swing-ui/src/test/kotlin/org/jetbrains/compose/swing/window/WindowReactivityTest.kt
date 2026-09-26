@@ -1,12 +1,16 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -19,6 +23,7 @@ import java.awt.Point
 import java.awt.Toolkit
 import java.awt.image.BufferedImage
 import javax.swing.JFrame
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -61,6 +66,24 @@ class WindowReactivityTest {
         visible = true
         awaitIdle()
         onWindow().assertIsVisible()
+    }
+
+    /**
+     * A component laid out while its window is shown can apply a snapshot writing a state it read, as a composed
+     * cell renderer does each time it is measured. The window applies what it declares, not what its content reads,
+     * so that write does not show the window again while the first show is still laying it out.
+     */
+    @Test
+    fun aStateTheContentWritesWhileShownDoesNotLayItOutInsideItsOwnLayout() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        assertContentLaidOutOnce(WindowState(size = Dimension(200, 150)))
+    }
+
+    /** The same holds for the pack a window sized to its content is fitted with. */
+    @Test
+    fun aStateTheContentWritesWhilePackedDoesNotLayItOutInsideItsOwnLayout() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        assertContentLaidOutOnce(WindowState())
     }
 
     @Test
@@ -580,4 +603,31 @@ private fun assumeMaximizeIsSupported() {
         Toolkit.getDefaultToolkit().isFrameStateSupported(Frame.MAXIMIZED_BOTH),
         "Maximizing a frame requires toolkit support for MAXIMIZED_BOTH",
     )
+}
+
+private suspend fun ComposeSwingTest.assertContentLaidOutOnce(state: WindowState) {
+    val written = mutableIntStateOf(0)
+    var layingOut = false
+    var nestedLayouts = 0
+    val content =
+        object : JPanel() {
+            override fun doLayout() {
+                if (layingOut) nestedLayouts++
+                layingOut = true
+                try {
+                    written.intValue
+                    Snapshot.withMutableSnapshot { written.intValue++ }
+                } finally {
+                    layingOut = false
+                }
+            }
+        }
+    setContent {
+        Window(onCloseRequest = {}, state = state, title = "laid-out-once-test") {
+            SwingNode(factory = { content })
+        }
+    }
+    awaitIdle()
+    assertTrue(written.intValue > 0, "the content must be laid out while the window is shown")
+    assertEquals(0, nestedLayouts, "the content must not be laid out again inside its own layout")
 }

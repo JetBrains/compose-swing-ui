@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.disposingOnFailure
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -46,6 +47,7 @@ import javax.swing.JTabbedPane
  *
  * @see javax.swing.JTabbedPane
  */
+@LayoutScopeMarker
 public sealed interface TabbedPaneScope {
     /**
      * Makes the child the body of a tab titled [title], at the position it is emitted in.

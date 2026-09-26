@@ -166,6 +166,7 @@ name, so the name stays yours to change:
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
@@ -191,6 +192,7 @@ private fun edgeAttachment(edge: String) =
         return@SlotAttachment { host.remove(component) }
     }
 
+@LayoutScopeMarker
 public object BannerScope {
     public fun SwingModifier.header(): SwingModifier =
         slot(BannerProtocol, HEADER_REGION, edgeAttachment(BorderLayout.NORTH))

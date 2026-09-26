@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -35,6 +36,7 @@ import javax.swing.JSplitPane
  *
  * @see javax.swing.JSplitPane
  */
+@LayoutScopeMarker
 public sealed interface SplitPaneScope {
     /**
      * Places the child on the leading side of the pane: the left under a horizontal split, the top

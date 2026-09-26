@@ -1,17 +1,31 @@
 package org.jetbrains.compose.swing.modifier
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.TestMeasurementParentProtocol
 import org.jetbrains.compose.swing.node.attachedChild
+import org.jetbrains.compose.swing.node.currentValueOf
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+
+private val LocalStatic = staticCompositionLocalOf { "default" }
+
+private val LocalDynamic = compositionLocalOf { "default" }
 
 /** Which modifier nodes a component is handed, in what order, and when. */
 class DeclaredNodesTest {
@@ -174,15 +188,93 @@ class DeclaredNodesTest {
     }
 
     @Test
-    fun aPassThatAttachesOnlyAPropertyNodeOrUpdatesTheNodesInPlaceHandsNothingOver() {
+    fun aPassThatAttachesOnlyAPropertyNodeOrWritesOnlyALayoutNodeHandsNothingOver() {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
 
-        child.applyModifierDiff(SwingModifier.then(Additive("b")).then(Layout("m")).opaque(false))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("m")).opaque(false))
 
         assertEquals(listOf(listOf("a", "l")), child.component.received, "only the attaching pass hands the nodes over")
         owner.dispose()
+    }
+
+    @Test
+    fun aPassThatWritesAnElementHandsTheNodesOverOnce() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel())
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
+
+        child.applyModifierDiff(SwingModifier.then(Additive("b")).then(Layout("l")))
+
+        assertEquals(listOf(listOf("a", "l"), listOf("b", "l")), child.component.received)
+        owner.dispose()
+    }
+
+    @Test
+    fun aWriteTheListenerDoesNotNeedHandsNothingOver() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
+
+        child.applyModifierDiff(SwingModifier.then(Additive("b")).then(Layout("l")))
+
+        assertEquals(listOf(listOf("a", "l")), child.component.received, "the listener declines the write")
+        owner.dispose()
+    }
+
+    @Test
+    fun aCompositionLocalChangeThatRewritesANodeHandsTheNodesOver() = runComposeSwingTest {
+        var value by mutableStateOf("a")
+        lateinit var needed: ListeningPanel
+        lateinit var declined: ListeningPanel
+        setContent {
+            CompositionLocalProvider(LocalStatic provides value) {
+                SwingNode(factory = { JPanel() }) {
+                    SwingNode(
+                        factory = { ListeningPanel().also { needed = it } },
+                        modifier = SwingModifier.then(ConsumingAdditive("a")),
+                    )
+                    SwingNode(
+                        factory = { ListeningPanel(needsAfterWrite = { false }).also { declined = it } },
+                        modifier = SwingModifier.then(ConsumingAdditive("a")),
+                    )
+                }
+            }
+        }
+
+        value = "changed"
+        awaitIdle()
+
+        assertEquals(listOf(listOf("a"), listOf("a")), needed.received, "a needed node hands over")
+        assertEquals(listOf(listOf("a")), declined.received, "a declined node hands nothing over")
+    }
+
+    @Test
+    fun aChangedLocalDynamicThatRewritesANodeHandsTheNodesOverOnce() = runComposeSwingTest {
+        var value by mutableStateOf("hello")
+        lateinit var needed: ListeningPanel
+        lateinit var declined: ListeningPanel
+        setContent {
+            CompositionLocalProvider(LocalDynamic provides value) {
+                SwingNode(factory = { JPanel() }) {
+                    SwingNode(
+                        factory = { ListeningPanel().also { needed = it } },
+                        modifier = SwingModifier.then(DynamicConsumingAdditive("a")),
+                    )
+                    SwingNode(
+                        factory = { ListeningPanel(needsAfterWrite = { false }).also { declined = it } },
+                        modifier = SwingModifier.then(DynamicConsumingAdditive("a")),
+                    )
+                }
+            }
+        }
+
+        value = "changed"
+        awaitIdle()
+
+        assertEquals(2, needed.received.size, "the needed node hands over once for the local change")
+        assertEquals(1, declined.received.size, "the declined node hands nothing over for the local change")
     }
 
     @Test
@@ -459,15 +551,18 @@ private val SwingModifier.Node.label: String
             else -> error("unexpected node $this")
         }
 
-/** Records the labels of every node list it is handed. */
-private class ListeningPanel :
-    JPanel(),
+/** Records the labels of every node list it is handed; [needsAfterWrite] answers a written node's hand-over. */
+private class ListeningPanel(
+    private val needsAfterWrite: (SwingModifier.Node) -> Boolean = { true },
+) : JPanel(),
     DeclaredNodesListener {
     val received = ArrayList<List<String>>()
 
     override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) {
         received += nodes.map { it.label }
     }
+
+    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = needsAfterWrite(node)
 }
 
 /** Labels what [visitDeclaredNodes][SwingModifier.Node.visitDeclaredNodes] visits from [node]. */
@@ -509,6 +604,52 @@ private open class Additive(
 private class SubAdditive(
     label: String,
 ) : Additive(label)
+
+/** An additive element whose node is a [CompositionLocalConsumerModifierNode], so a local refresh rewrites it. */
+private class ConsumingAdditive(
+    private val label: String,
+) : SwingModifier.NodeElement<Component, ConsumingLabelNode>() {
+    override val additive: Boolean get() = true
+
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): ConsumingLabelNode = ConsumingLabelNode()
+
+    override fun update(node: ConsumingLabelNode) {
+        node.label = label
+    }
+
+    override fun equals(other: Any?): Boolean = other is ConsumingAdditive && other.label == label
+
+    override fun hashCode(): Int = label.hashCode()
+}
+
+private class ConsumingLabelNode :
+    LabelNode(),
+    CompositionLocalConsumerModifierNode
+
+/** An additive element whose node reads [LocalDynamic] in `update`, so a change of its value rewrites it. */
+private class DynamicConsumingAdditive(
+    private val label: String,
+) : SwingModifier.NodeElement<Component, DynamicConsumingLabelNode>() {
+    override val additive: Boolean get() = true
+
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): DynamicConsumingLabelNode = DynamicConsumingLabelNode()
+
+    override fun update(node: DynamicConsumingLabelNode) {
+        node.label = "$label:${node.currentValueOf(LocalDynamic)}"
+    }
+
+    override fun equals(other: Any?): Boolean = other is DynamicConsumingAdditive && other.label == label
+
+    override fun hashCode(): Int = label.hashCode()
+}
+
+private class DynamicConsumingLabelNode :
+    LabelNode(),
+    CompositionLocalConsumerModifierNode
 
 /** An additive element of another kind than [Additive], whose node a slot holding an [Additive] cannot host. */
 private class OtherAdditive(

@@ -118,6 +118,33 @@ class ModifierNodeUpdateFailureTest {
     }
 
     @Test
+    fun anAdditiveNodeWhoseInPlaceUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
+        val events = ArrayList<String>()
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val first = FailingOnceElement("once", events, additive = true)
+        assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.then(first)) }
+        holder.applyModifierDiff(SwingModifier.then(first))
+        events.clear()
+
+        val second = FailingOnceElement("once", events, additive = true)
+        assertFailsWith<IllegalStateException> { holder.applyDeclaredModifier(SwingModifier.then(second)) }
+
+        holder.applyDeclaredModifier(SwingModifier.then(second))
+
+        assertEquals(listOf("update once"), events, "the node whose in-place update threw is updated again")
+        assertSame(
+            first.created.single(),
+            second.updated.single(),
+            "the node created on the first, failed apply is the one updated when declared again",
+        )
+        events.clear()
+
+        holder.resetModifierState()
+
+        assertEquals(listOf("onDetach once"), events, "resetModifierState detaches the node that was created")
+    }
+
+    @Test
     fun aKeyedReplacementWhoseUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val events = ArrayList<String>()
         val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())

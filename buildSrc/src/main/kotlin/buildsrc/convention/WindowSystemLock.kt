@@ -17,4 +17,4 @@ import org.gradle.api.services.BuildServiceParameters
  * Gradle runs tasks of different projects concurrently, which is what puts two such tasks on the machine
  * at once. Tasks within one project are already serialized, so this constrains only across projects.
  */
-public abstract class WindowSystemLock : BuildService<BuildServiceParameters.None>
+public interface WindowSystemLock : BuildService<BuildServiceParameters.None>

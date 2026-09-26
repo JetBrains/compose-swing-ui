@@ -20,10 +20,10 @@ import org.junit.jupiter.api.Tag
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Tag(EXCLUSIVE_WINDOW_SYSTEM_TAG)
-internal annotation class ExclusiveWindowSystem
+public annotation class ExclusiveWindowSystem
 
 /**
  * The name the build's test-task split filters on: one task excludes it, the other includes it. The
  * build declares the same literal, which is why it reads as a name rather than a detail of this file.
  */
-internal const val EXCLUSIVE_WINDOW_SYSTEM_TAG: String = "exclusive-window-system"
+public const val EXCLUSIVE_WINDOW_SYSTEM_TAG: String = "exclusive-window-system"

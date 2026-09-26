@@ -46,15 +46,15 @@ public fun SwingNodeInteractionCollection<*>.captureToImages(): List<BufferedIma
 public fun ComposeSwingTest.captureToImage(): BufferedImage = onRoot().captureToImage()
 
 /**
- * Renders an arbitrary, hand-built raw AWT/Swing component to an off-screen image, independently of
- * any composition.
+ * Renders an arbitrary, hand-built AWT or Swing component to an off-screen image, independently of any
+ * composition.
  *
- * This is the raw-Swing counterpart of [SwingNodeInteraction.captureToImage]: it renders a
- * hand-written reference component (e.g. a plain `JButton`) through the same pipeline used for
- * composed components, so the two images can be compared pixel-for-pixel. The component and its whole
- * subtree are laid out here, at the size it already carries or at its preferred size when it carries
- * none - so give it the size of the composed component you are comparing against, and both images
- * share identical dimensions.
+ * This is the raw-component counterpart of [SwingNodeInteraction.captureToImage]: it renders a
+ * hand-written reference component (e.g. a plain `JButton` or a custom AWT component) through the
+ * same pipeline used for composed components, so the two images can be compared pixel-for-pixel. The
+ * component and its whole subtree are laid out here, at the size it already carries or at its preferred
+ * size when it carries none - so give it the size of the composed component you are comparing against,
+ * and both images share identical dimensions.
  *
  * @return an image whose width and height match the size the component was rendered at.
  * @throws AssertionError if the component has neither a size nor a preferred size.
@@ -71,21 +71,14 @@ public fun Component.captureToImage(): BufferedImage {
     return renderToImage()
 }
 
-/**
- * Renders this component and its descendants to an image of its current size, laying nothing out. A
- * component the composition holds carries the bounds its declaration gave it, which a layout pass here
- * would overwrite.
- */
+/** Paints this component into an image of its current size, laying nothing out, whether or not it is showing. */
 private fun Component.renderToImage(): BufferedImage {
     val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     val graphics = image.createGraphics()
     try {
-        // printAll (not paintAll) renders the component and its descendants regardless of on-screen
-        // showing state. paintAll draws nothing for a component that is not showing, and the harness
-        // root never shows, so print is the path that draws pixels.
-        printAll(graphics)
+        paint(graphics)
+        return image
     } finally {
         graphics.dispose()
     }
-    return image
 }

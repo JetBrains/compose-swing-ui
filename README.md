@@ -164,7 +164,8 @@ Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `re
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
 styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
 appearance, layout, interaction, listener, keyboard, data transfer, and accessibility. See
-[`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for what an unhoisted instance costs.
+[`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for why a modifier built in place needs no
+`remember`.
 
 ## Bring your own Swing component
 
@@ -173,12 +174,13 @@ custom Swing components into a composition. Every built-in wrapper is built on `
 way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
 
-Three further guides carry the rest:
+Four further guides carry the rest:
 
 - [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
   the composition, and the state holders that carry what a declared value cannot.
 - [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across
   passes, the `modifier` parameter, writing a property element of your own, and attaching listeners.
+- [`docs/FOUNDATION.md`](docs/FOUNDATION.md) - constraint-based layout, drawing and decorations.
 - [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer
   their children, and rendering items with a composable cell.
 
@@ -240,8 +242,8 @@ consume the libraries.
 
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
-`swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui`,
-`swing-ui-foundation` its `foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its
+`swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui` and
+`ui-util`, `swing-ui-foundation` its `foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its
 `animation-core`, and `swing-ui-detekt` one of that project's Android Lint checks, all under the same license. See
 each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

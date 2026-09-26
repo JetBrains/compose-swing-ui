@@ -4,6 +4,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.withType
+import org.gradle.process.CommandLineArgumentProvider
 import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
@@ -60,5 +61,17 @@ public fun Project.kotlinDefaults() {
         // own, and a deadlocked method never returns. Running each on its own thread is what lets the deadline
         // interrupt one.
         systemProperty("junit.jupiter.execution.timeout.thread.mode.default", "SEPARATE_THREAD")
+        // The screenshot harness reads its switches, such as the one putting it in record mode, from system
+        // properties of the JVM it runs in. Requesting one on the Gradle command line sets it on the daemon
+        // instead, so the whole prefixed family is forwarded to the forked test JVM. Forwarding by prefix
+        // leaves the individual switch names owned by the harness that defines them. The values are registered
+        // as a task input, so changing one reruns the tests.
+        val screenshotProperties = providers.systemPropertiesPrefixedBy("SCREENSHOT_TEST_")
+        inputs.property("screenshotTestProperties", screenshotProperties)
+        jvmArgumentProviders.add(
+            CommandLineArgumentProvider {
+                screenshotProperties.get().map { (name, value) -> "-D$name=$value" }
+            },
+        )
     }
 }

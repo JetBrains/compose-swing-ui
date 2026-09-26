@@ -740,6 +740,7 @@ public final class org/jetbrains/compose/swing/modifier/ComposedModifierKt {
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
+	public fun needsNodesAfterWrite (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)Z
 	public abstract fun onDeclaredNodesChanged (Ljava/util/List;)V
 }
 

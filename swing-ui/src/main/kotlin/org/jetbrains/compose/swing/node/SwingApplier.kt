@@ -6,7 +6,7 @@ import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.util.DeferredAction
-import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Container
 import java.util.Collections
@@ -648,7 +648,7 @@ private fun SwingNodeHolder<*>.standingSiblingsBefore(
     index: Int,
 ): Int {
     var standing = 0
-    children.fastForEach(0 until index) { if (it.attachedToHost && it.component.parent === host) standing++ }
+    children.fastForEachIn(0 until index) { if (it.attachedToHost && it.component.parent === host) standing++ }
     return standing
 }
 
@@ -664,7 +664,7 @@ private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
 ): Int {
     val depth = child.depthOn(pane)
     var standing = 0
-    children.fastForEach(0 until index) {
+    children.fastForEachIn(0 until index) {
         if (it.attachedToHost && it.component.parent === pane && it.depthOn(pane) == depth) standing++
     }
     return standing

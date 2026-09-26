@@ -7,6 +7,10 @@ Project's Jetpack Compose libraries, redistributed under the Apache License, Ver
             (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
   Copyright The Android Open Source Project
 
+  Original: androidx.compose.ui:ui-util 1.12.0
+            (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
+  Copyright The Android Open Source Project
+
 Adaptations: the sources are adapted to this project's modifier and Swing component model.
 Each file's header names the upstream file it was adapted from and its original copyright year.
 

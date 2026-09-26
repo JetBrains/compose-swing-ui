@@ -360,7 +360,9 @@ ListBox(
 A composable cell - a `ListBox` or `ComboBox` `itemContent`, a column's `cellContent`, a `Tree`'s
 `nodeContent` - composes **one** component, and that component is what the widget renders the row
 with: it is bounded at the row and laid out there. Compose several components into a panel and the row
-is that panel, arranged by its layout - a cell composing several components on its own is refused,
+is that panel, arranged by its layout. Inside the panel's content the cell's scope is hidden, as every
+container hides the scopes around it: read `isSelected` and the other row values before the panel, or
+as `this@ListBox.isSelected`. A cell composing several components on its own is refused,
 since only one of them could be the row. Everything inside is ordinary Swing: gaps, alignment and a
 fixed slot for a leading glyph are the panel's layout to decide, and its background is painted over
 the row's unless `opaque(false)` says otherwise.
@@ -865,7 +867,7 @@ application-scope state and `CompositionLocal`s flow into their content.
 
 A window's content is given the window as its scope, and what the window carries besides that content
 is declared there: `MenuBar { }` and `GlassPane { }` are those declarations, so each can only be
-written where there is a window to carry it.
+written directly in the content of a window, not in that of a container inside it.
 
 `GlassPane { }` is the sheet above everything else in the window: it covers the whole window and is
 transparent where its content paints nothing - a drag-and-drop hint, a progress veil, anything drawn
@@ -1045,26 +1047,25 @@ frame.jMenuBar = bar
 <!--- CLEAR -->
 
 There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
-that go gray together - is a shared value and a shared modifier. Both surfaces read the one state and
-apply the one modifier, so enabling and disabling them is a single state write.
+that go gray together - is a shared value. Both surfaces read the one state in the modifier each builds,
+so enabling and disabling them is a single state write.
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {
     var dirty by remember { mutableStateOf(false) }
-    val whenDirty = SwingModifier.enabled(dirty)
 
     MenuBar {
         Menu("File") {
             MenuItem(
                 "Save",
                 onClick = ::save,
-                modifier = whenDirty,
+                modifier = SwingModifier.enabled(dirty),
                 accelerator = KeyStroke.getKeyStroke("control S"),
             )
         }
     }
     ToolBar {
-        Button("Save", onClick = ::save, modifier = whenDirty)
+        Button("Save", onClick = ::save, modifier = SwingModifier.enabled(dirty))
     }
 }
 ```

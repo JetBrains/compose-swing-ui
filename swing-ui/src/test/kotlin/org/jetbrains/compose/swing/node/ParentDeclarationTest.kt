@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
+import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
@@ -388,6 +389,30 @@ class ParentDeclarationTest {
     }
 
     @Test
+    fun aListenerThatDeclinesEveryWriteStillTellsTheParentALayoutNodeWasRewritten() {
+        val owner = TestCompositionOwner()
+        val layout = RecordingMeasurementLayout()
+        val root = JPanel(layout)
+        val child = SwingNodeHolder(DecliningListenerButton()).attachedTo(owner)
+        root.add(child.component)
+        child.declaration.attachedUnder(root)
+        val events = mutableListOf<String>()
+
+        fun declaresAgain(modifier: SwingModifier): Boolean {
+            val calls = layout.declarations.size
+            child.applyModifierDiff(modifier)
+            return layout.declarations.size > calls
+        }
+
+        assertTrue(declaresAgain(SwingModifier.then(RecordingLayoutNodeElement("a", events))), "attach")
+        assertTrue(
+            declaresAgain(SwingModifier.then(RecordingLayoutNodeElement("b", events))),
+            "the listener declining every write must not stop a layout-node rewrite from reaching the parent",
+        )
+        owner.dispose()
+    }
+
+    @Test
     fun aDetachedLayoutNodesCallbackIsNotHeldByTheComposition() {
         val owner = TestCompositionOwner()
         val child = attachedLayoutNode(owner)
@@ -704,6 +729,15 @@ internal class RecordingLayoutNode(
     override fun onReset() {
         events += "onReset"
     }
+}
+
+/** A [DeclaredNodesListener] that turns down every write, to prove a layout-slot rewrite reaches the parent anyway. */
+private class DecliningListenerButton :
+    JButton("child"),
+    DeclaredNodesListener {
+    override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) = Unit
+
+    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = false
 }
 
 /** A chain member recording, at each lifecycle step, how many nodes of its own chain are attached. */

@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import javax.swing.JTable
@@ -27,6 +28,7 @@ import javax.swing.table.TableCellRenderer
  *
  * @see javax.swing.table.TableCellRenderer.getTableCellRendererComponent
  */
+@LayoutScopeMarker
 public sealed interface TableCellScope {
     /** The index into the table's rows of the row being rendered. */
     public val rowIndex: Int

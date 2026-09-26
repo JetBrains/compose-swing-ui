@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.desktop
 
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
@@ -26,6 +27,7 @@ import javax.swing.JLayeredPane
  *
  * @see javax.swing.JLayeredPane
  */
+@LayoutScopeMarker
 public sealed interface LayeredPaneScope {
     /**
      * Places the child on the depth [layer]. Higher values paint above lower ones: name a well-known

@@ -6,6 +6,7 @@ plugins {
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
     id("buildsrc.convention.window-system-lock")
+    id("buildsrc.convention.exclusive-window-system-tests")
     id("buildsrc.convention.compiler-test-harness")
 }
 

@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import org.jetbrains.compose.swing.annotations.ScrollPaneCorner
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -36,6 +37,7 @@ import javax.swing.JScrollPane
  *
  * @see javax.swing.JScrollPane
  */
+@LayoutScopeMarker
 public sealed interface ScrollPaneScope {
     /**
      * Installs the child as the scrollable content, the view of the pane's central viewport.

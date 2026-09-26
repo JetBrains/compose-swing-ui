@@ -103,6 +103,10 @@ public object InProcessCompilerHarness {
             add(System.getProperty("java.class.path").orEmpty())
             add("-no-stdlib")
             add("-no-reflect")
+            add("-language-version")
+            add("2.2")
+            add("-api-version")
+            add("2.2")
             add("-jvm-target")
             add("11")
             pluginClasspath.forEach { jar -> add("-Xplugin=${jar.absolutePath}") }

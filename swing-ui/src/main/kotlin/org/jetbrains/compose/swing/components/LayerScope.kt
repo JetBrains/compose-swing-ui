@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -46,6 +47,7 @@ import javax.swing.SwingUtilities
  *
  * @see javax.swing.JLayer
  */
+@LayoutScopeMarker
 public sealed interface LayerScope {
     /**
      * Installs the child as the layer's view: the component the layer lays out, takes its own

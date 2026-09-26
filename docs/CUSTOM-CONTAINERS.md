@@ -220,19 +220,22 @@ receives it as-is and a manager that takes no constraints places the child by in
 
 What a container supplies is the rules its children are placed by - a layout manager or a measure
 policy - and a scope whose modifier builders name the placements those rules understand. The scope is a
-public sealed interface whose builders are declared as extensions on `SwingModifier`, so each one is
-callable only where that scope is in receiver position - inside the container's own content - and an
+public sealed interface annotated `@LayoutScopeMarker`, whose builders are declared as extensions on
+`SwingModifier`, so each one is callable only where that scope is in receiver position - inside the
+container's own content, where the marker hides the scopes of the containers around it - and an
 internal object or class implements them. `RowScope.weight` is the worked precedent for that shape;
 each builder appends the value those rules understand with `layoutConstraint`:
 
 ```kotlin
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JPanel
 
 /** The placements a mosaic offers, and where the constraint's type belongs. */
+@LayoutScopeMarker
 sealed interface MosaicScope {
     /** Places the child in the cell at [row] and [column]. */
     fun SwingModifier.cell(row: Int, column: Int): SwingModifier
@@ -397,6 +400,7 @@ The scope interface is the whole API callers see. Each of its builders names one
 composite, over the constraint the container underneath understands:
 
 ```kotlin
+@LayoutScopeMarker
 sealed interface FramedScope {
     /** Places the child across the top of the frame, above its body. */
     fun SwingModifier.header(): SwingModifier

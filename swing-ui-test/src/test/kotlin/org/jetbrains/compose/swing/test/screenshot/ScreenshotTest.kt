@@ -7,6 +7,9 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
+import java.awt.Component
+import java.awt.Dimension
+import java.awt.Graphics
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JButton
@@ -44,6 +47,18 @@ class ScreenshotTest {
         assertEquals(40, sized.captureToImage().height)
     }
 
+    /** A non-Swing component can render itself into the capture's off-screen graphics context. */
+    @Test
+    fun aRawAwtComponentIsCapturedOffscreen() = runComposeSwingTest {
+        val component = PaintedAwtComponent()
+
+        val image = component.captureToImage()
+
+        assertEquals(120, image.width, "the image is as wide as the component")
+        assertEquals(40, image.height, "the image is as tall as the component")
+        assertEquals(Color.RED.rgb, image.getRGB(10, 10), "the component's own painting is captured")
+    }
+
     @Test
     fun captureToImagesProducesOneImagePerMatchedComponent() = runComposeSwingTest {
         setContent {
@@ -67,7 +82,9 @@ class ScreenshotTest {
         }
 
         // Distinct components are captured independently, so their images differ.
-        assertTrue(imagesDiffer(images[0], images[1]), "each match is captured independently")
+        assertFailsWith<AssertionError>("each match is captured independently") {
+            assertImagesPixelPerfect(images[0], images[1])
+        }
     }
 
     @Test
@@ -101,8 +118,8 @@ class ScreenshotTest {
 
     @Test
     fun smallElementMoveStillPassesDefaultThreshold() = runComposeSwingTest {
-        val expected = renderWithElementAt(elementX = ELEMENT_X)
-        val nudged = renderWithElementAt(elementX = ELEMENT_X + NUDGE_PIXELS)
+        val expected = renderWithElementAt()
+        val nudged = renderWithElementAt(elementX = 38)
 
         // Nudging a single element a couple of pixels keeps MSSIM above the default threshold.
         assertImageMatches(expected = expected, image = nudged)
@@ -139,8 +156,8 @@ class ScreenshotTest {
 
     @Test
     fun pixelPerfectMatcherFlagsAnElementMove() {
-        val expected = renderWithElementAt(elementX = ELEMENT_X)
-        val nudged = renderWithElementAt(elementX = ELEMENT_X + NUDGE_PIXELS)
+        val expected = renderWithElementAt()
+        val nudged = renderWithElementAt(elementX = 38)
 
         val result =
             PixelPerfectMatcher.compare(
@@ -172,10 +189,10 @@ class ScreenshotTest {
 
     @Test
     fun pixelPerfectAllowsNoMoreDifferingPixelsThanItIsGiven() = runComposeSwingTest {
-        val expected = renderWithElementAt(elementX = ELEMENT_X)
-        val oneOff = renderWithElementAt(elementX = ELEMENT_X).also { it.setRGB(0, 0, Color.RED.rgb) }
+        val expected = renderWithElementAt()
+        val oneOff = renderWithElementAt().also { it.setRGB(0, 0, Color.RED.rgb) }
 
-        assertImagesPixelPerfect(expected, renderWithElementAt(elementX = ELEMENT_X))
+        assertImagesPixelPerfect(expected, renderWithElementAt())
         assertImagesPixelPerfect(expected, oneOff, maxDifferentPixels = 1)
 
         val failure = assertFailsWith<AssertionError> { assertImagesPixelPerfect(expected, oneOff) }
@@ -187,7 +204,7 @@ class ScreenshotTest {
 
     @Test
     fun pixelPerfectRefusesANegativeTolerance() = runComposeSwingTest {
-        val image = renderWithElementAt(elementX = ELEMENT_X)
+        val image = renderWithElementAt()
 
         assertFailsWith<IllegalArgumentException> {
             assertImagesPixelPerfect(image, image, maxDifferentPixels = -1)
@@ -219,10 +236,10 @@ class ScreenshotTest {
 
     /** An image of the scene size filled with [color] and nothing else. */
     private fun filled(color: Color): BufferedImage {
-        val image = BufferedImage(SCENE_WIDTH, SCENE_HEIGHT, BufferedImage.TYPE_INT_ARGB)
+        val image = BufferedImage(88, 25, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
         graphics.color = color
-        graphics.fillRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT)
+        graphics.fillRect(0, 0, image.width, image.height)
         graphics.dispose()
         return image
     }
@@ -233,34 +250,15 @@ class ScreenshotTest {
      * models "one UI element moved slightly": the change is structurally small (MSSIM stays above
      * the default threshold) yet not pixel-identical (the strict matcher still flags it).
      */
-    private fun renderWithElementAt(elementX: Int): BufferedImage {
-        val image = BufferedImage(SCENE_WIDTH, SCENE_HEIGHT, BufferedImage.TYPE_INT_ARGB)
+    private fun renderWithElementAt(elementX: Int = 36): BufferedImage {
+        val image = BufferedImage(88, 25, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
         graphics.color = Color(0xEE, 0xEE, 0xEE)
-        graphics.fillRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT)
+        graphics.fillRect(0, 0, image.width, image.height)
         graphics.color = Color(0xD2, 0xD2, 0xD2)
-        graphics.fillRect(elementX, ELEMENT_Y, ELEMENT_WIDTH, ELEMENT_HEIGHT)
+        graphics.fillRect(elementX, 10, 16, 5)
         graphics.dispose()
         return image
-    }
-
-    /**
-     * Two captures differ when they disagree in size or in any ARGB pixel. Differing dimensions are a
-     * difference in themselves; equal dimensions fall back to an exact per-pixel comparison.
-     */
-    private fun imagesDiffer(
-        first: BufferedImage,
-        second: BufferedImage,
-    ): Boolean {
-        if (first.width != second.width || first.height != second.height) return true
-        val result =
-            PixelPerfectMatcher.compare(
-                first.toArgbIntArray(),
-                second.toArgbIntArray(),
-                first.width,
-                first.height,
-            )
-        return !result.matches
     }
 
     private fun invert(source: BufferedImage): BufferedImage {
@@ -276,13 +274,12 @@ class ScreenshotTest {
         return copy
     }
 
-    private companion object {
-        const val SCENE_WIDTH = 88
-        const val SCENE_HEIGHT = 25
-        const val ELEMENT_X = 36
-        const val ELEMENT_Y = 10
-        const val ELEMENT_WIDTH = 16
-        const val ELEMENT_HEIGHT = 5
-        const val NUDGE_PIXELS = 2
+    private class PaintedAwtComponent : Component() {
+        override fun getPreferredSize(): Dimension = Dimension(120, 40)
+
+        override fun paint(graphics: Graphics) {
+            graphics.color = Color.RED
+            graphics.fillRect(0, 0, width, height)
+        }
     }
 }

@@ -26,8 +26,8 @@ public abstract class ParentLayoutNodeElement<N : ParentLayoutNode> : ParentLayo
  * stands, carrying state a plain declaration cannot.
  *
  * Implements [ParentLayoutElement] itself, because a diffed slot's node - not the throwaway element that
- * last updated it - is what a measuring parent reads from then on; [parentProtocol] comes from whatever
- * more specific contract a concrete subclass also implements.
+ * last updated it - is what a measuring parent reads from then on. A concrete subclass declares its
+ * [parentProtocol], the same one its element declares.
  */
 public abstract class ParentLayoutNode :
     SwingModifier.Node(),

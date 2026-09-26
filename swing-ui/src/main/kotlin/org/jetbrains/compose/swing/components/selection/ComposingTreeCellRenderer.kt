@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
@@ -29,6 +30,7 @@ import javax.swing.tree.TreeCellRenderer
  *
  * @see javax.swing.tree.TreeCellRenderer.getTreeCellRendererComponent
  */
+@LayoutScopeMarker
 public sealed interface TreeNodeScope {
     /** The row the node being rendered occupies, counting the tree's displayed rows from the top. */
     public val row: Int

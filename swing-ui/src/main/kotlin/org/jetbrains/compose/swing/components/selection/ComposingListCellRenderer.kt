@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -38,6 +39,7 @@ import kotlin.reflect.KClass
  *
  * @see javax.swing.ListCellRenderer.getListCellRendererComponent
  */
+@LayoutScopeMarker
 public sealed interface ListItemScope {
     /**
      * The row index being rendered; `-1` when a `JComboBox` renders its selected-value display area,

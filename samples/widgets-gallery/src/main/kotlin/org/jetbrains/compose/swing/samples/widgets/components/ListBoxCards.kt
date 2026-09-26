@@ -78,7 +78,7 @@ internal fun ColumnScope.ListBoxCard() {
                     PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
                     modifier = SwingModifier.opaque(false),
                 ) {
-                    Label(if (isSelected) "●" else "○")
+                    Label(if (this@ListBox.isSelected) "●" else "○")
                     Label(row)
                 }
             }

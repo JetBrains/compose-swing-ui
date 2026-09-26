@@ -731,12 +731,15 @@ private class ComposeSwingTestImpl(
         val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
         val drained = booleanArrayOf(false)
         SwingUtilities.invokeLater {
-            if (layOut && noPendingDispatch()) {
-                root.validate()
-                root.layoutUnplacedSubtrees()
+            try {
+                if (layOut && noPendingDispatch()) {
+                    root.validate()
+                    root.layoutUnplacedSubtrees()
+                }
+                drained[0] = noPendingDispatch()
+            } finally {
+                loop.exit()
             }
-            drained[0] = noPendingDispatch()
-            loop.exit()
         }
         loop.enter()
         throwLibraryFailure()

@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -137,6 +138,7 @@ public class InternalFrameControls(
  *
  * @see javax.swing.JInternalFrame
  */
+@LayoutScopeMarker
 public sealed interface DesktopPaneScope {
     /**
      * Declares one internal frame, placed on plain [bounds].

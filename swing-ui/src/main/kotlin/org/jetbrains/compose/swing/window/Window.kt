@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.annotations.Nls
 import java.awt.Dimension
 import java.awt.Image
@@ -123,7 +124,7 @@ public fun Window(
             // The extended state is applied before the visibility flip so the window appears already
             // maximized, minimized or restored.
             frame.applyExtendedState(state.extendedState, appliedGeometry)
-            if (frame.isVisible != visible) frame.isVisible = visible
+            if (frame.isVisible != visible) Snapshot.withoutReadObservation { frame.isVisible = visible }
         },
         disposePeer = { frame.dispose() },
         content = content,

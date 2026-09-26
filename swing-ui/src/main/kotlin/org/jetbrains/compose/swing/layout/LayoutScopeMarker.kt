@@ -1,10 +1,10 @@
 package org.jetbrains.compose.swing.layout
 
 /**
- * Marks layout scope receivers so an extension from one container scope is unavailable inside another.
+ * Marks the receiver of a container's content, so the scopes of the containers around it are unavailable
+ * there: a child cannot declare a placement meant for a parent that does not place it.
  *
- * Apply this to a custom container scope that declares modifier extensions for its children; nested
- * layout scopes then cannot accidentally use those extensions for the wrong parent.
+ * Apply this to a custom container scope that declares modifier extensions for its children.
  */
 @DslMarker
 public annotation class LayoutScopeMarker

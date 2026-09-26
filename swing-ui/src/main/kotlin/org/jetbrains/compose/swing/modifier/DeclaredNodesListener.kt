@@ -11,11 +11,22 @@ import org.jetbrains.compose.swing.util.fastForEach
 public interface DeclaredNodesListener {
     /**
      * Receives the nodes [SwingModifier.Node.visitDeclaredNodes] visits, on the event dispatch thread, after a
-     * modifier pass in which one of them attached, detached or changed place; an empty list once none stands.
-     * Every node handed over is attached.
+     * modifier pass in which one of them attached, detached, changed place, or was written with a new element
+     * that [needsNodesAfterWrite] takes, or after a composition-local refresh that rewrote such a node; an empty
+     * list once none stands. Every node handed over is attached.
      */
     public fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>)
+
+    /**
+     * Whether writing [node] with a new element, by a modifier pass or a composition-local refresh, hands
+     * this component its nodes, where no node attached, detached or changed place. `true` unless overridden.
+     */
+    public fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = true
 }
+
+/** Whether writing [node] hands this listener its nodes: `true` where there is no listener. */
+internal fun DeclaredNodesListener?.takesWrite(node: SwingModifier.Node): Boolean =
+    this == null || needsNodesAfterWrite(node)
 
 /** Visits the nodes [SwingModifier.Node.visitDeclaredNodes] visits, for this holder's modifier. */
 internal fun SwingNodeHolder<*>.visitDeclaredNodes(block: (SwingModifier.Node) -> Unit) {
@@ -53,3 +64,9 @@ internal fun SwingNodeHolder<*>.notifyDeclaredNodes(
     if (!chainChanged || (chain.isEmpty() && !handedNodes)) return
     (component as? DeclaredNodesListener)?.onDeclaredNodesChanged(chain.map { it.node })
 }
+
+/** This [SlotChange] where it is not a write [listener] declines, else [SlotChange.Unchanged]. */
+internal fun SlotChange.countedFor(
+    listener: DeclaredNodesListener?,
+    node: SwingModifier.Node,
+): SlotChange = if (this == SlotChange.Unchanged || listener.takesWrite(node)) this else SlotChange.Unchanged

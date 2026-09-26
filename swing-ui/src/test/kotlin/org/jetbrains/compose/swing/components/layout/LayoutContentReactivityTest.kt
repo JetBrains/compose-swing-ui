@@ -100,7 +100,7 @@ class LayoutContentReactivityTest {
 
     @Test
     fun aToolBarFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> ToolBar(floatable = false, content = content) }
+        assertTheContentIsFollowed { content -> ToolBar(floatable = false) { content() } }
     }
 
     private companion object {

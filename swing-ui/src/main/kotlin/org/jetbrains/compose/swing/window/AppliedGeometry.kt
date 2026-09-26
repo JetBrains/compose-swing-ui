@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.window
 
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.annotations.WindowExtendedState
 import java.awt.Dimension
 import java.awt.Frame
@@ -199,7 +200,7 @@ private fun Window.applySize(
     if (width == 0 && height == 0) {
         // The toolkit keeping the content's size when it frames the window is what fitting the content
         // asks for, so there is nothing to hold the window to.
-        pack()
+        Snapshot.withoutReadObservation { pack() }
         applied.supersededSize = null
         applied.sizeRequestInsets = null
         applied.sizeReportedLate = false

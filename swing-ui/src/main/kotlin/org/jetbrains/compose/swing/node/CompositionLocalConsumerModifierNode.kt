@@ -1,9 +1,12 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.CompositionLocal
+import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.ElementRecord
 import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.notifyDeclaredNodes
+import org.jetbrains.compose.swing.modifier.takesWrite
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -43,7 +46,9 @@ internal fun SwingNodeHolder<*>.observesLocals(): Boolean {
 
 /**
  * Runs consumer component slots' `update` again, with that of every property slot declared after the first
- * consumer one, and lays out and repaints the parent of consumer layout slots.
+ * consumer one, lays out and repaints the parent of consumer layout slots, and hands the [DeclaredNodesListener]
+ * its nodes where a rewritten component slot holds a node it needs
+ * ([DeclaredNodesListener.needsNodesAfterWrite]).
  */
 internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val state = modifierState ?: return
@@ -51,9 +56,16 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val held = state.startWrite()
     state.rewritePropertySlotsFrom(component, diagnostics) { it.node is CompositionLocalConsumerModifierNode }
     var laidOut = false
+    var handsOver = false
+    val listener = component as? DeclaredNodesListener
     state.chain.fastForEach { record ->
         if (record.node is CompositionLocalConsumerModifierNode) {
-            if (record is ElementRecord<*, *>) record.refresh(component, diagnostics) else laidOut = true
+            if (record is ElementRecord<*, *>) {
+                record.refresh(component, diagnostics)
+                if (listener.takesWrite(record.node)) handsOver = true
+            } else {
+                laidOut = true
+            }
         }
     }
     state.applied = held
@@ -61,6 +73,7 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
         component.revalidate()
         (component.parent ?: component).repaint()
     }
+    if (handsOver) notifyDeclaredNodes(chainChanged = true, handedNodes = state.handedNodes)
 }
 
 private fun SwingNodeHolder<*>.forEachLocalConsumer(action: (NodeRecord<*, *>) -> Unit) {

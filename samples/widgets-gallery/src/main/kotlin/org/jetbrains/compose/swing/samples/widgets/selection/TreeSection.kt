@@ -192,7 +192,8 @@ private fun ColumnScope.EditableTreeCard() {
                     modifier = SwingModifier.opaque(false),
                 ) {
                     // The look-and-feel's own file icons, so a node reads the same on every platform.
-                    val icon = UIManager.getIcon(if (isLeaf) "FileView.fileIcon" else "FileView.directoryIcon")
+                    val icon =
+                        UIManager.getIcon(if (this@Tree.isLeaf) "FileView.fileIcon" else "FileView.directoryIcon")
                     Label("", modifier = SwingModifier.icon(icon))
                     Label(renamed[value] ?: value.name)
                 }

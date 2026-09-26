@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Stable
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import javax.swing.JRootPane
 
 /**
@@ -14,6 +15,7 @@ import javax.swing.JRootPane
  * A scope is received, never made: every value of this type is one a window handed its content, so a
  * declaration made on it reaches the window that content is in and no other.
  */
+@LayoutScopeMarker
 @Stable
 public class WindowScope private constructor(
     /**

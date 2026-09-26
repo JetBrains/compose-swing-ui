@@ -176,6 +176,7 @@ class WindowDecorationTest {
         }
         val window = onWindowWithTitle("position-replacement-test")
         val realized = window.fetch<JFrame>()
+        awaitWindowStandsStill(realized)
         assertReaches(Point(140, 90), "the window must realize at the position the state holds") { realized.location }
 
         undecorated = false
@@ -204,6 +205,7 @@ class WindowDecorationTest {
         }
         val dialog = onWindowWithTitle("dialog-position-replacement-test")
         val realized = dialog.fetch<JDialog>()
+        awaitWindowStandsStill(realized)
         assertReaches(Point(160, 110), "the dialog must realize at the position the state holds") { realized.location }
 
         undecorated = false

@@ -22,8 +22,9 @@ Elements come in three kinds. A property element, such as a background, writes o
 element, such as a listener, installs something. A parent declaration is read by the component's parent
 instead: see [Parent declarations](#parent-declarations).
 
-Being immutable, a modifier can be built inline, hoisted, held across passes, shared between components
-and passed on. Two modifiers built the same way from equal elements are equal.
+A modifier is immutable, and two modifiers built the same way from equal elements are equal, so one built
+in place on every pass matches the previous pass. Reuse is a builder function: an extension that appends
+the elements.
 
 ## Order and merge
 
@@ -180,7 +181,9 @@ A throw out of an element's `create()` or `update(node)`, or a node's `onAttach(
 that drives the content, as any throw while changes are applied does. What it leaves the modifier's
 nodes in is fixed:
 
-- A node whose `onAttach()` threw never runs `onDetach()`.
+- A node whose `onAttach()` threw is detached at once: its `onDetach()` runs, its `coroutineScope` is
+  cancelled and its observed reads are cleared. `onDetach()` must therefore tolerate an `onAttach()` that
+  did not finish.
 - A node whose `onAttach()` returned runs `onDetach()` exactly once when it detaches, even where its
   element's `update` then threw.
 - An additive or parent-layout slot whose replacement node could not be created keeps the node it had.

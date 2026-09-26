@@ -11,8 +11,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.tooling.NODE_KEY
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
-import org.jetbrains.compose.swing.util.fastForEach
-import org.jetbrains.compose.swing.util.fastForEachIndexed
+import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
 import java.awt.Component
@@ -336,7 +335,7 @@ internal val SwingNodeHolder<*>.attachedToHost: Boolean
  */
 internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int {
     var attached = 0
-    children.fastForEach(0 until index) { if (it.attachedToHost) attached++ }
+    children.fastForEachIn(0 until index) { if (it.attachedToHost) attached++ }
     return attached
 }
 
@@ -349,7 +348,7 @@ internal inline fun SwingNodeHolder<*>.removeChildRun(
     count: Int,
     crossinline release: (SwingNodeHolder<*>) -> Unit,
 ) {
-    children.fastForEach(index until index + count) { release(it) }
+    children.fastForEachIn(index until index + count) { release(it) }
     children.subList(index, index + count).clear()
 }
 
@@ -371,8 +370,9 @@ internal inline fun SwingNodeHolder<*>.moveChildRun(
     val target = moveChildRun(from, to, count)
     // The whole run leaves its host before any of it goes back: a place addresses the position among the
     // children that stay, and a run still standing where it was would push each of them one along.
-    children.fastForEach(target until target + count) { detach(it) }
-    children.fastForEachIndexed(target until target + count) { index, child ->
+    children.fastForEachIn(target until target + count) { detach(it) }
+    for (index in target until target + count) {
+        val child = children[index]
         if (child.attachedToHost) place(child, index)
     }
 }

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
@@ -22,6 +23,7 @@ import kotlin.test.assertEquals
  * A child inside it is an ordinary child - it declares its own layout modifiers and its own constraint
  * to the policy, and a container nested under it is asked a constrained question like any other.
  */
+@ExclusiveWindowSystem
 class LayoutTest {
     @Test
     fun aPolicyPlacesEachChildWhereItSays() =

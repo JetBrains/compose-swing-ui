@@ -1,3 +1,23 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.ui.CombinedModifier in AndroidX's ui; see this module's
+ * META-INF/NOTICE for the synced version. CombinedSwingModifier's fold and equality contract,
+ * and the Modifier.Node attach/detach/reset lifecycle checks, are upstream's.
+ */
+
 @file:JvmMultifileClass
 @file:JvmName("SwingModifierKt")
 
@@ -26,6 +46,7 @@ import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.observesLocals
 import org.jetbrains.compose.swing.node.requireOwner
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 
@@ -51,11 +72,10 @@ import java.awt.Component
  * else it` adds the background when selected and removes it (restoring the value the component had
  * before the modifier first touched that property) when not.
  *
- * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the modifier
- * inline in the composable body is the intended style and needs no `remember`: a modifier declaring what
- * the one last applied to a component declares is skipped, and each element is judged on its own, so a
- * property whose declared value has not changed is not written again, until something declared before
- * it writes. See [NodeElement] for what an element that did change costs.
+ * The modifier is immutable; build it in place in the composable body. It needs no `remember`: a modifier
+ * declaring what the one last applied to a component declares is skipped, and each element is judged on
+ * its own, so a property whose declared value has not changed is not written again, until something
+ * declared before it writes. See [NodeElement] for what an element that did change costs.
  *
  * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one
  * apply pass, so `modifier` and `node` are one boundary read from two sides, not two layers - a
@@ -385,8 +405,8 @@ public interface SwingModifier {
          * overrides this to write the newer one there, and answers `true` for a slot whose registration
          * is unchanged; the walk that asked then leaves the node and the listener it installed alone.
          *
-         * What is written belongs to [node] and to no other, so an element handed to two slots - a
-         * hoisted modifier reaching two components - carries nothing either of them can reach the other by.
+         * What is written belongs to [node] and to no other, so an element handed to two slots carries
+         * nothing either of them can reach the other by.
          */
         internal open fun adopt(
             node: N,
@@ -867,14 +887,26 @@ public class SwingModifierState internal constructor() {
         }
     }
 
-    /** Runs the `update` of the slot holding [node] again, against [node]'s component. */
+    /**
+     * Runs the `update` of the slot holding [node] again, against [node]'s component, and hands the holder's
+     * [DeclaredNodesListener] its nodes where the slot rewritten holds a node it needs
+     * ([DeclaredNodesListener.needsNodesAfterWrite]).
+     */
     internal fun refreshLocalConsumer(node: SwingModifier.ComponentNode<*>) {
-        val diagnostics = node.holder?.owner?.diagnostics
+        val holder = node.holder
+        val diagnostics = holder?.owner?.diagnostics
         val held = startWrite()
+        var rewritten: NodeRecord<*, *>? = null
         if (!rewritePropertySlotsFrom(node.component, diagnostics) { it.node === node }) {
-            chain.firstOrNull { it.node === node }?.refresh(node.component, diagnostics)
+            rewritten = chain.fastFirstOrNull { it.node === node }
+            rewritten?.refresh(node.component, diagnostics)
         }
         applied = held
+        if (holder == null || rewritten == null) return
+        val listener = holder.component as? DeclaredNodesListener
+        if (listener.takesWrite(node)) {
+            holder.notifyDeclaredNodes(chainChanged = true, handedNodes = handedNodes)
+        }
     }
 
     /**
@@ -993,9 +1025,13 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
  */
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
-    if (state != null && adoptDeclaration(state.applied, modifier, state.chain, 0) != DIVERGED) {
-        state.applied = modifier
-        return
+    if (state != null) {
+        val held = state.startWrite()
+        if (held !is UnfinishedPass && adoptDeclaration(held, modifier, state.chain, 0) != DIVERGED) {
+            state.applied = modifier
+            return
+        }
+        state.applied = held
     }
     applyModifierDiff(modifier)
 }
@@ -1157,8 +1193,9 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
 
 /**
  * Runs the component nodes [marked] attaches, or diffs the keyed slots of [partition] where none does, then diffs
- * the additive component slots. Returns whether a slot joined or left the chain. A slot standing from before this
- * pass adopts an equal element only where [adoptable].
+ * the additive component slots. Returns whether a slot joined or left the chain, or was written with a new element
+ * that the holder's [DeclaredNodesListener] needs ([DeclaredNodesListener.needsNodesAfterWrite]). A slot standing
+ * from before this pass adopts an equal element only where [adoptable].
  */
 private fun SwingNodeHolder<*>.applyComponentSlots(
     state: SwingModifierState,
@@ -1176,7 +1213,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
         }
     // A whole attach leaves no component slot standing from before this pass.
     val diffed = diffChainSlots(this, state, partition.chain, ComponentNodeFamily, adoptable || marked != null)
-    return attached || diffed == SlotChange.JoinedOrLeft
+    return attached || diffed != SlotChange.Unchanged
 }
 
 /**
@@ -1405,7 +1442,11 @@ private fun diffKeyedElements(
 private class ChainFamily(
     val elementType: Class<out SwingModifier.Element>,
     val slotType: Class<out NodeRecord<*, *>>,
-)
+) {
+    /** [target] where it is a [DeclaredNodesListener] this family's writes are asked about, else `null`. */
+    fun listenerOn(target: Component): DeclaredNodesListener? =
+        if (this === ComponentNodeFamily) target as? DeclaredNodesListener else null
+}
 
 private val ComponentNodeFamily = ChainFamily(SwingModifier.NodeElement::class.java, ElementRecord::class.java)
 
@@ -1419,7 +1460,10 @@ private val LayoutNodeFamily = ChainFamily(ParentLayoutNodeElement::class.java, 
  * the chain, for [SwingModifierState.orderChain] to put in place. A conditional modifier chain changing shape can
  * hand a slot an element of a different kind; the slot's node cannot host it, so the slot is swapped wholesale -
  * the new element attaches fresh and the old node then detaches, removing its listener. A slot adopts an equal
- * element only where [adoptable]. Returns the largest change it made to a slot.
+ * element only where [adoptable]. Returns the largest change it made to a slot: a component slot's write counts
+ * only where the target is not a [DeclaredNodesListener], or its [DeclaredNodesListener.needsNodesAfterWrite]
+ * takes its node; a layout slot's write always counts, since [ComponentNodeFamily] is what the listener is
+ * asked about.
  */
 private fun diffChainSlots(
     holder: SwingNodeHolder<*>,
@@ -1429,6 +1473,7 @@ private fun diffChainSlots(
     adoptable: Boolean,
 ): SlotChange {
     val target = holder.component
+    val listener = family.listenerOn(target)
     val diagnostics = holder.owner?.diagnostics
     val records = state.chain
     var declared = 0
@@ -1464,7 +1509,7 @@ private fun diffChainSlots(
             record.canRebind(element) -> {
                 if (!adoptable || !record.adopt(element)) {
                     record.rebindAndWrite(element, target, diagnostics)
-                    change = maxOf(change, SlotChange.Written)
+                    change = maxOf(change, SlotChange.Written.countedFor(listener, record.node))
                 }
             }
 
@@ -1488,8 +1533,8 @@ private fun diffChainSlots(
 }
 
 /** What [diffChainSlots] did to the slots of one family, from least to most. */
-private enum class SlotChange {
-    /** Every slot adopted its element. */
+internal enum class SlotChange {
+    /** Every slot adopted its element, or was written with a node its component's [DeclaredNodesListener] declines. */
     Unchanged,
 
     /** A slot was written with its element, and none joined or left the chain. */
