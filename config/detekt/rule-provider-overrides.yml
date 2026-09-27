@@ -5,4 +5,4 @@
 # section whose ruleset is absent, so those sections are excluded here rather than in detekt.yml, which
 # keeps them validated everywhere the rules do run.
 config:
-  excludes: ["Compose", "compose-swing", "compose-swing-internal"]
+  includes: ["Compose", "compose-swing", "compose-swing-internal"]
