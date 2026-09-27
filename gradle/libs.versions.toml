@@ -10,6 +10,9 @@ composeRules = "0.6.6"
 coroutines = "1.9.0"
 detekt = "2.0.0-alpha.6"
 dokka = "2.2.0"
+flatlaf = "3.7.2"
+intellijIdea = "2026.2.1"
+intellijPlatformGradlePlugin = "2.18.1"
 jetbrainsAnnotations = "23.0.0"
 knit = "0.5.1"
 kotlin = "2.4.20"
@@ -32,6 +35,7 @@ detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref
 detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }
 dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
 dokka-versioning-plugin = { module = "org.jetbrains.dokka:versioning-plugin", version.ref = "dokka" }
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 jetbrainsAnnotations = { module = "org.jetbrains:annotations", version.ref = "jetbrainsAnnotations" }
 kotlinComposeCompilerPluginEmbeddable = { module = "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable", version.ref = "kotlin" }
 kotlinComposePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
@@ -39,10 +43,13 @@ kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ver
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinxCoroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinxCoroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinxSerializationCore = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlint-gradle" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 [plugins]
 detekt = { id = "dev.detekt", version.ref = "detekt" }
+intellijPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intellijPlatformGradlePlugin" }
 knit = { id = "org.jetbrains.kotlinx.knit", version.ref = "knit" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

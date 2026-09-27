@@ -23,6 +23,14 @@ dependencies {
     implementation(libs.androidLint.gradle.plugin)
     // Applied by the publishing convention, and aggregated by the api-reference convention.
     implementation(libs.dokka.gradle.plugin)
+
+    // buildSrc's classpath is the parent of every plugin class loader in the build, so the
+    // kotlinx-serialization it resolves is the one they all see. The lint plugins pull in 1.4.1, which
+    // predates a method the IntelliJ Platform Gradle Plugin's generated serializers call.
+    constraints {
+        implementation(libs.kotlinxSerializationCore)
+        implementation(libs.kotlinxSerializationJson)
+    }
 }
 
 // buildSrc is an included build and cannot apply its own precompiled `kotlin-quality` convention

@@ -19,6 +19,10 @@ out/
 ### Kotlin ###
 .kotlin
 
+### IntelliJ Platform Gradle Plugin ###
+# The resolved platform, its sandbox and the layout index the plugin build materialises here.
+.intellijPlatform/
+
 ### AI agent tooling ###
 # `.agents/skills` and the per-tool symlinks to it are tracked; per-machine state is not.
 .claude/settings.local.json

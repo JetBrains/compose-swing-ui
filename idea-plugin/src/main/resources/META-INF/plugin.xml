@@ -1,0 +1,48 @@
+<idea-plugin>
+    <id>dev.matkov.compose.swing.preview</id>
+    <name>Compose Swing UI</name>
+    <vendor>compose-swing-ui</vendor>
+
+    <description><![CDATA[
+        Renders <code>@Preview</code> composables from
+        <a href="https://github.com/MatkovIvan/compose-swing-ui">compose-swing-ui</a> in the IDE, so a
+        component can be looked at without running the application that hosts it.
+        <p>
+        Opening a file that declares one shows its previews beside the source, in the editor's own
+        preview pane. Each is rendered as an image, in a JVM of its own, on the module's runtime
+        classpath. Editing the file compiles it once typing pauses and renders the previews again, so
+        a component can be styled by typing at it; Build and Refresh builds the whole module, for when
+        the change was somewhere else.
+        <p>
+        Requires the Kotlin plugin, which previews are written in and found through. An IDE without it
+        cannot load this plugin.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <projectListeners>
+        <listener class="org.jetbrains.compose.swing.preview.idea.SwingPreviewAvailability$Invalidator"
+                  topic="com.intellij.openapi.roots.ModuleRootListener"/>
+    </projectListeners>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileEditorProvider
+            implementation="org.jetbrains.compose.swing.preview.idea.SwingPreviewEditorProvider"/>
+        <registryKey key="compose.swing.preview.compile.on.edit"
+                     defaultValue="true"
+                     restartRequired="false"
+                     description="Compile a file that declares compose-swing-ui previews when typing in it pauses, and render its previews from the result. Turn this off to leave the previews on what the last build produced, and refresh them explicitly instead."/>
+        <registryKey key="compose.swing.preview.in.process"
+                     defaultValue="false"
+                     restartRequired="false"
+                     description="Render compose-swing-ui previews inside the IDE process instead of a JVM of its own. Faster, and full fidelity for previews of IDE user interface, because the IDE's own look and feel is already installed. In exchange the previewed code runs on the IDE's event dispatch thread, where a preview that loops or deadlocks freezes the IDE, and it can change process-global Swing state."/>
+    </extensions>
+
+    <!-- Previews are found by resolving annotations through UAST rather than through the Kotlin
+         analysis API, so one implementation serves both compiler modes. -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
+    </extensions>
+</idea-plugin>
