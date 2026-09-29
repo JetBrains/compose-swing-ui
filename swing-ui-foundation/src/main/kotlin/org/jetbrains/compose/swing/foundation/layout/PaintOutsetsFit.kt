@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
+import org.jetbrains.compose.swing.foundation.graphics.clippedPaintBounds
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import java.awt.Component
@@ -15,8 +16,10 @@ import java.awt.Rectangle
  * Walks the children the last layout pass placed, once: finds [hasChildToGather] and, where
  * [hasFoundationParent], adds to [bounds], or to a rectangle allocated on the first child that needs it where
  * [bounds] is null, the bounds of each child that [needs gathering][Decoration.needsGathering], or of every one
- * where [all], in the layout coordinates of this container, whose paint outsets are [outsets]. The [panel] holds its
- * [glass pane][ConstrainedPanel.glassPane] while a layer rotates or scales one of these children.
+ * where [all], in the layout coordinates of this container, whose paint outsets are [outsets]. A child whose placed
+ * layer clips adds only [what that clip lets paint][clippedPaintBounds], and nothing where that is empty.
+ * The [panel] holds its [glass pane][ConstrainedPanel.glassPane] while a layer rotates or scales one of these
+ * children.
  *
  * @return [bounds] grown by the gathered children, a rectangle allocated for them where [bounds] is null, or
  *   [bounds] where nothing was gathered.
@@ -38,13 +41,22 @@ internal fun ChildMeasurables.gatherPaintBounds(
         gathers = gathers || needsGathering
         if (hasFoundationParent && (all || needsGathering)) {
             val component = child.component
-            val x = component.x - outsets.left
-            val y = component.y - outsets.top
+            var x = component.x - outsets.left
+            var y = component.y - outsets.top
+            var width = component.width
+            var height = component.height
+            decoration?.clippedPaintBounds(component)?.let {
+                if (it.isEmpty) return@fastForEach
+                x += it.x
+                y += it.y
+                width = it.width
+                height = it.height
+            }
             gathered =
                 gathered?.apply {
                     add(x, y)
-                    add(x + component.width, y + component.height)
-                } ?: Rectangle(x, y, component.width, component.height)
+                    add(x + width, y + height)
+                } ?: Rectangle(x, y, width, height)
         }
     }
     hasChildToGather = gathers

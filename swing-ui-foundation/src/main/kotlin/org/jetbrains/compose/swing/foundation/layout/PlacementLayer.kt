@@ -200,6 +200,8 @@ internal sealed class PlacementLayer : Decorator {
         height: Int,
     ): Boolean = transform != null
 
+    internal val hasPlacedLayer: Boolean get() = layerBlock !== NoLayer
+
     /**
      * Records that the content was placed with [block], in the box, which [moved] where it differs from the one the
      * layer stood at, and runs the block, which a placement reaches after anything it reads may have changed, such

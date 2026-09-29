@@ -78,6 +78,9 @@ internal class DecorationSteps private constructor(
     /** Whether a placement layer among the steps rotates or scales what is inside it. */
     val isTransformed: Boolean get() = decorators.fastAny { it is PlacementLayer && it.transform != null }
 
+    /** Whether a placement layer among the steps has placed its content with a layer. */
+    val hasPlacedLayer: Boolean get() = decorators.fastAny { it is PlacementLayer && it.hasPlacedLayer }
+
     /** Whether a placement layer among the steps rotates, scales or clips what is inside it. */
     val isClippedOrTransformed: Boolean get() =
         decorators.fastAny {
@@ -138,9 +141,41 @@ internal class DecorationSteps private constructor(
         width: Int,
         height: Int,
     ) {
-        var painted: Shape = Rectangle(bounds)
-        for (index in decorators.size - 1 downTo 0) painted = decorators[index].paintBounds(painted, width, height)
-        bounds.setBounds(painted.bounds)
+        bounds.setBounds(paintBoundsOutward(Rectangle(bounds), decorators.lastIndex, width, height).bounds)
+    }
+
+    /** Maps [seed] through the steps from [start] outward to the first. */
+    private fun paintBoundsOutward(
+        seed: Shape,
+        start: Int,
+        width: Int,
+        height: Int,
+    ): Shape {
+        var painted = seed
+        for (index in start downTo 0) painted = decorators[index].paintBounds(painted, width, height)
+        return painted
+    }
+
+    /**
+     * The bounds of the innermost clipping placed layer's box, mapped through the steps outside it, in layout
+     * coordinates at layout bounds of [width] by [height]; null where no placed layer clips.
+     */
+    fun placedClipBounds(
+        width: Int,
+        height: Int,
+    ): Rectangle? {
+        var clipIndex = -1
+        for (index in decorators.lastIndex downTo 0) {
+            val decorator = decorators[index]
+            if (decorator is PlacementLayer && decorator.hasPlacedLayer && decorator.clips) {
+                clipIndex = index
+                break
+            }
+        }
+        if (clipIndex < 0) return null
+        val clip = decorators[clipIndex] as PlacementLayer
+        val box = Rectangle(clip.boxX, clip.boxY, clip.boxWidth, clip.boxHeight)
+        return paintBoundsOutward(box, clipIndex, width, height).bounds
     }
 
     override fun equals(other: Any?): Boolean =

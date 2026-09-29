@@ -159,8 +159,9 @@ public class Decoration internal constructor(
     internal fun layoutHeight(component: Component): Int =
         (component.height - heldPaintOutsets.top - heldPaintOutsets.bottom).coerceAtLeast(0)
 
-    /** Whether its Foundation parent gathers its paint bounds: it has paint outsets or holds a transform. */
-    internal val needsGathering: Boolean get() = holdsTransform || heldPaintOutsets != NoPaintOutsets
+    /** Whether its Foundation parent gathers its paint bounds for outsets, transforms, or a placed layer. */
+    internal val needsGathering: Boolean
+        get() = holdsTransform || heldPaintOutsets != NoPaintOutsets || steps.hasPlacedLayer
 
     /**
      * The point whose content the placement layers paint at ([x], [y]), both in the component's own coordinates: the
@@ -200,6 +201,15 @@ public class Decoration internal constructor(
             Decoration(DecorationSteps.None, NoPaintOutsets, null, null, holdsTransform = false, hasOpaqueSteps = true)
     }
 }
+
+/**
+ * What [component]'s innermost clipping placed layer lets paint, in the component's own coordinates, as the steps
+ * outside that layer map it; null where no placed layer clips.
+ */
+internal fun Decoration.clippedPaintBounds(component: Component): Rectangle? =
+    steps.placedClipBounds(layoutWidth(component), layoutHeight(component))?.apply {
+        translate(heldPaintOutsets.left, heldPaintOutsets.top)
+    }
 
 /** The bounds of this shape grown by [outsets] on each side; this shape itself where [outsets] is none. */
 internal fun Shape.outsetBy(outsets: Insets): Shape {
