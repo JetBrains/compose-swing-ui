@@ -340,8 +340,15 @@ private val ARRANGEMENT_STATE: List<WidgetState> =
         widgetState<JTabbedPane>("tabsEnabled") { pane -> pane.perTab(pane::isEnabledAt) },
         widgetState<JTabbedPane>("tabMnemonics") { pane -> pane.perTab(pane::getMnemonicAt) },
         widgetState<JTabbedPane>("tabMnemonicIndices") { pane -> pane.perTab(pane::getDisplayedMnemonicIndexAt) },
-        widgetState<JTabbedPane>("tabBackgrounds") { pane -> pane.perTab(pane::getBackgroundAt) },
-        widgetState<JTabbedPane>("tabForegrounds") { pane -> pane.perTab(pane::getForegroundAt) },
+        // A tab declaring no color answers with the pane's, so its read would follow the pane and not the tab.
+        // A tab color written equal to the pane's is not seen until the pane's color moves. A pane write that
+        // moves the pane's color onto or off a tab's own color reads as moving the tab's.
+        widgetState<JTabbedPane>("tabBackgrounds") { pane ->
+            pane.perTab { index -> pane.getBackgroundAt(index).takeUnless { it == pane.background } }
+        },
+        widgetState<JTabbedPane>("tabForegrounds") { pane ->
+            pane.perTab { index -> pane.getForegroundAt(index).takeUnless { it == pane.foreground } }
+        },
         widgetState<JSplitPane>("orientation") { it.orientation },
         widgetState<JSplitPane>("resizeWeight") { it.resizeWeight },
         widgetState<JSplitPane>("dividerSize") { it.dividerSize },

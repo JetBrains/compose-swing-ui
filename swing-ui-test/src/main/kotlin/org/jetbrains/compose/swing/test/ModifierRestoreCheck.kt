@@ -87,7 +87,7 @@ private class WatchedComponent(
     private var seen: Map<String, Any?>? = null
 
     /** The installed declarations, each under the properties its writes have landed on. */
-    private val slots = IdentityHashMap<ModifierInfo, WritingSlot>()
+    private val slots = IdentityHashMap<ModifierInfo, MutableSet<String>>()
 
     /** Whether no declaration of this component's modifier writes any property, so nothing is watched here. */
     val holdsNothing: Boolean get() = slots.isEmpty()
@@ -109,12 +109,12 @@ private class WatchedComponent(
         write: () -> Unit,
     ) {
         val before = readBeforeChange()
-        val slot = slots.getOrPut(info) { WritingSlot(element) }
+        val slot = slots.getOrPut(info) { LinkedHashSet() }
         val held = element.heldProperties
         if (before != null) {
             val landed = held.filter { it in before }
             landed.filter { it !in found }.associateWithTo(found) { before[it] }
-            slot.wrote += landed
+            slot += landed
         }
         write()
         seen = before?.let { read() }
@@ -123,7 +123,7 @@ private class WatchedComponent(
         for ((property, value) in after) {
             if (property !in held && value == before[property]) continue
             if (property !in found) found[property] = before[property]
-            slot.wrote += property
+            slot += property
         }
     }
 
@@ -139,12 +139,12 @@ private class WatchedComponent(
         info: ModifierInfo,
         restore: () -> Unit,
     ): AssertionError? {
+        val element = info.modifier
         val before = readBeforeChange()
         restore()
         seen = before?.let { read() }
-        val slot = slots.remove(info) ?: return null
-        val element = slot.element
-        val last = slot.wrote.filter { property -> slots.values.none { property in it.wrote } }
+        val wrote = slots.remove(info) ?: return null
+        val last = wrote.filter { property -> slots.values.none { property in it } }
         val owed =
             when {
                 element.restores == RestorePolicy.None -> emptyList()
@@ -208,14 +208,4 @@ private class WatchedComponent(
             )
             null
         }
-}
-
-/**
- * One installed declaration: its element, which says what it owes back when it leaves, and the
- * properties its writes have landed on.
- */
-private class WritingSlot(
-    val element: SwingModifier.NodeElement<*, *>,
-) {
-    val wrote: MutableSet<String> = LinkedHashSet()
 }

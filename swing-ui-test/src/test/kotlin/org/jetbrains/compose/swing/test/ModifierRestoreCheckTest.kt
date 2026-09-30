@@ -3,15 +3,23 @@ package org.jetbrains.compose.swing.test
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.awt.Component
 import java.awt.Insets
 import javax.swing.JLabel
+import javax.swing.JList
 import javax.swing.JPanel
+import javax.swing.JTabbedPane
+import javax.swing.JTable
 import javax.swing.border.EmptyBorder
+import javax.swing.table.TableColumn
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -161,17 +169,20 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun anElementThatPutsBackNoDerivedPropertyIsHeldToTheOneItNames() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
         val slot = declaration(label, element(name = "name", restores = RestorePolicy.DeclaredPropertyOnly))
-        check.declaring(slot) {
+        restoreCheck.declaring(slot) {
             label.name = "written"
             // DeclaredPropertyOnly excludes changes to properties other than the declared name.
             label.isEnabled = false
         }
-        check.restoring(slot) { }
+        restoreCheck.restoring(slot) { }
 
-        val failure = assertNotNull(reported.singleOrNull(), "the property the element names is still owed")
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
         assertEquals("written", label.name)
-        assertFalse("enabled" in failure.message.orEmpty(), "a derived property is not owed: ${failure.message}")
+        assertFalse("enabled" in failures.single().message.orEmpty(), "a derived property is not owed")
     }
 
     @Test
@@ -231,14 +242,17 @@ class ModifierRestoreCheckTest {
     }
 
     @Test
-    fun aPropertyNothingElseMovedIsStillOwedByTheDepartingSlot() {
+    fun aPropertyNothingElseMovedIsReportedWhenTheDepartingSlotLeavesIt() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
         val panel = OutsetPanel()
         val slot = declaration(panel, element())
-        check.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
-        check.restoring(slot) { }
+        restoreCheck.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        restoreCheck.restoring(slot) { }
 
-        val failure = assertNotNull(reported.singleOrNull(), "a slot that never restores is still caught")
-        assertContains(failure.message.orEmpty(), "insets: found <${Insets(0, 0, 0, 0)}>")
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
+        assertContains(failures.single().message.orEmpty(), "insets: found <${Insets(0, 0, 0, 0)}>")
     }
 
     @Test
@@ -272,26 +286,241 @@ class ModifierRestoreCheckTest {
     }
 
     @Test
-    fun aPlacementAxisMovedElsewhereIsStillOwedByTheDepartingSlot() {
+    fun aPropertyALaterWriteOfASlotIsTheFirstToLandOnIsStillOwed() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
         val slot = declaration(label, element())
-        check.declaring(slot) { label.setSize(10, 10) }
-        label.setSize(20, 10)
-        check.restoring(slot) { }
+        restoreCheck.declaring(slot) { label.isEnabled = false }
+        restoreCheck.declaring(slot) { label.name = "written" }
+        restoreCheck.restoring(slot) { label.isEnabled = true }
 
-        val failure = assertNotNull(reported.singleOrNull(), "a layout pass moves the axes, so they stay owed")
-        assertContains(failure.message.orEmpty(), "width: found <0>, left <20>")
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
+        assertContains(failures.single().message.orEmpty(), "name: found <null>, left <written>")
     }
 
     @Test
-    fun aPropertyOtherThanTheInsetsMovedElsewhereIsStillOwedByTheDepartingSlot() {
-        val original = label.background
-        val slot = declaration(label, element())
-        check.declaring(slot) { label.background = Color.RED }
-        label.background = Color.BLUE
-        check.restoring(slot) { }
+    fun aPropertyALaterWriteLandsOnAfterAFirstReadThatThrewIsStillOwed() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        val throwing = ThrowingLabel()
+        throwing.name = "standing"
+        throwing.throwing = true
+        val slot = declaration(throwing, element())
+        restoreCheck.declaring(slot) { }
+        throwing.throwing = false
 
-        val failure = assertNotNull(reported.singleOrNull(), "only the insets are exempted when moved elsewhere")
-        assertContains(failure.message.orEmpty(), "background: found <$original>, left <${Color.BLUE}>")
+        restoreCheck.declaring(slot) { throwing.name = "written" }
+        restoreCheck.restoring(slot) { }
+
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 2) { report(capture(failures)) }
+        assertContains(failures.last().message.orEmpty(), "name: found <standing>, left <written>")
+    }
+
+    @Test
+    fun aPropertyDerivedFromASlotsOwnDeclarationBeforeItsWriteLandsOnItIsNotOwed() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        val pane = JTabbedPane()
+        val original = pane.background
+        val slot = declaration(pane, element())
+        restoreCheck.declaring(slot) { pane.background = Color.MAGENTA }
+        // The tab declares no color, so the pane answers its color with the one the slot declared.
+        pane.addTab("tab", JLabel())
+
+        restoreCheck.declaring(slot) { pane.background = Color.RED }
+        restoreCheck.restoring(slot) { pane.background = original }
+
+        verify(exactly = 0) { report(any()) }
+    }
+
+    @TestFactory
+    fun aPropertyMovedElsewhereIsReportedWhenTheDepartingSlotLeavesIt(): List<DynamicTest> = listOf(
+        unrestoredIsReported(
+            "a placement axis, which a layout pass moves",
+            JLabel("target"),
+            "width: found <0>, left <20>",
+        ) { write ->
+            write { setSize(10, 10) }
+            setSize(20, 10)
+        },
+        unrestoredIsReported(
+            "a placement axis a later write is the first to land on",
+            JLabel("target"),
+            "x: found <5>, left <20>",
+        ) { write ->
+            write { setLocation(0, 0) }
+            setLocation(5, 5)
+            write { setLocation(20, 20) }
+        },
+        unrestoredIsReported(
+            "a color",
+            JLabel("target").apply { background = Color.GREEN },
+            "background: found <${Color.GREEN}>, left <${Color.BLUE}>",
+        ) { write ->
+            write { background = Color.RED }
+            background = Color.BLUE
+        },
+        unrestoredIsReported(
+            "a value of a tab that still stands",
+            JTabbedPane().apply { addTab("tab", JLabel()) },
+            "tabTitles: found <[tab]>, left <[elsewhere]>",
+        ) { write ->
+            write { setTitleAt(0, "written") }
+            setTitleAt(0, "elsewhere")
+        },
+    )
+
+    @TestFactory
+    fun aSelectionGrownByTheComponentIsReportedWhenTheDepartingSlotLeavesIt(): List<DynamicTest> = listOf(
+        unrestoredIsReported(
+            "a selection a write landed on, grown with every item still standing",
+            JList(arrayOf("a", "b", "c")).apply { selectedIndex = 0 },
+            "selectedIndices: found <[0]>, left <[1, 2]>",
+        ) { write ->
+            write { selectedIndex = 1 }
+            addSelectionInterval(2, 2)
+        },
+        unrestoredIsReported(
+            "a selection a declaration holds, grown with every item still standing",
+            JList(arrayOf("a", "b", "c")).apply { selectedIndex = 0 },
+            "selectedIndices: found <[0]>, left <[1, 2]>",
+            heldProperties = setOf("selectedIndices"),
+        ) { write ->
+            write { selectedIndex = 1 }
+            addSelectionInterval(2, 2)
+        },
+    )
+
+    @TestFactory
+    fun aPropertyWhoseElementsChangedSinceIsReportedWhenTheDepartingSlotLeavesIt(): List<DynamicTest> = listOf(
+        unrestoredIsReported(
+            "a tab's color, with a tab arrived since",
+            JTabbedPane().apply { addTab("tab", JLabel()) },
+            "tabBackgrounds: found <[null]>, left <[${Color.RED}, null]>",
+        ) { write ->
+            write { setBackgroundAt(0, Color.RED) }
+            addTab("second", JLabel())
+        },
+        unrestoredIsReported(
+            "a tab's title, with a tab gone since",
+            JTabbedPane().apply {
+                addTab("tab", JLabel())
+                addTab("second", JLabel())
+            },
+            "tabTitles: found <[tab, second]>, left <[written]>",
+        ) { write ->
+            write { setTitleAt(0, "written") }
+            removeTabAt(1)
+        },
+        unrestoredIsReported(
+            "a tab's title a declaration holds, with a tab arrived since",
+            JTabbedPane().apply { addTab("tab", JLabel()) },
+            "tabTitles: found <[tab]>, left <[written, second]>",
+            heldProperties = setOf("tabTitles"),
+        ) { write ->
+            write { setTitleAt(0, "written") }
+            addTab("second", JLabel())
+        },
+        unrestoredIsReported(
+            "a tab's tooltip a later write is the first to land on, with a tab arrived before it",
+            JTabbedPane().apply { addTab("tab", JLabel()) },
+            "tabToolTips: found <[null, null]>, left <[written, null]>",
+        ) { write ->
+            write { setTitleAt(0, "tab") }
+            addTab("second", JLabel())
+            write { setToolTipTextAt(0, "written") }
+        },
+        unrestoredIsReported(
+            "a column's header, with a column arrived since",
+            JTable(1, 1),
+            "columnHeaders: found <[A]>, left <[written, null]>",
+        ) { write ->
+            write { columnModel.getColumn(0).headerValue = "written" }
+            columnModel.addColumn(TableColumn(0))
+        },
+    )
+
+    @Test
+    fun aTabColorWrittenEqualToThePanesIsNotSeenUntilThePaneMoves() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        val pane = JTabbedPane().apply { addTab("tab", JLabel()) }
+        val slot = declaration(pane, element())
+        restoreCheck.declaring(slot) { pane.setBackgroundAt(0, pane.background) }
+        restoreCheck.restoring(slot) { }
+
+        verify(exactly = 0) { report(any()) }
+    }
+
+    @Test
+    fun aPropertyWhoseElementsAWriteAddedIsReportedWhenTheDepartingSlotLeavesIt() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        val pane = JTabbedPane()
+        val slot = declaration(pane, element())
+        restoreCheck.declaring(slot) { pane.addTab("written", JLabel()) }
+        restoreCheck.restoring(slot) { }
+
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
+        assertContains(failures.single().message.orEmpty(), "tabTitles: found <[]>, left <[written]>")
+    }
+
+    @TestFactory
+    fun aDeclarationIsHeldToTheElementItHasWhenItLeaves(): List<DynamicTest> = listOf(
+        Triple("an element updated to restore nothing", RestorePolicy.EverythingWritten to RestorePolicy.None, 0),
+        Triple("an element updated to restore everything", RestorePolicy.None to RestorePolicy.EverythingWritten, 1),
+    ).map { (name, policies, reports) ->
+        dynamicTest(name) {
+            val label = JLabel("target")
+            val report = mockk<(Throwable) -> Unit>(relaxed = true)
+            val restoreCheck = ModifierRestoreCheck(report)
+            var current = element(policies.first)
+            val slot = declaration(label, element()).also { every { it.modifier } answers { current } }
+            restoreCheck.declaring(slot) { label.name = "written" }
+            current = element(policies.second)
+            restoreCheck.declaring(slot) { label.name = "written" }
+            restoreCheck.restoring(slot) { }
+
+            verify(exactly = reports) { report(any()) }
+        }
+    }
+
+    @Test
+    fun aDeclarationIsHeldToTheElementItHadBeforeItsRestoreRan() {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        var current = element(RestorePolicy.EverythingWritten)
+        val slot = declaration(label, element()).also { every { it.modifier } answers { current } }
+        restoreCheck.declaring(slot) { label.name = "written" }
+        restoreCheck.restoring(slot) { current = element(RestorePolicy.None) }
+
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
+        assertContains(failures.single().message.orEmpty(), "name: found <null>, left <written>")
+    }
+
+    /** A case where a slot whose [changes] write on [component] and put nothing back leaves [expected] standing. */
+    private fun <T : Component> unrestoredIsReported(
+        name: String,
+        component: T,
+        expected: String,
+        heldProperties: Set<String> = emptySet(),
+        changes: T.(write: (T.() -> Unit) -> Unit) -> Unit,
+    ) = dynamicTest(name) {
+        val report = mockk<(Throwable) -> Unit>(relaxed = true)
+        val restoreCheck = ModifierRestoreCheck(report)
+        val slot = declaration(component, element(heldProperties = heldProperties))
+        component.changes { write ->
+            restoreCheck.declaring(slot) { component.write() }
+        }
+        restoreCheck.restoring(slot) { }
+
+        val failures = mutableListOf<Throwable>()
+        verify(exactly = 1) { report(capture(failures)) }
+        assertContains(failures.single().message.orEmpty(), expected)
     }
 
     private fun element(

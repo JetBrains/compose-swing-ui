@@ -8,6 +8,9 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onParent
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Color
@@ -35,6 +38,7 @@ import javax.swing.JPanel
 import javax.swing.JPasswordField
 import javax.swing.JProgressBar
 import javax.swing.JSlider
+import javax.swing.JTabbedPane
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -182,7 +186,7 @@ class ComponentTreeEquivalenceTest {
     @Test
     fun aDifferentFontIsReported() = runComposeSwingTest {
         val reference = JLabel("hi")
-        val actual = JLabel("hi").apply { font = Font("Serif", Font.BOLD, FONT_SIZE) }
+        val actual = JLabel("hi").apply { font = Font("Serif", Font.BOLD, 20) }
 
         val failure = assertFailsWith<AssertionError> { assertComponentTreesEquivalent(reference, actual) }
 
@@ -197,6 +201,27 @@ class ComponentTreeEquivalenceTest {
         val failure = assertFailsWith<AssertionError> { assertComponentTreesEquivalent(reference, actual) }
 
         assertContains(failure.message.orEmpty(), "background: expected <")
+    }
+
+    @TestFactory
+    fun aColorATabHoldsOfItsOwnIsReported(): List<DynamicTest> = listOf<Pair<String, JTabbedPane.() -> Unit>>(
+        "tabBackgrounds" to { setBackgroundAt(0, Color.RED) },
+        "tabForegrounds" to { setForegroundAt(0, Color.RED) },
+    ).map { (property, declare) ->
+        dynamicTest(property) {
+            runComposeSwingTest {
+                val reference = JTabbedPane().apply { addTab("tab", JLabel()) }
+                val actual =
+                    JTabbedPane().apply {
+                        addTab("tab", JLabel())
+                        declare()
+                    }
+
+                val failure = assertFailsWith<AssertionError> { assertComponentTreesEquivalent(reference, actual) }
+
+                assertContains(failure.message.orEmpty(), "$property: expected <[null]>")
+            }
+        }
     }
 
     @Test
@@ -563,7 +588,7 @@ class ComponentTreeEquivalenceTest {
 
     /** A bar of two menus, each holding [itemsPerMenu] items in the popup a menu keeps its content in. */
     private fun menuBar(itemsPerMenu: Int): JMenuBar = JMenuBar().apply {
-        for (menu in 0 until MENU_COUNT) {
+        for (menu in 0 until 2) {
             add(
                 JMenu("Menu$menu").apply {
                     for (item in 0 until itemsPerMenu) add(JMenuItem("Menu$menu Item$item"))
@@ -613,8 +638,6 @@ class ComponentTreeEquivalenceTest {
     }
 
     private companion object {
-        const val FONT_SIZE = 20
-        const val MENU_COUNT = 2
         const val MENU_BAR_WIDTH = 400
         const val MENU_BAR_HEIGHT = 24
     }
