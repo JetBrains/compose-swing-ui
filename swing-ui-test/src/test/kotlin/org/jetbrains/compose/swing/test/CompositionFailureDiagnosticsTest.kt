@@ -39,7 +39,7 @@ class CompositionFailureDiagnosticsTest {
 
         // The condition never becomes true, so the deadline - not an idle composition - is what ends
         // this wait; it fails regardless of whether the dead recomposer still reports pending work.
-        val report = assertFailsWith<AssertionError> { waitUntil(timeout = 100.milliseconds) { false } }
+        val report = assertFailsWith<ComposeTimeoutException> { waitUntil(timeout = 100.milliseconds) { false } }
         val message = report.message.orEmpty()
         assertTrue(
             message.contains("Recomposition ended earlier with"),

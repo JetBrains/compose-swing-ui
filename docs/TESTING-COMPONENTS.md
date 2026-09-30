@@ -464,6 +464,12 @@ genuinely depends on timing outside the composition (a coroutine driven by wall-
 callback), use `waitUntil { … }`; use `awaitIdle()` to wait for the composition explicitly when you
 have written state outside of an action.
 
+A wait whose condition is still unmet at its `timeout` — `waitUntil { … }`, or `mainClock.advanceTimeUntil { … }`
+once it has advanced past its `timeout` of composition time — throws `ComposeTimeoutException`, with a dump of
+the current tree in its message. It is a `Throwable` and not an `AssertionError`, so a test that expects the
+deadline to pass catches it by type. Any other failure is thrown as itself, never as a
+`ComposeTimeoutException`.
+
 ### Telling a widget's own report apart from a recomposition
 
 `awaitIdle()` waits until the composition is idle, so by the time it returns a widget's callback has fired *and* a

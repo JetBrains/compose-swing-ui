@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.ComposeTimeoutException
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -392,7 +393,7 @@ class LayoutTest {
                 try {
                     waitUntil(timeout = 5.seconds) { focusManager.focusOwner === other }
                     true
-                } catch (_: AssertionError) {
+                } catch (_: ComposeTimeoutException) {
                     // The deadline passed: the window system focuses none of this process's windows.
                     false
                 }

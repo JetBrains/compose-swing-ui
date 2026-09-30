@@ -73,11 +73,12 @@ public sealed interface MainTestClock {
     )
 
     /**
-     * Sends frames, one at a time, until [condition] returns `true`.
+     * Sends frames, one at a time, until [condition] returns `true`. A failure is thrown as itself, never as a
+     * [ComposeTimeoutException].
      *
      * @param timeout the composition time this may spend, one second by default.
      * @param condition checked before the first frame and again after each one, on the calling thread.
-     * @throws AssertionError if [condition] is still not met once [currentTime] has advanced by
+     * @throws ComposeTimeoutException if [condition] is still not met once [currentTime] has advanced by
      * [timeout].
      */
     public suspend fun advanceTimeUntil(
@@ -85,6 +86,11 @@ public sealed interface MainTestClock {
         condition: () -> Boolean,
     )
 }
+
+/** Thrown in cases where the test harness can't satisfy a condition in a defined time limit. */
+public class ComposeTimeoutException(
+    message: String?,
+) : Throwable(message)
 
 /**
  * @param currentTimeNanos reads the shared frame-time counter every frame this clock or the harness's
@@ -100,11 +106,13 @@ public sealed interface MainTestClock {
  * awaiter cannot yet be dispatched to receive. The `caller` name is the public entry point to attach to
  * a failure if it never becomes idle.
  * @param diagnostics reports the tree and composition state a gate attaches to a composition that never became idle.
+ * @param throwFailure throws, once, a failure that ended recomposition or that the library recorded, if one is pending.
  */
 internal class MainTestClockImpl(
     private val currentTimeNanos: () -> Long,
     private val runFrame: (deltaNanos: Long, caller: String) -> Unit,
     private val diagnostics: () -> String,
+    private val throwFailure: () -> Unit,
 ) : MainTestClock {
     override var autoAdvance: Boolean = true
 
@@ -138,8 +146,9 @@ internal class MainTestClockImpl(
     ) {
         val deadline = currentTime + timeout
         while (!condition()) {
+            throwFailure()
             if (currentTime >= deadline) {
-                throw AssertionError(
+                throw ComposeTimeoutException(
                     "Condition still not met after advancing $timeout of composition time. Current tree:\n" +
                         diagnostics(),
                 )

@@ -38,7 +38,7 @@ class CallerFailureContainmentTest {
 
         // A gate dumps the tree it never found idle, and that tree is unexplained unless the
         // diagnostics name the callback that never finished.
-        val failure = assertFailsWith<AssertionError> { waitUntil(timeout = 100.milliseconds) { false } }
+        val failure = assertFailsWith<ComposeTimeoutException> { waitUntil(timeout = 100.milliseconds) { false } }
         val message = failure.message.orEmpty()
         assertTrue(
             message.contains("callback(s) supplied by this test threw"),

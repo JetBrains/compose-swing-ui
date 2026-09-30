@@ -31,6 +31,11 @@ public final class org/jetbrains/compose/swing/test/ComposeSwingTestKt {
 	public static synthetic fun runComposeSwingTest-dWUq8MI$default (Ljava/awt/Dimension;JLkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
+public final class org/jetbrains/compose/swing/test/ComposeTimeoutException : java/lang/Throwable {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+}
+
 public abstract interface class org/jetbrains/compose/swing/test/MainTestClock {
 	public abstract fun advanceTimeBy-VtjQ1oo (JZ)V
 	public static synthetic fun advanceTimeBy-VtjQ1oo$default (Lorg/jetbrains/compose/swing/test/MainTestClock;JZILjava/lang/Object;)V

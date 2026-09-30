@@ -226,7 +226,7 @@ class MainTestClockTest {
         mainClock.autoAdvance = false
 
         val failure =
-            assertFailsWith<AssertionError> {
+            assertFailsWith<ComposeTimeoutException> {
                 mainClock.advanceTimeUntil(timeout = mainClock.frameDuration * 2) { false }
             }
         val message = failure.message.orEmpty()

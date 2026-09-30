@@ -194,7 +194,7 @@ class EffectFailureTest {
 
             text = "after"
             val report =
-                assertFailsWith<AssertionError> {
+                assertFailsWith<ComposeTimeoutException> {
                     waitUntil(timeout = 100.milliseconds) { onAllNodesWithText("after").fetchSize() == 1 }
                 }
 
@@ -223,7 +223,7 @@ class EffectFailureTest {
 
                 text = "after"
                 val report =
-                    assertFailsWith<AssertionError> {
+                    assertFailsWith<ComposeTimeoutException> {
                         waitUntil(timeout = 500.milliseconds) { onAllNodesWithText("after").fetchSize() == 1 }
                     }
 
@@ -233,24 +233,38 @@ class EffectFailureTest {
     }
 
     @Test
-    fun aGateThatGivesUpNamesAThrowNoHandlerTookOnce() = runComposeSwingTest {
+    fun advanceTimeUntilThrowsAThrowNoHandlerTookNotATimeout() = runComposeSwingTest {
         lateinit var scope: CoroutineScope
         setContent { scope = rememberCoroutineScope() }
 
-        // The throw arrives while the wait runs and after its last frame, so no frame has thrown it.
-        val report =
-            assertFailsWith<AssertionError> {
+        // The throw arrives while the condition runs, after the wait's last frame, at its deadline.
+        val thrown =
+            assertFailsWith<IllegalStateException> {
                 mainClock.advanceTimeUntil(timeout = Duration.ZERO) {
                     scope.launch(start = CoroutineStart.UNDISPATCHED) { error(EFFECT_FAILURE) }
                     false
                 }
             }
 
-        // The stack trace opens with the throw's own line, so a note that names the throw once holds it once.
-        val throwLine = "IllegalStateException: $EFFECT_FAILURE\n"
-        val message = report.message.orEmpty()
-        assertEquals(1, message.windowed(throwLine.length).count { it == throwLine })
-        assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals(EFFECT_FAILURE, thrown.message)
+        awaitIdle()
+    }
+
+    @Test
+    fun waitUntilThrowsAThrowNoHandlerTookNotATimeout() = runComposeSwingTest {
+        lateinit var scope: CoroutineScope
+        setContent { scope = rememberCoroutineScope() }
+
+        val thrown =
+            assertFailsWith<IllegalStateException> {
+                waitUntil(timeout = Duration.ZERO) {
+                    scope.launch(start = CoroutineStart.UNDISPATCHED) { error(EFFECT_FAILURE) }
+                    false
+                }
+            }
+
+        assertEquals(EFFECT_FAILURE, thrown.message)
+        awaitIdle()
     }
 
     @Test
@@ -266,7 +280,7 @@ class EffectFailureTest {
 
         text = "after"
         val report =
-            assertFailsWith<AssertionError> {
+            assertFailsWith<ComposeTimeoutException> {
                 waitUntil(timeout = 100.milliseconds) { onAllNodesWithText("after").fetchSize() == 1 }
             }
 

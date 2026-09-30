@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.ComposeTimeoutException
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onAllWindows
 import org.jetbrains.compose.swing.test.onWindow
@@ -185,7 +186,7 @@ class WindowInteractionContractTest {
         }
 
         val failure =
-            assertFailsWith<AssertionError> {
+            assertFailsWith<ComposeTimeoutException> {
                 waitUntil(timeout = WAIT_TIMEOUT) { false }
             }
         val message = failure.message.orEmpty()

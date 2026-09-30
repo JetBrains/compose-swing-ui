@@ -188,7 +188,7 @@ public interface ComposeSwingTest {
      * (e.g. work gated on genuinely external timing).
      *
      * Bounded by BOTH a frame cap and the [timeout] wall-clock deadline; whichever trips first
-     * fails with an [AssertionError] that includes a tree dump. The frame cap counts only frames the
+     * fails with a [ComposeTimeoutException] that includes a tree dump. The frame cap counts only frames the
      * composition consumes, keeping CI deterministic: a condition gated on a recomposition or
      * frame-effect loop that never becomes true fails after a fixed number of frames regardless of
      * machine speed, while a condition gated on external timing (e.g. a native window-system event)
@@ -200,11 +200,13 @@ public interface ComposeSwingTest {
      * until the condition holds or the deadline passes. Either way, a poll validates the tree only once
      * that queue is drained.
      *
-     * A throw that ends recomposition, what an effect throws, or a failure the library itself raises on the
-     * event dispatch thread, fails this call the same way [awaitIdle] does.
+     * Its bounds aside, it fails the same way [awaitIdle] does, and such a failure is thrown as itself, never
+     * as a [ComposeTimeoutException].
      *
      * @param timeout the wall-clock deadline after which an unmet condition fails the test.
      * @param condition the predicate to await; evaluated on the EDT.
+     * @throws ComposeTimeoutException if [condition] is not met after [timeout] (in wall clock time) or the
+     * frame cap.
      */
     public suspend fun waitUntil(
         timeout: Duration = 1.seconds,
@@ -530,6 +532,7 @@ private class ComposeSwingTestImpl(
             currentTimeNanos = { frameTimeNanos },
             runFrame = ::runFrame,
             diagnostics = { root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote() },
+            throwFailure = ::throwLibraryFailure,
         )
 
     private var disposeHandle: DisposableHandle? = null
@@ -689,8 +692,9 @@ private class ComposeSwingTestImpl(
         while (true) {
             throwLibraryFailure()
             if (condition()) return
+            throwLibraryFailure()
             if (frames >= MAX_STEPS || System.nanoTime() >= deadline) {
-                throw AssertionError(
+                throw ComposeTimeoutException(
                     "Condition still not met after $frames consumed frames / $timeout. " +
                         "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
                 )

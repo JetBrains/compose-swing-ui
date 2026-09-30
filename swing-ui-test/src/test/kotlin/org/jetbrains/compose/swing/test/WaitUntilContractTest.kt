@@ -74,7 +74,7 @@ class WaitUntilContractTest {
         setContent { Label(text = "never-changes") }
 
         val failure =
-            assertFailsWith<AssertionError> {
+            assertFailsWith<ComposeTimeoutException> {
                 waitUntil(timeout = WAIT_TIMEOUT) { false }
             }
         val message = failure.message.orEmpty()
