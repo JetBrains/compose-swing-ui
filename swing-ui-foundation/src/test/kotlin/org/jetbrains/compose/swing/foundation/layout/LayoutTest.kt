@@ -388,7 +388,14 @@ class LayoutTest {
             waitUntil { frame.mostRecentFocusOwner === second }
             other.requestFocus()
             val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
-            val focused = runCatching { waitUntil(timeout = 5.seconds) { focusManager.focusOwner === other } }.isSuccess
+            val focused =
+                try {
+                    waitUntil(timeout = 5.seconds) { focusManager.focusOwner === other }
+                    true
+                } catch (_: AssertionError) {
+                    // The deadline passed: the window system focuses none of this process's windows.
+                    false
+                }
             assumeTrue(focused && !frame.isFocused, "requires a window system that focuses this process's windows")
 
             placesSecond = false

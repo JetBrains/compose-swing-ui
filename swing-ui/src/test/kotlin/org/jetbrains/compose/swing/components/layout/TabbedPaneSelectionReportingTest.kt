@@ -510,7 +510,7 @@ class TabbedPaneSelectionReportingTest {
         }
 
         failApply = true
-        awaitIdle()
+        assertFailsWith<IllegalStateException> { awaitIdle() }
 
         selectTab(1)
         assertEquals(listOf(1), reported, "a failed apply must not leave the user's selections unreported")

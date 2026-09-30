@@ -31,6 +31,7 @@ import javax.swing.JRootPane
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
@@ -199,16 +200,16 @@ class WindowGlassPaneTest {
     fun aSecondGlassPaneComposedForTheSameWindowSaysSo() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val failure =
-            runCatching {
+            assertFailsWith<IllegalStateException> {
                 setContent {
                     Window(onCloseRequest = {}, title = "glass-pane-doubled", visible = false) {
                         GlassPane { Label(text = "first") }
                         GlassPane { Label(text = "second") }
                     }
                 }
-            }.exceptionOrNull()
+            }
 
-        val message = generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
+        val message = generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
         assertTrue(
             "GlassPane { }" in message,
             "a second glass pane for one window should name the declaration it collides with, was: $failure",
@@ -227,7 +228,7 @@ class WindowGlassPaneTest {
         val scope = WindowScope.of(frame.rootPane)
         try {
             runComposeSwingTest {
-                runCatching {
+                assertFailsWith<IllegalStateException> {
                     setContent {
                         with(scope) {
                             GlassPane { Label(text = "first") }
@@ -257,7 +258,7 @@ class WindowGlassPaneTest {
         val scope = WindowScope.of(frame.rootPane)
         try {
             runComposeSwingTest {
-                runCatching {
+                assertFailsWith<IllegalStateException> {
                     setContent {
                         with(scope) {
                             GlassPane { Label(text = "first") }

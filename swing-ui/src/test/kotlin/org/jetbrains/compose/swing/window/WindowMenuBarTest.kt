@@ -28,8 +28,8 @@ import javax.swing.MenuElement
 import javax.swing.MenuSelectionManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -253,16 +253,16 @@ class WindowMenuBarTest {
     fun aSecondMenuBarComposedForTheSameWindowSaysSo() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val failure =
-            runCatching {
+            assertFailsWith<IllegalStateException> {
                 setContent {
                     Window(onCloseRequest = {}, title = "menu-bar-doubled", visible = false) {
                         MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
                         MenuBar { Menu("B") { MenuItem("Second", onClick = {}) } }
                     }
                 }
-            }.exceptionOrNull()
+            }
 
-        val message = generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
+        val message = generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
         assertTrue(
             "MenuBar { }" in message,
             "a second menu bar for one window should name the declaration it collides with, was: $failure",
@@ -281,7 +281,7 @@ class WindowMenuBarTest {
         val scope = WindowScope.of(frame.rootPane)
         try {
             runComposeSwingTest {
-                runCatching {
+                assertFailsWith<IllegalStateException> {
                     setContent {
                         with(scope) {
                             MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
@@ -311,17 +311,14 @@ class WindowMenuBarTest {
         val scope = WindowScope.of(frame.rootPane)
         try {
             runComposeSwingTest {
-                val failure =
-                    runCatching {
-                        setContent {
-                            with(scope) {
-                                MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
-                                MenuBar { Menu("B") { MenuItem("Second", onClick = {}) } }
-                            }
+                assertFailsWith<IllegalStateException>("two menu bars declared for one window should be refused") {
+                    setContent {
+                        with(scope) {
+                            MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
+                            MenuBar { Menu("B") { MenuItem("Second", onClick = {}) } }
                         }
-                    }.exceptionOrNull()
-
-                assertNotNull(failure, "two menu bars declared for one window should be refused")
+                    }
+                }
             }
 
             // One declaration for a window is a legal state whatever came before it, so a window that

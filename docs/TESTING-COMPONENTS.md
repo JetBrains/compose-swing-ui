@@ -372,6 +372,42 @@ fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
 
 <!--- KNIT example-testing-case-01.kt -->
 
+## Failures that end recomposition
+
+A throw the composition does not contain - out of a composable function as it recomposes, or out of a
+node's `update` block - ends recomposition: nothing recomposes after it. The call that ran the failing
+pass throws it, whether that is `awaitIdle()`, `waitUntil { … }`, a `mainClock` advance or an action, so a
+test that does not expect the throw fails with it there.
+
+A test that expects it wraps that call in `assertFailsWith`. The throw is raised once: later calls
+return, and the widgets keep what the failed pass left them, so the test can go on asserting on them:
+
+```kotlin
+@Test
+fun aThrowingRecompositionFailsTheCallThatRanIt() = runComposeSwingTest {
+    var items by mutableStateOf(listOf("first"))
+    setContent {
+        Label(text = items.first())
+    }
+
+    items = emptyList()
+    assertFailsWith<NoSuchElementException> { awaitIdle() }
+
+    onNodeWithText("first").assertExists()
+}
+```
+
+<!--- KNIT example-testing-case-02.kt -->
+
+What an effect throws - the body of a `LaunchedEffect`, or a coroutine launched in the scope
+`rememberCoroutineScope()` returns - ends recomposition the same way and fails the first such call made
+after it, `setContent` included. A test that makes no call after the throw fails with it as it ends. A
+cancelled effect is not a failure.
+
+A `CoroutineExceptionHandler` passed in `runComposeSwingTest(effectContext = …)` is handed what an effect
+throws. The throw then fails no call, and what the handler itself throws fails the next one. Recomposition has
+ended in both cases, and a call that gives up afterwards names the throw.
+
 ## Testing windows and dialogs
 
 Content that composes `Window { }` or `Dialog { }` realizes a real top-level peer, which needs a
@@ -390,7 +426,7 @@ A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `as
 `assertIsNotVisible()`, the typed `fetch<T>()` for the realized `JFrame`/`JDialog`, and the node
 finders scoped to that window's content pane and menu bar:
 
-<!--- INCLUDE .*testing-case-02.*
+<!--- INCLUDE .*testing-case-03.*
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -412,7 +448,7 @@ fun settingsWindowShowsItsContent() = runComposeSwingTest {
 }
 ```
 
-<!--- KNIT example-testing-case-02.kt -->
+<!--- KNIT example-testing-case-03.kt -->
 
 A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
 change plus `awaitIdle()` the realized dialog already reflects the declared visibility.

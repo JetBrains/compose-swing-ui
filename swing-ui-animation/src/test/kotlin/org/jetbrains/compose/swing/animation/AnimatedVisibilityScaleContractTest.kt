@@ -190,11 +190,7 @@ class AnimatedVisibilityScaleContractTest {
             }
 
             enter = scaleIn()
-            driveOneFrame()
-            val failure =
-                assertFailsWith<AssertionError> {
-                    waitUntil(timeout = 1.milliseconds) { false }
-                }
+            val failure = assertFailsWith<IllegalArgumentException> { driveOneFrame() }
             assertTrue(failure.message.orEmpty().contains("AnimatedVisibility container scale transitions require"))
         }
 

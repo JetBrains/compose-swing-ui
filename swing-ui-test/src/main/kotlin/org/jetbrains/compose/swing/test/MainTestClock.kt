@@ -13,6 +13,8 @@ import kotlin.time.Duration.Companion.seconds
  * behavior unchanged) or only when a test sends one, which is what makes it possible to observe a
  * frame-driven animation partway through rather than only once it has run to completion.
  *
+ * Every call that sends a frame fails the same way [ComposeSwingTest.awaitIdle] does.
+ *
  * This clock governs only [ComposeSwingTest]'s own off-screen composition. Content composed under a
  * real [org.jetbrains.compose.swing.window.Window] or [org.jetbrains.compose.swing.window.Dialog]
  * runs on that window's own recomposer, whose frame-driven work is paced by the display that window

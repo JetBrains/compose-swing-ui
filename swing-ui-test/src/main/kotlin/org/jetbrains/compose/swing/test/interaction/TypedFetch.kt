@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("InteractionTestKt")
+
 package org.jetbrains.compose.swing.test.interaction
 
 import java.awt.Component

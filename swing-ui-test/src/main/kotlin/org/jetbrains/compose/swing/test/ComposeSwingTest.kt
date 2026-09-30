@@ -8,6 +8,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
@@ -103,6 +104,8 @@ public interface ComposeSwingTest {
      * animation started from initial composition, for instance - stays parked until the test calls
      * [MainTestClock.advanceTimeByFrame] or [MainTestClock.advanceTimeBy] itself.
      *
+     * It fails the same way [awaitIdle] does, an effect the initial composition launches included.
+     *
      * @param content composed into [root] on the event dispatch thread, under this test's
      *   [lifecycleState].
      * @throws IllegalStateException if called more than once per test.
@@ -130,9 +133,18 @@ public interface ComposeSwingTest {
      * current AWT tree (including realized windows), rather than hanging until the
      * surrounding test framework times out.
      *
+     * A throw that ends recomposition - one out of a node's update block, for instance - fails the call
+     * that ran the failing pass with that throwable. What an effect throws - the body of a
+     * [androidx.compose.runtime.LaunchedEffect], or a coroutine launched in the scope
+     * [androidx.compose.runtime.rememberCoroutineScope] returns - ends recomposition too, and fails the first
+     * call that runs the event dispatch thread's queue after it. A cancelled effect is no failure. Either
+     * throw is thrown once: the composition recomposes no more, and later calls return as they do over an
+     * idle composition. One that no call is left to throw fails the test as it ends.
+     *
      * A failure the library itself raises on the event dispatch thread - reached from neither a
-     * recomposition nor a caller callback - fails this call with that failure rather than being lost to
-     * the thread's own uncaught-exception handler.
+     * recomposition nor a caller callback - fails this call the same way rather than being lost to the
+     * thread's own uncaught-exception handler. A test that expects any of these wraps the call in
+     * `assertFailsWith`.
      */
     public suspend fun awaitIdle()
 
@@ -164,9 +176,7 @@ public interface ComposeSwingTest {
      * Snapshot writes those callbacks make stay pending, so the tree still shows the state of the last
      * frame; [awaitIdle] lets it catch up.
      *
-     * Draining is bounded as in [awaitIdle]: a source of scheduled work that never quiesces fails with
-     * an [AssertionError] carrying a tree dump rather than spinning forever, and a failure the library
-     * itself raises on the event dispatch thread fails this call the same way [awaitIdle] does.
+     * It fails the same way [awaitIdle] does, a source of scheduled work that never quiesces included.
      */
     public suspend fun awaitEventsDelivered()
 
@@ -190,8 +200,8 @@ public interface ComposeSwingTest {
      * until the condition holds or the deadline passes. Either way, a poll validates the tree only once
      * that queue is drained.
      *
-     * A failure the library itself raises on the event dispatch thread fails this call the same way
-     * [awaitIdle] does.
+     * A throw that ends recomposition, what an effect throws, or a failure the library itself raises on the
+     * event dispatch thread, fails this call the same way [awaitIdle] does.
      *
      * @param timeout the wall-clock deadline after which an unmet condition fails the test.
      * @param condition the predicate to await; evaluated on the EDT.
@@ -383,7 +393,11 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
  * @param effectContext extra context elements the composition's effects run under - what a
  * [androidx.compose.runtime.LaunchedEffect] body and a [androidx.compose.runtime.rememberCoroutineScope]
  * scope see. The harness's own dispatcher, job, frame clock and policies are added after it and win
- * over anything named here.
+ * over anything named here. A [kotlinx.coroutines.CoroutineExceptionHandler] named here is handed what an
+ * effect throws: the throw then fails no gate, and what the handler itself throws fails the next one. Either
+ * way recomposition has ended, and a gate that gives up afterwards names the throw. A throw that arrives after
+ * the test has ended - from an effect that fails on another thread later, or one that needs more than one turn
+ * of the event queue to unwind - is not reported.
  * @param block the test body, run on the Event Dispatch Thread against a fresh [ComposeSwingTest].
  */
 public fun runComposeSwingTest(
@@ -480,13 +494,36 @@ private class ComposeSwingTestImpl(
         }
 
     // Widest to narrowest, the same order a real window's recomposer applies: what the process states is
-    // overridden by what this test states, and both lose to what the harness cannot run without.
+    // overridden by what this test states, and both lose to what the harness cannot run without. The
+    // handler is where an effect's throw arrives, and it treats the throw as androidx's test environment
+    // does: a handler the test named takes it, and a throw no handler took, or what that handler throws in
+    // turn, is recorded for the next gate, as androidx throws an uncaught coroutine exception from its next
+    // wait for idle. A throw that arrives after the test has ended is dropped, as androidx drops one that
+    // arrives after its end-of-test check. The throw has cancelled the job the recomposer runs under by
+    // then, so it is also what ended recomposition.
     private val scope =
         CoroutineScope(
             SwingUiSettings.motionDurationScale + effectContext + Dispatchers.Swing + Job() + clock +
-                restoreCheck + infiniteAnimationPolicy,
+                restoreCheck + infiniteAnimationPolicy +
+                CoroutineExceptionHandler { context, failure ->
+                    onEventDispatchThread { if (compositionFailure == null) compositionFailure = failure }
+                    try {
+                        effectContext[CoroutineExceptionHandler]?.handleException(context, failure) ?: throw failure
+                    } catch (unhandled: Throwable) {
+                        onEventDispatchThread { recordLibraryFailure(unhandled) }
+                    }
+                },
         )
     private val recomposer = Recomposer(scope.coroutineContext)
+
+    /**
+     * Runs [action] on the event dispatch thread: at once when called there, queued otherwise. An effect
+     * may fail on a thread it moved its work to, and gates read what is recorded on the event dispatch
+     * thread only.
+     */
+    private inline fun onEventDispatchThread(crossinline action: () -> Unit) {
+        if (SwingUtilities.isEventDispatchThread()) action() else SwingUtilities.invokeLater { action() }
+    }
 
     override val mainClock: MainTestClock =
         MainTestClockImpl(
@@ -503,12 +540,15 @@ private class ComposeSwingTestImpl(
      * The failure that ended recomposition, once one has. Applying a composition's changes runs code the
      * caller supplied - a node's update block, and the listeners a widget notifies from inside one of the
      * wrapper's own writes - and a throw from any of it ends the recomposer permanently: it records the
-     * failure and never recomposes again, however many frames follow.
+     * failure and never recomposes again, however many frames follow. So does what an effect throws, which
+     * cancels the job the recomposer runs under; that throw is kept here whether a gate has thrown it, a
+     * [CoroutineExceptionHandler] in the effect context has taken it, or neither has yet.
      *
-     * Held here rather than left to escape the coroutine it was raised in. Escaping, it would arrive as an
+     * Caught rather than left to escape the coroutine it was raised in. Escaping, it would arrive as an
      * uncaught exception with no test attached to it, failing whichever test the runner happened to be on
-     * rather than the one that caused it. Kept, it names the composition that stopped in the report of every
-     * gate that goes on to find nothing left to run, so a test asserting on a widget the composition no longer
+     * rather than the one that caused it. Caught, it fails the gate that ran the failing pass, through
+     * [libraryFailure]. It is also kept here for the rest of the test, so every later gate that gives up names
+     * the composition that stopped in its report: a test waiting on a widget the composition no longer
      * drives says why rather than reporting a bare stale value.
      */
     private var compositionFailure: Throwable? = null
@@ -533,15 +573,17 @@ private class ComposeSwingTestImpl(
     private val callerFailures = mutableListOf<Throwable>()
 
     /**
-     * A failure the library itself raised on the event dispatch thread outside the recomposer's own
-     * coroutine - a check the applier defers to a later turn of the event queue so it never fires on a
-     * pass still in progress, for instance. Nothing reaching the thread's uncaught-exception handler that
-     * is not a [ContainedCallerFailure] can be told apart from this, so every such throwable is treated
-     * as the library's own failure and recorded here rather than forwarded to whichever handler the
-     * thread reported through before this test claimed it.
+     * A failure a gate throws to the test as raised: the throw that ended recomposition (see
+     * [compositionFailure]), what an effect threw that no handler in the effect context took, or one the
+     * library itself raised on the event dispatch thread outside the recomposer's own coroutine - a check the
+     * applier defers to a later turn of the event queue so it never fires on a pass still in progress, for
+     * instance. Nothing reaching the thread's uncaught-exception handler that is not a
+     * [ContainedCallerFailure] can be told apart from the library's own failure, so every such throwable is
+     * treated as one and recorded here rather than forwarded to whichever handler the thread reported through
+     * before this test claimed it.
      *
-     * A gate that would otherwise return idle by finding nothing left to do throws this instead of returning
-     * normally, and clears it once thrown; one still recorded when the test ends fails it too, so a
+     * A gate throws this once it has drained the event queue, instead of returning normally, and clears it
+     * once thrown, so the gates after it return; one still recorded when the test ends fails it too, so a
      * failure that arrives without a further gate call afterward is not silently dropped.
      */
     private var libraryFailure: Throwable? = null
@@ -568,6 +610,7 @@ private class ComposeSwingTestImpl(
                 throw cancellation
             } catch (failure: Throwable) {
                 compositionFailure = failure
+                recordLibraryFailure(failure)
             }
         }
     }
@@ -578,7 +621,7 @@ private class ComposeSwingTestImpl(
             ?.let {
                 "\nRecomposition ended earlier with $it - the composition has applied nothing since, so what " +
                     "the tree shows below is what it was left holding.\n" + it.stackTraceToString()
-            }.orEmpty() + callerFailureNote() + libraryFailureNote()
+            }.orEmpty() + callerFailureNote()
 
     /** Names the callback failures contained so far, for a gate reporting a composition that never became idle. */
     private fun callerFailureNote(): String =
@@ -595,7 +638,7 @@ private class ComposeSwingTestImpl(
         }
 
     /**
-     * Records [failure] as the library's own: the first one stands until a gate throws it, and every
+     * Records [failure] in [libraryFailure]: the first one stands until a gate throws it, and every
      * later one is suppressed onto it.
      */
     private fun recordLibraryFailure(failure: Throwable) {
@@ -603,17 +646,9 @@ private class ComposeSwingTestImpl(
         if (existing != null) existing.addSuppressed(failure) else libraryFailure = failure
     }
 
-    /** Names a still-unclaimed [libraryFailure], for a gate reporting a composition that never became idle. */
-    private fun libraryFailureNote(): String =
-        libraryFailure
-            ?.let {
-                "\nA failure was raised on the event dispatch thread outside the recomposer's own coroutine: " +
-                    "$it\n" + it.stackTraceToString()
-            }.orEmpty()
-
     /**
-     * Throws and forgets [libraryFailure], once one has arrived, so a gate reports the failure the
-     * library raised rather than quietly finding nothing left to run over a tree it already stopped
+     * Throws and forgets [libraryFailure], once one has arrived, so a gate reports the failure rather
+     * than quietly finding nothing left to run over a tree the composition or the library already stopped
      * maintaining.
      */
     private fun throwLibraryFailure() {
@@ -718,6 +753,16 @@ private class ComposeSwingTestImpl(
     }
 
     /**
+     * Dispatches what is queued on the event dispatch thread as [dispatchQueued] does, then throws a failure
+     * recorded by then - see [throwLibraryFailure].
+     */
+    private fun drainQueue(layOut: Boolean): Boolean {
+        val drained = dispatchQueued(layOut)
+        throwLibraryFailure()
+        return drained
+    }
+
+    /**
      * Dispatches everything already queued on the event dispatch thread without leaving it, and answers
      * whether nothing a dispatch could still run was left behind - see [noPendingDispatch]. With [layOut],
      * a drained queue is followed by validating [root], as a window lays itself out only after the events
@@ -727,7 +772,7 @@ private class ComposeSwingTestImpl(
      * task that exits it behind the queued work. The layout and the reading run inside that task: every
      * event queued before it has run, and the loop's own teardown has not been posted yet.
      */
-    private fun drainQueue(layOut: Boolean): Boolean {
+    private fun dispatchQueued(layOut: Boolean): Boolean {
         val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
         val drained = booleanArrayOf(false)
         SwingUtilities.invokeLater {
@@ -742,7 +787,6 @@ private class ComposeSwingTestImpl(
             }
         }
         loop.enter()
-        throwLibraryFailure()
         return drained[0]
     }
 
@@ -858,6 +902,9 @@ private class ComposeSwingTestImpl(
             disposeHandle?.dispose()
             recomposer.cancel()
             scope.cancel()
+            // A cancelled effect resumes from the event queue to unwind, and what it throws as it does is
+            // this test's failure like any other effect's.
+            dispatchQueued(layOut = false)
         } finally {
             dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
             root.removeNotify()
@@ -877,8 +924,9 @@ private class ComposeSwingTestImpl(
             libraryFailure?.let(failure::addSuppressed)
             throw failure
         }
-        // A library failure a gate never got the chance to throw - the test ended without calling one
-        // after it arrived - would otherwise be lost entirely rather than merely late.
+        // A failure a gate never got the chance to throw - the test ended without calling one after it
+        // arrived, or it arrived as the composition was torn down above - would otherwise be lost entirely
+        // rather than merely late.
         libraryFailure?.let { throw it }
     }
 

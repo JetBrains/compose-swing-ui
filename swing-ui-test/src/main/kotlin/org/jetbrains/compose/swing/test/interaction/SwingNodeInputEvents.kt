@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("InteractionTestKt")
+
 package org.jetbrains.compose.swing.test.interaction
 
 import kotlinx.coroutines.yield
@@ -20,7 +23,8 @@ import javax.swing.text.JTextComponent
  * Delivers the event [event] builds for the matched node, then awaits idle.
  *
  * The node is resolved from the query, so [event] is handed the live component the query names, and the
- * harness awaits idle once the event has been delivered. Every gesture in this file is that shape.
+ * harness awaits idle once the event has been delivered, failing the same way
+ * [org.jetbrains.compose.swing.test.ComposeSwingTest.awaitIdle] does. Every gesture in this file is that shape.
  *
  * Build [event] with the node as its source, so its `getSource` agrees with the component it is
  * delivered to.

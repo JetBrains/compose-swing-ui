@@ -269,7 +269,6 @@ class DecorationModifierNodeTest {
     fun aStepLosingItsDecoratorInAPassThatThrowsStillPaintsTheContent() =
         runComposeSwingTest {
             var failing by mutableStateOf(false)
-            val thrown = ArrayList<String>()
             setContent {
                 SwingNode(
                     factory = { DecoratedPanel().apply { background = Color.RED } },
@@ -278,15 +277,15 @@ class DecorationModifierNodeTest {
                             .testTag("panel")
                             .preferredSize(Dimension(32, 32))
                             .then(DecoratorElement(if (failing) null else Cut()))
-                            .then(FailingToUpdate(failing, thrown)),
+                            .then(FailingToUpdate(failing)),
                 )
             }
             val panel = onNodeWithTag("panel").fetch<JComponent>()
             assertEquals(0, panel.paintOnto(32, 32).getRGB(0, 0), "The cut takes the corner away.")
 
             failing = true
-            awaitIdle()
-            assertEquals(listOf("update fails"), thrown, "The pass writing the step throws after it.")
+            val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+            assertEquals("update fails", thrown.message, "The pass writing the step throws after it.")
 
             assertEquals(
                 Color.RED.rgb,
@@ -299,14 +298,13 @@ class DecorationModifierNodeTest {
     fun aStepDetachedInAPassThatThrowsPaintsNoMore() =
         runComposeSwingTest {
             var failing by mutableStateOf(false)
-            val thrown = ArrayList<String>()
             setContent {
                 SwingNode(
                     factory = { DecoratedPanel().apply { isOpaque = false } },
                     modifier =
                         SwingModifier.testTag("panel").preferredSize(Dimension(32, 32)).let {
                             if (failing) {
-                                it.key(2).then(FailingToAttach(thrown))
+                                it.key(2).then(FailingToAttach())
                             } else {
                                 it.key(1).then(ComponentReadingStep())
                             }
@@ -318,8 +316,8 @@ class DecorationModifierNodeTest {
             assertEquals(Color.RED.rgb, panel.paintOnto(32, 32).getRGB(16, 16), "The step fills the panel.")
 
             failing = true
-            awaitIdle()
-            assertEquals(listOf("onAttach fails"), thrown, "The pass detaching the step throws as it attaches another.")
+            val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+            assertEquals("onAttach fails", thrown.message, "The pass detaching the step throws as it attaches another.")
 
             assertEquals(0, panel.paintOnto(32, 32).getRGB(16, 16), "A step detached by the pass paints no more.")
         }
@@ -675,12 +673,9 @@ private class WriteCountingPanel : DecoratedPanel() {
         }
 }
 
-/**
- * Declares a node whose `update` throws where [failing], ending the pass that writes it, and records it in [thrown].
- */
+/** Declares a node whose `update` throws where [failing], ending the pass that writes it. */
 private class FailingToUpdate(
     private val failing: Boolean,
-    private val thrown: MutableList<String>,
 ) : SwingModifier.NodeElement<Component, PlainNode>() {
     override val additive: Boolean get() = true
 
@@ -689,9 +684,7 @@ private class FailingToUpdate(
     override fun create(): PlainNode = PlainNode()
 
     override fun update(node: PlainNode) {
-        if (!failing) return
-        thrown += "update fails"
-        error("update fails")
+        if (failing) error("update fails")
     }
 
     override fun equals(other: Any?): Boolean = other is FailingToUpdate && other.failing == failing
@@ -699,10 +692,8 @@ private class FailingToUpdate(
     override fun hashCode(): Int = failing.hashCode()
 }
 
-/** Declares a node whose `onAttach` throws, ending the pass that attaches it, and records it in [thrown]. */
-private class FailingToAttach(
-    private val thrown: MutableList<String>,
-) : SwingModifier.NodeElement<Component, PlainNode>() {
+/** Declares a node whose `onAttach` throws, ending the pass that attaches it. */
+private class FailingToAttach : SwingModifier.NodeElement<Component, PlainNode>() {
     override val additive: Boolean get() = true
 
     override val targetType: Class<Component> get() = Component::class.java
@@ -710,7 +701,6 @@ private class FailingToAttach(
     override fun create(): PlainNode =
         object : PlainNode() {
             override fun onAttach() {
-                thrown += "onAttach fails"
                 error("onAttach fails")
             }
         }
