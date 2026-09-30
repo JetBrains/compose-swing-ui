@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.samples.widgets.custom.LayerSection
 import org.jetbrains.compose.swing.samples.widgets.layout.BoxSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LayoutMechanicsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LinearLayoutsSection
+import org.jetbrains.compose.swing.samples.widgets.layout.PaintOutsetsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.PanelLayoutsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.ScrollPaneSection
 import org.jetbrains.compose.swing.samples.widgets.layout.SplitToolBarSection
@@ -73,6 +74,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Linear layouts") { LinearLayoutsSection() },
         ShowcaseSection("Box") { BoxSection() },
         ShowcaseSection("Layout mechanics") { LayoutMechanicsSection() },
+        ShowcaseSection("Paint outsets") { PaintOutsetsSection() },
         ShowcaseSection("Panel layouts") { PanelLayoutsSection() },
         ShowcaseSection("Split & ToolBar") { SplitToolBarSection() },
         ShowcaseSection("ScrollPane") { ScrollPaneSection() },

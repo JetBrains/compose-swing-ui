@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -33,6 +34,7 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
+import org.jetbrains.compose.swing.samples.widgets.layout.LocalAlignmentGuidesShown
 import org.jetbrains.compose.swing.samples.widgets.text.setEditorText
 import org.jetbrains.compose.swing.window.LocalWindow
 import java.awt.FlowLayout
@@ -46,7 +48,11 @@ import javax.swing.ListSelectionModel
 // The menu bar is its own composition, mounted on the frame's menu bar, and reads that frame as its
 // LocalWindow.
 @Composable
-internal fun ShowcaseMenuBar(onExit: () -> Unit) {
+internal fun ShowcaseMenuBar(
+    alignmentGuidesShown: Boolean,
+    onAlignmentGuidesShownChange: (Boolean) -> Unit,
+    onExit: () -> Unit,
+) {
     val owner = LocalWindow.current
     var wrapText by remember { mutableStateOf(true) }
     var density by remember { mutableIntStateOf(0) }
@@ -79,6 +85,11 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
             onCheckedChange = { wrapText = it },
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),
         )
+        CheckBoxMenuItem(
+            "Alignment guides",
+            checked = alignmentGuidesShown,
+            onCheckedChange = onAlignmentGuidesShownChange,
+        )
         MenuSeparator()
         RadioButtonMenuGroup(selectedIndex = density, onSelectionChange = { density = it }) {
             option("Comfortable", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_1, shortcut))
@@ -106,8 +117,11 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
 // key, and picking a row pushes. Only the top entry is composed, which is what lets the same section be
 // visited twice - "Components -> Table -> Components" puts one contentKey on the stack twice, and a
 // display that composed every entry would fail on it.
+//
+// The alignment guides are switched from the menu bar, a composition of its own, so whoever mounts both holds the
+// switch and hands its value here.
 @Composable
-internal fun ShowcaseShell() {
+internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
     val backStack = remember { mutableStateListOf(SectionKey(showcaseSections.first().title)) }
     var sidebarShown by remember { mutableStateOf(true) }
     val entries =
@@ -144,7 +158,9 @@ internal fun ShowcaseShell() {
             }
         }
         // The entry names no region, so BorderLayout gives it the center by default.
-        entries.last().Content()
+        CompositionLocalProvider(LocalAlignmentGuidesShown provides alignmentGuidesShown) {
+            entries.last().Content()
+        }
         Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING), modifier = SwingModifier.south()) {
             Button(
                 text = "Back",

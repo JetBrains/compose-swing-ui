@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.samples.widgets
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
 import java.awt.Dimension
 import javax.swing.JFrame
@@ -14,7 +17,7 @@ private const val WINDOW_HEIGHT = 680
  * own, so what it shows is what the library renders under whichever one the host installs. Creating
  * the frame and its menu bar is plain Swing plumbing, kept apart from the composable UI, which knows
  * nothing about frames. The frame's content and the menu bar are each their own composition, so a
- * composable menu can live in the native `JMenuBar`.
+ * composable menu can live in the native `JMenuBar`; the one switch both read is held here.
  */
 fun main() =
     SwingUtilities.invokeLater {
@@ -28,9 +31,12 @@ fun main() =
         // (Content on a detached bar is also supported - it simply defers until the bar is attached.)
         val menuBar = JMenuBar()
         frame.jMenuBar = menuBar
-        menuBar.setContent { ShowcaseMenuBar(onExit = { frame.dispose() }) }
+        var alignmentGuidesShown by mutableStateOf(true)
+        menuBar.setContent {
+            ShowcaseMenuBar(alignmentGuidesShown, { alignmentGuidesShown = it }, onExit = { frame.dispose() })
+        }
 
-        frame.setContent { ShowcaseShell() }
+        frame.setContent { ShowcaseShell(alignmentGuidesShown) }
 
         frame.isVisible = true
     }

@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.font
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
@@ -164,17 +165,26 @@ internal fun ColumnScope.AlignByBaselineCard() {
             max = 72,
         )
         var text by remember { mutableStateOf("Text field") }
+        val guides = remember { GuidedChildren() }
+        val marks = setOf(GuideMark.LayoutBox)
+        val lines = setOf(if (baseline) GuideLine.FirstBaseline else GuideLine.Bottom)
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8),
+            modifier =
+                SwingModifier
+                    .layoutTrack()
+                    .fillMaxWidth()
+                    .testTag(BASELINE_ROW_TAG)
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines),
+            horizontalArrangement = Arrangement.spacedBy(16),
             verticalAlignment = Alignment.Bottom,
         ) {
             Label(
                 text = "Label:",
                 modifier =
                     SwingModifier
-                        .font(Font(Font.SANS_SERIF, Font.PLAIN, 12))
+                        .font(Font(Font.SANS_SERIF, Font.PLAIN, 18))
                         .componentListener(onComponentMoved = { labelY = it.component.y })
+                        .alignmentGuide(guides)
                         .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
             )
             TextField(
@@ -183,9 +193,13 @@ internal fun ColumnScope.AlignByBaselineCard() {
                 modifier =
                     SwingModifier
                         .font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize))
+                        .alignmentGuide(guides)
                         .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
                 columns = 12,
             )
         }
+        AlignmentGuideLegend(marks, lines)
     }
 }
+
+internal const val BASELINE_ROW_TAG = "linear-layouts-baseline-row"

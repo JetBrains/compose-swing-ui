@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.background
+import org.jetbrains.compose.swing.foundation.graphics.border
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Row
@@ -15,6 +16,7 @@ import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
 import org.jetbrains.compose.swing.modifier.appearance.cursor
+import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
@@ -30,6 +32,14 @@ internal fun SwingModifier.layoutTrack(): SwingModifier =
     this
         .lineBorder(LayoutSampleColors.Border)
         .background(LayoutSampleColors.Track, RectangleShape)
+
+// A track as large as its content and the 32 px its border keeps around it. The border is part of the track, so its
+// content box starts inside it and a child may paint into it without leaving the track.
+internal fun SwingModifier.layoutStage(): SwingModifier =
+    this
+        .emptyBorder(all = 32)
+        .background(LayoutSampleColors.Track, RectangleShape)
+        .border(1, LayoutSampleColors.Border)
 
 internal fun SwingModifier.layoutPanelTrack(): SwingModifier =
     this

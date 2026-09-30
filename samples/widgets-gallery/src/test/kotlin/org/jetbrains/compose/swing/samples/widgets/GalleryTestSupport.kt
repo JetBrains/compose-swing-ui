@@ -7,6 +7,11 @@ import kotlin.test.assertTrue
 
 internal suspend fun ComposeSwingTest.openSection(title: String) {
     setContent { ShowcaseShell() }
+    selectSection(title)
+}
+
+/** Picks [title] in the sidebar of a shell that is already composed. */
+internal suspend fun ComposeSwingTest.selectSection(title: String) {
     val index = showcaseSections.indexOfFirst { it.title == title }
     assertTrue(index >= 0, "Section \"$title\" must be registered in showcaseSections")
     val list = onSectionList().fetch<JList<*>>()

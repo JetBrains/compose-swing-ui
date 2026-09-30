@@ -5,7 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
+import org.jetbrains.compose.swing.samples.widgets.ShowcaseShell
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.samples.widgets.showcaseSections
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.onAncestors
@@ -21,6 +23,8 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
+import org.jetbrains.compose.swing.window.Window
+import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.BorderLayout
 import java.awt.Color
@@ -40,6 +44,7 @@ import javax.swing.JColorChooser
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JDialog
+import javax.swing.JList
 import javax.swing.JSlider
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
@@ -442,13 +447,23 @@ class FoundationGraphicsSectionTest {
             assertImagesPixelPerfect(selectedTile, horizontalSlot.captureToImage())
         }
 
+    /** Walks the Tab order in a showing window: Swing's focus traversal policies build no cycle for a hidden root. */
     @Test
     fun brushTilesTakeTheKeyboardFocusAndSelectOnSpaceOrEnter() =
         runComposeSwingTest {
-            openSection("Foundation graphics")
-            val original = onNodeWithTag(DECORATION_TAG).captureToImage()
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            setContent {
+                Window(onCloseRequest = {}, state = WindowState(size = Dimension(1200, 900)), title = FOCUS_WINDOW) {
+                    ShowcaseShell()
+                }
+            }
+            val window = onWindowWithTitle(FOCUS_WINDOW)
+            window.onNode(SwingMatcher.hasAccessibleName("Sections")).fetch<JList<*>>().selectedIndex =
+                showcaseSections.indexOfFirst { it.title == "Foundation graphics" }
+            awaitIdle()
+            val original = window.onNodeWithTag(DECORATION_TAG).captureToImage()
 
-            val tiles = BRUSH_TILE_NAMES.map { onNodeWithTag(BRUSH_TILE_TAG_PREFIX + it).fetch<JComponent>() }
+            val tiles = BRUSH_TILE_NAMES.map { window.onNodeWithTag(BRUSH_TILE_TAG_PREFIX + it).fetch<JComponent>() }
             val root = tiles.first().focusCycleRootAncestor
             val reached =
                 generateSequence<Component>(tiles.first()) { root.focusTraversalPolicy.getComponentAfter(root, it) }
@@ -456,12 +471,11 @@ class FoundationGraphicsSectionTest {
                     .toSet()
             assertTrue(reached.containsAll(tiles), "Tab reaches every tile")
 
-            val vertical = onNodeWithTag(BRUSH_TILE_TAG_PREFIX + "vertical")
-            vertical.performKeyPress(KeyEvent.VK_SPACE)
-            assertBrushDirection("vertical", onNodeWithTag(DECORATION_TAG).captureToImage())
+            window.onNodeWithTag(BRUSH_TILE_TAG_PREFIX + "vertical").performKeyPress(KeyEvent.VK_SPACE)
+            assertBrushDirection("vertical", window.onNodeWithTag(DECORATION_TAG).captureToImage())
 
-            onNodeWithTag(BRUSH_TILE_TAG_PREFIX + "horizontal").performKeyPress(KeyEvent.VK_ENTER)
-            assertImagesPixelPerfect(original, onNodeWithTag(DECORATION_TAG).captureToImage())
+            window.onNodeWithTag(BRUSH_TILE_TAG_PREFIX + "horizontal").performKeyPress(KeyEvent.VK_ENTER)
+            assertImagesPixelPerfect(original, window.onNodeWithTag(DECORATION_TAG).captureToImage())
         }
 
     @Test
@@ -801,6 +815,8 @@ private fun assertBrushDirection(
         }
     assertTrue(matches, "the surface shows the $name brush: across=$across down=$down outward=$outward")
 }
+
+private const val FOCUS_WINDOW = "foundation-graphics-focus"
 
 private val BRUSH_TILE_NAMES = listOf("horizontal", "vertical", "linear", "radial", "repeat", "reflect")
 

@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
@@ -86,10 +87,8 @@ internal fun ColumnScope.RowArrangementCard() {
         LayoutParameterSelector("verticalAlignment", ROW_VERTICAL_ALIGNMENTS, selectedAlignment) {
             selectedAlignment = it
         }
-        RowArrangementPreview(
-            ROW_ARRANGEMENTS[selected].second,
-            ROW_VERTICAL_ALIGNMENTS[selectedAlignment].second,
-        )
+        val (verticalAlignment, line) = ROW_VERTICAL_ALIGNMENTS[selectedAlignment].second
+        RowArrangementPreview(ROW_ARRANGEMENTS[selected].second, verticalAlignment, line)
     }
 }
 
@@ -97,6 +96,7 @@ internal fun ColumnScope.RowArrangementCard() {
 private fun ColumnScope.RowArrangementPreview(
     horizontalArrangement: Arrangement.Horizontal,
     verticalAlignment: Alignment.Vertical,
+    line: GuideLine,
 ) {
     var first by remember { mutableStateOf(ChildPosition()) }
     var middle by remember { mutableStateOf(ChildPosition()) }
@@ -105,15 +105,29 @@ private fun ColumnScope.RowArrangementPreview(
         "Child positions: A (${first.x}, ${first.y}), " +
             "B (${middle.x}, ${middle.y}), C (${last.x}, ${last.y}) px",
     )
+    val guides = remember { GuidedChildren() }
+    val marks = setOf(GuideMark.LayoutBox)
     Row(
-        modifier = SwingModifier.layoutTrack().fillMaxWidth(),
+        modifier =
+            SwingModifier
+                .layoutTrack()
+                .fillMaxWidth()
+                .testTag(ROW_PLAYGROUND_TAG)
+                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line)),
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = verticalAlignment,
     ) {
-        PositionedSwatch("A · 72 px", LayoutSampleColors.Blue, 72, 32) { first = it }
-        PositionedSwatch("B · 96 px", LayoutSampleColors.Orange, 96, 40) { middle = it }
-        PositionedSwatch("C · 64 px", LayoutSampleColors.Green, 64, 28) { last = it }
+        PositionedSwatch("A · 72 px", LayoutSampleColors.Blue, 72, 32, SwingModifier.alignmentGuide(guides)) {
+            first = it
+        }
+        PositionedSwatch("B · 96 px", LayoutSampleColors.Orange, 96, 40, SwingModifier.alignmentGuide(guides)) {
+            middle = it
+        }
+        PositionedSwatch("C · 64 px", LayoutSampleColors.Green, 64, 28, SwingModifier.alignmentGuide(guides)) {
+            last = it
+        }
     }
+    AlignmentGuideLegend(marks, setOf(line))
 }
 
 @Composable
@@ -167,10 +181,8 @@ internal fun ColumnScope.ColumnArrangementCard() {
         LayoutParameterSelector("horizontalAlignment", COLUMN_HORIZONTAL_ALIGNMENTS, selectedAlignment) {
             selectedAlignment = it
         }
-        ColumnArrangementPreview(
-            COLUMN_ARRANGEMENTS[selected].second,
-            COLUMN_HORIZONTAL_ALIGNMENTS[selectedAlignment].second,
-        )
+        val (horizontalAlignment, line) = COLUMN_HORIZONTAL_ALIGNMENTS[selectedAlignment].second
+        ColumnArrangementPreview(COLUMN_ARRANGEMENTS[selected].second, horizontalAlignment, line)
     }
 }
 
@@ -178,6 +190,7 @@ internal fun ColumnScope.ColumnArrangementCard() {
 private fun ColumnScope.ColumnArrangementPreview(
     verticalArrangement: Arrangement.Vertical,
     horizontalAlignment: Alignment.Horizontal,
+    line: GuideLine,
 ) {
     var first by remember { mutableStateOf(ChildPosition()) }
     var middle by remember { mutableStateOf(ChildPosition()) }
@@ -186,15 +199,29 @@ private fun ColumnScope.ColumnArrangementPreview(
         "Child positions: A (${first.x}, ${first.y}), " +
             "B (${middle.x}, ${middle.y}), C (${last.x}, ${last.y}) px",
     )
+    val guides = remember { GuidedChildren() }
+    val marks = setOf(GuideMark.LayoutBox)
     Column(
-        modifier = SwingModifier.layoutTrack().preferredSize(240, 176),
+        modifier =
+            SwingModifier
+                .layoutTrack()
+                .preferredSize(240, 176)
+                .testTag(COLUMN_PLAYGROUND_TAG)
+                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line)),
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
     ) {
-        PositionedSwatch("A · 32 px", LayoutSampleColors.Blue, 168, 32) { first = it }
-        PositionedSwatch("B · 40 px", LayoutSampleColors.Orange, 136, 40) { middle = it }
-        PositionedSwatch("C · 28 px", LayoutSampleColors.Green, 104, 28) { last = it }
+        PositionedSwatch("A · 32 px", LayoutSampleColors.Blue, 168, 32, SwingModifier.alignmentGuide(guides)) {
+            first = it
+        }
+        PositionedSwatch("B · 40 px", LayoutSampleColors.Orange, 136, 40, SwingModifier.alignmentGuide(guides)) {
+            middle = it
+        }
+        PositionedSwatch("C · 28 px", LayoutSampleColors.Green, 104, 28, SwingModifier.alignmentGuide(guides)) {
+            last = it
+        }
     }
+    AlignmentGuideLegend(marks, setOf(line))
 }
 
 @Composable
@@ -203,12 +230,13 @@ private fun PositionedSwatch(
     color: Color,
     width: Int,
     height: Int,
+    modifier: SwingModifier = SwingModifier,
     onPositionChange: (ChildPosition) -> Unit,
 ) {
     LayoutSwatch(
         label,
         color,
-        SwingModifier
+        modifier
             .preferredSize(width, height)
             .componentListener(
                 onComponentMoved = {
@@ -236,9 +264,9 @@ private val ROW_ARRANGEMENTS: List<Pair<String, Arrangement.Horizontal>> =
 
 private val ROW_VERTICAL_ALIGNMENTS =
     listOf(
-        "Top edge" to Alignment.Top,
-        "Center vertically" to Alignment.CenterVertically,
-        "Bottom edge" to Alignment.Bottom,
+        "Top edge" to (Alignment.Top to GuideLine.Top),
+        "Center vertically" to (Alignment.CenterVertically to GuideLine.CenterVertically),
+        "Bottom edge" to (Alignment.Bottom to GuideLine.Bottom),
     )
 
 private val COLUMN_ARRANGEMENTS: List<Pair<String, Arrangement.Vertical>> =
@@ -254,7 +282,10 @@ private val COLUMN_ARRANGEMENTS: List<Pair<String, Arrangement.Vertical>> =
 
 private val COLUMN_HORIZONTAL_ALIGNMENTS =
     listOf(
-        "Start edge" to Alignment.Start,
-        "Center horizontally" to Alignment.CenterHorizontally,
-        "End edge" to Alignment.End,
+        "Start edge" to (Alignment.Start to GuideLine.Left),
+        "Center horizontally" to (Alignment.CenterHorizontally to GuideLine.CenterHorizontally),
+        "End edge" to (Alignment.End to GuideLine.Right),
     )
+
+internal const val ROW_PLAYGROUND_TAG = "linear-layouts-row-playground-row"
+internal const val COLUMN_PLAYGROUND_TAG = "linear-layouts-column-playground-column"

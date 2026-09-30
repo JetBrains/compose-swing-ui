@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
@@ -66,16 +67,27 @@ private fun ColumnScope.BoxContentAlignmentCard() {
         var frontY by remember { mutableIntStateOf(0) }
         LayoutParameterSelector("contentAlignment", alignments, selected) { selected = it }
         Label("contentAlignment = ${alignments[selected].first}, front child at ($frontX, $frontY) px")
+        val guides = remember { GuidedChildren() }
+        val marks = setOf(GuideMark.LayoutBox)
+        // The alignments are listed row by row: three vertical positions, each at three horizontal ones.
+        val lines =
+            setOf(
+                listOf(GuideLine.Top, GuideLine.CenterVertically, GuideLine.Bottom)[selected / 3],
+                listOf(GuideLine.Left, GuideLine.CenterHorizontally, GuideLine.Right)[selected % 3],
+            )
         Box(
-            modifier = SwingModifier.layoutTrack().preferredSize(260, 140),
+            modifier =
+                SwingModifier
+                    .layoutTrack()
+                    .preferredSize(260, 140)
+                    .testTag(BOX_CONTENT_ALIGNMENT_TAG)
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines),
             contentAlignment = alignments[selected].second,
         ) {
             LayoutSwatch(
                 "behind",
                 LayoutSampleColors.Blue,
-                modifier =
-                    SwingModifier
-                        .preferredSize(140, 80),
+                SwingModifier.preferredSize(140, 80).alignmentGuide(guides),
             )
             LayoutSwatch(
                 "front",
@@ -83,6 +95,7 @@ private fun ColumnScope.BoxContentAlignmentCard() {
                 modifier =
                     SwingModifier
                         .preferredSize(70, 32)
+                        .alignmentGuide(guides)
                         .componentListener(
                             onComponentMoved = {
                                 frontX = it.component.x
@@ -91,6 +104,7 @@ private fun ColumnScope.BoxContentAlignmentCard() {
                         ),
             )
         }
+        AlignmentGuideLegend(marks, lines)
     }
 }
 
@@ -263,3 +277,5 @@ internal fun ColumnScope.BiasAlignmentCard() {
 }
 
 private val BOX_ALIGNMENT_SWATCH_SIZE = Dimension(120, 32)
+
+internal const val BOX_CONTENT_ALIGNMENT_TAG = "box-content-alignment-box"
