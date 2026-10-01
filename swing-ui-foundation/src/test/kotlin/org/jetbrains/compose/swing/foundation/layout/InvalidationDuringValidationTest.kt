@@ -672,9 +672,9 @@ class InvalidationDuringValidationTest {
             assertEquals(Dimension(20 + STEP, 20), row.size, "sized with the step taken as the size was asked")
         }
 
-    /** The row is valid, so the request places its children again before the query returns. */
+    /** The size query holds the tree lock, so placement follows after the query returns. */
     @Test
-    fun aPlacementInvalidatedAsTheNodeAnswersASizeQueryOfAValidContainerIsPlacedAtOnce() =
+    fun aPlacementInvalidatedAsTheNodeAnswersASizeQueryOfAValidContainerIsPlacedAfterValidation() =
         runComposeSwingTest {
             val requests = Requests(measurement = false)
             setContent { RowUnderFlowLayout(RequestingElement(requests)) }
@@ -682,6 +682,8 @@ class InvalidationDuringValidationTest {
 
             requests.fromMeasure = 1
             row.minimumSize
+            assertEquals(0, onNodeWithTag("box").fetch().layoutBounds.x, "placement waits for the tree lock")
+            awaitIdle()
 
             assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "placed by the step taken")
             assertEquals(Dimension(20, 20), row.size)

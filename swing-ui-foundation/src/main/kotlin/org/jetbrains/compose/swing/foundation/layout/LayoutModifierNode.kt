@@ -8,10 +8,11 @@ import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.requestAfterValidation
 import java.awt.Dimension
 import java.awt.Rectangle
 import java.util.function.BiConsumer
-import javax.swing.SwingUtilities
 
 /**
  * A layout modifier: declares a [LayoutModifierNode] that measures one child between the constraints its parent
@@ -20,7 +21,7 @@ import javax.swing.SwingUtilities
  *
  * Its [equals] decides whether a later declaration updates the node: an equal one leaves the node as it is, and an
  * unequal one runs [update], after which the child is measured again unless the node's
- * [shouldAutoInvalidate][LayoutModifierNode.shouldAutoInvalidate] is `false`.
+ * [shouldAutoInvalidate][SwingModifier.Node.shouldAutoInvalidate] is `false`.
  */
 public abstract class LayoutModifierNodeElement<N : LayoutModifierNode> : ParentLayoutNodeElement<N>() {
     /** The capability a Foundation [Layout] must support to interpret this modifier. */
@@ -133,7 +134,7 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         if (container.panel.isValid && child.lineReadDuring != LayoutState.Measuring) {
             container.panel.placeChildrenAgain()
         } else {
-            child.revalidateUnlessMeasured()
+            revalidateUnlessMeasured()
         }
     }
 
@@ -148,7 +149,7 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
      */
     public fun invalidateMeasurement() {
         val child = child ?: return
-        if (!child.isMeasuring) child.revalidateUnlessMeasured()
+        if (!child.isMeasuring) revalidateUnlessMeasured()
     }
 
     /** The layer this node's placement paints, made by its first placement with one. */
@@ -179,7 +180,7 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
                     standingDecorator = null
                     // A detached node visits none of its component's nodes; the modifier pass or holder reset that
                     // detached it hands the component the nodes it is left with, none after a reset, as it ends.
-                    if (isAttached) previous?.decoratable?.let { publishDecoration(it, declaredNodes()) }
+                    if (isAttached) previous?.decoratable?.let { publishDecoration(it, declaredNodes(), this) }
                 }
             }
             if (value != null && decorationStep != null) value.requireDecoratable
@@ -231,7 +232,7 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         val child = child ?: return
         // A node that paints nothing, and painted nothing, leaves the decoration as it stands.
         if (value == null && standing == null) return
-        publishDecoration(child.requireDecoratable, declaredNodes())
+        publishDecoration(child.requireDecoratable, declaredNodes(), this)
     }
 }
 
@@ -242,8 +243,8 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
  * then, or while the container places its children, as androidx drops a request to place a node that is being
  * measured or placed; [LayoutModifierNode.invalidateMeasurement] drops one made while the child
  * [is measuring][ChildMeasurable.isMeasuring], as androidx drops a request to measure a node that is being measured.
- * Unlike androidx's `LayoutModifierNode.invalidatePlacement`, which schedules the placement, a placement request to
- * a valid container outside a validation places the child before it returns.
+ * A placement request to a valid container places the child before it returns when the component tree lock is free;
+ * while the lock is held, it runs after validation.
  */
 private val ChildMeasurable.isMeasuredByRunningPass: Boolean
     get() =
@@ -252,20 +253,23 @@ private val ChildMeasurable.isMeasuredByRunningPass: Boolean
             !owner.panel.isValid
 
 /**
- * Revalidates the panel of this child's container for a request of one of the child's layout nodes: at once, or,
- * where a validation [may be running][ConstrainedPanel.mayBeValidating], once the running event is over and only
- * where the child is still [measurePending][ChildMeasurable.measurePending]. A layout pass of the container that
- * measures the child after the request clears it, and lays the child out by that measure, which is what the request
+ * Revalidates the panel of this child's container for a request of one of the child's layout nodes, once Swing
+ * finishes validation and only where the child is still [measurePending][ChildMeasurable.measurePending]. A layout
+ * pass of the container that measures the child after the request clears it, and lays the child out by that measure,
+ * which is what the request
  * asks for, as androidx's `MeasurePassDelegate.performMeasure` clears `measurePending`: androidx drops a request to
  * place a node whose `measurePending` is set, and measures a node again only where its `measurePending` is still set.
  * A request made from a `measure` that a size query runs, as the default intrinsic hooks run it, then leaves the size
  * that query answered standing, as in androidx, where the ancestor that asked is measuring and drops its own request.
  */
-private fun ChildMeasurable.revalidateUnlessMeasured() {
-    val panel = owner.panel
-    if (!panel.mayBeValidating) return panel.revalidate()
-    measurePending = true
-    SwingUtilities.invokeLater { if (measurePending) panel.revalidate() }
+private fun LayoutModifierNode.revalidateUnlessMeasured() {
+    child?.measurePending = true
+    requestAfterValidation(RevalidateMeasuredChild)
+}
+
+private val RevalidateMeasuredChild: (LayoutModifierNode) -> Unit = { node ->
+    val child = node.child
+    if (child?.measurePending == true) child.owner.panel.revalidate()
 }
 
 /** Runs [LayoutModifierNode.measure] against an intrinsic-mode stand-in for the real child. */

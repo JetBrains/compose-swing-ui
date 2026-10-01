@@ -167,6 +167,8 @@ capabilities, and each of them fails on a node that is not attached:
   own. Reads are grouped by the `onChanged` instance: a later call with the same instance replaces that
   set, and leaves the sets recorded under other instances alone. Pass a stable instance, such as a
   top-level `val`.
+- `requestAfterValidation(action)` defers work while the component tree lock is held. Reuse a stable
+  callback to coalesce requests; detaching the node cancels pending work.
 - A node that also implements `CompositionLocalConsumerModifierNode` reads, through
   `currentValueOf(local)`, any composition local in scope where its component was declared. When a static
   local changes value, or a local starts or stops being provided, where the component was declared, every
@@ -178,9 +180,15 @@ capabilities, and each of them fails on a node that is not attached:
 
 `visitDeclaredNodes { ... }` visits, in declaration order, the additive `ComponentNode`s and the
 `ParentLayoutNode`s of the node's modifier. A component that implements `DeclaredNodesListener`
-receives that list after each modifier pass that attaches, detaches or moves one of those nodes, or writes
-one with a new element that its `needsNodesAfterWrite` takes, and after a composition-local refresh that
-rewrites such a node, so it can paint or lay itself out through those nodes.
+receives its `SwingComponentNode` and that list after each modifier pass that attaches, detaches or moves
+one of those nodes, or writes one with a new element whose node has `shouldAutoInvalidate`, and after a
+composition-local refresh that rewrites such a node, so it can paint or lay itself out through those nodes.
+`ComponentNode.shouldAutoInvalidate` is `false` by default because component nodes write or repaint their own
+component. Override it when the component's `DeclaredNodesListener` must reread this node's state. A
+`ParentLayoutNode` defaults to `true`, so its parent measures the component again after an update; return `false`
+when the node requests its own layout invalidation. Structural changes always hand over the node list.
+Call `SwingComponentNode.invalidateLayout()` when such a node changes the component's measured size. It
+invalidates immediately and defers revalidation until the component tree lock is released.
 `swing-ui-foundation` paints a component through such nodes; see
 [Writing a decorator or draw node](FOUNDATION.md#writing-a-decorator-or-draw-node).
 

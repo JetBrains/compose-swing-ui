@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
+import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -61,7 +62,7 @@ internal class InstalledSlot(
  * [SwingNode] reach it through [SwingNodeUpdater].
  *
  * It is the node a group holds in the slot table, so it is what a tool walking a composition finds as a
- * group's node. [SwingComponentNode] is the part of it such a tool may read.
+ * group's node. [SwingComponentNode] is its public component-facing contract.
  */
 @PublishedApi
 internal class SwingNodeHolder<out T : Component>
@@ -94,6 +95,13 @@ internal class SwingNodeHolder<out T : Component>
 
         override val modifier: SwingModifier
             get() = modifierState?.declared ?: SwingModifier
+
+        override fun invalidateLayout() {
+            checkEventDispatchThread()
+            val currentOwner = owner ?: return
+            if (deactivated) return
+            currentOwner.invalidateLayout(this)
+        }
 
         /**
          * The region this node's modifier chain declares, or `null` when the modifier installs the
@@ -184,8 +192,7 @@ internal class SwingNodeHolder<out T : Component>
          * What this node's composition owns and every node under it shares - see [SwingCompositionOwner],
          * which states when a node is attached to it and why it has to be then.
          *
-         * It is the same owner for the node's whole life, and `null` only on a node not yet inserted
-         * into a composition.
+         * It is null before insertion and after the node is released.
          */
         internal var owner: SwingCompositionOwner? = null
             private set
@@ -226,10 +233,14 @@ internal class SwingNodeHolder<out T : Component>
          * detaches.
          */
         private fun reset(resetNodes: Boolean) {
-            clearPublishedNode()
-            owner?.snapshotObserver?.clear(component)
-            resetModifierState(resetNodes)
-            childSettle = null
+            try {
+                clearPublishedNode()
+                owner?.snapshotObserver?.clear(component)
+                resetModifierState(resetNodes)
+            } finally {
+                owner?.cancelLayoutInvalidation(this)
+                childSettle = null
+            }
         }
 
         /**
@@ -246,8 +257,11 @@ internal class SwingNodeHolder<out T : Component>
                 // A node installed in a region is therefore still installed when the runtime releases it.
                 // The call is unguarded because both the installed and the uninstalled state are
                 // legitimate: an ordinary remove or move has already freed the region.
-                releaseInstalledSlot()
-                release()
+                try {
+                    releaseInstalledSlot()
+                } finally {
+                    release(clearOwner = true)
+                }
             }
         }
 
@@ -283,8 +297,11 @@ internal class SwingNodeHolder<out T : Component>
                 // which can take the component out of its parent.
                 val parent = component.parent
                 val area = component.bounds
-                releaseInstalledSlot()
-                release()
+                try {
+                    releaseInstalledSlot()
+                } finally {
+                    release(clearOwner = false)
+                }
                 if (parent != null) {
                     parent.remove(component)
                     parent.revalidate()
@@ -294,9 +311,14 @@ internal class SwingNodeHolder<out T : Component>
         }
 
         /** Runs this terminal node's teardown once, whether removal or parking ends its lifetime. */
-        private fun release() {
-            releaseBlock?.invoke()
-            releaseBlock = null
+        private fun release(clearOwner: Boolean) {
+            try {
+                releaseBlock?.invoke()
+            } finally {
+                owner?.cancelLayoutInvalidation(this)
+                releaseBlock = null
+                if (clearOwner) owner = null
+            }
         }
     }
 

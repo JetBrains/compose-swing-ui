@@ -468,11 +468,11 @@ class ParentDeclarationTest {
     }
 
     @Test
-    fun aListenerThatDeclinesEveryWriteStillTellsTheParentALayoutNodeWasRewritten() {
+    fun aLayoutNodeWriteTellsTheParentEvenWhenItsComponentNodeDoesNotAutoInvalidate() {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child = SwingNodeHolder(DecliningListenerButton()).attachedTo(owner)
+        val child = SwingNodeHolder(ListenerButton()).attachedTo(owner)
         root.add(child.component)
         child.declaration.attachedUnder(root)
         val events = mutableListOf<String>()
@@ -486,7 +486,7 @@ class ParentDeclarationTest {
         assertTrue(declaresAgain(SwingModifier.then(RecordingLayoutNodeElement("a", events))), "attach")
         assertTrue(
             declaresAgain(SwingModifier.then(RecordingLayoutNodeElement("b", events))),
-            "the listener declining every write must not stop a layout-node rewrite from reaching the parent",
+            "a layout-node write must reach the parent even when its component node does not auto-invalidate",
         )
         owner.dispose()
     }
@@ -810,13 +810,14 @@ internal class RecordingLayoutNode(
     }
 }
 
-/** A [DeclaredNodesListener] that turns down every write, to prove a layout-slot rewrite reaches the parent anyway. */
-private class DecliningListenerButton :
+/** A listener component whose own node policy does not control layout-node invalidation. */
+private class ListenerButton :
     JButton("child"),
     DeclaredNodesListener {
-    override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) = Unit
-
-    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = false
+    override fun onDeclaredNodesChanged(
+        componentNode: SwingComponentNode,
+        nodes: List<SwingModifier.Node>,
+    ) = Unit
 }
 
 /** A chain member recording, at each lifecycle step, how many nodes of its own chain are attached. */

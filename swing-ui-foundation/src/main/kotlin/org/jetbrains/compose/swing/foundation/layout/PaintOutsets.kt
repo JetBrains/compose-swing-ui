@@ -256,7 +256,7 @@ internal fun PaintOutsets.excessChanges(
 /**
  * Measures this container again where the `paintOutsets` value of [child], which holds [decoration], takes its layout
  * box to another size, once the outsets its decoration steps take changed from [previous]; see
- * [ConstrainedPanel.revalidateOutsideValidation].
+ * [LayoutObservationNode.remeasure].
  */
 internal fun ChildMeasurables.revalidateForExcess(
     child: Component,
@@ -266,7 +266,7 @@ internal fun ChildMeasurables.revalidateForExcess(
     val value = decoration.steps.paintOutsets
     val current = decoration.steps.outsets
     if (value == null || child !is JComponent || current == previous) return
-    if (value.excessChanges(child, decoration, previous, current)) panel.revalidateOutsideValidation()
+    if (value.excessChanges(child, decoration, previous, current)) panel.policyLayout.node?.remeasure()
 }
 
 /**

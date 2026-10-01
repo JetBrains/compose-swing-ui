@@ -3,14 +3,32 @@ package org.jetbrains.compose.swing.node
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import kotlin.coroutines.CoroutineContext
 
 /**
  * The [SwingCompositionOwner] a test attaches an applier's root to, standing in for the content
  * composition that owns one in production. Its observer is created on first access, as a composition's is.
  */
-internal class TestCompositionOwner : SwingCompositionOwner {
+internal class TestCompositionOwner(
+    coordinator: AfterValidationCoordinator = sharedAfterValidationCoordinator,
+) : SwingCompositionOwner {
     override val snapshotObserver: OwnerSnapshotObserver = OwnerSnapshotObserver { onChanged -> onChanged() }
+
+    private val afterValidationActions = AfterValidationActions(this, coordinator)
+
+    override fun <N : SwingModifier.Node> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    ): Unit = afterValidationActions.requestAfterValidation(node, action)
+
+    override fun cancelAfterValidation(node: SwingModifier.Node): Unit =
+        afterValidationActions.cancelAfterValidation(node)
+
+    override fun invalidateLayout(node: SwingNodeHolder<*>): Unit = afterValidationActions.invalidateLayout(node)
+
+    override fun cancelLayoutInvalidation(node: SwingNodeHolder<*>): Unit =
+        afterValidationActions.cancelLayoutInvalidation(node)
 
     /** A case that drives an applier without a composition around it has no pass to settle. */
     override fun settleNow(): Unit = Unit
@@ -30,6 +48,7 @@ internal class TestCompositionOwner : SwingCompositionOwner {
 
     /** Stops the observer this owner started, if it started one, and cancels what its effect context ran. */
     fun dispose() {
+        afterValidationActions.dispose()
         snapshotObserver.dispose()
         coroutineContext[Job]?.cancel()
     }

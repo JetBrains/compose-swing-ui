@@ -137,6 +137,11 @@ therefore writes nothing to an already-attached widget, and the frame costs neit
 write nor the layout or repaint one would trigger. See
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) for writing such a block.
 
+Each composition owns its after-validation scheduling. Pending storage is created by the first deferred
+request, and the compositions share one EDT post to drain their queues. Node callbacks end on modifier
+detach; layout invalidation follows the component lifetime, including removal of its last modifier.
+The owner exposes node requests and layout invalidation; the scheduler owns queue storage and disposal.
+
 ---
 
 ## Inspecting a mounted composition

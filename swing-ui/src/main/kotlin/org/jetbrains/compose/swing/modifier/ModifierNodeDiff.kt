@@ -88,7 +88,7 @@ private fun updateNode(
     val target = holder.component
     record.rebindAndWrite(element, target, diagnostics)
     // Each updated node is checked, even if an earlier one already requires notification.
-    if ((target as? DeclaredNodesListener).takesWrite(record.node)) {
+    if (record.node.shouldAutoInvalidate) {
         changes.add(ModifierChange.ListenerNeedsUpdatedNodes)
     }
     if (ModifierChange.ParentLayoutUpdated !in changes && record is LayoutNodeRecord &&

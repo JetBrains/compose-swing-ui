@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -24,6 +25,28 @@ internal interface SwingCompositionOwner {
      * The observer every attached node's [observeReads] records with, the node itself as the scope.
      */
     val snapshotObserver: OwnerSnapshotObserver
+
+    /**
+     * Runs [action] immediately on the Event Dispatch Thread, or after the component tree lock is released.
+     * Deferred requests coalesce by node and callback identity and end when the node detaches.
+     * The node must be attached to this composition.
+     */
+    fun <N : SwingModifier.Node> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    )
+
+    /** Cancels this node's pending callbacks. */
+    fun cancelAfterValidation(node: SwingModifier.Node)
+
+    /**
+     * Revalidates [node]'s component on the Event Dispatch Thread. Under the tree lock, invalidates immediately
+     * and defers revalidation. The request survives modifier removal and ends on component reset or release.
+     */
+    fun invalidateLayout(node: SwingNodeHolder<*>)
+
+    /** Cancels queued revalidation for this component node. */
+    fun cancelLayoutInvalidation(node: SwingNodeHolder<*>)
 
     /**
      * Runs the frame this composition's pending writes are owed inside the event being dispatched,

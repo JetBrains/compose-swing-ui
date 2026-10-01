@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
+import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.TestMeasurementParentProtocol
@@ -24,6 +25,7 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 private val LocalStatic = staticCompositionLocalOf { "default" }
@@ -35,7 +37,8 @@ class DeclaredNodesTest {
     @Test
     fun layoutNodesAreVisitedBetweenTheAdditiveNodesAtTheirDeclaredPlaceAndPropertyNodesNotAtAll() {
         val owner = TestCompositionOwner()
-        val child = attachedChild(owner, ListeningPanel())
+        val component = ListeningPanel()
+        val child = attachedChild(owner, component)
 
         child.applyModifierDiff(
             SwingModifier
@@ -48,6 +51,7 @@ class DeclaredNodesTest {
         )
 
         assertEquals(listOf("l1", "a1", "l2", "l3", "a2"), child.component.received.last())
+        assertSame(child, component.componentNode)
         owner.dispose()
     }
 
@@ -215,36 +219,63 @@ class DeclaredNodesTest {
     }
 
     @Test
-    fun aWriteTheListenerDoesNotNeedHandsNothingOver() {
+    fun aNodeThatDoesNotAutoInvalidateHandsNothingOver() {
         val owner = TestCompositionOwner()
-        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
-        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
+        val child = attachedChild(owner, ListeningPanel())
+        child.applyModifierDiff(SwingModifier.then(Additive("a", autoInvalidates = false)).then(Layout("l")))
 
-        child.applyModifierDiff(SwingModifier.then(Additive("b")).then(Layout("l")))
+        child.applyModifierDiff(SwingModifier.then(Additive("b", autoInvalidates = false)).then(Layout("l")))
 
-        assertEquals(listOf(listOf("a", "l")), child.component.received, "the listener declines the write")
+        assertEquals(listOf(listOf("a", "l")), child.component.received, "the node owns its update invalidation")
+        owner.dispose()
+    }
+
+    @Test
+    fun structuralChangesHandOverNodesThatDoNotAutoInvalidate() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel())
+        child.applyModifierDiff(SwingModifier.then(Additive("a", autoInvalidates = false)))
+
+        child.applyModifierDiff(SwingModifier.then(Additive("b", autoInvalidates = false)))
+        assertEquals(listOf(listOf("a")), child.component.received, "an update uses the node's policy")
+
+        child.applyModifierDiff(
+            SwingModifier.then(Additive("b", autoInvalidates = false)).then(Layout("l", autoInvalidates = false)),
+        )
+        child.applyModifierDiff(
+            SwingModifier.then(Layout("l", autoInvalidates = false)).then(Additive("b", autoInvalidates = false)),
+        )
+        child.applyModifierDiff(SwingModifier.then(Additive("b", autoInvalidates = false)))
+
+        assertEquals(
+            listOf(listOf("a"), listOf("b", "l"), listOf("l", "b"), listOf("b")),
+            child.component.received,
+            "attach, reorder and removal always hand over the current nodes",
+        )
         owner.dispose()
     }
 
     @Test
     fun anAdditiveElementDeclaredWithAnotherValueIsWrittenInPlace() {
         val owner = TestCompositionOwner()
-        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        val child = attachedChild(owner, ListeningPanel())
         val keyed = KeyReadingElement()
-        val additive = Additive("a")
+        val additive = Additive("a", autoInvalidates = false)
         child.applyDeclaredModifier(SwingModifier.then(keyed).then(additive).then(Layout("l")))
         val visits = ArrayList<List<String>>()
 
-        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("b", visits = visits)).then(Layout("l")))
+        child.applyDeclaredModifier(
+            SwingModifier.then(keyed).then(Additive("b", visits = visits, autoInvalidates = false)).then(Layout("l")),
+        )
 
         assertEquals("b", additive.created.single().label, "the slot's node must take the new element")
         assertEquals(1, visits.size, "the new element must be written once")
-        assertEquals(listOf(listOf("a", "l")), child.component.received, "the listener declines the write")
+        assertEquals(listOf(listOf("a", "l")), child.component.received, "the node owns its update invalidation")
         owner.dispose()
     }
 
     @Test
-    fun anAdditiveElementWhoseWriteTheListenerNeedsIsWrittenInPlaceAndHandsTheNodesOverOnce() {
+    fun anAutoInvalidatingAdditiveElementIsWrittenInPlaceAndHandsTheNodesOverOnce() {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         val keyed = KeyReadingElement()
@@ -263,7 +294,7 @@ class DeclaredNodesTest {
     }
 
     @Test
-    fun aSlotTheListenerNeedsWrittenBeforeAKeyedChangeHandsTheNodesOverOnce() {
+    fun anAutoInvalidatingKeyedSlotWrittenBeforeAKeyedChangeHandsTheNodesOverOnce() {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         val writes = AtomicInteger()
@@ -288,7 +319,7 @@ class DeclaredNodesTest {
     @Test
     fun aKeyedElementDeclaredWithAnotherValueIsWritten() {
         val owner = TestCompositionOwner()
-        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        val child = attachedChild(owner, ListeningPanel())
         val keyed = KeyReadingElement()
         child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).opaque(false))
 
@@ -301,7 +332,7 @@ class DeclaredNodesTest {
     @Test
     fun anAdditiveSlotDeclaredAsAKeyedElementOfItsClassIsDiffed() {
         val owner = TestCompositionOwner()
-        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        val child = attachedChild(owner, ListeningPanel())
         child.applyDeclaredModifier(SwingModifier.then(KeyableAdditive("p", additive = true)))
         assertEquals(1, child.modifierState?.chain?.size, "the additive element must hold a chain slot")
 
@@ -324,8 +355,8 @@ class DeclaredNodesTest {
                         modifier = SwingModifier.then(ConsumingAdditive("a")),
                     )
                     SwingNode(
-                        factory = { ListeningPanel(needsAfterWrite = { false }).also { declined = it } },
-                        modifier = SwingModifier.then(ConsumingAdditive("a")),
+                        factory = { ListeningPanel().also { declined = it } },
+                        modifier = SwingModifier.then(ConsumingAdditive("a", autoInvalidates = false)),
                     )
                 }
             }
@@ -335,7 +366,7 @@ class DeclaredNodesTest {
         awaitIdle()
 
         assertEquals(listOf(listOf("a"), listOf("a")), needed.received, "a needed node hands over")
-        assertEquals(listOf(listOf("a")), declined.received, "a declined node hands nothing over")
+        assertEquals(listOf(listOf("a")), declined.received, "the node owns its update invalidation")
     }
 
     @Test
@@ -351,8 +382,8 @@ class DeclaredNodesTest {
                         modifier = SwingModifier.then(DynamicConsumingAdditive("a")),
                     )
                     SwingNode(
-                        factory = { ListeningPanel(needsAfterWrite = { false }).also { declined = it } },
-                        modifier = SwingModifier.then(DynamicConsumingAdditive("a")),
+                        factory = { ListeningPanel().also { declined = it } },
+                        modifier = SwingModifier.then(DynamicConsumingAdditive("a", autoInvalidates = false)),
                     )
                 }
             }
@@ -362,7 +393,62 @@ class DeclaredNodesTest {
         awaitIdle()
 
         assertEquals(2, needed.received.size, "the needed node hands over once for the local change")
-        assertEquals(1, declined.received.size, "the declined node hands nothing over for the local change")
+        assertEquals(1, declined.received.size, "the node owns its update invalidation")
+    }
+
+    @Test
+    fun aStaticLocalRefreshOfAnAutoInvalidatingKeyedNodeHandsTheDeclaredNodesOver() = runComposeSwingTest {
+        var value by mutableStateOf("first")
+        lateinit var panel: ListeningPanel
+        lateinit var node: KeyedStaticConsumerNode
+        val element = KeyedStaticConsumerElement { node = it }
+        setContent {
+            CompositionLocalProvider(LocalStatic provides value) {
+                SwingNode(factory = { JPanel() }) {
+                    SwingNode(
+                        factory = { ListeningPanel().also { panel = it } },
+                        modifier =
+                            SwingModifier.then(element).then(
+                                Additive("step", autoInvalidates = false),
+                            ),
+                    )
+                }
+            }
+        }
+        assertEquals(listOf(listOf("step")), panel.received)
+        assertEquals("first", node.label)
+
+        value = "changed"
+        awaitIdle()
+
+        assertEquals(listOf(listOf("step"), listOf("step")), panel.received)
+        assertEquals("changed", node.label)
+    }
+
+    @Test
+    fun aDynamicLocalRefreshOfAnAutoInvalidatingKeyedNodeHandsTheDeclaredNodesOver() = runComposeSwingTest {
+        var value by mutableStateOf("first")
+        lateinit var panel: ListeningPanel
+        lateinit var node: KeyedDynamicConsumerNode
+        val element = KeyedDynamicConsumerElement { node = it }
+        setContent {
+            CompositionLocalProvider(LocalDynamic provides value) {
+                SwingNode(factory = { JPanel() }) {
+                    SwingNode(
+                        factory = { ListeningPanel().also { panel = it } },
+                        modifier = SwingModifier.then(element).then(Additive("step", autoInvalidates = false)),
+                    )
+                }
+            }
+        }
+        assertEquals(listOf(listOf("step")), panel.received)
+        assertEquals("first", node.label)
+
+        value = "changed"
+        awaitIdle()
+
+        assertEquals(listOf(listOf("step"), listOf("step")), panel.received)
+        assertEquals("changed", node.label)
     }
 
     @Test
@@ -639,18 +725,20 @@ private val SwingModifier.Node.label: String
             else -> error("unexpected node $this")
         }
 
-/** Records the labels of every node list it is handed; [needsAfterWrite] answers a written node's hand-over. */
-internal class ListeningPanel(
-    private val needsAfterWrite: (SwingModifier.Node) -> Boolean = { true },
-) : JPanel(),
+/** Records the labels of every node list it is handed. */
+internal class ListeningPanel :
+    JPanel(),
     DeclaredNodesListener {
     val received = ArrayList<List<String>>()
+    var componentNode: SwingComponentNode? = null
 
-    override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) {
+    override fun onDeclaredNodesChanged(
+        componentNode: SwingComponentNode,
+        nodes: List<SwingModifier.Node>,
+    ) {
+        this.componentNode = componentNode
         received += nodes.map { it.label }
     }
-
-    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = needsAfterWrite(node)
 }
 
 /** Labels what [visitDeclaredNodes][SwingModifier.Node.visitDeclaredNodes] visits from [node]. */
@@ -665,6 +753,7 @@ internal open class Additive(
     private val label: String,
     private var failsOnce: Boolean = false,
     private val visits: MutableList<List<String>>? = null,
+    private val autoInvalidates: Boolean = true,
 ) : SwingModifier.NodeElement<Component, LabelNode>() {
     val created = ArrayList<LabelNode>()
 
@@ -672,7 +761,7 @@ internal open class Additive(
 
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): LabelNode = LabelNode().also { created += it }
+    override fun create(): LabelNode = LabelNode(autoInvalidates).also { created += it }
 
     override fun update(node: LabelNode) {
         if (failsOnce) {
@@ -737,12 +826,13 @@ private class KeyableAdditive(
 /** An additive element whose node is a [CompositionLocalConsumerModifierNode], so a local refresh rewrites it. */
 private class ConsumingAdditive(
     private val label: String,
+    private val autoInvalidates: Boolean = true,
 ) : SwingModifier.NodeElement<Component, ConsumingLabelNode>() {
     override val additive: Boolean get() = true
 
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): ConsumingLabelNode = ConsumingLabelNode()
+    override fun create(): ConsumingLabelNode = ConsumingLabelNode(autoInvalidates)
 
     override fun update(node: ConsumingLabelNode) {
         node.label = label
@@ -753,19 +843,21 @@ private class ConsumingAdditive(
     override fun hashCode(): Int = label.hashCode()
 }
 
-private class ConsumingLabelNode :
-    LabelNode(),
+private class ConsumingLabelNode(
+    autoInvalidates: Boolean,
+) : LabelNode(autoInvalidates),
     CompositionLocalConsumerModifierNode
 
 /** An additive element whose node reads [LocalDynamic] in `update`, so a change of its value rewrites it. */
 private class DynamicConsumingAdditive(
     private val label: String,
+    private val autoInvalidates: Boolean = true,
 ) : SwingModifier.NodeElement<Component, DynamicConsumingLabelNode>() {
     override val additive: Boolean get() = true
 
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): DynamicConsumingLabelNode = DynamicConsumingLabelNode()
+    override fun create(): DynamicConsumingLabelNode = DynamicConsumingLabelNode(autoInvalidates)
 
     override fun update(node: DynamicConsumingLabelNode) {
         node.label = "$label:${node.currentValueOf(LocalDynamic)}"
@@ -776,7 +868,48 @@ private class DynamicConsumingAdditive(
     override fun hashCode(): Int = label.hashCode()
 }
 
-private class DynamicConsumingLabelNode :
+private class DynamicConsumingLabelNode(
+    autoInvalidates: Boolean,
+) : LabelNode(autoInvalidates),
+    CompositionLocalConsumerModifierNode
+
+private class KeyedStaticConsumerElement(
+    private val onCreate: (KeyedStaticConsumerNode) -> Unit,
+) : SwingModifier.NodeElement<Component, KeyedStaticConsumerNode>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): KeyedStaticConsumerNode = KeyedStaticConsumerNode().also(onCreate)
+
+    override fun update(node: KeyedStaticConsumerNode) {
+        node.label = node.currentValueOf(LocalStatic)
+    }
+
+    override fun equals(other: Any?): Boolean = other === this
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class KeyedStaticConsumerNode :
+    LabelNode(),
+    CompositionLocalConsumerModifierNode
+
+private class KeyedDynamicConsumerElement(
+    private val onCreate: (KeyedDynamicConsumerNode) -> Unit,
+) : SwingModifier.NodeElement<Component, KeyedDynamicConsumerNode>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): KeyedDynamicConsumerNode = KeyedDynamicConsumerNode().also(onCreate)
+
+    override fun update(node: KeyedDynamicConsumerNode) {
+        node.label = node.currentValueOf(LocalDynamic)
+    }
+
+    override fun equals(other: Any?): Boolean = other === this
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class KeyedDynamicConsumerNode :
     LabelNode(),
     CompositionLocalConsumerModifierNode
 
@@ -825,7 +958,9 @@ private class VisitingOnAttach : SwingModifier.NodeElement<Component, VisitingOn
     }
 }
 
-internal open class LabelNode : SwingModifier.ComponentNode<Component>() {
+internal open class LabelNode(
+    override val shouldAutoInvalidate: Boolean = true,
+) : SwingModifier.ComponentNode<Component>() {
     var label = ""
 
     var attaches = 0
@@ -878,6 +1013,7 @@ internal class Layout(
 
     override fun update(node: LabelLayoutNode) {
         node.label = label
+        node.shouldAutoInvalidate = autoInvalidates
         visits?.add(visitedLabels(node))
     }
 
@@ -887,7 +1023,7 @@ internal class Layout(
 }
 
 internal class LabelLayoutNode(
-    override val shouldAutoInvalidate: Boolean,
+    override var shouldAutoInvalidate: Boolean,
 ) : ParentLayoutNode() {
     override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
 

@@ -115,7 +115,14 @@ internal sealed class PlacementLayer : Decorator {
 
         override fun publish(painted: Boolean) {
             val decoratable = placement.requireDecoratable
-            publishSteps(decoratable, decoratable.decoration.steps.inContainerLayer(if (painted) this else null))
+            publishSteps(
+                decoratable,
+                decoratable.decoration.steps.inContainerLayer(if (painted) this else null),
+                requesterNode =
+                    checkNotNull(
+                        placement.owner.owner.node,
+                    ) { "A placement requires its attached observation node" },
+            )
         }
 
         override fun observeLayerBlock() = placement.owner.owner.observe(ContainerLayerReads, runLayerBlock)

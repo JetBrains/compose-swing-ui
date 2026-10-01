@@ -437,15 +437,13 @@ class DecorationModifierNodeTest {
         }
 
     @Test
-    fun aDecoratableNeedsAStepAfterAWriteButNotADrawNode() {
-        val panel = DecoratedPanel()
-
-        assertTrue(panel.needsNodesAfterWrite(StepNode()), "A step's write may change its outsets or opacity.")
+    fun decorationNodesDeclareTheirOwnUpdateInvalidation() {
+        assertTrue(StepNode().shouldAutoInvalidate, "A step's write may change its outsets or opacity.")
         assertFalse(
-            panel.needsNodesAfterWrite(DrawingNode()),
+            DrawingNode().shouldAutoInvalidate,
             "A draw node's outsets and opacity never change, and it repaints its own change.",
         )
-        assertFalse(panel.needsNodesAfterWrite(PlainNode()), "A node that is no decoration step changes nothing.")
+        assertFalse(PlainNode().shouldAutoInvalidate, "A plain component node owns its update invalidation.")
     }
 
     @Test

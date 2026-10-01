@@ -166,44 +166,45 @@ internal class MeasurePolicyLayout(
             return record.lastPlacement != ChildPlacement.Placed
         }
 
-    override fun layoutContainer(parent: Container) {
-        // Resized by its parent's fit to the paint outsets its own placement replay left, the panel validates at once
-        // inside that replay, which has placed every child where the fit keeps it.
-        if (measurables.isPlacingAgain && measurables.isFittingPaintOutsets) return
-        if (isNotPlaced) {
-            measurables.panel.stackingOrder.order
-                .fastForEach { measurables.of(it).unplace() }
-            return
-        }
-        val panel = measurables.panel
-        val insets = panel.borderInsets()
-        val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
-        val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
-        // A placement read's pass over a container still valid places its latest result at the size it holds again,
-        // without running the policy: a parent may have measured it again since without laying it out. A container
-        // invalidated since, by a child added or removed or a size changed, has a validation coming, and is measured
-        // again as that validation would.
-        val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
-        val result =
-            if (replaysPlacement) {
-                measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
-            } else {
-                measurables.settledOn(width, height)
+    override fun layoutContainer(parent: Container): Unit =
+        synchronized(parent.treeLock) {
+            // A replay fits and validates the panel after placing its children.
+            // The fitted bounds already keep that placement.
+            if (measurables.isPlacingAgain && measurables.isFittingPaintOutsets) return@synchronized
+            if (isNotPlaced) {
+                measurables.panel.stackingOrder.order
+                    .fastForEach { measurables.of(it).unplace() }
+                return@synchronized
             }
-        if (result === measurables.measured) measurables.lineScope.observesReplay = false
-        placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
-        placed = result
-        observe(PlacementReads, placeBlock)
-        measurables.panel.stackingOrder.order.fastForEach {
-            val child = measurables.of(it)
-            if (!child.isPlacedByParent) child.hide()
+            val panel = measurables.panel
+            val insets = panel.borderInsets()
+            val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
+            val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
+            // A valid container replays its latest result at its current size.
+            // An invalid container is measured again before placement.
+            val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
+            val observation = panel.policyLayout.node
+            observation?.placementPending = false
+            val result =
+                if (replaysPlacement) {
+                    measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
+                } else {
+                    measurables.settledOn(width, height)
+                }
+            if (result === measurables.measured) measurables.lineScope.observesReplay = false
+            placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
+            placed = result
+            observe(PlacementReads, placeBlock)
+            measurables.panel.stackingOrder.order.fastForEach {
+                val child = measurables.of(it)
+                if (!child.isPlacedByParent) child.hide()
+            }
+            measurables.fitContainerPaintOutsets()
+            if (measurables.zIndexChanged) {
+                measurables.zIndexChanged = false
+                measurables.panel.stackingOrder.restack()
+            }
         }
-        measurables.fitContainerPaintOutsets()
-        if (measurables.zIndexChanged) {
-            measurables.zIndexChanged = false
-            measurables.panel.stackingOrder.restack()
-        }
-    }
 }
 
 /**
@@ -241,7 +242,6 @@ internal enum class RunningCause {
     PaintOutsetFit,
     GlassPaneChange,
     ChildInvalidation,
-    SizeQuery,
     Validation,
 }
 
@@ -339,13 +339,6 @@ internal class ChildMeasurables(
 
     /** Whether this container's panel is being validated, or validates the children its placement replay resized. */
     val isValidating: Boolean get() = RunningCause.Validation in runningCauses
-
-    /**
-     * Whether a validation may be running through this container: it [is validating][isValidating], runs a block of
-     * its policy, or answers a Swing size query, which runs none; see [askedSize].
-     */
-    val isInValidation: Boolean
-        get() = layoutState != LayoutState.Idle || isValidating || RunningCause.SizeQuery in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -472,14 +465,15 @@ internal class ChildMeasurables(
      * Nothing is placed: the parent is deciding an extent, and the placement follows from the bounds it
      * then assigns, which is what `layoutContainer` runs.
      */
-    fun measuredSize(constraints: Constraints): Dimension {
-        val insets = panel.borderInsets()
-        val horizontal = insets.left.grownBy(insets.right)
-        val vertical = insets.top.grownBy(insets.bottom)
-        val result = measureObserved(constraints.offset(-horizontal, -vertical), MeasuredReads)
-        measured = result
-        return Dimension(result.width.grownBy(horizontal), result.height.grownBy(vertical))
-    }
+    fun measuredSize(constraints: Constraints): Dimension =
+        synchronized(panel.treeLock) {
+            val insets = panel.borderInsets()
+            val horizontal = insets.left.grownBy(insets.right)
+            val vertical = insets.top.grownBy(insets.bottom)
+            val result = measureObserved(constraints.offset(-horizontal, -vertical), MeasuredReads)
+            measured = result
+            Dimension(result.width.grownBy(horizontal), result.height.grownBy(vertical))
+        }
 
     /**
      * What the policy asks for in [mode], plus the panel's insets, its paint outsets included, as any Swing layout
@@ -489,28 +483,27 @@ internal class ChildMeasurables(
      * two matching CMP intrinsic hooks with an unbounded opposite axis: min hooks for a Swing
      * minimum-size query and max hooks for a preferred-size query.
      */
-    fun askedSize(mode: MeasureMode): Dimension {
-        gather(intrinsicWalk)
-        val retainedMode = this.mode
-        val retainedResult = measured
-        this.mode = mode
-        measured = null
-        try {
-            during(RunningCause.SizeQuery) {
+    fun askedSize(mode: MeasureMode): Dimension =
+        synchronized(panel.treeLock) {
+            gather(intrinsicWalk)
+            val retainedMode = this.mode
+            val retainedResult = measured
+            this.mode = mode
+            measured = null
+            try {
                 owner.observe(if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads, askBlock)
+            } finally {
+                this.mode = retainedMode
+                measured = retainedResult
             }
-        } finally {
-            this.mode = retainedMode
-            measured = retainedResult
+            val width = askedWidth
+            val height = askedHeight
+            val insets = panel.insets
+            Dimension(
+                width.grownBy(insets.left.grownBy(insets.right)),
+                height.grownBy(insets.top.grownBy(insets.bottom)),
+            )
         }
-        val width = askedWidth
-        val height = askedHeight
-        val insets = panel.insets
-        return Dimension(
-            width.grownBy(insets.left.grownBy(insets.right)),
-            height.grownBy(insets.top.grownBy(insets.bottom)),
-        )
-    }
 
     /**
      * The lines [result], a measure of its container, puts with its inner rectangle at ([originX], [originY]), in
@@ -526,21 +519,22 @@ internal class ChildMeasurables(
         originX: Int,
         originY: Int,
         leftToRight: Boolean,
-    ): Map<AlignmentLine, Int> {
-        val run = placementRun
-        val previous = enter(LayoutState.LayingOut)
-        try {
-            lineScope.replaying(result, originX.toLong(), originY.toLong(), leftToRight)
-            Snapshot.withoutReadObservation {
-                lineScope.observesReplay = owner.lastPlaced !== result
-                if (lineScope.observesReplay) owner.observe(LineReads, lineScope.replay) else lineScope.replay()
+    ): Map<AlignmentLine, Int> =
+        synchronized(panel.treeLock) {
+            val run = placementRun
+            val previous = enter(LayoutState.LayingOut)
+            try {
+                lineScope.replaying(result, originX.toLong(), originY.toLong(), leftToRight)
+                Snapshot.withoutReadObservation {
+                    lineScope.observesReplay = owner.lastPlaced !== result
+                    if (lineScope.observesReplay) owner.observe(LineReads, lineScope.replay) else lineScope.replay()
+                }
+                lineScope.takeLines()
+            } finally {
+                layoutState = previous
+                placementRun = run
             }
-            return lineScope.takeLines()
-        } finally {
-            layoutState = previous
-            placementRun = run
         }
-    }
 
     /** What the policy measures over the children under [constraints], its reads recorded under [onChanged]. */
     internal fun measureObserved(

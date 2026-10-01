@@ -36,13 +36,4 @@ public abstract class ParentLayoutNode :
     ParentLayoutElement {
     /** The component whose modifier declares this node. Reading it while the node is not attached fails. */
     public val component: Component get() = checkNotNull(holder) { "Node is not attached" }.component
-
-    /**
-     * Whether an update from a later declaration has the parent lay this node's component out again, measuring
-     * it anew, as androidx's `Modifier.Node.shouldAutoInvalidate` does. `true` by default.
-     *
-     * A node returning `false` leaves the parent's layout standing after its update, and requests itself what
-     * the update changed, such as a placement alone.
-     */
-    public open val shouldAutoInvalidate: Boolean get() = true
 }

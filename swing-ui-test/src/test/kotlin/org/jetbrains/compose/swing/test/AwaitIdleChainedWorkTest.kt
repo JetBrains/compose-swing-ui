@@ -4,10 +4,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.node.SwingNode
-import java.awt.Container
-import java.awt.FlowLayout
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -82,7 +81,7 @@ class AwaitIdleChainedWorkTest {
     fun awaitIdleLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
         setContent { SwingNode(factory = { panel }) }
         seen.clear()
 
@@ -96,7 +95,7 @@ class AwaitIdleChainedWorkTest {
     fun aFrameLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
         setContent { SwingNode(factory = { panel }) }
         seen.clear()
 
@@ -110,7 +109,7 @@ class AwaitIdleChainedWorkTest {
     fun waitUntilLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
         setContent { SwingNode(factory = { panel }) }
         seen.clear()
 
@@ -124,7 +123,7 @@ class AwaitIdleChainedWorkTest {
     fun setContentLaysOutOnlyOnceAChainTheCompositionStartedHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
 
         setContent {
             SwingNode(factory = { panel })
@@ -148,15 +147,6 @@ class AwaitIdleChainedWorkTest {
             if (remaining > 0) SwingUtilities.invokeLater { hop(remaining - 1) }
         }
         SwingUtilities.invokeLater { hop(CHAIN_DEPTH) }
-    }
-
-    /** A layout manager placing nothing, calling [onLayout] on every pass. */
-    private class RecordingLayout(
-        private val onLayout: () -> Unit,
-    ) : FlowLayout() {
-        override fun layoutContainer(target: Container) {
-            onLayout()
-        }
     }
 
     private companion object {

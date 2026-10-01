@@ -6,10 +6,13 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.AfterValidationActions
 import org.jetbrains.compose.swing.node.ComponentUpdateBatch
 import org.jetbrains.compose.swing.node.OwnerSnapshotObserver
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
 import org.jetbrains.compose.swing.util.Key
@@ -135,6 +138,21 @@ internal class SwingContentComposition private constructor(
             if (SwingUtilities.isEventDispatchThread()) onChanged() else SwingUtilities.invokeLater(onChanged)
         }
 
+    private val afterValidationActions = AfterValidationActions(this, sharedAfterValidationCoordinator)
+
+    override fun <N : SwingModifier.Node> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    ): Unit = afterValidationActions.requestAfterValidation(node, action)
+
+    override fun cancelAfterValidation(node: SwingModifier.Node): Unit =
+        afterValidationActions.cancelAfterValidation(node)
+
+    override fun invalidateLayout(node: SwingNodeHolder<*>): Unit = afterValidationActions.invalidateLayout(node)
+
+    override fun cancelLayoutInvalidation(node: SwingNodeHolder<*>): Unit =
+        afterValidationActions.cancelLayoutInvalidation(node)
+
     override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
@@ -227,8 +245,12 @@ internal class SwingContentComposition private constructor(
      */
     fun dispose() {
         checkEventDispatchThread()
-        composition.dispose()
-        snapshotObserver.dispose()
+        try {
+            composition.dispose()
+        } finally {
+            afterValidationActions.dispose()
+            snapshotObserver.dispose()
+        }
     }
 
     companion object {

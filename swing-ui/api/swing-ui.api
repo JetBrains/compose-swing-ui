@@ -692,7 +692,6 @@ public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNode : org/
 	public static final field $stable I
 	public fun <init> ()V
 	public final fun getComponent ()Ljava/awt/Component;
-	public fun getShouldAutoInvalidate ()Z
 }
 
 public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNodeElement : org/jetbrains/compose/swing/layout/ParentLayoutElement {
@@ -738,8 +737,7 @@ public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescrip
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
-	public fun needsNodesAfterWrite (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)Z
-	public abstract fun onDeclaredNodesChanged (Ljava/util/List;)V
+	public abstract fun onDeclaredNodesChanged (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Ljava/util/List;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/RestorePolicy {
@@ -779,6 +777,7 @@ public class org/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode : 
 	public static final field $stable I
 	public fun <init> ()V
 	public final fun getComponent ()Ljava/awt/Component;
+	public fun getShouldAutoInvalidate ()Z
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
@@ -793,6 +792,7 @@ public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifi
 public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 	public static final field $stable I
 	public final fun getCoroutineScope ()Lkotlinx/coroutines/CoroutineScope;
+	public fun getShouldAutoInvalidate ()Z
 	public final fun isAttached ()Z
 	public fun onAttach ()V
 	public fun onDetach ()V
@@ -826,6 +826,7 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun property-zFZRf9k (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun property-zFZRf9k$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun requestAfterValidation (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifierKt {
@@ -1131,6 +1132,7 @@ public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/comp
 public abstract interface class org/jetbrains/compose/swing/node/SwingComponentNode {
 	public abstract fun getComponent ()Ljava/awt/Component;
 	public abstract fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun invalidateLayout ()V
 }
 
 public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback, org/jetbrains/compose/swing/node/SwingComponentNode {
@@ -1140,6 +1142,7 @@ public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/c
 	public fun getComponent ()Ljava/awt/Component;
 	public fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
+	public fun invalidateLayout ()V
 	public fun onDeactivate ()V
 	public fun onRelease ()V
 	public fun onReuse ()V

@@ -549,10 +549,11 @@ only where `paintBounds` keeps the content.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
 `ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
-observed, and a change repaints the component without laying it out again. The library gathers a step's `outsets`
-and `isOpaque` after each modifier pass, so an element's `update` needs no call for them. Between passes, a node
-that changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` where its `outsets`
-or `isOpaque` changed. A `LayoutModifierNode` paints at its own box through its `decorator`.
+observed, and a change repaints the component without laying it out again. Decoration nodes set `shouldAutoInvalidate`
+to `true`, so element updates refresh `outsets` and `isOpaque`. Draw nodes keep it `false` because their metadata is
+fixed, and request their own repaint. Outside element updates, a node that changes a plain field it paints from calls
+`invalidateDraw()`, or `invalidateDecoration()` where its `outsets` or `isOpaque` changed. A `LayoutModifierNode`
+paints at its own box through its `decorator`.
 
 `ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
 it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are

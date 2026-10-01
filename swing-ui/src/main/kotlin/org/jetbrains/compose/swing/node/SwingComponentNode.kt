@@ -29,6 +29,16 @@ public sealed interface SwingComponentNode {
     public val component: Component
 
     /**
+     * Invalidates layout on the Event Dispatch Thread. When the component tree lock is held, invalidation
+     * happens immediately and revalidation runs on the next event-queue turn; otherwise revalidation runs
+     * immediately. Pending revalidation is canceled when this node is reused, deactivated, released, or its
+     * composition is disposed. Does nothing after deactivation or release.
+     *
+     * @throws IllegalStateException if called off the Event Dispatch Thread.
+     */
+    public fun invalidateLayout()
+
+    /**
      * The effective [SwingModifier] chain currently declared on this node, including any inherited
      * component defaults applicable to this component followed by elements passed directly on the
      * node's own modifier.

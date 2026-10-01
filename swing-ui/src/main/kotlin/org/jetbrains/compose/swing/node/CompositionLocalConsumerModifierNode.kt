@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.modifier.ElementRecord
 import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.notifyDeclaredNodes
-import org.jetbrains.compose.swing.modifier.takesWrite
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -50,22 +49,24 @@ internal fun SwingNodeHolder<*>.observesLocals(): Boolean {
 /**
  * Runs consumer component slots' `update` again, with that of every property slot declared after the first
  * consumer one, lays out and repaints the parent of consumer layout slots, and hands the [DeclaredNodesListener]
- * its nodes where a rewritten component slot holds a node it needs
- * ([DeclaredNodesListener.needsNodesAfterWrite]).
+ * its nodes where a rewritten node automatically invalidates its consumer.
  */
 internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val state = modifierState ?: return
     val diagnostics = requireOwner().diagnostics
     val held = state.startWrite()
-    state.rewritePropertySlotsFrom(component, diagnostics) { it.node is CompositionLocalConsumerModifierNode }
-    var laidOut = false
     var handsOver = false
-    val listener = component as? DeclaredNodesListener
+    state.rewritePropertySlotsFrom(
+        component,
+        diagnostics,
+        afterUpdate = { if (it.node.shouldAutoInvalidate) handsOver = true },
+    ) { it.node is CompositionLocalConsumerModifierNode }
+    var laidOut = false
     state.chain.fastForEach { record ->
         if (record.node is CompositionLocalConsumerModifierNode) {
             if (record is ElementRecord<*, *>) {
                 record.refresh(component, diagnostics)
-                if (listener.takesWrite(record.node)) handsOver = true
+                if (record.node.shouldAutoInvalidate) handsOver = true
             } else {
                 laidOut = true
             }

@@ -279,7 +279,10 @@ private class NodeListeningLabel :
     DeclaredNodesListener {
     val handed = mutableListOf<List<SwingModifier.Node>>()
 
-    override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) {
+    override fun onDeclaredNodesChanged(
+        componentNode: SwingComponentNode,
+        nodes: List<SwingModifier.Node>,
+    ) {
         handed += nodes
     }
 }

@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.layout.mayBeLeftOut
 import org.jetbrains.compose.swing.modifier.LayoutNodeRecord
 import org.jetbrains.compose.swing.modifier.ModifierChange
 import org.jetbrains.compose.swing.modifier.NodeRecord
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
@@ -208,7 +209,7 @@ internal class ParentDeclaration(
     /**
      * Whether this component's layout is declared again to its measuring parent, which lays it out anew, after the
      * layout node [written] took another declaration: where [written] has its parent lay the component out again
-     * ([ParentLayoutNode.shouldAutoInvalidate]) and the parent receives it. Where [written] is
+     * ([SwingModifier.Node.shouldAutoInvalidate]) and the parent receives it. Where [written] is
      * [left out][isLeftOutUnder] under that parent, the list the parent receives is the one it holds. A parent that
      * does not measure receives no parent-layout element and keeps its registration.
      */

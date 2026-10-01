@@ -22,6 +22,9 @@ import java.awt.Insets
  * again.
  */
 public abstract class DrawModifierNode<T : Component> : DecorationModifierNode<T>() {
+    /** Draw nodes have fixed decoration metadata and request their own repaint when their drawing changes. */
+    public final override val shouldAutoInvalidate: Boolean get() = false
+
     private var drawing: NodeDrawing? = null
 
     /**

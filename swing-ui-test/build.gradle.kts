@@ -44,6 +44,7 @@ dependencies {
     // The harness's own tests drive real animations to show what manual frame control does to one.
     // Test-only: the published harness does not depend on the animation module.
     testImplementation(project(":swing-ui-animation"))
+    testImplementation(testFixtures(project(":swing-ui")))
 }
 
 jacocoCoverage {

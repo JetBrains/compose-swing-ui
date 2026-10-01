@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 /** Which passes over the layout nodes of a modifier hand a component under a measuring parent its nodes. */
 class LayoutNodeHandOverTest {
     @Test
-    fun layoutNodesWrittenInPlaceHandTheNodesOverOnceToAListenerThatTakesOne() = runComposeSwingTest {
+    fun layoutNodePolicyControlsHandOverAfterInPlaceWrites() = runComposeSwingTest {
         var value by mutableStateOf("a")
         lateinit var taking: ListeningPanel
         lateinit var declining: ListeningPanel
@@ -28,8 +28,11 @@ class LayoutNodeHandOverTest {
                 val modifier = SwingModifier.then(Layout("${value}1")).then(Layout("${value}2"))
                 SwingNode(factory = { ListeningPanel().also { taking = it } }, modifier = modifier)
                 SwingNode(
-                    factory = { ListeningPanel(needsAfterWrite = { it !is LabelLayoutNode }).also { declining = it } },
-                    modifier = modifier,
+                    factory = { ListeningPanel().also { declining = it } },
+                    modifier =
+                        SwingModifier
+                            .then(Layout("${value}1", autoInvalidates = false))
+                            .then(Layout("${value}2", autoInvalidates = false)),
                 )
             }
         }
@@ -38,11 +41,11 @@ class LayoutNodeHandOverTest {
         awaitIdle()
 
         assertEquals(listOf(listOf("a1", "a2"), listOf("b1", "b2")), taking.received, "one hand-over for the pass")
-        assertEquals(listOf(listOf("a1", "a2")), declining.received, "a declined layout node hands nothing over")
+        assertEquals(listOf(listOf("a1", "a2")), declining.received, "false opts out of update handovers")
     }
 
     @Test
-    fun layoutNodesWrittenByADiffHandTheNodesOverOnceToAListenerThatTakesOne() = runComposeSwingTest {
+    fun layoutNodePolicyControlsHandOverAfterDiffWrites() = runComposeSwingTest {
         var value by mutableStateOf("a")
         lateinit var taking: ListeningPanel
         lateinit var declining: ListeningPanel
@@ -52,8 +55,12 @@ class LayoutNodeHandOverTest {
                 val modifier = SwingModifier.opaque(value == "a").then(Layout("${value}1")).then(Layout("${value}2"))
                 SwingNode(factory = { ListeningPanel().also { taking = it } }, modifier = modifier)
                 SwingNode(
-                    factory = { ListeningPanel(needsAfterWrite = { it !is LabelLayoutNode }).also { declining = it } },
-                    modifier = modifier,
+                    factory = { ListeningPanel().also { declining = it } },
+                    modifier =
+                        SwingModifier
+                            .opaque(value == "a")
+                            .then(Layout("${value}1", autoInvalidates = false))
+                            .then(Layout("${value}2", autoInvalidates = false)),
                 )
             }
         }
@@ -62,17 +69,21 @@ class LayoutNodeHandOverTest {
         awaitIdle()
 
         assertEquals(listOf(listOf("a1", "a2"), listOf("b1", "b2")), taking.received, "one hand-over for the pass")
-        assertEquals(listOf(listOf("a1", "a2")), declining.received, "a declined layout node hands nothing over")
+        assertEquals(listOf(listOf("a1", "a2")), declining.received, "false opts out of update handovers")
     }
 
     @Test
-    fun aListenerTakingAWrittenLayoutNodeAheadOfOneItDeclinesIsHandedTheNodesOnce() = runComposeSwingTest {
+    fun oneAutoInvalidatingLayoutNodeHandsTheNodesOverOnce() = runComposeSwingTest {
         var value by mutableStateOf("a")
-        val panel = ListeningPanel(needsAfterWrite = { (it as LabelLayoutNode).label == "b1" })
+        val panel = ListeningPanel()
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 // The property declared first changes with the layout elements, so the pass diffs the modifier.
-                val modifier = SwingModifier.opaque(value == "a").then(Layout("${value}1")).then(Layout("${value}2"))
+                val modifier =
+                    SwingModifier
+                        .opaque(value == "a")
+                        .then(Layout("${value}1", autoInvalidates = value == "b"))
+                        .then(Layout("${value}2", autoInvalidates = false))
                 SwingNode(factory = { panel }, modifier = modifier)
             }
         }
@@ -84,7 +95,7 @@ class LayoutNodeHandOverTest {
     }
 
     @Test
-    fun aLayoutNodeThatDoesNotAutoInvalidateIsOfferedToTheListenerWhenWritten() = runComposeSwingTest {
+    fun aLayoutNodeThatDoesNotAutoInvalidateDoesNotHandOverOnWrites() = runComposeSwingTest {
         var value by mutableStateOf("a")
         val taking = ListeningPanel()
         setContent {
@@ -97,17 +108,17 @@ class LayoutNodeHandOverTest {
 
         value = "b"
         awaitIdle()
-        assertEquals(listOf(listOf("a"), listOf("b")), taking.received, "written in place: one hand-over")
+        assertEquals(listOf(listOf("a")), taking.received, "false suppresses the update handover")
 
         value = "c"
         awaitIdle()
-        assertEquals(listOf(listOf("a"), listOf("b"), listOf("c")), taking.received, "written by a diff: one hand-over")
+        assertEquals(listOf(listOf("a")), taking.received, "false suppresses the update handover")
     }
 
     @Test
     fun aLayoutNodeJoiningBesideAWrittenOneHandsTheNodesOver() = runComposeSwingTest {
         var value by mutableStateOf("a")
-        val declining = ListeningPanel(needsAfterWrite = { false })
+        val declining = ListeningPanel()
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 val joining = if (value == "a") SwingModifier else Layout("joined")
@@ -122,20 +133,14 @@ class LayoutNodeHandOverTest {
     }
 
     @Test
-    fun aPassThatWritesNoNodeOfTheChainAsksTheListenerNothingAndHandsNothingOver() = runComposeSwingTest {
+    fun aPropertyOnlyWriteDoesNotHandOverTheNodeList() = runComposeSwingTest {
         var pass by mutableIntStateOf(0)
-        var asked = 0
         lateinit var panel: ListeningPanel
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 SwingNode(
                     factory = {
-                        ListeningPanel(
-                            needsAfterWrite = {
-                                asked++
-                                true
-                            },
-                        ).also { panel = it }
+                        ListeningPanel().also { panel = it }
                     },
                     modifier = SwingModifier.opaque(pass > 1).then(Layout("l")).then(Additive("a")),
                 )
@@ -148,7 +153,6 @@ class LayoutNodeHandOverTest {
         awaitIdle()
 
         assertTrue(panel.isOpaque, "the second pass writes the property declared with another value")
-        assertEquals(0, asked, "no node of the chain is written")
         assertEquals(listOf(listOf("l", "a")), panel.received, "only the attaching pass hands the nodes over")
     }
 }

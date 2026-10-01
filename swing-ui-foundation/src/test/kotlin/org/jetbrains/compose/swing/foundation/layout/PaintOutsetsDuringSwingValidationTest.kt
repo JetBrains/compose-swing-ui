@@ -1,5 +1,12 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -50,6 +57,55 @@ class PaintOutsetsDuringSwingValidationTest {
             assertEquals(Insets(12, 12, 12, 12), card.insets)
             assertEquals(Dimension(144, 104), card.size, "the next validation sizes the child by its new insets")
         }
+
+    @Test
+    fun removingTheLastDecorationUnderASwingParentRequestsAnotherValidation() =
+        runComposeSwingTest {
+            val step = RemovingOutsetsElement()
+            val flow = ChangingOutsetsFlowLayout()
+            setContent {
+                var hasDecoration by remember { mutableStateOf(true) }
+                val context = rememberCompositionContext()
+                val composition =
+                    remember(context) {
+                        OnDemandComposition(context) {
+                            SwingNode(
+                                factory = { Card() },
+                                modifier =
+                                    if (hasDecoration) {
+                                        SwingModifier
+                                            .testTag("removing-card")
+                                            .paintOutsets(PaintOutsets.None)
+                                            .then(step)
+                                    } else {
+                                        SwingModifier.testTag("removing-card")
+                                    },
+                            )
+                        }
+                    }
+                DisposableEffect(composition) { onDispose { composition.dispose() } }
+                SwingNode(
+                    factory = {
+                        JPanel(flow).apply {
+                            add(checkNotNull(composition.recompose {}))
+                            flow.afterLayout = {
+                                assertTrue(Thread.holdsLock(treeLock), "the modifier is removed during validation")
+                                assertEquals(Dimension(128, 88), getComponent(0).size)
+                                composition.recompose { hasDecoration = false }
+                            }
+                        }
+                    },
+                    modifier = SwingModifier.preferredSize(200, 200),
+                )
+            }
+
+            awaitIdle()
+
+            assertTrue(step.node.removedUnderTreeLock, "the final decoration node was removed during validation")
+            val card = onNodeWithTag("removing-card").fetch<JComponent>()
+            assertEquals(Insets(0, 0, 0, 0), card.insets)
+            assertEquals(Dimension(120, 80), card.size, "the next validation sizes the undecorated card")
+        }
 }
 
 private class ChangingOutsetsFlowLayout : FlowLayout(FlowLayout.LEADING, 0, 0) {
@@ -85,6 +141,41 @@ private class ChangingOutsetsNode : DecorationModifierNode<Card>() {
     var reach: Int = 4
 
     override val outsets: Insets get() = Insets(reach, reach, reach, reach)
+
+    override fun paint(
+        graphics: Graphics2D,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) = content(graphics, width, height)
+}
+
+private class RemovingOutsetsElement : SwingModifier.NodeElement<Card, RemovingOutsetsNode>() {
+    val node = RemovingOutsetsNode()
+
+    override val targetType: Class<Card> get() = Card::class.java
+
+    override val additive: Boolean get() = true
+
+    override val name: String get() = "removingOutsets"
+
+    override fun create(): RemovingOutsetsNode = node
+
+    override fun update(node: RemovingOutsetsNode) = Unit
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class RemovingOutsetsNode : DecorationModifierNode<Card>() {
+    override val outsets: Insets get() = Insets(4, 4, 4, 4)
+
+    var removedUnderTreeLock: Boolean = false
+
+    override fun onRemovedFromDecoration() {
+        removedUnderTreeLock = Thread.holdsLock(component.treeLock)
+    }
 
     override fun paint(
         graphics: Graphics2D,

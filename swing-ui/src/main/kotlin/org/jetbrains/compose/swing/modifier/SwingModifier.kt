@@ -32,6 +32,7 @@ import kotlinx.coroutines.cancel
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
 import org.jetbrains.compose.swing.defaults.LocalComponentDefaults
@@ -174,6 +175,17 @@ public interface SwingModifier {
         public val isAttached: Boolean get() = holder != null
 
         /**
+         * Whether an element update or composition-local refresh automatically invalidates the consumer
+         * of this node's state.
+         * A parent-layout node invalidates its measuring parent; a component node invalidates its component's
+         * [DeclaredNodesListener]. `true` by default.
+         *
+         * A node returning `false` requests the invalidation its update or local refresh needs itself, such as
+         * repainting its component. Structural changes still notify consumers regardless of this value.
+         */
+        public open val shouldAutoInvalidate: Boolean get() = true
+
+        /**
          * A scope that runs for as long as this node is attached, on the composition's own coroutine
          * context and frame clock. Created on first access and cancelled once [onDetach] returns.
          *
@@ -242,7 +254,10 @@ public interface SwingModifier {
         /** Marks the node detached once [runDetachLifecycle] has run, cancelling [coroutineScope]. */
         internal fun detach() {
             check(isAttached) { "Cannot detach a node that is not attached" }
-            holder?.owner?.snapshotObserver?.clear(this)
+            holder?.owner?.let { owner ->
+                owner.cancelAfterValidation(this)
+                owner.snapshotObserver.clear(this)
+            }
             scope?.cancel(ModifierNodeDetachedCancellationException())
             scope = null
             holder = null
@@ -268,6 +283,9 @@ public interface SwingModifier {
      * `docs/MODIFIERS.md`.
      */
     public open class ComponentNode<T : Component> : Node() {
+        /** Component nodes write their own component directly and opt into listener handoff where needed. */
+        public override val shouldAutoInvalidate: Boolean get() = false
+
         /**
          * The typed target, valid from [onAttach] until [onDetach]. Reading it outside that window -
          * before the node is attached, or after it has been detached - fails.
@@ -431,6 +449,21 @@ public interface SwingModifier {
 
         override infix fun then(other: SwingModifier): SwingModifier = other
     }
+}
+
+/**
+ * Runs [action] on the Event Dispatch Thread. Calls made while this node's component tree lock is held are
+ * coalesced by node and callback identity until the next event-queue turn; reuse the same callback instance to
+ * coalesce repeated requests. Calls made without the lock run immediately and cancel a matching queued call.
+ * Detaching this node or disposing its composition drops its pending calls.
+ *
+ * @param action receives this node when it runs.
+ * @throws IllegalStateException if this node is not attached or the call is off the Event Dispatch Thread.
+ */
+public fun <T : SwingModifier.Node> T.requestAfterValidation(action: (T) -> Unit) {
+    checkEventDispatchThread()
+    val owner = requireOwner()
+    owner.requestAfterValidation(this, action)
 }
 
 /**
@@ -925,22 +958,26 @@ public class SwingModifierState internal constructor() {
 
     /**
      * Runs the `update` of the slot holding [node] again, against [node]'s component, and hands the holder's
-     * [DeclaredNodesListener] its nodes where the slot rewritten holds a node it needs
-     * ([DeclaredNodesListener.needsNodesAfterWrite]).
+     * [DeclaredNodesListener] its nodes where the rewritten node automatically invalidates its consumer.
      */
     internal fun refreshLocalConsumer(node: SwingModifier.ComponentNode<*>) {
         val holder = node.holder
         val diagnostics = holder?.owner?.diagnostics
         val held = startWrite()
         var rewritten: NodeRecord<*, *>? = null
-        if (!rewritePropertySlotsFrom(node.component, diagnostics) { it.node === node }) {
+        var handsOver = false
+        if (!rewritePropertySlotsFrom(
+                node.component,
+                diagnostics,
+                afterUpdate = { if (it.node.shouldAutoInvalidate) handsOver = true },
+            ) { it.node === node }
+        ) {
             rewritten = chain.fastFirstOrNull { it.node === node }
             rewritten?.refresh(node.component, diagnostics)
+            if (rewritten?.node?.shouldAutoInvalidate == true) handsOver = true
         }
         applied = held
-        if (holder == null || rewritten == null) return
-        val listener = holder.component as? DeclaredNodesListener
-        if (listener.takesWrite(node)) {
+        if (holder != null && handsOver) {
             holder.notifyDeclaredNodes(chainChanged = true, handedNodes = handedNodes)
         }
     }
@@ -953,6 +990,7 @@ public class SwingModifierState internal constructor() {
     internal fun rewritePropertySlotsFrom(
         target: Component,
         diagnostics: SwingCompositionDiagnostics?,
+        afterUpdate: (ElementRecord<*, *>) -> Unit = {},
         from: (ElementRecord<*, *>) -> Boolean,
     ): Boolean {
         var writing = false
@@ -960,6 +998,7 @@ public class SwingModifierState internal constructor() {
             if (writing || from(record)) {
                 writing = true
                 record.refresh(target, diagnostics)
+                afterUpdate(record)
             }
         }
         declaredKeyOrder.fastForEach { key -> records[key]?.let(rewrite) }
@@ -1168,7 +1207,7 @@ private fun SwingNodeHolder<Component>.adoptElement(
         else -> {
             record.rebindAndWrite(next, component, owner?.diagnostics)
             if (record is LayoutNodeRecord && declaration.parentReads(record.node)) declaration.reapply()
-            adopted.nextSlot((component as? DeclaredNodesListener)?.needsNodesAfterWrite(record.node) == true)
+            adopted.nextSlot(record.node.shouldAutoInvalidate)
         }
     }
 }
@@ -1282,7 +1321,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
 /**
  * Runs the component nodes [marked] attaches, or diffs the keyed slots of [partition] where none does, then diffs
  * the additive component slots. Returns whether a slot joined or left the chain, or was written with a new element
- * that the holder's [DeclaredNodesListener] needs ([DeclaredNodesListener.needsNodesAfterWrite]). A slot standing
+ * that automatically invalidates its consumer. A slot standing
  * from before this pass adopts an equal element only where [adoptable].
  */
 private fun SwingNodeHolder<*>.applyComponentSlots(
@@ -1292,16 +1331,15 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
     adoptable: Boolean,
 ): Boolean {
     val diagnostics = owner?.diagnostics
-    val attached =
+    val needsHandover =
         if (marked == null) {
             diffKeyedElements(this, state, partition, adoptable, diagnostics)
-            false
         } else {
             marked.runComponentLifecycles(state, partition, diagnostics)
         }
     // A whole attach leaves no component slot standing from before this pass.
     val changes = updateModifierNodes(this, state, partition.chain, ComponentNodeType, adoptable || marked != null)
-    return attached || changes.needsDeclaredNodes
+    return needsHandover || changes.needsDeclaredNodes
 }
 
 /**
@@ -1334,23 +1372,28 @@ private class MarkedChain(
     }
 
     /**
-     * Runs each component node in turn, keyed slots first, as the diff attaches them. Returns whether any joined the
-     * chain.
+     * Runs each component node in turn, keyed slots first, as the diff attaches them. Returns whether a keyed node's
+     * update automatically invalidates its consumer or a component node joined the chain.
      */
     fun runComponentLifecycles(
         state: SwingModifierState,
         partition: ModifierPartition,
         diagnostics: SwingCompositionDiagnostics?,
     ): Boolean {
+        var autoInvalidates = false
         var index = 0
         for (key in partition.keyed.keys) {
             val record = keyed[index++]
             record.runAttachLifecycle(diagnostics, { state.records[key] = record }, { state.records.remove(key) })
+            if (record.node.shouldAutoInvalidate) autoInvalidates = true
         }
         state.declaredKeyOrder.clear()
         state.declaredKeyOrder.addAll(partition.keyed.keys)
-        components.fastForEach { record -> record.runAttachLifecycle(diagnostics, state.chain) }
-        return components.isNotEmpty()
+        components.fastForEach { record ->
+            record.runAttachLifecycle(diagnostics, state.chain)
+            if (record.node.shouldAutoInvalidate) autoInvalidates = true
+        }
+        return autoInvalidates || components.isNotEmpty()
     }
 
     /**
@@ -1449,9 +1492,10 @@ private fun <T : Component, N : SwingModifier.ComponentNode<T>> attachElement(
     holder: SwingNodeHolder<*>,
     records: MutableMap<Any, ElementRecord<*, *>>,
     key: Any,
-) {
+): Boolean {
     val record = ElementRecord.mark(element, holder)
     record.runAttachLifecycle(holder.owner?.diagnostics, { records[key] = record }, { records.remove(key) })
+    return record.node.shouldAutoInvalidate
 }
 
 /**
@@ -1464,7 +1508,7 @@ private fun diffKeyedElements(
     partition: ModifierPartition,
     adoptable: Boolean,
     diagnostics: SwingCompositionDiagnostics?,
-) {
+): Boolean {
     val target = holder.component
     val records = state.records
     val incoming = partition.keyed
@@ -1473,6 +1517,7 @@ private fun diffKeyedElements(
     // Detach + drop elements whose key left the modifier, last declared first: a slot restoring through an
     // object a later slot declared needs that object still standing.
     var wrote = !adoptable
+    var autoInvalidates = false
     state.forEachStandingKeyInUnwindOrder { key ->
         if (key !in incoming) {
             records.remove(key)?.detach(diagnostics)
@@ -1496,7 +1541,7 @@ private fun diffKeyedElements(
         val record = records[key]
         when {
             record == null -> {
-                attachElement(element, holder, records, key)
+                if (attachElement(element, holder, records, key)) autoInvalidates = true
                 wrote = true
             }
 
@@ -1509,16 +1554,18 @@ private fun diffKeyedElements(
             !record.canRebind(element) -> {
                 records.remove(key)
                 record.detach(diagnostics)
-                attachElement(element, holder, records, key)
+                if (attachElement(element, holder, records, key)) autoInvalidates = true
                 wrote = true
             }
 
             wrote -> {
                 record.rebindAndWrite(element, target, diagnostics)
+                if (record.node.shouldAutoInvalidate) autoInvalidates = true
             }
 
             !record.adopt(element) -> {
                 record.rebindAndWrite(element, target, diagnostics)
+                if (record.node.shouldAutoInvalidate) autoInvalidates = true
                 wrote = true
             }
         }
@@ -1526,6 +1573,7 @@ private fun diffKeyedElements(
 
     declaredKeyOrder.clear()
     declaredKeyOrder.addAll(incoming.keys)
+    return autoInvalidates
 }
 
 /**

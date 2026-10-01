@@ -3,7 +3,10 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.foundation.layout.fitted
 import org.jetbrains.compose.swing.foundation.layout.writeFitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
+import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.requestAfterValidation
+import org.jetbrains.compose.swing.node.SwingComponentNode
 import java.awt.Component
 
 /**
@@ -16,8 +19,10 @@ import java.awt.Component
  * child declares that element through [decoration].
  *
  * The library gathers [outsets] and [isOpaque] after each modifier pass that attaches, detaches, moves or writes a
- * step, so an element's `update` needs no call for them. A node that changes one of them between passes calls
- * [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`. The outsets a step reserves
+ * step, so an element's `update` needs no call for them. Decoration nodes automatically invalidate their component's
+ * declared-node consumer after an element update. A node with fixed metadata can opt out and own its repaint, as
+ * [DrawModifierNode] does. A node that changes one of them between passes calls [invalidateDecoration]. A change that
+ * only affects [paint] is a `component.repaint()`. The outsets a step reserves
  * reach the component's insets under a Foundation container. Under any other parent only the part of them the
  * component's [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value leaves in layout does,
  * none by default.
@@ -25,6 +30,9 @@ import java.awt.Component
 public abstract class DecorationModifierNode<T : Component> :
     SwingModifier.ComponentNode<T>(),
     Decorator {
+    /** An element update may change the metadata its component gathers from the declared decoration nodes. */
+    public override val shouldAutoInvalidate: Boolean get() = true
+
     /**
      * Refuses an element that is not additive. An element naming [Decoratable] as its target type is refused
      * before this node is created; otherwise this node is refused if the component is not a [Decoratable].
@@ -63,7 +71,7 @@ public abstract class DecorationModifierNode<T : Component> :
      */
     public fun invalidateDecoration() {
         if (!isAttached) return
-        if (!publishDecoration(component as Decoratable, declaredNodes())) component.repaint()
+        if (!publishDecoration(component as Decoratable, declaredNodes(), requesterNode = this)) component.repaint()
     }
 }
 
@@ -81,7 +89,21 @@ internal fun SwingModifier.Node.declaredNodes(): List<SwingModifier.Node> {
 internal fun publishDecoration(
     decoratable: Decoratable,
     nodes: List<SwingModifier.Node>,
-): Boolean = publishSteps(decoratable, DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer))
+    requesterNode: SwingModifier.Node,
+): Boolean =
+    publishSteps(decoratable, DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer), requesterNode)
+
+/** Publishes [nodes] using the component lifetime so a request survives removal of its final modifier node. */
+internal fun publishDecoration(
+    decoratable: Decoratable,
+    nodes: List<SwingModifier.Node>,
+    requesterComponent: SwingComponentNode,
+): Boolean =
+    publishSteps(
+        decoratable,
+        DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer),
+        requesterComponent,
+    )
 
 /**
  * Writes to [decoratable] a decoration of [steps], fitted to the Foundation containers around it, and repaints it;
@@ -92,6 +114,20 @@ internal fun publishDecoration(
 internal fun publishSteps(
     decoratable: Decoratable,
     steps: DecorationSteps,
+    requesterNode: SwingModifier.Node,
+): Boolean = publishSteps(decoratable, steps, requesterNode as Any)
+
+/** Publishes [steps] using the component lifetime so a request survives removal of its final modifier node. */
+internal fun publishSteps(
+    decoratable: Decoratable,
+    steps: DecorationSteps,
+    requesterComponent: SwingComponentNode,
+): Boolean = publishSteps(decoratable, steps, requesterComponent as Any)
+
+private fun publishSteps(
+    decoratable: Decoratable,
+    steps: DecorationSteps,
+    requester: Any,
 ): Boolean {
     val component =
         checkNotNull(decoratable as? Component) {
@@ -100,7 +136,32 @@ internal fun publishSteps(
     val held = decoratable.decoration
     val value = held.fitted(component, steps, steps.isOpaque)
     if (value === held) return false
-    writeFitted(component, decoratable, held, value)
+    when (requester) {
+        is SwingModifier.Node -> writeFitted(decoratable, held, value, requesterNode = requester)
+        is SwingComponentNode -> writeFitted(decoratable, held, value, requesterComponent = requester)
+        else -> error("Publishing a decoration requires an attached requester")
+    }
     component.repaint()
     return true
+}
+
+/** A node that owns [requestAfterValidation] for the component this decoration belongs to. */
+private val RevalidateRequestedComponent: (SwingModifier.Node) -> Unit = { node ->
+    when (node) {
+        is SwingModifier.ComponentNode<*> -> node.component.revalidate()
+        is ParentLayoutNode -> node.component.revalidate()
+        else -> error("Revalidation requires a component node")
+    }
+}
+
+/** Revalidates the component this attached node belongs to after Swing finishes validation. */
+internal fun SwingModifier.Node.revalidateComponentAfterValidation() {
+    val component =
+        when (this) {
+            is SwingModifier.ComponentNode<*> -> component
+            is ParentLayoutNode -> component
+            else -> error("Revalidation requires a component node")
+        }
+    if (Thread.holdsLock(component.treeLock)) component.invalidate()
+    requestAfterValidation(RevalidateRequestedComponent)
 }

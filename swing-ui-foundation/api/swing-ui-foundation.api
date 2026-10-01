@@ -47,8 +47,7 @@ public final class org/jetbrains/compose/swing/foundation/graphics/CircleShape :
 
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Decoratable : org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
 	public abstract fun getDecoration ()Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;
-	public fun needsNodesAfterWrite (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)Z
-	public fun onDeclaredNodesChanged (Ljava/util/List;)V
+	public fun onDeclaredNodesChanged (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Ljava/util/List;)V
 	public abstract fun setDecoration (Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;)V
 }
 
@@ -74,6 +73,7 @@ public final class org/jetbrains/compose/swing/foundation/graphics/Decoration$Co
 public abstract class org/jetbrains/compose/swing/foundation/graphics/DecorationModifierNode : org/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode, org/jetbrains/compose/swing/foundation/graphics/Decorator {
 	public static final field $stable I
 	public fun <init> ()V
+	public fun getShouldAutoInvalidate ()Z
 	public final fun invalidateDecoration ()V
 	public final fun onAttach ()V
 	public final fun onDetach ()V
@@ -93,6 +93,7 @@ public abstract class org/jetbrains/compose/swing/foundation/graphics/DrawModifi
 	public fun <init> ()V
 	public abstract fun draw (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/ContentDrawScope;)V
 	public final fun getOutsets ()Ljava/awt/Insets;
+	public final fun getShouldAutoInvalidate ()Z
 	public final fun isOpaque ()Z
 	public fun onMeasureResultChanged ()V
 	protected final fun onRemovedFromDecoration ()V

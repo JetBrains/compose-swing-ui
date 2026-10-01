@@ -1,8 +1,8 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
-import org.jetbrains.compose.swing.foundation.layout.PaintOutsetsNode
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingComponentNode
 
 /**
  * A component that paints through the decoration its modifier declares: what every decoration modifier and every
@@ -44,15 +44,10 @@ public interface Decoratable : DeclaredNodesListener {
      *
      * @throws IllegalStateException if this `Decoratable` is not a `java.awt.Component`.
      */
-    override fun onDeclaredNodesChanged(nodes: List<SwingModifier.Node>) {
-        publishDecoration(this, nodes)
+    override fun onDeclaredNodesChanged(
+        componentNode: SwingComponentNode,
+        nodes: List<SwingModifier.Node>,
+    ) {
+        publishDecoration(this, nodes, requesterComponent = componentNode)
     }
-
-    /**
-     * Takes a written [DecorationModifierNode] other than a [DrawModifierNode], whose element may have changed its
-     * `outsets` or `isOpaque`, and a written `paintOutsets` node, whose value may have changed; declines every other
-     * node. A draw node's `outsets` and `isOpaque` never change, and it repaints its own change. Not to be overridden.
-     */
-    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean =
-        (node is DecorationModifierNode<*> && node !is DrawModifierNode<*>) || node is PaintOutsetsNode
 }
