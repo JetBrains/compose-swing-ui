@@ -11,6 +11,7 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.runSwingTest
+import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -20,7 +21,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Behavioral tests for [SwingFrameClock.dispose]: disposal is final. Frames awaited afterwards
  * schedule nothing, and a frame dispatch already on the event queue at disposal neither broadcasts a
- * frame nor restarts the timer.
+ * frame nor restarts the timer. Disposing inside a frame's own callback leaves the timer stopped.
  *
  * These drive the clock directly, on a recomposer that is never started: the race they pin sits
  * between the clock's own event-queue dispatch and its disposal, and needs each step of that
@@ -117,6 +118,76 @@ class SwingFrameClockDisposalTest {
         } finally {
             lateFrame?.cancel()
             recomposer.cancel()
+        }
+    }
+
+    @Test
+    fun disposalInsideAFrameDoesNotRestartItsTimer() = runSwingTest {
+        val recomposer = Recomposer(Dispatchers.Swing)
+        val clock = SwingUiDispatcher().frameClock.apply { pace(recomposer) }
+        val compositionClock = checkNotNull(recomposer.effectCoroutineContext[MonotonicFrameClock])
+        val frameDrivenWork = launch(start = CoroutineStart.UNDISPATCHED) { compositionClock.withFrameNanos { } }
+        val frame = launch(start = CoroutineStart.UNDISPATCHED) { clock.withFrameNanos { clock.dispose() } }
+        try {
+            drainEventQueue()
+            assertTrue(frame.isCompleted, "the frame whose callback disposes the clock was dispatched")
+            assertTrue(frameDrivenWork.isActive, "frame-driven work still awaits the raw recomposer")
+            assertFalse(
+                clock.isPacingFrameDrivenWork,
+                "a clock disposed inside its own frame restarted its timer",
+            )
+        } finally {
+            clock.dispose()
+            frame.cancel()
+            frameDrivenWork.cancel()
+            recomposer.cancel()
+        }
+    }
+
+    @Test
+    fun aLiveFrameStartsPacingAndDisposalStopsIt() = runSwingTest {
+        val recomposer = Recomposer(Dispatchers.Swing)
+        val clock = SwingUiDispatcher().frameClock.apply { pace(recomposer) }
+        val compositionClock = checkNotNull(recomposer.effectCoroutineContext[MonotonicFrameClock])
+        val frameDrivenWork = launch(start = CoroutineStart.UNDISPATCHED) { compositionClock.withFrameNanos { } }
+        val frame = launch(start = CoroutineStart.UNDISPATCHED) { clock.withFrameNanos { } }
+        try {
+            drainEventQueue()
+            assertTrue(frame.isCompleted, "the frame awaited on a live clock was dispatched")
+            assertTrue(clock.isPacingFrameDrivenWork, "a live clock paces pending frame-driven work")
+            clock.dispose()
+            assertFalse(clock.isPacingFrameDrivenWork, "disposal stops the pacing timer")
+            clock.dispose()
+            assertFalse(clock.isPacingFrameDrivenWork, "a second disposal leaves the timer stopped")
+        } finally {
+            clock.dispose()
+            frame.cancel()
+            frameDrivenWork.cancel()
+            recomposer.cancel()
+        }
+    }
+
+    @Test
+    fun disposingThePublicOwnerDuringAFrameRetiresItsClock() = runSwingTest {
+        val runtime = SwingRecomposer.create(JPanel())
+        val compositionClock = checkNotNull(runtime.recomposer.effectCoroutineContext[MonotonicFrameClock])
+        val frameDrivenWork = launch(start = CoroutineStart.UNDISPATCHED) { compositionClock.withFrameNanos { } }
+        val frame =
+            launch(start = CoroutineStart.UNDISPATCHED) {
+                runtime.clock.withFrameNanos { runtime.dispose() }
+            }
+        try {
+            drainEventQueue()
+            assertTrue(frame.isCompleted, "the frame whose callback disposes the owner was dispatched")
+            assertTrue(runtime.isDisposed, "the owner is disposed")
+            assertFalse(
+                runtime.clock.isPacingFrameDrivenWork,
+                "an owner disposed inside a frame left its clock pacing",
+            )
+        } finally {
+            frame.cancel()
+            frameDrivenWork.cancel()
+            runtime.dispose()
         }
     }
 
