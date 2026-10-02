@@ -47,6 +47,7 @@ import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.observesLocals
 import org.jetbrains.compose.swing.node.requireOwner
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -196,18 +197,27 @@ public interface SwingModifier {
                 return scope ?: CoroutineScope(context + Job(context[Job])).also { scope = it }
             }
 
-        /** Runs once every node of the chain is attached. Runs again only after [onDetach]. */
+        /**
+         * Runs once every node of the chain is attached. Runs again only after [onDetach].
+         *
+         * A throw propagates to the caller applying the modifier and fails the pass; the node is detached first.
+         */
         public open fun onAttach() {}
 
         /**
          * Runs when the entry leaves the modifier or the node is released, deactivated or reused, while every
          * node of its chain is still attached.
+         *
+         * A throw is reported to the thread's uncaught-exception handler and the node detaches, as if this had
+         * returned.
          */
         public open fun onDetach() {}
 
         /**
          * Runs while the node is attached, right before the composition reuses its component for different
          * content or deactivates it. Drop state tied to the old content; [onDetach] follows.
+         *
+         * A throw is reported to the thread's uncaught-exception handler, as if this had returned.
          */
         public open fun onReset() {}
 
@@ -242,24 +252,27 @@ public interface SwingModifier {
 
         internal fun runDetachLifecycle() {
             check(isAttached) { "The modifier node is detached multiple times" }
-            onDetach()
+            runReportingUncaught { onDetach() }
         }
 
         internal fun reset() {
             check(isAttached) { "reset() called on a node that is not attached" }
-            onReset()
+            runReportingUncaught { onReset() }
         }
 
         /** Marks the node detached once [runDetachLifecycle] has run, cancelling [coroutineScope]. */
         internal fun detach() {
             check(isAttached) { "Cannot detach a node that is not attached" }
-            holder?.owner?.let { owner ->
-                owner.cancelAfterValidation(this)
-                owner.snapshotObserver.clear(this)
+            try {
+                scope?.cancel(ModifierNodeDetachedCancellationException())
+            } finally {
+                holder?.owner?.let { owner ->
+                    owner.cancelAfterValidation(this)
+                    owner.snapshotObserver.clear(this)
+                }
+                scope = null
+                holder = null
             }
-            scope?.cancel(ModifierNodeDetachedCancellationException())
-            scope = null
-            holder = null
         }
     }
 
@@ -529,8 +542,11 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
 
     /** Runs the node's [SwingModifier.Node.onDetach] and marks the node detached. */
     open fun detach(diagnostics: SwingCompositionDiagnostics?) {
-        runDetachLifecycle(diagnostics)
-        markDetached()
+        try {
+            runDetachLifecycle(diagnostics)
+        } finally {
+            markDetached()
+        }
     }
 
     /**
@@ -685,8 +701,11 @@ internal class LayoutNodeRecord(
      */
     override fun detach(diagnostics: SwingCompositionDiagnostics?) {
         val declaration = node.holder?.declaration
-        super.detach(diagnostics)
-        declaration?.dropLayoutNodes()
+        try {
+            super.detach(diagnostics)
+        } finally {
+            declaration?.dropLayoutNodes()
+        }
     }
 
     @Suppress("UNCHECKED_CAST") // The slot's node was created by an element of this element's class.
@@ -895,12 +914,15 @@ public class SwingModifierState internal constructor() {
             declaredKeyOrder.clear()
             return false
         }
-        val unwinding = standingInUnwindOrder().filter { it is ElementRecord<*, *> }
-        unwinding.fastForEach { it.runDetachLifecycle(diagnostics) }
-        unwinding.fastForEach { it.markDetached() }
-        records.clear()
-        declaredKeyOrder.clear()
-        return chain.removeAll { it is ElementRecord<*, *> }
+        var removed = false
+        try {
+            standingInUnwindOrder().filter { it is ElementRecord<*, *> }.detachAll(diagnostics)
+        } finally {
+            records.clear()
+            declaredKeyOrder.clear()
+            removed = chain.removeAll { it is ElementRecord<*, *> }
+        }
+        return removed
     }
 
     /**
@@ -1578,10 +1600,9 @@ internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
     val diagnostics = owner?.diagnostics
     val handedNodes = state?.handedNodes == true
     val unwinding = state?.standingInUnwindOrder().orEmpty()
-    if (reset) unwinding.fastForEach { it.node.reset() }
-    unwinding.fastForEach { it.runDetachLifecycle(diagnostics) }
-    unwinding.fastForEach { it.markDetached() }
     try {
+        if (reset) unwinding.fastForEach { it.node.reset() }
+        unwinding.detachAll(diagnostics)
         declaration.dropLayoutNodes(layOut = reset)
     } finally {
         state?.clear()

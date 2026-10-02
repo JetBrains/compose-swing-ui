@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.observeReads
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -195,15 +196,17 @@ class ModifierNodeUpdateFailureTest {
         val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         val element = LocalConsumerElement(events)
         val modifier = SwingModifier.then(element)
-        holder.applyDeclaredModifier(modifier)
-        element.fails = true
-        assertFailsWith<IllegalStateException> {
-            checkNotNull(holder.modifierState).refreshLocalConsumer(element.created.single())
+        SwingUtilities.invokeAndWait {
+            holder.applyDeclaredModifier(modifier)
+            element.fails = true
+            assertFailsWith<IllegalStateException> {
+                checkNotNull(holder.modifierState).refreshLocalConsumer(element.created.single())
+            }
+            element.fails = false
         }
-        element.fails = false
         events.clear()
 
-        holder.applyDeclaredModifier(modifier)
+        SwingUtilities.invokeAndWait { holder.applyDeclaredModifier(modifier) }
 
         assertEquals(listOf("update"), events, "the node whose refresh threw is updated again")
     }

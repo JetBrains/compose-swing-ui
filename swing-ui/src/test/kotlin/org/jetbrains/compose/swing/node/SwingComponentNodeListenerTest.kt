@@ -19,6 +19,8 @@ import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import javax.swing.JMenuBar
 import javax.swing.JPanel
@@ -27,6 +29,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /** When a [SwingComponentNodeListener] component is told the node holding it, and what that node observes. */
 class SwingComponentNodeListenerTest {
@@ -178,35 +181,58 @@ class SwingComponentNodeListenerTest {
     }
 
     @Test
-    fun aListenerThatThrowsWhenItsNodeIsReusedStillObservesChanges() = runComposeSwingTest {
+    fun aListenerThatThrowsWhenItsNodeIsReusedIsReportedAndLeftAttached() = runComposeSwingTest {
         var key by mutableIntStateOf(0)
+        var shown by mutableStateOf(true)
         val listener = FailingOnAttach().apply { failure = null }
         val component = FailingPanel(listener)
         setContent {
-            ReusableContent(key) {
-                ReusableComposeNode<SwingNodeHolder<FailingPanel>, SwingApplier>(
-                    factory = { CreatedNodeHolder(component) },
-                    update = {},
-                )
+            if (shown) {
+                ReusableContent(key) {
+                    ReusableComposeNode<SwingNodeHolder<FailingPanel>, SwingApplier>(
+                        factory = { CreatedNodeHolder(component) },
+                        update = {},
+                    )
+                }
             }
         }
         awaitIdle()
         val node = listener.events.single().node
-        listener.failure = object : IllegalStateException("The listener failed on reuse") {}
+        val failure = IllegalStateException("The listener failed on reuse")
+        listener.failure = failure
 
         key = 1
         val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
 
-        assertSame(listener.failure, thrown, "the listener's original failure reaches the caller")
+        assertSame(failure, thrown, "the listener's own failure is reported")
         assertEquals(
             listOf("attached", "detached", "attached"),
             listener.events.map { it.kind },
-            "the reused node stays attached",
+            "the reused node is attached all the same",
         )
-        awaitIdle()
+        assertTrue(node.isAttached, "the reused node stays attached to observe reads")
         listener.watched.intValue = 1
         awaitIdle()
         assertEquals(listOf(node), listener.changes, "the reused node still observes changes")
+
+        listener.failure = null
+        key = 2
+        awaitIdle()
+
+        assertEquals(
+            listOf("attached", "detached", "attached", "detached", "attached"),
+            listener.events.map { it.kind },
+            "the composition keeps updating",
+        )
+
+        shown = false
+        awaitIdle()
+
+        assertEquals(
+            listOf("attached", "detached", "attached", "detached", "attached", "detached"),
+            listener.events.map { it.kind },
+            "release pairs the reused node's last attach with one detach",
+        )
     }
 
     @Test
@@ -375,9 +401,8 @@ class SwingComponentNodeListenerTest {
         awaitIdle()
 
         shown = false
-        val thrown =
-            assertFailsWith<IllegalStateException>("the component's failure reaches the caller") { awaitIdle() }
-        assertEquals("The listener failed on detach", thrown.message, "the component's own failure reaches the caller")
+        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertSame(component.detachFailure, thrown, "the component's own failure is reported")
 
         assertEquals(
             listOf("attached", "detached", "modifier detached"),
@@ -526,120 +551,82 @@ class SwingComponentNodeListenerTest {
         awaitIdle()
         val node = host.events.single().node
 
+        handle.dispose()
         val thrown =
-            assertFailsWith<IllegalStateException>("the host's failure reaches the caller") {
-                handle.dispose()
-                awaitIdle()
-            }
-        assertEquals("The listener failed on detach", thrown.message, "the host's own failure reaches the caller")
+            assertFailsWith<IllegalStateException>("the host's failure is reported") { awaitIdle() }
+        assertSame(host.detachFailure, thrown, "the host's own failure is reported")
 
         assertFailsWith<IllegalStateException>("the root node is detached all the same") { node.observeReads({}) {} }
     }
 
-    @Test
-    fun aHostThatThrowsAsContentUnderANamedParentAttachesItsRootLeavesItsCompositionUsable() = runComposeSwingTest {
-        lateinit var context: CompositionContext
-        setContent { context = rememberCompositionContext() }
-        awaitIdle()
-        val listener = FailingOnAttach()
-        val host = FailingPanel(listener)
-
-        assertAReportedAttachLeavesTheNodeUsable(listener) { host.setContent(parent = context) {} }
-    }
-
-    @Test
-    fun aHostThatThrowsAsItsPlaceInTheTreeAttachesItsContentRootLeavesItsCompositionUsable() = runComposeSwingTest {
-        val listener = FailingOnAttach()
-        val host = FailingPanel(listener)
-        setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
-        awaitIdle()
-
-        assertAReportedAttachLeavesTheNodeUsable(listener) { host.setContent {} }
-    }
-
-    @Test
-    fun aMenuBarThatThrowsAsItsContentRootAttachesLeavesItsCompositionUsable() = runComposeSwingTest {
-        val listener = FailingOnAttach()
-        val bar = FailingMenuBar(listener)
-        setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(bar) } }) }
-        awaitIdle()
-
-        assertAReportedAttachLeavesTheNodeUsable(listener) { bar.setContent {} }
-    }
-
-    @Test
-    fun aDeclaredComponentThatThrowsAsItsNodeAttachesOnTheFirstPassLeavesItsCompositionUsable() = runComposeSwingTest {
-        lateinit var context: CompositionContext
-        setContent { context = rememberCompositionContext() }
-        awaitIdle()
-        val listener = FailingOnAttach()
-        val component = FailingPanel(listener)
-
-        assertAReportedAttachLeavesTheNodeUsable(listener) {
+    @TestFactory
+    fun aListenerThatThrowsOnAttachIsReportedAndLeftAttached(): List<DynamicTest> = listOf(
+        failingOnAttach("a host's content root under a named parent") { listener ->
+            val context = namedParent()
+            FailingPanel(listener).setContent(parent = context) {}
+        },
+        failingOnAttach("a host's content root once it is in the tree") { listener ->
+            val host = FailingPanel(listener)
+            setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
+            awaitIdle()
+            host.setContent {}
+        },
+        failingOnAttach("a menu bar's content root") { listener ->
+            val bar = FailingMenuBar(listener)
+            setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(bar) } }) }
+            awaitIdle()
+            bar.setContent {}
+        },
+        failingOnAttach("a declared component on the first pass") { listener ->
+            val context = namedParent()
+            val component = FailingPanel(listener)
             JPanel().setContent(parent = context) { SwingNode(factory = { component }) }
-        }
-    }
+        },
+    )
 
-    @Test
-    fun aListenerThatThrowsWhenItsNodeIsReusedIsDetachedOnceOnRelease() = runComposeSwingTest {
-        var key by mutableIntStateOf(0)
-        val listener = FailingOnAttach().apply { failure = null }
-        val component = FailingPanel(listener)
+    private suspend fun ComposeSwingTest.namedParent(): CompositionContext {
         lateinit var context: CompositionContext
         setContent { context = rememberCompositionContext() }
         awaitIdle()
-        val handle =
-            JPanel().setContent(parent = context) {
-                ReusableContent(key) {
-                    ReusableComposeNode<SwingNodeHolder<FailingPanel>, SwingApplier>(
-                        factory = { CreatedNodeHolder(component) },
-                        update = {},
-                    )
-                }
-            }
-        awaitIdle()
-        listener.failure = object : IllegalStateException("The listener failed on reuse") {}
-
-        key = 1
-        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
-        awaitIdle()
-        listener.watched.intValue = 1
-        awaitIdle()
-        assertEquals(listOf(listener.events.first().node), listener.changes, "the reused node still observes changes")
-        handle.dispose()
-
-        assertSame(listener.failure, thrown, "the listener's original failure reaches the caller")
-        assertEquals(
-            listOf("attached", "detached", "attached", "detached"),
-            listener.events.map { it.kind },
-            "release pairs the completed reuse attach with one detach",
-        )
+        return context
     }
 
-    private suspend fun ComposeSwingTest.assertAReportedAttachLeavesTheNodeUsable(
-        listener: FailingOnAttach,
-        mount: () -> DisposableHandle,
-    ) {
-        val failure = listener.failure
-        val handle = mount()
-        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertSame(failure, thrown, "the listener's original failure reaches the caller")
-        val node = listener.events.single().node
-        awaitIdle()
-        listener.watched.intValue = 1
-        awaitIdle()
-        assertEquals(listOf(node), listener.changes, "the attached node still observes changes")
-        assertEquals(listOf(Event("attached", node)), listener.events, "the node stays attached")
-        handle.dispose()
-        awaitIdle()
-        listener.watched.intValue = 2
-        awaitIdle()
-        assertEquals(listOf(node), listener.changes, "disposing drops the node's reads")
-        assertEquals(
-            listOf(Event("attached", node), Event("detached", node)),
-            listener.events,
-            "dispose pairs the reported attach with one detach",
-        )
+    /**
+     * A case named [name]: [mount] declares a component whose listener throws on attach and returns the handle that
+     * disposes it. The failure is the listener's own and reaches the thread's uncaught-exception handler, the node the
+     * listener observed under stays attached and its reads keep running, and disposing tells the node it detached
+     * once and stops its reads.
+     */
+    private fun failingOnAttach(
+        name: String,
+        mount: suspend ComposeSwingTest.(FailingOnAttach) -> DisposableHandle,
+    ): DynamicTest = DynamicTest.dynamicTest(name) {
+        runComposeSwingTest {
+            val listener = FailingOnAttach()
+            val failure = listener.failure
+            val handle = mount(listener)
+            val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+            assertSame(failure, thrown, "the listener's own failure is reported")
+            val node = listener.events.single().node
+
+            listener.failure = null
+            listener.watched.intValue = 1
+            awaitIdle()
+
+            assertEquals(listOf(node), listener.changes, "a read observed before the failure still runs its callback")
+
+            handle.dispose()
+            awaitIdle()
+            listener.watched.intValue = 2
+            awaitIdle()
+
+            assertEquals(
+                listOf(Event("attached", node), Event("detached", node)),
+                listener.events,
+                "the node is told it detached once",
+            )
+            assertEquals(listOf(node), listener.changes, "disposing drops the node's reads")
+        }
     }
 
     /** Observes [watched] under each node it is told attached, then throws [failure] while one is set. */
@@ -647,7 +634,7 @@ class SwingComponentNodeListenerTest {
         val watched = mutableIntStateOf(0)
         val events = ArrayList<Event>()
         val changes = ArrayList<SwingComponentNode<*>>()
-        var failure: IllegalStateException? = object : IllegalStateException("The listener failed on attach") {}
+        var failure: IllegalStateException? = IllegalStateException("The listener failed on attach")
 
         override fun onAttached(node: SwingComponentNode<*>) {
             events += Event("attached", node)

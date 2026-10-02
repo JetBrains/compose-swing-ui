@@ -50,7 +50,8 @@ public fun MyWidget(
   baseline component state: a matching inherited default can overwrite it, and the node's explicit modifier is
   applied last. For the component-default contract, see
   [`Component defaults`](ARCHITECTURE.md#component-defaults).
-- `onRelease` runs **once**, when the node leaves the composition for good.
+- `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to
+  the thread's uncaught-exception handler, and the node is released as if it had returned.
 
 `SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is
 available as the strongly-typed `this`.

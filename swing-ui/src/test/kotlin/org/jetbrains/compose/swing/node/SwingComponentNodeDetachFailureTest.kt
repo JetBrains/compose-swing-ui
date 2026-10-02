@@ -12,32 +12,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JPanel
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 /** What a [SwingComponentNodeListener] is told when it throws from `onDetached` as its node moves or is reused. */
 class SwingComponentNodeDetachFailureTest {
-    @Test
-    fun aListenerThatThrowsOnDetachAsItsNodeMovesToAnotherCompositionIsToldItAttachedThere() = runComposeSwingTest {
-        var inInner by mutableStateOf(true)
-        val failure = object : IllegalStateException("The listener failed on detach") {}
-        val events = ArrayList<Event>()
-        var failsOnDetach = false
-        val component =
-            object : JPanel(), SwingComponentNodeListener {
-                override fun onAttached(node: SwingComponentNode<*>) {
-                    events += Event("attached", node)
-                }
+    /** How a case moves the listener's node: [move] triggers it, and [end] then ends the composition the node is in. */
+    private class Scenario(
+        val move: () -> Unit,
+        val end: suspend () -> Unit,
+    )
 
-                override fun onDetached(node: SwingComponentNode<*>) {
-                    events += Event("detached", node)
-                    if (failsOnDetach) throw failure
-                }
-            }
+    @TestFactory
+    fun aListenerThatThrowsOnDetachIsReportedAndItsNodeIsToldItAttachedAgain(): List<DynamicTest> = listOf(
+        detachFails("moves to another composition") { movesToAnotherComposition(it) },
+        detachFails("moves into a new composition") { movesIntoANewComposition(it) },
+        detachFails("is reused") { isReused(it) },
+    )
+
+    private suspend fun ComposeSwingTest.movesToAnotherComposition(component: ListeningPanel): Scenario {
+        var inInner by mutableStateOf(true)
+        var shown by mutableStateOf(true)
         var text by mutableStateOf("before")
         val host = JPanel()
         val destination = JPanel()
@@ -48,64 +49,45 @@ class SwingComponentNodeDetachFailureTest {
             content =
                 remember {
                     movableContentOf {
-                        SwingNode(
-                            factory = { component },
-                            update = { set(text) { name = it } },
-                        )
+                        SwingNode(factory = { component }, update = { set(text) { name = it } })
                     }
                 }
             SwingNode(factory = { host })
-            SwingNode(factory = { destination }) { if (!inInner) content() }
+            SwingNode(factory = { destination }) { if (shown && !inInner) content() }
         }
         awaitIdle()
         val handle = host.setContent(parent = context) { if (inInner) content() }
         awaitIdle()
-        val node = events.single().node
-        val state = mutableIntStateOf(0)
-        val changes = ArrayList<SwingComponentNode<*>>()
-        node.observeReads({ changes += it }) { state.intValue }
-        failsOnDetach = true
-
-        inInner = false
-        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertSame(failure, thrown, "the listener's original failure reaches the caller")
-
-        awaitIdle()
-
-        assertEquals(
-            listOf(Event("attached", node), Event("detached", node), Event("attached", node)),
-            events,
-            "the move completes and attaches the node to its destination",
-        )
-        assertSame(destination, component.parent, "the destination contains the moved component")
-        handle.dispose()
-        text = "after"
-        awaitIdle()
-        assertEquals("after", component.name, "the moved content still recomposes")
-        node.observeReads({ changes += it }) { state.intValue }
-        state.intValue = 1
-        awaitIdle()
-        assertEquals(listOf(node), changes, "the moved node observes through its destination")
-        failsOnDetach = false
+        return Scenario(move = { inInner = false }) {
+            assertSame(destination, component.parent, "the destination contains the moved component")
+            handle.dispose()
+            text = "after"
+            awaitIdle()
+            assertEquals("after", component.name, "the moved content still recomposes")
+            shown = false
+            awaitIdle()
+        }
     }
 
-    @Test
-    fun aListenerThatThrowsOnDetachAsItsNodeIsReusedIsToldItAttachedAgain() = runComposeSwingTest {
-        var key by mutableIntStateOf(0)
-        val failure = object : IllegalStateException("The listener failed on detach") {}
-        var failsOnDetach = false
-        val events = ArrayList<Event>()
-        val component =
-            object : JPanel(), SwingComponentNodeListener {
-                override fun onAttached(node: SwingComponentNode<*>) {
-                    events += Event("attached", node)
-                }
+    private suspend fun ComposeSwingTest.movesIntoANewComposition(component: ListeningPanel): Scenario {
+        var inInner by mutableStateOf(false)
+        val host = JPanel()
+        lateinit var context: CompositionContext
+        lateinit var content: @Composable () -> Unit
+        setContent {
+            context = rememberCompositionContext()
+            content = remember { movableContentOf { SwingNode(factory = { component }) } }
+            SwingNode(factory = { host })
+            if (!inInner) content()
+        }
+        awaitIdle()
+        val handle = host.setContent(parent = context) { if (inInner) content() }
+        awaitIdle()
+        return Scenario(move = { inInner = true }, end = handle::dispose)
+    }
 
-                override fun onDetached(node: SwingComponentNode<*>) {
-                    events += Event("detached", node)
-                    if (failsOnDetach) throw failure
-                }
-            }
+    private suspend fun ComposeSwingTest.isReused(component: ListeningPanel): Scenario {
+        var key by mutableIntStateOf(0)
         lateinit var context: CompositionContext
         setContent { context = rememberCompositionContext() }
         awaitIdle()
@@ -119,38 +101,54 @@ class SwingComponentNodeDetachFailureTest {
                 }
             }
         awaitIdle()
-        val node = events.single().node
-        failsOnDetach = true
+        return Scenario(move = { key = 1 }, end = handle::dispose)
+    }
 
-        key = 1
-        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+    /**
+     * A case named [case]: [setUp] attaches a [ListeningPanel] and returns how its node moves. The listener throws from
+     * `onDetached` as it does, and the node must still attach where it went, observe reads there and detach with it.
+     */
+    private fun detachFails(
+        case: String,
+        setUp: suspend ComposeSwingTest.(ListeningPanel) -> Scenario,
+    ): DynamicTest = DynamicTest.dynamicTest(case) {
+        runComposeSwingTest {
+            val component = ListeningPanel()
+            val scenario = setUp(component)
+            val node = component.events.single().node
+            val watched = mutableIntStateOf(0)
+            val changes = ArrayList<SwingComponentNode<*>>()
+            node.observeReads({ changes += it }) { watched.intValue }
+            component.failsOnDetach = true
 
-        assertSame(failure, thrown, "the listener's original failure reaches the caller")
-        awaitIdle()
-        val watched = mutableIntStateOf(0)
-        val changes = ArrayList<SwingComponentNode<*>>()
-        node.observeReads({ changes += it }) { watched.intValue }
-        watched.intValue = 1
-        awaitIdle()
-        assertEquals(listOf(node), changes, "the reused node still observes changes")
-        assertEquals(
-            listOf(Event("attached", node), Event("detached", node), Event("attached", node)),
-            events,
-            "the reused node is attached all the same, and the listener is told so",
-        )
+            scenario.move()
+            val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
+            awaitIdle()
 
-        failsOnDetach = false
-        handle.dispose()
+            assertSame(component.detachFailure, thrown, "the listener's own failure is reported")
+            assertEquals(
+                listOf(Event("attached", node), Event("detached", node), Event("attached", node)),
+                component.events,
+                "the move completes and the listener is told the node attached again",
+            )
+            node.observeReads({ changes += it }) { watched.intValue }
+            watched.intValue = 1
+            awaitIdle()
+            assertEquals(listOf(node), changes, "the node observes in its new composition only")
 
-        assertEquals(
-            listOf(
-                Event("attached", node),
-                Event("detached", node),
-                Event("attached", node),
-                Event("detached", node),
-            ),
-            events,
-            "each attach pairs with one detach",
-        )
+            component.failsOnDetach = false
+            scenario.end()
+
+            assertEquals(
+                listOf(
+                    Event("attached", node),
+                    Event("detached", node),
+                    Event("attached", node),
+                    Event("detached", node),
+                ),
+                component.events,
+                "ending the composition the node is in detaches it, once",
+            )
+        }
     }
 }

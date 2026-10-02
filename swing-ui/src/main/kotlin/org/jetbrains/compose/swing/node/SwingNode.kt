@@ -42,7 +42,8 @@ import java.awt.Component
  *   defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
- * @param onRelease optional teardown run when the node leaves the composition for good.
+ * @param onRelease optional teardown run when the node leaves the composition for good. A throw from it is reported
+ *   to the thread's uncaught-exception handler and the node is released as if it had returned.
  * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
  *   to [ChildPlacement.Indexed].
  */
@@ -66,12 +67,7 @@ public inline fun <reified T : Component> SwingNode(
             updater.update()
             updater.applyModifier(localMap, materialized)
             set(onRelease) { release ->
-                releaseBlock =
-                    if (release != null) {
-                        { component.release() }
-                    } else {
-                        null
-                    }
+                callerRelease = if (release != null) ({ component.release() }) else null
             }
         },
     )
@@ -110,7 +106,8 @@ public inline fun <reified T : Component> SwingNode(
  *   defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
- * @param onRelease optional teardown run when the node leaves the composition for good.
+ * @param onRelease optional teardown run when the node leaves the composition for good. A throw from it is reported
+ *   to the thread's uncaught-exception handler and the node is released as if it had returned.
  * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
  *   to [ChildPlacement.Indexed].
  * @param content the composables this component holds as its children.
@@ -138,12 +135,7 @@ public inline fun <reified T : Component> SwingNode(
             updater.update()
             updater.applyModifier(localMap, materialized)
             set(onRelease) { release ->
-                releaseBlock =
-                    if (release != null) {
-                        { component.release() }
-                    } else {
-                        null
-                    }
+                callerRelease = if (release != null) ({ component.release() }) else null
             }
         },
         content = content,

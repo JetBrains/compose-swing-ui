@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -16,6 +17,8 @@ public interface DeclaredNodesListener {
      * written with a new element whose node [automatically invalidates][SwingModifier.Node.shouldAutoInvalidate],
      * or after a composition-local refresh that rewrote such a node; an empty list once none stands. Every node
      * handed over is attached.
+     *
+     * A throw is reported to the thread's uncaught-exception handler, as if this had returned.
      */
     public fun onDeclaredNodesChanged(
         componentNode: SwingComponentNode<*>,
@@ -57,5 +60,8 @@ internal fun SwingNodeHolder<*>.notifyDeclaredNodes(
 ) {
     val chain = modifierState?.chain ?: return
     if (!chainChanged || (chain.isEmpty() && !handedNodes)) return
-    (component as? DeclaredNodesListener)?.onDeclaredNodesChanged(this, chain.map { it.node })
+    (component as? DeclaredNodesListener)?.let { listener ->
+        val nodes = chain.map { it.node }
+        runReportingUncaught { listener.onDeclaredNodesChanged(this, nodes) }
+    }
 }

@@ -200,17 +200,18 @@ it is told with `node.asNodeOf(this)`. On an attached node, the extensions `obse
 modifier node; both throw on a node that is not attached. The extension `invalidateLayout()` does nothing on such a
 node.
 
-A listener that throws from `onAttached` is told the node detached, and the node is left attached nowhere. What the
-listener observed under the node is dropped, and the failure reaches the caller. A `setContent` call that fails this
-way leaves the component free for another `setContent`. A listener that throws from `onDetached` has what it observed
-and requested under the node dropped all the same, and the failure reaches the caller. A listener that throws from
-`onDetached` as its node moves to another composition or is reused is still told the node attached again.
+A listener that throws from `onAttached` has the throw reported to the thread's uncaught-exception handler, and the
+node stays attached, as if the call had returned. A listener that throws from `onDetached` has the throw reported the
+same way, and the node detaches as if the call had returned: the reads and pending requests recorded under the node
+are dropped. A node that moves to another composition, or is reused, after such a throw is still told it attached
+again.
 
 ## Failure
 
 A throw out of an element's `create()` or `update(node)`, or a node's `onAttach()`, ends the recomposer
-that drives the content, as any throw while changes are applied does. What it leaves the modifier's
-nodes in is fixed:
+that drives the content, as any throw while changes are applied does. A throw out of a node's `onReset()` or
+`onDetach()` does not: it is reported to the thread's uncaught-exception handler, and the node resets or
+detaches as if the callback had returned. What it leaves the modifier's nodes in is fixed:
 
 - A node whose `onAttach()` threw is detached at once: its `onDetach()` runs, its `coroutineScope` is
   cancelled and its observed reads are cleared. `onDetach()` must therefore tolerate an `onAttach()` that

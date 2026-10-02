@@ -9,12 +9,13 @@ internal data class Event(
     val node: SwingComponentNode<*>,
 )
 
-/** Records each node it is told attached or detached, throwing on detach where [failsOnDetach] holds. */
+/** Records the nodes it is told attached or detached, and throws [detachFailure] on detach while [failsOnDetach]. */
 internal class ListeningPanel(
     var failsOnDetach: Boolean = false,
 ) : JPanel(),
     SwingComponentNodeListener {
     val events = ArrayList<Event>()
+    val detachFailure = IllegalStateException("The listener failed on detach")
 
     override fun onAttached(node: SwingComponentNode<*>) {
         events += Event("attached", node)
@@ -22,7 +23,7 @@ internal class ListeningPanel(
 
     override fun onDetached(node: SwingComponentNode<*>) {
         events += Event("detached", node)
-        check(!failsOnDetach) { "The listener failed on detach" }
+        if (failsOnDetach) throw detachFailure
     }
 }
 

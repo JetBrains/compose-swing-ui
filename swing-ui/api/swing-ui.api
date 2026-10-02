@@ -1220,15 +1220,15 @@ public abstract interface class org/jetbrains/compose/swing/node/SwingComponentN
 
 public abstract class org/jetbrains/compose/swing/node/SwingNodeHolder : org/jetbrains/compose/swing/node/SwingComponentNode, androidx/compose/runtime/ComposeNodeLifecycleCallback {
 	public static final field $stable I
+	public final fun getCallerRelease ()Lkotlin/jvm/functions/Function0;
 	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/layout/ChildPlacement;
 	public abstract fun getComponent ()Ljava/awt/Component;
 	public fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
 	public fun onDeactivate ()V
 	public fun onRelease ()V
 	public fun onReuse ()V
+	public final fun setCallerRelease (Lkotlin/jvm/functions/Function0;)V
 	public final fun setChildPlacement (Lorg/jetbrains/compose/swing/layout/ChildPlacement;)V
-	public final fun setReleaseBlock (Lkotlin/jvm/functions/Function0;)V
 }
 
 public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {

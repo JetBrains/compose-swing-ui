@@ -196,11 +196,17 @@ internal sealed class SwingNodeHolder<out T : Component> :
     internal val declaration: ParentDeclaration = ParentDeclaration(this)
 
     /**
-     * Set by [SwingNode] from the user's `onRelease`, and by the applier on a node [ExistingSwingNode]
-     * claims, to end its claim. Called once, when the node is released or parked.
+     * Set by the applier on a node [ExistingSwingNode] claims, to end its claim. Called once, when the node is
+     * released or parked, after [callerRelease]. A throw from it is not reported.
+     */
+    internal var releaseBlock: (() -> Unit)? = null
+
+    /**
+     * Set by [SwingNode] from the caller's `onRelease`. Called once, when the node is released or parked, before
+     * [releaseBlock]; a throw from it is reported to the thread's uncaught-exception handler.
      */
     @PublishedApi
-    internal var releaseBlock: (() -> Unit)? = null
+    internal var callerRelease: (() -> Unit)? = null
 
     /**
      * Diff state for this node's modifier chain, written by
@@ -475,10 +481,12 @@ internal sealed class SwingNodeHolder<out T : Component> :
      */
     private fun release(clearOwner: Boolean) {
         try {
+            runReportingUncaught { callerRelease?.invoke() }
             releaseBlock?.invoke()
         } finally {
             owner?.snapshotObserver?.clear(this)
             owner?.cancelAfterValidation(this)
+            callerRelease = null
             releaseBlock = null
             if (clearOwner) owner = null
         }
