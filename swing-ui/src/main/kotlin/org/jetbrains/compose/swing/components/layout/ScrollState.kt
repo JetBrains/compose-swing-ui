@@ -229,25 +229,25 @@ public class ScrollState internal constructor(
      * Whether any content is left beyond the visible part across the pane: `false` once [x] stands at
      * [maxX], and while the content is no wider than the viewport or no pane renders this state.
      */
-    public val canScrollForwardX: Boolean by derivedStateOf(structuralEqualityPolicy()) { xState < maxX }
+    public val canScrollForwardX: Boolean by derivedStateOf(structuralEqualityPolicy()) { maxX > 0 && xState < maxX }
 
     /**
      * Whether any content is left before the visible part across the pane: `false` while [x] stands at
-     * `0`.
+     * `0`, while the content fits, or while no pane renders this state.
      */
-    public val canScrollBackwardX: Boolean by derivedStateOf(structuralEqualityPolicy()) { xState > 0 }
+    public val canScrollBackwardX: Boolean by derivedStateOf(structuralEqualityPolicy()) { maxX > 0 && xState > 0 }
 
     /**
      * Whether any content is left beyond the visible part down the pane: `false` once [y] stands at
      * [maxY], and while the content is no taller than the viewport or no pane renders this state.
      */
-    public val canScrollForwardY: Boolean by derivedStateOf(structuralEqualityPolicy()) { yState < maxY }
+    public val canScrollForwardY: Boolean by derivedStateOf(structuralEqualityPolicy()) { maxY > 0 && yState < maxY }
 
     /**
      * Whether any content is left before the visible part down the pane: `false` while [y] stands at
-     * `0`.
+     * `0`, while the content fits, or while no pane renders this state.
      */
-    public val canScrollBackwardY: Boolean by derivedStateOf(structuralEqualityPolicy()) { yState > 0 }
+    public val canScrollBackwardY: Boolean by derivedStateOf(structuralEqualityPolicy()) { maxY > 0 && yState > 0 }
 
     /**
      * Whether a [scroll] block currently holds the position, for a caller that shows or disables
