@@ -40,38 +40,43 @@ internal fun IntArray.holdsSelection(selection: SortedSet<Int>): Boolean {
  * join.
  *
  * The whole update is one adjusting run, so the model publishes a single settled selection however many
- * intervals it took.
+ * intervals it took. The notification policy restoration and end of the adjusting run are attempted even if
+ * the mutation fails.
  */
 internal fun ListSelectionModel.selectExactly(
     standing: IntArray,
     selection: SortedSet<Int>,
 ) {
+    val standard = this as? DefaultListSelectionModel
+    val announced = standard?.isLeadAnchorNotificationEnabled ?: false
+    var lastIntervalEnd: Int? = null
     valueIsAdjusting = true
     try {
-        if (selection.isEmpty()) {
-            // Clearing the whole selection in one step leaves the lead and the anchor where they are, which is
-            // what a user is left with when their own selection is emptied.
-            clearSelection()
-        } else {
-            val leadBefore = leadSelectionIndex
-            val standard = this as? DefaultListSelectionModel
-            val announced = standard?.isLeadAnchorNotificationEnabled ?: false
-            // Every interval written moves the anchor and the lead onto itself and says so, and a model
-            // reports the rows it marked as the one range that spans them - so a single row joining a
-            // selection at the far end of it announces every row between the two. The anchor is silenced for
-            // the whole update and the lead put back where it was, leaving the move it really makes to be
-            // announced once, below.
-            standard?.isLeadAnchorNotificationEnabled = false
-            standing.forEachInterval({ it !in selection }) { start, end ->
-                removeSelectionInterval(start, end)
+        try {
+            if (selection.isEmpty()) {
+                // Clearing the whole selection in one step leaves the lead and the anchor where they are, which is
+                // what a user is left with when their own selection is emptied.
+                clearSelection()
+            } else {
+                val leadBefore = leadSelectionIndex
+                // Every interval written moves the anchor and the lead onto itself and says so, and a model
+                // reports the rows it marked as the one range that spans them - so a single row joining a
+                // selection at the far end of it announces every row between the two. The anchor is silenced for
+                // the whole update and the lead put back where it was, leaving the move it really makes to be
+                // announced once, below.
+                standard?.isLeadAnchorNotificationEnabled = false
+                standing.forEachInterval({ it !in selection }) { start, end ->
+                    removeSelectionInterval(start, end)
+                }
+                selection.forEachInterval({ standing.binarySearch(it) < 0 }) { start, end ->
+                    addSelectionInterval(start, end)
+                }
+                lastIntervalEnd = anchorLastInterval(selection, standard, leadBefore)
             }
-            selection.forEachInterval({ standing.binarySearch(it) < 0 }) { start, end ->
-                addSelectionInterval(start, end)
-            }
-            val lastIntervalEnd = anchorLastInterval(selection, standard, leadBefore)
+        } finally {
             standard?.isLeadAnchorNotificationEnabled = announced
-            standard?.moveLeadSelectionIndex(lastIntervalEnd)
         }
+        lastIntervalEnd?.let { standard?.moveLeadSelectionIndex(it) }
     } finally {
         valueIsAdjusting = false
     }
