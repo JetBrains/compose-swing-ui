@@ -148,12 +148,16 @@ internal class SwingFrameClock(
 
     /**
      * Retimes the clock to a new nominal frame rate, recomputing the timer delay. Takes effect on the
-     * next timer cycle. Must be called on the EDT. A no-op when the resulting delay is unchanged.
+     * next timer cycle, and the first tick of every run the timer starts afterwards waits the new delay
+     * too. Must be called on the EDT. A no-op when the resulting delay is unchanged.
      */
     fun setFramesPerSecond(framesPerSecond: Int) {
         val newDelay = delayMillisFor(framesPerSecond)
         if (newDelay == timer.delay) return
         timer.delay = newDelay
+        // A started timer waits its initial delay before the first tick, which the constructor set once
+        // and the delay does not carry along.
+        timer.initialDelay = newDelay
     }
 
     /**
@@ -280,7 +284,7 @@ internal class SwingFrameClock(
         // dispatch cycle - after which the pause below is already in force.
         val carriesFrameDrivenWork = compositionClock.hasAwaiters
         runFrame()
-        if (carriesFrameDrivenWork) {
+        if (carriesFrameDrivenWork && !disposed) {
             pauseCompositionFrames()
             if (!timer.isRunning) timer.start()
         }

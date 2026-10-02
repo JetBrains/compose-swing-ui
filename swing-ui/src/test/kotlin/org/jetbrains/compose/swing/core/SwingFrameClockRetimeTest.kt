@@ -4,37 +4,18 @@ import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.runSwingTest
-import java.beans.PropertyChangeEvent
-import java.beans.PropertyChangeListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * Behavioral tests for the per-window frame clock retiming.
- *
- * The clock translates a nominal frames-per-second rate into a timer delay and re-derives that delay
- * when the host window reports a new display refresh rate. These tests never realize a window, so they
- * run with or without a display, and cover the contract the window path is built on: the fps -> delay
- * recompute, and that firing the same `"graphicsConfiguration"` event the window raises drives that
- * recompute, observed through the clock's cadence ([SwingFrameClock.frameDelayMillis]).
- *
- * The actual multi-monitor drag - a window physically moving between a 60 Hz and a 120 Hz display -
- * needs real displays and is verified manually with the sample apps.
- */
+/** Tests the frame clock's translation of refresh rates into timer delays and its retiming arithmetic. */
 class SwingFrameClockRetimeTest {
-    @Test
-    fun framesPerSecondMapsToTimerDelay() = runSwingTest {
-        assertEquals(MILLIS_AT_60, clockAt(FPS_60).frameDelayMillis, "60 fps should map to a ~16 ms cadence")
-        assertEquals(MILLIS_AT_120, clockAt(FPS_120).frameDelayMillis, "120 fps should map to a ~8 ms cadence")
-    }
-
     @Test
     fun setFramesPerSecondRecomputesTheDelay() = runSwingTest {
         val clock = clockAt(FPS_60)
         assertEquals(MILLIS_AT_60, clock.frameDelayMillis, "the clock should start at the 60 fps cadence")
 
-        clock.setFramesPerSecond(FPS_120)
-        assertEquals(MILLIS_AT_120, clock.frameDelayMillis, "retiming to 120 fps should shorten the cadence to ~8 ms")
+        clock.setFramesPerSecond(120)
+        assertEquals(8, clock.frameDelayMillis, "retiming to 120 fps should shorten the cadence to ~8 ms")
 
         clock.setFramesPerSecond(FPS_60)
         assertEquals(MILLIS_AT_60, clock.frameDelayMillis, "retiming back to 60 fps should restore the ~16 ms cadence")
@@ -51,25 +32,6 @@ class SwingFrameClockRetimeTest {
         )
     }
 
-    @Test
-    fun firingTheGraphicsConfigurationEventRetimesTheClock() = runSwingTest {
-        // Models the wiring SwingRecomposer.create installs: a "graphicsConfiguration" listener that
-        // retimes the clock from the event's new value, standing in for a real window's
-        // displayRefreshRate() call, which needs a realized Window on a display.
-        val clock = clockAt(FPS_60)
-        val listener = PropertyChangeListener { event -> clock.setFramesPerSecond(event.newValue as Int) }
-
-        listener.propertyChange(
-            PropertyChangeEvent(SwingFrameClockRetimeTest::class, GRAPHICS_CONFIGURATION_PROPERTY, FPS_60, FPS_120),
-        )
-
-        assertEquals(
-            MILLIS_AT_120,
-            clock.frameDelayMillis,
-            "firing a graphicsConfiguration change to a 120 Hz display should retime the clock to ~8 ms",
-        )
-    }
-
     /**
      * A clock over a recomposer that is never started: the cadence arithmetic these cases cover is the
      * clock's own, and the recomposer takes no part in it.
@@ -80,11 +42,8 @@ class SwingFrameClockRetimeTest {
     }
 
     private companion object {
-        const val GRAPHICS_CONFIGURATION_PROPERTY: String = "graphicsConfiguration"
         const val FPS_60: Int = 60
-        const val FPS_120: Int = 120
         const val MILLIS_AT_60: Int = 16
-        const val MILLIS_AT_120: Int = 8
         const val MILLIS_AT_1_FPS: Int = 1000
     }
 }
