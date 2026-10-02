@@ -9,6 +9,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -45,7 +46,9 @@ import javax.swing.JPopupMenu
  *   component must be a [JComponent]; a bare [Component] carries no popup menu, and binding one throws
  *   `IllegalStateException`.
  * @param onOpen invoked when the menu has been put on screen.
- * @param onClose invoked when the user closes the menu.
+ * @param onClose invoked when the menu closes other than through a new trigger or leaving the
+ *   composition - the user picks an item, presses Escape or clicks away, or another popup menu opens. A
+ *   throw is reported to the thread's uncaught-exception handler.
  * @param content the composable menu tree shown in the popup.
  * @see javax.swing.JComponent.setComponentPopupMenu
  */
@@ -69,7 +72,9 @@ public fun ContextMenu(
  * @param display invoked with the populated popup, the anchored component, and the trigger point
  *   (x, y in that component's coordinates) to present the popup.
  * @param onOpen invoked when the menu has been put on screen.
- * @param onClose invoked when the user closes the menu.
+ * @param onClose invoked when the menu closes other than through a new trigger or leaving the
+ *   composition - the user picks an item, presses Escape or clicks away, or another popup menu opens. A
+ *   throw is reported to the thread's uncaught-exception handler.
  * @param content the composable menu tree shown in the popup.
  */
 @Composable
@@ -154,7 +159,7 @@ private class ContextMenuHost(
         // close landing here can be one for a menu already replaced. Clearing the field then would leave
         // the replacement running when the declaration withdraws.
         if (open === menu) open = null
-        onClose()
+        runReportingUncaught { onClose() }
     }
 
     private val listener =

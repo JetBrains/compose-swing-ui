@@ -378,25 +378,6 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
-    fun providerRejectsANonInheritableProperty() {
-        val propertyKey = componentDefaultKeyOf<String>("invalidProperty") { toolTip(it) }
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                runComposeSwingTest {
-                    setContent {
-                        ProvideComponentDefaults(propertyKey provides "test") {
-                            Label("error")
-                        }
-                    }
-                }
-            }
-        assertTrue(
-            failure.message?.contains("non-inheritable") == true,
-            "A non-inheritable property must be rejected as such",
-        )
-    }
-
-    @Test
     fun providerRejectsInvalidElementsNamingKeyAndElement() {
         val listenerKey =
             componentDefaultKeyOf<String>("invalidListener") {

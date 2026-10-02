@@ -36,11 +36,11 @@ class ListBoxNodeReuseTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                ListBox(items = colors) { item -> Label(item) }
+                ListBox(items = colors) { item -> Label("<$item>") }
             }
         }
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        assertEquals("red", list.renderCell(index = 0).firstLabelText(), "the composable cell should render row 0")
+        assertEquals("<red>", list.renderCell(index = 0).firstLabelText(), "the composable cell should render row 0")
 
         active = false
         awaitIdle()
@@ -56,7 +56,7 @@ class ListBoxNodeReuseTest {
         awaitIdle()
 
         assertEquals(
-            "green",
+            "<green>",
             onNodeOfType<JList<*>>().fetch<JList<String>>().renderCell(index = 1).firstLabelText(),
             "the fresh list should render the composable cell",
         )

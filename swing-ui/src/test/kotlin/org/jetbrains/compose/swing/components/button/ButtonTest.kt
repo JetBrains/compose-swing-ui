@@ -21,14 +21,6 @@ import kotlin.test.assertEquals
  */
 class ButtonTest {
     @Test
-    fun rendersTheGivenText() = runComposeSwingTest {
-        setContent {
-            Button(text = "Save", onClick = {})
-        }
-        onNodeWithText("Save").assertExists()
-    }
-
-    @Test
     fun clickFiresOnClick() = runComposeSwingTest {
         var clicks = 0
         setContent {

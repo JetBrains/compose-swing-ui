@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.interaction.FirstShowing
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
 import javax.swing.JPopupMenu
 
@@ -43,7 +44,9 @@ import javax.swing.JPopupMenu
  * @param anchor the handle naming the component the menu opens over, bound with
  *   [popupAnchor].
  * @param expanded whether the menu is open.
- * @param onDismiss invoked when the user closes the menu.
+ * @param onDismiss invoked when the menu closes other than through [expanded] - the user picks an item,
+ *   presses Escape or clicks away, or another popup menu opens. A throw is reported to the thread's
+ *   uncaught-exception handler.
  * @param content the composable menu tree shown in the menu.
  * @see javax.swing.JPopupMenu.show
  */
@@ -67,7 +70,9 @@ public fun PopupMenu(
  * @param expanded whether the menu is open.
  * @param display invoked with the populated popup, the anchored component, and the anchor point
  *   (x, y in that component's coordinates) to present the popup.
- * @param onDismiss invoked when the user closes the menu.
+ * @param onDismiss invoked when the menu closes other than through [expanded] - the user picks an item,
+ *   presses Escape or clicks away, or another popup menu opens. A throw is reported to the thread's
+ *   uncaught-exception handler.
  * @param content the composable menu tree shown in the menu.
  */
 @Composable
@@ -154,7 +159,7 @@ private class PopupMenuHost(
         // Only the menu this host still tracks clears the field - see ContextMenuHost.onMenuClosed for
         // the close that lands here for a menu already gone.
         if (open === menu) open = null
-        onDismiss()
+        runReportingUncaught { onDismiss() }
     }
 
     private fun close() {

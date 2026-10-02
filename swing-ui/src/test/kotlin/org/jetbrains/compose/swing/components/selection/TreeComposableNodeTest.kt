@@ -299,7 +299,7 @@ class TreeComposableNodeTest {
                 label = { it.name },
                 nodeContent =
                     if (composableNodes) {
-                        { value -> Panel { Label(value.name) } }
+                        { value -> Panel { Label("<${value.name}>") } }
                     } else {
                         null
                     },
@@ -309,7 +309,7 @@ class TreeComposableNodeTest {
         val tree = onNodeOfType<JTree>().fetch()
         val composedNode = tree.renderRow(0)
         assertFalse(composedNode is JLabel, "a composable node renders what it composed, not the default JLabel")
-        assertEquals("root", composedNode.firstLabelText(), "the composable node should render row 0")
+        assertEquals("<root>", composedNode.firstLabelText(), "the composable node should render row 0")
 
         composableNodes = false
         awaitIdle()
@@ -324,7 +324,7 @@ class TreeComposableNodeTest {
         composableNodes = true
         awaitIdle()
         assertEquals(
-            "root",
+            "<root>",
             tree.renderRow(0).firstLabelText(),
             "declaring nodeContent again should render the composable node",
         )

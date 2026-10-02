@@ -36,7 +36,8 @@ import java.awt.event.ComponentEvent
  * [onSizeChanged] is read when the report fires, so writing a fresh lambda on every recomposition
  * registers nothing again. Declaring this twice reports twice: each declaration is its own slot.
  *
- * @param onSizeChanged receives the extent as its own value, safe to keep.
+ * @param onSizeChanged receives the extent as its own value, safe to keep. A throw is reported to the
+ *   thread's uncaught-exception handler.
  * @return this chain with the extent report declared on it.
  * @see onPlaced
  */
@@ -60,7 +61,8 @@ public fun SwingModifier.onSizeChanged(onSizeChanged: (Dimension) -> Unit): Swin
  * Swing's move, resize and show events drive the report, as they drive [onSizeChanged]. Shown again, the component
  * reports its bounds again.
  *
- * @param onPlaced receives the bounds as their own value, safe to keep.
+ * @param onPlaced receives the bounds as their own value, safe to keep. A throw is reported to the
+ *   thread's uncaught-exception handler.
  * @return this chain with the placement report declared on it.
  * @see onSizeChanged
  */
@@ -119,7 +121,7 @@ private abstract class BoundsReport<V : Any>(
         if (!initialZeroPending && reading == reported) return
         reported = reading
         initialZeroPending = false
-        declared.current(reading)
+        declared.report { it(reading) }
     }
 }
 

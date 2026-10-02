@@ -161,23 +161,23 @@ class SplitPaneBehaviorTest {
         var onFirstSide by mutableStateOf(true)
         setContent {
             SplitPane {
-                if (onFirstSide) {
-                    Label(text = "Movable", modifier = SwingModifier.first())
-                } else {
-                    Label(text = "Movable", modifier = SwingModifier.second())
-                }
+                Label(
+                    text = "Movable",
+                    modifier = if (onFirstSide) SwingModifier.first() else SwingModifier.second(),
+                )
             }
         }
 
         val pane = onNodeOfType<JSplitPane>().fetch()
-        assertSame(onNodeWithText("Movable").fetch(), pane.leftComponent, "the child should start on the first side")
+        val movable = onNodeWithText("Movable").fetch()
+        assertSame(movable, pane.leftComponent, "the child should start on the first side")
         assertNull(pane.rightComponent, "the side no child named should be empty")
 
         onFirstSide = false
         awaitIdle()
 
         // The side a child occupies is the one its own modifier names, so naming the other one moves it.
-        assertSame(onNodeWithText("Movable").fetch(), pane.rightComponent, "the child should move to the second side")
+        assertSame(movable, pane.rightComponent, "the same child should move to the second side")
         assertNull(pane.leftComponent, "the first side still holds a child that has moved to the second")
     }
 

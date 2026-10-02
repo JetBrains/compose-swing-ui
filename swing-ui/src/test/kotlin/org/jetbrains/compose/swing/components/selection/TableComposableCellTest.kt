@@ -238,7 +238,7 @@ class TableComposableCellTest {
                         header = "Name",
                         cellContent =
                             if (composableCells) {
-                                { row -> Panel { Label(row.name) } }
+                                { row -> Panel { Label("<${row.name}>") } }
                             } else {
                                 null
                             },
@@ -248,7 +248,7 @@ class TableComposableCellTest {
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals("Ada", table.renderCell(row = 0, column = 0).firstLabelText(), "the composable cell renders")
+        assertEquals("<Ada>", table.renderCell(row = 0, column = 0).firstLabelText(), "the composable cell renders")
 
         composableCells = false
         awaitIdle()
@@ -259,7 +259,7 @@ class TableComposableCellTest {
         composableCells = true
         awaitIdle()
         assertEquals(
-            "Alan",
+            "<Alan>",
             table.renderCell(row = 1, column = 0).firstLabelText(),
             "declaring a cell body again should render the composable cell",
         )

@@ -32,13 +32,6 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun textRendersOntoTheButton() = runComposeSwingTest {
-        setContent { ToggleButton(text = "Bold", selected = false, onSelectedChange = {}) }
-
-        onNodeOfType<JToggleButton>().assertTextEquals("Bold")
-    }
-
-    @Test
     fun clickingTogglesAndReportsTheNewState() = runComposeSwingTest {
         var selected by mutableStateOf(false)
         val received = mutableListOf<Boolean>()

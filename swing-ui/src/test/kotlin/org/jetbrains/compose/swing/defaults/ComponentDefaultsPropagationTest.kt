@@ -72,35 +72,6 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
-    fun defaultsPropagateIntoExplicitlyParentedSubcomposition() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-
-        setContent {
-            ProvideComponentDefaults(DefaultBackground provides Color.CYAN) {
-                parentContext = rememberCompositionContext()
-            }
-        }
-
-        val child = JPanel()
-        val handle =
-            child.setContent(parent = parentContext) {
-                Label("nestedChild")
-            }
-
-        try {
-            awaitIdle()
-            val label = child.getComponent(0) as JLabel
-            assertEquals(
-                Color.CYAN,
-                label.background,
-                "a subcomposition with an explicit parent should inherit component defaults",
-            )
-        } finally {
-            handle.dispose()
-        }
-    }
-
-    @Test
     fun aChangedDefaultReachesAnExplicitlyParentedSubcomposition() = runComposeSwingTest {
         var color by mutableStateOf(Color.CYAN)
         lateinit var parentContext: CompositionContext

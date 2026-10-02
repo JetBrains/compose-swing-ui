@@ -26,8 +26,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.location
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -35,9 +38,11 @@ import java.awt.EventQueue
 import java.awt.Rectangle
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -65,6 +70,9 @@ import kotlin.test.assertTrue
  *
  * [layoutButNoSizeChange] keeps its name over a pass this library can drive: a container realigning its
  * child moves that child without resizing it, which is the same silence androidx's case asks for.
+ *
+ * [throwingCallbacksAreReportedAndNeitherKeepsTheOtherFromReporting] has no counterpart in that test. It
+ * covers `onPlaced` as well, since both reports deliver through the same listener.
  */
 class OnSizeChangedTest {
     @Test
@@ -497,6 +505,43 @@ class OnSizeChangedTest {
             awaitIdle()
 
             assertEquals(0, placements, "a state read only inside onSizeChanged must not rerun the placement block")
+        }
+
+    @Test
+    fun throwingCallbacksAreReportedAndNeitherKeepsTheOtherFromReporting() =
+        runComposeSwingTest {
+            val sizes = mutableListOf<Dimension>()
+            val placements = mutableListOf<Rectangle>()
+            var extent by mutableStateOf(10)
+            setContent {
+                // Resized in place: a move would give the report after the throwing one a second event to
+                // catch up on.
+                LayeredPane {
+                    Label(
+                        text = "child",
+                        modifier =
+                            SwingModifier
+                                .layer(JLayeredPane.DEFAULT_LAYER)
+                                .location(0, 0)
+                                .size(extent, extent)
+                                .onSizeChanged {
+                                    sizes += it
+                                    error("sized")
+                                }.onPlaced {
+                                    placements += it
+                                    error("placed")
+                                },
+                    )
+                }
+            }
+            awaitIdle()
+            extent = 20
+            val atResize = assertFailsWith<IllegalStateException> { awaitIdle() }
+            val reported = listOf(atResize) + atResize.suppressed
+
+            assertEquals(sizes.size + placements.size, reported.size, "each throw is reported and none escapes")
+            assertEquals(Dimension(20, 20), sizes.last(), "onSizeChanged reports after onPlaced threw")
+            assertEquals(Dimension(20, 20), placements.last().size, "onPlaced reports after onSizeChanged threw")
         }
 }
 

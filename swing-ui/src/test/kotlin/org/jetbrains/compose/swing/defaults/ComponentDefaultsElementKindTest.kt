@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
@@ -25,6 +26,7 @@ import java.awt.event.KeyEvent
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JTextField
 import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -114,26 +116,32 @@ class ComponentDefaultsElementKindTest {
             ProvideComponentDefaults(alignment provides provided) {
                 Label("inheriting")
                 Button("inheriting", onClick = {})
+                TextField("field", onValueChange = {})
                 Label("declaring", modifier = SwingModifier.horizontalAlignment(SwingConstants.LEFT))
             }
         }
         val (label, declaring) = onAllNodesOfType<JLabel>().fetchAll()
         val button = onNodeOfType<JButton>().fetch()
-        // Each holds an alignment of its own that neither constructor gives.
+        val field = onNodeOfType<JTextField>().fetch()
+        // Each component holds an alignment of its own before the default arrives.
         val labelOwn = SwingConstants.LEFT
         val buttonOwn = SwingConstants.RIGHT
+        val fieldOwn = SwingConstants.RIGHT
         label.horizontalAlignment = labelOwn
         button.horizontalAlignment = buttonOwn
+        field.horizontalAlignment = fieldOwn
 
         provided = SwingConstants.CENTER
         awaitIdle()
         assertEquals(SwingConstants.CENTER, label.horizontalAlignment)
         assertEquals(SwingConstants.CENTER, button.horizontalAlignment)
+        assertEquals(SwingConstants.CENTER, field.horizontalAlignment, "the default reaches a text field")
 
         provided = SwingConstants.TRAILING
         awaitIdle()
         assertEquals(SwingConstants.TRAILING, label.horizontalAlignment, "a changed default reaches a label")
         assertEquals(SwingConstants.TRAILING, button.horizontalAlignment, "a changed default reaches a button")
+        assertEquals(SwingConstants.TRAILING, field.horizontalAlignment, "a changed default reaches a text field")
         assertEquals(
             SwingConstants.LEFT,
             declaring.horizontalAlignment,
@@ -144,6 +152,7 @@ class ComponentDefaultsElementKindTest {
         awaitIdle()
         assertEquals(labelOwn, label.horizontalAlignment, "a removed default gives back the label's own alignment")
         assertEquals(buttonOwn, button.horizontalAlignment, "a removed default gives back the button's own alignment")
+        assertEquals(fieldOwn, field.horizontalAlignment, "a removed default gives back the text field's own alignment")
         assertEquals(
             SwingConstants.LEFT,
             declaring.horizontalAlignment,

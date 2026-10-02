@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,6 +10,9 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.DefaultListModel
 import javax.swing.JLabel
 import javax.swing.JList
@@ -195,77 +199,50 @@ class ListBoxComposableCellTest {
         )
     }
 
-    @Test
-    fun itemContentTakenAwayRestoresTheListsOwnRenderer() = runComposeSwingTest {
-        var composableCells by mutableStateOf(true)
-        setContent {
-            ListBox(
-                items = listOf("alpha", "beta"),
-                itemContent =
-                    if (composableCells) {
-                        { item -> Panel { Label(item) } }
+    @TestFactory
+    fun itemContentTakenAwayRestoresTheListsOwnRenderer(): List<DynamicTest> = listOf(false, true).map { underModel ->
+        dynamicTest(if (underModel) "under a model" else "under items") {
+            runComposeSwingTest {
+                val model = DefaultListModel<String>().apply { addAll(listOf("alpha", "beta")) }
+                var composableCells by mutableStateOf(true)
+                setContent {
+                    val itemContent: (@Composable ListItemScope.(String) -> Unit)? =
+                        if (composableCells) {
+                            { item -> Panel { Label("<$item>") } }
+                        } else {
+                            null
+                        }
+                    if (underModel) {
+                        ListBox(model = model, itemContent = itemContent)
                     } else {
-                        null
-                    },
-            )
+                        ListBox(items = listOf("alpha", "beta"), itemContent = itemContent)
+                    }
+                }
+
+                val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
+                val composedCell = list.renderCell(index = 0)
+                assertFalse(composedCell is JLabel, "a composable cell renders what it composed, not a JLabel")
+                assertEquals("<alpha>", composedCell.firstLabelText(), "the composable cell should render row 0")
+
+                composableCells = false
+                awaitIdle()
+                assertNull(
+                    list.cellRenderer as? ComposingListCellRenderer<*>,
+                    "taking itemContent away must leave the list's own renderer, not a composing one",
+                )
+                val defaultCell = list.renderCell(index = 0)
+                assertTrue(defaultCell is JLabel, "the restored renderer renders a JLabel")
+                assertEquals("alpha", (defaultCell as JLabel).text, "the restored renderer renders toString")
+
+                composableCells = true
+                awaitIdle()
+                assertEquals(
+                    "<beta>",
+                    list.renderCell(index = 1).firstLabelText(),
+                    "declaring itemContent again should render the composable cell",
+                )
+            }
         }
-
-        val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val composedCell = list.renderCell(index = 0)
-        assertFalse(composedCell is JLabel, "a composable cell renders what it composed, not the default JLabel")
-        assertEquals("alpha", composedCell.firstLabelText(), "the composable cell should render row 0")
-
-        composableCells = false
-        awaitIdle()
-        assertNull(
-            list.cellRenderer as? ComposingListCellRenderer<*>,
-            "taking itemContent away must leave the list's own renderer, not a composing one",
-        )
-        val defaultCell = list.renderCell(index = 0)
-        assertTrue(defaultCell is JLabel, "the restored renderer renders a JLabel")
-        assertEquals("alpha", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
-
-        composableCells = true
-        awaitIdle()
-        assertEquals(
-            "beta",
-            list.renderCell(index = 1).firstLabelText(),
-            "declaring itemContent again should render the composable cell",
-        )
-    }
-
-    @Test
-    fun itemContentTakenAwayRestoresTheListsOwnRendererUnderAModel() = runComposeSwingTest {
-        val model = DefaultListModel<String>().apply { addAll(listOf("alpha", "beta")) }
-        var composableCells by mutableStateOf(true)
-        setContent {
-            ListBox(
-                model = model,
-                itemContent =
-                    if (composableCells) {
-                        { item -> Panel { Label(item) } }
-                    } else {
-                        null
-                    },
-            )
-        }
-
-        val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        assertFalse(list.renderCell(index = 0) is JLabel, "a composable cell renders what it composed")
-
-        composableCells = false
-        awaitIdle()
-        val defaultCell = list.renderCell(index = 0)
-        assertTrue(defaultCell is JLabel, "taking itemContent away should render the list's own JLabel renderer")
-        assertEquals("alpha", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
-
-        composableCells = true
-        awaitIdle()
-        assertEquals(
-            "beta",
-            list.renderCell(index = 1).firstLabelText(),
-            "declaring itemContent again should render the composable cell",
-        )
     }
 
     @Test

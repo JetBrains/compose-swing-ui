@@ -543,6 +543,44 @@ class ContextMenuTest {
     }
 
     @Test
+    fun aCloseCallbackThatThrowsIsReportedAndTheMenuStillReleasesAndOpensAgain() = runComposeSwingTest {
+        val failures = mutableListOf<Throwable>()
+        var closes = 0
+        var released = 0
+        val captured = mutableListOf<JPopupMenu>()
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            ContextMenu(
+                anchor,
+                onClose = {
+                    closes++
+                    val failure = IllegalStateException("close")
+                    failures += failure
+                    throw failure
+                },
+                display = { popup, _, _, _ -> captured += popup },
+            ) {
+                DisposableEffect(Unit) { onDispose { released++ } }
+                MenuItem("Cut", onClick = { })
+            }
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        repeat(2) { round ->
+            failures.clear()
+            target.dispatchEvent(popupTrigger(target))
+            publishClose(captured.last())
+            val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+            assertEquals(failures, listOf(failure) + failure.suppressed, "the close failure is reported, not thrown")
+            assertEquals(1, failures.size, "and it is reported once")
+            awaitIdle()
+            assertEquals(round + 1, released, "the closed menu's composition is released all the same")
+        }
+        assertEquals(2, closes, "a menu opened after the throw reports its close again")
+    }
+
+    @Test
     fun aPresentationThatRefusesTheMenuReportsNoOpen() = runComposeSwingTest {
         var opens = 0
         setContent {

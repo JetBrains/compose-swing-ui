@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
-import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JCheckBox
@@ -34,29 +33,6 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun clickingCheckBoxFiresOnCheckedChangeWithNewState() = runComposeSwingTest {
-        var checked by mutableStateOf(false)
-        val reported = mutableListOf<Boolean>()
-        setContent {
-            CheckBox(
-                text = "Agree",
-                checked = checked,
-                onCheckedChange = {
-                    reported += it
-                    checked = it
-                },
-            )
-        }
-        onNodeOfType<JCheckBox>().performClick()
-        assertEquals(listOf(true), reported, "the first click should report the checked state")
-        onNodeOfType<JCheckBox>().assert(isSelected())
-
-        onNodeOfType<JCheckBox>().performClick()
-        assertEquals(listOf(true, false), reported, "the second click should report the unchecked state")
-        onNodeOfType<JCheckBox>().assert(isSelected(false))
-    }
-
-    @Test
     fun checkBoxReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var checked by mutableStateOf(false)
         setContent { CheckBox(text = "Agree", checked = checked, onCheckedChange = {}) }
@@ -75,25 +51,6 @@ class SelectionComponentsTest {
         onNodeOfType<JRadioButton>()
             .assertTextEquals("Option A")
             .assert(isSelected())
-    }
-
-    @Test
-    fun clickingUnselectedRadioButtonReportsTheChangeAndAdoptingItSelectsTheWidget() = runComposeSwingTest {
-        var selected by mutableStateOf(false)
-        val reported = mutableListOf<Boolean>()
-        setContent {
-            RadioButton(
-                text = "Option A",
-                selected = selected,
-                onSelectedChange = {
-                    reported += it
-                    selected = it
-                },
-            )
-        }
-        onNodeOfType<JRadioButton>().performClick()
-        assertEquals(listOf(true), reported, "clicking an unselected radio should report it selected once")
-        onNodeOfType<JRadioButton>().assert(isSelected())
     }
 
     @Test

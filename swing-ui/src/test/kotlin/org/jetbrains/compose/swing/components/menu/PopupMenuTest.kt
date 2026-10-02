@@ -28,8 +28,10 @@ import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -204,6 +206,48 @@ class PopupMenuTest {
         captured = null
         awaitIdle()
         assertNull(captured, "a closed declaration must not reopen the menu")
+    }
+
+    @Test
+    fun openingAnotherMenuReportsAThrowingDismissalAndFinishesThePass() = runComposeSwingTest {
+        var secondExpanded by mutableStateOf(false)
+        var caption by mutableStateOf("before")
+        lateinit var first: JPopupMenu
+        var second: JPopupMenu? = null
+        val failure = IllegalStateException("dismissal")
+        setWindowContent {
+            val anchor = rememberPopupAnchor()
+            Label(caption, modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> first = popup },
+                onDismiss = { throw failure },
+            ) {
+                MenuItem("First", onClick = { })
+            }
+            PopupMenu(
+                anchor,
+                expanded = secondExpanded,
+                display = { popup, _, _, _ ->
+                    // Showing the second menu closes the first, inside the pass that opens this one.
+                    publishClose(first)
+                    second = popup
+                },
+                onDismiss = {},
+            ) {
+                MenuItem("Second", onClick = { })
+            }
+        }
+        val label = onWindowWithTitle(WINDOW_TITLE).onNodeWithText("before").fetch<JLabel>()
+
+        secondExpanded = true
+        assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() }, "the dismissal's throw is reported")
+        assertEquals(listOf("Second"), second?.menuItemTexts(), "the pass presents the second menu all the same")
+
+        caption = "after"
+        awaitIdle()
+        assertEquals("after", label.text, "the composition applies the pass after the throw")
     }
 
     @Test
@@ -533,18 +577,23 @@ class PopupMenuTest {
 
     @Test
     fun theComponentIsUntouchedByAClosedMenu() = runComposeSwingTest {
+        var text by mutableStateOf("target")
         setContent {
             val anchor = rememberPopupAnchor()
-            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            Label(text, modifier = SwingModifier.popupAnchor(anchor))
             // The overload without the presentation seam, the one production uses.
             PopupMenu(anchor, expanded = false, onDismiss = {}) { MenuItem("Cut", onClick = { }) }
         }
 
         val label = onNodeOfType<JLabel>().fetch()
-        assertTrue(
-            label.mouseListeners.none { it.javaClass.name.startsWith("org.jetbrains.compose.swing") },
-            "a menu opened from state needs no gesture on the component",
-        )
+        assertNull(label.componentPopupMenu, "a closed menu must not become the native context menu")
+        val callerMenu = JPopupMenu()
+        label.componentPopupMenu = callerMenu
+        text = "updated"
+        awaitIdle()
+
+        assertEquals("updated", label.text, "the closed declaration was applied again")
+        assertSame(callerMenu, label.componentPopupMenu, "the caller's native context menu remains installed")
     }
 }
 
