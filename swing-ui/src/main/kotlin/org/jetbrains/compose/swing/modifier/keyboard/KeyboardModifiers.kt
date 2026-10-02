@@ -53,7 +53,8 @@ public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingMod
  * Distinct keystrokes compose independently. Binding the **same** [keyStroke] in the same [condition]
  * twice on one component is reported once the change pass has settled, so two bindings that exchange
  * their keystrokes in one pass are unaffected. [onAction] is read live, so passing a fresh lambda each
- * recomposition is fine. Requires a [JComponent] target.
+ * recomposition is fine. Removal restores the displaced local binding when this declaration still
+ * owns the stroke. Requires a [JComponent] target.
  *
  * @param keyStroke the stroke that triggers [onAction]; a press and a release of the same key are
  *   distinct strokes and bind independently.
@@ -96,7 +97,7 @@ public fun SwingModifier.onKeyStroke(
 
 /**
  * The additive [SwingModifier.NodeElement] backing [onKeyStroke]. Each `update` re-keys the binding in
- * `getInputMap(condition)` + `actionMap` under a unique key (the node instance) for the declared
+ * `getInputMap(condition)` + `actionMap` under a unique binding token for the declared
  * [keyStroke]/[condition] pair, unbinding the previous pair first when either changed, and reads
  * [onAction] from the node's field refreshed by `update`; `onDetach` removes the currently bound pair.
  * Binding the same [keyStroke] in the same [condition] twice is reported once the change pass has
@@ -138,11 +139,11 @@ private class KeyStrokeElement(
     class Node : SwingModifier.ComponentNode<JComponent>() {
         var onAction: () -> Unit = {}
 
-        // A unique ActionMap key per application (the node instance), so removing one binding never
-        // clobbers another's entry.
-        private val actionKey: Any = this
-
         private var boundKeyStroke: KeyStroke? = null
+
+        // A unique ActionMap key per installed binding, so removing one binding never
+        // clobbers another's entry.
+        private var inputBinding: InputMapBinding? = null
 
         @FocusCondition
         private var boundCondition: Int = JComponent.WHEN_FOCUSED
@@ -166,19 +167,24 @@ private class KeyStrokeElement(
             keyStroke: KeyStroke,
             @FocusCondition condition: Int,
         ) {
-            component.getInputMap(condition).put(keyStroke, actionKey)
-            component.actionMap.put(actionKey, KeyStrokeAction { onAction() })
+            val binding =
+                InputMapBinding(
+                    component.getInputMap(condition),
+                    keyStroke,
+                    component.actionMap,
+                    KeyStrokeAction { onAction() },
+                )
+            inputBinding = binding
+            binding.install()
             boundKeyStroke = keyStroke
             boundCondition = condition
             scheduleOwnershipCheck()
         }
 
         private fun unbind() {
-            val keyStroke = boundKeyStroke ?: return
-            val inputMap = component.getInputMap(boundCondition)
-            // Remove only our own entries, leaving any binding installed elsewhere intact.
-            if (inputMap.get(keyStroke) === actionKey) inputMap.remove(keyStroke)
-            component.actionMap.remove(actionKey)
+            val binding = inputBinding ?: return
+            binding.uninstall()
+            inputBinding = null
             boundKeyStroke = null
         }
 
@@ -186,7 +192,7 @@ private class KeyStrokeElement(
         private fun checkOwnership() {
             val keyStroke = boundKeyStroke ?: return
             val currentKey = component.getInputMap(boundCondition).get(keyStroke)
-            if (currentKey !== actionKey && component.actionMap.get(currentKey) is KeyStrokeAction) {
+            if (currentKey !== inputBinding && component.actionMap.get(currentKey) is KeyStrokeAction) {
                 error(
                     "onKeyStroke($keyStroke) is already bound in this focus condition on this " +
                         "component; a key-stroke can only be bound once per condition. Use distinct " +
