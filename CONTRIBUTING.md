@@ -44,10 +44,10 @@ unstable. Only a non-incremental compile produces a report covering the whole mo
 
 `:swing-ui` and `:swing-ui-foundation` each split their suite across two tasks, and `check` runs
 both. `test` holds everything that asserts nothing about which window the window system is attending
-to, and runs it across parallel JVMs; `exclusiveWindowSystemTest` holds the classes tagged
-`ExclusiveWindowSystem` - those asserting on focus or minimization - and runs them one at a time,
-because two of them at once take that state from each other and skip. Write a new test into
-whichever it belongs to by tagging the class, not by where the file sits. Note that a scoped `test`
+to, and runs it across parallel JVMs; `exclusiveWindowSystemTest` holds the classes and cases tagged
+`ExclusiveWindowSystem` and runs them one at a time, because two of them at once take that state from
+each other and skip. Write a new test into whichever it belongs to by tagging it, not by where the
+file sits; `ExclusiveWindowSystem` says which tests need the tag and where it goes. Note that a scoped `test`
 run of either module also pulls in its `exclusiveWindowSystemTest`, which the coverage report that
 follows a test run depends on.
 
@@ -69,6 +69,8 @@ framebuffer, so the display-gated tests skipped here run and are judged there to
 gated on a capability the framebuffer itself lacks (see Quality gates below) still report skipped in
 CI.
 
+On macOS the tests that need a focused window skip; CI runs them.
+
 See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness guide.
 
 ## Quality gates (all must pass)
@@ -87,13 +89,10 @@ before pushing:
 ./gradlew build
 ```
 
-CI runs the same gates as parallel jobs (see `.github/workflows/validation.yml`). CI also runs `dokkaGenerate` and `publishToMavenLocal`,
-which `build` does not reach, to check that the API reference renders and the publishing
-configuration resolves; run them locally too when a change touches either. Test jobs use a virtual
-framebuffer so tests that realize a real top-level window run instead of skipping. Nothing manages
-that display, and the toolkit answers for the capabilities of whatever does, so the tests that need
-maximizing, always-on-top or a system tray gate themselves on the capability and report as skipped
-there.
+CI runs the same gates, plus `dokkaGenerate` and `publishToMavenLocal`, which `build` does not
+reach; run them locally too when a change touches the API reference or the publishing
+configuration. CI has no window manager, so tests that need maximizing, always-on-top or a system
+tray report as skipped there.
 
 Piece by piece:
 

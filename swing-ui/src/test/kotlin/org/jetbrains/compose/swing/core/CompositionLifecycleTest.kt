@@ -70,7 +70,6 @@ import kotlin.time.TimeSource
  * a composition mounted through `runComposeSwingTest` reports CREATED however long it is driven. A case
  * that observes STARTED or RESUMED therefore mounts into a real window of its own and shows it.
  */
-@ExclusiveWindowSystem
 class CompositionLifecycleTest {
     @Test
     fun contentThatHangsOffNoWindowReportsCreated() = runSwingTest {
@@ -126,6 +125,7 @@ class CompositionLifecycleTest {
         }
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun contentInAFocusedWindowReportsResumed() {
         assumeKeyboardFocusIsPossible()
@@ -151,6 +151,7 @@ class CompositionLifecycleTest {
         }
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun losingTheWindowFocusDropsToStartedAndTakingItBackResumes() {
         assumeKeyboardFocusIsPossible()
@@ -197,6 +198,7 @@ class CompositionLifecycleTest {
         }
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun minimizingTheWindowDropsToCreatedAndRestoringItShowsTheContentAgain() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

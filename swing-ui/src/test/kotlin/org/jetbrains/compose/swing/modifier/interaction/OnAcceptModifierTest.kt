@@ -30,7 +30,6 @@ import kotlin.test.assertTrue
  * The key-binding case needs a field that actually holds the keyboard: the field's Enter action asks the
  * platform which text component is focused, so it runs only where the window system grants focus.
  */
-@ExclusiveWindowSystem
 class OnAcceptModifierTest {
     @Test
     fun theFieldsActionEventRunsTheCallback() = runComposeSwingTest {
@@ -117,6 +116,7 @@ class OnAcceptModifierTest {
         )
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun pressingEnterInTheFocusedFieldRunsTheCallback() {
         assumeKeyboardFocusIsPossible()

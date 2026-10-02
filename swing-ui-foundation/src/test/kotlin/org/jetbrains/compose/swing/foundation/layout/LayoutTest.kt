@@ -55,7 +55,6 @@ import org.jetbrains.compose.swing.modifier.appearance.background as swingBackgr
  * A child inside it is an ordinary child - it declares its own layout modifiers and its own constraint
  * to the policy, and a container nested under it is asked a constrained question like any other.
  */
-@ExclusiveWindowSystem
 class LayoutTest {
     @Test
     fun aPolicyPlacesEachChildWhereItSays() =
@@ -355,6 +354,7 @@ class LayoutTest {
      * A child left unplaced in a window that is not focused gives up that window's focus alone: the focused window
      * keeps its focus owner.
      */
+    @ExclusiveWindowSystem
     @Test
     fun aChildUnplacedInABackgroundWindowLeavesTheFocusedWindowAlone() =
         runComposeSwingTest {

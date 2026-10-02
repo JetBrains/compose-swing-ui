@@ -43,7 +43,6 @@ import kotlin.test.assertTrue
  * request must *not* do is asserted on the request itself, which answers whether anything was asked for
  * without consulting the window system at all.
  */
-@ExclusiveWindowSystem
 class FocusRequesterTest {
     @Test
     fun aRequesterBoundToNothingRefusesTheRequest() = runComposeSwingTest {
@@ -80,6 +79,7 @@ class FocusRequesterTest {
         waitUntil { frame.mostRecentFocusOwner === second }
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun theBoundComponentTakesTheKeyboard() {
         assumeKeyboardFocusIsPossible()

@@ -3,8 +3,9 @@ package org.jetbrains.compose.swing
 import org.junit.jupiter.api.Tag
 
 /**
- * Declares that a test class's outcome depends on which of this process's windows the window system is
- * attending to: whether a window is the focused one, or whether it has been minimized.
+ * Declares that a test's outcome depends on which of this process's windows the window system is
+ * attending to. That covers asserting on focus or minimization, reading screen pixels, and holding a
+ * popup open that another window taking the focus would close.
  *
  * That is a single, machine-wide state, so two such tests cannot run at the same time - one asking to be
  * focused takes the focus away from the other, which then reports a withheld capability and skips. A skip
@@ -15,9 +16,10 @@ import org.junit.jupiter.api.Tag
  * runs across parallel JVMs: those tests realize and show real windows too, and the focus that moves
  * between them is nothing they assert on.
  *
- * The tag goes on the class, so a class holding both kinds of case runs entirely under the serial task.
+ * The tag goes on a class when every case in it depends on that state, and on a single case when only
+ * that case does.
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 @Tag(EXCLUSIVE_WINDOW_SYSTEM_TAG)
 public annotation class ExclusiveWindowSystem

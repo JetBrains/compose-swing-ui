@@ -24,7 +24,7 @@ import kotlin.time.TimeSource
  * Minimizing a window at all is a capability a host may withhold, not a defect: a frame the host never minimizes skips
  * here; a minimized frame whose content did not follow it into the matching lifecycle state fails below.
  *
- * A class calling this carries [ExclusiveWindowSystem].
+ * A test calling this carries [ExclusiveWindowSystem], on the case or on its class.
  *
  * Call this inside `runComposeSwingTest`: waiting here suspends and hands the event dispatch thread
  * back, which is what lets the notification arrive.

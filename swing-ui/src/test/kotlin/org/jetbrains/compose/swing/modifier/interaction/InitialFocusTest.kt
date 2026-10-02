@@ -44,7 +44,6 @@ import kotlin.test.assertTrue
  * case that asserts a declaration was *not* acted on names the component that must not have taken the
  * focus, which reads the same whichever of the two the property is reporting.
  */
-@ExclusiveWindowSystem
 class InitialFocusTest {
     @Test
     fun theDeclarationLeavesTheComponentsOwnFocusabilityAlone() = runComposeSwingTest {
@@ -83,6 +82,7 @@ class InitialFocusTest {
         waitUntil { frame.mostRecentFocusOwner === second }
     }
 
+    @ExclusiveWindowSystem
     @Test
     fun theDeclaredComponentHoldsTheKeyboardWhenTheWindowOpens() {
         assumeKeyboardFocusIsPossible()
