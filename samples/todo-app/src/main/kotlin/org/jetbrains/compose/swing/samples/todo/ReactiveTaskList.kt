@@ -161,18 +161,22 @@ private fun ColumnScope.TaskRow(
             text = "",
             checked = task.done,
             onCheckedChange = onToggle,
-            modifier = SwingModifier.testTag(taskToggleTag(task.id)),
+            modifier = SwingModifier.accessibleName("Complete task: ${task.title}").testTag(taskToggleTag(task.id)),
         )
         TextField(
             value = task.title,
             onValueChange = onRename,
-            modifier = SwingModifier.weight(1f).testTag(taskTitleTag(task.id)),
+            modifier =
+                SwingModifier
+                    .weight(1f)
+                    .accessibleName("Task title")
+                    .testTag(taskTitleTag(task.id)),
             columns = 28,
         )
         Button(
             text = "Remove",
             onClick = onRemove,
-            modifier = SwingModifier.testTag(taskRemoveTag(task.id)),
+            modifier = SwingModifier.accessibleName("Remove task: ${task.title}").testTag(taskRemoveTag(task.id)),
         )
     }
 }
