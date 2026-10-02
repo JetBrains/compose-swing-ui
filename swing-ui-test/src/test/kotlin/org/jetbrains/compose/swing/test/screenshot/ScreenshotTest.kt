@@ -97,17 +97,6 @@ class ScreenshotTest {
     }
 
     @Test
-    fun captureMatchesItselfExactly() = runComposeSwingTest {
-        setContent { Button(text = "Click me", onClick = {}) }
-
-        val image = onNodeWithText("Click me").captureToImage()
-        val pixels = image.toArgbIntArray()
-        val result = PixelPerfectMatcher.compare(pixels, pixels.copyOf(), image.width, image.height)
-
-        assertTrue(result.matches, result.statistics)
-    }
-
-    @Test
     fun captureMatchesItselfStructurally() = runComposeSwingTest {
         setContent { Button(text = "Click me", onClick = {}) }
 
@@ -169,6 +158,23 @@ class ScreenshotTest {
 
         assertTrue(!result.matches, "expected a pixel-perfect mismatch")
         assertNotNull(result.diff, "a diff image should be produced on mismatch")
+    }
+
+    @Test
+    fun pixelPerfectMatcherMatchesIdenticalImages() {
+        val expected = renderWithElementAt()
+        val same = renderWithElementAt()
+
+        val result =
+            PixelPerfectMatcher.compare(
+                expected.toArgbIntArray(),
+                same.toArgbIntArray(),
+                expected.width,
+                expected.height,
+            )
+
+        assertTrue(result.matches, result.statistics)
+        assertNull(result.diff, "no diff image is produced for a match")
     }
 
     @Test

@@ -234,7 +234,7 @@ class StockChildGrantedWidthTest {
                 }
                 settleWithPaint()
                 val bounds = child.bounds
-                (child as? CountingSwingPanel)?.layouts = 0
+                (child as? CountingSwingPanel)?.resetCounts()
                 resizes = 0
                 (child as? ResizeCountingTextArea)?.resizes = 0
                 withRecordedRepaints { recorder ->
@@ -249,7 +249,7 @@ class StockChildGrantedWidthTest {
                     (child as? ResizeCountingTextArea)?.resizes ?: (child as CountingSwingPanel).layouts,
                     "same grant does no child work",
                 )
-                (child as? CountingSwingPanel)?.queries = 0
+                (child as? CountingSwingPanel)?.resetCounts()
                 width = WIDTH + 80
                 awaitIdle()
                 assertEquals(width, child.width, "new grant reaches the child")

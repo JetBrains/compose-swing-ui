@@ -24,8 +24,9 @@ import kotlin.test.fail
  * user sees flash past. This pins the stronger property: the put-back lands before that repaint is served.
  *
  * Repaints are counted through a [RecordedRepaints] serving each request from a later event than the one
- * that asked for it, installed only while the change is made. What the widget holds is read as each paint
- * is served, after the layout the repaint asked for has been applied.
+ * that asked for it, installed only while the change is made. Only repaints the mounted composition asks
+ * for are counted; a request from any other component, such as an animation running elsewhere, is dropped.
+ * What the widget holds is read as each paint is served, after the layout the repaint asked for has been applied.
  *
  * [content] is handed the report to call from the callback the component under test reports changes
  * through. Calling it adopts nothing - it only states that the widget told the caller it had changed,
@@ -129,6 +130,7 @@ internal suspend fun <C : JComponent> paintsOf(
         val shown = mutableListOf<Any?>()
         val recorded =
             RecordedRepaints { component, served ->
+                if (!SwingUtilities.isDescendingFrom(component, composition)) return@RecordedRepaints served()
                 SwingUtilities.invokeLater {
                     served()
                     shown += read(widget)

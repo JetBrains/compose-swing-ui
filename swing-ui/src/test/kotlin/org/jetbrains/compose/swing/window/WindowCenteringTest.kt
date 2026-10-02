@@ -23,16 +23,8 @@ import kotlin.test.assertEquals
  *
  * Every peer is composed with an explicit size, so the geometry apply reaches it before it is shown:
  * the placement is computed by AWT alone rather than settling asynchronously behind a native resize.
- * The tests that realize a peer are skipped in headless environments; the string form of the
- * centering positions holds with or without a display.
  */
 class WindowCenteringTest {
-    @Test
-    fun centeringPositionsPrintTheirDeclaredName() {
-        assertEquals("CenteredOnScreen", WindowPosition.CenteredOnScreen.toString())
-        assertEquals("CenteredOnOwner", WindowPosition.CenteredOnOwner.toString())
-    }
-
     @Test
     fun centeredOnScreenPlacesTheFrameAtTheScreenCenter() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

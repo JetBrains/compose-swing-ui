@@ -14,9 +14,9 @@ class InProcessCompilerHarnessTest {
     fun errorsExtractMessagesWithoutDependingOnDiagnosticSpacing() {
         val output =
             """
-            e: /tmp/Snippet.kt:3:9: error: first diagnostic
-            e: /tmp/Snippet.kt:4:9: warning: ignored diagnostic
-            e: /tmp/Snippet.kt:5:9:error: second diagnostic
+            e: Snippet.kt:3:9: error: first diagnostic
+            e: Snippet.kt:4:9: warning: ignored diagnostic
+            e: Snippet.kt:5:9:error: second diagnostic
             """.trimIndent()
 
         val result = CompilationResult(ExitCode.COMPILATION_ERROR, output)
@@ -34,8 +34,8 @@ class InProcessCompilerHarnessTest {
             InProcessCompilerHarness.compileSnippet(
                 "TwoUnresolvedSnippet.kt",
                 """
-                val first: Int = missingFirst
-                val second: Int = missingSecond
+                val first = missingFirst
+                val second = missingSecond
                 """.trimIndent(),
             )
 
@@ -65,10 +65,25 @@ class InProcessCompilerHarnessTest {
     }
 
     @Test
-    fun compilesSnippetWithPlugin() {
-        val result = InProcessCompilerHarness.compileSnippet("TestSnippet.kt", "val answer: Int = 42\n")
-        assertEquals(ExitCode.OK, result.exitCode, "Snippet compilation should succeed: ${result.output}")
-        assertTrue(InProcessCompilerHarness.composePluginClasspath.isNotEmpty())
+    fun rejectsAComposableCallOutsideAComposableFunctionWithPlugin() {
+        val result =
+            InProcessCompilerHarness.compileSnippet(
+                "InvalidComposableCall.kt",
+                """
+                import androidx.compose.runtime.Composable
+
+                @Composable
+                fun content() {}
+
+                fun callOutsideComposition() = content()
+                """.trimIndent(),
+            )
+
+        assertTrue(
+            result.errors().any { it.contains("Composable invocations can only happen", ignoreCase = true) },
+            "Expected the Compose plugin to reject the invocation, got: ${result.output}",
+        )
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode)
     }
 
     @Test

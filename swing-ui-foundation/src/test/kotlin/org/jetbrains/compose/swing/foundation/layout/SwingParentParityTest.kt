@@ -24,6 +24,7 @@ import java.awt.Component
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.LayoutManager
+import java.awt.Shape
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import javax.swing.JComponent
@@ -32,6 +33,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.JViewport
+import javax.swing.event.DocumentEvent
 import javax.swing.plaf.basic.BasicHTML
 import javax.swing.plaf.basic.BasicTextAreaUI
 import javax.swing.text.Element
@@ -127,10 +129,9 @@ class SwingParentParityTest {
                     }
                     val bounds = container.bounds
                     val passes = policy.measures
-                    label.preferredSizeQueries = 0
-                    policy.preferredWidthQueries = 0
-                    policy.preferredHeightQueries = 0
-                    panel.queries = 0
+                    label.resetCounts()
+                    policy.resetQueries()
+                    panel.resetCounts()
                     assertEquals(0, cyclesUntilStable(container), "$name: no corrective paint at $width")
                     assertEquals(bounds, container.bounds, "$name: paint keeps bounds")
                     if (name in WidthSettingSlots) {
@@ -176,10 +177,9 @@ class SwingParentParityTest {
         panel: CountingSwingPanel,
     ) {
         val bounds = container.bounds
-        label.preferredSizeQueries = 0
-        policy.preferredWidthQueries = 0
-        policy.preferredHeightQueries = 0
-        panel.queries = 0
+        label.resetCounts()
+        policy.resetQueries()
+        panel.resetCounts()
         val settledMeasures = policy.measures
         assertEquals(0, cyclesUntilStable(container), "$name: settled paint needs no corrective validation")
         assertEquals(bounds, container.bounds, "$name: settled paint keeps bounds")
@@ -215,7 +215,7 @@ class SwingParentParityTest {
                     val laidOut = label.bounds
 
                     for ((step, change) in listOf<() -> Unit>({ sibling = "2" }, { width -= 20 }).withIndex()) {
-                        label.resizes = 0
+                        label.resetCounts()
                         change()
                         awaitIdle()
                         cyclesUntilStable(column)
@@ -791,9 +791,17 @@ class SwingParentParityTest {
 
     private class RecordingMeasurePolicy : MeasurePolicy {
         var measures = 0
+            private set
         var preferredWidthQueries = 0
+            private set
         var preferredHeightQueries = 0
+            private set
         val heights = mutableListOf<Int>()
+
+        fun resetQueries() {
+            preferredWidthQueries = 0
+            preferredHeightQueries = 0
+        }
 
         override fun MeasureScope.measure(
             measurables: List<Measurable>,
@@ -835,7 +843,9 @@ class SwingParentParityTest {
     /** A label counting how often it has its preferred size read and how often it is resized. */
     private class CountingLabel : JLabel("Counted") {
         var preferredSizeQueries = 0
+            private set
         var resizes = 0
+            private set
 
         init {
             addComponentListener(
@@ -850,6 +860,11 @@ class SwingParentParityTest {
         override fun getPreferredSize(): Dimension {
             preferredSizeQueries++
             return super.getPreferredSize()
+        }
+
+        fun resetCounts() {
+            preferredSizeQueries = 0
+            resizes = 0
         }
     }
 
@@ -896,7 +911,7 @@ class SwingParentParityTest {
                             onNodeWithTag("row").fetch<JComponent>().height
                         }
                     steps += Settled(name, cycles, component.height, area.height, rowHeight, area.lineBreaks)
-                    area.lineBreaks = 0
+                    area.resetLineBreaks()
                 }
                 step("first show")
                 for (step in 1..5) {
@@ -967,11 +982,16 @@ private fun SettlingContent(
 }
 
 /**
- * A text area counting the line breaks it works out while it wraps its text: it works out every line again each time
- * it lays its text out at another width.
+ * A text area counting the line breaks it works out while it wraps its text: each line when it is first laid out,
+ * and again on every resize and edit. A break the view rebuilds without either one is not counted.
  */
 internal class LineBreakCountingTextArea : JTextArea() {
     var lineBreaks = 0
+        private set
+
+    fun resetLineBreaks() {
+        lineBreaks = 0
+    }
 
     override fun updateUI() {
         setUI(
@@ -981,12 +1001,54 @@ internal class LineBreakCountingTextArea : JTextArea() {
                         super.create(element)
                     } else {
                         object : WrappedPlainView(element, wrapStyleWord) {
+                            private val laidOutStarts = mutableSetOf<Int>()
+                            private var inLayout = false
+
                             override fun calculateBreakPosition(
                                 start: Int,
                                 end: Int,
                             ): Int {
-                                lineBreaks++
+                                val firstLayout = laidOutStarts.add(start)
+                                if (firstLayout || inLayout) lineBreaks++
                                 return super.calculateBreakPosition(start, end)
+                            }
+
+                            override fun setSize(
+                                width: Float,
+                                height: Float,
+                            ) = layingOut { super.setSize(width, height) }
+
+                            override fun insertUpdate(
+                                e: DocumentEvent,
+                                a: Shape?,
+                                f: ViewFactory,
+                            ) = edited { super.insertUpdate(e, a, f) }
+
+                            override fun removeUpdate(
+                                e: DocumentEvent,
+                                a: Shape?,
+                                f: ViewFactory,
+                            ) = edited { super.removeUpdate(e, a, f) }
+
+                            override fun changedUpdate(
+                                e: DocumentEvent,
+                                a: Shape?,
+                                f: ViewFactory,
+                            ) = edited { super.changedUpdate(e, a, f) }
+
+                            private inline fun edited(block: () -> Unit) {
+                                laidOutStarts.clear()
+                                layingOut(block)
+                            }
+
+                            private inline fun layingOut(block: () -> Unit) {
+                                val wasInLayout = inLayout
+                                inLayout = true
+                                try {
+                                    block()
+                                } finally {
+                                    inLayout = wasInLayout
+                                }
                             }
                         }
                     }
@@ -1001,10 +1063,17 @@ internal class CountingSwingPanel(
     child: JComponent,
 ) : JPanel(BorderLayout()) {
     var queries = 0
+        private set
     var layouts = 0
+        private set
 
     init {
         add(child)
+    }
+
+    fun resetCounts() {
+        queries = 0
+        layouts = 0
     }
 
     override fun getPreferredSize(): Dimension {

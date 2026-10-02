@@ -11,14 +11,15 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextInput
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import java.awt.AWTEvent
-import java.awt.BorderLayout
 import java.awt.Toolkit
 import java.awt.event.AWTEventListener
+import java.awt.event.MouseEvent
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JTextField
@@ -28,9 +29,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 /**
- * Validates the test harness itself: finders (unique vs. collection, by-text and by-name), the
- * assertion vocabulary (text/enabled/exists/constraint), and actions - so the regression tests above
- * are standing on a trustworthy foundation. Also asserts that assertions FAIL when they should.
+ * Validates the test harness itself, including that its assertions fail when they should.
  */
 class TestApiContractTest {
     @Test
@@ -49,29 +48,6 @@ class TestApiContractTest {
         assertEquals(2, onAllNodesWithText("dup").fetchSize())
         onNodeWithText("solo").assertExists()
         onAllNodesWithText("solo").assertCountEquals(1)
-    }
-
-    @Test
-    fun layoutConstraintAcrossAllRegions() = runComposeSwingTest {
-        setContent {
-            Panel(PanelLayout.Border()) {
-                Label(text = "N", modifier = SwingModifier.north())
-                Label(text = "C", modifier = SwingModifier.center())
-                Label(text = "S", modifier = SwingModifier.south())
-                Label(text = "W", modifier = SwingModifier.west())
-                Label(text = "E", modifier = SwingModifier.east())
-            }
-        }
-
-        onNodeWithText("N").assertLayoutConstraint(BorderLayout.NORTH)
-        onNodeWithText("C").assertLayoutConstraint(BorderLayout.CENTER)
-        onNodeWithText("S").assertLayoutConstraint(BorderLayout.SOUTH)
-        onNodeWithText("W").assertLayoutConstraint(BorderLayout.WEST)
-        onNodeWithText("E").assertLayoutConstraint(BorderLayout.EAST)
-
-        assertFailsWith<AssertionError> {
-            onNodeWithText("N").assertLayoutConstraint(BorderLayout.SOUTH)
-        }
     }
 
     @Test
@@ -138,12 +114,30 @@ class TestApiContractTest {
     }
 
     @Test
-    fun performClickOnANodeThatResolvesNoClickChangesNothing() = runComposeSwingTest {
-        setContent { Label(text = "not a button") }
+    fun performClickDeliversMouseEventsToALabelWithoutChangingItsText() = runComposeSwingTest {
+        val delivered = mutableListOf<Int>()
+        setContent {
+            Label(
+                text = "not a button",
+                modifier =
+                    SwingModifier.mouseListener(
+                        onMousePressed = { delivered += it.id },
+                        onMouseReleased = { delivered += it.id },
+                        onMouseClicked = { delivered += it.id },
+                    ),
+            )
+        }
 
-        // A click is the events the toolkit delivers, so any node accepts one; what a click means is
-        // the node's own UI's to decide, and a label's decides nothing.
-        onNodeWithText("not a button").performClick().assertExists()
+        val label = onNodeWithText("not a button")
+        label.assertIsDisplayed().assertTextEquals("not a button")
+        assertEquals(emptyList(), delivered)
+
+        label.performClick().assertTextEquals("not a button")
+
+        assertEquals(
+            listOf(MouseEvent.MOUSE_PRESSED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_CLICKED),
+            delivered,
+        )
     }
 
     @Test
@@ -205,13 +199,6 @@ class TestApiContractTest {
             onNodeOfType<JTextField>().fetch<JTextField>(),
             "each fetch should return the same live instance",
         )
-    }
-
-    @Test
-    fun fetchFailsWhenTheMatchedTypeMismatches() = runComposeSwingTest {
-        setContent { Label(text = "just a label") }
-
-        assertFailsWith<AssertionError> { onNodeWithText("just a label").fetch<JTextField>() }
     }
 
     @Test

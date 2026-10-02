@@ -37,7 +37,7 @@ class NodeTypedInteractionTest {
     }
 
     @Test
-    fun aTypedFinderKeepsItsTypeAcrossAssertionsAndActions() = runComposeSwingTest {
+    fun aTypedFinderKeepsItsTypeAcrossAssertions() = runComposeSwingTest {
         setContent { Button(text = "press", onClick = {}) }
 
         // Every assertion returns the interaction it was called on, so the type survives a chain and

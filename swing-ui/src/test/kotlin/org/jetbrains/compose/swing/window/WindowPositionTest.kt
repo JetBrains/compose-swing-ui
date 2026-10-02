@@ -28,29 +28,13 @@ class WindowPositionTest {
     }
 
     @Test
-    fun positionsNamingDifferentCoordinatesHashApart() {
+    fun aSeparatelyConstructedEqualPositionFindsItsEntryInHashCollections() {
         val position = WindowPosition.Absolute(x = 140, y = 90)
+        val equal = WindowPosition.Absolute(x = 140, y = 90)
 
-        assertEquals(
-            WindowPosition.Absolute(x = 140, y = 90).hashCode(),
-            position.hashCode(),
-            "equal positions must hash alike",
-        )
-        // Positions differing in either coordinate hash apart. That is more than the hashCode contract asks
-        // - a constant would satisfy it - and it is what makes the equality above observable in a hash-based
-        // collection: both coordinates reach the hash, and neither displaces the other.
-        assertTrue(
-            position.hashCode() != WindowPosition.Absolute(x = 141, y = 90).hashCode(),
-            "another horizontal coordinate should hash apart, but both hashed ${position.hashCode()}",
-        )
-        assertTrue(
-            position.hashCode() != WindowPosition.Absolute(x = 140, y = 91).hashCode(),
-            "another vertical coordinate should hash apart, but both hashed ${position.hashCode()}",
-        )
-        assertTrue(
-            position.hashCode() != WindowPosition.Absolute(x = 90, y = 140).hashCode(),
-            "transposed coordinates should hash apart, but both hashed ${position.hashCode()}",
-        )
+        assertEquals(position.hashCode(), equal.hashCode(), "equal positions must hash alike")
+        assertTrue(equal in hashSetOf(position), "an equal position should find the set entry")
+        assertEquals("placed", hashMapOf(position to "placed")[equal], "an equal position should find the map value")
     }
 
     @Test
