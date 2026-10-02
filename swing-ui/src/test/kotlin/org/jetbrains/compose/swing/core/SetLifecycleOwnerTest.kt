@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.setContent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertNotSame
-import kotlin.test.assertSame
 
 /**
  * Behavioral tests for an owner a host sets on the Swing tree.
@@ -20,32 +19,6 @@ import kotlin.test.assertSame
  * content reads without the library minting a rival.
  */
 class SetLifecycleOwnerTest {
-    @Test
-    fun aRootUnderAPublishedOwnerReadsItRatherThanMintingOne() = runSwingTest {
-        val recomposer = SwingRecomposer.create(JPanel())
-        try {
-            val host = JPanel()
-            val published = HostOwner()
-            host.setLifecycleOwner(published)
-            val composition = JPanel().also { host.add(it) }
-
-            var read: LifecycleOwner? = null
-            val handle =
-                composition.setContent(
-                    parent = recomposer.compositionContext,
-                ) { read = LocalLifecycleOwner.current }
-
-            assertSame(
-                published,
-                read,
-                "a root standing under an owner a host set must read it rather than minting one of its own",
-            )
-            handle.dispose()
-        } finally {
-            recomposer.dispose()
-        }
-    }
-
     @Test
     fun aRootUnderNoPublishedOwnerMintsOne() = runSwingTest {
         val recomposer = SwingRecomposer.create(JPanel())

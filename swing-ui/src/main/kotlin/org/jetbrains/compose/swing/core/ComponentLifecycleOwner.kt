@@ -29,14 +29,21 @@ import javax.swing.JComponent
  *
  * The publish goes up after the composition applies, so the walk a root runs as it composes cannot read
  * back what its own root is about to leave.
+ *
+ * Disposal puts back the owner the host carried before, unless someone else has set one since.
  */
 @Composable
 internal fun PublishLifecycleOwner(component: Component) {
     val owner = LocalLifecycleOwner.current
     DisposableEffect(component, owner) {
         val host = component as? JComponent
+        val previous = host?.get(LIFECYCLE_OWNER_KEY)
         host?.setLifecycleOwner(owner)
-        onDispose { host?.setLifecycleOwner(null) }
+        onDispose {
+            if (host != null && host[LIFECYCLE_OWNER_KEY] === owner) {
+                host.setLifecycleOwner(previous)
+            }
+        }
     }
 }
 
