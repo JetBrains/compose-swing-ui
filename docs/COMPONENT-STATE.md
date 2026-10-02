@@ -319,16 +319,22 @@ sits behind `isEditable`.
 
 ### A callback your component calls itself
 
-When a Swing listener calls a callback on a click or a keystroke and the callback throws, Swing reports
-the exception and goes on dispatching events. When your component calls a callback while recomposition
-applies a declaration - from `update`, say - and the callback throws, the exception stops the
-recomposer, and no content that depends on it updates again.
+When your component calls a callback while recomposition applies a declaration - from `update`, say - and
+the callback throws, the exception stops the recomposer, and no content that depends on it updates again.
+Make that one call inside `report { }` on the `update` receiver (`SwingNodeUpdater.report`). It sends the
+exception, unchanged, to the thread's uncaught-exception handler, which is where Swing reports a listener's
+exception, and returns normally, so the pass goes on applying. Keep the component's own checks outside the
+block, so their failures still reach the caller.
 
-The library already catches and reports an exception from `declare`'s `onSettled`, and from a listener
-that a write inside `mirror.write { }` triggers. Where your component calls the caller's code in any
-other way while recomposition applies, wrap that one call in `try { } catch (e: Throwable) { }` and hand
-`e` to `Thread.currentThread().uncaughtExceptionHandler`, which is where Swing reports a listener's
-exception.
+A listener adapter in a `CallbackRegistration` calls the caller's callback the same way, through
+`DeclaredCallback.report { }` on the adapter's `callback` parameter, where Swing raises the event inside a
+write: a property change, a child insertion, a model write. The callback it passes to the block is the one
+the modifier declares right now. A listener that only a gesture or a posted event reaches may read
+`callback.current` directly, and Swing's event pump handles its throw; so does a veto, whose throw must
+reach Swing.
+
+The library already does this for `declare`'s `onSettled` and for a listener that a write inside
+`mirror.write { }` triggers.
 
 ## Writing a state holder
 

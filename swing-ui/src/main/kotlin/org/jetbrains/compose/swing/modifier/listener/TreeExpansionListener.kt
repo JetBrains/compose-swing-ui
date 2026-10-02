@@ -85,11 +85,11 @@ private val TREE_EXPANSION =
 
 private val TREE_EXPANSION_CALLBACKS =
     CallbackRegistration<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent): Unit = current().onTreeExpanded(event)
+                override fun treeExpanded(event: TreeExpansionEvent): Unit = callback.current.onTreeExpanded(event)
 
-                override fun treeCollapsed(event: TreeExpansionEvent): Unit = current().onTreeCollapsed(event)
+                override fun treeCollapsed(event: TreeExpansionEvent): Unit = callback.current.onTreeCollapsed(event)
             }
         },
         registration = TREE_EXPANSION,

@@ -103,15 +103,15 @@ private val COMPONENT =
 
 private val COMPONENT_CALLBACKS =
     CallbackRegistration<Component, ComponentCallbacks, ComponentListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : ComponentListener {
-                override fun componentResized(event: ComponentEvent): Unit = current().onComponentResized(event)
+                override fun componentResized(event: ComponentEvent): Unit = callback.current.onComponentResized(event)
 
-                override fun componentMoved(event: ComponentEvent): Unit = current().onComponentMoved(event)
+                override fun componentMoved(event: ComponentEvent): Unit = callback.current.onComponentMoved(event)
 
-                override fun componentShown(event: ComponentEvent): Unit = current().onComponentShown(event)
+                override fun componentShown(event: ComponentEvent): Unit = callback.current.onComponentShown(event)
 
-                override fun componentHidden(event: ComponentEvent): Unit = current().onComponentHidden(event)
+                override fun componentHidden(event: ComponentEvent): Unit = callback.current.onComponentHidden(event)
             }
         },
         registration = COMPONENT,

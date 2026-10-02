@@ -86,11 +86,11 @@ private val MOUSE_MOTION =
 
 private val MOUSE_MOTION_CALLBACKS =
     CallbackRegistration<Component, MouseMotionCallbacks, MouseMotionListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : MouseMotionListener {
-                override fun mouseDragged(event: MouseEvent): Unit = current().onMouseDragged(event)
+                override fun mouseDragged(event: MouseEvent): Unit = callback.current.onMouseDragged(event)
 
-                override fun mouseMoved(event: MouseEvent): Unit = current().onMouseMoved(event)
+                override fun mouseMoved(event: MouseEvent): Unit = callback.current.onMouseMoved(event)
             }
         },
         registration = MOUSE_MOTION,

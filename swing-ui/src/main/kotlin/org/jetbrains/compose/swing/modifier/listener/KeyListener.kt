@@ -95,13 +95,13 @@ internal val KEY =
 
 private val KEY_CALLBACKS =
     CallbackRegistration<Component, KeyCallbacks, KeyListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : KeyListener {
-                override fun keyTyped(event: KeyEvent): Unit = current().onKeyTyped(event)
+                override fun keyTyped(event: KeyEvent): Unit = callback.current.onKeyTyped(event)
 
-                override fun keyPressed(event: KeyEvent): Unit = current().onKeyPressed(event)
+                override fun keyPressed(event: KeyEvent): Unit = callback.current.onKeyPressed(event)
 
-                override fun keyReleased(event: KeyEvent): Unit = current().onKeyReleased(event)
+                override fun keyReleased(event: KeyEvent): Unit = callback.current.onKeyReleased(event)
             }
         },
         registration = KEY,

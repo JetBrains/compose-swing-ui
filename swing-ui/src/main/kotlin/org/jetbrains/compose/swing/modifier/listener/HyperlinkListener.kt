@@ -50,6 +50,6 @@ private val HYPERLINK =
 
 private val HYPERLINK_CALLBACKS =
     CallbackRegistration<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
-        adapter = { current -> HyperlinkListener { event -> current()(event) } },
+        adapter = { callback -> HyperlinkListener { event -> callback.current(event) } },
         registration = HYPERLINK,
     )

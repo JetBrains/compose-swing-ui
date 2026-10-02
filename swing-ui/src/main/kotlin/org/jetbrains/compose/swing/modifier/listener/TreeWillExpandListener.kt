@@ -92,14 +92,14 @@ private val TREE_WILL_EXPAND =
 
 private val TREE_WILL_EXPAND_CALLBACKS =
     CallbackRegistration<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : TreeWillExpandListener {
                 override fun treeWillExpand(event: TreeExpansionEvent) {
-                    if (!current().onWillExpand(event)) throw ExpandVetoException(event)
+                    if (!callback.current.onWillExpand(event)) throw ExpandVetoException(event)
                 }
 
                 override fun treeWillCollapse(event: TreeExpansionEvent) {
-                    if (!current().onWillCollapse(event)) throw ExpandVetoException(event)
+                    if (!callback.current.onWillCollapse(event)) throw ExpandVetoException(event)
                 }
             }
         },

@@ -94,6 +94,6 @@ private val ITEM =
 
 private val ITEM_CALLBACKS =
     CallbackRegistration<Component, (ItemEvent) -> Unit, ItemListener>(
-        adapter = { current -> ItemListener { event -> current()(event) } },
+        adapter = { callback -> ItemListener { event -> callback.current(event) } },
         registration = ITEM,
     )

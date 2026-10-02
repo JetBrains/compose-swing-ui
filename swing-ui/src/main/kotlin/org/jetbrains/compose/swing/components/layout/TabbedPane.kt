@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.TabLayoutPolicy
 import org.jetbrains.compose.swing.annotations.TabPlacement
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
@@ -15,6 +14,7 @@ import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
@@ -208,8 +208,8 @@ private const val NO_TAB = -1
  * - a declaration the pane can honor already updates it to the pane's post-write value, so only this
  * separate, deliberately-lagging record catches the fallback case.
  *
- * The fallback reaches [listener] directly rather than from inside a write, so it runs contained the same
- * way: a throw out of it is reported rather than left to end the composition applying this pass.
+ * The fallback reaches [listener] directly rather than from inside a write, so a throw out of it is reported
+ * to the thread's uncaught-exception handler rather than left to end the composition applying this pass.
  */
 private fun settleSelection(
     pane: JTabbedPane,
@@ -228,5 +228,5 @@ private fun settleSelection(
     }
     if (pane.selectedIndex == reported[0]) return
     reported[0] = pane.selectedIndex
-    dispatchToCaller { listener.stateChanged(ChangeEvent(pane)) }
+    runReportingUncaught { listener.stateChanged(ChangeEvent(pane)) }
 }

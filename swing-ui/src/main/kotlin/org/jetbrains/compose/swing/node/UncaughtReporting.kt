@@ -4,16 +4,11 @@
 package org.jetbrains.compose.swing.node
 
 /**
- * Runs [block], a call into code the caller supplied, and hands what it throws to the current thread's
- * uncaught-exception handler instead of to the code that called this.
+ * Runs [block] and reports any failure unchanged to the current thread's uncaught-exception handler.
  *
- * The handler is where Swing's event pump reports what a listener throws, and it receives the throwable
- * unchanged. Unlike the pump, this returns normally: the code after the call still runs, such as the
- * rest of a notification or the write that raised it, and a composition applying a pass goes on.
- *
- * Wrap the call into the caller's code and nothing else. A check of the component's own stays outside
- * [block], so its failure reaches the code that called this.
+ * Keep component checks outside [block] so their failures reach the caller.
  */
+@PublishedApi
 internal inline fun runReportingUncaught(block: () -> Unit) {
     try {
         block()
@@ -21,7 +16,13 @@ internal inline fun runReportingUncaught(block: () -> Unit) {
         // What the caller's code throws is its own choice; a type left out here would end the composition.
         @Suppress("TooGenericExceptionCaught") failure: Throwable,
     ) {
-        val thread = Thread.currentThread()
-        thread.uncaughtExceptionHandler.uncaughtException(thread, failure)
+        reportUncaught(failure)
     }
+}
+
+/** Reports [failure] to the current thread's uncaught-exception handler. */
+@PublishedApi
+internal fun reportUncaught(failure: Throwable) {
+    val thread = Thread.currentThread()
+    thread.uncaughtExceptionHandler.uncaughtException(thread, failure)
 }

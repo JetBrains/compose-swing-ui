@@ -86,11 +86,11 @@ private val CONTAINER =
 
 private val CONTAINER_CALLBACKS =
     CallbackRegistration<Container, ContainerCallbacks, ContainerListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : ContainerListener {
-                override fun componentAdded(event: ContainerEvent): Unit = current().onComponentAdded(event)
+                override fun componentAdded(event: ContainerEvent): Unit = callback.current.onComponentAdded(event)
 
-                override fun componentRemoved(event: ContainerEvent): Unit = current().onComponentRemoved(event)
+                override fun componentRemoved(event: ContainerEvent): Unit = callback.current.onComponentRemoved(event)
             }
         },
         registration = CONTAINER,

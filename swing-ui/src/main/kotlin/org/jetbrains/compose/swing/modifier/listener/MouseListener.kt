@@ -113,17 +113,17 @@ private val MOUSE =
 
 private val MOUSE_CALLBACKS =
     CallbackRegistration<Component, MouseCallbacks, MouseListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : MouseListener {
-                override fun mouseClicked(event: MouseEvent): Unit = current().onMouseClicked(event)
+                override fun mouseClicked(event: MouseEvent): Unit = callback.current.onMouseClicked(event)
 
-                override fun mousePressed(event: MouseEvent): Unit = current().onMousePressed(event)
+                override fun mousePressed(event: MouseEvent): Unit = callback.current.onMousePressed(event)
 
-                override fun mouseReleased(event: MouseEvent): Unit = current().onMouseReleased(event)
+                override fun mouseReleased(event: MouseEvent): Unit = callback.current.onMouseReleased(event)
 
-                override fun mouseEntered(event: MouseEvent): Unit = current().onMouseEntered(event)
+                override fun mouseEntered(event: MouseEvent): Unit = callback.current.onMouseEntered(event)
 
-                override fun mouseExited(event: MouseEvent): Unit = current().onMouseExited(event)
+                override fun mouseExited(event: MouseEvent): Unit = callback.current.onMouseExited(event)
             }
         },
         registration = MOUSE,

@@ -8,6 +8,7 @@ import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.core.compositionContext
 import org.jetbrains.compose.swing.runSwingTest
@@ -19,12 +20,14 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.BorderLayout
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JToolBar
 import javax.swing.SwingUtilities
 import javax.swing.plaf.basic.BasicToolBarUI
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.seconds
@@ -59,6 +62,44 @@ class ToolBarFloatingTest {
             reported,
             "the bar hands back the docked state it settled for rather than leaving the caller to " +
                 "believe its declaration stands",
+        )
+    }
+
+    @Test
+    fun aFloatingChangeCallbackThatThrowsIsReportedOnceAndALaterPassStillApplies() = runComposeSwingTest {
+        val failures = mutableListOf<Throwable>()
+        var caption by mutableStateOf("before")
+        val thrown =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    Panel(PanelLayout.Border()) {
+                        ToolBar(
+                            floating = true,
+                            onFloatingChange = {
+                                val failure = IllegalStateException("floating change")
+                                failures += failure
+                                throw failure
+                            },
+                        ) {
+                            Button(text = "New", onClick = {})
+                        }
+                    }
+                    Label(text = caption)
+                }
+            }
+        val reported = listOf(thrown) + thrown.suppressed
+        awaitIdle()
+
+        assertEquals(1, failures.size, "the callback is asked once")
+        assertEquals(failures.toList(), reported, "the throw out of the callback is reported, not thrown")
+        assertFalse(onNodeOfType<JToolBar>().fetch().isFloatingNow, "the bar settled docked all the same")
+
+        caption = "after"
+        awaitIdle()
+        assertEquals(
+            "after",
+            onNodeOfType<JLabel>().fetch().text,
+            "a later pass applies, and reports no second refusal",
         )
     }
 

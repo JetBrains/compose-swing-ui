@@ -140,23 +140,28 @@ private val INTERNAL_FRAME =
 
 private val INTERNAL_FRAME_CALLBACKS =
     CallbackRegistration<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : InternalFrameListener {
-                override fun internalFrameOpened(event: InternalFrameEvent): Unit = current().onFrameOpened(event)
+                override fun internalFrameOpened(event: InternalFrameEvent): Unit =
+                    callback.current.onFrameOpened(event)
 
-                override fun internalFrameClosing(event: InternalFrameEvent): Unit = current().onFrameClosing(event)
+                override fun internalFrameClosing(event: InternalFrameEvent): Unit =
+                    callback.current.onFrameClosing(event)
 
-                override fun internalFrameClosed(event: InternalFrameEvent): Unit = current().onFrameClosed(event)
+                override fun internalFrameClosed(event: InternalFrameEvent): Unit =
+                    callback.current.onFrameClosed(event)
 
-                override fun internalFrameIconified(event: InternalFrameEvent): Unit = current().onFrameIconified(event)
+                override fun internalFrameIconified(event: InternalFrameEvent): Unit =
+                    callback.current.onFrameIconified(event)
 
                 override fun internalFrameDeiconified(event: InternalFrameEvent): Unit =
-                    current().onFrameDeiconified(event)
+                    callback.current.onFrameDeiconified(event)
 
-                override fun internalFrameActivated(event: InternalFrameEvent): Unit = current().onFrameActivated(event)
+                override fun internalFrameActivated(event: InternalFrameEvent): Unit =
+                    callback.current.onFrameActivated(event)
 
                 override fun internalFrameDeactivated(event: InternalFrameEvent): Unit =
-                    current().onFrameDeactivated(event)
+                    callback.current.onFrameDeactivated(event)
             }
         },
         registration = INTERNAL_FRAME,

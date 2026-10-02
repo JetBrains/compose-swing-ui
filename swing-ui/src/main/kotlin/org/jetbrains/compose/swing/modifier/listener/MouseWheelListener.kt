@@ -43,6 +43,6 @@ private val MOUSE_WHEEL =
 
 private val MOUSE_WHEEL_CALLBACKS =
     CallbackRegistration<Component, (MouseWheelEvent) -> Unit, MouseWheelListener>(
-        adapter = { current -> MouseWheelListener { event -> current()(event) } },
+        adapter = { callback -> MouseWheelListener { event -> callback.current(event) } },
         registration = MOUSE_WHEEL,
     )

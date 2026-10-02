@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import javax.swing.JTree
@@ -192,8 +192,8 @@ internal fun <T> JTree.updateContent(
  * it only where the write cannot say - see [SettledExpansion]. Where no [TreeState] holds the expansion it
  * is the user's, and the nodes the tree opened to show the selection are reported - see [reportOpened].
  *
- * Each listener is reached once the write has returned, so what it is told is final, and contained the way
- * every caller callback reached from a pass is.
+ * Each listener is reached once the write has returned, so what it is told is final, and a throw from it is
+ * reported to the thread's uncaught-exception handler the way every caller callback reached from a pass is.
  */
 internal fun JTree.settleSelection(
     declarations: TreeDeclarations,
@@ -332,10 +332,12 @@ private fun JTree.reportOpened(
 ) {
     if (opened.isEmpty()) return
     declarations.expansionTarget?.let { target ->
-        dispatchToCaller {
+        runReportingUncaught {
             opened.fastForEach { node -> if (isExpanded(node)) target.treeExpanded(TreeExpansionEvent(this, node)) }
         }
     }
     val onExpansionChange = declarations.onExpansionChange ?: return
-    if (open != null && opened.fastFirstOrNull { isExpanded(it) } != null) dispatchToCaller { onExpansionChange(open) }
+    if (open != null && opened.fastFirstOrNull { isExpanded(it) } != null) {
+        runReportingUncaught { onExpansionChange(open) }
+    }
 }

@@ -1027,6 +1027,12 @@ public final class org/jetbrains/compose/swing/modifier/listener/CallbackRegistr
 	public fun hashCode ()I
 }
 
+public final class org/jetbrains/compose/swing/modifier/listener/DeclaredCallback {
+	public static final field $stable I
+	public final fun getCurrent ()Ljava/lang/Object;
+	public final fun report (Lkotlin/jvm/functions/Function1;)V
+}
+
 public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifierKt {
 	public static final fun actionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ActionListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun actionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -1173,8 +1179,10 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static final fun reconcileWithChildren-pWFREzI (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun rememberMirrorState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/MirrorState;
 	public static final fun report (Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function0;)V
+	public static final fun reportUncaught (Ljava/lang/Throwable;)V
 	public static final fun requestAfterValidation (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;)V
 	public static final fun requestAfterValidation (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Lkotlin/jvm/functions/Function1;)V
+	public static final fun runReportingUncaught (Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/ObserverModifierNode {
@@ -1234,6 +1242,7 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static fun hashCode-impl (Landroidx/compose/runtime/Composer;)I
 	public static final fun init-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
+	public static final fun report-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function0;)V
 	public static final fun set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 	public fun toString ()Ljava/lang/String;
 	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;

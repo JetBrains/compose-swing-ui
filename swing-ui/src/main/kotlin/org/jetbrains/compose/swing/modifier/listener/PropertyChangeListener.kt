@@ -109,8 +109,8 @@ private val PROPERTY_CHANGES =
         Component::removePropertyChangeListener,
     )
 
-private val propertyChangeAdapter: (() -> (PropertyChangeEvent) -> Unit) -> PropertyChangeListener =
-    { current -> PropertyChangeListener { event -> current()(event) } }
+private val propertyChangeAdapter: (DeclaredCallback<(PropertyChangeEvent) -> Unit>) -> PropertyChangeListener =
+    { callback -> PropertyChangeListener { event -> callback.current(event) } }
 
 private val PROPERTY_CHANGE_CALLBACKS =
     CallbackRegistration(propertyChangeAdapter, PROPERTY_CHANGES)

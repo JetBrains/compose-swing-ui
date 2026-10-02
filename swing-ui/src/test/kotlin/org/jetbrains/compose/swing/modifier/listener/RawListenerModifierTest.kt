@@ -403,7 +403,7 @@ class RawListenerModifierTest {
             )
         val callbacks =
             CallbackRegistration<JButton, (ActionEvent) -> Unit, ActionListener>(
-                { current -> ActionListener { event -> current()(event) } },
+                { callback -> ActionListener { event -> callback.report { it(event) } } },
                 registration,
             )
 

@@ -320,7 +320,7 @@ private class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
     /** What the built listener runs when it fires: the callback the latest pass declared for this slot. */
     var callback: C = element.declared
 
-    private var listener: L = element.registration.adapter { callback }
+    private var listener: L = element.registration.adapter(DeclaredCallback { callback })
 
     override fun onAttach(): Unit = element.registration.attach(component, listener)
 
@@ -338,7 +338,7 @@ private class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
         callback = next.declared
         if (current.registration == next.registration) return
         current.registration.detach(component, listener)
-        listener = next.registration.adapter { callback }
+        listener = next.registration.adapter(DeclaredCallback { callback })
         next.registration.attach(component, listener)
     }
 }

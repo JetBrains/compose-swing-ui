@@ -141,13 +141,6 @@ class ToolBarDockingTest {
 
             floating = false
             awaitIdle()
-
-            assertEquals(
-                emptyList(),
-                takeCallerFailures(),
-                "docking a bar back should carry the region the composition declares to it, not the one " +
-                    "the look and feel picked",
-            )
             assertSame(
                 bar,
                 (panel.layout as BorderLayout).getLayoutComponent(BorderLayout.NORTH),

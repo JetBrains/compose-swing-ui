@@ -1,8 +1,8 @@
 package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.annotations.SelectionMode
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
@@ -32,8 +32,8 @@ import javax.swing.tree.TreePath
  * hold - as the wrapper's own write, and where [declaredSelection] is absent hands the part of the user's
  * selection the write dropped to [report]. [selection] reads what the widget currently holds.
  *
- * [report] reaches the caller's own listener directly rather than from inside a write, so it runs contained
- * the same way, and a throw out of it is reported rather than left to end the composition.
+ * [report] reaches the caller's own listener directly rather than from inside a write, so a throw out of it
+ * is reported to the thread's uncaught-exception handler rather than left to end the composition.
  */
 internal fun <S> MirrorState<Set<S>?>.writeNarrowing(
     declaredSelection: Set<S>?,
@@ -50,7 +50,7 @@ internal fun <S> MirrorState<Set<S>?>.writeNarrowing(
     val settled = selection()
     observed(settled)
     val lost = held - settled
-    if (lost.isNotEmpty()) dispatchToCaller { report(lost) }
+    if (lost.isNotEmpty()) runReportingUncaught { report(lost) }
 }
 
 /**
@@ -95,7 +95,7 @@ internal fun <S> MirrorState<Set<S>?>.installNarrowing(
             answered(settled)
             if (declared == null) retained - settled else emptySet()
         }
-    if (lost.isNotEmpty()) dispatchToCaller { report(lost) }
+    if (lost.isNotEmpty()) runReportingUncaught { report(lost) }
 }
 
 /**

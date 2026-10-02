@@ -17,6 +17,7 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -666,6 +667,11 @@ class SelectionFeedbackTest {
         failing = true
         // Shrinking below the selected row is what makes the narrowing reach this listener.
         items = listOf("red")
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertTrue(
+            "the list narrowing report fails" in failure.message.orEmpty(),
+            "the reported failure should be the narrowing report's own, but was: $failure",
+        )
         awaitIdle()
         assertEquals(emptyList(), list.selectedIndices.toList(), "no row of the old selection is left to select")
 
@@ -674,12 +680,6 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(4, list.model.size, "a later declared items change must still reach the list")
-        val failures = takeCallerFailures()
-        assertTrue(failures.isNotEmpty(), "the narrowing report's failure is contained")
-        assertTrue(
-            failures.any { "the list narrowing report fails" in it.message.orEmpty() },
-            "the contained failure should be the narrowing report's own, but was: $failures",
-        )
     }
 
     @Test
@@ -701,6 +701,11 @@ class SelectionFeedbackTest {
         failing = true
         // Dropping every leaf is what makes the narrowing reach this listener.
         leafCount = 0
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertTrue(
+            "the tree narrowing report fails" in failure.message.orEmpty(),
+            "the reported failure should be the narrowing report's own, but was: $failure",
+        )
         awaitIdle()
         assertEquals(emptyList(), tree.selectedLabels(), "no node of the old selection is left to select")
 
@@ -712,12 +717,6 @@ class SelectionFeedbackTest {
             2,
             tree.model.getChildCount(tree.model.root),
             "a later declared structure change must still reach the tree",
-        )
-        val failures = takeCallerFailures()
-        assertTrue(failures.isNotEmpty(), "the narrowing report's failure is contained")
-        assertTrue(
-            failures.any { "the tree narrowing report fails" in it.message.orEmpty() },
-            "the contained failure should be the narrowing report's own, but was: $failures",
         )
     }
 }

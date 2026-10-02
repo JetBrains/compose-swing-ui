@@ -495,15 +495,15 @@ private val SLIDER_VALUE_MIRRORS =
 
 private val SLIDER_VALUES =
     CallbackRegistration<JSlider, MirrorState<Int>, SliderValueMirror>(
-        adapter = { current ->
+        adapter = { callback ->
             object : SliderValueMirror {
                 override fun stateChanged(event: ChangeEvent) {
                     val model = event.source as BoundedRangeModel
-                    if (!model.valueIsAdjusting) current().observed(model.value)
+                    if (!model.valueIsAdjusting) callback.current.observed(model.value)
                 }
 
                 override fun adoptModelSwap(model: BoundedRangeModel) {
-                    current().observed(model.value)
+                    callback.current.observed(model.value)
                 }
             }
         },

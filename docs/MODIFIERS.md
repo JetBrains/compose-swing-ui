@@ -498,13 +498,13 @@ import javax.swing.event.AncestorListener
 ```kotlin
 private val ANCESTOR_EVENTS =
     CallbackRegistration<JComponent, (AncestorEvent) -> Unit, AncestorListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : AncestorListener {
-                override fun ancestorAdded(event: AncestorEvent) = current()(event)
+                override fun ancestorAdded(event: AncestorEvent) = callback.current(event)
 
-                override fun ancestorRemoved(event: AncestorEvent) = current()(event)
+                override fun ancestorRemoved(event: AncestorEvent) = callback.current(event)
 
-                override fun ancestorMoved(event: AncestorEvent) = current()(event)
+                override fun ancestorMoved(event: AncestorEvent) = callback.current(event)
             }
         },
         registration =

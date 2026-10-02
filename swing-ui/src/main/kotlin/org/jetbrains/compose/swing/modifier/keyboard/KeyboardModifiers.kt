@@ -245,7 +245,7 @@ private class KeyStrokeAction(
 
 private val CONSUMED_KEYS =
     CallbackRegistration<Component, (KeyEvent) -> Boolean, KeyListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : KeyListener {
                 override fun keyTyped(event: KeyEvent): Unit = dispatch(event)
 
@@ -254,7 +254,7 @@ private val CONSUMED_KEYS =
                 override fun keyReleased(event: KeyEvent): Unit = dispatch(event)
 
                 private fun dispatch(event: KeyEvent) {
-                    if (current()(event)) event.consume()
+                    if (callback.current(event)) event.consume()
                 }
             }
         },

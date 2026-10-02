@@ -106,8 +106,6 @@ class ShowcaseShellNavigationTest {
             select(TABLE)
             select(COMPONENTS)
             awaitIdle()
-
-            assertTrue(takeCallerFailures().isEmpty(), "revisiting a section failed the composition")
             onNodeWithText("Section: $COMPONENTS", substring = true).assertExists()
 
             onNodeWithText("Back").performClick()

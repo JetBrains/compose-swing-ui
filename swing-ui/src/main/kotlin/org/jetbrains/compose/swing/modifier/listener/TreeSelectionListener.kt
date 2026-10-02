@@ -43,6 +43,6 @@ private val TREE_SELECTION =
 
 private val TREE_SELECTION_CALLBACKS =
     CallbackRegistration<SwingJTree, (TreeSelectionEvent) -> Unit, TreeSelectionListener>(
-        adapter = { current -> TreeSelectionListener { event -> current()(event) } },
+        adapter = { callback -> TreeSelectionListener { event -> callback.current(event) } },
         registration = TREE_SELECTION,
     )

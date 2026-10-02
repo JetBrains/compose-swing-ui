@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTable
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
@@ -103,7 +103,7 @@ internal class ColumnLayoutChannel(
         // holding.
         if (lost != null) {
             appliedLayout = lost
-            dispatchToCaller { target.value?.columnMarginChanged(ChangeEvent(columns)) }
+            runReportingUncaught { target.value?.columnMarginChanged(ChangeEvent(columns)) }
         }
     }
 

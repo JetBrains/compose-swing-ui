@@ -541,16 +541,22 @@ class TabbedPaneSelectionReportingTest {
         }
 
         selected = 1
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        val reportedFailures = listOf(failure) + failure.suppressed
+        assertTrue(
+            reportedFailures.all { "this listener fails" in it.message.orEmpty() },
+            "the reported failures should be this listener's own, but were: $reportedFailures",
+        )
         awaitIdle()
 
-        selectTab(0)
-        assertEquals(listOf(0), reported, "a failing listener must not leave the user's selections unreported")
-        val contained = takeCallerFailures()
+        // The declaration still names the second tab, so the pane settles back on it and the listener
+        // fails again.
+        val settleFailure = assertFailsWith<IllegalStateException> { selectTab(0) }
         assertTrue(
-            contained.all { "this listener fails" in it.message.orEmpty() },
-            "the contained failures should be this listener's own, but were: $contained",
+            "this listener fails" in settleFailure.message.orEmpty(),
+            "the reported failure should be this listener's own, but was: $settleFailure",
         )
-        assertTrue(contained.isNotEmpty(), "the listener's failure reaches the test rather than going quiet")
+        assertEquals(listOf(0), reported, "a failing listener must not leave the user's selections unreported")
     }
 
     @Test
@@ -574,6 +580,11 @@ class TabbedPaneSelectionReportingTest {
         // Dropping the declared tab without moving the index is what leaves the pane on a tab of its own
         // and makes the fallback reach this listener.
         showThird = false
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertTrue(
+            "the fallback report fails" in failure.message.orEmpty(),
+            "the reported failure should be the fallback report's own, but was: $failure",
+        )
         awaitIdle()
         val pane = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbor of the dropped tab")
@@ -582,13 +593,6 @@ class TabbedPaneSelectionReportingTest {
         selected = 0
         awaitIdle()
         assertEquals(0, pane.selectedIndex, "a later declared selection must still reach the pane")
-
-        val failures = takeCallerFailures()
-        assertTrue(failures.isNotEmpty(), "the fallback report's failure is contained")
-        assertTrue(
-            failures.any { "the fallback report fails" in it.message.orEmpty() },
-            "the contained failure should be the fallback report's own, but was: $failures",
-        )
     }
 
     @Test

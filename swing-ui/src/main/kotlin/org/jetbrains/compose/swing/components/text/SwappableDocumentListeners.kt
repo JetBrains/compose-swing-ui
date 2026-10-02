@@ -50,15 +50,15 @@ internal fun <C : Any> documentMirrorRegistration(
     onAdopt: (current: C, document: Document) -> Unit,
 ): CallbackRegistration<JTextComponent, C, DocumentMirror> =
     CallbackRegistration(
-        adapter = { current ->
+        adapter = { callback ->
             object : DocumentMirror {
-                override fun insertUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
+                override fun insertUpdate(event: DocumentEvent): Unit = onEdit(callback.current, event.document)
 
-                override fun removeUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
+                override fun removeUpdate(event: DocumentEvent): Unit = onEdit(callback.current, event.document)
 
-                override fun changedUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
+                override fun changedUpdate(event: DocumentEvent): Unit = onEdit(callback.current, event.document)
 
-                override fun adoptModelSwap(model: Document): Unit = onAdopt(current(), model)
+                override fun adoptModelSwap(model: Document): Unit = onAdopt(callback.current, model)
             }
         },
         registration = SETTLING_DOCUMENT,

@@ -3,11 +3,11 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -62,8 +62,8 @@ internal fun <T> rememberWillExpandListener(
  *
  * A node opens on the wrapper's own write as well as on the user's click - applying a state's expansion
  * is such a write - so the answer is reached from inside a pass of the composition too, and a callback
- * that fails there would end it. A failure is contained here instead and answers nothing, which lets the
- * expansion through: refusing one is what returning `false` says.
+ * that fails there would end it. A failure is reported to the thread's uncaught-exception handler instead
+ * and answers nothing, which lets the expansion through: refusing one is what returning `false` says.
  */
 private fun <T> allowsExpansion(
     onWillExpand: ((value: T, path: List<Int>) -> Boolean)?,
@@ -72,7 +72,7 @@ private fun <T> allowsExpansion(
     val callback = onWillExpand ?: return true
     val tree = event.source as JTree
     var allowed = true
-    dispatchToCaller { allowed = callback(valueAt(event.path), pathToIndices(tree.model, event.path)) }
+    runReportingUncaught { allowed = callback(valueAt(event.path), pathToIndices(tree.model, event.path)) }
     return allowed
 }
 

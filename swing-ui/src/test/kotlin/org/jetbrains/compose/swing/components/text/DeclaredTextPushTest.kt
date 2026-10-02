@@ -33,6 +33,7 @@ import javax.swing.text.NumberFormatter
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -311,13 +312,13 @@ class DeclaredTextPushTest {
 
         // The filter refuses the write that applies the declared value, so it never reaches the document.
         value = "world"
-        awaitIdle()
+        val refusal = assertFailsWith<IllegalStateException> { awaitIdle() }
         assertEquals(emptyList(), reported, "a refused write reports nothing")
-        val refusal = takeCallerFailures().single()
         assertTrue(
             refusal.message?.contains("the document refuses this write") == true,
-            "the contained failure is the one the filter raised, not whatever else reached the thread",
+            "the reported failure is the one the filter raised, not whatever else reached the thread",
         )
+        assertEquals(emptyList(), refusal.suppressed.toList(), "and it is the only one that reached the thread")
 
         document.documentFilter = null
         document.insertString(document.length, "!", null)
@@ -348,13 +349,13 @@ class DeclaredTextPushTest {
         // Applying a value renders it through the formatter, and this formatter refuses a value it was
         // not written for, so the write throws where the wrapper makes it.
         value = "not an int"
-        awaitIdle()
+        val refusal = assertFailsWith<IllegalArgumentException> { awaitIdle() }
         assertEquals(emptyList(), reported, "a refused write reports nothing")
-        val refusal = takeCallerFailures().single()
         assertTrue(
             refusal.stackTraceToString().contains("IntOnlyFormatter"),
-            "the contained failure is the one this formatter raised, not whatever else reached the thread",
+            "the reported failure is the one this formatter raised, not whatever else reached the thread",
         )
+        assertEquals(emptyList(), refusal.suppressed.toList(), "and it is the only one that reached the thread")
 
         field.text = "7"
         field.commitEdit()

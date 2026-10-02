@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTree
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
@@ -25,7 +25,7 @@ internal fun JTree.reportDropped(
     val standing = selectionPaths.orEmpty().toHashSet()
     val dropped = heldNodes.filterNot { it in standing }
     if (dropped.isEmpty()) return
-    dispatchToCaller { target.valueChanged(selectionLoss(dropped, oldLead)) }
+    runReportingUncaught { target.valueChanged(selectionLoss(dropped, oldLead)) }
 }
 
 /**

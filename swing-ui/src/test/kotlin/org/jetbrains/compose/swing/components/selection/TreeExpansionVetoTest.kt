@@ -20,6 +20,7 @@ import javax.swing.tree.ExpandVetoException
 import javax.swing.tree.TreePath
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -154,13 +155,18 @@ class TreeExpansionVetoTest {
     fun aFailingCallbackAnswersNothingAndLeavesTheCompositionAlive() = runComposeSwingTest {
         var label by mutableStateOf("root")
         val state = TreeState(initialExpandedPaths = setOf(emptyList()))
+        val failures = mutableListOf<Throwable>()
         setContent {
             Tree(
                 root = sample.copy(name = label),
                 children = { it.children },
                 state = state,
                 label = { it.name },
-                onWillExpand = { _, _ -> error("the will-expand callback fails") },
+                onWillExpand = { _, _ ->
+                    val failure = IllegalStateException("the will-expand callback fails")
+                    failures += failure
+                    throw failure
+                },
             )
         }
 
@@ -168,8 +174,10 @@ class TreeExpansionVetoTest {
         // Applying the state's expansion is the wrapper's own write, so the callback is reached from
         // inside the pass that applies it - where a throw would otherwise end the composition.
         state.expandedPaths = setOf(emptyList(), listOf(0))
-        awaitIdle()
+        val reported = assertFailsWith<IllegalStateException> { awaitIdle() }
 
+        assertEquals(failures, listOf(reported) + reported.suppressed, "every callback failure is reported once")
+        assertTrue("the will-expand callback fails" in reported.message.orEmpty())
         assertTrue(tree.isExpanded(tree.pathTo(0)), "a failure is no refusal, so the expansion stands")
 
         label = "trunk"
@@ -179,11 +187,6 @@ class TreeExpansionVetoTest {
             "trunk",
             (tree.model.root as DefaultMutableTreeNode).userObject.toString(),
             "the composition still applies what a later pass declares",
-        )
-        val failures = takeCallerFailures()
-        assertTrue(
-            failures.any { "the will-expand callback fails" in it.message.orEmpty() },
-            "the callback's failure should be contained and reported, but was: $failures",
         )
     }
 
@@ -246,6 +249,11 @@ class TreeExpansionVetoTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         state.expandedPaths = setOf(emptyList(), listOf(0), listOf(1))
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertTrue(
+            "the listener fails" in failure.message.orEmpty(),
+            "the listener's failure should be reported as it was thrown, but was: $failure",
+        )
         awaitIdle()
         assertTrue(tree.isExpanded(tree.pathTo(0)), "the node opened before the failure stays open")
         assertFalse(tree.isExpanded(tree.pathTo(1)), "the node whose listener failed stays closed")
@@ -255,11 +263,6 @@ class TreeExpansionVetoTest {
 
         assertFalse(tree.isExpanded(tree.pathTo(0)), "the user's collapse of the node that did open stands")
         assertEquals(setOf(emptyList<Int>()), state.expandedPaths, "and reaches the state")
-        val failures = takeCallerFailures()
-        assertTrue(
-            failures.any { "the listener fails" in it.message.orEmpty() },
-            "the listener's failure should be contained and reported, but was: $failures",
-        )
     }
 
     @Test

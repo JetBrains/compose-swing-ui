@@ -36,7 +36,7 @@ class LiveCallbackListenerTest {
 
     private val counted =
         CallbackRegistration<JButton, () -> Unit, ActionListener>(
-            adapter = { current -> ActionListener { current()() } },
+            adapter = { callback -> ActionListener { callback.current() } },
             registration =
                 ListenerRegistration(
                     name = "testListener",

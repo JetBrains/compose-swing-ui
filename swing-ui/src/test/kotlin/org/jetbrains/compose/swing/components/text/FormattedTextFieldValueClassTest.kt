@@ -14,6 +14,7 @@ import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.NumberFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 
 /**
@@ -93,8 +94,9 @@ class FormattedTextFieldValueClassTest {
         val field = onNodeOfType<JFormattedTextField>().fetch()
 
         value = 10L
-        awaitIdle()
-        assertEquals(1, takeCallerFailures().size, "the listener's failure should be contained")
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals("the caller refuses this value", failure.message, "the listener's failure should be reported")
+        assertEquals(emptyList(), failure.suppressed.toList(), "and it should be the only one")
 
         field.text = "seven"
         assertFalse(field.isEditValid, "the field should still filter what is typed into it")

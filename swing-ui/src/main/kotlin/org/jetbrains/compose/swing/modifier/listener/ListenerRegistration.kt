@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier.listener
 
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
 
 /**
@@ -37,17 +38,50 @@ public class ListenerRegistration<in T : Component, L : Any>(
 }
 
 /**
+ * The callback a modifier declares right now, as a [CallbackRegistration] adapter reaches it. A pass that
+ * declares a new callback changes what it yields without rebuilding the listener that holds it.
+ */
+public class DeclaredCallback<C : Any>
+    internal constructor(
+        private val read: () -> C,
+    ) {
+        /**
+         * The callback declared right now. Read it directly where a throw must reach Swing, such as a veto, or
+         * where only a gesture or a posted event reaches the listener; call it through [report] where Swing
+         * raises the event inside a write.
+         */
+        public val current: C get() = read()
+
+        /**
+         * Calls [block] with the callback declared right now. A throw out of [block] goes unchanged to the
+         * current thread's uncaught-exception handler and this function returns normally.
+         *
+         * Keep the adapter's own checks and vetoes outside [block], so their failures reach the caller.
+         *
+         * @param block calls the callback it is given.
+         */
+        public inline fun report(crossinline block: (callback: C) -> Unit): Unit =
+            runReportingUncaught { block(current) }
+    }
+
+/**
  * A [registration] together with the [adapter] that builds the listener riding it: what a modifier taking
  * a callback of type [C], rather than a listener of type [L], registers.
  *
  * Declare one per builder and hold it in a `val`, as for a [ListenerRegistration]. The callback is not
  * part of it: a fresh callback on every pass costs one field write.
  *
- * @property adapter builds the listener; its `current` argument yields the callback declared right now.
+ * In [adapter], call the callback through [DeclaredCallback.report] where Swing raises the event inside a
+ * write - a property change, a child insertion, a model write - so a throw from it is reported and the
+ * listener returns normally. Keep adapter checks and vetoes outside the `report` block. A listener that
+ * only a gesture or a posted event reaches may call [DeclaredCallback.current] directly, and Swing's
+ * event pump handles its throw; so does a veto, whose throw must reach Swing.
+ *
+ * @property adapter builds the listener; its `callback` argument reaches the callback declared right now.
  * @param registration where the built listener is registered.
  */
 public class CallbackRegistration<in T : Component, C : Any, L : Any>(
-    internal val adapter: (current: () -> C) -> L,
+    internal val adapter: (callback: DeclaredCallback<C>) -> L,
     private val registration: ListenerRegistration<T, L>,
 ) {
     /** The event source registered on, taken from [registration]. */

@@ -27,7 +27,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertIsNot
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
@@ -73,7 +72,6 @@ class WindowRecomposerFailureTest {
                 reported.isNotEmpty()
             }
             val failure = reported.single()
-            assertIsNot<ContainedCallerFailure>(failure, "a pass that throws is not a contained callback failure")
             assertEquals("boom", failure.message, "the failure reported is the one the pass raised")
             awaitUntil("the failed pass ends the window's recomposer") { frame.swingRecomposerOrNull() == null }
             assertTrue(ended.isDisposed, "the recomposer that failed is disposed")
@@ -125,7 +123,6 @@ class WindowRecomposerFailureTest {
                 reported.isNotEmpty()
             }
             val failure = reported.single()
-            assertIsNot<ContainedCallerFailure>(failure, "an effect that throws is not a contained callback failure")
             assertEquals("boom", failure.message, "the failure reported is the one the effect raised")
             awaitUntil("the failed effect ends the window's recomposer") { frame.swingRecomposerOrNull() == null }
             assertTrue(ended.isDisposed, "the recomposer whose effect failed is disposed")

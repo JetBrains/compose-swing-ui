@@ -10,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.core.trace
 import java.awt.Component
 
@@ -178,7 +177,8 @@ public class MirrorState<V>
          * @param published the value the widget now holds, mirrored through [observed] even where it is
          *   no change of the user's.
          * @param onChanged handed [published] where the change is the user's, and not called at all
-         *   where it is not.
+         *   where it is not. What it throws goes to the thread's uncaught-exception handler, and settling
+         *   still follows.
          */
         public fun report(
             published: V,
@@ -186,7 +186,7 @@ public class MirrorState<V>
         ) {
             if (!observed(published)) return
             val reportingOwner = reportingOwner
-            onChanged(published)
+            runReportingUncaught { onChanged(published) }
             reportingOwner.settleNow()
         }
 
@@ -212,8 +212,9 @@ public class MirrorState<V>
          * Runs [block] as the wrapper's own write to its widget, so the events it raises are recognizable as
          * such rather than as something the user did.
          *
-         * @param block the write to make. A failure raised by a listener it provokes is contained rather
-         *   than ending the composition, and a [write] nested inside another counts as part of it.
+         * @param block the write to make. A failure raised by a listener it provokes is handed to the
+         *   thread's uncaught-exception handler as it was thrown rather than ending the composition, and a
+         *   [write] nested inside another counts as part of it.
          */
         public fun write(block: () -> Unit): Unit = appliedWrite.write(block)
 
@@ -273,9 +274,9 @@ public class MirrorState<V>
             onSettled: (V) -> Unit = {},
         ) {
             val settled = leftHolding(declared, read) { _, declaredValue -> write(declaredValue) }
-            // Runs while the composition applies its changes; dispatchToCaller keeps a callback failure
+            // Runs while the composition applies its changes; runReportingUncaught keeps a callback failure
             // from ending the composition.
-            if (settled != declared) dispatchToCaller { onSettled(settled) }
+            if (settled != declared) runReportingUncaught { onSettled(settled) }
         }
 
         /**
@@ -300,7 +301,7 @@ public class MirrorState<V>
         ) {
             val settled =
                 leftHolding(declared, { component.read() }) { held, written -> component.write(held, written) }
-            if (settled != declared) dispatchToCaller { component.onSettled(settled) }
+            if (settled != declared) runReportingUncaught { component.onSettled(settled) }
         }
 
         /**
@@ -493,11 +494,12 @@ public fun <V> rememberMirrorState(initial: V): MirrorState<V> = remember { Mirr
  * Runs on the event dispatch thread.
  *
  * @param onChanged run before the pass, so a caller that adopts the change is settled on what it wrote
- *   and one that does not is settled back onto its standing declaration.
+ *   and one that does not is settled back onto its standing declaration. What it throws goes to the
+ *   thread's uncaught-exception handler, and settling still follows.
  */
 public fun MirrorState<*>.report(onChanged: () -> Unit) {
     val reportingOwner = reportingOwner
-    onChanged()
+    runReportingUncaught { onChanged() }
     reportingOwner.settleNow()
 }
 

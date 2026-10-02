@@ -7,6 +7,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.Component
@@ -87,7 +88,7 @@ public fun SwingModifier.onPlaced(onPlaced: (Rectangle) -> Unit): SwingModifier 
  * extent it was attached at.
  */
 private abstract class BoundsReport<V : Any>(
-    private val declared: () -> (V) -> Unit,
+    private val declared: DeclaredCallback<(V) -> Unit>,
 ) : ComponentAdapter() {
     protected var reported: V? = null
     private var initialZeroPending: Boolean = false
@@ -118,13 +119,13 @@ private abstract class BoundsReport<V : Any>(
         if (!initialZeroPending && reading == reported) return
         reported = reading
         initialZeroPending = false
-        declared()(reading)
+        declared.current(reading)
     }
 }
 
 /** The [onSizeChanged] report. */
 private class SizeReport(
-    declared: () -> (Dimension) -> Unit,
+    declared: DeclaredCallback<(Dimension) -> Unit>,
 ) : BoundsReport<Dimension>(declared) {
     override fun read(layoutBounds: Rectangle): Dimension = layoutBounds.size
 }
@@ -134,7 +135,7 @@ private class SizeReport(
  * again.
  */
 private class PlacementReport(
-    declared: () -> (Rectangle) -> Unit,
+    declared: DeclaredCallback<(Rectangle) -> Unit>,
 ) : BoundsReport<Rectangle>(declared) {
     override fun read(layoutBounds: Rectangle): Rectangle = layoutBounds
 

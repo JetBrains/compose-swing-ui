@@ -88,11 +88,11 @@ private val FOCUS =
 
 private val FOCUS_CALLBACKS =
     CallbackRegistration<Component, FocusCallbacks, FocusListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : FocusListener {
-                override fun focusGained(event: FocusEvent): Unit = current().onFocusGained(event)
+                override fun focusGained(event: FocusEvent): Unit = callback.current.onFocusGained(event)
 
-                override fun focusLost(event: FocusEvent): Unit = current().onFocusLost(event)
+                override fun focusLost(event: FocusEvent): Unit = callback.current.onFocusLost(event)
             }
         },
         registration = FOCUS,

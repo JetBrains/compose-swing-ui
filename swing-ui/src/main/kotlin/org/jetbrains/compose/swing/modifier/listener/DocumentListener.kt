@@ -90,13 +90,13 @@ private class DocumentCallbacks(
 
 private val DOCUMENT_CALLBACKS =
     CallbackRegistration<JTextComponent, DocumentCallbacks, DocumentListener>(
-        adapter = { current ->
+        adapter = { callback ->
             object : DocumentListener {
-                override fun insertUpdate(event: DocumentEvent): Unit = current().onInsert(event)
+                override fun insertUpdate(event: DocumentEvent): Unit = callback.current.onInsert(event)
 
-                override fun removeUpdate(event: DocumentEvent): Unit = current().onRemove(event)
+                override fun removeUpdate(event: DocumentEvent): Unit = callback.current.onRemove(event)
 
-                override fun changedUpdate(event: DocumentEvent): Unit = current().onChange(event)
+                override fun changedUpdate(event: DocumentEvent): Unit = callback.current.onChange(event)
             }
         },
         registration = SWAPPABLE_DOCUMENT,

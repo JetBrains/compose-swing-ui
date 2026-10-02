@@ -97,6 +97,18 @@ public value class SwingNodeUpdater<T : Component>
          *   node's own group, so it is released with the node it answers for.
          */
         public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.owner = owner }
+
+        /**
+         * Runs [block], which calls a caller's callback while a pass applies - from [init], [update], [set],
+         * [reconcile] or [reconcileWithChildren]. A throw out of [block] goes unchanged to the current
+         * thread's uncaught-exception handler and this function returns normally, so the pass goes on
+         * applying.
+         *
+         * Keep the component's own checks outside [block], so their failures reach the caller.
+         *
+         * @param block calls the caller's callback.
+         */
+        public inline fun report(block: () -> Unit): Unit = runReportingUncaught(block)
     }
 
 /**

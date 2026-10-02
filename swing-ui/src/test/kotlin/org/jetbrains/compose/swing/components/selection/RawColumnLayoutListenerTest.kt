@@ -16,6 +16,7 @@ import javax.swing.event.TableColumnModelListener
 import javax.swing.table.TableColumnModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -59,6 +60,11 @@ class RawColumnLayoutListenerTest {
         // Dropping a column the user's own layout covers is what makes the loss reach this listener.
         failing = true
         withAge = false
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertTrue(
+            "the column loss report fails" in failure.message.orEmpty(),
+            "the reported failure should be the loss report's own, but was: $failure",
+        )
         awaitIdle()
 
         failing = false
@@ -66,11 +72,6 @@ class RawColumnLayoutListenerTest {
         awaitIdle()
 
         assertEquals(2, table.columnModel.columnCount, "a later declared column change must still reach the table")
-        val failures = takeCallerFailures()
-        assertTrue(
-            failures.any { "the column loss report fails" in it.message.orEmpty() },
-            "the contained failure should be the loss report's own, but was: $failures",
-        )
     }
 
     /**

@@ -37,6 +37,6 @@ private val ACCEPT =
 
 private val ACCEPTS =
     CallbackRegistration<JTextField, () -> Unit, ActionListener>(
-        adapter = { current -> ActionListener { current()() } },
+        adapter = { callback -> ActionListener { callback.current() } },
         registration = ACCEPT,
     )

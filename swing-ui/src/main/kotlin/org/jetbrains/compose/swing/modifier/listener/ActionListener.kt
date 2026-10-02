@@ -114,6 +114,6 @@ private val ACTION =
 
 private val ACTION_CALLBACKS =
     CallbackRegistration<Component, (ActionEvent) -> Unit, ActionListener>(
-        adapter = { current -> ActionListener { event -> current()(event) } },
+        adapter = { callback -> ActionListener { event -> callback.current(event) } },
         registration = ACTION,
     )

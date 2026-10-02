@@ -23,8 +23,8 @@ import kotlin.test.assertSame
  * leaves a declared registration uninstalled.
  */
 class CallbackRegistrationTest {
-    private val builtTheSameWay: (() -> (PropertyChangeEvent) -> Unit) -> PropertyChangeListener =
-        { current -> PropertyChangeListener { event -> current()(event) } }
+    private val builtTheSameWay: (DeclaredCallback<(PropertyChangeEvent) -> Unit>) -> PropertyChangeListener =
+        { callback -> PropertyChangeListener { event -> callback.report { it(event) } } }
 
     private val onEnabled =
         CallbackRegistration(

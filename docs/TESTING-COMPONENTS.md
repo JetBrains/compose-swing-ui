@@ -344,29 +344,32 @@ onNodeWithTag("amount").assertTextEquals("42.00")
 ## Callback failures
 
 A callback that throws while a wrapper is writing to its widget - settling a value the widget clamped to
-its own grid or range, for instance - is contained instead of failing the test on the spot. The write
-finishes and the composition keeps working, so a test may go on writing state, recomposing and asserting
-after the throw. Left untaken, the failure still fails the test at teardown, naming the callback.
+its own grid or range, for instance - does not end the composition. The library hands the throwable, as it
+was thrown, to the event dispatch thread's uncaught-exception handler, and the write finishes. The
+composition keeps working, so a test may go on writing state, recomposing and asserting after the throw.
 
-A test that provokes one on purpose takes it with `takeCallerFailures()` and asserts on it directly; what
-it takes no longer fails the test:
+The harness records that throwable and throws it from the next wait call: `awaitIdle()`,
+`awaitEventsDelivered()`, the `mainClock.advanceTimeBy` calls and every `perform` that ends
+in one. A later throwable is suppressed onto the first. One that no wait call throws fails the test as it
+ends.
+
+`waitUntil()` dispatches the events queued before each check of its condition, and throws it the same way.
+
+A test that provokes one on purpose expects it at the call that brings the write through:
 
 ```kotlin
 @Test
-fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
+fun aThrowingCallbackIsReportedAndTheCompositionGoesOn() = runComposeSwingTest {
     var max by mutableIntStateOf(100)
     setContent {
         Slider(value = 50, onValueChange = { error("boom") }, max = max)
     }
 
     // Narrowing the range below the declared value forces the slider to clamp it on the spot, which is
-    // the wrapper writing its own settled value back - exactly where a callback failure is contained.
+    // the wrapper writing its own settled value back - exactly where a callback failure is reported.
     max = 30
-    awaitIdle()
-
-    val failures = takeCallerFailures()
-    assertEquals(1, failures.size)
-    assertEquals("boom", failures.single().message)
+    val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+    assertEquals("boom", failure.message)
 }
 ```
 

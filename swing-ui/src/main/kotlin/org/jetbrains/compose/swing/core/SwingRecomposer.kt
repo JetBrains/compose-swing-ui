@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
+import org.jetbrains.compose.swing.node.reportUncaught
 import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.Component
 import kotlin.coroutines.CoroutineContext

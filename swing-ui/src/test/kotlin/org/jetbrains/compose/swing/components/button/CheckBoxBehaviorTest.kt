@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.singleWidget
@@ -274,6 +275,41 @@ class CheckBoxBehaviorTest {
         text = "Wrap lines"
         awaitIdle()
         checkBox.assert(SwingMatcher.isSelected(false))
+    }
+
+    @Test
+    fun aCallbackThatThrowsOnAClickIsReportedAndTheClickStillSettles() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        var mounted: DisposableHandle? = null
+        try {
+            var checked by mutableStateOf(false)
+            var armed = true
+            mounted =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    CheckBox(
+                        text = "Word wrap",
+                        checked = checked,
+                        onCheckedChange = {
+                            if (armed) error("boom")
+                            checked = it
+                        },
+                    )
+                }
+            val box = singleWidget(composition, JCheckBox::class.java)
+
+            val reported = reportedUncaught { box.doClick(0) }
+
+            assertEquals(listOf("boom"), reported.map { it.message })
+            assertFalse(box.isSelected, "the click the throwing callback did not adopt is put back before it returns")
+
+            armed = false
+            box.doClick(0)
+            assertTrue(box.isSelected, "the next click applies and settles on what the caller adopted")
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
+        }
     }
 
     @Test

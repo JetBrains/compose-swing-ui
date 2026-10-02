@@ -8,7 +8,6 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.Orientation
-import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
@@ -158,8 +157,9 @@ public fun ToolBar(
             // The refusal reaches the caller from here rather than from inside the settle, so the record of
             // what the caller was told is what decides whether it is news: this runs again on every pass
             // that recomposes the bar or changes its items, and a refusal that already stands is not a
-            // second answer. It reaches the caller contained, the way a settle would have dispatched it,
-            // so a throw out of it is reported rather than left to end the composition applying this pass.
+            // second answer. It reaches the caller the way a settle would have dispatched it, so a throw out of
+            // it is reported to the thread's uncaught-exception handler rather than left to end the composition
+            // applying this pass.
             reconcileWithChildren {
                 val bar = component
                 bar.checkStandsWhereItCanDock()
@@ -183,7 +183,7 @@ public fun ToolBar(
                 val unheard = reportedFloating[0] != settled
                 reportedFloating[0] = settled
                 refused[0] = floating != settled
-                if (refused[0] && unheard) dispatchToCaller { onFloatingChange(settled) }
+                if (refused[0] && unheard) report { onFloatingChange(settled) }
             }
         },
         onRelease = {

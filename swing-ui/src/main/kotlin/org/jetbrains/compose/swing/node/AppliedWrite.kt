@@ -1,8 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.core.ContainedCallerFailure
-import org.jetbrains.compose.swing.core.reportUncaught
-
 /**
  * A reentrancy guard marking the wrapper's own writes to its widget, so a listener can tell them from
  * the user's.
@@ -34,24 +31,17 @@ internal class AppliedWrite {
      * still lowers the count, so the next write is not mistaken for a nested one.
      *
      * A widget notifies its listeners from inside the write that provokes them, so a listener the caller
-     * attached runs before [block] returns. Its failure is caught here instead of carried outward,
-     * because the write is driven by a composition applying its changes, and an uncaught failure there
-     * would end the composition for good. A caught failure is reported the way Swing reports one raised
-     * on its own event pump, and the pass finishes.
-     *
-     * Every throwable is caught: what a listener throws is the caller's choice, and naming only some
-     * types would leave the rest free to end the composition.
+     * attached runs before [block] returns. Its failure is reported through [runReportingUncaught]
+     * instead of carried outward, because the write is driven by a composition applying its changes, and
+     * an uncaught failure there would end the composition for good. The handler receives the throwable
+     * itself, and the pass finishes.
      *
      * Inlined, so a write a settle makes carries no block of its own.
      */
     inline fun write(block: () -> Unit) {
         writeDepth++
         try {
-            block()
-        } catch (
-            @Suppress("TooGenericExceptionCaught") failure: Throwable,
-        ) {
-            reportUncaught(ContainedCallerFailure(failure))
+            runReportingUncaught(block)
         } finally {
             writeDepth--
         }

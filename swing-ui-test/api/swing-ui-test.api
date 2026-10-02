@@ -18,7 +18,6 @@ public abstract interface class org/jetbrains/compose/swing/test/ComposeSwingTes
 	public abstract fun onWindow (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public abstract fun setContent (Lkotlin/jvm/functions/Function2;)V
 	public abstract fun setLifecycleState (Landroidx/lifecycle/Lifecycle$State;)V
-	public abstract fun takeCallerFailures ()Ljava/util/List;
 	public abstract fun waitUntil-KLykuaI (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun waitUntil-KLykuaI$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }

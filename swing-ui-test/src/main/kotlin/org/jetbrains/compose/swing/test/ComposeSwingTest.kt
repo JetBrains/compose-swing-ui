@@ -20,7 +20,6 @@ import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
 import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.core.setLifecycleOwner
@@ -141,27 +140,14 @@ public interface ComposeSwingTest {
      * throw is thrown once: the composition recomposes no more, and later calls return as they do over an
      * idle composition. One that no call is left to throw fails the test as it ends.
      *
-     * A failure the library itself raises on the event dispatch thread - reached from neither a
-     * recomposition nor a caller callback - fails this call the same way rather than being lost to the
-     * thread's own uncaught-exception handler. A test that expects any of these wraps the call in
-     * `assertFailsWith`.
+     * Whatever the event dispatch thread's uncaught-exception handler receives fails this call the same
+     * way, rather than being lost to the thread's own handler: a failure the library itself raises on that
+     * thread, and a callback's throw that the library reported to that handler instead of
+     * letting it end the composition. The call throws the first one as it was thrown, with later ones
+     * suppressed onto it, and the composition goes on after it. A test that expects any of these wraps the
+     * call in `assertFailsWith`.
      */
     public suspend fun awaitIdle()
-
-    /**
-     * Removes and returns the failures raised by callbacks this test supplied and contained by the
-     * composition, oldest first.
-     *
-     * A callback that throws while a wrapper is writing to its widget does not stop the composition -
-     * one misbehaving listener cannot be allowed to leave a window unable to answer state - and a test
-     * whose callback threw fails on it once the test ends. A test that provokes such a failure on
-     * purpose takes it from here and asserts on it; what it takes no longer fails the test.
-     *
-     * A failure arrives here once the pass that provoked it has been driven, so take it after the
-     * [awaitIdle] or [awaitEventsDelivered] that brings the write through - taking it before returns nothing and
-     * leaves the failure to end the test.
-     */
-    public fun takeCallerFailures(): List<Throwable>
 
     /**
      * Suspends until every AWT notification already queued on the event dispatch thread has been
@@ -204,7 +190,8 @@ public interface ComposeSwingTest {
      * as a [ComposeTimeoutException].
      *
      * @param timeout the wall-clock deadline after which an unmet condition fails the test.
-     * @param condition the predicate to await; evaluated on the EDT.
+     * @param condition the predicate to await; evaluated on the EDT, each time after the events already queued are
+     * dispatched.
      * @throws ComposeTimeoutException if [condition] is not met after [timeout] (in wall clock time) or the
      * frame cap.
      */
@@ -472,7 +459,7 @@ private class ComposeSwingTestImpl(
      * recomposer is built over so a nested composition - a cell renderer's, a menu's, a window's -
      * inherits the same one.
      */
-    private val restoreCheck = ModifierRestoreCheck(::recordLibraryFailure)
+    private val restoreCheck = ModifierRestoreCheck(::recordUncaughtFailure)
 
     /**
      * The policy an animation that never ends is held to. While frames run on their own such an
@@ -512,7 +499,7 @@ private class ComposeSwingTestImpl(
                     try {
                         effectContext[CoroutineExceptionHandler]?.handleException(context, failure) ?: throw failure
                     } catch (unhandled: Throwable) {
-                        onEventDispatchThread { recordLibraryFailure(unhandled) }
+                        onEventDispatchThread { recordUncaughtFailure(unhandled) }
                     }
                 },
         )
@@ -532,7 +519,7 @@ private class ComposeSwingTestImpl(
             currentTimeNanos = { frameTimeNanos },
             runFrame = ::runFrame,
             diagnostics = { root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote() },
-            throwFailure = ::throwLibraryFailure,
+            throwFailure = ::throwUncaughtFailure,
         )
 
     private var disposeHandle: DisposableHandle? = null
@@ -550,7 +537,7 @@ private class ComposeSwingTestImpl(
      * Caught rather than left to escape the coroutine it was raised in. Escaping, it would arrive as an
      * uncaught exception with no test attached to it, failing whichever test the runner happened to be on
      * rather than the one that caused it. Caught, it fails the gate that ran the failing pass, through
-     * [libraryFailure]. It is also kept here for the rest of the test, so every later gate that gives up names
+     * [uncaughtFailure]. It is also kept here for the rest of the test, so every later gate that gives up names
      * the composition that stopped in its report: a test waiting on a widget the composition no longer
      * drives says why rather than reporting a bare stale value.
      */
@@ -564,48 +551,26 @@ private class ComposeSwingTestImpl(
     private val enclosingHandler: Thread.UncaughtExceptionHandler? = dispatchThread.uncaughtExceptionHandler
 
     /**
-     * The failures raised by code the caller supplied and contained rather than allowed to end the
-     * composition - a listener or callback that threw while a wrapper was writing to its widget. Each
-     * entry is the original failure the caller's code raised, unwrapped from the marker the library
-     * reports it through.
-     *
-     * A contained failure leaves the composition working, which is what production wants and what would
-     * otherwise let a test pass over a callback that never finished. Collected here so the test that
-     * provoked one fails on it, and named in the report of any gate that gives up first.
-     */
-    private val callerFailures = mutableListOf<Throwable>()
-
-    /**
      * A failure a gate throws to the test as raised: the throw that ended recomposition (see
-     * [compositionFailure]), what an effect threw that no handler in the effect context took, or one the
-     * library itself raised on the event dispatch thread outside the recomposer's own coroutine - a check the
-     * applier defers to a later turn of the event queue so it never fires on a pass still in progress, for
-     * instance. Nothing reaching the thread's uncaught-exception handler that is not a
-     * [ContainedCallerFailure] can be told apart from the library's own failure, so every such throwable is
-     * treated as one and recorded here rather than forwarded to whichever handler the thread reported through
-     * before this test claimed it.
+     * [compositionFailure]), what an effect threw that no handler in the effect context took, or anything
+     * else the event dispatch thread's uncaught-exception handler received - a check the applier defers to a
+     * later turn of the event queue so it never fires on a pass still in progress, or a caller's callback
+     * whose throw the library reported to that handler. The handler records every throwable the same way, as it was
+     * thrown, rather than forwarding it to whichever handler the thread reported through before this test
+     * claimed it.
      *
      * A gate throws this once it has drained the event queue, instead of returning normally, and clears it
      * once thrown, so the gates after it return; one still recorded when the test ends fails it too, so a
      * failure that arrives without a further gate call afterward is not silently dropped.
      */
-    private var libraryFailure: Throwable? = null
+    private var uncaughtFailure: Throwable? = null
 
     init {
         // Published before anything composes, so a root mounted into this container resolves this owner
         // rather than minting one that follows a container standing in no window.
         root.setLifecycleOwner(lifecycleOwner)
         root.addNotify()
-        dispatchThread.setUncaughtExceptionHandler { _, failure ->
-            // A ContainedCallerFailure names a caller callback the library deliberately contained; every
-            // other throwable reaching this handler is the library's own failure - see libraryFailure.
-            val contained = failure as? ContainedCallerFailure
-            if (contained != null) {
-                callerFailures += contained.cause ?: contained
-            } else {
-                recordLibraryFailure(failure)
-            }
-        }
+        dispatchThread.setUncaughtExceptionHandler { _, failure -> recordUncaughtFailure(failure) }
         scope.launch {
             try {
                 recomposer.runRecomposeAndApplyChanges()
@@ -613,7 +578,7 @@ private class ComposeSwingTestImpl(
                 throw cancellation
             } catch (failure: Throwable) {
                 compositionFailure = failure
-                recordLibraryFailure(failure)
+                recordUncaughtFailure(failure)
             }
         }
     }
@@ -624,39 +589,29 @@ private class ComposeSwingTestImpl(
             ?.let {
                 "\nRecomposition ended earlier with $it - the composition has applied nothing since, so what " +
                     "the tree shows below is what it was left holding.\n" + it.stackTraceToString()
-            }.orEmpty() + callerFailureNote()
-
-    /** Names the callback failures contained so far, for a gate reporting a composition that never became idle. */
-    private fun callerFailureNote(): String =
-        if (callerFailures.isEmpty()) {
-            ""
-        } else {
-            callerFailures.joinToString(
-                prefix =
-                    "\n${callerFailures.size} callback(s) supplied by this test threw while a wrapper was " +
-                        "writing to its widget. The composition carried on, so the tree below reflects a " +
-                        "callback that never finished.\n",
-                separator = "\n",
-            ) { it.stackTraceToString() }
-        }
+            }.orEmpty()
 
     /**
-     * Records [failure] in [libraryFailure]: the first one stands until a gate throws it, and every
+     * Records [failure] in [uncaughtFailure]: the first one stands until a gate throws it, and every
      * later one is suppressed onto it.
      */
-    private fun recordLibraryFailure(failure: Throwable) {
-        val existing = libraryFailure
-        if (existing != null) existing.addSuppressed(failure) else libraryFailure = failure
+    private fun recordUncaughtFailure(failure: Throwable) {
+        val existing = uncaughtFailure
+        if (existing == null) {
+            uncaughtFailure = failure
+        } else if (existing !== failure) {
+            existing.addSuppressed(failure)
+        }
     }
 
     /**
-     * Throws and forgets [libraryFailure], once one has arrived, so a gate reports the failure rather
+     * Throws and forgets [uncaughtFailure], once one has arrived, so a gate reports the failure rather
      * than quietly finding nothing left to run over a tree the composition or the library already stopped
      * maintaining.
      */
-    private fun throwLibraryFailure() {
-        val failure = libraryFailure ?: return
-        libraryFailure = null
+    private fun throwUncaughtFailure() {
+        val failure = uncaughtFailure ?: return
+        uncaughtFailure = null
         throw failure
     }
 
@@ -689,10 +644,11 @@ private class ComposeSwingTestImpl(
         // number of frames, while a condition waiting on external timing is polled until the deadline.
         val deadline = System.nanoTime() + timeout.inWholeNanoseconds
         var frames = 0
+        drainQueue(layOut = true)
         while (true) {
-            throwLibraryFailure()
-            if (condition()) return
-            throwLibraryFailure()
+            val done = condition()
+            throwUncaughtFailure()
+            if (done) return
             if (frames >= MAX_STEPS || System.nanoTime() >= deadline) {
                 throw ComposeTimeoutException(
                     "Condition still not met after $frames consumed frames / $timeout. " +
@@ -758,11 +714,11 @@ private class ComposeSwingTestImpl(
 
     /**
      * Dispatches what is queued on the event dispatch thread as [dispatchQueued] does, then throws a failure
-     * recorded by then - see [throwLibraryFailure].
+     * recorded by then - see [throwUncaughtFailure].
      */
     private fun drainQueue(layOut: Boolean): Boolean {
         val drained = dispatchQueued(layOut)
-        throwLibraryFailure()
+        throwUncaughtFailure()
         return drained
     }
 
@@ -774,7 +730,9 @@ private class ComposeSwingTestImpl(
      *
      * The caller is on the event dispatch thread, so this enters a [java.awt.SecondaryLoop] and posts the
      * task that exits it behind the queued work. The layout and the reading run inside that task: every
-     * event queued before it has run, and the loop's own teardown has not been posted yet.
+     * event queued before it has run, and the loop's own teardown has not been posted yet. The task exits
+     * the loop even when the layout throws; the throw reaches the thread's handler as an uncaught failure,
+     * which [drainQueue] then throws.
      */
     private fun dispatchQueued(layOut: Boolean): Boolean {
         val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
@@ -887,12 +845,6 @@ private class ComposeSwingTestImpl(
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 
-    override fun takeCallerFailures(): List<Throwable> {
-        val taken = callerFailures.toList()
-        callerFailures.clear()
-        return taken
-    }
-
     override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction =
         SwingWindowInteraction(this, matcher, description = matcher.description)
 
@@ -914,24 +866,10 @@ private class ComposeSwingTestImpl(
             root.removeNotify()
             root.setLifecycleOwner(null)
         }
-        val contained = callerFailures.toList()
-        if (contained.isNotEmpty()) {
-            // The composition contains these so a misbehaving callback cannot stop a window answering
-            // state. A test is the one place that has to hear about them: a callback that threw did not
-            // do what the test asked of it, whatever the widgets ended up showing.
-            val failure =
-                AssertionError(
-                    "${contained.size} callback(s) supplied by this test threw while a wrapper was writing " +
-                        "to its widget. The composition contained them and carried on; the test cannot.",
-                )
-            contained.forEach(failure::addSuppressed)
-            libraryFailure?.let(failure::addSuppressed)
-            throw failure
-        }
         // A failure a gate never got the chance to throw - the test ended without calling one after it
         // arrived, or it arrived as the composition was torn down above - would otherwise be lost entirely
         // rather than merely late.
-        libraryFailure?.let { throw it }
+        uncaughtFailure?.let { throw it }
     }
 
     private companion object {
