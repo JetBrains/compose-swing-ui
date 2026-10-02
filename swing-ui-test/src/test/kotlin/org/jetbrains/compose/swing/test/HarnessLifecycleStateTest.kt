@@ -1,14 +1,21 @@
 package org.jetbrains.compose.swing.test
 
+import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.core.findLifecycleOwner
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
+import javax.swing.JLabel
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
@@ -52,18 +59,50 @@ class HarnessLifecycleStateTest {
     }
 
     @Test
-    fun everyContentCompositionOfATestReadsOneOwner() = runComposeSwingTest {
-        var first: LifecycleOwner? = null
-        var second: LifecycleOwner? = null
+    fun nestedContentReadsTheHarnessOwnerAndLeavesItLiveWhenDisposed() = runComposeSwingTest {
+        var rootOwner: LifecycleOwner? = null
+        lateinit var parent: CompositionContext
         setContent {
-            first = LocalLifecycleOwner.current
-            Label("one")
-            second = LocalLifecycleOwner.current
-            Label("two")
+            rootOwner = LocalLifecycleOwner.current
+            parent = rememberCompositionContext()
+            Label("root")
         }
-        awaitIdle()
+        onNodeWithText("root").assertExists()
+        val owned = assertNotNull(rootOwner, "root content must read an owner")
+        assertSame(owned, root.findLifecycleOwner(), "root content reads the harness-owned lifecycle")
+        assertEquals(Lifecycle.State.STARTED, owned.lifecycle.currentState)
 
-        assertSame(first, second, "content of one test stands under one owner")
+        // A detached host has no ancestor publication: its owner must come from the named parent.
+        val nested = JPanel()
+        var nestedOwner: LifecycleOwner? = null
+        val handle =
+            nested.setContent(parent = parent) {
+                nestedOwner = LocalLifecycleOwner.current
+                Label("nested")
+            }
+        try {
+            awaitIdle()
+            assertEquals("nested", (nested.components.single() as JLabel).text, "independent content was mounted")
+            val borrowed = assertNotNull(nestedOwner, "nested content must read an owner")
+            assertSame(owned, borrowed, "nested content inherits the harness-owned lifecycle")
+
+            lifecycleState = Lifecycle.State.RESUMED
+            assertEquals(
+                Lifecycle.State.RESUMED,
+                borrowed.lifecycle.currentState,
+                "the shared inherited owner follows the harness state",
+            )
+
+            handle.dispose()
+            assertEquals(
+                Lifecycle.State.RESUMED,
+                owned.lifecycle.currentState,
+                "nested disposal leaves its borrowed owner live",
+            )
+            onNodeWithText("root").assertExists()
+        } finally {
+            handle.dispose()
+        }
     }
 
     @Test

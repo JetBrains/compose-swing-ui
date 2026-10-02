@@ -32,6 +32,8 @@ import kotlinx.coroutines.cancel
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.collectFailure
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
 import org.jetbrains.compose.swing.defaults.LocalComponentDefaults
@@ -201,6 +203,7 @@ public interface SwingModifier {
          * Runs once every node of the chain is attached. Runs again only after [onDetach].
          *
          * A throw propagates to the caller applying the modifier and fails the pass; the node is detached first.
+         * A throw from [onDetach] during that detach is suppressed on it, not reported.
          */
         public open fun onAttach() {}
 
@@ -250,9 +253,13 @@ public interface SwingModifier {
             onAttach()
         }
 
-        internal fun runDetachLifecycle() {
+        /**
+         * Runs [onDetach], reporting a throw to the uncaught-exception handler unless
+         * [reportCallbackFailure] is false.
+         */
+        internal fun runDetachLifecycle(reportCallbackFailure: Boolean = true) {
             check(isAttached) { "The modifier node is detached multiple times" }
-            runReportingUncaught { onDetach() }
+            if (reportCallbackFailure) runReportingUncaught { onDetach() } else onDetach()
         }
 
         internal fun reset() {
@@ -522,7 +529,8 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
             @Suppress("TooGenericExceptionCaught") failure: Throwable,
         ) {
             unrecord()
-            detach(diagnostics)
+            // The caller gets the attach failure, so a throw from the rollback is suppressed on it, not reported.
+            collectFailure(failure) { detach(diagnostics, reportCallbackFailure = false) }
             throw failure
         }
         update(element)
@@ -534,20 +542,24 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
         chain: ArrayList<NodeRecord<*, *>>,
     ): Unit = runAttachLifecycle(diagnostics, { chain += this }, { chain.removeAt(chain.lastIndex) })
 
-    /** Runs the node's [SwingModifier.Node.onDetach]. */
-    open fun runDetachLifecycle(diagnostics: SwingCompositionDiagnostics?): Unit = node.runDetachLifecycle()
+    /** Runs the node's [SwingModifier.Node.onDetach]; a throw is reported unless [reportCallbackFailure] is false. */
+    open fun runDetachLifecycle(
+        diagnostics: SwingCompositionDiagnostics?,
+        reportCallbackFailure: Boolean = true,
+    ): Unit = node.runDetachLifecycle(reportCallbackFailure)
 
     /** Marks the node detached, closing the attached window. */
     open fun markDetached(): Unit = node.detach()
 
-    /** Runs the node's [SwingModifier.Node.onDetach] and marks the node detached. */
-    open fun detach(diagnostics: SwingCompositionDiagnostics?) {
-        try {
-            runDetachLifecycle(diagnostics)
-        } finally {
-            markDetached()
-        }
-    }
+    /**
+     * Runs the node's [SwingModifier.Node.onDetach] and marks the node detached, even when the first fails. The first
+     * failure propagates, with the later one suppressed on it. A throw from `onDetach` is reported unless
+     * [reportCallbackFailure] is false, in which case it propagates.
+     */
+    open fun detach(
+        diagnostics: SwingCompositionDiagnostics?,
+        reportCallbackFailure: Boolean = true,
+    ): Unit = runEveryStep({ runDetachLifecycle(diagnostics, reportCallbackFailure) }, ::markDetached)
 
     /**
      * Whether [element] is of the class this slot's node was created for, i.e. whether a rebind can apply it
@@ -632,10 +644,13 @@ internal class ElementRecord<T : Component, N : SwingModifier.ComponentNode<T>>(
     }
 
     /** Runs the node's [SwingModifier.Node.onDetach], while the target is still injected. */
-    override fun runDetachLifecycle(diagnostics: SwingCompositionDiagnostics?): Unit =
+    override fun runDetachLifecycle(
+        diagnostics: SwingCompositionDiagnostics?,
+        reportCallbackFailure: Boolean,
+    ): Unit =
         // A node restores its captured original through component.
         diagnostics.watchRestore(node.component, node) {
-            node.runDetachLifecycle()
+            node.runDetachLifecycle(reportCallbackFailure)
         }
 
     // Only a component element is paired with a component slot.
@@ -697,15 +712,14 @@ internal class LayoutNodeRecord(
 
     /**
      * Detaches the node, then [drops][org.jetbrains.compose.swing.node.ParentDeclaration.dropLayoutNodes] it from
-     * what the measuring parent of its component holds.
+     * what the measuring parent of its component holds, even when the detach fails.
      */
-    override fun detach(diagnostics: SwingCompositionDiagnostics?) {
+    override fun detach(
+        diagnostics: SwingCompositionDiagnostics?,
+        reportCallbackFailure: Boolean,
+    ) {
         val declaration = node.holder?.declaration
-        try {
-            super.detach(diagnostics)
-        } finally {
-            declaration?.dropLayoutNodes()
-        }
+        runEveryStep({ super.detach(diagnostics, reportCallbackFailure) }, { declaration?.dropLayoutNodes() })
     }
 
     @Suppress("UNCHECKED_CAST") // The slot's node was created by an element of this element's class.
@@ -1592,8 +1606,9 @@ private fun diffKeyedElements(
  * The whole chain comes apart in phases: on reuse and deactivation ([reset] set) every node runs
  * [SwingModifier.Node.onReset], then every node runs [SwingModifier.Node.onDetach], and only then is any node
  * marked detached. A measuring parent that received a layout node is then declared to without them, and lays the
- * component out anew unless it is being released. A throw from that declaration reaches the caller once the holder
- * carries no modifier state.
+ * component out anew unless it is being released. Each of these steps is attempted even when an earlier one throws;
+ * the first failure reaches the caller, with the later ones suppressed on it, once the holder carries no modifier
+ * state.
  */
 internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
     val state = modifierState
@@ -1601,9 +1616,11 @@ internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
     val handedNodes = state?.handedNodes == true
     val unwinding = state?.standingInUnwindOrder().orEmpty()
     try {
-        if (reset) unwinding.fastForEach { it.node.reset() }
-        unwinding.detachAll(diagnostics)
-        declaration.dropLayoutNodes(layOut = reset)
+        runEveryStep(
+            { if (reset) unwinding.fastForEach { it.node.reset() } },
+            { unwinding.detachAll(diagnostics) },
+            { declaration.dropLayoutNodes(layOut = reset) },
+        )
     } finally {
         state?.clear()
         notifyDeclaredNodes(chainChanged = true, handedNodes)

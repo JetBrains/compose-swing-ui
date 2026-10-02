@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposableOpenTarget
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.State
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
@@ -70,6 +71,9 @@ import javax.swing.RootPaneContainer
  * the focused state, `repeatOnLifecycle(RESUMED)` ends its work the moment the user switches to another
  * window - work that should run for as long as the content is on screen belongs under `STARTED`.
  *
+ * Disposal failures reach the handle's caller. Disposal continues through every remaining step, with later failures
+ * suppressed onto the first. A failing disposal callback can leave later content callbacks uncalled.
+ *
  * Must be called on the Event Dispatch Thread.
  *
  * @param parent the composition context this content joins and shares the recomposition scope of, and
@@ -87,7 +91,9 @@ public fun JComponent.setContent(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    val compose = { resolved: ParentComposition, window: State<Window?> -> mountContent(resolved, window, content) }
+    val compose = { resolved: ParentComposition, window: State<Window?>, lifecycle: LifecycleOwner ->
+        mountContent(resolved, window, lifecycle, content)
+    }
     return if (parent == null) {
         mountWhenParentResolves(this, compose)
     } else {
@@ -102,17 +108,19 @@ public fun JComponent.setContent(
  * A window's shared recomposer is a composition root rather than a composition, so it carries no
  * [androidx.compose.runtime.CompositionLocal]s and the window has to be stated here. [window] is the one
  * the content stands in and follows, so content mounted under no window reads the one it later reaches.
+ * [lifecycle] is the owner the content reads where nothing composed above it provides one.
  */
 private fun JComponent.mountContent(
     parent: ParentComposition,
     window: State<Window?>,
+    lifecycle: LifecycleOwner,
     content:
         @Composable @SwingComposable
         () -> Unit,
 ): SwingContentComposition {
     val composition =
         SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::SwingApplier)
-    composition.setContent { ProvideContentLocals(window, this, content = content) }
+    composition.setContent { ProvideContentLocals(window, lifecycle, this, content = content) }
     return composition
 }
 
@@ -211,10 +219,10 @@ public fun JMenuBar.setContent(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    return mountWhenParentResolves(this) { parent, window ->
+    return mountWhenParentResolves(this) { parent, window, lifecycle ->
         val composition =
             SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::MenuApplier)
-        composition.setContent { ProvideContentLocals(window, this, content = content) }
+        composition.setContent { ProvideContentLocals(window, lifecycle, this, content = content) }
         composition
     }
 }

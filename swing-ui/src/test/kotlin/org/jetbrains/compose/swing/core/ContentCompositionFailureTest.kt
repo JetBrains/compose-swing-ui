@@ -2,8 +2,15 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.TabbedPane
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
@@ -11,16 +18,21 @@ import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JTabbedPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 /**
  * What a nested content composition leaves behind when its root cannot be attached or its applier cannot be built
- * after its root attached.
+ * after its root attached, and what disposing a standing one does with a throw from its content.
  */
 class ContentCompositionFailureTest {
     @Test
@@ -69,6 +81,53 @@ class ContentCompositionFailureTest {
         assertEquals(listOf("attached"), probe.events, "the reported callback leaves the root attached")
         composition.dispose()
         assertEquals(listOf("attached", "detached"), probe.events, "dispose still detaches the root once")
+    }
+
+    @Test
+    fun aTabHeaderDisposalFailureReachesTheParentAndEndsRecomposition() = runComposeSwingTest {
+        val cleanup = object : IllegalStateException("cleanup failed") {}
+        var disposals = 0
+        var withSecondTab by mutableStateOf(true)
+        var text by mutableStateOf("one")
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label(text, SwingModifier.tab(title = "One"))
+                if (withSecondTab) {
+                    Label(
+                        "two",
+                        SwingModifier.tab(
+                            title = "Two",
+                            header = {
+                                DisposableEffect(Unit) {
+                                    onDispose {
+                                        disposals++
+                                        throw cleanup
+                                    }
+                                }
+                                Label("Two")
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+        val pane = onNodeOfType<JTabbedPane>().fetch<JTabbedPane>()
+        assertEquals(2, pane.tabCount)
+        val page = pane.getComponentAt(1)
+        val header = assertNotNull(pane.getTabComponentAt(1))
+
+        withSecondTab = false
+        assertSame(cleanup, assertFailsWith<IllegalStateException> { awaitIdle() })
+        assertEquals(1, pane.tabCount, "the tab is removed before its header's disposal fails")
+        assertNull(page.parent, "the removed page is detached")
+        assertNull(header.parent, "the removed header is detached")
+        assertEquals(1, disposals)
+
+        text = "uno"
+        awaitIdle()
+        // The failed disposal ends the parent's recomposition, so the later edit never applies.
+        onNodeOfType<JLabel>().assertTextEquals("one")
+        assertEquals(1, disposals, "later waits do not retry the failed disposal")
     }
 
     private suspend fun ComposeSwingTest.assertConstructionFailureReachesCaller(

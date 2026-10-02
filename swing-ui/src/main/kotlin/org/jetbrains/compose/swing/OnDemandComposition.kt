@@ -88,9 +88,8 @@ public class OnDemandComposition(
      *
      * A call from inside another [recompose] runs neither [update] nor a recompose, and answers the
      * component the outer call is already in the middle of producing - the same component this call
-     * would otherwise materialize again. Once this composition is [dispose]d, [update] does not run and
-     * this answers `null`, the way an already-disposed [DisposableHandle] does nothing rather than
-     * failing: a Swing widget keeps invoking a renderer it captured even while its window is torn down.
+     * would otherwise materialize again. Once this composition is [dispose]d, [update] does not run.
+     * After successful disposal this answers `null`; a failed disposal may leave the last component.
      *
      * A pass that composes more than one top-level component disposes this composition before throwing
      * [IllegalStateException], so later calls follow the disposed-composition behavior.
@@ -114,8 +113,10 @@ public class OnDemandComposition(
     }
 
     /**
-     * Disposes this composition. A [recompose] over it stays safe to invoke afterwards, answering `null`
-     * the way a composition holding nothing composes none.
+     * Disposes this composition. After successful disposal, [recompose] answers `null`.
+     *
+     * Disposal failures reach the caller. A failing disposal callback can leave later content callbacks
+     * uncalled and [recompose] returning its last component. Repeated disposal does not retry them.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -137,8 +138,9 @@ public class OnDemandComposition(
             rootHolder.checkOneChildPerRegion(::compositionEmitsTwo)
         } catch (overflow: IllegalStateException) {
             current = null
-            composition.dispose()
-            throw MultipleTopLevelComponentsException(overflow.message.orEmpty(), overflow)
+            disposingOnFailure(composition::dispose) {
+                throw MultipleTopLevelComponentsException(overflow.message.orEmpty(), overflow)
+            }
         }
     }
 }

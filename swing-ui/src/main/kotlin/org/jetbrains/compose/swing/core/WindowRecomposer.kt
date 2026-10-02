@@ -74,7 +74,8 @@ internal val Window.contentPaneOrNull: JComponent?
 private fun Window.composesUnderAForeignComposition(): Boolean = contentPaneOrNull?.get(COMPOSITION_KEY) != null
 
 /**
- * Reaps a window's content when the window is disposed, and ends [recomposer] with it.
+ * Reaps a window's content when the window is disposed, and ends [recomposer] with it, even when reaping
+ * the content throws. The first failure propagates, with the later ones suppressed on it.
  *
  * Reaping the window's content is what normally ends its recomposer; it is disposed here as well, for
  * the window that took a context and mounted nothing under it: no registration was ever withdrawn to end
@@ -89,8 +90,7 @@ private class WindowRecomposerHolder(
     private val recomposer: SwingRecomposer,
 ) : WindowAdapter() {
     override fun windowClosed(e: WindowEvent) {
-        disposeContentCompositionsIn(e.window)
-        recomposer.dispose()
+        runEveryStep({ disposeContentCompositionsIn(e.window) }, recomposer::dispose)
     }
 }
 
@@ -106,7 +106,8 @@ private class WindowRecomposerHolder(
  * handle is safe to dispose from both sides.
  *
  * Every handle is collected before any is disposed: disposing a content composition removes its composed
- * subtree from the tree being walked.
+ * subtree from the tree being walked. Every handle is disposed even when one throws; the first failure
+ * propagates, with the later ones suppressed on it.
  */
 internal fun disposeContentCompositionsIn(window: Window) {
     val standing = mutableListOf<DisposableHandle>()
@@ -118,7 +119,7 @@ internal fun disposeContentCompositionsIn(window: Window) {
         }
     }
     collect(window)
-    standing.forEach(DisposableHandle::dispose)
+    runEveryStep(standing.map<DisposableHandle, () -> Unit> { handle -> { handle.dispose() } })
 }
 
 /**
@@ -170,18 +171,19 @@ internal fun Window.getOrCreateRecomposer(): SwingRecomposer {
 
     // Cleared when the recomposer ends, so the published contexts stand exactly as long as what they name: a
     // setContent resolving its parent up the Swing tree must never reach an ended context, and a window
-    // must never hand out a recomposer that has ended.
+    // must never hand out a recomposer that has ended. Each step is attempted even when a property listener
+    // throws from an earlier one.
     // Assignable only after the recomposer it reaps for exists. Safe to read from the callback: the
     // recomposer dispatches every turn of its own onto the event queue, so nothing can end it inside
     // the call that creates it.
     lateinit var reaper: WindowRecomposerHolder
     val created =
         SwingRecomposer.forWindow(this) {
-            rootPaneOrNull?.apply {
-                setCompositionContext(null)
-                set(WINDOW_RECOMPOSER_KEY, null)
-            }
-            removeWindowListener(reaper)
+            runEveryStep(
+                { rootPaneOrNull?.setCompositionContext(null) },
+                { rootPaneOrNull?.set(WINDOW_RECOMPOSER_KEY, null) },
+                { removeWindowListener(reaper) },
+            )
         }
     reaper = WindowRecomposerHolder(created)
     rootPaneOrNull?.apply {

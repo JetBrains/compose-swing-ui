@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
@@ -83,10 +84,12 @@ class OnDemandCompositionTest {
         setContent { parentContext = rememberCompositionContext() }
 
         var showSecond by mutableStateOf(false)
+        val cleanup = IllegalStateException("effect disposal failed")
         val composition =
             OnDemandComposition(parentContext) {
                 Label("first")
                 if (showSecond) Label("second")
+                DisposableEffect(Unit) { onDispose { throw cleanup } }
             }
         try {
             assertEquals("first", (composition.recompose {} as JLabel).text)
@@ -100,6 +103,7 @@ class OnDemandCompositionTest {
                 "top-level component",
                 message = "the failure must say what content is refused for composing too many of",
             )
+            assertEquals(listOf(cleanup), failure.suppressed.toList(), "the refusal keeps the failed disposal")
 
             var updates = 0
             assertNull(

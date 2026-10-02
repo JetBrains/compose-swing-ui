@@ -2,13 +2,10 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.RememberObserver
-import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
@@ -20,18 +17,6 @@ import java.awt.event.HierarchyEvent
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import javax.swing.JComponent
-
-/**
- * The [LifecycleOwner] belonging to [component]: the one a root at or above it published on the Swing
- * tree, and a freshly minted one following [component] where that walk answers nothing.
- *
- * Only a minted owner is driven by this root and ended at [Lifecycle.State.DESTROYED] as the content
- * leaves the composition. Whether the content reads this owner or one provided above it is the caller's
- * to state.
- */
-@Composable
-internal fun rememberLifecycleOwner(component: Component): LifecycleOwner =
-    remember(component) { LifecycleOwnerResolution(component) }.owner
 
 /**
  * Publishes the [LifecycleOwner] the content around this call reads as what [component] carries, so a root
@@ -107,21 +92,20 @@ public fun Component.findLifecycleOwner(): LifecycleOwner? {
 /**
  * The [LifecycleOwner] one composition root stands under, and how far that root's ownership of it reaches.
  *
- * The walk runs as the resolution is built and the resolution is remembered against [component] alone, so it runs
- * before a minted owner is published: a root that minted its owner never reads what it published back and takes it for
- * one it found above itself, which would leave that owner with nobody to end it.
+ * The walk runs as the resolution is built, so it runs before a minted owner is published: a root that minted its
+ * owner never reads what it published back and takes it for one it found above itself, which would leave that owner
+ * with nobody to end it.
  *
- * The resolution is what the root remembers, rather than the owner itself: a root drives only the owner it minted,
- * so an owner it resolved from elsewhere is neither installed a second time nor ended as this root leaves the
- * composition - it belongs to the root that minted it and outlives every root that reads it.
+ * A root drives only the owner it minted, so an owner it resolved from elsewhere is neither installed a second
+ * time nor ended as this root leaves the composition - it belongs to the root that minted it and outlives every
+ * root that reads it.
  */
-private class LifecycleOwnerResolution(
-    component: Component,
-) : RememberObserver {
+internal class LifecycleOwnerResolution(
+    private val component: Component,
+) {
     /** The owner the root's content reads. */
     val owner: LifecycleOwner
 
-    /** The owner this root minted and drives; `null` where the root reads an owner it did not mint. */
     private val minted: ComponentLifecycleOwner?
 
     init {
@@ -136,16 +120,36 @@ private class LifecycleOwnerResolution(
         }
     }
 
-    override fun onRemembered() {
+    /** Whether the root minted its owner, and so has to be told where its component goes. */
+    val drives: Boolean
+        get() = minted != null
+
+    /** Starts the minted owner following its component's window; a resolved owner is already followed. */
+    fun install() {
         minted?.install()
     }
 
-    override fun onForgotten() {
-        minted?.destroy()
+    /** Re-reads the window the minted owner follows; told of the events matching [LIFECYCLE_PLACE_CHANGE_FLAGS]. */
+    fun placeChanged() {
+        minted?.syncWindow()
     }
 
-    override fun onAbandoned() {
-        minted?.destroy()
+    /**
+     * Ends the minted owner and removes what it installed; a resolved owner is left to the root that minted it.
+     * What an observer of the owner throws as it ends propagates, as it does from [LifecycleRegistry]; a failure
+     * of the library's own cleanup is thrown too, see [ComponentLifecycleOwner.destroy]. The component stops
+     * publishing the minted owner, which a failed disposal of the content leaves published; a listener of the
+     * host throwing as it stops does not keep the owner from ending.
+     */
+    fun end() {
+        runEveryStep(
+            {
+                if (minted != null && component is JComponent && component[LIFECYCLE_OWNER_KEY] === minted) {
+                    component.setLifecycleOwner(null)
+                }
+            },
+            { minted?.destroy() },
+        )
     }
 }
 
@@ -169,7 +173,7 @@ private class LifecycleOwnerResolution(
  * Lives only on the Event Dispatch Thread - composition, the AWT listeners it installs, and the
  * registry it drives all run there - so its fields need no synchronization.
  */
-private class ComponentLifecycleOwner(
+internal class ComponentLifecycleOwner(
     private val component: Component,
 ) : LifecycleOwner {
     private val registry = LifecycleRegistry(this)
@@ -181,9 +185,6 @@ private class ComponentLifecycleOwner(
     private var window: Window? = component.ownerWindowOrNull()
 
     private var destroyed = false
-
-    /** Handle removing the listener watching [component]'s place; held from [install] to [destroy]. */
-    private var placeChanges: DisposableHandle? = null
 
     private val windowListener =
         object : WindowAdapter() {
@@ -201,11 +202,11 @@ private class ComponentLifecycleOwner(
     }
 
     /**
-     * Installs the listeners that follow [component]'s place. Called once, by the root that minted the
-     * owner, as that root's content enters the composition.
+     * Installs the window listeners. Called once, by the root that minted the owner, as that root's content
+     * enters the composition; whoever calls it tells [syncWindow] of each event matching
+     * [LIFECYCLE_PLACE_CHANGE_FLAGS] on [component].
      */
     fun install() {
-        placeChanges = onPlaceChanged(component, PLACE_CHANGE_FLAGS) { syncWindow() }
         window?.let(::listenTo)
         // The component may have taken another place between the owner being built and the
         // composition applying; this reconciles the window the listeners were installed on.
@@ -221,7 +222,7 @@ private class ComponentLifecycleOwner(
      * that destroyed it to this method afterward, and re-installing listeners here would arm a window
      * the owner will never stop listening to.
      */
-    private fun syncWindow() {
+    fun syncWindow() {
         if (destroyed) return
         val resolved = component.ownerWindowOrNull()
         if (resolved !== window) {
@@ -238,8 +239,10 @@ private class ComponentLifecycleOwner(
     }
 
     private fun stopListeningTo(target: Window) {
-        target.removeWindowListener(windowListener)
-        target.removeWindowFocusListener(windowListener)
+        runEveryStep(
+            { target.removeWindowListener(windowListener) },
+            { target.removeWindowFocusListener(windowListener) },
+        )
     }
 
     /**
@@ -247,15 +250,19 @@ private class ComponentLifecycleOwner(
      * an event that still reaches a destroyed owner resolves to the state it is already in, and an owner
      * that was minted but never installed - one whose root inherited an owner instead - ends with no
      * listener to give up.
+     *
+     * The owner reaches [Lifecycle.State.DESTROYED] even when removing a listener throws, and that failure is
+     * thrown after it. What an observer throws propagates, as it does from [LifecycleRegistry].
      */
     fun destroy() {
         if (destroyed) return
         destroyed = true
-        placeChanges?.dispose()
-        placeChanges = null
-        window?.let(::stopListeningTo)
-        window = null
-        updateState()
+        try {
+            window?.let(::stopListeningTo)
+        } finally {
+            window = null
+            updateState()
+        }
     }
 
     private fun updateState() {
@@ -271,11 +278,11 @@ private class ComponentLifecycleOwner(
 
 /**
  * The [HierarchyEvent] change flags that can move a component into another window or change whether
- * Swing has given it a native peer. Together they are the whole of what attachment and the owning
- * window turn on.
+ * Swing has given it a native peer: the flags that put it under another window, [PLACE_CHANGE_FLAGS], and a
+ * change of its displayability. Together they are the whole of what attachment and the owning window turn on.
  */
-private const val PLACE_CHANGE_FLAGS: Long =
-    (HierarchyEvent.PARENT_CHANGED or HierarchyEvent.DISPLAYABILITY_CHANGED).toLong()
+internal const val LIFECYCLE_PLACE_CHANGE_FLAGS: Long =
+    PLACE_CHANGE_FLAGS or HierarchyEvent.DISPLAYABILITY_CHANGED.toLong()
 
 /**
  * Minimization is a [Frame]'s iconified state; a window of any other kind is always shown at full

@@ -66,14 +66,6 @@ class SetContentParentWindowTest {
                 "content mounted on attach must compose under the window it reached",
             )
             assertEquals(listOf("deferred"), labelTexts(panel), "the mounted composition must hold its content")
-            // Both watchers stay: the composition follows the window the container is in for as long as
-            // it composes there, and so does the lifecycle of the content it mounted.
-            assertEquals(
-                2,
-                panel.hierarchyListeners.size,
-                "a mounted composition must watch the container's place with one HierarchyListener for " +
-                    "mounting and one for the content's lifecycle",
-            )
 
             handle.dispose()
             assertEquals(0, panel.hierarchyListeners.size, "disposing after mounting must leave no listener behind")

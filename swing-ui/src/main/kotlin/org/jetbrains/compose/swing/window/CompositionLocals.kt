@@ -10,9 +10,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.State
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.jetbrains.compose.swing.core.PublishLifecycleOwner
-import org.jetbrains.compose.swing.core.rememberLifecycleOwner
 import java.awt.Component
 import java.awt.Window
 
@@ -60,12 +60,16 @@ internal val LocalProvidableWindow: ProvidableCompositionLocal<Window?> = static
  * [window] is the window the content composition has settled on, not one resolved while composing, so one
  * that already has a window stands under it from its first pass. It is observable, so a content
  * composition that inherited none reads the window its container reaches once it arrives there.
+ *
+ * [lifecycle] is the owner the content composition resolved for its container, which it drives and ends
+ * itself; this only offers it as the default.
  */
 @Suppress("StateParam")
 @Composable
 @ComposableOpenTarget(-1)
 internal fun ProvideContentLocals(
     window: State<Window?>,
+    lifecycle: LifecycleOwner,
     component: Component,
     content:
         @Composable
@@ -77,7 +81,7 @@ internal fun ProvideContentLocals(
     val joined = LocalProvidableWindow.current
     CompositionLocalProvider(
         LocalProvidableWindow providesComputed { joined ?: window.value },
-        LocalLifecycleOwner providesDefault rememberLifecycleOwner(component),
+        LocalLifecycleOwner providesDefault lifecycle,
     ) {
         PublishLifecycleOwner(component)
         content()
@@ -93,13 +97,16 @@ internal fun ProvideContentLocals(
  * holds exactly the focus its owner gives up: a dialog reading the frame's owner would report itself
  * unshown while the user is looking at it.
  *
- * A caller wanting another [LocalLifecycleOwner] inside such a window provides one within its content.
+ * [lifecycle] is the owner the window resolved for its content pane, which the window ends itself; this only
+ * states it. A caller wanting another [LocalLifecycleOwner] inside such a window provides one within its
+ * content.
  */
 @Suppress("StateParam")
 @Composable
 @ComposableOpenTarget(-1)
 internal fun ProvideWindowLocals(
     window: State<Window?>,
+    lifecycle: LifecycleOwner,
     component: Component,
     content:
         @Composable
@@ -108,7 +115,7 @@ internal fun ProvideWindowLocals(
 ) {
     CompositionLocalProvider(
         LocalProvidableWindow providesComputed { window.value },
-        LocalLifecycleOwner provides rememberLifecycleOwner(component),
+        LocalLifecycleOwner provides lifecycle,
     ) {
         PublishLifecycleOwner(component)
         content()

@@ -75,7 +75,7 @@ internal class CellRendererComposition(
     /**
      * Disposes this cell composition and its observer. A renderer over it stays safe to invoke
      * afterwards - the widget that captured that renderer outlives the composition - and a render on a
-     * disposed one renders the empty cell a composition holding nothing composes.
+     * successfully disposed one renders the empty cell a composition holding nothing composes.
      */
     fun dispose(): Unit = composition.dispose()
 }

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -392,6 +393,9 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
      * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
      * stops observing through the node before the modifier tears down.
+     *
+     * The published node is removed and the modifier torn down even when removing the published node throws; the
+     * first failure propagates, with the later one suppressed on it.
      */
     private fun reset(
         resetNodes: Boolean,
@@ -399,8 +403,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
     ) {
         if (detaching) tellComponentDetached()
         try {
-            clearPublishedNode()
-            resetModifierState(resetNodes)
+            runEveryStep(::clearPublishedNode, { resetModifierState(resetNodes) })
         } finally {
             owner?.snapshotObserver?.clear(this)
             owner?.cancelAfterValidation(this)

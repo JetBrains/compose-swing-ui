@@ -215,7 +215,7 @@ detaches as if the callback had returned. What it leaves the modifier's nodes in
 
 - A node whose `onAttach()` threw is detached at once: its `onDetach()` runs, its `coroutineScope` is
   cancelled and its observed reads are cleared. `onDetach()` must therefore tolerate an `onAttach()` that
-  did not finish.
+  did not finish. A throw from that `onDetach()` is suppressed on the `onAttach()` failure, not reported.
 - A node whose `onAttach()` returned runs `onDetach()` exactly once when it detaches, even where its
   element's `update` then threw.
 - An additive or parent-layout slot whose replacement node could not be created keeps the node it had.

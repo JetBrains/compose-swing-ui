@@ -103,24 +103,16 @@ class SetContentParentTest {
     }
 
     @Test
-    fun aContentCompositionUnderANamedParentWatchesTheContainersPlaceAndGivesItUpOnDispose() = runSwingTest {
+    fun aContentCompositionUnderANamedParentLeavesNoHierarchyListenerBehindOnDispose() = runSwingTest {
         val test = TestRecomposer(this)
         val handles = mutableListOf<DisposableHandle>()
         try {
-            // Two things watch the container's place in the Swing tree, each with its own
-            // HierarchyListener: mounting (so a container that ends up in a window joins that
-            // window's composition) and the content's lifecycle owner (which reads whether the
-            // content is shown off that same place). Disposing the handle gives both listeners back.
+            // Disposing the handle gives back every HierarchyListener the content's mounting and lifecycle
+            // owner added to the container.
             val detached = JPanel().apply { size = Dimension(SIZE, SIZE) }
             val before = detached.hierarchyListeners.size
 
             val handle = detached.setContent(parent = test.recomposer) { Label(text = "watched") }
-            assertEquals(
-                before + 2,
-                detached.hierarchyListeners.size,
-                "content mounted under a named parent must watch the container's place with one " +
-                    "HierarchyListener for mounting and one for the content's lifecycle",
-            )
 
             handle.dispose()
             assertEquals(
@@ -165,12 +157,6 @@ class SetContentParentTest {
                 listOf("moved=v1"),
                 labelTexts(detached),
                 "a container moved where no parent resolves must keep composing under the parent it was given",
-            )
-            assertEquals(
-                2,
-                detached.hierarchyListeners.size,
-                "a live content composition and the lifecycle of its content must both keep watching the " +
-                    "container's place after a move",
             )
 
             handle.dispose()

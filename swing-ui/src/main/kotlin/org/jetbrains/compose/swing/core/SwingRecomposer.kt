@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
 import org.jetbrains.compose.swing.node.reportUncaught
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -153,7 +154,8 @@ public class SwingRecomposer private constructor(
     /**
      * Disposes the content compositions registered as composing under this recomposer, then cancels the
      * recomposer, disposes the clock - which is what withdraws it from [EventDispatchHook] - and cancels
-     * the scope they run on. Idempotent.
+     * the scope they run on. Every step is attempted even when an earlier one throws; the first failure
+     * propagates, with the later ones suppressed on it. Idempotent.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -161,17 +163,22 @@ public class SwingRecomposer private constructor(
         checkEventDispatchThread()
         if (disposed) return
         disposed = true
-        refreshRateWatch.dispose()
-        // Disposed before the recomposer is cancelled, so every content composition tears down on a live
-        // one. The set is cleared first: each disposal deregisters itself, and clearing keeps that a
-        // no-op while the copy is walked.
+        // The set is cleared first: each disposal deregisters itself, and clearing keeps that a no-op while
+        // the copy is walked.
         val registered = contentCompositions.toList()
         contentCompositions.clear()
-        registered.forEach(DisposableHandle::dispose)
-        recomposer.cancel()
-        clock.dispose()
-        scope.cancel()
-        onDisposed()
+        // Content is disposed before the recomposer is cancelled, so every content composition tears down
+        // on a live one.
+        runEveryStep(
+            buildList<() -> Unit> {
+                add { refreshRateWatch.dispose() }
+                registered.fastForEach { content -> add { content.dispose() } }
+                add { recomposer.cancel() }
+                add { clock.dispose() }
+                add { scope.cancel() }
+                add(onDisposed)
+            },
+        )
     }
 
     /** Creates what a component's composition is driven by. */

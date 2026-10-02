@@ -13,7 +13,12 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
+import org.jetbrains.compose.swing.core.LIFECYCLE_PLACE_CHANGE_FLAGS
+import org.jetbrains.compose.swing.core.LifecycleOwnerResolution
 import org.jetbrains.compose.swing.core.disposeContentCompositionsIn
+import org.jetbrains.compose.swing.core.disposingOnFailure
+import org.jetbrains.compose.swing.core.onPlaceChanged
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.core.setCompositionContext
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.Container
@@ -153,29 +158,39 @@ internal fun CompositionOwnedWindowHost(
         // or from `application { }`, which is a root of no window at all. The owner comes out as this
         // window's own: the content pane's ancestors end at the peer, which publishes no owner, so the
         // root mints one.
+        val lifecycle = LifecycleOwnerResolution(container.contentPane)
+        val disposeLifecycle = lifecycle.installFor(container.contentPane)
         val handle =
-            container.contentPane.setContentAsInteropHost(parentContext) {
-                // A composed window is its content's window for as long as that peer stands, so the
-                // window the locals follow is this one and never moves.
-                val standingIn = remember(peer) { mutableStateOf<Window?>(peer) }
-                ProvideWindowLocals(standingIn, container.contentPane) {
-                    PublishContentParent(container.contentPane)
-                    scope.currentContent()
+            disposingOnFailure(disposeLifecycle) {
+                container.contentPane.setContentAsInteropHost(parentContext) {
+                    // A composed window is its content's window for as long as that peer stands, so the
+                    // window the locals follow is this one and never moves.
+                    val standingIn = remember(peer) { mutableStateOf<Window?>(peer) }
+                    ProvideWindowLocals(standingIn, lifecycle.owner, container.contentPane) {
+                        PublishContentParent(container.contentPane)
+                        scope.currentContent()
+                    }
                 }
             }
 
         onDispose {
-            removeExtras()
-            // A content composition the caller mounted into this window is reached through the window's
-            // component tree, so it is taken down while that tree still stands: disposing the content
-            // below detaches the containers those compositions sit in, and nothing would reach them
-            // afterwards. The window's own content composition is reached by the same walk, and disposal
-            // is idempotent.
-            disposeContentCompositionsIn(peer)
-            handle.dispose()
-            removeGeometryWriteBack()
-            peer.removeWindowListener(windowListener)
-            disposePeer()
+            // Every step is attempted, in this order, whichever one throws: the peer is disposed and the owner
+            // ends even when a content composition's disposal fails. The first failure propagates, with the
+            // later ones suppressed on it.
+            runEveryStep(
+                removeExtras,
+                // A content composition the caller mounted into this window is reached through the window's
+                // component tree, so it is taken down while that tree still stands: disposing the content
+                // below detaches the containers those compositions sit in, and nothing would reach them
+                // afterwards. The window's own content composition is reached by the same walk, and disposal
+                // is idempotent.
+                { disposeContentCompositionsIn(peer) },
+                handle::dispose,
+                disposeLifecycle,
+                removeGeometryWriteBack,
+                { peer.removeWindowListener(windowListener) },
+                disposePeer,
+            )
         }
     }
 
@@ -203,6 +218,21 @@ internal fun CompositionOwnedWindowHost(
             applyExtras()
         }
     }
+}
+
+/**
+ * Starts this resolution following [contentPane]'s place - an owner it minted is told where the pane goes -
+ * and returns the disposal that stops that and ends the owner. Both steps run, whichever one throws.
+ */
+private fun LifecycleOwnerResolution.installFor(contentPane: Container): () -> Unit {
+    install()
+    val placeChanges =
+        if (drives) {
+            onPlaceChanged(contentPane, LIFECYCLE_PLACE_CHANGE_FLAGS, ::placeChanged)
+        } else {
+            null
+        }
+    return { runEveryStep({ placeChanges?.dispose() }, ::end) }
 }
 
 /**

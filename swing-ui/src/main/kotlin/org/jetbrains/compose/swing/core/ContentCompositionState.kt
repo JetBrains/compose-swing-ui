@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.util.DeferredAction
 import org.jetbrains.compose.swing.util.Key
@@ -84,7 +85,7 @@ internal fun resolveParentOrNull(component: Component): ParentComposition? {
  */
 internal fun mountWhenParentResolves(
     component: JComponent,
-    compose: (ParentComposition, State<Window?>) -> SwingContentComposition,
+    compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
 ): DisposableHandle =
     ContentCompositionState(component, standsOnItsOwnRecomposer = false, compose).also { it.start(namedParent = null) }
 
@@ -97,7 +98,7 @@ internal fun mountWhenParentResolves(
 internal fun mountUnderNamedParent(
     component: JComponent,
     namedParent: CompositionContext,
-    compose: (ParentComposition, State<Window?>) -> SwingContentComposition,
+    compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
 ): DisposableHandle {
     require(!namedParent.hasEnded) {
         "The composition context named for ${component.javaClass.name} belongs to a recomposer that " +
@@ -213,19 +214,20 @@ private enum class Phase { Pending, Mounted, Disposed }
  * which is what answers whether a container already holds one.
  *
  * Lives only on the EDT, so its fields need no synchronization. All phase transitions go through this
- * object, so no caller can drive it into an illegal state, and [dispose] leaves it [Phase.Disposed]
- * with no listener installed.
+ * object, so no caller can drive it into an illegal state, and [dispose] leaves it [Phase.Disposed], where
+ * a hierarchy event composes nothing.
  *
  * @param component the container the content is composed into, and whose place in the tree is watched.
  * @param standsOnItsOwnRecomposer whether the content composes on a recomposer of its own rather than
  *   inside another composition. Fixed for the life of the content composition, because it states what
  *   the caller named rather than where the container hangs.
- * @param compose creates and starts the [SwingContentComposition] under a parent context.
+ * @param compose creates and starts the [SwingContentComposition] under a parent context, given the window it
+ *   reads and the [LifecycleOwner] it reads.
  */
 internal class ContentCompositionState(
     private val component: JComponent,
     private val standsOnItsOwnRecomposer: Boolean,
-    private val compose: (ParentComposition, State<Window?>) -> SwingContentComposition,
+    private val compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
 ) : DisposableHandle {
     private var phase = Phase.Pending
 
@@ -244,7 +246,16 @@ internal class ContentCompositionState(
     /**
      * The listener watching where [component] hangs. Installed by [start] and removed by [dispose].
      */
-    private val registration = ContentCompositionRegistration { placeChanged() }
+    private val registration =
+        ContentCompositionRegistration(onPlaceChanged = ::placeChanged) { lifecycle?.placeChanged() }
+
+    /**
+     * The lifecycle the live composition reads, resolved when it composes and ended with it: an owner minted
+     * here follows [component] through [registration] rather than through a listener of its own, and is
+     * destroyed by the same disposal that ends the composition. `null` while the content is still waiting for
+     * a parent and once it is disposed.
+     */
+    private var lifecycle: LifecycleOwnerResolution? = null
 
     /**
      * The context this content composes under, published to whatever is mounted inside [component].
@@ -339,7 +350,12 @@ internal class ContentCompositionState(
         // container reads what it registers with off this content composition as well.
         if (!standsOnItsOwnRecomposer) parentRecomposer = parent.recomposer
         // What was registered above is withdrawn before a failure reaches whoever composed.
-        composition = disposingOnFailure(::dispose) { compose(parent, statedWindow) }
+        composition =
+            disposingOnFailure(::dispose) {
+                val reading = LifecycleOwnerResolution(component).also { lifecycle = it }
+                reading.install()
+                compose(parent, statedWindow, reading.owner)
+            }
         phase = Phase.Mounted
         // Content standing on a recomposer of its own registers with none: its caller owns that one, so
         // no window's carries this content. A window whose tree its container stands in still ends
@@ -439,9 +455,9 @@ internal class ContentCompositionState(
             parentRecomposer = parent.recomposer
             registerWith(parentRecomposer)
         } else if (parent != null) {
-            composition?.dispose()
-            composition = null
-            composeUnder(parent)
+            // Composed again even where disposing the old composition throws, so the container is not
+            // left blank in the new window; the first failure still propagates.
+            runEveryStep({ disposeComposition() }, { composeUnder(parent) })
         } else if (phase == Phase.Mounted) {
             // Nothing to compose again under: the container is back in the window it stood in, or out
             // of every window. Its composition stays the one it had, whose window still ends it, so the
@@ -470,20 +486,40 @@ internal class ContentCompositionState(
         }
     }
 
+    /**
+     * Clears this content's composition and window references, and tears down what it stood on.
+     *
+     * Every step runs even when an earlier one throws, so a container whose listener removal fails still
+     * has its composition and the lifecycle it read torn down. The first failure is thrown with the later
+     * ones suppressed on it.
+     */
     override fun dispose() {
         checkEventDispatchThread()
         if (phase == Phase.Disposed) return
         phase = Phase.Disposed
-        component.removeHierarchyListener(registration)
-        component[CONTENT_COMPOSITION_KEY] = null
         publishedContext = null
         parentContext = null
         namedParentContext = null
         parentRecomposer = null
-        registerWith(null)
-        composition?.dispose()
-        composition = null
         statedWindow.value = null
+        runEveryStep(
+            { component.removeHierarchyListener(registration) },
+            { component[CONTENT_COMPOSITION_KEY] = null },
+            { registerWith(null) },
+            ::disposeComposition,
+        )
+    }
+
+    /**
+     * Disposes the live composition, then ends the lifecycle it read, even when disposal throws. The first
+     * failure reaches the caller with later failures suppressed.
+     */
+    private fun disposeComposition() {
+        val disposing = composition
+        val ending = lifecycle
+        composition = null
+        lifecycle = null
+        runEveryStep({ disposing?.dispose() }, { ending?.end() })
     }
 }
 
@@ -493,12 +529,16 @@ internal class ContentCompositionState(
  * through [CONTENT_COMPOSITION_KEY].
  *
  * @param onPlaceChanged run whenever the container's place changes; see [PLACE_CHANGE_FLAGS].
+ * @param onLifecyclePlaceChanged run whenever the container's place changes in a way the lifecycle of its
+ *   content follows; see [LIFECYCLE_PLACE_CHANGE_FLAGS].
  */
 private class ContentCompositionRegistration(
     private val onPlaceChanged: () -> Unit,
+    private val onLifecyclePlaceChanged: () -> Unit,
 ) : HierarchyListener {
     override fun hierarchyChanged(event: HierarchyEvent) {
         if (event.changeFlags and PLACE_CHANGE_FLAGS != 0L) onPlaceChanged()
+        if (event.changeFlags and LIFECYCLE_PLACE_CHANGE_FLAGS != 0L) onLifecyclePlaceChanged()
     }
 }
 
@@ -539,6 +579,7 @@ private fun Component.enclosingContentRecomposerOrNull(): SwingRecomposer? =
 /**
  * The only [HierarchyEvent] change flag that can put a [Component] under a different window:
  * [HierarchyEvent.PARENT_CHANGED]. Which window a component is in is a question about the Swing tree
- * alone, so a parent change is the whole of what a content composition has to watch for.
+ * alone, so a parent change is the whole of what a content composition has to watch for, and what
+ * [LIFECYCLE_PLACE_CHANGE_FLAGS] builds on.
  */
-private const val PLACE_CHANGE_FLAGS: Long = HierarchyEvent.PARENT_CHANGED.toLong()
+internal const val PLACE_CHANGE_FLAGS: Long = HierarchyEvent.PARENT_CHANGED.toLong()

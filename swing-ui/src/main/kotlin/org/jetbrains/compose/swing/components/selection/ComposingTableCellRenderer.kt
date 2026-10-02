@@ -10,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.core.disposingOnFailure
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
@@ -172,20 +174,30 @@ internal class TableCellCompositions<R>(
      * no longer does.
      */
     fun adopt(columns: List<ColumnDeclaration<R>>) {
-        for (index in columns.size until perColumn.size) perColumn[index]?.dispose()
-        if (perColumn.size > columns.size) perColumn.subList(columns.size, perColumn.size).clear()
-        while (perColumn.size < columns.size) perColumn.add(null)
-        columns.forEachIndexed { index, column ->
-            val content = column.cellContent
-            if (content == null) {
-                perColumn[index]?.dispose()
+        val retired = mutableListOf<() -> Unit>()
+        // Mounting a renderer can throw, and the renderers retired so far still own their compositions.
+        disposingOnFailure(dispose = { runEveryStep(retired) }) {
+            for (index in columns.size until perColumn.size) {
+                val renderer = perColumn[index]
                 perColumn[index] = null
-            } else {
-                val renderer = perColumn[index] ?: ComposingTableCellRenderer(parentContext, rowAt)
-                perColumn[index] = renderer
-                renderer.adopt(content)
+                retired.add { renderer?.dispose() }
+            }
+            if (perColumn.size > columns.size) perColumn.subList(columns.size, perColumn.size).clear()
+            while (perColumn.size < columns.size) perColumn.add(null)
+            columns.forEachIndexed { index, column ->
+                val content = column.cellContent
+                if (content == null) {
+                    val renderer = perColumn[index]
+                    perColumn[index] = null
+                    retired.add { renderer?.dispose() }
+                } else {
+                    val renderer = perColumn[index] ?: ComposingTableCellRenderer(parentContext, rowAt)
+                    perColumn[index] = renderer
+                    renderer.adopt(content)
+                }
             }
         }
+        runEveryStep(retired)
     }
 
     /**
@@ -214,8 +226,9 @@ internal class TableCellCompositions<R>(
 
     /** Disposes every cell composition, leaving the columns that held one rendering through none. */
     fun dispose() {
-        perColumn.forEach { it?.dispose() }
+        val steps = perColumn.map<ComposingTableCellRenderer<R>?, () -> Unit> { renderer -> { renderer?.dispose() } }
         perColumn.clear()
+        runEveryStep(steps)
     }
 }
 

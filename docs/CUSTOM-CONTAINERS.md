@@ -515,9 +515,20 @@ ordinary Swing-tree/window lookup described in [`ARCHITECTURE.md`](ARCHITECTURE.
 When the host needs one component back synchronously rather than a composition mounted into a
 `JComponent`, use `OnDemandComposition`:
 
+<!--- CLEAR -->
+<!--- INCLUDE .*custom-container-03.*
+import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.components.Label
+import java.awt.Component
+-->
+
 ```kotlin
 private class LabelRenderer(parent: CompositionContext) {
-    private var value = ""
+    private var value by mutableStateOf("")
     private val composition = OnDemandComposition(parent) { Label(value) }
 
     fun render(value: String): Component? = composition.recompose { this.value = value }
@@ -526,12 +537,15 @@ private class LabelRenderer(parent: CompositionContext) {
 }
 ```
 
+<!--- KNIT example-custom-container-03.kt -->
+
 `OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and
 `CompositionLocal`s, but it is a separate controlled composition. Its constructor composes the content once;
 `recompose` writes the current inputs and applies a synchronous pass before returning. The returned
-component is not inserted anywhere by the composition - the caller owns its placement and removal - and
-`null` means that the content currently composes no component. Content must produce exactly one top-level
-component; producing more than one throws `IllegalStateException` and disposes that
+component is not inserted anywhere by the composition - the caller places it - and `null` means that the
+content currently composes no component. When the content stops composing the component, or the composition
+is disposed, the composition removes it from whatever container the caller placed it in. Content must produce
+at most one top-level component; producing more than one throws `IllegalStateException` and disposes that
 composition. Construct, recompose, and dispose it on the Event Dispatch Thread.
 
 <!--- CLEAR -->
@@ -544,7 +558,7 @@ A component that shows a list of items asks a `ListCellRenderer` for one row at 
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
-<!--- INCLUDE .*custom-container-03.*
+<!--- INCLUDE .*custom-container-04.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.listItemRenderer
@@ -581,7 +595,7 @@ fun <T : Any> CustomComboBox(
 }
 ```
 
-<!--- KNIT example-custom-container-03.kt -->
+<!--- KNIT example-custom-container-04.kt -->
 
 The component is the caller's own, so a subclass with rendering or sizing behavior the built-in
 `ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.

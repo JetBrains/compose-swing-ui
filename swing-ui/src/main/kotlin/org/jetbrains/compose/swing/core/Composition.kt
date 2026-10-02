@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
 import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
 import java.awt.Component
@@ -194,7 +195,9 @@ internal class SwingContentComposition private constructor(
      * Composes [content] as this composition's content, on the call.
      *
      * A first pass that throws leaves nothing standing: this composition is disposed - its observer
-     * withdrawn from the global apply observers with it - before the failure reaches the caller.
+     * withdrawn from the global apply observers with it - before the failure reaches the caller. Compose may
+     * throw while disposing the half-built composition; that is added to the failure as suppressed, and the
+     * failure that stopped the first pass is the one the caller gets.
      */
     fun setContent(content: @Composable () -> Unit) {
         disposingOnFailure(::dispose) {
@@ -256,17 +259,15 @@ internal class SwingContentComposition private constructor(
      * Must be called on the Event Dispatch Thread. A handle a caller holds can be disposed from
      * anywhere - a coroutine's completion, most of all - and this writes the Swing tree and the
      * library's record of what is mounted, so it fails loudly rather than corrupting either.
+     * A failure escaping composition disposal reaches the caller. The owner is released even when disposal throws,
+     * and a failure from that release is suppressed onto the original failure.
      */
     fun dispose() {
         checkEventDispatchThread()
-        try {
-            composition.dispose()
-        } finally {
-            release()
-        }
+        runEveryStep({ composition.dispose() }, ::release)
     }
 
-    /** Detaches the root and ends what this owner holds for its nodes. */
+    /** Detaches the root and ends what this owner holds for its nodes, even when detaching throws. */
     private fun release() {
         try {
             root.attachedTo(null)
@@ -309,4 +310,59 @@ internal inline fun <R> disposingOnFailure(
             if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
         }
         throw failure
+    }
+
+/**
+ * Runs every one of [steps] in order, even when one throws, then throws the first failure with the later
+ * ones added to it as suppressed.
+ */
+internal fun runEveryStep(vararg steps: () -> Unit) = runEveryStep(steps.asList())
+
+/** [runEveryStep] for two steps without allocating an action list. */
+internal inline fun runEveryStep(
+    crossinline firstStep: () -> Unit,
+    crossinline secondStep: () -> Unit,
+) {
+    var first = collectFailure(null, firstStep)
+    first = collectFailure(first, secondStep)
+    first?.let { throw it }
+}
+
+/** [runEveryStep] for three steps without allocating an action list. */
+internal inline fun runEveryStep(
+    crossinline firstStep: () -> Unit,
+    crossinline secondStep: () -> Unit,
+    crossinline thirdStep: () -> Unit,
+) {
+    var first = collectFailure(null, firstStep)
+    first = collectFailure(first, secondStep)
+    first = collectFailure(first, thirdStep)
+    first?.let { throw it }
+}
+
+/** [runEveryStep] over a list of steps. */
+internal fun runEveryStep(steps: List<() -> Unit>) {
+    var first: Throwable? = null
+    steps.fastForEach { first = collectFailure(first, it) }
+    first?.let { throw it }
+}
+
+/** Keeps [first] as the primary failure and adds any failure of [step] after it. */
+internal inline fun collectFailure(
+    first: Throwable?,
+    crossinline step: () -> Unit,
+): Throwable? =
+    try {
+        step()
+        first
+    } catch (
+        // A step can throw any type while the steps after it still own resources.
+        @Suppress("TooGenericExceptionCaught") failure: Throwable,
+    ) {
+        if (first == null) {
+            failure
+        } else {
+            if (first !== failure) first.addSuppressed(failure)
+            first
+        }
     }

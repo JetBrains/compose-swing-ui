@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
@@ -9,6 +10,7 @@ import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -18,6 +20,7 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
@@ -617,6 +620,44 @@ class SetContentMoveTest {
             assertEquals(listOf("content"), labelTexts(panel), "the content composed again must hold its content")
 
             handle.dispose()
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun aCompositionWhoseDisposalThrowsOnAMoveStillComposesInTheWindowItMovedTo() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            // Moving to another window composes the content again, which first disposes the composition it
+            // leaves. That disposal failing is reported, and must not leave the container blank.
+            val failure = IllegalStateException("cleanup failed")
+            val panel = JPanel().also { first.contentPane.add(it) }
+            val recorder = CompositionRecorder()
+            val handle =
+                panel.setContent {
+                    recorder.Read()
+                    DisposableEffect(Unit) { onDispose { throw failure } }
+                    Label(text = "content")
+                }
+            assertSame(first, recorder.windows.last(), "content must start out under the window it was added to")
+
+            val reported =
+                reportedUncaught {
+                    second.contentPane.add(panel)
+                    second.pack()
+                    awaitUntil("the content composes again under the window it was moved to") {
+                        recorder.windows.last() === second
+                    }
+                }
+
+            assertEquals(listOf(failure), reported, "the failed disposal of the window it left is reported")
+            assertEquals(listOf("content"), labelTexts(panel), "the content composed again must hold its content")
+
+            assertSame(failure, assertFailsWith<IllegalStateException> { handle.dispose() })
         } finally {
             second.dispose()
             first.dispose()
