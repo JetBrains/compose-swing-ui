@@ -114,7 +114,7 @@ public interface SizeTransform {
     public val clip: Boolean
 
     /**
-     * Creates the size animation spec.
+     * Creates the size animation spec from copies of the container and content sizes.
      *
      * @param initialSize the container's size when the transition starts.
      * @param targetSize the target content's size.

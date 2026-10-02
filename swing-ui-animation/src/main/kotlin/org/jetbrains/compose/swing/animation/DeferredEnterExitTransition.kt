@@ -75,7 +75,7 @@ public class MutableTransform(
     /**
      * Declares how the content is transformed for as long as the deferred phase lasts.
      *
-     * [block] receives the content's untransformed size and runs again whenever what it reads changes.
+     * [block] receives a fresh copy of the content's untransformed size and runs again whenever what it reads changes.
      */
     public fun update(block: TransformScope.(fullSize: Dimension) -> Unit) {
         this.block = block
@@ -98,7 +98,10 @@ public interface TransformScope {
     /** The point [scale] is applied around, in place of the pivot the transition holds. */
     public var transformOrigin: TransformOrigin
 
-    /** How far the content is moved from where it is laid out, added to the offset the transition holds. */
+    /**
+     * How far the content is moved from where it is laid out, added to the offset the transition holds. The value read
+     * is a copy, so change the offset by assigning.
+     */
     public var offset: Point
 
     /** The scrim filled over the content, in place of the one the transition holds. */
@@ -167,9 +170,12 @@ internal class TransformScopeImpl : TransformScope {
     var isOffsetMutated: Boolean = false
         private set
 
-    override var offset: Point = Point(0, 0)
+    var rawOffset = Point(0, 0)
+        private set
+    override var offset: Point
+        get() = Point(rawOffset)
         set(value) {
-            field = value
+            rawOffset = Point(value)
             isOffsetMutated = true
         }
 
@@ -341,10 +347,11 @@ internal class SharedMutableTransformState {
         transitionValue: Point,
         fullSize: Dimension,
     ): Point {
-        if (isMutating) mutableData?.block?.invoke(transformScope, fullSize)
+        if (isMutating) mutableData?.block?.invoke(transformScope, Dimension(fullSize))
         val combined =
             if (isMutating && transformScope.isOffsetMutated) {
-                Point(transitionValue.x + transformScope.offset.x, transitionValue.y + transformScope.offset.y)
+                val offset = transformScope.rawOffset
+                Point(transitionValue.x + offset.x, transitionValue.y + offset.y)
             } else {
                 transitionValue
             }

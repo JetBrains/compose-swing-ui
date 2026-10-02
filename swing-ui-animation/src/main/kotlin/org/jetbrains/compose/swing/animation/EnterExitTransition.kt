@@ -877,13 +877,13 @@ internal class EnterExitTransitionLayout(
             EnterExitState.PreEnter -> {
                 enter.config.changeSize
                     ?.size
-                    ?.invoke(fullSize) ?: fullSize
+                    ?.invoke(Dimension(fullSize)) ?: fullSize
             }
 
             EnterExitState.PostExit -> {
                 exit.config.changeSize
                     ?.size
-                    ?.invoke(fullSize) ?: fullSize
+                    ?.invoke(Dimension(fullSize)) ?: fullSize
             }
         }
 
@@ -908,7 +908,7 @@ internal class EnterExitTransitionLayout(
 
             else -> {
                 exit.config.changeSize?.let {
-                    val endSize = it.size(fullSize)
+                    val endSize = it.size(Dimension(fullSize))
                     // Content alignment ignores the reading order, as upstream aligns with LayoutDirection.Ltr.
                     val targetOffset = target.align(fullSize, endSize, ComponentOrientation.LEFT_TO_RIGHT)
                     val currentOffset = current.align(fullSize, endSize, ComponentOrientation.LEFT_TO_RIGHT)
@@ -946,13 +946,13 @@ internal class EnterExitTransitionLayout(
             EnterExitState.PreEnter -> {
                 enter.config.slide
                     ?.slideOffset
-                    ?.invoke(fullSize) ?: Point(0, 0)
+                    ?.invoke(Dimension(fullSize)) ?: Point(0, 0)
             }
 
             EnterExitState.PostExit -> {
                 exit.config.slide
                     ?.slideOffset
-                    ?.invoke(fullSize) ?: Point(0, 0)
+                    ?.invoke(Dimension(fullSize)) ?: Point(0, 0)
             }
         }
 

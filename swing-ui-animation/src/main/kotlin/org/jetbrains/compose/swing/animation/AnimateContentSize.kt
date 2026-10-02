@@ -60,7 +60,7 @@ import java.awt.Dimension
  * @param animationSpec how the size travels, a medium-low stiffness spring by default.
  * @param alignment where the content sits inside the box while it travels.
  * @param finishedListener called when a size animation finishes, with the size it started from and the
- *   size it settled at. A retargeted animation does not call it. `null` by default.
+ *   size it settled at as copies. A retargeted animation does not call it. `null` by default.
  * @return this modifier with the size animation declared on it.
  * @throws IllegalStateException as the component is first laid out, if it is not decorated.
  */
@@ -189,7 +189,7 @@ private class SizeAnimationModifierNode(
                     coroutineScope.launch {
                         val result = anim.animateTo(targetSize, animationSpec)
                         if (result.endReason == AnimationEndReason.Finished) {
-                            listener?.invoke(startSize, result.endState.value)
+                            listener?.invoke(Dimension(startSize), Dimension(result.endState.value))
                         }
                     }
                 }

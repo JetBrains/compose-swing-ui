@@ -24,6 +24,7 @@ import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
 import java.awt.Component
+import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -75,43 +76,84 @@ class AnimatedContentContainerTest {
     fun `a size change interrupted by a third state travels on from the size it stood at`() =
         runComposeSwingTest {
             var state by mutableStateOf("a")
-            val askedWidths = mutableListOf<Int>()
+            val arguments = mutableListOf<Pair<Dimension, Dimension>>()
             setContent {
-                AnimatedContent(
-                    targetState = state,
-                    transitionSpec = {
-                        EnterTransition.None togetherWith ExitTransition.None using
-                            SizeTransform { initialSize, _ ->
-                                askedWidths += initialSize.width
-                                tween(TRANSITION_MILLIS)
-                            }
-                    },
-                ) {
-                    Filled(width = mapOf("a" to 40, "b" to 200, "c" to 120).getValue(it))
+                SizedStates(state) { initialSize, targetSize ->
+                    arguments +=
+                        Dimension(initialSize) to Dimension(targetSize)
                 }
             }
 
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { driveOneFrame() }
-            val interruptedAt = container.width
-            assertTrue(interruptedAt in 41 until 120, "precondition: the size stood at $interruptedAt")
-
-            askedWidths.clear()
+            assertEquals(Dimension(45, 22), container.size, "the size stood part-way when the third state arrived")
+            arguments.clear()
             state = "c"
-            val widths =
+
+            val sizes =
                 List(10) {
                     driveOneFrame()
-                    container.width
+                    Dimension(container.size)
                 }
+            val standing = Dimension(45, 22)
+            val target = Dimension(120, 60)
+            val travelled = listOf(standing) + sizes
             assertTrue(
-                widths.all { it in interruptedAt..120 } && widths.any { it in interruptedAt + 1 until 120 },
-                "the size did not travel on from $interruptedAt to 120: $widths",
+                sizes.all { it.width in standing.width..target.width && it.height in standing.height..target.height },
+                "the size left the range from where it stood to 120x60: $sizes",
             )
             assertTrue(
-                askedWidths.all { it in interruptedAt..120 },
-                "the size transform was asked from a size the container never stood at: $askedWidths",
+                travelled.zipWithNext().all { (before, after) ->
+                    after.width >= before.width && after.height >= before.height
+                },
+                "the size shrank on its way toward 120x60: $sizes",
             )
+            assertTrue(
+                sizes.any { it.width in standing.width + 1 until target.width },
+                "the size did not travel through sizes between where it stood and 120x60: $sizes",
+            )
+            assertTrue(arguments.isNotEmpty(), "the size transform was not asked for the new change")
+            assertTrue(
+                arguments.all { (initialSize, _) -> initialSize in travelled },
+                "the size transform was asked from a size the container never stood at: $arguments",
+            )
+            assertTrue(
+                // The arriving content has no measured size on the first measure.
+                arguments.all { (_, targetSize) -> targetSize == Dimension(120, 60) || targetSize == Dimension(0, 0) },
+                "the size transform was asked toward a size other than the measured target: $arguments",
+            )
+            repeat(30) { driveOneFrame() }
+            assertEquals(Dimension(120, 60), container.size, "the interrupted transition settled at its content size")
+        }
+
+    @Test
+    fun `a size transform that changes the sizes it receives does not change the animation`() =
+        runComposeSwingTest {
+            var state by mutableStateOf("a")
+            val received = mutableListOf<Pair<Dimension, Dimension>>()
+            val retained = mutableListOf<Pair<Dimension, Dimension>>()
+            setContent {
+                SizedStates(state) { initialSize, targetSize ->
+                    received += Dimension(initialSize) to Dimension(targetSize)
+                    retained += initialSize to targetSize
+                    initialSize.setSize(701, 503)
+                    targetSize.setSize(907, 809)
+                }
+            }
+
+            mainClock.autoAdvance = false
+            state = "b"
+            repeat(4) { driveOneFrame() }
+            assertEquals(Dimension(40, 20) to Dimension(200, 100), received.first(), "the measured sizes it received")
+            assertEquals(Dimension(45, 22), container.size, "the callback moved the traveling size")
+            retained.forEach { (initialSize, targetSize) ->
+                initialSize.setSize(1103, 1301)
+                targetSize.setSize(1709, 1907)
+            }
+            mainClock.autoAdvance = true
+            awaitIdle()
+            assertEquals(Dimension(200, 100), container.size, "the retained arguments moved the settled size")
         }
 
     /**
@@ -329,3 +371,25 @@ private const val BELOW = "below"
 private const val SIBLING = "sibling"
 private const val CONTAINER = "container"
 private const val FOCUS_WINDOW = "content-focus"
+
+@Composable
+private fun SizedStates(
+    state: String,
+    onSizeTransform: (initialSize: Dimension, targetSize: Dimension) -> Unit,
+) {
+    AnimatedContent(
+        targetState = state,
+        transitionSpec = {
+            EnterTransition.None togetherWith ExitTransition.None using
+                SizeTransform { initialSize, targetSize ->
+                    onSizeTransform(initialSize, targetSize)
+                    tween(TRANSITION_MILLIS)
+                }
+        },
+    ) {
+        Filled(
+            width = mapOf("a" to 40, "b" to 200, "c" to 120).getValue(it),
+            height = mapOf("a" to 20, "b" to 100, "c" to 60).getValue(it),
+        )
+    }
+}

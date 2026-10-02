@@ -271,9 +271,10 @@ class AnimateContentSizeTest {
     )
 
     @Test
-    fun `the finished callback is handed the sizes the animation ran between`() =
+    fun `the finished callback is handed copies of the sizes the animation ran between`() =
         runComposeSwingTest {
             val finished = mutableListOf<Pair<Dimension, Dimension>>()
+            val retained = mutableListOf<Pair<Dimension, Dimension>>()
             var expanded by mutableStateOf(false)
             setContent {
                 Row {
@@ -282,16 +283,40 @@ class AnimateContentSizeTest {
                             SwingModifier
                                 .testTag(CONTAINER)
                                 .animateContentSize(
-                                    finishedListener = { initial, target -> finished += initial to target },
+                                    finishedListener = { initial, target ->
+                                        finished += Dimension(initial) to Dimension(target)
+                                        retained += initial to target
+                                        if (finished.size == 1) {
+                                            initial.setSize(701, 503)
+                                            target.setSize(907, 809)
+                                        }
+                                    },
                                 ),
                     ) { Body(size = if (expanded) EXPANDED else COLLAPSED) }
                 }
             }
 
+            assertEquals(COLLAPSED, container.size)
             expanded = true
             awaitIdle()
 
-            assertEquals(listOf(COLLAPSED to EXPANDED), finished, "the container did not report the size it traveled")
+            assertTrue(finished.isNotEmpty(), "the animation reported completion")
+            assertEquals(COLLAPSED to EXPANDED, finished.first(), "the callback received both measured sizes")
+            assertEquals(EXPANDED, container.size, "a callback must not change the settled native size")
+            assertEquals(1, finished.size, "a callback must not start another animation")
+
+            retained.first().first.setSize(1103, 1301)
+            retained.first().second.setSize(1709, 1907)
+            container.invalidate()
+            container.validate()
+            awaitIdle()
+            assertEquals(EXPANDED, container.size)
+            assertEquals(1, finished.size, "retained callback arguments must not restart the animation")
+
+            expanded = false
+            awaitIdle()
+            assertEquals(listOf(COLLAPSED to EXPANDED, EXPANDED to COLLAPSED), finished)
+            assertEquals(COLLAPSED, container.size)
         }
 
     @Test

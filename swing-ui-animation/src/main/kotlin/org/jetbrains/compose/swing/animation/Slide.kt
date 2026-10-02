@@ -32,6 +32,7 @@ import java.awt.Point
  * The offset is relative to where the content is laid out: a positive x starts it to the right, a
  * positive y starts it below. Content past the container's edge is clipped.
  *
+ * Offset callbacks receive a fresh copy of the full size.
  * For one axis, use [slideInHorizontally] or [slideInVertically].
  *
  * @param animationSpec how the offset travels, a medium-low stiffness spring by default.
@@ -50,6 +51,7 @@ public fun slideIn(
  * The offset is relative to where the content is laid out: a positive x moves it right, a positive y
  * moves it down. Content past the container's edge is clipped.
  *
+ * Offset callbacks receive a fresh copy of the full size.
  * For one axis, use [slideOutHorizontally] or [slideOutVertically].
  *
  * @param animationSpec how the offset travels, a medium-low stiffness spring by default.

@@ -34,6 +34,7 @@ import java.awt.Dimension
  *
  * The container reports that space as its preferred size. The clip and the alignment follow the space,
  * not the bounds the parent assigns, so a parent that stretches the container shows the same animation.
+ * Size callbacks receive a fresh copy of the full size.
  * For one axis, use [expandHorizontally] or [expandVertically].
  *
  * @param animationSpec how the space travels, a medium-low stiffness spring by default.
@@ -59,6 +60,7 @@ public fun expandIn(
  * The content keeps its own size and is aligned inside that space, so the corner [shrinkTowards] names
  * stays in place. Content outside the space is clipped when [clip] is true; see [expandIn].
  *
+ * Size callbacks receive a fresh copy of the full size.
  * For one axis, use [shrinkHorizontally] or [shrinkVertically].
  *
  * @param animationSpec how the space travels, a medium-low stiffness spring by default.

@@ -653,7 +653,7 @@ internal class ContentSizeAnimation<S>(
                             scope.sizeOf(initialState)
                         }
                     val target = scope.sizeOf(targetState)
-                    sizeTransform.value?.createAnimationSpec(initial, target)
+                    sizeTransform.value?.createAnimationSpec(Dimension(initial), Dimension(target))
                         ?: spring(stiffness = Spring.StiffnessMediumLow)
                 },
             ) {
