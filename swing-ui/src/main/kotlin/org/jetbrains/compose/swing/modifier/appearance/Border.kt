@@ -149,6 +149,8 @@ private data class BorderElement(
 
     class Node : SwingModifier.ComponentNode<JComponent>() {
         private var original: Border? = null
+
+        // The spec of the border this node wrote, or null while the component holds the original.
         private var applied: BorderSpec? = null
 
         override fun onAttach() {
@@ -163,6 +165,7 @@ private data class BorderElement(
         }
 
         override fun onDetach() {
+            applied = null
             component.border = original
         }
     }

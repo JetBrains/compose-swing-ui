@@ -317,17 +317,16 @@ class SwingApplierTest {
         val root = CountingPanel()
         val applier = applierFor(root)
 
+        val countBeforePass = root.revalidateCount
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertChild(0, CreatedNodeHolder(namedButton("a")))
             insertChild(1, CreatedNodeHolder(namedButton("b")))
         }
-        val countBeforeEnd = root.revalidateCount
+        assertEquals(countBeforePass, root.revalidateCount, "inserting revalidates nothing before the pass ends")
         applier.onEndChanges()
 
-        // Exactly one revalidate triggered by onEndChanges for the single mutated container,
-        // regardless of how many child mutations happened during the pass.
-        assertEquals(countBeforeEnd + 1, root.revalidateCount)
+        assertEquals(countBeforePass + 1, root.revalidateCount, "ending the pass revalidates the container once")
     }
 
     @Test

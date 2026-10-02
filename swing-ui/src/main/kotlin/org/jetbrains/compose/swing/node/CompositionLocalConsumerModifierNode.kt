@@ -22,7 +22,7 @@ import org.jetbrains.compose.swing.util.fastForEach
  * [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode] again. A dynamic local read in a
  * `ComponentNode` element's `update` runs that `update` again when its value changes; to follow a dynamic local's
  * value in a `ParentLayoutNode`, read it inside [observeReads]. Any other read, such as one in
- * [onAttach][SwingModifier.Node.onAttach], is taken once.
+ * [onAttach][SwingModifier.Node.onAttach], is taken once per attach.
  */
 public interface CompositionLocalConsumerModifierNode
 

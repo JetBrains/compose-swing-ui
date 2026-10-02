@@ -59,9 +59,8 @@ class SwingApplierArrayOrderTest {
     }
 
     /**
-     * A BorderLayout container receives a mix of constrained and unconstrained children at ascending
-     * composition indices. The component-array order must equal the insertion order, proving the
-     * constrained adds inserted at their index rather than appending.
+     * A BorderLayout container receives constrained and unconstrained children before existing children.
+     * Their component-array positions and layout constraints must match the declared insertion indices.
      */
     @Test
     fun componentArrayOrderMatchesInsertionIndexForMixedAdds() {
@@ -70,9 +69,9 @@ class SwingApplierArrayOrderTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
+            insertBottomUp(0, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
-            insertBottomUp(1, constrainedHolder(namedButton("center"), BorderLayout.CENTER))
-            insertBottomUp(2, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
+            insertBottomUp(1, CreatedNodeHolder(namedButton("center")))
         }
         applier.onEndChanges()
 

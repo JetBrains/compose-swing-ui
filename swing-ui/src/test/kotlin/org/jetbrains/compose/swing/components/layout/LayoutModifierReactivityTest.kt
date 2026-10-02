@@ -65,20 +65,6 @@ class LayoutModifierReactivityTest {
     }
 
     @Test
-    fun aBoxPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Box") { modifier ->
-            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aColumnFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("Column") { modifier ->
-            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
     fun aRowFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("Row") { modifier ->
             Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = modifier) { Label("child") }

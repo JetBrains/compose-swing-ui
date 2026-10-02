@@ -1,13 +1,20 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import javax.swing.text.DefaultCaret
@@ -83,6 +90,35 @@ class CaretModifierTest {
         assertSame(caret, field.caret, "the same caret should stay installed across the pass")
         assertEquals(SELECTION_START, field.selectionStart, "the selection made between passes should survive")
         assertEquals(SELECTION_END, field.selectionEnd, "the selection made between passes should survive")
+    }
+
+    @Test
+    fun aCaretMovedIntoAnotherCompositionKeepsTheSelectionTheUserMade() = runComposeSwingTest {
+        val caret = DefaultCaret()
+        val field = JTextField(TEXT)
+        val host = JPanel()
+        var inOuter by mutableStateOf(false)
+        lateinit var context: CompositionContext
+        lateinit var content: @Composable () -> Unit
+        setContent {
+            context = rememberCompositionContext()
+            content =
+                remember { movableContentOf { SwingNode(factory = { field }, modifier = SwingModifier.caret(caret)) } }
+            SwingNode(factory = { host })
+            if (inOuter) content()
+        }
+        awaitIdle()
+        val nested = host.setContent(parent = context) { if (!inOuter) content() }
+        awaitIdle()
+        field.select(SELECTION_START, SELECTION_END)
+
+        inOuter = true
+        awaitIdle()
+
+        assertSame(caret, field.caret, "the declared caret should still be installed after the move")
+        assertEquals(SELECTION_START, field.selectionStart, "the selection the user made should survive the move")
+        assertEquals(SELECTION_END, field.selectionEnd, "the selection the user made should survive the move")
+        nested.dispose()
     }
 
     @Test

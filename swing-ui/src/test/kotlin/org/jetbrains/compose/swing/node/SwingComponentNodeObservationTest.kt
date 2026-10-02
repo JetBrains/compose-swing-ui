@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalMap
-import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
@@ -614,14 +613,4 @@ class SwingComponentNodeObservationTest {
     ) : SwingModifier.ComponentNode<ListeningPanel>() {
         override fun onDetach() = observe(component.events.first().node)
     }
-}
-
-/** Observes [watched] on [node] under a callback no one else holds, returning a weak reference to it. */
-private fun observeUnderAFreshCallback(
-    node: SwingComponentNode<*>,
-    watched: MutableIntState,
-): WeakReference<Any> {
-    val onChanged: (SwingComponentNode<*>) -> Unit = { watched.intValue }
-    node.observeReads(onChanged) { watched.intValue }
-    return WeakReference(onChanged)
 }

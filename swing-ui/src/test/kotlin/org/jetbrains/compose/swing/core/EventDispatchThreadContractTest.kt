@@ -1,10 +1,17 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.ObserverModifierNode
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
@@ -16,6 +23,7 @@ import javax.swing.JMenuBar
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -188,6 +196,38 @@ class EventDispatchThreadContractTest {
         assertTrue(cleanupOnEdt)
     }
 
+    @Test
+    fun modifierNodeObservationOffTheEventDispatchThreadFailsFast() {
+        val panel = JPanel()
+        val watched = mutableIntStateOf(0)
+        lateinit var recomposer: SwingRecomposer
+        var created: ObservingProbeNode? = null
+        SwingUtilities.invokeAndWait {
+            recomposer = SwingRecomposer.create(panel)
+            panel.setContent(parent = recomposer.compositionContext) {
+                SwingNode(
+                    factory = { JPanel() },
+                    modifier = SwingModifier then ObservingProbe { created = it },
+                )
+            }
+        }
+        try {
+            val node = assertNotNull(created, "the modifier node must be created and attached")
+            assertRejectedOffEdt { node.observeReads { watched.intValue } }
+            assertRejectedOffEdt { node.observeReads<ObservingProbeNode>({ it.changes++ }) { watched.intValue } }
+            assertRejectedOffEdt { node.requestAfterValidation<ObservingProbeNode> { } }
+
+            SwingUtilities.invokeAndWait {
+                watched.intValue = 1
+                Snapshot.sendApplyNotifications()
+            }
+            SwingUtilities.invokeAndWait { }
+            assertEquals(0, node.changes, "a call rejected off the Event Dispatch Thread must record no read")
+        } finally {
+            SwingUtilities.invokeAndWait { recomposer.dispose() }
+        }
+    }
+
     /**
      * Runs [call] on a worker thread named [OFF_EDT_THREAD_NAME] and asserts it was rejected with the
      * thread-confinement failure, which names the calling thread so the author can locate the call.
@@ -210,6 +250,31 @@ class EventDispatchThreadContractTest {
             OFF_EDT_THREAD_NAME in message,
             "the failure must name the calling thread, but was: $message",
         )
+    }
+
+    private class ObservingProbe(
+        private val onCreate: (ObservingProbeNode) -> Unit,
+    ) : SwingModifier.NodeElement<JPanel, ObservingProbeNode>() {
+        override val targetType: Class<JPanel> get() = JPanel::class.java
+        override val additive: Boolean get() = true
+
+        override fun create(): ObservingProbeNode = ObservingProbeNode().also(onCreate)
+
+        override fun update(node: ObservingProbeNode) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+    }
+
+    private class ObservingProbeNode :
+        SwingModifier.ComponentNode<JPanel>(),
+        ObserverModifierNode {
+        var changes = 0
+
+        override fun onObservedReadsChanged() {
+            changes++
+        }
     }
 
     private companion object {

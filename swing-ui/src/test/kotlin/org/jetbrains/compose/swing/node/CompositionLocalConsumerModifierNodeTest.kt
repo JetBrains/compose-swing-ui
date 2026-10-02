@@ -31,6 +31,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -324,15 +325,18 @@ class CompositionLocalConsumerModifierNodeTest {
                 SwingNode(factory = { JLabel() }, modifier = if (consuming) element else SwingModifier)
             }
         }
+        val createdReference = assertNotNull(created, "the consuming modifier must create a node")
+        assertEquals(true, createdReference.get()?.isAttached, "the consuming node must attach before withdrawal")
+        assertEquals("hello", onNodeOfType<JLabel>().fetch().name)
         consuming = false
         awaitIdle()
         // One System.gc() is a hint, so a collection is asked for several times before giving up.
         repeat(20) {
-            if (created?.get() == null) return@runComposeSwingTest
+            if (createdReference.get() == null) return@runComposeSwingTest
             System.gc()
             awaitIdle()
         }
-        assertNull(created?.get(), "a detached node must not stay reachable from the composition")
+        assertNull(createdReference.get(), "a detached node must not stay reachable from the composition")
     }
 
     @Test

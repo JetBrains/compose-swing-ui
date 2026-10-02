@@ -38,8 +38,16 @@ private object InitialFocusElement : SwingModifier.NodeElement<Component, Initia
     class Node : SwingModifier.ComponentNode<Component>() {
         private val showing = FirstShowing()
 
-        // The wait resolves the first time the component shows, so this requests focus at most once per attach.
-        override fun onAttach(): Unit = showing.await(component) { component.requestFocusInWindow() }
+        // Set once focus is requested.
+        private var requested = false
+
+        override fun onAttach() {
+            if (requested) return
+            showing.await(component) {
+                requested = true
+                component.requestFocusInWindow()
+            }
+        }
 
         override fun onDetach(): Unit = showing.cancel()
     }

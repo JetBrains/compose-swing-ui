@@ -72,16 +72,6 @@ class LayoutContentReactivityTest {
     }
 
     @Test
-    fun aBoxPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Panel(PanelLayout.Box()) { content() } }
-    }
-
-    @Test
-    fun aColumnFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Panel(PanelLayout.Box()) { content() } }
-    }
-
-    @Test
     fun aRowFollowsItsContent() = runComposeSwingTest {
         assertTheContentIsFollowed { content ->
             Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) { content() }

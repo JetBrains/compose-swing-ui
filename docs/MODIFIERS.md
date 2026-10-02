@@ -104,11 +104,11 @@ that writes to the component, or a `ParentLayoutNode` for a declaration its pare
 
 A node is created by its element's `create()`, once per slot. Its callbacks then run in this order:
 
-1. `onAttach()`, once;
+1. `onAttach()`, as the node attaches;
 2. the element's `update(node)`, right after, and again on each later pass that hands the slot an
    unequal element;
 3. `onReset()`, only when the component is reused for different content or deactivated;
-4. `onDetach()`, once, as the node detaches.
+4. `onDetach()`, as the node detaches.
 
 A node is attached from before `onAttach()` runs until after `onDetach()` returns, and `isAttached` says
 so. The [node capabilities](#node-capabilities) are available only in between.
@@ -122,9 +122,16 @@ declared them last, so a node putting back what it captured finds every node dec
 attached.
 
 A reused component creates every node again from the next modifier applied to it; a component moved to
-another parent with `movableContent` keeps its nodes. Once every element that wrote a property has left
-the modifier, the property is back to the value it had before the modifier wrote it, unless an element
-declares a narrower `restores` policy.
+another parent with `movableContent` keeps its nodes. A move within one composition runs no callback.
+Moved into another composition, such as out of content set with `setContent` into the composition around
+it, the nodes of every component in the moved content detach as a whole from the one and attach as a whole
+to the other: each runs `onDetach()`, then `onAttach()` and its element's `update(node)` again. A node keeps
+its fields across the move, so a node that skips a write equal to the last one it made must forget that
+write in `onDetach()`, or the `update(node)` after the move skips it. Detaching drops the reads a node
+observed and the work it requested there, so a node observes again from `onAttach()`, as on its first
+attach. The nodes of a deactivated component are already detached and run
+nothing. Once every element that wrote a property has left the modifier, the property is back to the value
+it had before the modifier wrote it, unless an element declares a narrower `restores` policy.
 
 ### Rebuilding with `key`
 
@@ -156,7 +163,8 @@ a declaration of your own, and what the parent receives, is covered in
 ## Node capabilities
 
 `ComponentNode` and `ParentLayoutNode` both extend `SwingModifier.Node`. An attached node has these
-capabilities, and each of them fails on a node that is not attached:
+capabilities, and each of them fails on a node that is not attached. `observeReads` and
+`requestAfterValidation` also fail off the Event Dispatch Thread:
 
 - `coroutineScope` runs on the composition's own effect context, so `withFrameNanos` inside it follows
   the window's frame clock. The scope is cancelled after `onDetach()`.
@@ -176,7 +184,7 @@ capabilities, and each of them fails on a node that is not attached:
   after the node's `update` block as every modifier write does, and the parent measures, places and paints
   the component of a `ParentLayoutNode` again. A dynamic local read in a `ComponentNode` element's
   `update` runs that `update` again when its value changes; to follow a dynamic local's value in a
-  `ParentLayoutNode`, read it inside `observeReads`. A read in `onAttach` is taken once.
+  `ParentLayoutNode`, read it inside `observeReads`. A read in `onAttach` is taken once per attach.
 
 `visitDeclaredNodes { ... }` visits, in declaration order, the additive `ComponentNode`s and the
 `ParentLayoutNode`s of the node's modifier. A component that implements `DeclaredNodesListener`
