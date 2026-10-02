@@ -48,6 +48,6 @@ private val CARET =
 
 private val CARET_CALLBACKS =
     CallbackRegistration<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
-        adapter = { callback -> CaretListener { event -> callback.current(event) } },
+        adapter = { callback -> CaretListener { event -> callback.report { it(event) } } },
         registration = CARET,
     )

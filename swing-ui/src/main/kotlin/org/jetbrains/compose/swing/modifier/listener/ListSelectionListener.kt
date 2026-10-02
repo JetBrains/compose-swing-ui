@@ -73,6 +73,6 @@ private val LIST_SELECTION =
 
 private val LIST_SELECTION_CALLBACKS =
     CallbackRegistration<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
-        adapter = { callback -> ListSelectionListener { event -> callback.current(event) } },
+        adapter = { callback -> ListSelectionListener { event -> callback.report { it(event) } } },
         registration = LIST_SELECTION,
     )

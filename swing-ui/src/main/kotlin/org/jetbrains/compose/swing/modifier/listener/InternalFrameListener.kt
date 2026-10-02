@@ -143,25 +143,25 @@ private val INTERNAL_FRAME_CALLBACKS =
         adapter = { callback ->
             object : InternalFrameListener {
                 override fun internalFrameOpened(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameOpened(event)
+                    callback.report { it.onFrameOpened(event) }
 
                 override fun internalFrameClosing(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameClosing(event)
+                    callback.report { it.onFrameClosing(event) }
 
                 override fun internalFrameClosed(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameClosed(event)
+                    callback.report { it.onFrameClosed(event) }
 
                 override fun internalFrameIconified(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameIconified(event)
+                    callback.report { it.onFrameIconified(event) }
 
                 override fun internalFrameDeiconified(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameDeiconified(event)
+                    callback.report { it.onFrameDeiconified(event) }
 
                 override fun internalFrameActivated(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameActivated(event)
+                    callback.report { it.onFrameActivated(event) }
 
                 override fun internalFrameDeactivated(event: InternalFrameEvent): Unit =
-                    callback.current.onFrameDeactivated(event)
+                    callback.report { it.onFrameDeactivated(event) }
             }
         },
         registration = INTERNAL_FRAME,

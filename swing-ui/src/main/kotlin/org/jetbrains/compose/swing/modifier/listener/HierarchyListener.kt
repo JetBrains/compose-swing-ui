@@ -43,6 +43,6 @@ private val HIERARCHY =
 
 private val HIERARCHY_CALLBACKS =
     CallbackRegistration<Component, (HierarchyEvent) -> Unit, HierarchyListener>(
-        adapter = { callback -> HierarchyListener { event -> callback.current(event) } },
+        adapter = { callback -> HierarchyListener { event -> callback.report { it(event) } } },
         registration = HIERARCHY,
     )

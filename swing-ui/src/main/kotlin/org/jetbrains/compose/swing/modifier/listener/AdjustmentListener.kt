@@ -59,6 +59,6 @@ private val ADJUSTMENT =
 
 private val ADJUSTMENT_CALLBACKS =
     CallbackRegistration<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
-        adapter = { callback -> AdjustmentListener { event -> callback.current(event) } },
+        adapter = { callback -> AdjustmentListener { event -> callback.report { it(event) } } },
         registration = ADJUSTMENT,
     )

@@ -477,6 +477,12 @@ A method you leave out does nothing. The single-lambda overload runs once per me
 interaction reaches it more than once. `treeWillExpandListener`'s lambdas answer with a boolean
 instead: returning `false` leaves the node as it was.
 
+A throw from a lambda is reported to the thread's uncaught-exception handler where Swing raises the event
+inside a write, so the write finishes and the remaining listeners run. That covers the action, item,
+change, property-change, document, container, selection and tree-expansion lambdas, among others. The
+mouse, key, focus, component and hyperlink lambdas are reached only by a gesture or a posted event, and
+Swing's event pump handles their throw.
+
 ### `SwingModifier.listener(callback, registration)` - a lambda over a listener the library has no builder for
 
 Use `listener(callback, registration)` when the event source has no builder (a listener kind the
@@ -500,11 +506,11 @@ private val ANCESTOR_EVENTS =
     CallbackRegistration<JComponent, (AncestorEvent) -> Unit, AncestorListener>(
         adapter = { callback ->
             object : AncestorListener {
-                override fun ancestorAdded(event: AncestorEvent) = callback.current(event)
+                override fun ancestorAdded(event: AncestorEvent) = callback.report { it(event) }
 
-                override fun ancestorRemoved(event: AncestorEvent) = callback.current(event)
+                override fun ancestorRemoved(event: AncestorEvent) = callback.report { it(event) }
 
-                override fun ancestorMoved(event: AncestorEvent) = callback.current(event)
+                override fun ancestorMoved(event: AncestorEvent) = callback.report { it(event) }
             }
         },
         registration =

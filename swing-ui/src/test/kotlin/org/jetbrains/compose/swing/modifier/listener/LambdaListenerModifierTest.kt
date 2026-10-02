@@ -131,10 +131,8 @@ class LambdaListenerModifierTest {
 
         val button = onNodeOfType<JButton>().fetch<JButton>()
         val foreign = ActionEvent(Any(), ActionEvent.ACTION_PERFORMED, "test")
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                button.actionListeners.forEach { it.actionPerformed(foreign) }
-            }
+        button.actionListeners.forEach { it.actionPerformed(foreign) }
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
         assertTrue(
             failure.message.orEmpty().contains("is not scoped to JButton"),
             "a scoped listener names the type it could not scope the event to, but was: ${failure.message}",

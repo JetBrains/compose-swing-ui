@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -188,6 +190,51 @@ class TreeExpansionVetoTest {
             (tree.model.root as DefaultMutableTreeNode).userObject.toString(),
             "the composition still applies what a later pass declares",
         )
+    }
+
+    /** A will-change callback that throws what [throws] makes of the event, which is reported only if [isReported]. */
+    private class WillChangeThrow(
+        val name: String,
+        val isReported: Boolean,
+        val throws: (TreeExpansionEvent) -> Throwable,
+    )
+
+    @TestFactory
+    fun aThrowingWillChangeCallbackVetoesTheChangeAndOnlyAFailureIsReported(): List<DynamicTest> = listOf(
+        WillChangeThrow("a failure", isReported = true) { IllegalStateException("the will-change callback fails") },
+        WillChangeThrow("an ExpandVetoException", isReported = false) { ExpandVetoException(it) },
+    ).map { case ->
+        DynamicTest.dynamicTest(case.name) {
+            runComposeSwingTest {
+                val thrown = mutableListOf<Throwable>()
+                setContent {
+                    Tree(
+                        root = sample,
+                        children = { it.children },
+                        label = { it.name },
+                        modifier =
+                            SwingModifier.treeWillExpandListener { event ->
+                                throw case.throws(event).also { thrown += it }
+                            },
+                    )
+                }
+                val tree = onNodeOfType<JTree>().fetch()
+                val rootPath = TreePath(tree.model.root)
+
+                tree.expandPath(tree.pathTo(0))
+                tree.collapsePath(rootPath)
+                val reported = runCatching { awaitIdle() }.exceptionOrNull()
+
+                assertEquals(
+                    if (case.isReported) thrown else emptyList(),
+                    listOfNotNull(reported) + reported?.suppressed.orEmpty(),
+                    "only a failure is reported, as thrown",
+                )
+                assertEquals(2, thrown.size, "the callback is asked about the expansion and the collapse")
+                assertFalse(tree.isExpanded(tree.pathTo(0)), "the callback's throw vetoes the expansion")
+                assertTrue(tree.isExpanded(rootPath), "the callback's throw vetoes the collapse")
+            }
+        }
     }
 
     @Test

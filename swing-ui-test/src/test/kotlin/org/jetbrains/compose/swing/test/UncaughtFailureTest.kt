@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JSlider
+import javax.swing.SwingUtilities
 import javax.swing.event.ChangeListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,23 +22,15 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class UncaughtFailureTest {
     @Test
-    fun waitUntilThrowsAFailureReportedByATrueCondition() = runComposeSwingTest {
-        val failure = IllegalStateException("condition failed")
-        val slider = mountSliderThrowing(failure)
-        var fired = false
+    fun waitUntilDrainsQueuedFailuresBeforeThrowingTheFirstWhenTheConditionIsTrue() = runComposeSwingTest {
+        val first = IllegalStateException("first")
+        val second = IllegalArgumentException("second")
+        val slider = mountSliderThrowing(first, second)
+        slider.value = 75
+        SwingUtilities.invokeLater { slider.value = 25 }
 
-        val thrown =
-            assertFailsWith<IllegalStateException> {
-                waitUntil {
-                    if (!fired) {
-                        fired = true
-                        slider.value = 75
-                    }
-                    true
-                }
-            }
-
-        assertSame(failure, thrown)
+        assertSame(first, assertFailsWith<IllegalStateException> { waitUntil { true } })
+        assertEquals(listOf(second), first.suppressed.toList())
         awaitIdle()
     }
 
@@ -59,20 +52,6 @@ class UncaughtFailureTest {
         value.value = 25
         assertSame(second, assertFailsWith<IllegalArgumentException> { waitUntil(100.milliseconds) { false } })
         awaitIdle()
-    }
-
-    @Test
-    fun laterThrowsAreSuppressedOntoTheFirst() = runComposeSwingTest {
-        val value = mutableStateOf(50)
-        setContent {
-            Slider(value = value.value, changeListener = ChangeListener { throw IllegalStateException("first") })
-            Slider(value = value.value, changeListener = ChangeListener { throw IllegalStateException("second") })
-        }
-        value.value = 75
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-
-        assertEquals("first", failure.message)
-        assertEquals("second", failure.suppressed.single().message)
     }
 
     @Test

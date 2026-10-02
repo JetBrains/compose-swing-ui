@@ -110,7 +110,7 @@ private val PROPERTY_CHANGES =
     )
 
 private val propertyChangeAdapter: (DeclaredCallback<(PropertyChangeEvent) -> Unit>) -> PropertyChangeListener =
-    { callback -> PropertyChangeListener { event -> callback.current(event) } }
+    { callback -> PropertyChangeListener { event -> callback.report { it(event) } } }
 
 private val PROPERTY_CHANGE_CALLBACKS =
     CallbackRegistration(propertyChangeAdapter, PROPERTY_CHANGES)

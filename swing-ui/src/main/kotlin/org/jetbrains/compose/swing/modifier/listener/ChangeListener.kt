@@ -142,6 +142,6 @@ private val CHANGE =
 
 private val CHANGE_CALLBACKS =
     CallbackRegistration<Component, (ChangeEvent) -> Unit, ChangeListener>(
-        adapter = { callback -> ChangeListener { event -> callback.current(event) } },
+        adapter = { callback -> ChangeListener { event -> callback.report { it(event) } } },
         registration = CHANGE,
     )
