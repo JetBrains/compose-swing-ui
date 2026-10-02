@@ -354,7 +354,7 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
 
 /**
  * Sets up an isolated Swing-Compose composition, runs the suspending [block] against it on the EDT,
- * and tears everything down.
+ * and tears everything down, ending the test's lifecycle at [Lifecycle.State.DESTROYED].
  *
  * The whole [block] executes as a coroutine on [Dispatchers.Swing] (the EDT); the calling (JUnit)
  * thread is blocked until it completes or [timeout] elapses, whichever comes first. Frames are
@@ -384,9 +384,8 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
  * scope see. The harness's own dispatcher, job, frame clock and policies are added after it and win
  * over anything named here. A [kotlinx.coroutines.CoroutineExceptionHandler] named here is handed what an
  * effect throws: the throw then fails no gate, and what the handler itself throws fails the next one. Either
- * way recomposition has ended, and a gate that gives up afterwards names the throw. A throw that arrives after
- * the test has ended - from an effect that fails on another thread later, or one that needs more than one turn
- * of the event queue to unwind - is not reported.
+ * way recomposition has ended, and a gate that gives up afterwards names the throw. Teardown drains queued
+ * cancellation work. An effect's throw arriving from another thread after teardown finishes is not reported.
  * @param block the test body, run on the Event Dispatch Thread against a fresh [ComposeSwingTest].
  */
 public fun runComposeSwingTest(
@@ -852,23 +851,31 @@ private class ComposeSwingTestImpl(
         SwingWindowInteractionCollection(matcher)
 
     override fun close() {
-        // The restores below put back state this test claimed, so they run whatever teardown throws - a
-        // node's onRelease is caller code, and disposal runs every one of them.
-        try {
-            disposeHandle?.dispose()
-            recomposer.cancel()
-            scope.cancel()
-            // A cancelled effect resumes from the event queue to unwind, and what it throws as it does is
-            // this test's failure like any other effect's.
-            dispatchQueued(layOut = false)
-        } finally {
-            dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
-            root.removeNotify()
-            root.setLifecycleOwner(null)
+        fun tearDown(action: () -> Unit) {
+            try {
+                action()
+            } catch (failure: Throwable) {
+                recordUncaughtFailure(failure)
+            }
         }
-        // A failure a gate never got the chance to throw - the test ended without calling one after it
-        // arrived, or it arrived as the composition was torn down above - would otherwise be lost entirely
-        // rather than merely late.
+
+        // End the owned lifecycle before releasing content, even when a release callback fails.
+        tearDown { lifecycleOwner.registry.currentState = Lifecycle.State.DESTROYED }
+        tearDown { disposeHandle?.dispose() }
+        tearDown { recomposer.cancel() }
+        tearDown { scope.cancel() }
+        tearDown {
+            // Cancellation can dispatch further continuations as lifecycle-scoped work unwinds.
+            var steps = 0
+            while (!dispatchQueued(layOut = false)) {
+                check(++steps < MAX_STEPS) { "Teardown did not drain the event queue after $MAX_STEPS steps" }
+            }
+        }
+        tearDown { root.removeNotify() }
+        tearDown { root.setLifecycleOwner(null) }
+        tearDown { dispatchThread.setUncaughtExceptionHandler(enclosingHandler) }
+        // The first failure stands, whether a gate never got the chance to throw it or a step above raised
+        // it; later ones are suppressed onto it.
         uncaughtFailure?.let { throw it }
     }
 

@@ -19,8 +19,8 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Pins what a test sees once an uncontained throw has ended recomposition - a node's own update block
- * raising, which reaches the recomposer directly rather than through the caller-callback containment
- * [CallerFailureContainmentTest] pins.
+ * raising, which reaches the recomposer directly rather than through the report of a callback's throw
+ * [UncaughtFailureTest] pins.
  *
  * Such a throw ends the recomposer for good: nothing it applies afterward reflects fresh state. The gate
  * that ran the failing pass throws it, once, so a test that does not expect it fails with it; a later gate
