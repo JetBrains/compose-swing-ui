@@ -25,6 +25,7 @@ import java.awt.image.Kernel
 import java.awt.image.LookupOp
 import java.awt.image.ShortLookupTable
 import javax.swing.JComponent
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -118,63 +119,59 @@ class ImageLayerReRecordingTest {
     }
 
     @Test
-    fun aLayerRecordedForAnAcceleratedScreenAtOneScaleAndThenAnotherRecordsWhatAFreshLayerDoes() {
+    fun aLayerRecordedForAnAcceleratedScreenAtOneScaleAndThenAnotherRecordsTheEllipsesAtThatScale() =
+        assertRecordedForScreensOfScale(from = 1.0, to = 2.0)
+
+    @Test
+    fun aLayerRecordedForAScaledScreenAndThenAnUnscaledOneRecordsTheEllipsesAtThatScale() =
+        assertRecordedForScreensOfScale(from = 2.0, to = 1.0)
+
+    /**
+     * Asserts that one layer records the ellipses at each screen's scale, first [from] and then [to].
+     */
+    private fun assertRecordedForScreensOfScale(
+        from: Double,
+        to: Double,
+    ) {
         val size = SQUARE * 2
-        val record: (ImageLayer, Graphics2D) -> Unit = { layer, graphics ->
-            layer.record(graphics, size, size, ::drawTranslucentEllipses)
-        }
         val layer = ImageLayer()
-        val one = FakeScreen(1.0).graphics(size, size)
+        val first = FakeScreen(from).graphics(size, size)
         try {
-            // A window on a 1x monitor, recorded for the screen twice.
-            repeat(2) { record(layer, one) }
+            repeat(2) { assertRecordsEllipses(layer, first, size, from) }
         } finally {
-            one.dispose()
+            first.dispose()
         }
 
-        // The window moves to a 2x monitor: both are accelerated configurations, only their scale differs.
-        val two = FakeScreen(2.0).graphics(size, size)
+        val second = FakeScreen(to).graphics(size, size)
         try {
-            repeat(3) {
-                val fresh = ImageLayer()
-                record(fresh, two)
-                record(layer, two)
-
-                assertImagesPixelPerfect(fresh.toBufferedImage(), layer.toBufferedImage())
-            }
+            repeat(3) { assertRecordsEllipses(layer, second, size, to) }
         } finally {
-            two.dispose()
+            second.dispose()
         }
     }
 
-    @Test
-    fun aLayerRecordedForAScaledScreenAndThenAnUnscaledOneRecordsWhatAFreshLayerDoes() {
-        val size = SQUARE * 2
-        val record: (ImageLayer, Graphics2D) -> Unit = { layer, graphics ->
-            layer.record(graphics, size, size, ::drawTranslucentEllipses)
-        }
-        val layer = ImageLayer()
-        val two = FakeScreen(2.0).graphics(size, size)
-        try {
-            // A window on a 2x monitor, recorded for the screen twice.
-            repeat(2) { record(layer, two) }
-        } finally {
-            two.dispose()
-        }
-
-        // The window moves to a 1x monitor: both are accelerated configurations, only their scale differs.
-        val one = FakeScreen(1.0).graphics(size, size)
-        try {
-            repeat(3) {
-                val fresh = ImageLayer()
-                record(fresh, one)
-                record(layer, one)
-
-                assertImagesPixelPerfect(fresh.toBufferedImage(), layer.toBufferedImage())
+    /**
+     * Records [drawTranslucentEllipses] onto [layer] for [graphics], and expects pixel for pixel the ellipses rendered
+     * at [scale], with the first ellipse's translucent interior.
+     */
+    private fun assertRecordsEllipses(
+        layer: ImageLayer,
+        graphics: Graphics2D,
+        size: Int,
+        scale: Double,
+    ) {
+        val reference =
+            renderImage((size * scale).roundToInt(), (size * scale).roundToInt()) {
+                it.scale(scale, scale)
+                drawTranslucentEllipses(it)
             }
-        } finally {
-            one.dispose()
-        }
+        layer.record(graphics, size, size, ::drawTranslucentEllipses)
+        val pixels = layer.toBufferedImage()
+        assertEquals(Dimension(reference.width, reference.height), Dimension(pixels.width, pixels.height))
+        // Inside the first ellipse and left of the second.
+        val interior = Color(pixels.getRGB((2 * scale).toInt(), (SQUARE * scale).toInt()), true)
+        assertEquals(FIRST_ELLIPSE_ALPHA, interior.alpha, "the first ellipse retains its translucent interior")
+        assertImagesPixelPerfect(reference, pixels)
     }
 
     @Test
@@ -419,13 +416,14 @@ class ImageLayerReRecordingTest {
     /** Antialiased ellipses at alphas low enough that premultiplying loses precision at their edges. */
     private fun drawTranslucentEllipses(graphics: Graphics2D) {
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        graphics.color = Color(200, 120, 40, 37)
+        graphics.color = Color(200, 120, 40, FIRST_ELLIPSE_ALPHA)
         graphics.fill(Ellipse2D.Double(0.5, 0.5, SQUARE * 2 - 1.0, SQUARE * 2 - 1.0))
         graphics.color = Color(30, 90, 220, 180)
         graphics.fill(Ellipse2D.Double(3.3, 2.7, SQUARE.toDouble(), SQUARE * 1.3))
     }
 
     private companion object {
+        const val FIRST_ELLIPSE_ALPHA = 37
         private val WEIGHTS = floatArrayOf(0.2f, 0.5f, 0.3f)
         val BLUR_ACROSS = ConvolveOp(Kernel(3, 1, WEIGHTS), ConvolveOp.EDGE_NO_OP, null)
         val BLUR_DOWN = ConvolveOp(Kernel(1, 3, WEIGHTS), ConvolveOp.EDGE_NO_OP, null)

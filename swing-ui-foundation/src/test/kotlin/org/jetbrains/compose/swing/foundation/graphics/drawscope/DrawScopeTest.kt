@@ -22,13 +22,10 @@ import java.awt.Paint
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.Shape
-import java.awt.Toolkit
 import java.awt.font.TextLayout
 import java.awt.geom.Path2D
 import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
-import java.io.ByteArrayOutputStream
-import javax.imageio.ImageIO
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +33,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for [DrawScope], [DrawStyle] and their extension functions, drawn through the
@@ -106,24 +102,32 @@ class DrawScopeTest {
     @Test
     fun anImageStillLoadingDrawnScaledRepaintsTheCanvasOnceItHasLoaded() =
         runComposeSwingTest {
-            val png = ByteArrayOutputStream()
-            ImageIO.write(renderImage(200, 200) { it.fill(Color.RED, Rectangle(0, 0, 200, 200)) }, "png", png)
-            val image = Toolkit.getDefaultToolkit().createImage(png.toByteArray())
-
-            var drawsImage = false
+            val size = 20
+            val loading = LoadingImage(200, 200, Color.RED)
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(20, 20)) {
-                    if (drawsImage) drawImage(image, x = 0f, y = 0f, width = 20f, height = 20f)
+                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(size, size)) {
+                    drawImage(loading.image, x = 0f, y = 0f, width = size.toFloat(), height = size.toFloat())
                 }
             }
             val canvas = onNodeWithTag("canvas").fetch<JComponent>()
-            onNodeWithTag("canvas").captureToImage()
 
             withRecordedRepaints { repaints ->
-                drawsImage = true
-                onNodeWithTag("canvas").captureToImage()
+                assertImagesPixelPerfect(
+                    BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB),
+                    onNodeWithTag("canvas").captureToImage(),
+                )
+                val beforeCompletion = repaints.repaintsOf(canvas)
 
-                waitUntil(timeout = 5.seconds) { repaints.repaintsOf(canvas) > 0 }
+                loading.finishLoading()
+
+                assertTrue(
+                    repaints.repaintsOf(canvas) > beforeCompletion,
+                    "completion must request a repaint after the incomplete image was drawn",
+                )
+                val completed = renderImage(size, size) { it.fill(Color.RED, Rectangle(0, 0, size, size)) }
+                assertImagesPixelPerfect(completed, onNodeWithTag("canvas").captureToImage())
+                // A later paint, not caused by the completion, still draws the loaded image.
+                assertImagesPixelPerfect(completed, onNodeWithTag("canvas").captureToImage())
             }
         }
 

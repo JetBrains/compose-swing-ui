@@ -29,8 +29,8 @@ import java.text.AttributedCharacterIterator
 import kotlin.math.ceil
 
 /**
- * An accelerated [GraphicsConfiguration] at [scale] device pixels per unit, without a display: a recording made
- * for it behaves as one made for a real HiDPI screen, so a test reaches the same code path a real screen does.
+ * An accelerated [GraphicsConfiguration] at [scale] device pixels per unit, without a display.
+ * Its volatile images are software-backed: a platform pipeline cannot build a surface for this configuration.
  *
  * A [losable] screen makes its surfaces as [LosableSurface]s and lists them in [surfaces], so a test can have the
  * device discard one.
@@ -85,7 +85,7 @@ internal class FakeScreen(
         if (losable) {
             LosableSurface(width, height).also { surfaces += it }
         } else {
-            super.createCompatibleVolatileImage(width, height, transparency)
+            super.createCompatibleVolatileImage(width, height, ImageCapabilities(false), transparency)
         }
 }
 
