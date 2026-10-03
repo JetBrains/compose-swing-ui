@@ -15,7 +15,9 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
+import java.awt.GraphicsEnvironment
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
@@ -41,6 +43,7 @@ internal fun ComposeSwingTest.sliderNamed(name: String): JSlider =
  * of their own that share the switch of the alignment guides.
  */
 internal suspend fun ComposeSwingTest.openSectionWithMenuBar(title: String) {
+    assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     var guidesShown by mutableStateOf(true)
     setContent {
         Panel(PanelLayout.Border()) {

@@ -21,6 +21,9 @@ private val REPORT = Regex("""(\d+)x(\d+) to (\d+)x(\d+)""")
 private fun Color.distanceTo(other: Color): Int =
     maxOf(abs(red - other.red), abs(green - other.green), abs(blue - other.blue))
 
+/** The height this label asks of the container holding it. */
+private fun Component.requestedContainerHeight(): Int = height + parent.insets.let { it.top + it.bottom }
+
 class AnimateContentSizeAndColorCardsTest {
     @Test
     fun additionalOrderDetailsTravelTheContainerToTheirRequestedSize() =
@@ -48,9 +51,8 @@ class AnimateContentSizeAndColorCardsTest {
                 midway < report.y,
                 "the container took the taller frame at once instead of traveling to it: $midway",
             )
-            val insets = container.insets
             assertEquals(
-                label.height + insets.top + insets.bottom,
+                label.requestedContainerHeight(),
                 container.height,
                 "the container did not settle at the size its label asks for",
             )
@@ -65,6 +67,7 @@ class AnimateContentSizeAndColorCardsTest {
             val container = label.parent
             val before = container.height
             val report = onNodeWithText("Last animation:", substring = true).fetch<JLabel>()
+            val beforeReportY = report.y
 
             // A few frames rather than the first pixel of travel, so the retarget below genuinely lands
             // mid-flight instead of on an animation that only just started.
@@ -72,6 +75,13 @@ class AnimateContentSizeAndColorCardsTest {
             onNodeWithText("More details").performClick()
             awaitIdle()
             driveFramesIntoTheTransition()
+            val firstTargetHeight = label.requestedContainerHeight()
+            assertTrue(firstTargetHeight > before, "the first click did not request a taller container")
+            val heldHeight = before + report.y - beforeReportY
+            assertTrue(
+                heldHeight > before && heldHeight < firstTargetHeight,
+                "the retarget was not held mid-flight: $heldHeight between $before and $firstTargetHeight",
+            )
 
             onNodeWithText("More details").performClick()
             // Frames stay held across the retarget, so each one is measured the way a window measures it
@@ -85,10 +95,12 @@ class AnimateContentSizeAndColorCardsTest {
             val initialHeight = reported.groupValues[2].toInt()
             val targetHeight = reported.groupValues[4].toInt()
             assertTrue(
-                initialHeight > before && initialHeight < targetHeight,
+                initialHeight > before && initialHeight < firstTargetHeight,
                 "the second animation started over from $before rather than bending from where the " +
-                    "container stood: ${report.text}",
+                    "container stood below its previous target $firstTargetHeight: ${report.text}",
             )
+            assertEquals(container.height, targetHeight, "the final report did not match the native container")
+            assertEquals(label.requestedContainerHeight(), targetHeight, "the final target missed the label")
         }
 
     @Test

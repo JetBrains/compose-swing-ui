@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.BoxScope
 import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.requiredHeight
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -23,6 +24,8 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Insets
 import java.awt.Point
@@ -30,54 +33,36 @@ import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AnimationClippingTest {
     @Test
-    fun `unscoped visibility clipping works under a stock swing panel`() =
+    fun `unscoped visibility clips deliberately overflowing content at the stock panel bounds`() =
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(80, 40)) {
-                    UnscopedVisibility(visible)
-                }
+                StockHost { UnscopedVisibility(visible) }
             }
             mainClock.autoAdvance = false
             visible = true
             repeat(2) { driveOneFrame() }
 
-            onNodeWithTag(ANIMATED).fetch<JComponent>()
+            assertStockPanelPaint(CONTENT)
         }
 
-    @Test
-    fun `unscoped content clipping works under a stock swing panel`() =
+    @ParameterizedTest(name = "clip = {0}")
+    @ValueSource(booleans = [true, false])
+    fun `unscoped content paints within the stock panel bounds whether or not it clips`(clip: Boolean) =
         runComposeSwingTest {
             var state by mutableStateOf(false)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(80, 40)) {
-                    UnscopedContent(state, clip = true)
-                }
+                StockHost { UnscopedContent(state, clip = clip) }
             }
             mainClock.autoAdvance = false
             state = true
             repeat(2) { driveOneFrame() }
 
-            onNodeWithTag(ANIMATED).fetch<JComponent>()
-        }
-
-    @Test
-    fun `unscoped content overflow works under a stock swing panel`() =
-        runComposeSwingTest {
-            var state by mutableStateOf(false)
-            setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(80, 40)) {
-                    UnscopedContent(state, clip = false)
-                }
-            }
-            mainClock.autoAdvance = false
-            state = true
-            repeat(2) { driveOneFrame() }
-
-            onNodeWithTag(ANIMATED).fetch<JComponent>()
+            assertStockPanelPaint(CONTENT_B)
         }
 
     @Test
@@ -388,6 +373,27 @@ class AnimationClippingTest {
             assertBelowPixel(Color.BLUE)
         }
 
+    private fun ComposeSwingTest.assertStockPanelPaint(contentTag: String) {
+        val outer = onNodeWithTag(STOCK).fetch<JComponent>()
+        val host = onNodeWithTag(HOST).fetch<JComponent>()
+        val animated = onNodeWithTag(ANIMATED).fetch<JComponent>()
+        val content = onNodeWithTag(contentTag).fetch<JComponent>()
+        assertEquals(host.size, animated.size, "the animated container is not laid out at its host's size")
+        val contentBounds = SwingUtilities.convertRectangle(content.parent, content.bounds, host)
+        val insideHost = Point(10, host.height / 2)
+        val belowHost = Point(10, host.height + (contentBounds.y + contentBounds.height - host.height) / 2)
+        assertTrue(contentBounds.contains(insideHost), "content=$contentBounds, host=${host.bounds}")
+        assertTrue(
+            belowHost.y >= host.height && contentBounds.contains(belowHost),
+            "the content does not reach past its host: content=$contentBounds, host=${host.bounds}",
+        )
+        val image = outer.captureToImage()
+        val inside = SwingUtilities.convertPoint(host, insideHost, outer)
+        val outside = SwingUtilities.convertPoint(host, belowHost, outer)
+        assertEquals(Color.RED.rgb, image.getRGB(inside.x, inside.y), "inside=$inside, content=$contentBounds")
+        assertEquals(Color.BLUE.rgb, image.getRGB(outside.x, outside.y), "outside=$outside, content=$contentBounds")
+    }
+
     private fun ComposeSwingTest.assertBelowPixel(
         expected: Color,
         y: Int = 1,
@@ -430,11 +436,12 @@ private fun RedBlock(
     width: Int,
     height: Int,
     tag: String,
+    modifier: SwingModifier = SwingModifier,
 ) {
     Label(
         text = "",
         modifier =
-            SwingModifier
+            modifier
                 .testTag(tag)
                 .preferredSize(width, height)
                 .opaque(true)
@@ -453,6 +460,30 @@ private fun BlueBlock() {
                 .opaque(true)
                 .background(Color.BLUE),
     )
+}
+
+@Composable
+private fun StockHost(content: @Composable () -> Unit) {
+    Panel(
+        PanelLayout.Border(),
+        modifier =
+            SwingModifier
+                .testTag(STOCK)
+                .preferredSize(80, 80)
+                .opaque(true)
+                .background(Color.BLUE),
+    ) {
+        Panel(
+            PanelLayout.Border(),
+            modifier =
+                SwingModifier
+                    .north()
+                    .testTag(HOST)
+                    .preferredSize(80, 40)
+                    .opaque(true)
+                    .background(Color.BLUE),
+        ) { content() }
+    }
 }
 
 @Composable
@@ -481,10 +512,11 @@ private fun UnscopedVisibility(
         enter = expandVertically(tween(DURATION), Alignment.Top, clip = clip),
         exit = ExitTransition.None,
     ) {
-        RedBlock(80, 80, CONTENT)
+        RedBlock(80, 80, CONTENT, SwingModifier.requiredHeight(80))
     }
 }
 
+/** Each content requires its height, so content taller than the space a parent grants overflows the container. */
 @Composable
 private fun UnscopedContent(
     state: Boolean,
@@ -497,11 +529,15 @@ private fun UnscopedContent(
             EnterTransition.None togetherWith ExitTransition.None using
                 SizeTransform(clip = clip, sizeAnimationSpec = { _, _ -> tween(DURATION) })
         },
-    ) { RedBlock(80, if (it) 80 else 20, "content-$it") }
+    ) {
+        val height = if (it) 80 else 20
+        RedBlock(80, height, "content-$it", SwingModifier.requiredHeight(height))
+    }
 }
 
 private const val ANIMATED = "animated"
 private const val HOST = "host"
+private const val STOCK = "stock"
 private const val BELOW = "below"
 private const val CONTENT = "content"
 private const val CONTENT_B = "content-true"

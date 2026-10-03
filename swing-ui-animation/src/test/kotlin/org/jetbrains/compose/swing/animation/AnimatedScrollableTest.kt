@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.animation
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,15 +9,21 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.SwingConstants
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -37,38 +44,76 @@ private data class Person(
 class AnimatedScrollableTest {
     private val people = List(ROWS) { Person("Person $it", it) }
 
-    @Test
-    fun `a table inside an animated container scrolls by its own rows`() =
+    enum class AnimatedContainer {
+        Visibility {
+            @Composable
+            override fun Wrap(
+                modifier: SwingModifier,
+                content: @Composable () -> Unit,
+            ) {
+                AnimatedVisibility(visible = true, modifier = modifier) { content() }
+            }
+        },
+        Content {
+            @Composable
+            override fun Wrap(
+                modifier: SwingModifier,
+                content: @Composable () -> Unit,
+            ) {
+                AnimatedContent(targetState = content, modifier = modifier) { target -> target() }
+            }
+        },
+        Crossfade {
+            @Composable
+            override fun Wrap(
+                modifier: SwingModifier,
+                content: @Composable () -> Unit,
+            ) {
+                Crossfade(targetState = content, modifier = modifier) { target -> target() }
+            }
+        },
+        ;
+
+        /** The container of this kind holding [content] at rest, with no change to animate. */
+        @Composable
+        abstract fun Wrap(
+            modifier: SwingModifier,
+            content: @Composable () -> Unit,
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(AnimatedContainer::class)
+    fun `a table inside an animated container scrolls by its own rows`(animated: AnimatedContainer) =
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
                     Viewport {
-                        AnimatedVisibility(visible = true) {
+                        animated.Wrap(SwingModifier.testTag(ANIMATED)) {
                             Table(rows = people, columns = { column("Name") { it.name } })
                         }
                     }
                 }
             }
 
-            val pane = onNodeOfType<JScrollPane>().fetch()
-            val table = onNodeOfType<JTable>().fetch()
-            assertSame(table.parent, pane.viewport.view, "the animated container is the pane's view")
+            val (pane, table) = tableInViewport()
             val row = table.getScrollableUnitIncrement(pane.viewport.viewRect, SwingConstants.VERTICAL, 1)
-            assertTrue(row > 1, "precondition: a row is more than the single pixel a pane falls back to")
+            assertTrue(row > 1, "a table row exceeds the pane fallback of one pixel")
             assertEquals(
                 row,
                 pane.verticalScrollBar.getUnitIncrement(1),
-                "an arrow button moves the pane by a row of the table the container holds",
+                "an arrow button moves the pane by a row of its table",
             )
         }
 
-    @Test
-    fun `a table that takes the viewport's width is laid out at it without a scroll bar`() =
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(AnimatedContainer::class)
+    fun `a table that takes the viewport's width is laid out at it without a scroll bar`(animated: AnimatedContainer) =
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
                     Viewport {
-                        AnimatedVisibility(visible = true) {
+                        animated.Wrap(SwingModifier.testTag(ANIMATED)) {
                             Table(
                                 rows = people,
                                 columns = {
@@ -83,13 +128,19 @@ class AnimatedScrollableTest {
                 }
             }
 
-            val pane = onNodeOfType<JScrollPane>().fetch()
-            assertFalse(pane.horizontalScrollBar.isVisible, "content taking the viewport's width needs no scroll bar")
+            val (pane, table) = tableInViewport()
+            assertTrue(table.scrollableTracksViewportWidth, "the table requests the viewport's width")
+            assertTrue(table.preferredSize.width > pane.viewport.width, "the columns exceed the viewport width")
+            assertFalse(
+                pane.horizontalScrollBar.isVisible,
+                "content taking the viewport width needs no scroll bar",
+            )
             assertEquals(
                 pane.viewport.width,
                 pane.viewport.view.width,
-                "the container is laid out at the viewport's width",
+                "the container is laid out at the viewport width",
             )
+            assertEquals(pane.viewport.width, table.width, "the table is laid out at the viewport width")
         }
 
     @Test
@@ -126,45 +177,49 @@ class AnimatedScrollableTest {
             )
         }
 
-    @Test
-    fun `a container narrower than the viewport is stretched to it`() =
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(AnimatedContainer::class)
+    fun `a container narrower than the viewport is stretched to it`(animated: AnimatedContainer) =
         // A content side well inside the pane, so the pane has room to stretch the container.
-        assertLaidOutAsARawPaneWould(Dimension(50, 50))
+        assertLaidOutAsARawPaneWould(animated, Dimension(50, 50))
 
-    @Test
-    fun `a container larger than the viewport keeps its own size`() =
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(AnimatedContainer::class)
+    fun `a container larger than the viewport keeps its own size`(animated: AnimatedContainer) =
         // A content side past the pane, so the container keeps its own size and the pane scrolls.
-        assertLaidOutAsARawPaneWould(Dimension(400, 400))
+        assertLaidOutAsARawPaneWould(animated, Dimension(400, 400))
 
     /**
      * That a pane lays the animated container out where it lays out any view answering nothing:
      * at the viewport's extent where the viewport is the larger, at the container's own size where it is
      * not. Answering a pane at all costs a view that stretch unless it answers for it too.
      */
-    private fun assertLaidOutAsARawPaneWould(contentSize: Dimension) =
-        runComposeSwingTest {
-            setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
-                    Viewport {
-                        AnimatedVisibility(visible = true) {
-                            Column(SwingModifier.preferredSize(contentSize.width, contentSize.height)) {}
-                        }
+    private fun assertLaidOutAsARawPaneWould(
+        animated: AnimatedContainer,
+        contentSize: Dimension,
+    ) = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
+                Viewport {
+                    animated.Wrap(SwingModifier.testTag(ANIMATED)) {
+                        Column(SwingModifier.preferredSize(contentSize.width, contentSize.height)) {}
                     }
                 }
             }
-
-            val pane = onNodeOfType<JScrollPane>().fetch()
-            val raw = JScrollPane(JPanel().also { it.preferredSize = contentSize })
-            raw.size = pane.size
-            raw.doLayout()
-            raw.viewport.doLayout()
-
-            assertEquals(
-                raw.viewport.view.size,
-                pane.viewport.view.size,
-                "the animated container is laid out exactly as a raw pane lays out a view answering nothing",
-            )
         }
+
+        val pane = paneViewingTheContainer()
+        val raw = JScrollPane(JPanel().also { it.preferredSize = contentSize })
+        raw.size = pane.size
+        raw.doLayout()
+        raw.viewport.doLayout()
+
+        assertEquals(
+            raw.viewport.view.size,
+            pane.viewport.view.size,
+            "content $contentSize is laid out like a raw pane view",
+        )
+    }
 }
 
 /** Rows enough to overflow the pane, so it has something to scroll. */
@@ -175,3 +230,20 @@ private const val PANE_SIDE = 150
 
 /** Frames enough to mount the arriving content, so the container is holding both of them. */
 private const val FRAMES_INTO_THE_TRANSITION = 3
+
+/** The tag the cases put on the animated container under test. */
+private const val ANIMATED = "animated"
+
+private fun ComposeSwingTest.paneViewingTheContainer(): JScrollPane {
+    val pane = onNodeOfType<JScrollPane>().fetch()
+    assertSame(onNodeWithTag(ANIMATED).fetch(), pane.viewport.view, "the animated container is the viewport view")
+    assertTrue(pane.viewport.width > 0 && pane.viewport.height > 0, "the viewport has a positive extent")
+    return pane
+}
+
+private fun ComposeSwingTest.tableInViewport(): Pair<JScrollPane, JTable> {
+    val pane = paneViewingTheContainer()
+    val table = onAllNodesOfType<JTable>().fetchAll().single()
+    assertTrue(SwingUtilities.isDescendingFrom(table, pane.viewport.view), "the wrapper holds the sole table")
+    return pane to table
+}

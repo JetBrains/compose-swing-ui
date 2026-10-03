@@ -100,7 +100,7 @@ class EnterExitTransitionTest {
     @Test
     fun `an alpha below fully transparent paints none of the content`() =
         runComposeSwingTest {
-            assertNotEquals(ContentColor.rgb, fadedPixel(initialAlpha = -0.5f))
+            assertEquals(0, Color(fadedPixel(initialAlpha = -0.5f), true).alpha)
         }
 
     @Test

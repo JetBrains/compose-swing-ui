@@ -4,7 +4,6 @@ import org.jetbrains.compose.swing.animation.core.AnimationVector4D
 import java.awt.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -45,8 +44,6 @@ class ColorConverterTest {
         val midpoint = midpointOf(Color.BLACK, Color.WHITE)
         assertEquals(midpoint.red, midpoint.green, "a gray ramp stayed gray")
         assertEquals(midpoint.red, midpoint.blue, "a gray ramp stayed gray")
-        assertNotEquals(127, midpoint.red, "the ramp was interpolated in sRGB, not in Oklab")
-        assertNotEquals(128, midpoint.red, "the ramp was interpolated in sRGB, not in Oklab")
         // Half the perceived distance from black to white is component 99: Oklab lightness 0.5 stands
         // for an eighth of the light of white, which the sRGB transfer function encodes as 0.389.
         assertEquals(99, midpoint.red, "half the perceived distance from black to white")

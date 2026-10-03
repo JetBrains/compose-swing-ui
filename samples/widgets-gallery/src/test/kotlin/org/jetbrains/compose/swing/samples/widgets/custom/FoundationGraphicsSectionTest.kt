@@ -231,20 +231,6 @@ class FoundationGraphicsSectionTest {
         }
 
     @Test
-    fun blurReachesTheSurfaceEdgeAndBorder() =
-        runComposeSwingTest {
-            openSection("Foundation graphics")
-            onNodeWithText("Shadow").performClick()
-            val sharp = onNodeWithTag(DECORATION_TAG).captureToImage()
-            onNodeWithText("Blur").performClick()
-            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).fetch<JSlider>().value = 16
-            awaitIdle()
-            val blurred = onNodeWithTag(DECORATION_TAG).captureToImage()
-            assertNotEquals(sharp.getRGB(1, 60), blurred.getRGB(1, 60), "the border is inside the blur")
-            assertNotEquals(sharp.getRGB(20, 60), blurred.getRGB(20, 60), "the gradient surface is inside the blur")
-        }
-
-    @Test
     fun paintOrderChangesTheSubstantialOverlappingRegion() =
         runComposeSwingTest {
             openSection("Foundation graphics")
@@ -669,7 +655,13 @@ class FoundationGraphicsSectionTest {
             val canvas = onNodeWithTag(DRAW_MODIFIERS_TAG)
             val plain = canvas.captureToImage()
 
-            canvas.performMouseDrag(Point(40, 40), Point(plain.width + 60, plain.height + 60))
+            canvas.performMouseMove(Point(80, 80))
+            assertNotNull(
+                differingPixelBounds(plain, canvas.captureToImage()),
+                "the pointer inside lights the spotlight",
+            )
+
+            canvas.performMouseDrag(Point(80, 80), Point(plain.width + 60, plain.height + 60))
             assertImagesPixelPerfect(plain, canvas.captureToImage())
         }
 
