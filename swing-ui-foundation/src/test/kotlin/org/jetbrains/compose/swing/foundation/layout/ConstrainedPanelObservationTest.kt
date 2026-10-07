@@ -11,9 +11,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -21,6 +24,13 @@ import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
+import java.awt.Container
+import java.awt.Dimension
+import java.awt.GridBagConstraints
+import java.awt.LayoutManager
+import java.awt.Rectangle
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -214,6 +224,320 @@ class ConstrainedPanelObservationTest {
             assertFalse(panel.isValid, "a policy read changing after a node attached invalidates the panel")
             handle.dispose()
         }
+
+    @Test
+    fun aStateReadOnlyInTheMinIntrinsicWidthAStockParentAsksSizesThePanelAgain() =
+        assertIntrinsicReadFollowed(Dimension(60, 100)) { Dimension(minIntrinsicWidth(100), 100) }
+
+    @Test
+    fun aStateReadOnlyInTheMaxIntrinsicWidthAStockParentAsksSizesThePanelAgain() =
+        assertIntrinsicReadFollowed(Dimension(60, 100)) { Dimension(maxIntrinsicWidth(100), 100) }
+
+    @Test
+    fun aStateReadOnlyInTheMinIntrinsicHeightAStockParentAsksSizesThePanelAgain() =
+        assertIntrinsicReadFollowed(Dimension(100, 60)) { Dimension(100, minIntrinsicHeight(100)) }
+
+    @Test
+    fun aStateReadOnlyInTheMaxIntrinsicHeightAStockParentAsksSizesThePanelAgain() =
+        assertIntrinsicReadFollowed(Dimension(100, 60)) { Dimension(100, maxIntrinsicHeight(100)) }
+
+    @Test
+    fun aStateReadOnlyInTheHeightAtTheWidthABoxLayoutStretchesThePanelToSizesItAgain() =
+        assertGrantedWidthReadFollowed(
+            swingParentSlots(emptyList()).getValue("BoxLayout Y_AXIS"),
+            initial = 80,
+            extent = 60,
+            expected = 120,
+        )
+
+    @Test
+    fun aStateReadOnlyInTheHeightAtTheWidthAGridBagLayoutFillsThePanelToSizesItAgain() =
+        assertGrantedWidthReadFollowed(
+            swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL"),
+            initial = 80,
+            extent = 60,
+            expected = 120,
+        )
+
+    @Test
+    fun aStateReadOnlyInTheLeastHeightAtTheWidthAShortGridBagLayoutFillsThePanelToSizesItAgain() =
+        assertGrantedWidthReadFollowed(
+            // Short of the panel's preferred height, the cell grants its least height.
+            { width, subject ->
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.north().preferredSize(width, 70)) {
+                        subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+                    }
+                }
+            },
+            initial = 40,
+            extent = 60,
+            expected = 60,
+        )
+
+    @Test
+    fun aStateReadOnlyInThePreferredHeightAloneAtTheWidthABoxLayoutStretchesThePanelToSizesItAgain() =
+        assertSplitReadsFollowed(
+            swingParentSlots(emptyList()).getValue("BoxLayout Y_AXIS"),
+            initial = 80,
+            changed = { _, preferred -> preferred.intValue = 120 },
+            expected = 120,
+        )
+
+    @Test
+    fun aStateReadOnlyInTheLeastHeightAloneAtTheWidthABoxLayoutStretchesThePanelToLeavesItAsItWas() =
+        assertSplitReadsFollowed(
+            swingParentSlots(emptyList()).getValue("BoxLayout Y_AXIS"),
+            initial = 80,
+            changed = { least, _ -> least.intValue = 60 },
+            expected = 80,
+        )
+
+    @Test
+    fun aStateReadOnlyInTheLeastHeightAloneAtTheWidthAShortGridBagLayoutFillsThePanelToSizesItAgain() =
+        assertSplitReadsFollowed(
+            // Short of the panel's preferred height, the cell grants its least height.
+            { width, subject ->
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.north().preferredSize(width, 70)) {
+                        subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+                    }
+                }
+            },
+            initial = 40,
+            changed = { least, _ -> least.intValue = 60 },
+            expected = 60,
+        )
+
+    @Test
+    fun aStateReadOnlyInThePreferredHeightAloneAtTheWidthAShortGridBagLayoutFillsThePanelToLeavesItAsItWas() =
+        assertSplitReadsFollowed(
+            { width, subject ->
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.north().preferredSize(width, 70)) {
+                        subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+                    }
+                }
+            },
+            initial = 40,
+            changed = { _, preferred -> preferred.intValue = 120 },
+            expected = 40,
+        )
+
+    @Test
+    fun aStateReadOnlyInTheHeightsAPaintChecksAtTheWidthASqueezedBoxLayoutGrantsSizesThePanelAgain() =
+        assertGrantedWidthReadFollowed(
+            // Between the panel's least and preferred heights, BoxLayout grants all it has, by neither size; short of
+            // the least height, that height.
+            { width, subject ->
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                    Panel(
+                        PanelLayout.Box(BoxLayout.Y_AXIS),
+                        modifier = SwingModifier.north().preferredSize(width, 70),
+                    ) { subject(SwingModifier) }
+                }
+            },
+            initial = 70,
+            extent = 100,
+            expected = 100,
+            painted = true,
+        )
+
+    /**
+     * Lays out, in [slot], a panel whose policy reads an extent only at widths other than the one it prefers, where
+     * the slot grants it, and which takes that extent as its least height and twice it as its preferred one. Asserts it
+     * is [initial] high at the slot's width, painted there where [painted] holds. Then changes the extent from 40 to
+     * [extent], and asserts the panel is laid out at the [expected] height with no paint in between.
+     */
+    private fun assertGrantedWidthReadFollowed(
+        slot: Slot,
+        initial: Int,
+        extent: Int,
+        expected: Int,
+        painted: Boolean = false,
+    ) = runComposeSwingTest {
+        val read = mutableIntStateOf(40)
+        val policy = GrantedWidthPolicy(read)
+        setContent { slot(300) { modifier -> Layout(policy, modifier.testTag("panel")) } }
+        val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
+        if (painted) settleWithPaint()
+        assertEquals(Dimension(300, initial), panel.size, "the panel stands at the slot's width")
+
+        read.intValue = extent
+        awaitIdle()
+
+        assertEquals(Dimension(300, expected), panel.size, "a changed read at the granted width sizes the panel again")
+    }
+
+    /**
+     * As [assertGrantedWidthReadFollowed], for a panel whose least height reads one state and whose preferred height
+     * another. Asserts it is [initial] high at the slot's width, then runs [changed] on the two states, 40 and 80 to
+     * begin with, and asserts it is [expected] high with no paint in between.
+     */
+    private fun assertSplitReadsFollowed(
+        slot: Slot,
+        initial: Int,
+        changed: (least: MutableIntState, preferred: MutableIntState) -> Unit,
+        expected: Int,
+    ) = runComposeSwingTest {
+        val least = mutableIntStateOf(40)
+        val preferred = mutableIntStateOf(80)
+        val policy = SplitHeightsPolicy(least, preferred)
+        setContent { slot(300) { modifier -> Layout(policy, modifier.testTag("panel")) } }
+        val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
+        assertEquals(Dimension(300, initial), panel.size, "the panel stands at the slot's width")
+
+        changed(least, preferred)
+        awaitIdle()
+
+        assertEquals(Dimension(300, expected), panel.size, "the panel follows the height its slot lays it out by")
+    }
+
+    /**
+     * Hosts a [Layout] whose policy reads an extent only in its intrinsic functions under a stock parent that sizes it
+     * by [sizeOf], one of the intrinsic functions of its [Constrainable], and never asks its preferred or minimum size.
+     * Changes that extent from 40 to 60 and asserts the panel is laid out at [expected].
+     */
+    private fun assertIntrinsicReadFollowed(
+        expected: Dimension,
+        sizeOf: Constrainable.() -> Dimension,
+    ) = runComposeSwingTest {
+        val extent = mutableIntStateOf(40)
+        val sizing = ConstrainableSizingLayout(sizeOf)
+        val parent = JPanel(sizing)
+        setContent {
+            SwingNode(factory = { parent }) { Layout(IntrinsicExtentPolicy(extent), SwingModifier.testTag("panel")) }
+        }
+        val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
+        sizing.child = panel
+        parent.revalidate()
+        awaitIdle()
+
+        extent.intValue = 60
+        awaitIdle()
+
+        assertEquals(expected, panel.size, "a changed intrinsic read sizes the panel again")
+    }
+
+    /** Sizes its one [child] by [sizeOf] alone, in the layout it runs and for the size it answers its own parent. */
+    private class ConstrainableSizingLayout(
+        private val sizeOf: Constrainable.() -> Dimension,
+    ) : LayoutManager {
+        var child: ConstrainedPanel? = null
+
+        override fun addLayoutComponent(
+            name: String?,
+            comp: Component,
+        ) = Unit
+
+        override fun removeLayoutComponent(comp: Component) = Unit
+
+        override fun preferredLayoutSize(parent: Container): Dimension = child?.sizeOf() ?: Dimension()
+
+        override fun minimumLayoutSize(parent: Container): Dimension = child?.sizeOf() ?: Dimension()
+
+        override fun layoutContainer(parent: Container) {
+            val panel = child ?: return
+            panel.bounds = Rectangle(panel.sizeOf())
+        }
+    }
+
+    /** Answers [extent] to every intrinsic question, and takes the extent its constraints fix when measured. */
+    private class IntrinsicExtentPolicy(
+        private val extent: MutableIntState,
+    ) : MeasurePolicy {
+        override fun MeasureScope.measure(
+            measurables: List<Measurable>,
+            constraints: Constraints,
+        ): MeasureResult = layout(constraints.minWidth, constraints.minHeight) {}
+
+        override fun IntrinsicMeasureScope.minIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = extent.intValue
+
+        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = extent.intValue
+
+        override fun IntrinsicMeasureScope.minIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = extent.intValue
+
+        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = extent.intValue
+    }
+
+    /**
+     * Prefers to be 50 wide, at least 40 and preferably 80 tall there; at any other width, at least [extent] and
+     * preferably twice it tall. Takes the extent its constraints fix when measured.
+     */
+    private class GrantedWidthPolicy(
+        private val extent: MutableIntState,
+    ) : MeasurePolicy {
+        override fun MeasureScope.measure(
+            measurables: List<Measurable>,
+            constraints: Constraints,
+        ): MeasureResult = layout(constraints.minWidth, constraints.minHeight) {}
+
+        override fun IntrinsicMeasureScope.minIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = 50
+
+        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = 50
+
+        override fun IntrinsicMeasureScope.minIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = if (width == 50) 40 else extent.intValue
+
+        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = 2 * minIntrinsicHeight(measurables, width)
+    }
+
+    /**
+     * Prefers to be 50 wide, at least 40 and preferably 80 tall there; at any other width, at least the height [least]
+     * holds and preferably the one [preferred] holds. Takes the extent its constraints fix when measured.
+     */
+    private class SplitHeightsPolicy(
+        private val least: MutableIntState,
+        private val preferred: MutableIntState,
+    ) : MeasurePolicy {
+        override fun MeasureScope.measure(
+            measurables: List<Measurable>,
+            constraints: Constraints,
+        ): MeasureResult = layout(constraints.minWidth, constraints.minHeight) {}
+
+        override fun IntrinsicMeasureScope.minIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = 50
+
+        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+            measurables: List<IntrinsicMeasurable>,
+            height: Int,
+        ): Int = 50
+
+        override fun IntrinsicMeasureScope.minIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = if (width == 50) 40 else least.intValue
+
+        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+            measurables: List<IntrinsicMeasurable>,
+            width: Int,
+        ): Int = if (width == 50) 80 else preferred.intValue
+    }
 
     /** One [Layout] panel that can leave its declaration. */
     private class SharedPanel {

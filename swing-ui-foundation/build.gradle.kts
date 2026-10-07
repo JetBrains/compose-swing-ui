@@ -27,7 +27,9 @@ dependencies {
     api(libs.androidxAnnotation)
     api(project(":swing-ui"))
 
-    // The layout fixtures, which the animation module's tests reuse.
+    // The question-width fixtures, which the animation module's tests reuse.
+    testFixturesImplementation(kotlin("test"))
+    testFixturesImplementation(testFixtures(project(":swing-ui")))
     testFixturesImplementation(project(":swing-ui-test"))
 
     testImplementation(kotlin("test"))

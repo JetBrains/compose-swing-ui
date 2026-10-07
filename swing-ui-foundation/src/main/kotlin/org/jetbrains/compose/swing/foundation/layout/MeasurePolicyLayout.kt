@@ -110,6 +110,7 @@ internal class MeasurePolicyLayout(
     }
 
     override fun invalidateLayout(target: Container) {
+        measurables.stockParentAnswer?.dropped(wasValid = target.isValid)
         // Invalidation reaches a valid parent on its own but schedules no layout pass, and a child that is
         // its own validate root, such as a JTextField, schedules the validation of itself alone. Revalidating
         // the parent schedules the pass that measures this container again; revalidating the target itself
@@ -185,8 +186,9 @@ internal class MeasurePolicyLayout(
             }
             val panel = measurables.panel
             val insets = panel.borderInsets()
-            val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
+            val width = panel.innerWidth(insets)
             val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
+            val laidOutBy = measurables.stockParentAnswer?.laidOutAt(width, height)
             // A valid container replays its latest result at its current size.
             // An invalid container is measured again before placement.
             val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
@@ -195,7 +197,7 @@ internal class MeasurePolicyLayout(
                 if (replaysPlacement) {
                     measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
                 } else {
-                    measurables.settledOn(width, height)
+                    measurables.settledOn(width, measurables.contentHeightAt(width, height, laidOutBy))
                 }
             if (result === measurables.measured) measurables.lineScope.observesReplay = false
             placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
@@ -257,7 +259,8 @@ internal enum class RunningCause {
     GlassPaneChange,
     ChildInvalidation,
     Validation,
-    SizingForQuestion,
+    AnsweringBeforeLayout,
+    AnsweringFoundationParent,
 }
 
 /**
@@ -310,6 +313,12 @@ internal class ChildMeasurables(
     private var askedWidth = 0
     private var askedHeight = 0
 
+    /**
+     * What this container last answered a parent that is not a Foundation container, where a layout followed the
+     * answer; null before it answered one.
+     */
+    internal var stockParentAnswer: StockParentAnswer? = null
+
     /** Which block of its policy this container is running. */
     var layoutState: LayoutState = LayoutState.Idle
         internal set
@@ -327,13 +336,22 @@ internal class ChildMeasurables(
 
     private val askBlock: () -> Unit = {
         val children = intrinsicWalk
+        // Only an answer a layout follows is kept: a paint checks no height that a question alone worked out.
+        val answer = if (answersStockParent) stockParentAnswer ?: StockParentAnswer() else null
+        val current = panel.innerWidth()
         with(owner.policy) {
             if (mode == MeasureMode.Minimum) {
                 askedWidth = PolicyMeasureScope.minIntrinsicWidth(children, Constraints.Infinity)
-                askedHeight = PolicyMeasureScope.minIntrinsicHeight(children, askedWidth)
+                // A container laid out at the width its preferred size asks for has its minimum height there.
+                val preferredWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
+                val width = answer?.widthFor(current, preferredWidth) ?: askedWidth
+                askedHeight = PolicyMeasureScope.minIntrinsicHeight(children, width)
+                recordStockAnswer { answeredMinimum(current, width, askedHeight) }
             } else {
                 askedWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
-                askedHeight = PolicyMeasureScope.maxIntrinsicHeight(children, askedWidth)
+                val width = answer?.widthFor(current, askedWidth) ?: askedWidth
+                askedHeight = PolicyMeasureScope.maxIntrinsicHeight(children, width)
+                recordStockAnswer { answered(current, askedWidth, width, askedHeight) }
             }
         }
     }
@@ -363,10 +381,16 @@ internal class ChildMeasurables(
     val isValidating: Boolean get() = RunningCause.Validation in runningCauses
 
     /**
-     * Whether this container sizes a child for a height question no layout pass follows, and then gives the child its
-     * size back: the container stays as valid as it was.
+     * Whether this container answers a size query from a parent that is not a Foundation container while invalid: that
+     * parent lays it out next.
      */
-    val isSizingForQuestion: Boolean get() = RunningCause.SizingForQuestion in runningCauses
+    val answersBeforeLayout: Boolean get() = RunningCause.AnsweringBeforeLayout in runningCauses
+
+    /**
+     * Whether this container answers a size query from Swing under a Foundation parent: its height there is at its
+     * preferred width, which that parent's layout does not necessarily grant.
+     */
+    val answersFoundationParent: Boolean get() = RunningCause.AnsweringFoundationParent in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -509,14 +533,23 @@ internal class ChildMeasurables(
      *
      * Swing asks for both axes at once and supplies no extent on either. It is answered as androidx answers
      * `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the width at an unbounded height, then the height
-     * at that width, with the max hooks for a preferred-size query and the min hooks for a minimum-size query.
+     * at that width, with the max hooks for a preferred-size query and the min hooks for a minimum-size query. Under a
+     * parent that is not a Foundation container, the height is at the width the container expects that parent to give
+     * it; see [StockParentAnswer.widthFor].
      */
     fun askedSize(mode: MeasureMode): Dimension =
         askPolicy {
             val retainedMode = this@ChildMeasurables.mode
             this@ChildMeasurables.mode = mode
             try {
-                owner.observe(if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads, askBlock)
+                val reads = if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads
+                val cause =
+                    when {
+                        panel.decoration.parentMeasurables != null -> RunningCause.AnsweringFoundationParent
+                        stockParentLaysOutNext -> RunningCause.AnsweringBeforeLayout
+                        else -> null
+                    }
+                if (cause == null) owner.observe(reads, askBlock) else during(cause) { owner.observe(reads, askBlock) }
             } finally {
                 this@ChildMeasurables.mode = retainedMode
             }
@@ -927,7 +960,7 @@ private class UnmodifiedIntrinsicPlaceable(
         y: Long,
     ): Int {
         if (alignmentLine !== FirstBaseline) return AlignmentLine.UNSPECIFIED
-        val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
+        val baseline = child.baselineAt(measuredWidth, measuredHeight)
         return if (baseline < 0) AlignmentLine.UNSPECIFIED else saturateLineCoordinate(y + baseline)
     }
 }
@@ -1016,6 +1049,7 @@ internal class ChildPlaceable(
         val resized = child.layoutWidth != measuredWidth || child.layoutHeight != measuredHeight
         // A constrainable child answers its constraints whatever its size.
         val readable = resized && child.constrainable == null
+        val widthChanged = child.layoutWidth != measuredWidth
         val read = if (readable) child.preferredAsMeasured() else null
         if (resized) child.preferred = null
         val placedAgain = child.lastPlacement != ChildPlacement.Placed
@@ -1034,7 +1068,10 @@ internal class ChildPlaceable(
             if (reportsOwnPlacement) component.reportPlacedAgain()
             if (!resized && child.decoratable != null) component.layOutAgain()
         }
-        if (readable && child.answersOtherwiseThan(read)) child.owner.measured = null
+        if (readable) {
+            child.layOutMarkup(widthChanged)
+            if (child.answersOtherwiseThan(read)) child.owner.measured = null
+        }
         child.placedInRun = child.owner.placementRun
     }
 
@@ -1047,7 +1084,7 @@ internal class ChildPlaceable(
         val lines = lines
         scope.merge(lines, x + centeredOverflowOffset(width, measuredWidth), originY)
         if (FirstBaseline in lines) return
-        val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
+        val baseline = child.baselineAt(measuredWidth, measuredHeight)
         if (baseline >= 0) scope.merge(FirstBaseline, originY + baseline)
     }
 
@@ -1079,7 +1116,7 @@ internal class ChildPlaceable(
             }
 
             alignmentLine === FirstBaseline -> {
-                val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
+                val baseline = child.baselineAt(measuredWidth, measuredHeight)
                 if (baseline < 0) AlignmentLine.UNSPECIFIED else baseline
             }
 

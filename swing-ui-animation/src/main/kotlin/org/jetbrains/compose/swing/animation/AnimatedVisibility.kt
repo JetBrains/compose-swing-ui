@@ -597,27 +597,33 @@ private class AnimatedEnterExitMeasurePolicy(
  *
  * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size. While
  * the transition runs, the bounds the parent assigns follow the animation, not the available space, so the content is
- * offered at least the size it was last measured at.
+ * offered at least the size it was last measured at. Every intrinsic query asks the content at the extent [measure]
+ * would offer it for that query, so a height that follows the width is answered for the width the content gets.
  */
 private class EnterExitContainerMeasurePolicy(
     val scope: AnimatedVisibilityScopeImpl,
     val layout: EnterExitTransitionLayout,
 ) : MeasurePolicy {
+    private val transitionRuns: Boolean
+        get() {
+            val transition = layout.transition
+            return transition.currentState != transition.targetState || transition.pendingTargetState != null
+        }
+
+    private fun offeredWidth(width: Int): Int = if (transitionRuns) max(width, layout.contentWidth) else width
+
+    private fun offeredHeight(height: Int): Int = if (transitionRuns) max(height, layout.contentHeight) else height
+
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
         constraints: Constraints,
     ): MeasureResult {
         val layout = layout
-        val transition = layout.transition
         val childConstraints =
-            if (transition.currentState == transition.targetState && transition.pendingTargetState == null) {
-                Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
-            } else {
-                Constraints(
-                    maxWidth = max(constraints.maxWidth, layout.contentWidth),
-                    maxHeight = max(constraints.maxHeight, layout.contentHeight),
-                )
-            }
+            Constraints(
+                maxWidth = offeredWidth(constraints.maxWidth),
+                maxHeight = offeredHeight(constraints.maxHeight),
+            )
         val placeables = measurables.fastMap { it.measure(childConstraints) }
         val maxWidth = placeables.fastMaxOfOrDefault(0) { it.width }
         val maxHeight = placeables.fastMaxOfOrDefault(0) { it.height }
@@ -632,12 +638,12 @@ private class EnterExitContainerMeasurePolicy(
     override fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = measurables.fastMaxOfOrDefault(0) { it.minIntrinsicWidth(height) }
+    ): Int = measurables.fastMaxOfOrDefault(0) { it.minIntrinsicWidth(offeredHeight(height)) }
 
     override fun IntrinsicMeasureScope.minIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = measurables.fastMaxOfOrDefault(0) { it.minIntrinsicHeight(width) }
+    ): Int = measurables.fastMaxOfOrDefault(0) { it.minIntrinsicHeight(offeredWidth(width)) }
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
@@ -655,8 +661,8 @@ private class EnterExitContainerMeasurePolicy(
         height: Int,
     ): Dimension =
         layout.intrinsicSize(
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(height) },
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(width) },
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(offeredHeight(height)) },
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(offeredWidth(width)) },
         )
 }
 

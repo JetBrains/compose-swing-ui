@@ -352,6 +352,46 @@ class AnimatedVisibilityContainerTest {
         }
 
     @Test
+    fun `under a stock parent narrowed during a fade the container asks the height of the width its content has`() =
+        runComposeSwingTest {
+            narrowParentDuringFade()
+
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            assertEquals(label.height, container.height, "the container is as tall as its content at that width")
+        }
+
+    @Test
+    fun `under a stock parent narrowed during a fade the container's minimum height is its content's at that width`() =
+        runComposeSwingTest {
+            narrowParentDuringFade()
+
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            assertEquals(label.height, container.minimumSize.height, "the minimum height is the content's height")
+        }
+
+    @Test
+    fun `under a stock parent narrowed during a fade the container's min width is for the height its content has`() =
+        runComposeSwingTest {
+            narrowParentDuringFade()
+
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>() as Constrainable
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            assertEquals(label.width, container.minIntrinsicWidth(label.height / 2), "the min width is the content's")
+        }
+
+    @Test
+    fun `under a stock parent narrowed during a fade the container's max width is for the height its content has`() =
+        runComposeSwingTest {
+            narrowParentDuringFade()
+
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>() as Constrainable
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            assertEquals(label.width, container.maxIntrinsicWidth(label.height / 2), "the max width is the content's")
+        }
+
+    @Test
     fun `under any parent a slide paints nothing outside the container`() =
         runComposeSwingTest {
             var visible by mutableStateOf(false)
@@ -421,6 +461,40 @@ class AnimatedVisibilityContainerTest {
             }
         }
 
+    /**
+     * Fades the container out under a stock parent that is then narrowed below the content, which the fade keeps at the
+     * width it had.
+     */
+    private suspend fun ComposeSwingTest.narrowParentDuringFade() {
+        var visible by mutableStateOf(true)
+        var parentWidth by mutableStateOf(WIDE)
+        setContent {
+            Panel(PanelLayout.Flow()) {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(parentWidth, 320)) {
+                    AnimatedVisibility(
+                        visible = visible,
+                        modifier = SwingModifier.north().testTag(CONTAINER),
+                        enter = EnterTransition.None,
+                        exit = fadeOut(HeldAlpha),
+                    ) {
+                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+                    }
+                }
+            }
+        }
+
+        mainClock.autoAdvance = false
+        visible = false
+        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+        parentWidth = NARROW
+        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+
+        val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+        val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+        assertEquals(NARROW, container.width, "precondition: the parent grants the container its narrowed width")
+        assertEquals(WIDE, label.width, "precondition: the fade keeps the content at the width it had")
+    }
+
     /** Fails unless the content stands over the sibling below, so only the clip can keep it off that sibling. */
     private fun ComposeSwingTest.assertContentReachesBelow(moment: String) {
         val content = onNodeWithTag(CONTENT).fetch()
@@ -471,6 +545,8 @@ private fun Filled(
 private val HeldAlpha: FiniteAnimationSpec<Float> = tween(durationMillis = 320, delayMillis = 320)
 
 private const val HALF = 0.5f
+private const val WIDE = 320
+private const val NARROW = 160
 private const val RATIO = 16f / 9f
 private const val SAMPLE = 4
 private const val FRAMES_TO_MEASURE = 3

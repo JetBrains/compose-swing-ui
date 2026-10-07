@@ -1,11 +1,13 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -16,6 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+@ExtendWith(ComposedPanels::class)
 class NestedIntrinsicRegressionTest {
     @Test
     fun aFiniteIntrinsicQuestionReachesANestedFoundationPolicy() =
@@ -244,6 +247,50 @@ class NestedIntrinsicRegressionTest {
             else -> child.maxIntrinsicHeight(opposite)
         }
 
+    @Test
+    fun finiteHooksKeepTheirIndependentObservedReads() =
+        runSwingTest {
+            val states = List(4) { mutableIntStateOf(0) }
+            val policy =
+                object : MeasurePolicy {
+                    override fun MeasureScope.measure(
+                        measurables: List<Measurable>,
+                        constraints: Constraints,
+                    ): MeasureResult = layout(1, 1) {}
+
+                    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+                        measurables: List<IntrinsicMeasurable>,
+                        height: Int,
+                    ): Int = height / 2 + states[0].intValue
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                        measurables: List<IntrinsicMeasurable>,
+                        height: Int,
+                    ): Int = height / 2 + states[1].intValue
+
+                    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+                        measurables: List<IntrinsicMeasurable>,
+                        width: Int,
+                    ): Int = width / 2 + states[2].intValue
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                        measurables: List<IntrinsicMeasurable>,
+                        width: Int,
+                    ): Int = width / 2 + states[3].intValue
+                }
+            val child = IntrinsicRevalidationPanel(policy)
+            composed(child)
+            val parent = ConstrainedPanel(MeasurePolicyLayout(finitePolicy()))
+            parent.add(child)
+            assertEquals(listOf(40, 40, 40, 40), answers(parent.policyLayout.measurables.of(child), 80))
+            for (state in states) {
+                val before = child.revalidations
+                state.intValue++
+                Snapshot.sendApplyNotifications()
+                assertTrue(child.revalidations > before, "Every finite hook must retain its own reads.")
+            }
+        }
+
     private fun answers(
         measurable: IntrinsicMeasurable,
         opposite: Int,
@@ -283,3 +330,14 @@ private fun finitePolicy(): MeasurePolicy =
             width: Int,
         ): Int = width / 2
     }
+
+private class IntrinsicRevalidationPanel(
+    policy: MeasurePolicy,
+) : ConstrainedPanel(MeasurePolicyLayout(policy)) {
+    var revalidations: Int = 0
+
+    override fun revalidate() {
+        revalidations++
+        super.revalidate()
+    }
+}
