@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -66,6 +69,20 @@ class ForwardedIntrinsicsTest {
         assertOffers(
             OfferScenario("propagated minimum") { outer, leaf, forwarding ->
                 Box(modifier = outer, propagateMinConstraints = true) { leaf(forwarding) }
+            },
+        )
+
+    @Test
+    fun aConstrainedPanelsDefaultPolicyOffersTheLeafItsWidthThroughForwardingModifiers() =
+        assertOffers(
+            OfferScenario("public panel content") { outer, leaf, forwarding ->
+                val panel = remember { ConstrainedPanel() }
+                SwingNode(factory = { panel }, modifier = outer)
+                val context = rememberCompositionContext()
+                DisposableEffect(panel) {
+                    val content = panel.setContent(context) { leaf(forwarding) }
+                    onDispose { content.dispose() }
+                }
             },
         )
 

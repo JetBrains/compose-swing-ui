@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -475,6 +476,10 @@ class PlacementLayerTest {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ alpha = 0.5f })
+            // Between the opaque box and the child, so a paint of the child alone does not paint it, and a paint
+            // starting at the box or above it does.
+            val host = PaintCountingPanel()
+            val child = ClipRecordingChild().apply { isOpaque = true }
             setWindowContent {
                 Row {
                     Box(
@@ -484,23 +489,21 @@ class PlacementLayerTest {
                                 .preferredSize(40, 40)
                                 .opaque(true)
                                 .then(PlacementReadLayerElement(layer, relative = false)),
-                    )
+                    ) {
+                        SwingNode(factory = { host }, modifier = SwingModifier.preferredSize(40, 40)) {
+                            SwingNode(factory = { child })
+                        }
+                    }
                 }
             }
-            val component = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").fetch<ConstrainedPanel>()
-            assertTrue(
-                component.isPaintingOrigin(),
-                "a layer set as the node's decorator makes the component its origin",
-            )
+            val component = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").fetch<JComponent>()
+            assertTrue(host.isPaintedForTheRepaintOf(child), "a layer makes the component a painting origin")
             assertFalse(component.isOpaque, "with the decorator set, the component reports non-opaque")
 
             layer.value = null
             awaitIdle()
 
-            assertFalse(
-                component.isPaintingOrigin(),
-                "once placed without a layer, the decorator is cleared, or the component stays a painting origin",
-            )
+            assertFalse(host.isPaintedForTheRepaintOf(child), "placed without a layer, it is no painting origin")
             assertTrue(component.isOpaque, "with the decorator cleared, the component is opaque again")
         }
 

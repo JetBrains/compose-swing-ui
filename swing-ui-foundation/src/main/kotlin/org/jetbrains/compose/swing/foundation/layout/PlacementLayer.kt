@@ -120,10 +120,7 @@ internal sealed class PlacementLayer : Decorator {
             publishSteps(
                 decoratable,
                 decoratable.decoration.steps.inContainerLayer(if (painted) this else null),
-                requester =
-                    checkNotNull(
-                        placement.owner.owner.node,
-                    ) { "A placement requires an attached node holding its container" },
+                requester = placement.owner.owner.node,
                 revalidate = SwingComponentNode<*>::invalidateLayout,
             )
         }

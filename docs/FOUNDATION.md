@@ -156,6 +156,51 @@ Panel(PanelLayout.Flow()) {
 
 <!--- KNIT example-foundation-layout-content-01.kt -->
 
+### Hosting content in a Swing tree
+
+Every constraint-based container (`Layout`, `Row`, `Column`, `Box`) is a `ConstrainedPanel`. Construct one to host Foundation
+content in a Swing tree of your own, and give it content with its `setContent`, which joins a composition as
+`JComponent.setContent` does. The content reads `ConstrainedScope`, so layout modifiers at its top level apply against
+the panel as they do inside a `Layout`. By default the panel behaves like the measure policy of androidx Compose UI's root: it measures each child
+under the panel's constraints, places each at its top-start corner, and takes the largest child's extent. A
+`MeasurePolicy` passed to the constructor replaces that, and is the only way to change it: the panel refuses
+another layout manager.
+
+Import `org.jetbrains.compose.swing.foundation.layout.setContent` to give the content its `ConstrainedScope`.
+
+Under a Foundation parent the panel is measured with the constraints that parent offers. A stock Swing parent asks its
+preferred and minimum sizes, which the panel reports as described in [Where constraints stop](#where-constraints-stop).
+
+<!--- INCLUDE .*foundation-panel-host.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.foundation.layout.*
+import org.jetbrains.compose.swing.modifier.*
+import java.awt.BorderLayout
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
+import javax.swing.JFrame
+-->
+
+```kotlin
+fun showPreview(frame: JFrame) {
+    val panel = ConstrainedPanel()
+    frame.contentPane.add(panel, BorderLayout.CENTER)
+    val content = panel.setContent {
+        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(16f / 9f))
+    }
+    frame.addWindowListener(object : WindowAdapter() {
+        override fun windowClosed(event: WindowEvent) {
+            content.dispose()
+        }
+    })
+}
+```
+
+<!--- KNIT example-foundation-panel-host-01.kt -->
+
+Call `setContent` and dispose its handle on the Event Dispatch Thread.
+The example disposes the content when the frame closes.
+
 ### Layout modifiers
 
 `Layout`, `Row`, `Column` and `Box` expose `ConstrainedScope`, whose modifiers take part in measurement. Order
@@ -299,6 +344,7 @@ container offers these scopes:
 | `Column` | `ColumnScope`, `ConstrainedScope` |
 | `Box` | `BoxScope`, `ConstrainedScope` |
 | `Layout` | `ConstrainedScope` |
+| `ConstrainedPanel.setContent` | `ConstrainedScope` |
 
 `weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope`
 and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their
@@ -307,10 +353,12 @@ component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `
 container changes only what a `Decoratable` component reports and clips.
 
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
-cannot declare the row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a
+cannot declare the row's `weight`. The content of `JComponent.setContent` and of a Swing container, such as a `Panel`, a
 `ToolBar`, a `Window` or a `SwingNode` container, offers none of these either, because the layout manager placing
-that content reads none of them. A modifier that reaches a container unable to honor it is refused when it is
-applied.
+that content reads none of them. A scoped modifier that reaches a container unable to honor it is refused when it is
+applied, and a `Row`, `Column` or `Box` refuses an untyped `layoutConstraint` as well. A `Layout` and a
+`ConstrainedPanel` hand an untyped `layoutConstraint` to their policy as `Measurable.parentData`; the default policy of
+a `ConstrainedPanel` reads none, as androidx's root reads none, so it ignores one on the content of `setContent`.
 
 A modifier of your own declares the same scope as a context parameter, and resolves wherever the scope's own
 modifiers do. It builds on those modifiers, or on the scope's one member: `layout` declares a
@@ -361,6 +409,7 @@ kotlin {
   custom content scopes and layout constraints.
 - `Panel(PanelLayout.Xxx)` for a Swing layout manager's behavior, with a `Box` or another constraint-based
   container inside it wherever its descendants need layout modifiers.
+- `ConstrainedPanel` to host Foundation content in a Swing tree you build yourself; see [Hosting content in a Swing tree](#hosting-content-in-a-swing-tree).
 
 ## Graphics
 

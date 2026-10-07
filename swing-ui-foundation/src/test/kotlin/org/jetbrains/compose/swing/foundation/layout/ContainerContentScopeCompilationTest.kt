@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.test.InProcessCompilerHarness
 import org.junit.jupiter.api.BeforeAll
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * Pins that the content of every container with a scope of its own hides the `weight` of the row around
@@ -13,11 +14,48 @@ import kotlin.test.Test
  */
 class ContainerContentScopeCompilationTest {
     @Test
+    fun aConsumerCanSubclassThePublicHostAndComposeScopedContent() {
+        compile(
+            """
+            class ApplicationPanel : ConstrainedPanel() {
+                override fun isOpaque(): Boolean = super.isOpaque()
+            }
+
+            fun host() = ApplicationPanel().setContent {
+                Label("Content", modifier = SwingModifier.fillMaxWidth())
+            }
+            """,
+        ).assertCompiled()
+    }
+
+    @Test
+    fun aMenuItemComposedBesideAComponentInThePanelsContentIsFlaggedAsAnotherTarget() {
+        val result =
+            compile(
+                """
+                fun host() =
+                    ConstrainedPanel().setContent {
+                        Label("Content")
+                        MenuItem(text = "x", onClick = {})
+                    }
+                """,
+            )
+
+        result.assertCompiled()
+        assertTrue(
+            "calling a Swing Menu Composable composable function where a Swing Composable composable was expected" in
+                result.output,
+            "the menu item is flagged inside component content, but the output was:\n${result.output}",
+        )
+    }
+
+    @Test
     fun aSwingContainersContentInsideARowHidesItsWeight() {
         // Containers of Swing components, with `%s` standing for the child they hold.
         val swingHosts =
             listOf(
                 "Panel { %s }",
+                "ConstrainedPanel().setContent { %s }",
                 "Panel(PanelLayout.Border()) { %s }",
                 "Layer { %s }",
                 "ScrollPane { %s }",

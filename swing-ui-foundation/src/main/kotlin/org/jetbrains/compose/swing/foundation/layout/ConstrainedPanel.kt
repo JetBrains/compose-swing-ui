@@ -1,6 +1,13 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.snapshots.Snapshot
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
@@ -15,6 +22,7 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Insets
+import java.awt.LayoutManager
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.event.InputEvent
@@ -27,35 +35,50 @@ import javax.swing.JViewport
 import javax.swing.Scrollable
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
+import org.jetbrains.compose.swing.setContent as setSwingContent
 
 /**
- * The panel a [MeasurePolicyLayout] lays out, and the one component in this library that answers a
- * constrained question.
+ * A Swing component that measures and places Foundation content by a [MeasurePolicy]: the component [Layout], [Row],
+ * [Column] and [Box] each build, and the way to host Foundation content in a Swing tree you build yourself. Give it
+ * content with [setContent].
  *
- * Every container built on a measure policy is one of these - [Row], [Column], [Box] and a container a
- * caller writes - which is what lets constraints cross any depth of them and stop at the first stock
- * widget or container from elsewhere. It also carries Swing's viewport-scrolling contract.
+ * Under a Foundation parent it is measured with the constraints that parent offers.
  *
- * It extends [JComponent] rather than [javax.swing.JPanel], so it installs no UI delegate: a `PanelUI` would paint a
- * background of its own even where the panel answers `false` to [isOpaque]. It is transparent by default and paints
- * its background itself when opaque. [JComponent] does not implement [Accessible], so [getAccessibleContext] is
- * declared here as `JPanel.AccessibleJPanel` does. Without it, a name set through the `accessibleName` modifier has
- * nowhere to land.
+ * It installs no UI delegate. It is transparent by default and paints its background itself when opaque. When it
+ * holds one [Scrollable] child and is the view of a `JScrollPane`, it scrolls by that child's rows or lines.
  *
- * Records the reads behind its sizes, measure, placement and paint under the first attached node holding it, and
- * records them under the next one when that node detaches.
+ * Its policy reads are tracked only while a node of a Compose composition holds it: [Layout],
+ * [org.jetbrains.compose.swing.node.SwingNode] or [setContent] declares it. Reads for children added with [add] are
+ * not tracked.
+ *
+ * A stock parent reads a preferred or minimum size without offering constraints. The policy's intrinsic functions
+ * answer it, and a preferred or minimum size set on the panel replaces the policy's result for that read.
+ *
+ * A layer a policy places a child with takes effect on a panel no node holds, which then revalidates nothing.
  */
 @Suppress("TooManyFunctions")
 // The Swing component of a Foundation container: what Swing calls on a component, what its container's layout calls
 // on it, and the validation it runs are its own.
-internal open class ConstrainedPanel(
-    val policyLayout: MeasurePolicyLayout,
+public open class ConstrainedPanel internal constructor(
+    internal val policyLayout: MeasurePolicyLayout,
 ) : JComponent(),
     Accessible,
     Scrollable,
     Constrainable,
     Decoratable,
     SwingComponentNodeListener {
+    /**
+     * @param measurePolicy how the panel measures and places its children. Defaults to the measure policy of androidx
+     *   Compose UI's root: each child is measured under the panel's constraints and placed at the top-start corner, and
+     *   the panel takes the largest child's extent.
+     * @param parentDataProtocol the stable token for parent data that [measurePolicy] reads, or `null` where it reads
+     *   none; see [Layout].
+     */
+    public constructor(
+        measurePolicy: MeasurePolicy = maybeCachedBoxMeasurePolicy(Alignment.TopStart, propagateMinConstraints = true),
+        parentDataProtocol: LayoutParentDataProtocol? = null,
+    ) : this(MeasurePolicyLayout(measurePolicy, parentDataProtocol))
+
     override var decoration: Decoration = Decoration.None
 
     init {
@@ -64,8 +87,21 @@ internal open class ConstrainedPanel(
         linkTo(childMeasurables = policyLayout.measurables)
     }
 
+    /**
+     * Accepts only the layout manager the panel builds from its [MeasurePolicy].
+     *
+     * @throws IllegalArgumentException for any other value, including `null`.
+     */
+    final override fun setLayout(mgr: LayoutManager?) {
+        require(mgr === policyLayout) {
+            "ConstrainedPanel lays out by its MeasurePolicy; pass a MeasurePolicy to its constructor instead of " +
+                "setting a layout manager."
+        }
+        super.setLayout(mgr)
+    }
+
     /** Declaration order, and the component array sorted by the z-index each child was last placed with. */
-    val stackingOrder: StackingOrder = StackingOrder(this, policyLayout.measurables)
+    internal val stackingOrder: StackingOrder = StackingOrder(this, policyLayout.measurables)
 
     override fun onAttached(node: SwingComponentNode<*>) {
         val nodes = policyLayout.nodes
@@ -98,11 +134,10 @@ internal open class ConstrainedPanel(
     override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
 
     /**
-     * A child repainting itself alone would otherwise be painted around this panel's decoration, or where it stands
-     * unturned and unscaled while a layer rotates or scales it; see [paintImmediately]. The [glassPane] stands while
-     * a layer does.
+     * Whether Swing starts painting a descendant's own repaint here: `true` while a decoration or a placement layer
+     * changes where a child paints.
      */
-    public override fun isPaintingOrigin(): Boolean = decoration.isDecorated || glassPane != null
+    override fun isPaintingOrigin(): Boolean = decoration.isDecorated || glassPane != null
 
     override fun repaint(
         tm: Long,
@@ -110,34 +145,33 @@ internal open class ConstrainedPanel(
         y: Int,
         width: Int,
         height: Int,
-    ) = decoration.repaint(this, tm, x, y, width, height)
+    ): Unit = decoration.repaint(this, tm, x, y, width, height)
 
-    /**
-     * A repaint a stock descendant records on itself and Swing merges into a dirty Swing ancestor is painted from that
-     * ancestor alone, so no container between them that spreads or moves what it paints grows it, as for a `JLayer`.
-     */
+    // A repaint a stock descendant records on itself and Swing merges into a dirty Swing ancestor is painted from that
+    // ancestor alone, so no container between them that spreads or moves what it paints grows it, as for a JLayer.
     override fun paintImmediately(
         x: Int,
         y: Int,
         w: Int,
         h: Int,
-    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
-        // Not the Rectangle overload, which calls back here.
-        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
-    }
+    ): Unit =
+        decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
+            // Not the Rectangle overload, which calls back here.
+            super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
+        }
 
     /**
      * Stands first among the children while one of them rotates or scales; see [updateGlassPane]. Every removal of
      * a child reaches [remove] or [removeAll], which give it up.
      */
-    var glassPane: JComponent? = null
+    internal var glassPane: JComponent? = null
         private set
 
     /**
      * Adds the [glassPane] where [needed], which is while a placement layer rotates or scales a placed child, and
      * removes it otherwise.
      */
-    fun updateGlassPane(needed: Boolean) {
+    internal fun updateGlassPane(needed: Boolean) {
         val standing = glassPane
         if (needed == (standing != null)) return
         policyLayout.measurables.during(RunningCause.GlassPaneChange) {
@@ -155,6 +189,8 @@ internal open class ConstrainedPanel(
     /** What [paintBlock] paints into, held only while [paint] runs. */
     private var paintGraphics: Graphics? = null
 
+    // It extends JComponent rather than JPanel, whose PanelUI would paint a background even where the panel returns
+    // false from isOpaque, and paints its background here instead.
     private val paintContent: (Graphics) -> Unit = { graphics ->
         val decoration = decoration
         val outsets = decoration.heldPaintOutsets
@@ -182,18 +218,14 @@ internal open class ConstrainedPanel(
         }
     }
 
-    /**
-     * A child's paint is observed by the child itself, so a paint that skips a child drops none of its
-     * reads, and a plain component reading state while it paints is not observed.
-     */
-    override fun paintChildren(g: Graphics) = Snapshot.withoutReadObservation { super.paintChildren(g) }
+    // A child's paint is observed by the child itself, so a paint that skips a child drops none of its reads, and a
+    // plain component reading state while it paints is not observed.
+    override fun paintChildren(g: Graphics): Unit = Snapshot.withoutReadObservation { super.paintChildren(g) }
 
-    /**
-     * Validates this panel and its descendants inside one snapshot that observes no read. Each answer a policy
-     * computes during the validation observes its reads through that snapshot instead of entering one of its own, and
-     * a read made outside an answer is not observed. The panel holds [RunningCause.Validation] while it runs.
-     */
-    override fun validateTree() =
+    // Validates this panel and its descendants inside one snapshot that observes no read. Each result a policy computes
+    // during the validation observes its reads through that snapshot instead of entering one of its own, and a read
+    // made outside a result is not observed. The panel holds RunningCause.Validation while it runs.
+    override fun validateTree(): Unit =
         policyLayout.measurables.during(RunningCause.Validation) {
             Snapshot.withoutReadObservation { super.validateTree() }
         }
@@ -226,16 +258,14 @@ internal open class ConstrainedPanel(
         super.removeAll()
     }
 
-    /**
-     * A child moved by a placement replay reports an invalidation that replay has already answered, and so
-     * does the [StackingOrder.restack] it ends with: `setComponentZOrder` invalidates this panel, and a
-     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets, nor
-     * adding or removing the [glassPane].
-     *
-     * Resized by its parent's fit, the panel keeps its layout bounds but answers other sizes, which carry its paint
-     * outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
-     * [ChildMeasurables.childPaintOutsetsChanged] for when it is laid out again.
-     */
+    // A child moved by a placement replay reports an invalidation that replay has already reported, and so does the
+    // StackingOrder.restack it ends with: setComponentZOrder invalidates this panel, and a change of z-order needs no
+    // layout. Neither does fitting this panel or a child to changed paint outsets, nor adding or removing the glass
+    // pane.
+    //
+    // Resized by its parent's fit, the panel keeps its layout bounds but reports other sizes, which carry its paint
+    // outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
+    // ChildMeasurables.childPaintOutsetsChanged for when it is laid out again.
     override fun invalidate() {
         val measurables = policyLayout.measurables
         if (measurables.isFittingPaintOutsets && measurables.beingPlaced) return super.invalidate()
@@ -249,7 +279,7 @@ internal open class ConstrainedPanel(
 
     final override val constrainedHeight: Int get() = measured.height
 
-    /** Placed by its own parent; see [ChildMeasurables.during] for what that placement must not undo. */
+    // Placed by its own parent; see ChildMeasurables.during for what that placement must not undo.
     final override fun setBounds(
         x: Int,
         y: Int,
@@ -262,11 +292,10 @@ internal open class ConstrainedPanel(
         }
 
     /**
-     * A size set on the component outright answers for it, as it does for `getPreferredSize()`: setting
-     * one overrides what the layout manager would work out, and a constrained question is the same
-     * question asked with an argument. The policy measures only where nothing has been set.
+     * Measures this panel under [constraints]. A preferred size set on the panel is the result, as it is for
+     * `getPreferredSize()`; the policy measures only where none is set.
      */
-    final override fun measure(constraints: Constraints) = measureWithStockChildSizing(constraints, true)
+    final override fun measure(constraints: Constraints): Unit = measureWithStockChildSizing(constraints, true)
 
     internal fun measureWithStockChildSizing(
         constraints: Constraints,
@@ -283,11 +312,9 @@ internal open class ConstrainedPanel(
     }
 
     /**
-     * A size set on the component supplies the max intrinsic sizes, and a minimum size
-     * set supplies the min intrinsic sizes, as
-     * they provide `getPreferredSize()` and `getMinimumSize()`. Otherwise the
-     * policy's own intrinsic functions return results,
-     * inside the border insets, as androidx computes a layout's intrinsics from its measure policy.
+     * A minimum size set on the panel is the min intrinsic width, and a preferred size set is the max intrinsic
+     * width, as they are for `getMinimumSize()` and `getPreferredSize()`. Otherwise the policy's intrinsic functions
+     * return the result, inside the border insets.
      */
     final override fun minIntrinsicWidth(height: Int): Int =
         if (isMinimumSizeSet) {
@@ -395,14 +422,12 @@ internal open class ConstrainedPanel(
         return width.grownBy(insets.left.grownBy(insets.right))
     }
 
-    /**
-     * The lines of the last [measure], moved by the insets it measured inside, worked out on each read; see
-     * [ChildMeasurables.alignmentLinesOf]. None where a set preferred size answered it. A Foundation parent reads
-     * them on its first read of a line after a measure, holds them with what it measured, and reads them again once
-     * this panel places its children again.
-     */
+    /** The lines the last [measure] provided; none where a set preferred size supplied it. */
     final override val alignmentLines: Map<AlignmentLine, Int>
         get() {
+            // Worked out on each read; see ChildMeasurables.alignmentLinesOf. A Foundation parent reads them on its
+            // first read of a line after a measure, holds them with what it measured, and reads them again once this
+            // panel places its children again.
             val result = policyLayout.measurables.measured
             if (isPreferredSizeSet || result == null) return emptyMap()
             val insets = borderInsets()
@@ -414,6 +439,8 @@ internal open class ConstrainedPanel(
             )
         }
 
+    // JComponent does not implement Accessible. Declared as JPanel.AccessibleJPanel does, so the accessibleName
+    // modifier has somewhere to land.
     override fun getAccessibleContext(): AccessibleContext =
         accessibleContext ?: AccessibleConstrainedPanel().also { accessibleContext = it }
 
@@ -651,6 +678,26 @@ internal open class ConstrainedPanel(
         }
     }
 }
+
+/**
+ * Sets the composable [content] of this panel as [JComponent.setContent][org.jetbrains.compose.swing.setContent] does.
+ * The content is laid out by the panel's [MeasurePolicy] and reads [ConstrainedScope], so layout modifiers declared at
+ * its top level, such as [fillMaxWidth], [padding] or [aspectRatio], apply against the panel as they do inside a
+ * [Layout].
+ *
+ * Must be called on the Event Dispatch Thread.
+ *
+ * @param parent the composition context the content joins, or `null` for the one the panel's place in the Swing tree
+ *   resolves to.
+ * @param content the composable content of the panel; see [ConstrainedScope].
+ * @return a [DisposableHandle] that disposes this content composition. Must be disposed on the Event Dispatch Thread.
+ */
+public fun ConstrainedPanel.setContent(
+    parent: CompositionContext? = null,
+    content:
+        @Composable @SwingComposable
+        ConstrainedScope.() -> Unit,
+): DisposableHandle = setSwingContent(parent) { ConstrainedScopeImpl.content() }
 
 /** Reads a point through this child's paint transform, or returns null where clipping removes it. */
 private fun contentPoint(

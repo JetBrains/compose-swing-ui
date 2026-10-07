@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -231,6 +232,63 @@ class NestedIntrinsicRegressionTest {
                 state.intValue++
                 awaitIdle()
                 assertTrue(measurements > before, "hook $hook must retain its own reads")
+            }
+        }
+
+    @Test
+    fun finiteHooksKeepTheirIndependentObservedReadsInAPublicHost() =
+        runComposeSwingTest {
+            val states = List(4) { mutableIntStateOf(0) }
+            val policy =
+                object : MeasurePolicy {
+                    override fun MeasureScope.measure(
+                        measurables: List<Measurable>,
+                        constraints: Constraints,
+                    ): MeasureResult = layout(1, 1) {}
+
+                    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+                        measurables: List<IntrinsicMeasurable>,
+                        height: Int,
+                    ): Int = height / 2 + states[0].intValue
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                        measurables: List<IntrinsicMeasurable>,
+                        height: Int,
+                    ): Int = height / 2 + states[1].intValue
+
+                    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+                        measurables: List<IntrinsicMeasurable>,
+                        width: Int,
+                    ): Int = width / 2 + states[2].intValue
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                        measurables: List<IntrinsicMeasurable>,
+                        width: Int,
+                    ): Int = width / 2 + states[3].intValue
+                }
+            val child = ConstrainedPanel(policy)
+            val parent = ConstrainedPanel()
+            setContent { SwingNode(factory = { parent }) { SwingNode(factory = { child }) } }
+
+            fun reports() =
+                listOf(
+                    parent.minIntrinsicWidth(80),
+                    parent.maxIntrinsicWidth(80),
+                    parent.minIntrinsicHeight(80),
+                    parent.maxIntrinsicHeight(80),
+                )
+            assertEquals(listOf(40, 40, 40, 40), reports())
+            for ((hook, state) in states.withIndex()) {
+                withRecordedRepaints { recorder ->
+                    state.intValue++
+                    awaitIdle()
+                    assertTrue(child in recorder.relayouts, "Every finite hook must retain its own reads.")
+                }
+                assertEquals(
+                    List(4) { if (it <= hook) 41 else 40 },
+                    reports(),
+                    "hook $hook reports its changed read and the hooks before it keep theirs",
+                )
             }
         }
 }
