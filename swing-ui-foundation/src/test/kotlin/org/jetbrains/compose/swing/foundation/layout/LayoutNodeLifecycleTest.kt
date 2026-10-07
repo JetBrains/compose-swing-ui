@@ -49,9 +49,8 @@ class LayoutNodeLifecycleTest {
         }
 
     /**
-     * A key change detaches the layout's node, which drops the reads behind the answers Swing still caches; its
-     * node attaching again revalidates the panel, so a read behind the next answer is observed. A node declared
-     * before the layout's own measures the panel on both sides of that change.
+     * A key change detaches and attaches the container's modifier nodes while the container's own node stays
+     * attached, so a read behind a measurement a modifier node makes on either side of that change stays observed.
      */
     @Test
     fun aMeasurementMadeWhileTheNodesAttachAgainStaysObserved() =
@@ -72,7 +71,7 @@ class LayoutNodeLifecycleTest {
             awaitIdle()
             assertEquals(listOf("onAttach 7x9", "onDetach 7x9", "onAttach 7x9"), sizes)
             val container = windowContainer()
-            assertTrue(container.isValidUpToTheValidateRoot(), "the container must be laid out again once attached")
+            assertTrue(container.isValidUpToTheValidateRoot(), "the container is valid after the key change")
 
             width = 8
             Snapshot.sendApplyNotifications()
@@ -106,11 +105,11 @@ class LayoutNodeLifecycleTest {
         }
 
     /**
-     * A container its parent never asks for a size is still laid out, and a key change drops the reads that
-     * layout recorded, so the container is laid out again under the nodes that replace them.
+     * A container its parent never asks for a size is still laid out, and a key change keeps the reads that
+     * layout recorded under the container's node, so the container is not laid out again and the reads stay observed.
      */
     @Test
-    fun aSettleReadIsObservedAgainAfterTheModifierNodesAttachAgain() =
+    fun aSettleReadStaysObservedAcrossAModifierKeyChange() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var gap by mutableIntStateOf(0)
@@ -133,17 +132,17 @@ class LayoutNodeLifecycleTest {
 
             generation = 1
             awaitIdle()
-            assertEquals(2, settles, "the key change must lay the container out again under the new nodes")
+            assertEquals(1, settles, "the key change must keep the reads the container's node recorded")
 
             gap = 1
             Snapshot.sendApplyNotifications()
 
-            assertFalse(windowContainer().isValid, "a settle read made after the nodes attached again must be observed")
+            assertFalse(windowContainer().isValid, "the settle read must stay observed across the key change")
         }
 
     /**
-     * A key change drops the reads the container's own paint recorded, and only a decoration makes such a read;
-     * a decoration attaching again repaints by itself. An undecorated container therefore paints nothing again.
+     * A key change keeps the reads the container's own paint recorded under its node, so an undecorated container
+     * paints nothing again.
      */
     @Test
     fun aKeyChangeOnAnUndecoratedLayoutPaintsNothingAgain() =

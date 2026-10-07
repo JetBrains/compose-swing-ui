@@ -19,9 +19,9 @@ class LayoutInspectionTest {
         SwingUtilities.invokeAndWait { isDebugInspectorInfoEnabled = false }
     }
 
-    /** A tool reads the caller's elements first, then the observation entry [Layout] appends. */
+    /** A tool reads the caller's elements, and [Layout] appends none of its own. */
     @Test
-    fun aLayoutsChainIsTheCallersElementsThenItsObservationEntry() =
+    fun aLayoutsChainIsTheCallersElements() =
         runComposeSwingTest {
             isDebugInspectorInfoEnabled = true
             setContent {
@@ -34,6 +34,6 @@ class LayoutInspectionTest {
                 node.modifier.foldIn(emptyList<String?>()) { found, element ->
                     found + (element as? SwingModifier.InspectableElement)?.name
                 }
-            assertEquals(listOf("testTag", "layoutObservation"), names)
+            assertEquals(listOf("testTag"), names)
         }
 }

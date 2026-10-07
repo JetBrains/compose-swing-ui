@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
 import org.jetbrains.compose.swing.foundation.graphics.movesContent
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.Container
 import java.awt.Insets
@@ -77,12 +79,12 @@ internal fun ChildMeasurables.fitPaintOutsets(
 ) {
     val decoratable = child.decoratable ?: return
     val held = decoratable.decoration
-    writeFitted(
-        decoratable,
+    decoratable.writeFitted(
         held,
         held.fitted(child.component, parentMeasurables = this),
         transformChanged,
-        requesterNode = panel.policyLayout.node,
+        requester = panel.policyLayout.node,
+        revalidate = SwingComponentNode<*>::invalidateLayout,
     )
 }
 
@@ -92,11 +94,11 @@ internal fun ChildMeasurables.fitPaintOutsets(
  */
 internal fun ChildMeasurables.fitContainerPaintOutsets() {
     val held = panel.decoration
-    writeFitted(
-        panel,
+    panel.writeFitted(
         held,
         held.fitted(panel, childMeasurables = this),
-        requesterNode = panel.policyLayout.node,
+        requester = panel.policyLayout.node,
+        revalidate = SwingComponentNode<*>::invalidateLayout,
     )
 }
 

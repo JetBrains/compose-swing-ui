@@ -5,6 +5,9 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
 import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.SwingComponentNodeListener
+import org.jetbrains.compose.swing.node.asNodeOf
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Container
@@ -37,6 +40,9 @@ import javax.swing.SwingUtilities
  * its background itself when opaque. [JComponent] does not implement [Accessible], so [getAccessibleContext] is
  * declared here as `JPanel.AccessibleJPanel` does. Without it, a name set through the `accessibleName` modifier has
  * nowhere to land.
+ *
+ * Records the reads behind its measure, placement and paint under the first attached node holding it, and records
+ * them under the next one when that node detaches.
  */
 @Suppress("TooManyFunctions")
 // The Swing component of a Foundation container: what Swing calls on a component, what its container's layout calls
@@ -47,7 +53,8 @@ internal open class ConstrainedPanel(
     Accessible,
     Scrollable,
     Constrainable,
-    Decoratable {
+    Decoratable,
+    SwingComponentNodeListener {
     override var decoration: Decoration = Decoration.None
 
     init {
@@ -58,6 +65,24 @@ internal open class ConstrainedPanel(
 
     /** Declaration order, and the component array sorted by the z-index each child was last placed with. */
     val stackingOrder: StackingOrder = StackingOrder(this, policyLayout.measurables)
+
+    override fun onAttached(node: SwingComponentNode<*>) {
+        val nodes = policyLayout.nodes
+        nodes += node.asNodeOf(this)
+        // Answers worked out while no node was attached recorded no reads.
+        if (nodes.size == 1) revalidate()
+    }
+
+    override fun onDetached(node: SwingComponentNode<*>) {
+        val layout = policyLayout
+        val recorded = node === layout.node
+        layout.nodes -= node.asNodeOf(this)
+        // The reads recorded under the detached node went with it.
+        if (recorded && layout.node != null) {
+            revalidate()
+            repaint()
+        }
+    }
 
     override fun contains(
         x: Int,
@@ -543,4 +568,4 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
 }
 
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */
-private val PaintReads: (LayoutObservationNode) -> Unit = { it.component.repaint() }
+private val PaintReads: (SwingComponentNode<*>) -> Unit = { it.component.repaint() }

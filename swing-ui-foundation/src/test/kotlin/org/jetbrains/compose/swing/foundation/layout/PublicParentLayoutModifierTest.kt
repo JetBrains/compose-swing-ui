@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Component
@@ -61,81 +62,83 @@ class PublicParentLayoutModifierTest {
     }
 
     @Test
-    fun customLayoutModifiersFormANestedMeasureAndPlacementChain() {
-        val events = mutableListOf<String>()
-        val layout =
-            MeasurePolicyLayout(
-                MeasurePolicy { measurables, constraints ->
-                    val placeable = measurables.single().measure(constraints)
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
+    fun customLayoutModifiersFormANestedMeasureAndPlacementChain() =
+        runSwingTest {
+            val events = mutableListOf<String>()
+            val layout =
+                MeasurePolicyLayout(
+                    MeasurePolicy { measurables, constraints ->
+                        val placeable = measurables.single().measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    },
+                    null,
+                )
+            val panel = composed(ConstrainedPanel(layout))
+            val child = FixedSizeChild(width = 10, height = 10)
+            panel.add(child)
+            layout.declareComponentLayout(
+                child,
                 null,
+                listOf(OffsetLayoutNode("outer", 5, events), OffsetLayoutNode("inner", 7, events)),
             )
-        val panel = composed(ConstrainedPanel(layout))
-        val child = FixedSizeChild(width = 10, height = 10)
-        panel.add(child)
-        layout.declareComponentLayout(
-            child,
-            null,
-            listOf(OffsetLayoutNode("outer", 5, events), OffsetLayoutNode("inner", 7, events)),
-        )
-        panel.setSize(10, 10)
+            panel.setSize(10, 10)
 
-        panel.doLayout()
+            panel.doLayout()
 
-        assertEquals(listOf("outer before", "inner before", "inner after", "outer after"), events)
-        assertEquals(Rectangle(12, 0, 10, 10), child.bounds)
-    }
+            assertEquals(listOf("outer before", "inner before", "inner after", "outer after"), events)
+            assertEquals(Rectangle(12, 0, 10, 10), child.bounds)
+        }
 
     @Test
-    fun customLayoutModifiersDelegateIntrinsicsThroughChain() {
-        var minW = -1
-        var maxW = -1
-        var minH = -1
-        var maxH = -1
-        var base = 0
+    fun customLayoutModifiersDelegateIntrinsicsThroughChain() =
+        runSwingTest {
+            var minW = -1
+            var maxW = -1
+            var minH = -1
+            var maxH = -1
+            var base = 0
 
-        val outer =
-            object : LayoutModifierNode() {
-                override fun MeasureScope.measure(
-                    measurable: Measurable,
-                    constraints: Constraints,
-                ): MeasureResult {
-                    minW = measurable.minIntrinsicWidth(100)
-                    maxW = measurable.maxIntrinsicWidth(100)
-                    minH = measurable.minIntrinsicHeight(100)
-                    maxH = measurable.maxIntrinsicHeight(100)
-                    val placeable = measurable.measure(constraints)
-                    base = placeable[FirstBaseline]
-                    return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            val outer =
+                object : LayoutModifierNode() {
+                    override fun MeasureScope.measure(
+                        measurable: Measurable,
+                        constraints: Constraints,
+                    ): MeasureResult {
+                        minW = measurable.minIntrinsicWidth(100)
+                        maxW = measurable.maxIntrinsicWidth(100)
+                        minH = measurable.minIntrinsicHeight(100)
+                        maxH = measurable.maxIntrinsicHeight(100)
+                        val placeable = measurable.measure(constraints)
+                        base = placeable[FirstBaseline]
+                        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
                 }
-            }
 
-        val events = mutableListOf<String>()
-        val inner = OffsetLayoutNode("inner", 7, events)
+            val events = mutableListOf<String>()
+            val inner = OffsetLayoutNode("inner", 7, events)
 
-        val layout =
-            MeasurePolicyLayout(
-                MeasurePolicy { measurables, constraints ->
-                    val placeable = measurables.single().measure(constraints)
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
-                null,
-            )
-        val panel = composed(ConstrainedPanel(layout))
-        val child = FixedSizeChild(width = 10, height = 10)
-        panel.add(child)
-        layout.declareComponentLayout(child, null, listOf(outer, inner))
-        panel.setSize(10, 10)
+            val layout =
+                MeasurePolicyLayout(
+                    MeasurePolicy { measurables, constraints ->
+                        val placeable = measurables.single().measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    },
+                    null,
+                )
+            val panel = composed(ConstrainedPanel(layout))
+            val child = FixedSizeChild(width = 10, height = 10)
+            panel.add(child)
+            layout.declareComponentLayout(child, null, listOf(outer, inner))
+            panel.setSize(10, 10)
 
-        panel.doLayout()
+            panel.doLayout()
 
-        assertEquals(10, minW)
-        assertEquals(10, maxW)
-        assertEquals(10, minH)
-        assertEquals(10, maxH)
-        assertEquals(AlignmentLine.UNSPECIFIED, base)
-    }
+            assertEquals(10, minW)
+            assertEquals(10, maxW)
+            assertEquals(10, minH)
+            assertEquals(10, maxH)
+            assertEquals(AlignmentLine.UNSPECIFIED, base)
+        }
 
     /**
      * A stateful node - an animation node, in `swing-ui-animation` - overrides the four intrinsic hooks
@@ -144,65 +147,66 @@ class PublicParentLayoutModifierTest {
      * asking preferred, minimum and layout would run `measure` up to five times over one real pass.
      */
     @Test
-    fun aPassThroughLayoutModifierRunsItsOwnMeasureOnlyOnceAcrossAValidateCycle() {
-        var measureCount = 0
-        val passThrough =
-            object : LayoutModifierNode() {
-                override fun MeasureScope.measure(
-                    measurable: Measurable,
-                    constraints: Constraints,
-                ): MeasureResult {
-                    measureCount++
-                    val placeable = measurable.measure(constraints)
-                    return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    fun aPassThroughLayoutModifierRunsItsOwnMeasureOnlyOnceAcrossAValidateCycle() =
+        runSwingTest {
+            var measureCount = 0
+            val passThrough =
+                object : LayoutModifierNode() {
+                    override fun MeasureScope.measure(
+                        measurable: Measurable,
+                        constraints: Constraints,
+                    ): MeasureResult {
+                        measureCount++
+                        val placeable = measurable.measure(constraints)
+                        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
+
+                    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+                        measurable: IntrinsicMeasurable,
+                        height: Int,
+                    ): Int = measurable.minIntrinsicWidth(height)
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                        measurable: IntrinsicMeasurable,
+                        height: Int,
+                    ): Int = measurable.maxIntrinsicWidth(height)
+
+                    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+                        measurable: IntrinsicMeasurable,
+                        width: Int,
+                    ): Int = measurable.minIntrinsicHeight(width)
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                        measurable: IntrinsicMeasurable,
+                        width: Int,
+                    ): Int = measurable.maxIntrinsicHeight(width)
                 }
 
-                override fun IntrinsicMeasureScope.minIntrinsicWidth(
-                    measurable: IntrinsicMeasurable,
-                    height: Int,
-                ): Int = measurable.minIntrinsicWidth(height)
+            val layout =
+                MeasurePolicyLayout(
+                    MeasurePolicy { measurables, constraints ->
+                        val placeable = measurables.single().measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    },
+                    null,
+                )
+            val panel = composed(ConstrainedPanel(layout))
+            val child = FixedSizeChild(width = 10, height = 10)
+            panel.add(child)
+            layout.declareComponentLayout(child, null, listOf(passThrough))
+            panel.setSize(10, 10)
 
-                override fun IntrinsicMeasureScope.maxIntrinsicWidth(
-                    measurable: IntrinsicMeasurable,
-                    height: Int,
-                ): Int = measurable.maxIntrinsicWidth(height)
+            panel.preferredSize
+            panel.minimumSize
+            panel.doLayout()
 
-                override fun IntrinsicMeasureScope.minIntrinsicHeight(
-                    measurable: IntrinsicMeasurable,
-                    width: Int,
-                ): Int = measurable.minIntrinsicHeight(width)
-
-                override fun IntrinsicMeasureScope.maxIntrinsicHeight(
-                    measurable: IntrinsicMeasurable,
-                    width: Int,
-                ): Int = measurable.maxIntrinsicHeight(width)
-            }
-
-        val layout =
-            MeasurePolicyLayout(
-                MeasurePolicy { measurables, constraints ->
-                    val placeable = measurables.single().measure(constraints)
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
-                null,
+            assertEquals(
+                1,
+                measureCount,
+                "a validate cycle asking preferred, minimum and layout in turn must run a pass-through " +
+                    "node's own measure exactly once, from the real layout pass",
             )
-        val panel = composed(ConstrainedPanel(layout))
-        val child = FixedSizeChild(width = 10, height = 10)
-        panel.add(child)
-        layout.declareComponentLayout(child, null, listOf(passThrough))
-        panel.setSize(10, 10)
-
-        panel.preferredSize
-        panel.minimumSize
-        panel.doLayout()
-
-        assertEquals(
-            1,
-            measureCount,
-            "a validate cycle asking preferred, minimum and layout in turn must run a pass-through " +
-                "node's own measure exactly once, from the real layout pass",
-        )
-    }
+        }
 
     /**
      * A node whose [LayoutModifierNode.shouldAutoInvalidate] is `false` gets no measure from a changed

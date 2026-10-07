@@ -2,15 +2,11 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
-import org.jetbrains.compose.swing.foundation.graphics.revalidateComponentAfterValidation
 import org.jetbrains.compose.swing.foundation.util.fastForEach
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingComponentNode
-import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 
 /**
- * Writes [value] to [decoratable] in place of [held], and fits what depends on it. Under a
+ * Writes [value] to this component in place of [held], and fits what depends on it. Under a
  * Foundation parent, that is where the paint outsets or [Decoration.holdsTransform] changed, or [transformChanged]
  * says a layer of the component started or stopped rotating or scaling it: a Foundation container's own children keep
  * where its last pass placed them, and the parent fits its bounds around the layout bounds it placed, and works out its
@@ -24,33 +20,19 @@ import java.awt.Component
  * Under any other parent, where the paint outsets changed, a Foundation container's own children keep where its last
  * pass placed them, and the component is revalidated, as `setBorder` does when the insets differ: once the event
  * is over while the component tree lock is held. A sized component posts a move event when its layout bounds change.
+ * [revalidate] does that on [requester], whose lifetime the deferred revalidation takes. [requester] is null for a
+ * container no attached node holds, which its parent can still lay out while removing its decoration; nothing is
+ * revalidated then.
  */
-internal fun writeFitted(
-    decoratable: Decoratable,
+internal fun <R : Any> Decoratable.writeFitted(
     held: Decoration,
     value: Decoration,
     transformChanged: Boolean = false,
-    requesterNode: SwingModifier.Node?,
-) = writeFitted(decoratable, held, value, transformChanged, requesterNode as Any?)
-
-/** Writes [value] with a component-lifetime requester for changes that survive modifier detachment. */
-internal fun writeFitted(
-    decoratable: Decoratable,
-    held: Decoration,
-    value: Decoration,
-    transformChanged: Boolean = false,
-    requesterComponent: SwingComponentNode<*>,
-) = writeFitted(decoratable, held, value, transformChanged, requesterComponent as Any)
-
-private fun writeFitted(
-    decoratable: Decoratable,
-    held: Decoration,
-    value: Decoration,
-    transformChanged: Boolean,
-    requester: Any?,
+    requester: R?,
+    revalidate: ((R) -> Unit)?,
 ) {
-    val component = checkNotNull(decoratable as? Component) { "A decoration belongs to a component" }
-    if (value !== held) decoratable.decoration = value
+    val component = checkNotNull(this as? Component) { "A decoration belongs to a component" }
+    if (value !== held) decoration = value
     val childMeasurables = value.childMeasurables
     val previous = held.heldPaintOutsets
     val outsets = value.heldPaintOutsets
@@ -60,7 +42,7 @@ private fun writeFitted(
             childMeasurables?.during(RunningCause.PaintOutsetFit) {
                 childMeasurables.moveChildren(outsets.left - previous.left, outsets.top - previous.top)
             }
-            requester.revalidateAfterFit()
+            requester?.let { revalidate?.invoke(it) }
             if (component.width > 0 && component.height > 0) component.postComponentMoved()
         }
     } else {
@@ -93,15 +75,5 @@ private fun ChildMeasurables.moveChildren(
     layoutPass.fastForEach { child ->
         val component = child.component
         if (!child.isLeftUnplaced) component.setLocation(component.x + shiftX, component.y + shiftY)
-    }
-}
-
-/** A detached panel can still be laid out while its parent removes its decoration. */
-private fun Any?.revalidateAfterFit() {
-    when (this) {
-        is SwingComponentNode<*> -> invalidateLayout()
-        is SwingModifier.Node -> revalidateComponentAfterValidation()
-        null -> Unit
-        else -> error("Fitting a decoration requires a component or modifier node")
     }
 }

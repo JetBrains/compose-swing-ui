@@ -21,6 +21,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
@@ -54,135 +55,139 @@ import kotlin.test.assertFailsWith
 @ExtendWith(ComposedPanels::class)
 class AspectRatioTest {
     @Test
-    fun testAspectRatio_sizesCorrectly() {
-        assertEquals(
-            Dimension(30, 30),
-            sizeAt(1f, Constraints(maxWidth = 30)),
-            "a child as wide as it is tall must take the whole width it may occupy, and the height that implies",
-        )
-        assertEquals(
-            Dimension(30, 15),
-            sizeAt(2f, Constraints(maxWidth = 30)),
-            "a child twice as wide as it is tall must halve that width into its height",
-        )
-        assertEquals(
-            Dimension(10, 10),
-            sizeAt(1f, Constraints(maxWidth = 30, maxHeight = 10)),
-            "where the width it may occupy implies a height past the one it may, the height must decide both",
-        )
-        assertEquals(
-            Dimension(20, 10),
-            sizeAt(2f, Constraints(maxWidth = 30, maxHeight = 10)),
-            "and the width must follow from that height at the ratio, rather than staying the width offered",
-        )
-        assertEquals(
-            Dimension(10, 5),
-            sizeAt(2f, Constraints(minWidth = 10, minHeight = 5)),
-            "with no greatest extent to take a size from, the least width the child must occupy must decide both",
-        )
-        assertEquals(
-            Dimension(20, 10),
-            sizeAt(2f, Constraints(minWidth = 5, minHeight = 10)),
-            "and where that least width implies a height below the least the child must occupy, the height " +
-                "must decide instead",
-        )
-        assertEquals(
-            Dimension(20, 10),
-            sizeAt(2f, Constraints(20, 20, 20, 20)),
-            "under an extent fixed on both axes no size satisfies the ratio, so the child must take the size " +
-                "the width implies however much height it was granted",
-        )
-        assertEquals(
-            Dimension(50, 25),
-            sizeAt(2f, Constraints(minWidth = 50, minHeight = 20)),
-            "a least width implying a height above the least the child must occupy must be taken as it stands",
-        )
-    }
+    fun testAspectRatio_sizesCorrectly() =
+        runSwingTest {
+            assertEquals(
+                Dimension(30, 30),
+                sizeAt(1f, Constraints(maxWidth = 30)),
+                "a child as wide as it is tall must take the whole width it may occupy, and the height that implies",
+            )
+            assertEquals(
+                Dimension(30, 15),
+                sizeAt(2f, Constraints(maxWidth = 30)),
+                "a child twice as wide as it is tall must halve that width into its height",
+            )
+            assertEquals(
+                Dimension(10, 10),
+                sizeAt(1f, Constraints(maxWidth = 30, maxHeight = 10)),
+                "where the width it may occupy implies a height past the one it may, the height must decide both",
+            )
+            assertEquals(
+                Dimension(20, 10),
+                sizeAt(2f, Constraints(maxWidth = 30, maxHeight = 10)),
+                "and the width must follow from that height at the ratio, rather than staying the width offered",
+            )
+            assertEquals(
+                Dimension(10, 5),
+                sizeAt(2f, Constraints(minWidth = 10, minHeight = 5)),
+                "with no greatest extent to take a size from, the least width the child must occupy must decide both",
+            )
+            assertEquals(
+                Dimension(20, 10),
+                sizeAt(2f, Constraints(minWidth = 5, minHeight = 10)),
+                "and where that least width implies a height below the least the child must occupy, the height " +
+                    "must decide instead",
+            )
+            assertEquals(
+                Dimension(20, 10),
+                sizeAt(2f, Constraints(20, 20, 20, 20)),
+                "under an extent fixed on both axes no size satisfies the ratio, so the child must take the size " +
+                    "the width implies however much height it was granted",
+            )
+            assertEquals(
+                Dimension(50, 25),
+                sizeAt(2f, Constraints(minWidth = 50, minHeight = 20)),
+                "a least width implying a height above the least the child must occupy must be taken as it stands",
+            )
+        }
 
     @Test
-    fun testAspectRatio_sizesCorrectly_forHeightFirst() {
-        assertEquals(
-            Dimension(30, 30),
-            sizeAt(1f, Constraints(maxHeight = 30), matchHeightConstraintsFirst = true),
-            "a child taking its size from the height must take the whole height it may occupy",
-        )
-        assertEquals(
-            Dimension(15, 30),
-            sizeAt(0.5f, Constraints(maxHeight = 30), matchHeightConstraintsFirst = true),
-            "a child half as wide as it is tall must halve that height into its width",
-        )
-        assertEquals(
-            Dimension(10, 10),
-            sizeAt(1f, Constraints(maxWidth = 10, maxHeight = 30), matchHeightConstraintsFirst = true),
-            "where the height it may occupy implies a width past the one it may, the width must decide both",
-        )
-        assertEquals(
-            Dimension(10, 20),
-            sizeAt(0.5f, Constraints(maxWidth = 10, maxHeight = 30), matchHeightConstraintsFirst = true),
-            "and the height must follow from that width at the ratio, rather than staying the height offered",
-        )
-        assertEquals(
-            Dimension(5, 10),
-            sizeAt(0.5f, Constraints(minWidth = 5, minHeight = 10), matchHeightConstraintsFirst = true),
-            "with no greatest extent to take a size from, the least height the child must occupy must decide both",
-        )
-        assertEquals(
-            Dimension(10, 20),
-            sizeAt(0.5f, Constraints(minWidth = 10, minHeight = 5), matchHeightConstraintsFirst = true),
-            "and where that least height implies a width below the least the child must occupy, the width " +
-                "must decide instead",
-        )
-        assertEquals(
-            Dimension(10, 20),
-            sizeAt(0.5f, Constraints(20, 20, 20, 20), matchHeightConstraintsFirst = true),
-            "under an extent fixed on both axes no size satisfies the ratio, so the child must take the size " +
-                "the height implies however much width it was granted",
-        )
-        assertEquals(
-            Dimension(25, 50),
-            sizeAt(0.5f, Constraints(minWidth = 20, minHeight = 50), matchHeightConstraintsFirst = true),
-            "a least height implying a width above the least the child must occupy must be taken as it stands",
-        )
-    }
+    fun testAspectRatio_sizesCorrectly_forHeightFirst() =
+        runSwingTest {
+            assertEquals(
+                Dimension(30, 30),
+                sizeAt(1f, Constraints(maxHeight = 30), matchHeightConstraintsFirst = true),
+                "a child taking its size from the height must take the whole height it may occupy",
+            )
+            assertEquals(
+                Dimension(15, 30),
+                sizeAt(0.5f, Constraints(maxHeight = 30), matchHeightConstraintsFirst = true),
+                "a child half as wide as it is tall must halve that height into its width",
+            )
+            assertEquals(
+                Dimension(10, 10),
+                sizeAt(1f, Constraints(maxWidth = 10, maxHeight = 30), matchHeightConstraintsFirst = true),
+                "where the height it may occupy implies a width past the one it may, the width must decide both",
+            )
+            assertEquals(
+                Dimension(10, 20),
+                sizeAt(0.5f, Constraints(maxWidth = 10, maxHeight = 30), matchHeightConstraintsFirst = true),
+                "and the height must follow from that width at the ratio, rather than staying the height offered",
+            )
+            assertEquals(
+                Dimension(5, 10),
+                sizeAt(0.5f, Constraints(minWidth = 5, minHeight = 10), matchHeightConstraintsFirst = true),
+                "with no greatest extent to take a size from, the least height the child must occupy must decide both",
+            )
+            assertEquals(
+                Dimension(10, 20),
+                sizeAt(0.5f, Constraints(minWidth = 10, minHeight = 5), matchHeightConstraintsFirst = true),
+                "and where that least height implies a width below the least the child must occupy, the width " +
+                    "must decide instead",
+            )
+            assertEquals(
+                Dimension(10, 20),
+                sizeAt(0.5f, Constraints(20, 20, 20, 20), matchHeightConstraintsFirst = true),
+                "under an extent fixed on both axes no size satisfies the ratio, so the child must take the size " +
+                    "the height implies however much width it was granted",
+            )
+            assertEquals(
+                Dimension(25, 50),
+                sizeAt(0.5f, Constraints(minWidth = 20, minHeight = 50), matchHeightConstraintsFirst = true),
+                "a least height implying a width above the least the child must occupy must be taken as it stands",
+            )
+        }
 
     @Test
-    fun aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered() {
-        assertEquals(
-            Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-            sizeAt(2f, Constraints.Unbounded),
-            "with no extent to take a size from on either axis - the question a container asks when it is " +
-                "asked what it prefers - no size satisfies the ratio, so the child must be measured under " +
-                "the constraints it was offered and answer with the extent it asks for",
-        )
-        assertEquals(
-            Dimension(1, 2),
-            sizeAt(0.5f, Constraints(minWidth = 1)),
-            "a least width of one still names a size at a ratio that implies a height above nothing from it",
-        )
-        assertEquals(
-            Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-            sizeAt(100f, Constraints(minWidth = 1)),
-            "and where the ratio implies no height at all from that width, the child must again be measured " +
-                "under the constraints it was offered",
-        )
-    }
+    fun aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered() =
+        runSwingTest {
+            assertEquals(
+                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+                sizeAt(2f, Constraints.Unbounded),
+                "with no extent to take a size from on either axis - the question a container asks when it is " +
+                    "asked what it prefers - no size satisfies the ratio, so the child must be measured under " +
+                    "the constraints it was offered and answer with the extent it asks for",
+            )
+            assertEquals(
+                Dimension(1, 2),
+                sizeAt(0.5f, Constraints(minWidth = 1)),
+                "a least width of one still names a size at a ratio that implies a height above nothing from it",
+            )
+            assertEquals(
+                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+                sizeAt(100f, Constraints(minWidth = 1)),
+                "and where the ratio implies no height at all from that width, the child must again be measured " +
+                    "under the constraints it was offered",
+            )
+        }
 
     @Test
-    fun aRatioReportsTheExtentItSizedItsChildTo() {
-        val (sized, reported) = laidOutAt(2f, Constraints(200, 200, 200, 200))
+    fun aRatioReportsTheExtentItSizedItsChildTo() =
+        runSwingTest {
+            val (sized, reported) = laidOutAt(2f, Constraints(200, 200, 200, 200))
 
-        assertEquals(
-            Dimension(200, 100),
-            sized,
-            "a ratio no size within an extent fixed on both axes satisfies must size its child at the " +
-                "ratio all the same, outside the extent it was offered",
-        )
-        assertEquals(
-            Dimension(200, 200),
-            reported,
-            "and the parent must see an apparent extent coerced into the fixed offer it made",
-        )
-    }
+            assertEquals(
+                Dimension(200, 100),
+                sized,
+                "a ratio no size within an extent fixed on both axes satisfies must size its child at the " +
+                    "ratio all the same, outside the extent it was offered",
+            )
+            assertEquals(
+                Dimension(200, 200),
+                reported,
+                "and the parent must see an apparent extent coerced into the fixed offer it made",
+            )
+        }
 
     @Test
     fun aRatioIsMeasuredThroughWhereTheChildIsComposed() =

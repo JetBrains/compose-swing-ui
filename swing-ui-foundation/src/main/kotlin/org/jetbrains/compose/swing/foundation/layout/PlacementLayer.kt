@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.foundation.graphics.clipArea
 import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.graphics.setToScaleAndRotation
 import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import org.jetbrains.compose.swing.node.observeReads
 import java.awt.Component
 import java.awt.Graphics2D
@@ -118,10 +120,11 @@ internal sealed class PlacementLayer : Decorator {
             publishSteps(
                 decoratable,
                 decoratable.decoration.steps.inContainerLayer(if (painted) this else null),
-                requesterNode =
+                requester =
                     checkNotNull(
                         placement.owner.owner.node,
-                    ) { "A placement requires its attached observation node" },
+                    ) { "A placement requires an attached node holding its container" },
+                revalidate = SwingComponentNode<*>::invalidateLayout,
             )
         }
 
@@ -372,7 +375,7 @@ internal sealed class PlacementLayer : Decorator {
          * whose layer paints differently. Where the paint outsets a layer takes resize a Foundation container, that
          * container places its children again.
          */
-        private val ContainerLayerReads: (LayoutObservationNode) -> Unit = { node ->
+        private val ContainerLayerReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = { node ->
             node.component.policyLayout.measurables.layoutPass.fastForEach { child ->
                 val steps = child.decoratable?.decoration?.steps
                 if (!child.isLeftUnplaced) steps?.containerLayer?.update()

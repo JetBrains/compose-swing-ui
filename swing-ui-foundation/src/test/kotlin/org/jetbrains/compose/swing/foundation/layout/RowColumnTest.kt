@@ -28,6 +28,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
@@ -62,73 +63,76 @@ import kotlin.test.assertFailsWith
 @ExtendWith(ComposedPanels::class)
 class RowColumnTest {
     @Test
-    fun testRow_measuresChildrenCorrectly_whenMeasuredWithInfiniteWidth() {
-        val laidOut =
-            measuredUnder(
-                rowPolicy(),
-                Constraints(minWidth = 100, maxWidth = Int.MAX_VALUE),
-                FixedSizeChild(30) to null,
-                FixedSizeChild(30) to null,
-                FixedSizeChild(30) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
-            )
+    fun testRow_measuresChildrenCorrectly_whenMeasuredWithInfiniteWidth() =
+        runSwingTest {
+            val laidOut =
+                measuredUnder(
+                    rowPolicy(),
+                    Constraints(minWidth = 100, maxWidth = Int.MAX_VALUE),
+                    FixedSizeChild(30) to null,
+                    FixedSizeChild(30) to null,
+                    FixedSizeChild(30) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
+                )
 
-        assertEquals(
-            listOf(
-                Rectangle(0, 0, 30, 0),
-                Rectangle(30, 0, 30, 0),
-                Rectangle(60, 0, 40, 0),
-            ),
-            laidOut,
-            "an unbounded width narrows to nothing for a child that claims no share, and the weighted " +
-                "child divides the least width the row was asked to occupy",
-        )
-    }
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 30, 0),
+                    Rectangle(30, 0, 30, 0),
+                    Rectangle(60, 0, 40, 0),
+                ),
+                laidOut,
+                "an unbounded width narrows to nothing for a child that claims no share, and the weighted " +
+                    "child divides the least width the row was asked to occupy",
+            )
+        }
 
     @Test
-    fun testColumn_measuresChildrenCorrectly_whenMeasuredWithInfiniteHeight() {
-        val laidOut =
-            measuredUnder(
-                columnPolicy(),
-                Constraints(minHeight = 100, maxHeight = Int.MAX_VALUE),
-                FixedSizeChild(height = 30) to null,
-                FixedSizeChild(height = 30) to null,
-                FixedSizeChild(height = 30) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
-            )
+    fun testColumn_measuresChildrenCorrectly_whenMeasuredWithInfiniteHeight() =
+        runSwingTest {
+            val laidOut =
+                measuredUnder(
+                    columnPolicy(),
+                    Constraints(minHeight = 100, maxHeight = Int.MAX_VALUE),
+                    FixedSizeChild(height = 30) to null,
+                    FixedSizeChild(height = 30) to null,
+                    FixedSizeChild(height = 30) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
+                )
 
-        assertEquals(
-            listOf(
-                Rectangle(0, 0, 0, 30),
-                Rectangle(0, 30, 0, 30),
-                Rectangle(0, 60, 0, 40),
-            ),
-            laidOut,
-            "an unbounded height narrows to nothing for a child that claims no share, and the weighted " +
-                "child divides the least height the column was asked to occupy",
-        )
-    }
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 0, 30),
+                    Rectangle(0, 30, 0, 30),
+                    Rectangle(0, 60, 0, 40),
+                ),
+                laidOut,
+                "an unbounded height narrows to nothing for a child that claims no share, and the weighted " +
+                    "child divides the least height the column was asked to occupy",
+            )
+        }
 
     @Test
-    fun testRow_protectsAgainstOverflow() {
-        val laidOut =
-            measuredUnder(
-                rowPolicy(),
-                Constraints.Unbounded,
-                FixedSizeChild(1 shl 23) to null,
-                FixedSizeChild(1 shl 23) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
-                FixedSizeChild(1 shl 23) to LinearConstraint(weight = WeightPlacement(1e-8f, fill = true)),
-            )
+    fun testRow_protectsAgainstOverflow() =
+        runSwingTest {
+            val laidOut =
+                measuredUnder(
+                    rowPolicy(),
+                    Constraints.Unbounded,
+                    FixedSizeChild(1 shl 23) to null,
+                    FixedSizeChild(1 shl 23) to LinearConstraint(weight = WeightPlacement(1f, fill = true)),
+                    FixedSizeChild(1 shl 23) to LinearConstraint(weight = WeightPlacement(1e-8f, fill = true)),
+                )
 
-        assertEquals(
-            listOf(
-                Rectangle(0, 0, 1 shl 23, 0),
-                Rectangle(1 shl 23, 0, 0, 0),
-                Rectangle(1 shl 23, 0, 0, 0),
-            ),
-            laidOut,
-            "a child wider than any container, beside a weight small enough to round to nothing, must " +
-                "leave the arithmetic intact rather than wrapping past the largest extent there is",
-        )
-    }
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 1 shl 23, 0),
+                    Rectangle(1 shl 23, 0, 0, 0),
+                    Rectangle(1 shl 23, 0, 0, 0),
+                ),
+                laidOut,
+                "a child wider than any container, beside a weight small enough to round to nothing, must " +
+                    "leave the arithmetic intact rather than wrapping past the largest extent there is",
+            )
+        }
 
     @Test
     fun aWeightedChildAsksForWhatItsSiblingsImplyRatherThanForAllOfItsParent() =

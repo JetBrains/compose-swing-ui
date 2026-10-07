@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -20,11 +21,85 @@ import java.awt.Graphics2D
 import java.awt.Insets
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.border.AbstractBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PaintOutsetsDuringSwingValidationTest {
+    @Test
+    fun aLayoutNodesGrowingDecorationUnderASwingParentFitsItsFoundationContainer() =
+        runComposeSwingTest {
+            val flow = ChangingOutsetsFlowLayout()
+            val element = ReportingLayoutElement()
+            setContent {
+                SwingNode(
+                    factory = { JPanel(flow) },
+                    modifier = SwingModifier.testTag("parent").preferredSize(200, 200),
+                ) {
+                    Row(modifier = SwingModifier.testTag("row")) {
+                        SwingNode(factory = { Card() }, modifier = SwingModifier.testTag("card").then(element))
+                    }
+                }
+            }
+            val parent = onNodeWithTag("parent").fetch<JComponent>()
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            val card = onNodeWithTag("card").fetch<JComponent>()
+            assertEquals(Insets(4, 4, 4, 4), card.insets)
+            flow.afterLayout = {
+                assertTrue(Thread.holdsLock(parent.treeLock))
+                element.node.decorator = Halo(12)
+            }
+            parent.revalidate()
+            awaitIdle()
+            assertEquals(Insets(12, 12, 12, 12), card.insets)
+            assertEquals(Dimension(144, 104), card.size)
+            assertEquals(Dimension(120, 80), row.size)
+        }
+
+    @Test
+    fun fittingAContainersChangedInsetsUnderASwingParentRequestsAnotherValidation() =
+        runComposeSwingTest {
+            val step = ChangingOutsetsElement()
+            val flow = ChangingOutsetsFlowLayout()
+            val border = ChangingInsetsBorder()
+            val outsets =
+                object : PaintOutsets {
+                    override fun outsetsOf(
+                        component: JComponent,
+                        insets: Insets,
+                        decorationOutsets: Insets,
+                    ): Insets = if (insets.top > decorationOutsets.top) Insets(0, 0, 0, 0) else decorationOutsets
+                }
+            setContent {
+                SwingNode(
+                    factory = { JPanel(flow) },
+                    modifier = SwingModifier.testTag("parent").preferredSize(200, 200),
+                ) {
+                    Row(modifier = SwingModifier.testTag("row").paintOutsets(outsets).then(step)) {
+                        SwingNode(factory = { Card() })
+                    }
+                }
+            }
+            val parent = onNodeWithTag("parent").fetch<JComponent>()
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            row.border = border
+            awaitIdle()
+            assertEquals(Dimension(144, 104), row.size)
+            flow.afterLayout = {
+                assertTrue(Thread.holdsLock(parent.treeLock))
+                border.reach = 0
+                row.doLayout()
+                assertEquals(Dimension(144, 104), row.size)
+            }
+
+            parent.revalidate()
+            awaitIdle()
+
+            assertEquals(Insets(0, 0, 0, 0), row.insets)
+            assertEquals(Dimension(120, 80), row.size)
+        }
+
     @Test
     fun aDecorationChangedAfterASwingParentSizesItsChildIsMeasuredAgain() =
         runComposeSwingTest {
@@ -108,6 +183,29 @@ class PaintOutsetsDuringSwingValidationTest {
         }
 }
 
+private class ReportingLayoutElement : LayoutModifierNodeElement<ReportingLayoutNode>() {
+    val node = ReportingLayoutNode()
+
+    override fun create(): ReportingLayoutNode = node
+
+    override fun update(node: ReportingLayoutNode) = Unit
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class ReportingLayoutNode : LayoutModifierNode() {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        if (decorator == null) decorator = Halo(4)
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+}
+
 private class ChangingOutsetsFlowLayout : FlowLayout(FlowLayout.LEADING, 0, 0) {
     var afterLayout: (() -> Unit)? = null
 
@@ -119,10 +217,10 @@ private class ChangingOutsetsFlowLayout : FlowLayout(FlowLayout.LEADING, 0, 0) {
     }
 }
 
-private class ChangingOutsetsElement : SwingModifier.NodeElement<Card, ChangingOutsetsNode>() {
+private class ChangingOutsetsElement : SwingModifier.NodeElement<JComponent, ChangingOutsetsNode>() {
     val node = ChangingOutsetsNode()
 
-    override val targetType: Class<Card> get() = Card::class.java
+    override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override val additive: Boolean get() = true
 
@@ -137,7 +235,7 @@ private class ChangingOutsetsElement : SwingModifier.NodeElement<Card, ChangingO
     override fun hashCode(): Int = System.identityHashCode(this)
 }
 
-private class ChangingOutsetsNode : DecorationModifierNode<Card>() {
+private class ChangingOutsetsNode : DecorationModifierNode<JComponent>() {
     var reach: Int = 4
 
     override val outsets: Insets get() = Insets(reach, reach, reach, reach)
@@ -148,6 +246,17 @@ private class ChangingOutsetsNode : DecorationModifierNode<Card>() {
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) = content(graphics, width, height)
+}
+
+private class ChangingInsetsBorder : AbstractBorder() {
+    var reach = 8
+
+    override fun getBorderInsets(component: Component): Insets = Insets(reach, reach, reach, reach)
+
+    override fun getBorderInsets(
+        component: Component,
+        insets: Insets,
+    ): Insets = insets.apply { set(reach, reach, reach, reach) }
 }
 
 private class RemovingOutsetsElement : SwingModifier.NodeElement<Card, RemovingOutsetsNode>() {

@@ -180,7 +180,16 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
                     standingDecorator = null
                     // A detached node visits none of its component's nodes; the modifier pass or holder reset that
                     // detached it hands the component the nodes it is left with, none after a reset, as it ends.
-                    if (isAttached) previous?.decoratable?.let { publishDecoration(it, declaredNodes(), this) }
+                    if (isAttached) {
+                        previous?.decoratable?.let {
+                            // The parent link is already gone, and a layer adds no outsets, so there is nothing
+                            // to revalidate.
+                            publishDecoration(
+                                it,
+                                declaredNodes(),
+                            )
+                        }
+                    }
                 }
             }
             if (value != null && decorationStep != null) value.requireDecoratable
@@ -232,7 +241,10 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         val child = child ?: return
         // A node that paints nothing, and painted nothing, leaves the decoration as it stands.
         if (value == null && standing == null) return
-        publishDecoration(child.requireDecoratable, declaredNodes(), this)
+        publishDecoration(
+            child.requireDecoratable,
+            declaredNodes(),
+        )
     }
 }
 

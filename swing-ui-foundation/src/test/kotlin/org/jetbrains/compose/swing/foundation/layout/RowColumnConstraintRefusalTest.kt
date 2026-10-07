@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.JLabel
@@ -92,16 +93,17 @@ class RowColumnConstraintRefusalTest {
     }
 
     @Test
-    fun aRowsLayoutManagerRefusesAConstraintOfAnotherKind() {
-        val row = rowPolicyPanel()
+    fun aRowsLayoutManagerRefusesAConstraintOfAnotherKind() =
+        runSwingTest {
+            val row = rowPolicyPanel()
 
-        val failure = assertFailsWith<IllegalArgumentException> { row.add(CONSTRAINT, JLabel("dropped")) }
+            val failure = assertFailsWith<IllegalArgumentException> { row.add(CONSTRAINT, JLabel("dropped")) }
 
-        assertTrue(
-            "can carry no layout constraint" in failure.message.orEmpty(),
-            "the manager should refuse a constraint it reads nothing of: ${failure.message}",
-        )
-    }
+            assertTrue(
+                "can carry no layout constraint" in failure.message.orEmpty(),
+                "the manager should refuse a constraint it reads nothing of: ${failure.message}",
+            )
+        }
 
     private companion object {
         /** A constraint no row or column understands, which is every constraint there is. */

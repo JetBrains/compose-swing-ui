@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 
 /**
  * A component that paints through the decoration its modifier declares: what every decoration modifier and every
@@ -48,6 +49,6 @@ public interface Decoratable : DeclaredNodesListener {
         componentNode: SwingComponentNode<*>,
         nodes: List<SwingModifier.Node>,
     ) {
-        publishDecoration(this, nodes, requesterComponent = componentNode)
+        publishDecoration(this, nodes, componentNode, SwingComponentNode<*>::invalidateLayout)
     }
 }

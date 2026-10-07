@@ -3,66 +3,56 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.api.function.Executable
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
-import java.lang.reflect.InvocationTargetException
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * Composes [panel] as a [SwingNode]'s component carrying the nodes [Layout] attaches, so its layout
- * measures, places and paints as a composed [Layout]'s does. A test class calling this registers
- * [ComposedPanels], which disposes the composition after each test.
+ * Composes [panel] as a [SwingNode]'s component, so its layout measures, places and paints as a
+ * composed [Layout]'s does. A test class calling this registers
+ * [ComposedPanels], which disposes the composition after each test. Call on the event dispatch thread.
  */
-internal fun <P : ConstrainedPanel> composed(panel: P): P {
-    onEventDispatchThread {
-        val recomposer = Recomposer(EmptyCoroutineContext)
-        val handle =
-            JPanel().setContent(parent = recomposer) {
-                SwingNode<ConstrainedPanel>(factory = { panel }, modifier = LayoutObservation)
-            }
-        ComposedPanels.handles +=
-            DisposableHandle {
+internal fun composed(panel: ConstrainedPanel): ConstrainedPanel {
+    val recomposer = Recomposer(EmptyCoroutineContext)
+    val handle =
+        JPanel().setContent(parent = recomposer) {
+            SwingNode<ConstrainedPanel>(factory = { panel })
+        }
+    ComposedPanels.handles +=
+        DisposableHandle {
+            try {
                 handle.dispose()
+            } finally {
                 recomposer.cancel()
             }
-    }
+        }
     return panel
 }
 
 /** Disposes every composition [composed] made during a test. */
 internal class ComposedPanels : AfterEachCallback {
     override fun afterEach(context: ExtensionContext) {
-        onEventDispatchThread {
-            handles.forEach { it.dispose() }
+        runSwingTest {
+            val pending = handles.toList()
             handles.clear()
+            assertAll(pending.map { handle -> Executable { handle.dispose() } })
         }
     }
 
     companion object {
         val handles: MutableList<DisposableHandle> = mutableListOf()
-    }
-}
-
-/** Runs [body] on the event dispatch thread, preserving direct failures from the invocation. */
-internal fun onEventDispatchThread(body: () -> Unit) {
-    if (SwingUtilities.isEventDispatchThread()) {
-        body()
-        return
-    }
-    try {
-        SwingUtilities.invokeAndWait(body)
-    } catch (invocation: InvocationTargetException) {
-        throw invocation.cause ?: invocation
     }
 }
 
@@ -80,6 +70,7 @@ internal class FixedSizeChild(
  * only way to hand a policy an extent `layoutContainer` never offers, such as an unbounded axis.
  *
  * Each child is registered under what it declares, and the bounds come back in declaration order.
+ * Call on the event dispatch thread.
  */
 internal fun measuredUnder(
     policy: RowColumnMeasurePolicy,
@@ -131,7 +122,7 @@ internal fun columnPolicyPanel(
 /**
  * Runs [body] with [root] under a frame that grants it a peer - what makes a container hold between two
  * Swing calls what a pass measured - on the dispatch thread that frame lays its own content out on. The
- * frame is never shown, so nothing takes focus.
+ * frame is never shown, so nothing takes focus. Call on the event dispatch thread.
  */
 internal fun peered(
     root: JComponent,
@@ -140,13 +131,11 @@ internal fun peered(
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     val frame = JFrame()
     try {
-        onEventDispatchThread {
-            frame.contentPane.layout = null
-            frame.contentPane.add(root)
-            frame.addNotify()
-            body()
-        }
+        frame.contentPane.layout = null
+        frame.contentPane.add(root)
+        frame.addNotify()
+        body()
     } finally {
-        onEventDispatchThread { frame.dispose() }
+        frame.dispose()
     }
 }

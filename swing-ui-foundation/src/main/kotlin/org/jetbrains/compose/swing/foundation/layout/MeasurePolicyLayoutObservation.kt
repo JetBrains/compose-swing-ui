@@ -1,76 +1,27 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.foundation.graphics.revalidateComponentAfterValidation
 import org.jetbrains.compose.swing.foundation.util.fastForEach
-import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 
+/** Replays placement after validation, unless a later placement pass has already satisfied the request. */
+private val ReplayPlacement: (SwingComponentNode<ConstrainedPanel>) -> Unit = { node ->
+    val panel = node.component
+    if (panel.policyLayout.placementPending) panel.replayPlacementNow()
+}
+
 /**
- * The entry every [Layout] appends to its panel's modifier, after the caller's. Its node is what each answer a
- * [MeasurePolicyLayout] caches records its reads under.
+ * Runs [block], which computes one answer, recording its reads under [MeasurePolicyLayout.node] and [onChanged];
+ * without a node, runs it unobserved.
  *
- * `observeReads` keeps only the reads of the latest call under one callback, while Swing caches each answer
- * on its own and asks for it again only after that answer is invalidated. Each answer therefore records
- * under a callback of its own, so computing one answer never drops the reads behind another that is still
- * cached.
- */
-internal object LayoutObservation : SwingModifier.NodeElement<ConstrainedPanel, LayoutObservationNode>() {
-    override val targetType: Class<ConstrainedPanel> get() = ConstrainedPanel::class.java
-
-    override val name: String get() = "layoutObservation"
-
-    override fun create(): LayoutObservationNode = LayoutObservationNode()
-
-    override fun update(node: LayoutObservationNode) = Unit
-
-    override fun equals(other: Any?): Boolean = this === other
-
-    override fun hashCode(): Int = System.identityHashCode(this)
-}
-
-/**
- * The node a [Layout]'s panel records its answers' reads under, from its `onAttach` to its `onDetach`.
- *
- * Attaching revalidates the panel so answers computed while no node was registered are computed again
- * under observation; on a first mount the panel has no parent yet and `revalidate` returns at once.
- */
-internal class LayoutObservationNode : SwingModifier.ComponentNode<ConstrainedPanel>() {
-    /** A placement replay request still awaiting a pass that actually places the panel's children. */
-    internal var placementPending: Boolean = false
-
-    override fun onAttach() {
-        component.policyLayout.node = this
-        component.revalidate()
-    }
-
-    override fun onDetach() {
-        component.policyLayout.node = null
-        placementPending = false
-    }
-
-    /**
-     * Revalidates the panel, for a changed read behind an answer it measured.
-     */
-    fun remeasure() = revalidateComponentAfterValidation()
-
-    /** Replays placement after validation, unless a later placement pass has already satisfied the request. */
-    fun requestPlacementReplay() {
-        placementPending = true
-        requestAfterValidation(ReplayPlacement)
-    }
-}
-
-private val ReplayPlacement: (LayoutObservationNode) -> Unit = { node ->
-    if (node.placementPending) node.component.replayPlacementNow()
-}
-
-/**
- * Runs [block], which computes one answer, recording its reads under the attached [MeasurePolicyLayout.node]
- * and [onChanged]; without a node, runs it unobserved.
+ * `observeReads` keeps only the reads of the latest call under one callback, while Swing caches each answer on its own
+ * and asks for it again only after that answer is invalidated. Each answer therefore records under a callback of its
+ * own, so computing one answer never drops the reads behind another that is still cached.
  */
 internal fun MeasurePolicyLayout.observe(
-    onChanged: (LayoutObservationNode) -> Unit,
+    onChanged: (SwingComponentNode<ConstrainedPanel>) -> Unit,
     block: () -> Unit,
 ) {
     val node = node
@@ -93,10 +44,12 @@ internal fun MeasurePolicyLayout.observe(
  * the children its own replay resized. A later layout pass clears the request when it places the children first.
  */
 internal fun ConstrainedPanel.placeChildrenAgain() {
-    policyLayout.node?.requestPlacementReplay()
+    val node = policyLayout.node ?: return
+    policyLayout.placementPending = true
+    node.requestAfterValidation(ReplayPlacement)
 }
 
-/** Runs a placement replay requested by the panel's attached layout observation node. */
+/** Runs a placement replay [placeChildrenAgain] requested. */
 internal fun ConstrainedPanel.replayPlacementNow() {
     synchronized(treeLock) { replayPlacementLocked() }
 }
@@ -111,7 +64,7 @@ private fun ConstrainedPanel.replayPlacementLocked() {
         readBy = record.lineReadDuring
         panel = record.owner.panel
     }
-    if (readBy == LayoutState.Measuring) return policyLayout.node?.revalidateComponentAfterValidation() ?: Unit
+    if (readBy == LayoutState.Measuring) return policyLayout.node?.invalidateLayout() ?: Unit
     measurables.during(RunningCause.PlacementReplay) { doLayout() }
     // A child this pass resized is left invalid, and nothing above it is: no validation is coming to lay
     // it out, so it is laid out here, as a validation laying this panel out would.

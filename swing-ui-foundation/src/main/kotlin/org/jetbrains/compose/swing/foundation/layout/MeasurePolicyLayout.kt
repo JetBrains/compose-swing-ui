@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -51,8 +53,14 @@ internal class MeasurePolicyLayout(
     /** The receiver the policy places its children in, rewritten at the start of each layout pass. */
     private val placementScope = InnerPlacementScope()
 
-    /** The node every answer records its reads under while the panel's [LayoutObservation] is attached. */
-    internal var node: LayoutObservationNode? = null
+    /** The attached nodes the panel was told hold it, in the order they attached. */
+    internal val nodes: MutableList<SwingComponentNode<ConstrainedPanel>> = ArrayList(1)
+
+    /** The node every answer records its reads under: the first of [nodes], or `null` while none is attached. */
+    internal val node: SwingComponentNode<ConstrainedPanel>? get() = nodes.firstOrNull()
+
+    /** A placement replay request still awaiting a pass that actually places the panel's children. */
+    internal var placementPending: Boolean = false
 
     /** What [placeBlock] places. */
     private lateinit var placed: MeasureResult
@@ -183,8 +191,7 @@ internal class MeasurePolicyLayout(
             // A valid container replays its latest result at its current size.
             // An invalid container is measured again before placement.
             val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
-            val observation = panel.policyLayout.node
-            observation?.placementPending = false
+            placementPending = false
             val result =
                 if (replaysPlacement) {
                     measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
@@ -539,7 +546,7 @@ internal class ChildMeasurables(
     /** What the policy measures over the children under [constraints], its reads recorded under [onChanged]. */
     internal fun measureObserved(
         constraints: Constraints,
-        onChanged: (LayoutObservationNode) -> Unit,
+        onChanged: (SwingComponentNode<ConstrainedPanel>) -> Unit,
     ): MeasureResult {
         measureConstraints = constraints
         owner.observe(onChanged, measureBlock)
@@ -1323,21 +1330,22 @@ internal class InnerPlacementScope : PlacementScope() {
 }
 
 /** Reads behind what `preferredLayoutSize` answers, which Swing caches as the container's preferred size. */
-private val PreferredReads: (LayoutObservationNode) -> Unit = { it.remeasure() }
+private val PreferredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind what `minimumLayoutSize` answers, which Swing caches as the container's minimum size. */
-private val MinimumReads: (LayoutObservationNode) -> Unit = { it.remeasure() }
+private val MinimumReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind what [ChildMeasurables.measuredSize] answers, which the parent lays out with. */
-private val MeasuredReads: (LayoutObservationNode) -> Unit = { it.remeasure() }
+private val MeasuredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind what [settledOn] answers, which this container places. */
-private val SettledReads: (LayoutObservationNode) -> Unit = { it.remeasure() }
+private val SettledReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind the children's bounds, which the placement block sets. */
-private val PlacementReads: (LayoutObservationNode) -> Unit = { it.component.placeChildrenAgain() }
+private val PlacementReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = { it.component.placeChildrenAgain() }
 
 /** Reads behind the lines [ChildMeasurables.alignmentLinesOf] works out for a result its container has not placed. */
-private val LineReads: (LayoutObservationNode) -> Unit = {
-    if (it.component.policyLayout.measurables.lineScope.observesReplay) it.component.placeChildrenAgain()
+private val LineReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = {
+    val panel = it.component
+    if (panel.policyLayout.measurables.lineScope.observesReplay) panel.placeChildrenAgain()
 }

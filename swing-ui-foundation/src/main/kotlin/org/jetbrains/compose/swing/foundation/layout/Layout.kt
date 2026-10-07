@@ -80,7 +80,7 @@ public fun Layout(
 ) {
     SwingNode(
         factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy, parentDataProtocol)) },
-        modifier = modifier then LayoutObservation,
+        modifier = modifier,
         update = {
             update(parentDataProtocol) {
                 policyLayout.requireSameParentDataProtocol(it)
@@ -104,7 +104,7 @@ public fun Layout(
 ) {
     SwingNode(
         factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy)) },
-        modifier = modifier then LayoutObservation,
+        modifier = modifier,
         update = {
             update(measurePolicy, SetMeasurePolicy)
         },

@@ -3,9 +3,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.foundation.layout.fitted
 import org.jetbrains.compose.swing.foundation.layout.writeFitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import java.awt.Component
 
@@ -71,7 +69,15 @@ public abstract class DecorationModifierNode<T : Component> :
      */
     public fun invalidateDecoration() {
         if (!isAttached) return
-        if (!publishDecoration(component as Decoratable, declaredNodes(), requesterNode = this)) component.repaint()
+        if (!publishDecoration(
+                component as Decoratable,
+                declaredNodes(),
+                this,
+                SwingModifier.ComponentNode<*>::revalidateComponentAfterValidation,
+            )
+        ) {
+            component.repaint()
+        }
     }
 }
 
@@ -82,52 +88,42 @@ internal fun SwingModifier.Node.declaredNodes(): List<SwingModifier.Node> {
     return nodes
 }
 
+/** Publishes the decoration [nodes] declare without requesting revalidation. */
+internal fun publishDecoration(
+    decoratable: Decoratable,
+    nodes: List<SwingModifier.Node>,
+): Boolean = publishDecoration<Any>(decoratable, nodes)
+
 /**
  * Writes to [decoratable] the decoration [nodes] declare, inside the layer its container places it with, fitted to
- * the Foundation containers around it; see [publishSteps].
+ * the Foundation containers around it; see [publishSteps]. Without a [requester], nothing is revalidated.
  */
-internal fun publishDecoration(
+internal fun <R : Any> publishDecoration(
     decoratable: Decoratable,
     nodes: List<SwingModifier.Node>,
-    requesterNode: SwingModifier.Node,
-): Boolean =
-    publishSteps(decoratable, DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer), requesterNode)
-
-/** Publishes [nodes] using the component lifetime so a request survives removal of its final modifier node. */
-internal fun publishDecoration(
-    decoratable: Decoratable,
-    nodes: List<SwingModifier.Node>,
-    requesterComponent: SwingComponentNode<*>,
+    requester: R? = null,
+    revalidate: ((R) -> Unit)? = null,
 ): Boolean =
     publishSteps(
         decoratable,
         DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer),
-        requesterComponent,
+        requester,
+        revalidate,
     )
 
 /**
  * Writes to [decoratable] a decoration of [steps], fitted to the Foundation containers around it, and repaints it;
  * nothing where the value held equals it. Returns whether it wrote.
+ * Where the fit revalidates the component, it runs [revalidate] on [requester]; see [writeFitted].
+ * Without a [requester], nothing is revalidated.
  *
  * @throws IllegalStateException if [decoratable] is not a [Component].
  */
-internal fun publishSteps(
+internal fun <R : Any> publishSteps(
     decoratable: Decoratable,
     steps: DecorationSteps,
-    requesterNode: SwingModifier.Node,
-): Boolean = publishSteps(decoratable, steps, requesterNode as Any)
-
-/** Publishes [steps] using the component lifetime so a request survives removal of its final modifier node. */
-internal fun publishSteps(
-    decoratable: Decoratable,
-    steps: DecorationSteps,
-    requesterComponent: SwingComponentNode<*>,
-): Boolean = publishSteps(decoratable, steps, requesterComponent as Any)
-
-private fun publishSteps(
-    decoratable: Decoratable,
-    steps: DecorationSteps,
-    requester: Any,
+    requester: R? = null,
+    revalidate: ((R) -> Unit)? = null,
 ): Boolean {
     val component =
         checkNotNull(decoratable as? Component) {
@@ -136,32 +132,16 @@ private fun publishSteps(
     val held = decoratable.decoration
     val value = held.fitted(component, steps, steps.isOpaque)
     if (value === held) return false
-    when (requester) {
-        is SwingModifier.Node -> writeFitted(decoratable, held, value, requesterNode = requester)
-        is SwingComponentNode<*> -> writeFitted(decoratable, held, value, requesterComponent = requester)
-        else -> error("Publishing a decoration requires an attached requester")
-    }
+    decoratable.writeFitted(held, value, requester = requester, revalidate = revalidate)
     component.repaint()
     return true
 }
 
-/** A node that owns [requestAfterValidation] for the component this decoration belongs to. */
-private val RevalidateRequestedComponent: (SwingModifier.Node) -> Unit = { node ->
-    when (node) {
-        is SwingModifier.ComponentNode<*> -> node.component.revalidate()
-        is ParentLayoutNode -> node.component.revalidate()
-        else -> error("Revalidation requires a component node")
-    }
-}
+/** One instance, so repeated requests for a node coalesce. */
+private val RevalidateNodeComponent: (SwingModifier.ComponentNode<*>) -> Unit = { it.component.revalidate() }
 
-/** Revalidates the component this attached node belongs to after Swing finishes validation. */
-internal fun SwingModifier.Node.revalidateComponentAfterValidation() {
-    val component =
-        when (this) {
-            is SwingModifier.ComponentNode<*> -> component
-            is ParentLayoutNode -> component
-            else -> error("Revalidation requires a component node")
-        }
+/** Revalidates this attached node's component once Swing finishes validation, unless the node detaches first. */
+internal fun SwingModifier.ComponentNode<*>.revalidateComponentAfterValidation() {
     if (Thread.holdsLock(component.treeLock)) component.invalidate()
-    requestAfterValidation(RevalidateRequestedComponent)
+    requestAfterValidation(RevalidateNodeComponent)
 }

@@ -671,12 +671,11 @@ class LayoutObservationTest {
         }
 
     /**
-     * A modifier whose key changes detaches and attaches every component node on the container, the layout's
-     * observation node included, which drops the reads each cached answer recorded. The observation node
-     * revalidates the container when it attaches again, so every cached answer is recorded again.
+     * A modifier whose key changes detaches and attaches every modifier node on the container, while the reads each
+     * cached answer recorded under the container's own node stay observed.
      */
     @Test
-    fun aMeasureReadIsObservedAgainAfterTheModifierNodesAttachAgain() =
+    fun aMeasureReadStaysObservedAcrossAModifierKeyChange() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var gap by mutableIntStateOf(0)
@@ -696,22 +695,21 @@ class LayoutObservationTest {
             generation = 1
             awaitIdle()
             val container = windowContainer()
-            assertTrue(container.isValidUpToTheValidateRoot(), "the container must be valid once attached again")
+            assertTrue(container.isValidUpToTheValidateRoot(), "the container is valid after the key change")
 
             gap = CHILD_HEIGHT
             Snapshot.sendApplyNotifications()
 
-            assertFalse(container.isValid, "a measure read made after the nodes attached again must be observed")
+            assertFalse(container.isValid, "a measure read must stay observed across the key change")
         }
 
     /**
-     * A modifier whose key changes detaches and attaches every component node on the container, the layout's
-     * observation node included, which drops the read the container's own paint recorded. The decoration
-     * attaching again repaints the container, which records that read again; see
+     * A modifier whose key changes detaches and attaches every modifier node on the container, while the read the
+     * container's own paint recorded under the container's node stays observed; see
      * [LayoutNodeLifecycleTest.aKeyChangeOnAnUndecoratedLayoutPaintsNothingAgain].
      */
     @Test
-    fun aPaintReadIsObservedAgainAfterTheModifierNodesAttachAgain() =
+    fun aPaintReadStaysObservedAcrossAModifierKeyChange() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var color by mutableStateOf(Color.RED)
@@ -737,7 +735,7 @@ class LayoutObservationTest {
             assertEquals(
                 Rectangle(0, 0, container.width, container.height),
                 container.dirtyRegion(),
-                "a paint read made after the nodes attached again must be observed",
+                "a paint read must stay observed across the key change",
             )
         }
 

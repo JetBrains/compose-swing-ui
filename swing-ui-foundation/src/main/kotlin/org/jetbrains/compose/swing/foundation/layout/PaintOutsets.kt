@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.Insets
 import javax.swing.JComponent
@@ -255,8 +256,7 @@ internal fun PaintOutsets.excessChanges(
 
 /**
  * Measures this container again where the `paintOutsets` value of [child], which holds [decoration], takes its layout
- * box to another size, once the outsets its decoration steps take changed from [previous]; see
- * [LayoutObservationNode.remeasure].
+ * box to another size, once the outsets its decoration steps take changed from [previous].
  */
 internal fun ChildMeasurables.revalidateForExcess(
     child: Component,
@@ -266,7 +266,7 @@ internal fun ChildMeasurables.revalidateForExcess(
     val value = decoration.steps.paintOutsets
     val current = decoration.steps.outsets
     if (value == null || child !is JComponent || current == previous) return
-    if (value.excessChanges(child, decoration, previous, current)) panel.policyLayout.node?.remeasure()
+    if (value.excessChanges(child, decoration, previous, current)) panel.policyLayout.node?.invalidateLayout()
 }
 
 /**
