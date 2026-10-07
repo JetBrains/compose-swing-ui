@@ -17,6 +17,8 @@
  * foundation-layout; see this module's META-INF/NOTICE for the synced version.
  * intrinsicMainAxisSize/intrinsicCrossAxisSize (from RowColumnImpl.kt, 2019) and
  * RowMeasurePolicy/ColumnMeasurePolicy (from Row.kt/Column.kt, 2020) are upstream's too.
+ * Swing adaptation: Row's intrinsic height reads a filling weighted child under a fixed width offer,
+ * matching the constraints used to measure it.
  */
 
 // Suppressed: every function here is a step of the one Row and Column measurement algorithm, with its intrinsic
@@ -382,7 +384,12 @@ internal data class RowMeasurePolicy(
                 child,
                 childWidth,
                 ->
-                child.minIntrinsicHeight(childWidth)
+                val weight = child.linearConstraint?.weight
+                if (weight?.fill == true && weight.weight > 0f && childWidth != Constraints.Infinity) {
+                    child.intrinsicHeightUnder(IntrinsicSize.Min, childWidth, childWidth)
+                } else {
+                    child.minIntrinsicHeight(childWidth)
+                }
             },
             mainAxisAvailable = width,
         )
@@ -398,7 +405,12 @@ internal data class RowMeasurePolicy(
                 child,
                 childWidth,
                 ->
-                child.maxIntrinsicHeight(childWidth)
+                val weight = child.linearConstraint?.weight
+                if (weight?.fill == true && weight.weight > 0f && childWidth != Constraints.Infinity) {
+                    child.intrinsicHeightUnder(IntrinsicSize.Max, childWidth, childWidth)
+                } else {
+                    child.maxIntrinsicHeight(childWidth)
+                }
             },
             mainAxisAvailable = width,
         )

@@ -152,7 +152,8 @@ private class IntrinsicHeightNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val height = measurable.intrinsicHeight(intrinsicSize, constraints.maxWidth).coerceAtLeast(0)
+        val height =
+            measurable.intrinsicHeightUnder(intrinsicSize, constraints.minWidth, constraints.maxWidth).coerceAtLeast(0)
         val contentConstraints = Constraints.fixedHeight(height)
         val measuredConstraints = if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
         val placeable = measurable.measure(measuredConstraints)
@@ -189,3 +190,19 @@ internal fun IntrinsicMeasurable.intrinsicHeight(
     intrinsicSize: IntrinsicSize,
     width: Int,
 ): Int = if (intrinsicSize == IntrinsicSize.Min) minIntrinsicHeight(width) else maxIntrinsicHeight(width)
+
+/**
+ * What [read] works out from this container's policy over the children an intrinsic read walks. The result the
+ * last pass settled on is set aside while it runs and restored after.
+ */
+internal inline fun <T> ChildMeasurables.readPolicyPreferences(read: MeasurePolicy.(List<Measurable>) -> T): T =
+    synchronized(panel.treeLock) {
+        val children = intrinsicChildren
+        val retained = measured
+        measured = null
+        try {
+            owner.policy.read(children)
+        } finally {
+            measured = retained
+        }
+    }

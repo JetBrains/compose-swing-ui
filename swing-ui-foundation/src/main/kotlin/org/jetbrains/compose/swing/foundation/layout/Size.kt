@@ -16,6 +16,10 @@
  * Adapted from androidx.compose.foundation.layout.SizeNode in AndroidX's foundation-layout; see
  * this module's META-INF/NOTICE for the synced version. The non-enforced coercion branch, and
  * the FillNode/WrapContentNode/UnspecifiedConstraintsNode family, are upstream's.
+ *
+ * | Swing adaptation | Purpose |
+ * | --- | --- |
+ * | Non-enforced height intrinsics retain the minimum-width offer | The query preserves the measurement offer. |
  */
 
 // Every size modifier stays in this one file, as androidx foundation-layout's Size.kt keeps them, so the two
@@ -499,7 +503,10 @@ private class SizeNode(
             constraints.maxHeight
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
-            constraints.constrainHeight(measurable.minIntrinsicHeight(childWidth))
+            constraints.constrainHeight(
+                (if (enforceIncoming) measurable else measurable.offeredAt(minWidth, constraints))
+                    .minIntrinsicHeight(childWidth),
+            )
         }
     }
 
@@ -525,7 +532,10 @@ private class SizeNode(
             constraints.maxHeight
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
-            constraints.constrainHeight(measurable.maxIntrinsicHeight(childWidth))
+            constraints.constrainHeight(
+                (if (enforceIncoming) measurable else measurable.offeredAt(minWidth, constraints))
+                    .maxIntrinsicHeight(childWidth),
+            )
         }
     }
 }

@@ -32,71 +32,46 @@ import kotlin.test.assertEquals
  */
 class RowColumnParentQueryTest {
     @Test
-    fun aColumnsMinimumStacksWhatItsChildrenCanShrinkTo() =
-        runComposeSwingTest {
-            setContent {
-                Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    repeat(CHILD_COUNT) { index -> SizedChild(index, SwingModifier.minimumSize(MIN_WIDTH, MIN_HEIGHT)) }
-                }
-            }
-
-            assertEquals(
-                Dimension(MIN_WIDTH, CHILD_COUNT * MIN_HEIGHT),
-                container().minimumSize,
-                "a column must ask for no more than the heights its children can shrink to, stacked, and the " +
-                    "widest of the widths they can shrink to - not the extents they prefer",
+    fun aColumnsMinimumStacksItsChildrensMinimaIncludingWeightsAndArrangementGaps() {
+        val rows =
+            listOf(
+                "stacked" to List(CHILD_COUNT) { MIN_HEIGHT },
+                "spaced" to List(CHILD_COUNT) { MIN_HEIGHT },
+                "weighted" to listOf(MIN_HEIGHT, WEIGHTED_MIN_HEIGHT),
             )
-        }
-
-    @Test
-    fun aColumnsMinimumHoldsTheGapItsArrangementKeeps() =
-        runComposeSwingTest {
-            setContent {
-                Column(
-                    modifier = SwingModifier.testTag(CONTAINER_TAG),
-                    verticalArrangement = Arrangement.spacedBy(SPACING),
-                ) {
-                    repeat(CHILD_COUNT) { index -> SizedChild(index, SwingModifier.minimumSize(MIN_WIDTH, MIN_HEIGHT)) }
+        for ((name, heights) in rows) {
+            val gap = if (name == "spaced") SPACING else 0
+            runComposeSwingTest {
+                setContent {
+                    Column(
+                        modifier = SwingModifier.testTag(CONTAINER_TAG),
+                        verticalArrangement = if (gap == 0) Arrangement.Top else Arrangement.spacedBy(gap),
+                    ) {
+                        for ((index, height) in heights.withIndex()) {
+                            val weight =
+                                if (name == "weighted" && index == 1) SwingModifier.weight(1f) else SwingModifier
+                            SizedChild(index, weight.minimumSize(MIN_WIDTH, height))
+                        }
+                    }
                 }
+                assertEquals(
+                    Dimension(MIN_WIDTH, heights.sum() + (heights.size - 1) * gap),
+                    container().minimumSize,
+                    "$name: the minimum stacks the children's minimum heights and keeps each arrangement gap",
+                )
             }
-
-            assertEquals(
-                Dimension(MIN_WIDTH, CHILD_COUNT * MIN_HEIGHT + (CHILD_COUNT - 1) * SPACING),
-                container().minimumSize,
-                "the gap the arrangement keeps between each adjacent pair must be held in the minimum as well " +
-                    "as in the preferred extent, since a column shrunk to its minimum still keeps its children apart",
-            )
         }
-
-    @Test
-    fun aWeightedChildsShareOfAColumnsMinimumIsTakenAgainstItsOwnMinimum() =
-        runComposeSwingTest {
-            setContent {
-                Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.minimumSize(MIN_WIDTH, MIN_HEIGHT))
-                    SizedChild(1, SwingModifier.weight(1f).minimumSize(MIN_WIDTH, WEIGHTED_MIN_HEIGHT))
-                }
-            }
-
-            assertEquals(
-                Dimension(MIN_WIDTH, MIN_HEIGHT + WEIGHTED_MIN_HEIGHT),
-                container().minimumSize,
-                "the height a weight implies must be the height that child can shrink to divided by its " +
-                    "share, so the column asks for the weighted child's minimum rather than what it prefers",
-            )
-        }
+    }
 
     @Test
     fun aRowAColumnAndABoxTakeAnyExtentTheyAreOffered() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.testTag(ROW_TAG)) { SizedChild(0) }
-                Column(modifier = SwingModifier.testTag(COLUMN_TAG)) { SizedChild(1) }
-                Box(modifier = SwingModifier.testTag(BOX_TAG)) { SizedChild(2) }
+                ParentQueryContainers.values.forEachIndexed { index, container -> container { SizedChild(index) } }
             }
 
             val unbounded = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
+            for (tag in ParentQueryContainers.keys) {
                 assertEquals(
                     unbounded,
                     panel(tag).maximumSize,
@@ -107,50 +82,37 @@ class RowColumnParentQueryTest {
         }
 
     @Test
-    fun aRowReportsTheAlignmentItsFirstChildReports() =
-        runComposeSwingTest {
-            setContent {
-                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                    SizedChild(1, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING))
+    fun aContainerReportsItsFirstDeclaredChildsAlignmentOrCenteredAlignmentWhenEmpty() {
+        val rows =
+            listOf(
+                "first declared" to listOf(LEADING to TRAILING, TRAILING to LEADING),
+                "hidden" to listOf(TRAILING to LEADING, LEADING to TRAILING),
+                "empty" to emptyList(),
+            )
+        for ((name, alignments) in rows) {
+            val containers = ParentQueryContainers
+            runComposeSwingTest {
+                setContent {
+                    for (container in containers.values) {
+                        container {
+                            for ((index, alignment) in alignments.withIndex()) {
+                                val modifier = SwingModifier.alignmentX(alignment.first).alignmentY(alignment.second)
+                                SizedChild(
+                                    index,
+                                    if (name == "hidden" && index == 0) modifier.visible(false) else modifier,
+                                )
+                            }
+                        }
+                    }
+                }
+                val expected = alignments.firstOrNull() ?: (Component.CENTER_ALIGNMENT to Component.CENTER_ALIGNMENT)
+                for (tag in containers.keys) {
+                    val panel = panel(tag)
+                    assertEquals(expected, panel.alignmentX to panel.alignmentY, "$tag, $name: parent alignment")
                 }
             }
-
-            // Swing's physical array is reversed by stacking, but a row's parent alignment follows the
-            // declaration order it measures and arranges.
-            assertEquals(LEADING, container().alignmentX, "the row must report the x alignment of its first child")
-            assertEquals(TRAILING, container().alignmentY, "and the y alignment of that same child")
         }
-
-    @Test
-    fun aColumnReportsTheAlignmentItsFirstChildReports() =
-        runComposeSwingTest {
-            setContent {
-                Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                    SizedChild(1, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING))
-                }
-            }
-
-            // A column makes the same declaration-order promise even though its visual stack is reversed.
-            assertEquals(LEADING, container().alignmentX, "the column must report the x alignment of its first child")
-            assertEquals(TRAILING, container().alignmentY, "and the y alignment of that same child")
-        }
-
-    @Test
-    fun aBoxReportsTheAlignmentItsFirstChildReports() =
-        runComposeSwingTest {
-            setContent {
-                Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                    SizedChild(1, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING))
-                }
-            }
-
-            // The child declared last stacks on top, but a box answers for the one declared first, as a row does.
-            assertEquals(LEADING, container().alignmentX, "the box must report the x alignment of its first child")
-            assertEquals(TRAILING, container().alignmentY, "and the y alignment of that same child")
-        }
+    }
 
     /** Restacking a child by z-index changes the paint and hit-testing order, not which child a parent query asks. */
     @Test
@@ -165,18 +127,15 @@ class RowColumnParentQueryTest {
                 }
             }
 
-            assertEquals(
-                LEADING,
-                container().alignmentX,
-                "the first declared child must be reported before any restack",
-            )
-            assertEquals(TRAILING, container().alignmentY)
-
-            z = 5f
-            awaitIdle()
-
-            assertEquals(LEADING, container().alignmentX, "restacking by z-index must not change which child is asked")
-            assertEquals(TRAILING, container().alignmentY)
+            for (index in listOf(0f, 5f)) {
+                z = index
+                awaitIdle()
+                assertEquals(
+                    LEADING to TRAILING,
+                    container().alignmentX to container().alignmentY,
+                    "z-index=$index: restacking keeps the first declared child's alignment on both axes",
+                )
+            }
         }
 
     /** A container's declaration order, and so the child a parent query asks, survives removal and insertion. */
@@ -186,33 +145,26 @@ class RowColumnParentQueryTest {
             var presentA by mutableStateOf(true)
             var presentC by mutableStateOf(false)
             setContent {
-                Row(modifier = SwingModifier.testTag(ROW_TAG)) { OrderedChildren(presentA, presentC) }
-                Column(modifier = SwingModifier.testTag(COLUMN_TAG)) { OrderedChildren(presentA, presentC) }
-                Box(modifier = SwingModifier.testTag(BOX_TAG)) { OrderedChildren(presentA, presentC) }
+                ParentQueryContainers.values.forEach { it { OrderedChildren(presentA, presentC) } }
             }
 
-            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
-                assertEquals(LEADING, panel(tag).alignmentX, "'$tag' must report A's alignment before it is removed")
-            }
-
+            assertContainerAlignments(LEADING, "before A is removed")
             presentA = false
             awaitIdle()
-
-            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
-                assertEquals(TRAILING, panel(tag).alignmentX, "'$tag' must report B's alignment once A is removed")
-            }
-
+            assertContainerAlignments(TRAILING, "once A is removed")
             presentC = true
             awaitIdle()
-
-            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
-                assertEquals(
-                    Component.CENTER_ALIGNMENT,
-                    panel(tag).alignmentX,
-                    "'$tag' must report C's alignment once it is declared first",
-                )
-            }
+            assertContainerAlignments(Component.CENTER_ALIGNMENT, "once C is declared first")
         }
+
+    private fun ComposeSwingTest.assertContainerAlignments(
+        expected: Float,
+        state: String,
+    ) {
+        for (tag in ParentQueryContainers.keys) {
+            assertEquals(expected, panel(tag).alignmentX, "$tag reports its first declared child's alignment $state")
+        }
+    }
 
     /** A custom layout's parent query follows the declaration order of its content, not the order its policy places. */
     @Test
@@ -253,51 +205,6 @@ class RowColumnParentQueryTest {
         if (presentA) SizedChild(0, SwingModifier.alignmentX(LEADING))
         SizedChild(1, SwingModifier.alignmentX(TRAILING))
     }
-
-    @Test
-    fun aHiddenChildDecidesWhatItsContainerReportsLikeAnyOther() =
-        runComposeSwingTest {
-            setContent {
-                // In each container the hidden child is the first declared, the one that is asked.
-                Row(modifier = SwingModifier.testTag(ROW_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
-                    SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                }
-                Box(modifier = SwingModifier.testTag(BOX_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
-                    SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                }
-            }
-
-            for (tag in listOf(ROW_TAG, BOX_TAG)) {
-                val container = panel(tag)
-                assertEquals(TRAILING, container.alignmentX, "$tag reports the hidden child's x alignment")
-                assertEquals(LEADING, container.alignmentY, "and its y alignment on the other axis")
-            }
-        }
-
-    @Test
-    fun aContainerWithNothingInItReportsTheCenteredAlignment() =
-        runComposeSwingTest {
-            setContent {
-                Row(modifier = SwingModifier.testTag(ROW_TAG)) {}
-                Column(modifier = SwingModifier.testTag(COLUMN_TAG)) {}
-                Box(modifier = SwingModifier.testTag(BOX_TAG)) {}
-            }
-
-            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
-                assertEquals(
-                    Component.CENTER_ALIGNMENT,
-                    panel(tag).alignmentX,
-                    "'$tag' has no child to take an x alignment from, so it must report the centered default",
-                )
-                assertEquals(
-                    Component.CENTER_ALIGNMENT,
-                    panel(tag).alignmentY,
-                    "'$tag' has no child to take a y alignment from either",
-                )
-            }
-        }
 
     @Test
     fun aColumnsBorderInsetsReachBothTheExtentsItAsksFor() =
@@ -365,10 +272,34 @@ class RowColumnParentQueryTest {
         )
     }
 
+    /**
+     * Preferred height is queried at the preferred width, so the aspect ratio can affect that result
+     * even when measurement is unbounded. Unbounded measurement keeps the child's own size.
+     * A bounded Column queries the Box's width at a finite height and grants that width.
+     */
     @Test
-    fun aBoxsPreferredSizeIsItsMeasuredSizeWhateverLayoutModifierItsChildDeclares() {
+    fun aBoxUsesTheParentsFiniteIntrinsicOfferWhenItsChildDeclaresAnAspectRatio() {
         val mismatches =
-            preferredAndMeasuredMismatches(BOX_ANDROIDX_SIZES) { declare, bounded ->
+            preferredAndMeasuredMismatches(
+                mapOf(
+                    "aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(50, 40), Dimension(80, 40)),
+                    "aspectRatio(2f, matchHeightConstraintsFirst), bounded" to
+                        PreferredAndLaidOut(Dimension(50, 40), Dimension(80, 40)),
+                    "aspectRatio(2f).padding(5), bounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(100, 50)),
+                    "padding(5).aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(90, 50)),
+                    "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 100), Dimension(50, 40)),
+                    "aspectRatio(2f).padding(5), unbounded" to
+                        PreferredAndLaidOut(
+                            Dimension(60, 40),
+                            Dimension(60, 50),
+                        ),
+                    "padding(5).aspectRatio(2f), unbounded" to
+                        PreferredAndLaidOut(
+                            Dimension(60, 40),
+                            Dimension(60, 50),
+                        ),
+                ),
+            ) { declare, bounded ->
                 Column {
                     val bound = if (bounded) SwingModifier else SwingModifier.wrapContentSize(unbounded = true)
                     Box(modifier = SwingModifier.testTag(CONTAINER_TAG).then(bound)) {
@@ -381,9 +312,8 @@ class RowColumnParentQueryTest {
         assertEquals(
             emptyList(),
             mismatches,
-            "a box must be laid out at the size it prefers, with or without a genuine bound, whatever layout " +
-                "modifier its child declares, except where androidx itself lays it out at another size, at the " +
-                "sizes in BOX_ANDROIDX_SIZES",
+            "A box preserves finite intrinsic offers while its native preferred height " +
+                "is read at its preferred width.",
         )
     }
 
@@ -439,6 +369,13 @@ class RowColumnParentQueryTest {
         const val ROW_TAG = "row"
         const val COLUMN_TAG = "column"
         const val BOX_TAG = "box"
+
+        val ParentQueryContainers: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
+            mapOf(
+                ROW_TAG to { content -> Row(modifier = SwingModifier.testTag(ROW_TAG)) { content() } },
+                COLUMN_TAG to { content -> Column(modifier = SwingModifier.testTag(COLUMN_TAG)) { content() } },
+                BOX_TAG to { content -> Box(modifier = SwingModifier.testTag(BOX_TAG)) { content() } },
+            )
     }
 }
 
@@ -524,18 +461,6 @@ private val COLUMN_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
         "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 140), Dimension(50, 80)),
         "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(100, 90), Dimension(60, 90)),
         "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(90, 90), Dimension(60, 90)),
-    )
-
-/**
- * The [SIZING_MODIFIERS] entries a [Box] with no bound at all prefers at one size and is laid out at another, as
- * androidx does. The box's max intrinsic height reads the ratio for the child's height at the box's intrinsic width,
- * while its measure, offered no constraint, leaves the ratio no size to find, so the child keeps its own size.
- */
-private val BOX_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
-    mapOf(
-        "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 100), Dimension(50, 40)),
-        "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
-        "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
     )
 
 /**

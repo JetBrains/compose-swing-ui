@@ -239,7 +239,7 @@ internal open class ConstrainedPanel(
         val measurables = policyLayout.measurables
         if (measurables.isFittingPaintOutsets && measurables.beingPlaced) return super.invalidate()
         if (measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets }) return
-        super.invalidate()
+        if (!measurables.isReadingSizePreferences) super.invalidate()
     }
 
     private var measured: Dimension = Dimension()
@@ -272,6 +272,90 @@ internal open class ConstrainedPanel(
             } else {
                 policyLayout.measurables.run { during(RunningCause.ParentPlacement) { measuredSize(constraints) } }
             }
+    }
+
+    /**
+     * A size set on the component supplies the max intrinsic sizes, and a minimum size
+     * set supplies the min intrinsic sizes, as
+     * they provide `getPreferredSize()` and `getMinimumSize()`. Otherwise the
+     * policy's own intrinsic functions return results,
+     * inside the border insets, as androidx computes a layout's intrinsics from its measure policy.
+     */
+    final override fun minIntrinsicWidth(height: Int): Int =
+        if (isMinimumSizeSet) {
+            minimumSize.width
+        } else {
+            policyWidth(height) { children, inner -> PolicyMeasureScope.minIntrinsicWidth(children, inner) }
+        }
+
+    final override fun maxIntrinsicWidth(height: Int): Int =
+        if (isPreferredSizeSet) {
+            preferredSize.width
+        } else {
+            policyWidth(height) { children, inner -> PolicyMeasureScope.maxIntrinsicWidth(children, inner) }
+        }
+
+    final override fun minIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Min, 0, width)
+
+    final override fun maxIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Max, 0, width)
+
+    /**
+     * The [intrinsicSize] height under an offer of a width from [minWidth] up to [width], as a Foundation parent reads
+     * it. A set size returns results as it does for [minIntrinsicHeight] and [maxIntrinsicHeight].
+     */
+    internal fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int =
+        when {
+            intrinsicSize == IntrinsicSize.Min && isMinimumSizeSet -> minimumSize.height
+            intrinsicSize == IntrinsicSize.Max && isPreferredSizeSet -> preferredSize.height
+            else -> policyHeight(intrinsicSize, minWidth, width)
+        }
+
+    /**
+     * The policy's [intrinsicSize] height at the inner [width], run under the inner offer from [minWidth], plus the
+     * border's top and bottom insets.
+     */
+    private fun policyHeight(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(width, insets.left, insets.right)
+        val innerMinWidth = innerExtent(minWidth, insets.left, insets.right)
+        val scope = widthOfferScope(innerMinWidth.coerceAtMost(inner))
+        val height =
+            policyLayout.measurables.run {
+                during(RunningCause.ParentPlacement) {
+                    readPolicyPreferences {
+                        if (intrinsicSize == IntrinsicSize.Min) {
+                            scope.minIntrinsicHeight(it, inner)
+                        } else {
+                            scope.maxIntrinsicHeight(it, inner)
+                        }
+                    }
+                }
+            }
+        return height.grownBy(insets.top.grownBy(insets.bottom))
+    }
+
+    /** What [read] works out for the inner extent at the outer [height], plus the border's left and right insets. */
+    private inline fun policyWidth(
+        height: Int,
+        read: MeasurePolicy.(List<Measurable>, Int) -> Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(height, insets.top, insets.bottom)
+        val width =
+            policyLayout.measurables.run {
+                during(
+                    RunningCause.ParentPlacement,
+                ) { readPolicyPreferences { read(it, inner) } }
+            }
+        return width.grownBy(insets.left.grownBy(insets.right))
     }
 
     /**

@@ -17,8 +17,11 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,6 +34,31 @@ import kotlin.test.assertTrue
  * follows finds nothing to lay out again.
  */
 class HeightFollowsWidthTest {
+    @Test
+    fun aWrappingTextAreaInAContainerAFlowLayoutHoldsTakesItsWrappedHeightInTheFirstValidation() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Column(modifier = SwingModifier.testTag("column")) {
+                        TextArea(
+                            WRAPPING_TEXT,
+                            {},
+                            SwingModifier.testTag("text").fillMaxWidth(),
+                            lineWrap = true,
+                            wrapStyleWord = true,
+                        )
+                    }
+                }
+            }
+            val text = onNodeWithTag("text").fetch<JTextArea>()
+            val column = onNodeWithTag("column").fetch<JComponent>()
+
+            assertWrapped(text, "the first validation")
+            assertEquals(text.size, column.size, "the column holds the area at the size it prefers")
+            settleWithPaint()
+            assertWrapped(text, "the paint that follows")
+        }
+
     @Test
     fun aWrappingTextAreaTakesItsWrappedHeightInTheValidationThatGrantsItsWidth() {
         val stackPolicy = stackingPolicy()
@@ -49,7 +77,7 @@ class HeightFollowsWidthTest {
                     Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(2 * width, HEIGHT)) {
                         Panel(PanelLayout.Border()) {
                             TextArea(
-                                TEXT,
+                                WRAPPING_TEXT,
                                 {},
                                 SwingModifier.testTag("reference").north(),
                                 lineWrap = true,
@@ -59,7 +87,7 @@ class HeightFollowsWidthTest {
                         Panel(PanelLayout.Border()) {
                             container(SwingModifier.center().testTag("container")) {
                                 TextArea(
-                                    TEXT,
+                                    WRAPPING_TEXT,
                                     {},
                                     SwingModifier.testTag("text").fillMaxWidth().countingMeasures { measures++ },
                                     lineWrap = true,
@@ -101,7 +129,7 @@ class HeightFollowsWidthTest {
                 Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDTH, HEIGHT)) {
                     Column(modifier = SwingModifier.center()) {
                         TextArea(
-                            TEXT,
+                            WRAPPING_TEXT,
                             {},
                             SwingModifier.testTag("text").wrapContentWidth(unbounded = true),
                             lineWrap = true,
@@ -127,7 +155,7 @@ class HeightFollowsWidthTest {
                     Column(modifier = SwingModifier.center()) {
                         Row(modifier = SwingModifier.testTag("row")) {
                             TextArea(
-                                TEXT,
+                                WRAPPING_TEXT,
                                 {},
                                 SwingModifier.testTag("text").weight(1f),
                                 lineWrap = true,
@@ -169,7 +197,7 @@ class HeightFollowsWidthTest {
                     Column(modifier = SwingModifier.center().testTag("column")) {
                         Box(modifier = SwingModifier.testTag("box")) {
                             TextArea(
-                                TEXT,
+                                WRAPPING_TEXT,
                                 {},
                                 SwingModifier.testTag("text").fillMaxWidth(),
                                 lineWrap = true,
@@ -206,11 +234,14 @@ class HeightFollowsWidthTest {
             setContent {
                 Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(2 * width, HEIGHT)) {
                     Panel(PanelLayout.Border()) {
-                        Label("<html>$TEXT</html>", modifier = SwingModifier.testTag("reference").north())
+                        Label("<html>$WRAPPING_TEXT</html>", modifier = SwingModifier.testTag("reference").north())
                     }
                     Panel(PanelLayout.Border()) {
                         Column(modifier = SwingModifier.center().testTag("column")) {
-                            Label("<html>$TEXT</html>", modifier = SwingModifier.testTag("label").fillMaxWidth())
+                            Label(
+                                "<html>$WRAPPING_TEXT</html>",
+                                modifier = SwingModifier.testTag("label").fillMaxWidth(),
+                            )
                         }
                     }
                 }
@@ -244,7 +275,7 @@ class HeightFollowsWidthTest {
                     Column(modifier = SwingModifier.center()) {
                         Row(modifier = SwingModifier.testTag("row")) {
                             Label(
-                                "<html>$TEXT</html>",
+                                "<html>$WRAPPING_TEXT</html>",
                                 modifier = SwingModifier.testTag("label").weight(1f).alignByBaseline(),
                             )
                             Label("Side", modifier = SwingModifier.alignByBaseline())
@@ -262,51 +293,57 @@ class HeightFollowsWidthTest {
         }
 
     @Test
-    fun aWrappingTextAreaInValidContainersNestedInOneItsParentNarrowsTakesItsWrappedHeightInOneValidation() =
-        runComposeSwingTest {
-            var width by mutableIntStateOf(WIDTH)
-            setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, HEIGHT)) {
-                    Column(modifier = SwingModifier.center().testTag("column")) {
-                        Box(modifier = SwingModifier.testTag("outer")) {
-                            Box(modifier = SwingModifier.testTag("inner")) {
-                                TextArea(
-                                    TEXT,
-                                    {},
-                                    SwingModifier.testTag("text").fillMaxWidth(),
-                                    lineWrap = true,
-                                    wrapStyleWord = true,
-                                )
+    fun aWrappingTextAreaInValidContainersNestedInOneItsParentNarrowsTakesItsWrappedHeightInOneValidation() {
+        for (readsIntrinsicHeight in listOf(false, true)) {
+            val name = if (readsIntrinsicHeight) "the outer box read its intrinsic height" else "the boxes measured"
+            runComposeSwingTest {
+                var width by mutableIntStateOf(WIDTH)
+                setContent {
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, HEIGHT)) {
+                        Column(modifier = SwingModifier.center().testTag("column")) {
+                            val outer =
+                                if (readsIntrinsicHeight) SwingModifier.height(IntrinsicSize.Max) else SwingModifier
+                            Box(modifier = outer.testTag("outer")) {
+                                Box(modifier = SwingModifier.testTag("inner")) {
+                                    TextArea(
+                                        WRAPPING_TEXT,
+                                        {},
+                                        SwingModifier.testTag("text").fillMaxWidth(),
+                                        lineWrap = true,
+                                        wrapStyleWord = true,
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
-            val text = onNodeWithTag("text").fetch<JTextArea>()
-            val wide = text.height
+                val text = onNodeWithTag("text").fetch<JTextArea>()
+                val wide = text.height
 
-            val containers =
-                listOf("column", "outer", "inner").associateWith { onNodeWithTag(it).fetch<JComponent>() }
-            withRecordedRepaints { recorder ->
-                width = WIDTH / 2
-                awaitIdle()
-                assertEquals(
-                    emptyList(),
-                    containers.filterValues { it in recorder.relayouts }.keys.toList(),
-                    "the boxes, resizing the area as the column lays them out, request no layout pass",
-                )
-            }
+                val containers =
+                    listOf("column", "outer", "inner").associateWith { onNodeWithTag(it).fetch<JComponent>() }
+                withRecordedRepaints { recorder ->
+                    width = WIDTH / 2
+                    awaitIdle()
+                    assertEquals(
+                        emptyList(),
+                        containers.filterValues { it in recorder.relayouts }.keys.toList(),
+                        "$name: the boxes, resizing the area as the column lays them out, request no layout pass",
+                    )
+                }
 
-            assertEquals(WIDTH / 2, text.width, "the area takes the narrower width")
-            assertWrapped(text, "the validation that narrows its containers")
-            assertTrue(text.height > wide, "into more lines than it took at the wider width")
+                assertEquals(WIDTH / 2, text.width, "$name: the area takes the narrower width")
+                assertWrapped(text, "$name: the validation that narrows its containers")
+                assertTrue(text.height > wide, "$name: into more lines than it took at the wider width")
+            }
         }
+    }
 
     @Test
     fun aComponentGrantedTheWidthItHoldsIsAskedWhatItPrefersOnlyOnce() =
         runComposeSwingTest {
             var label by mutableStateOf("Before")
-            val text = CountingTextArea(TEXT)
+            val text = CountingTextArea(WRAPPING_TEXT)
             setContent {
                 Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDTH, HEIGHT)) {
                     Column(modifier = SwingModifier.center()) {
@@ -325,13 +362,65 @@ class HeightFollowsWidthTest {
             assertEquals(1, text.queries, "and the area, granted the width it holds, is read once")
         }
 
+    @Test
+    fun thePaintAfterAWidthChangeReadsNoPreferredSizeOfContentWhoseHeightDoesNotFollowItsWidth() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            var intrinsicWidthReadCount = 0
+            val panel = ResizeCountingPanel()
+            val nested =
+                object : MeasurePolicy {
+                    override fun MeasureScope.measure(
+                        measurables: List<Measurable>,
+                        constraints: Constraints,
+                    ): MeasureResult {
+                        val placeable = measurables.single().measure(constraints)
+                        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                        measurables: List<IntrinsicMeasurable>,
+                        height: Int,
+                    ): Int {
+                        intrinsicWidthReadCount++
+                        return measurables.single().maxIntrinsicWidth(height)
+                    }
+
+                    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                        measurables: List<IntrinsicMeasurable>,
+                        width: Int,
+                    ): Int = measurables.single().maxIntrinsicHeight(width)
+                }
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, HEIGHT)) {
+                    Column(modifier = SwingModifier.north()) {
+                        Layout(
+                            content = { Label("Nested", modifier = SwingModifier.fillMaxWidth()) },
+                            measurePolicy = nested,
+                        )
+                        SwingNode(factory = { panel }, modifier = SwingModifier.fillMaxWidth())
+                    }
+                }
+            }
+            settleWithPaint()
+            width = WIDTH + 80
+            awaitIdle()
+            intrinsicWidthReadCount = 0
+            panel.queries = 0
+
+            captureToImage()
+
+            assertEquals(
+                0,
+                intrinsicWidthReadCount,
+                "the paint reads no nested container the preferred size it no longer holds",
+            )
+            assertEquals(0, panel.queries, "nor a component the column holds, whose preferred size it holds")
+        }
+
     private companion object {
         const val WIDTH = 320
         const val HEIGHT = 600
-        const val TEXT =
-            "Wrapping text that is much longer than one line at three hundred and twenty pixels, so it has to " +
-                "break into several lines to fit the width the parent gives it, and its height depends on that " +
-                "width."
 
         /** Stacks its children, each at the whole width it is offered and the height it then returns. */
         fun stackingPolicy() =
@@ -347,20 +436,6 @@ class HeightFollowsWidthTest {
                 }
             }
 
-        /** Asserts [text] holds the height it prefers at the width it holds, and that this is several lines. */
-        fun assertWrapped(
-            text: JTextArea,
-            pass: String,
-        ) {
-            val lines = (text.height - text.insets.top - text.insets.bottom) / text.getFontMetrics(text.font).height
-            assertTrue(lines > 1, "$pass wraps the area into several lines, but it took $lines")
-            assertEquals(
-                text.preferredSize.height,
-                text.height,
-                "$pass lays the area out at the height it prefers at its width",
-            )
-        }
-
         /** Asserts [label] holds the height it prefers at the width it holds, and that this is several lines. */
         fun assertHtmlWrapped(
             label: JComponent,
@@ -374,12 +449,48 @@ class HeightFollowsWidthTest {
                 "$pass lays the label out at the height it prefers at its width",
             )
         }
+    }
+}
 
-        /** Paints the tree and lets the validation any paint requests run, as a window's next frame would. */
-        suspend fun ComposeSwingTest.settleWithPaint() {
-            captureToImage()
-            awaitIdle()
-        }
+/** Text a wrapping text area breaks into several lines at a width of a few hundred pixels. */
+internal const val WRAPPING_TEXT =
+    "Wrapping text that is much longer than one line at three hundred and twenty pixels, so it has to break " +
+        "into several lines to fit the width the parent gives it, and its height depends on that width."
+
+/** Asserts [text] holds the height it prefers at the width it holds, and that this is several lines. */
+internal fun assertWrapped(
+    text: JComponent,
+    pass: String,
+) {
+    val inner = text.height - text.insets.top - text.insets.bottom
+    assertTrue(
+        inner > text.getFontMetrics(text.font).height,
+        "$pass wraps the text into several lines, but it is ${text.height} tall",
+    )
+    assertEquals(
+        text.preferredSize.height,
+        text.height,
+        "$pass lays the text out at the height it prefers at its width",
+    )
+}
+
+/** Paints the tree and lets the validation any paint requests run, as a window's next frame would. */
+internal suspend fun ComposeSwingTest.settleWithPaint() {
+    captureToImage()
+    awaitIdle()
+}
+
+/** A panel holding a label, counting how often it has its preferred size read. */
+private class ResizeCountingPanel : JPanel(BorderLayout()) {
+    var queries = 0
+
+    init {
+        add(JLabel("Counted"))
+    }
+
+    override fun getPreferredSize(): Dimension {
+        queries++
+        return super.getPreferredSize()
     }
 }
 
