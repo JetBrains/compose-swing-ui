@@ -19,6 +19,32 @@ internal val ChildMeasurable.layoutMinimumSize: Dimension
     get() = layoutSize(component.minimumSize, component.isMinimumSizeSet)
 
 /**
+ * What this child prefers sized to the layout extent [width] by [height]. Swing has no query for a height at a given
+ * width: a component whose height follows its width, such as a wrapping text area, answers `getPreferredSize()` for
+ * the width it holds, so it is sized for the reading, as `JViewport` sizes a view that tracks its width. In its
+ * container's own layout pass it keeps that size, which the placement following sets or hides it from; otherwise it is
+ * given its own size back, since only a placement sets a child's bounds. No resize asks for a layout pass. Its baseline
+ * is asked at that size first: a label showing HTML lays its markup out at the width `getBaseline` names.
+ */
+internal fun ChildMeasurable.preferredExtentSizedTo(
+    width: Int,
+    height: Int,
+): Dimension {
+    val outsets = decoratable?.decoration?.heldPaintOutsets ?: NoPaintOutsets
+    val heldWidth = component.width
+    val heldHeight = component.height
+    var extent = Dimension()
+    owner.during(RunningCause.SettledResultKept) {
+        component.setSize(width.grownBy(outsets.left + outsets.right), height.grownBy(outsets.top + outsets.bottom))
+        layoutBaseline(width, height)
+        extent = layoutPreferredSize
+        if (!owner.isValidating) component.setSize(heldWidth, heldHeight)
+    }
+    preferred = extent
+    return extent
+}
+
+/**
  * [size], less the paint outsets [ChildMeasurable.decoratable] holds unless the size is [set] on the component: the
  * size Foundation measures and places. A side left below the outsets reads as zero. An axis at [Int.MAX_VALUE] stays
  * there.

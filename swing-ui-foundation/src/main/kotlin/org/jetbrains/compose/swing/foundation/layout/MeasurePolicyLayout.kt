@@ -222,7 +222,7 @@ internal fun Component.keepingSettledResult(block: () -> Unit) {
     val measurables = (this as? Decoratable)?.decoration?.childMeasurables
     val parent = parent
     if (measurables != null) {
-        measurables.during(RunningCause.ParentPlacement) {
+        measurables.during(RunningCause.SettledResultKept) {
             if (parent != null) parent.keepingSettledResult(block) else block()
         }
     } else if (parent != null) {
@@ -243,7 +243,7 @@ private fun innerExtent(
 internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
 internal enum class RunningCause {
-    ParentPlacement,
+    SettledResultKept,
     PlacementReplay,
     PaintOutsetFit,
     GlassPaneChange,
@@ -331,8 +331,12 @@ internal class ChildMeasurables(
 
     private val runningCauses = EnumSet.noneOf(RunningCause::class.java)
 
-    /** Whether the invalidation arriving is the one this container's own parent causes by placing it. */
-    val beingPlaced: Boolean get() = RunningCause.ParentPlacement in runningCauses
+    /**
+     * Whether the invalidation arriving is one a pass already running answers, so this container keeps the result it
+     * settled on: its parent measuring it, asking its intrinsic size or placing it, or this container resizing a child
+     * to answer one.
+     */
+    val isKeepingSettledResult: Boolean get() = RunningCause.SettledResultKept in runningCauses
 
     /** Whether this container places its children again outside a validation. */
     val isPlacingAgain: Boolean get() = RunningCause.PlacementReplay in runningCauses
@@ -440,18 +444,18 @@ internal class ChildMeasurables(
         if (RunningCause.ChildInvalidation !in runningCauses) {
             measurables.forEach(BiConsumer { _, measurable -> measurable.preferred = null })
         }
-        if (beingPlaced) return false
+        if (isKeepingSettledResult) return false
         measured = null
         return true
     }
 
-    /** Marks [cause] for [block], preserving any cause already marked by an enclosing run. */
-    inline fun during(
+    /** What [block] returns, run with [cause] marked; a cause an enclosing run already marked stays marked. */
+    inline fun <T> during(
         cause: RunningCause,
-        block: () -> Unit,
-    ) {
+        block: () -> T,
+    ): T {
         val added = runningCauses.add(cause)
-        try {
+        return try {
             block()
         } finally {
             if (added) runningCauses.remove(cause)
@@ -741,8 +745,11 @@ internal class ChildMeasurable(
             width = constraints.minWidth
             height = constraints.minHeight
         } else {
-            val extent = preferredExtent()
+            var extent = preferredExtent()
             width = constraints.constrainWidth(extent.width)
+            if (!constraints.hasFixedHeight && width != layoutWidth) {
+                extent = preferredExtentSizedTo(width, constraints.constrainHeight(extent.height))
+            }
             height = constraints.constrainHeight(extent.height)
         }
         return ChildPlaceable(this, width, height, constraints, emptyMap())
@@ -997,7 +1004,7 @@ internal class ChildPlaceable(
         val resized = child.layoutWidth != measuredWidth || child.layoutHeight != measuredHeight
         // A constrainable child answers its constraints whatever its size.
         val readable = resized && child.constrainable == null
-        val read = if (readable) child.preferredAtOldSize() else null
+        val read = if (readable) child.preferredAsMeasured() else null
         if (resized) child.preferred = null
         val placedAgain = child.lastPlacement != ChildPlacement.Placed
         // Where this child is already visible, showing it below reports nothing on its own: it owes this report itself.
@@ -1072,11 +1079,11 @@ internal class ChildPlaceable(
 }
 
 /**
- * What this child preferred at its old size, read before a placement resizes it, or null where there is nothing to
- * compare. A displayable child holds what it answered, and nothing where it was not asked; a child with no peer holds
- * nothing, so it is asked again.
+ * What the result its container settled on read from this child, or null where there is nothing to compare. A
+ * displayable child holds that reading, and nothing where it was not asked. A child with no peer holds none: it is read
+ * before the placement resizes it where it has no layout modifier, and gives null otherwise.
  */
-private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
+private fun ChildMeasurable.preferredAsMeasured(): Dimension? =
     when {
         component.isDisplayable -> preferred
         outerMeasurable == null -> layoutPreferredSize
@@ -1085,9 +1092,9 @@ private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
 
 /**
  * Whether this child, resized by its placement, no longer answers what the result its container settled on read:
- * [read], its [preferredAtOldSize], which a child whose height follows its width answers differently at the new size.
- * A minimum is never held, so a child whose layout modifiers may have asked for one answers otherwise whenever
- * nothing else was read.
+ * [read], its [preferredAsMeasured]. A child whose width follows its height, or that was read at a size other than the
+ * one it is placed at, may answer otherwise. A minimum is never held, so a child whose layout modifiers may have asked
+ * for one answers otherwise whenever nothing else was read.
  */
 private fun ChildMeasurable.answersOtherwiseThan(read: Dimension?): Boolean =
     if (read == null) outerMeasurable != null else preferredExtent() != read

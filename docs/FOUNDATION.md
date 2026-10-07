@@ -141,8 +141,10 @@ measurement without running the container's policy. Without one, constraints con
 offered constraints, and name the alignment lines it provides in `alignmentLines`.
 
 A stock Swing widget or a foreign Swing container answers with its preferred or minimum size, held inside the
-offered constraints; it cannot reflow for an offered width, since Swing has no width-for-height query. Constraints
-also stop at a `Panel` backed by a Swing layout manager. Put a constraint-based container inside that panel when
+offered constraints. Granted a width it does not hold, with its height left open, it is sized to that width
+first, so a component whose height follows its width, such as a wrapping `TextArea`, takes its height for that width
+in the same layout pass, and so does a label showing HTML. Constraints also stop at a `Panel` backed by
+a Swing layout manager. Put a constraint-based container inside that panel when
 its descendants need layout modifiers:
 
 ```kotlin

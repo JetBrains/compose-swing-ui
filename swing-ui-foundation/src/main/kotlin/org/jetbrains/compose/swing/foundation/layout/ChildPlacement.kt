@@ -44,6 +44,6 @@ internal fun ChildMeasurable.unplace(joining: Boolean = false) {
  * container resizes it.
  */
 internal fun Component.layOutAgain() {
-    (this as? Decoratable)?.decoration?.childMeasurables?.during(RunningCause.ParentPlacement) { invalidate() }
+    (this as? Decoratable)?.decoration?.childMeasurables?.during(RunningCause.SettledResultKept) { invalidate() }
         ?: invalidate()
 }
