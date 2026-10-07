@@ -641,17 +641,21 @@ private class EnterExitContainerMeasurePolicy(
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = animatedIntrinsicSize(measurables).width
+    ): Int = animatedIntrinsicSize(measurables, Constraints.Infinity, height).width
 
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = animatedIntrinsicSize(measurables).height
+    ): Int = animatedIntrinsicSize(measurables, width, Constraints.Infinity).height
 
-    private fun animatedIntrinsicSize(measurables: List<IntrinsicMeasurable>): Dimension =
+    private fun animatedIntrinsicSize(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+        height: Int,
+    ): Dimension =
         layout.intrinsicSize(
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(Constraints.Infinity) },
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(Constraints.Infinity) },
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(height) },
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(width) },
         )
 }
 

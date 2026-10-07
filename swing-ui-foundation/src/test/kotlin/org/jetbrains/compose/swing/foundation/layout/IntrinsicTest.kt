@@ -235,7 +235,8 @@ private fun ShrinkableChild(
 /**
  * A container of this library's own, counting which of its policy's two kinds of entry points its
  * parent reaches: `measure`, which only a caller holding an extent to offer can ask, and one of the
- * four intrinsic functions, which argument-less questions route to with an unbounded opposite axis.
+ * four intrinsic functions, which argument-less questions reach: the width at an unbounded height, then the height
+ * at that width.
  */
 private class CountingPanel : ConstrainedPanel(MeasurePolicyLayout(CountingPolicy(), null)) {
     private val counting: CountingPolicy get() = (layout as MeasurePolicyLayout).policy as CountingPolicy

@@ -6,6 +6,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -26,9 +29,11 @@ import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -267,7 +272,66 @@ class SwingParentBoundaryTest {
             assertEquals(Rectangle(2, 2, 40, 30), child.bounds, "and lays its child out inside the border alone")
         }
 
+    @Test
+    fun aContainerUnderAStockParentAsksItsHeightAtTheWidthItAsksFor() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Box(modifier = SwingModifier.testTag("box")) {
+                        Label("Preview", modifier = SwingModifier.testTag("label").aspectRatio(RATIO))
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            val label = onNodeWithTag("label").fetch<JComponent>()
+            val atRatio = atRatio(label.preferredSize.width)
+
+            assertEquals(
+                atRatio,
+                box.preferredSize,
+                "the preferred height is the ratio's height at the preferred width",
+            )
+            assertEquals(
+                atRatio(label.minimumSize.width),
+                box.minimumSize,
+                "the minimum height is the ratio's height at the minimum width",
+            )
+            assertEquals(atRatio, box.size, "the stock parent grants what the container asks for")
+            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
+    fun aContainerUnderAStockParentWhoseHeightDoesNotFollowItsWidthAsksForItsContentsSizes() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Column(modifier = SwingModifier.testTag("column")) {
+                        Label("First", modifier = SwingModifier.testTag("first"))
+                        Row(modifier = SwingModifier.testTag("row")) {
+                            Label("Second", modifier = SwingModifier.testTag("second"))
+                            Label("Third, longer", modifier = SwingModifier.testTag("third"))
+                        }
+                    }
+                }
+            }
+            val first = onNodeWithTag("first").fetch<JComponent>().preferredSize
+            val second = onNodeWithTag("second").fetch<JComponent>().preferredSize
+            val third = onNodeWithTag("third").fetch<JComponent>().preferredSize
+            val row = Dimension(second.width + third.width, maxOf(second.height, third.height))
+
+            assertEquals(row, onNodeWithTag("row").fetch<JComponent>().size, "the row is its children side by side")
+            assertEquals(
+                Dimension(maxOf(first.width, row.width), first.height + row.height),
+                onNodeWithTag("column").fetch<JComponent>().size,
+                "the column is its children stacked",
+            )
+        }
+
     private companion object {
+        const val RATIO = 16f / 9f
+
+        fun atRatio(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
+
         fun stockPanel(): JPanel = JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false }
     }
 }

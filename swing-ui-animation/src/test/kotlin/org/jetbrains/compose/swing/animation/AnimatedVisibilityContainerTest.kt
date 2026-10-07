@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -38,10 +39,12 @@ import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.GraphicsEnvironment
 import java.awt.Insets
+import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JScrollPane
 import javax.swing.SwingUtilities
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -284,6 +287,55 @@ class AnimatedVisibilityContainerTest {
         }
 
     @Test
+    fun `under a stock parent the container asks its height at the width it asks for`() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    AnimatedVisibility(visible = true, modifier = SwingModifier.testTag(CONTAINER)) {
+                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+                    }
+                }
+            }
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            val atRatio = Dimension(label.preferredSize.width, (label.preferredSize.width / RATIO).roundToInt())
+
+            assertEquals(atRatio, container.preferredSize, "the preferred height is the ratio's height at that width")
+            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
+    fun `under a stock parent a fade asks the height at the width it asks for`() =
+        runComposeSwingTest {
+            var visible by mutableStateOf(false)
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    AnimatedVisibility(
+                        visible = visible,
+                        modifier = SwingModifier.testTag(CONTAINER),
+                        enter = fadeIn(HeldAlpha),
+                        exit = ExitTransition.None,
+                    ) {
+                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+            val atRatio = Dimension(label.preferredSize.width, (label.preferredSize.width / RATIO).roundToInt())
+
+            assertEquals(
+                atRatio,
+                onNodeWithTag(CONTAINER).fetch().preferredSize,
+                "a transition that animates no size asks the ratio's height at that width",
+            )
+            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
     fun `under any parent a slide paints nothing outside the container`() =
         runComposeSwingTest {
             var visible by mutableStateOf(false)
@@ -403,6 +455,7 @@ private fun Filled(
 private val HeldAlpha: FiniteAnimationSpec<Float> = tween(durationMillis = 320, delayMillis = 320)
 
 private const val HALF = 0.5f
+private const val RATIO = 16f / 9f
 private const val SAMPLE = 4
 private const val FRAMES_TO_MEASURE = 3
 private const val FRAMES_INTO_THE_SIZE_CHANGE = 10

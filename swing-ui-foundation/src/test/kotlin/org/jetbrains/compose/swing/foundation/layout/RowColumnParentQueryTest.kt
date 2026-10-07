@@ -513,28 +513,29 @@ private val ROW_OFF_PREFERRED_SIZES: Map<String, PreferredAndLaidOut> =
 /**
  * The [SIZING_MODIFIERS] entries a [Column] with no bound at all prefers at one size and is laid out at another, as
  * androidx does; see [ROW_OFF_PREFERRED_SIZES]. The column's max intrinsic width asks the ratio for the child's
- * width at the child's intrinsic height, while its measure, offered no constraint, keeps the child's own width. A
- * ratio below one gives a width under the other child's, so it is not among these.
+ * width at the child's intrinsic height, and its max intrinsic height asks the ratio for the child's height at the
+ * column's intrinsic width, while its measure, offered no constraint, keeps the child's own size.
  */
 private val COLUMN_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
     mapOf(
         "aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(80, 80), Dimension(50, 80)),
         "aspectRatio(2f, matchHeightConstraintsFirst), unbounded" to
             PreferredAndLaidOut(Dimension(80, 80), Dimension(50, 80)),
+        "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 140), Dimension(50, 80)),
         "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(100, 90), Dimension(60, 90)),
         "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(90, 90), Dimension(60, 90)),
     )
 
 /**
- * The [SIZING_MODIFIERS] entries a bounded [Box] prefers at one size and is laid out at another, as androidx does. The
- * box's default max intrinsic height asks the ratio at an unbounded width, where it answers the padded child's own 50,
- * while the column above offers the box its preferred 60 by 50 as a bound: the ratio takes the height from that
- * width, and the box is laid out at the other child's 40.
+ * The [SIZING_MODIFIERS] entries a [Box] with no bound at all prefers at one size and is laid out at another, as
+ * androidx does. The box's max intrinsic height asks the ratio for the child's height at the box's intrinsic width,
+ * while its measure, offered no constraint, leaves the ratio no size to find, so the child keeps its own size.
  */
 private val BOX_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
     mapOf(
-        "aspectRatio(2f).padding(5), bounded" to PreferredAndLaidOut(Dimension(60, 50), Dimension(60, 40)),
-        "padding(5).aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(60, 50), Dimension(60, 40)),
+        "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 100), Dimension(50, 40)),
+        "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
+        "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
     )
 
 /**

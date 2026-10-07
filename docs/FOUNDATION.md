@@ -116,8 +116,9 @@ child again.
 ### Intrinsic size
 
 Swing asks a container for its preferred and minimum sizes without offering a width or height. A preferred size
-query asks the policy's `maxIntrinsicWidth` and `maxIntrinsicHeight`, and a minimum size query its
-`minIntrinsicWidth` and `minIntrinsicHeight`, each with the other axis unbounded. A child answers the max functions
+query is answered as androidx answers `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the policy's
+`maxIntrinsicWidth` with the height unbounded, then its `maxIntrinsicHeight` at that width. A minimum size query asks
+`minIntrinsicWidth` and `minIntrinsicHeight` the same way. A child answers the max functions
 with its preferred size and the min functions with its minimum size, through the intrinsic functions of its layout
 modifiers. By default, the intrinsic functions of a policy and of a `LayoutModifierNode` run its `measure`, as
 androidx's do, against a stand-in whose extent along the asked axis is the child's intrinsic size, whatever constraints
