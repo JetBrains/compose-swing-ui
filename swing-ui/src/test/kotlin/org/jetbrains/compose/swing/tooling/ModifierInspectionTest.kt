@@ -141,7 +141,7 @@ class ModifierInspectionTest {
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG)) }
 
         val node =
-            assertNotNull(onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode)
+            assertNotNull(onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode<*>)
         assertEquals(
             listOf("testTag"),
             node.modifier.elements().map { it.name },
@@ -511,7 +511,7 @@ class ModifierInspectionTest {
 
         val node =
             assertNotNull(
-                onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode,
+                onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode<*>,
                 "no composition declared the label",
             )
         assertEquals(
@@ -555,7 +555,7 @@ private fun ComposeSwingTest.declaredBy(
 
 /** The chain this component carries, as the name and values each element reports. */
 private fun Component.declaredChain(): List<Pair<String, Map<String, Any?>>> {
-    val node = assertNotNull(findDeclaringGroup()?.node as? SwingComponentNode, "no composition declared $this")
+    val node = assertNotNull(findDeclaringGroup()?.node as? SwingComponentNode<*>, "no composition declared $this")
     return node.modifier.elements().map { it.name to it.declaredValues }
 }
 

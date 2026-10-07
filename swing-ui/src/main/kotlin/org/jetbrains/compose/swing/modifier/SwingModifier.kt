@@ -32,7 +32,6 @@ import kotlinx.coroutines.cancel
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
-import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
 import org.jetbrains.compose.swing.defaults.LocalComponentDefaults
@@ -449,21 +448,6 @@ public interface SwingModifier {
 
         override infix fun then(other: SwingModifier): SwingModifier = other
     }
-}
-
-/**
- * Runs [action] on the Event Dispatch Thread. Calls made while this node's component tree lock is held are
- * coalesced by node and callback identity until the next event-queue turn; reuse the same callback instance to
- * coalesce repeated requests. Calls made without the lock run immediately and cancel a matching queued call.
- * Detaching this node or disposing its composition drops its pending calls.
- *
- * @param action receives this node when it runs.
- * @throws IllegalStateException if this node is not attached or the call is off the Event Dispatch Thread.
- */
-public fun <T : SwingModifier.Node> T.requestAfterValidation(action: (T) -> Unit) {
-    checkEventDispatchThread()
-    val owner = requireOwner()
-    owner.requestAfterValidation(this, action)
 }
 
 /**

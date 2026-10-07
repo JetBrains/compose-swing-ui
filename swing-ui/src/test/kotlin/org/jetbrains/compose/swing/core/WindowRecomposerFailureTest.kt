@@ -242,9 +242,7 @@ class WindowRecomposerFailureTest {
         // Built here rather than through setContent, because a first pass that throws hands its caller
         // no handle: the observer is only reachable from the composition setContent discards.
         val composition =
-            SwingContentComposition.nested(recomposer.compositionContext) { owner ->
-                SwingApplier(CreatedNodeHolder(host).attachedTo(owner))
-            }
+            SwingContentComposition.nested(recomposer.compositionContext, CreatedNodeHolder(host), ::SwingApplier)
         try {
             val observer = composition.snapshotObserver.observer
             val watched = mutableStateOf(0)

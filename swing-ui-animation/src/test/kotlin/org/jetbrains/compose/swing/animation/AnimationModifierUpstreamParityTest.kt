@@ -105,7 +105,7 @@ class AnimationModifierUpstreamParityTest {
                     }
                 }
                 val component = onNodeWithTag("inspected-content").fetch<JComponent>()
-                val node = assertNotNull(component.findDeclaringGroup()?.node as? SwingComponentNode)
+                val node = assertNotNull(component.findDeclaringGroup()?.node as? SwingComponentNode<*>)
                 val values: List<Pair<String, Map<String, Any?>>> =
                     node.modifier.foldIn(emptyList()) { entries, element ->
                         val inspectable = element as? SwingModifier.InspectableElement

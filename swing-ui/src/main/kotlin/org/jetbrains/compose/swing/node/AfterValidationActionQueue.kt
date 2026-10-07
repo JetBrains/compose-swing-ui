@@ -64,16 +64,17 @@ internal class AfterValidationActionQueue(
     private val drainingRequests = java.util.ArrayDeque<MutableList<PendingAction<*>>>()
     private var disposed = false
 
-    fun <T : Any> request(
-        target: T,
-        action: (T) -> Unit,
+    /** Queues [action] for this composition's attached [node], unless it detaches before the drain. */
+    fun <N : Any> request(
+        node: N,
+        action: (N) -> Unit,
     ) {
         checkEventDispatchThread()
-        check(isOwnedBy(target, owner)) { "The target does not belong to this composition" }
+        check(isAttachedTo(node, owner)) { "The target does not belong to this composition" }
         if (disposed) return
 
-        val callbacks = actions.getOrPut(target) { IdentityHashMap() }
-        val request = callbacks[action] ?: PendingAction(target, action).also { callbacks[action] = it }
+        val callbacks = actions.getOrPut(node) { IdentityHashMap() }
+        val request = callbacks[action] ?: PendingAction(node, action).also { callbacks[action] = it }
         if (!request.pending) {
             request.pending = true
             requests.pending.add(request)
@@ -112,7 +113,7 @@ internal class AfterValidationActionQueue(
                 remove(request)
                 val result =
                     runCatching {
-                        if (!disposed && isOwnedBy(request.target, owner)) {
+                        if (!disposed && isAttachedTo(request.target, owner)) {
                             request.invoke()
                         }
                     }
@@ -140,9 +141,9 @@ internal class AfterValidationActionQueue(
         drainingRequests.addLast(requests.takePending())
     }
 
-    private class PendingAction<T : Any>(
-        val target: T,
-        val action: (T) -> Unit,
+    private class PendingAction<N : Any>(
+        val target: N,
+        val action: (N) -> Unit,
     ) {
         var pending: Boolean = false
 
@@ -150,13 +151,13 @@ internal class AfterValidationActionQueue(
     }
 }
 
-private fun isOwnedBy(
-    target: Any,
+private fun isAttachedTo(
+    scope: Any,
     owner: SwingCompositionOwner,
 ): Boolean =
-    when (target) {
-        is SwingModifier.Node -> target.isAttached && target.holder?.owner === owner
-        is SwingNodeHolder<*> -> target.owner === owner && !target.deactivated
+    when (scope) {
+        is SwingModifier.Node -> scope.isAttached && scope.holder?.owner === owner
+        is SwingComponentNode<*> -> scope.isAttached && scope.owner === owner
         else -> false
     }
 
@@ -175,22 +176,35 @@ internal class AfterValidationActions(
         checkEventDispatchThread()
         val holder = checkNotNull(node.holder) { "Node is not attached" }
         check(holder.owner === owner) { "The node does not belong to this composition" }
-        if (!disposed) request(node, holder.component, action)
+        request(node, holder.component, action)
     }
 
     fun cancelAfterValidation(node: SwingModifier.Node) {
         queue?.cancel(node)
     }
 
-    fun invalidateLayout(node: SwingNodeHolder<*>) {
+    fun invalidateLayout(node: SwingComponentNode<*>) {
         checkEventDispatchThread()
         check(node.owner === owner) { "The component node does not belong to this composition" }
-        if (disposed || node.deactivated) return
-        if (Thread.holdsLock(node.component.treeLock)) node.component.invalidate()
-        request(node, node.component, RevalidateComponent)
+        if (disposed || !node.isAttached) return
+        if (Thread.holdsLock(node.component.treeLock)) {
+            node.component.invalidate()
+            deferred().request(node, RevalidateComponent)
+        } else {
+            runNow(node, RevalidateComponent)
+        }
     }
 
-    fun cancelLayoutInvalidation(node: SwingNodeHolder<*>) {
+    fun <N : SwingComponentNode<*>> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    ) {
+        checkEventDispatchThread()
+        check(node.owner === owner) { "The component node does not belong to this composition" }
+        request(node, node.component, action)
+    }
+
+    fun cancelAfterValidation(node: SwingComponentNode<*>) {
         queue?.cancel(node)
     }
 
@@ -199,22 +213,32 @@ internal class AfterValidationActions(
         queue?.dispose()
     }
 
-    private fun <T : Any> request(
-        target: T,
+    private fun <N : Any> request(
+        node: N,
         component: Component,
+        action: (N) -> Unit,
+    ) {
+        if (disposed) return
+        if (Thread.holdsLock(component.treeLock)) {
+            deferred().request(node, action)
+        } else {
+            runNow(node, action)
+        }
+    }
+
+    private fun deferred(): AfterValidationActionQueue =
+        queue ?: AfterValidationActionQueue(owner, coordinator).also { queue = it }
+
+    private fun <T : Any> runNow(
+        target: T,
         action: (T) -> Unit,
     ) {
-        if (Thread.holdsLock(component.treeLock)) {
-            val queue = queue ?: AfterValidationActionQueue(owner, coordinator).also { queue = it }
-            queue.request(target, action)
-        } else {
-            queue?.cancel(target, action)
-            action(target)
-        }
+        queue?.cancel(target, action)
+        action(target)
     }
 }
 
-private val RevalidateComponent: (SwingNodeHolder<*>) -> Unit = { it.component.revalidate() }
+private val RevalidateComponent: (SwingComponentNode<*>) -> Unit = { it.component.revalidate() }
 
 internal val sharedAfterValidationCoordinator: AfterValidationCoordinator = AfterValidationCoordinator()
 

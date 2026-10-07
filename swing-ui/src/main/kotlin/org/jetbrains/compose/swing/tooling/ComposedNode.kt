@@ -38,7 +38,7 @@ import javax.swing.JComponent
  *
  * Must be called on the Event Dispatch Thread.
  */
-public fun JComponent.composedNode(): SwingComponentNode? {
+public fun JComponent.composedNode(): SwingComponentNode<*>? {
     checkEventDispatchThread()
     return this[NODE_KEY]
 }
@@ -48,4 +48,4 @@ public fun JComponent.composedNode(): SwingComponentNode? {
  * published on that same component. Written only while [isDebugInspectorInfoEnabled] is on when the node
  * is inserted, and cleared when the node that published it is released or deactivated.
  */
-internal val NODE_KEY: Key<SwingComponentNode> = Key("org.jetbrains.compose.swing.node")
+internal val NODE_KEY: Key<SwingComponentNode<*>> = Key("org.jetbrains.compose.swing.node")

@@ -39,6 +39,4 @@ public fun <T : SwingModifier.Node> T.observeReads(
     requireOwner().snapshotObserver.observeReads(this, onChanged, block)
 }
 
-private val OnObservedReadsChanged: (SwingModifier.Node) -> Unit = {
-    (it as ObserverModifierNode).onObservedReadsChanged()
-}
+private val OnObservedReadsChanged: (ObserverModifierNode) -> Unit = { it.onObservedReadsChanged() }

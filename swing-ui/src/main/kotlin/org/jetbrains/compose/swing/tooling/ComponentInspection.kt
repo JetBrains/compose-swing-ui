@@ -283,6 +283,6 @@ private fun CompositionData.localMaps(): Sequence<CompositionLocalMap> =
  */
 private fun CompositionData.declarationOf(component: Component): CompositionGroup? =
     compositionGroups.firstNotNullOfOrNull { group ->
-        group.takeIf { (it.node as? SwingComponentNode)?.component === component }
+        group.takeIf { (it.node as? SwingComponentNode<*>)?.component === component }
             ?: group.declarationOf(component)
     }

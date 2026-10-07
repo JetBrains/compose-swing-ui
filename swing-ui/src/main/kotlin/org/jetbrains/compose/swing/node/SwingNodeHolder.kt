@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
-import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -189,8 +188,8 @@ internal sealed interface Installation {
  */
 @PublishedApi
 internal sealed class SwingNodeHolder<out T : Component> :
-    ComposeNodeLifecycleCallback,
-    SwingComponentNode {
+    SwingComponentNode<T>(),
+    ComposeNodeLifecycleCallback {
     abstract override val component: T
 
     /** What this node declares to its parent's layout manager: where it goes, and how it is measured. */
@@ -220,13 +219,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
 
     override val modifier: SwingModifier
         get() = modifierState?.declared ?: SwingModifier
-
-    override fun invalidateLayout() {
-        checkEventDispatchThread()
-        val currentOwner = owner ?: return
-        if (deactivated) return
-        currentOwner.invalidateLayout(this)
-    }
 
     /**
      * Refuses a placement this kind of node cannot declare, before the modifier writes it onto the node.
@@ -327,19 +319,45 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * What this node's composition owns and every node under it shares - see [SwingCompositionOwner],
      * which states when a node is attached to it and why it has to be then.
      *
-     * It is null before insertion and after the node is released.
+     * It is null before insertion, after the node is released, and on a root once its composition is disposed
+     * or fails to build.
      */
-    internal var owner: SwingCompositionOwner? = null
+    final override var owner: SwingCompositionOwner? = null
         private set
 
+    final override val isAttached: Boolean get() = owner != null && !deactivated
+
     /**
-     * Attaches this node to the composition [owner] stands for, and answers it.
+     * Attaches this node to the composition [owner] stands for, detaching it from the one it stood in,
+     * and answers it. A [SwingComponentNodeListener] component is told each change.
      *
      * An applier attaches a node to the composition its parent stands in as it inserts it, so the
      * owner travels the node tree. The root is attached by the composition itself, being the one node
-     * no parent hands an owner down to.
+     * no parent hands an owner down to, and detached by it, with `null`, as it is disposed.
+     *
+     * A listener's throw is reported to the thread's uncaught-exception handler and the owner change finishes.
+     * Tracked reads and pending requests in the previous owner are dropped for this node and its attached modifier
+     * nodes. Parked nodes only refresh their owner. Children receive the new owner as well.
      */
-    internal fun attachedTo(owner: SwingCompositionOwner?): SwingNodeHolder<T> = also { it.owner = owner }
+    internal fun attachedTo(owner: SwingCompositionOwner?): SwingNodeHolder<T> {
+        val previous = this.owner
+        if (owner === previous) return this
+        if (previous != null) {
+            if (!deactivated) tellComponentDetached()
+            previous.snapshotObserver.clear(this)
+            previous.cancelAfterValidation(this)
+            modifierState?.standingInUnwindOrder()?.fastForEach { record ->
+                if (record.node.isAttached) {
+                    previous.snapshotObserver.clear(record.node)
+                    previous.cancelAfterValidation(record.node)
+                }
+            }
+        }
+        this.owner = owner
+        if (owner != null && !deactivated) tellComponentAttached()
+        children.fastForEach { it.attachedTo(owner) }
+        return this
+    }
 
     /**
      * The settle this node's update handed over to run against its children, or `null` for a node
@@ -358,33 +376,40 @@ internal sealed class SwingNodeHolder<out T : Component> :
      *
      * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
      * restores the properties the modifier changed, drops the settle held against this node's children,
-     * and drops the component's tracked reads from the owner's observer. A settle left standing would be
+     * and, once the modifier has torn down, drops this node's tracked reads and pending requests in its owner, so
+     * what the teardown records through this node goes with them. A settle left standing would be
      * run against a declaration the composition no longer makes; an update that still declares one hands
      * it over again on the pass that follows. The detach covers every modifier-installed listener,
      * including the built-in domain listener of the component.
      *
      * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
      * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
-     * detaches.
+     * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
+     * stops observing through the node before the modifier tears down.
      */
-    private fun reset(resetNodes: Boolean) {
+    private fun reset(
+        resetNodes: Boolean,
+        detaching: Boolean,
+    ) {
+        if (detaching) tellComponentDetached()
         try {
             clearPublishedNode()
-            owner?.snapshotObserver?.clear(component)
             resetModifierState(resetNodes)
         } finally {
-            owner?.cancelLayoutInvalidation(this)
+            owner?.snapshotObserver?.clear(this)
+            owner?.cancelAfterValidation(this)
             childSettle = null
         }
     }
 
     /**
      * The node is leaving the composition for good. The region it fills is released and its teardown runs
-     * whether or not the reset throws.
+     * whether or not the reset throws. A listener is told the node detached only while it is attached: a
+     * deactivation has told it already.
      */
     override fun onRelease() {
         try {
-            reset(resetNodes = false)
+            reset(resetNodes = false, detaching = isAttached)
         } finally {
             // The applier frees a region when it removes or moves a node. Whole-subtree disposal goes
             // through neither path: SwingApplier.onClear() removes the root's composed children and
@@ -403,14 +428,19 @@ internal sealed class SwingNodeHolder<out T : Component> :
     /**
      * The runtime is reusing this holder in place, for content that stayed in the same slot without
      * ever being parked. An `update` follows, and re-applies the whole modifier chain from the clean
-     * baseline this leaves.
+     * baseline this leaves. A [SwingComponentNodeListener] component is told the node detached and attached
+     * again.
      *
      * The node type this holder backs is not reusable, so the runtime never reactivates a parked
      * node through this callback: a parked node is released for good, and the content that reactivates
      * it gets a fresh node built by a fresh call to `factory`.
      */
     override fun onReuse() {
-        reset(resetNodes = true)
+        try {
+            reset(resetNodes = true, detaching = true)
+        } finally {
+            tellComponentAttached()
+        }
     }
 
     /**
@@ -423,9 +453,11 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * not the reset throws. A component [ExistingSwingNode] claims stays where its parent holds it.
      */
     override fun onDeactivate() {
+        // Told before deactivated is set, so the node reports attached to the listener, as on release.
+        tellComponentDetached()
         deactivated = true
         try {
-            reset(resetNodes = true)
+            reset(resetNodes = true, detaching = false)
         } finally {
             try {
                 val installed = installation
@@ -437,12 +469,16 @@ internal sealed class SwingNodeHolder<out T : Component> :
         }
     }
 
-    /** Runs this terminal node's teardown once, whether removal or parking ends its lifetime. */
+    /**
+     * Runs this terminal node's teardown once, whether removal or parking ends its lifetime. What the teardown
+     * records through this node in its owner is dropped after it.
+     */
     private fun release(clearOwner: Boolean) {
         try {
             releaseBlock?.invoke()
         } finally {
-            owner?.cancelLayoutInvalidation(this)
+            owner?.snapshotObserver?.clear(this)
+            owner?.cancelAfterValidation(this)
             releaseBlock = null
             if (clearOwner) owner = null
         }

@@ -32,7 +32,7 @@ internal fun assertDeclaredChainCarriedOnce(declare: SwingModifier.() -> SwingMo
  * The chain is reached through the declaring group, so the composition must have inspection turned on.
  */
 internal fun Component.carriedChainAppearancesOf(tag: String): Int {
-    val node = assertNotNull(findDeclaringGroup()?.node as? SwingComponentNode, "no composition declared $this")
+    val node = assertNotNull(findDeclaringGroup()?.node as? SwingComponentNode<*>, "no composition declared $this")
     return node.modifier.foldIn(0) { count, element ->
         val declared = (element as? SwingModifier.InspectableElement)?.declaredValues
         count + if (declared?.get("testTag") == tag) 1 else 0

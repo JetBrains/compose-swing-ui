@@ -30,9 +30,7 @@ internal class MenuPopup(
     val popup: JPopupMenu = JPopupMenu()
 
     private val composition =
-        SwingContentComposition.nested(parentContext) { owner ->
-            MenuApplier(CreatedNodeHolder(popup).attachedTo(owner))
-        }
+        SwingContentComposition.nested(parentContext, CreatedNodeHolder(popup), ::MenuApplier)
 
     // Whether the menu has closed, by close() or by the popup closing itself. Hiding the popup here
     // still fires the listener, so this flag stops that from being reported as a close of its own.

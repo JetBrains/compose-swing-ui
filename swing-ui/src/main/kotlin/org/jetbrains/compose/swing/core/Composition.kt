@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.AfterValidationActions
 import org.jetbrains.compose.swing.node.ComponentUpdateBatch
 import org.jetbrains.compose.swing.node.OwnerSnapshotObserver
+import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
@@ -122,11 +123,13 @@ private inline fun <R> withMutableSnapshot(
  * every snapshot-observing component in it registers with, the batch its updates are held in, and the
  * call that settles a reported change. Nodes see it through that interface alone, so a node reaches what
  * its composition owns without reaching the composition's lifecycle. It attaches its applier's root, and
- * every node below takes it from its parent as it is inserted.
+ * every node below takes it from its parent as it is inserted. It detaches the root as it is disposed, and when
+ * its construction fails.
  */
 internal class SwingContentComposition private constructor(
     private val parent: CompositionContext,
-    applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
+    private val root: SwingNodeHolder<*>,
+    applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
 ) : SwingCompositionOwner {
     /**
      * The observer's callbacks run on the event dispatch thread: inline when the change is published
@@ -148,10 +151,15 @@ internal class SwingContentComposition private constructor(
     override fun cancelAfterValidation(node: SwingModifier.Node): Unit =
         afterValidationActions.cancelAfterValidation(node)
 
-    override fun invalidateLayout(node: SwingNodeHolder<*>): Unit = afterValidationActions.invalidateLayout(node)
+    override fun <N : SwingComponentNode<*>> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    ): Unit = afterValidationActions.requestAfterValidation(node, action)
 
-    override fun cancelLayoutInvalidation(node: SwingNodeHolder<*>): Unit =
-        afterValidationActions.cancelLayoutInvalidation(node)
+    override fun invalidateLayout(node: SwingComponentNode<*>): Unit = afterValidationActions.invalidateLayout(node)
+
+    override fun cancelAfterValidation(node: SwingComponentNode<*>): Unit =
+        afterValidationActions.cancelAfterValidation(node)
 
     override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
 
@@ -161,9 +169,14 @@ internal class SwingContentComposition private constructor(
 
     override val coroutineContext: CoroutineContext = parent.effectCoroutineContext
 
-    // Built after everything a node reads through this owner, because the applier attaches its root to
-    // this owner as it is created and the composition inserts nodes against it from its first pass.
-    private val applier = applierFactory(this)
+    // Built after everything a node reads through this owner, because the root attaches to this owner here and
+    // the composition inserts nodes against it from its first pass. A construction that throws hands its caller
+    // nothing to dispose, so the root is detached and the owner released before the failure gets out.
+    private val applier =
+        disposingOnFailure(::release) {
+            root.attachedTo(this)
+            applierFactory()
+        }
 
     private val composition = Composition(applier, parent)
 
@@ -172,7 +185,7 @@ internal class SwingContentComposition private constructor(
      * This is the component the composition publishes its slot table on, and so the one an inspecting
      * walk up from a declared component reaches.
      */
-    private val host: JComponent? = applier.root.component as? JComponent
+    private val host: JComponent? = root.component as? JComponent
 
     /** Whether this composition records where it declared each component. */
     private val inspection = InspectionGate()
@@ -237,7 +250,8 @@ internal class SwingContentComposition private constructor(
     }
 
     /**
-     * Disposes this content composition's [Composition] and the [SwingCompositionOwner] it owns.
+     * Disposes this content composition's [Composition] and the [SwingCompositionOwner] it owns, and detaches the
+     * applier's root.
      *
      * Must be called on the Event Dispatch Thread. A handle a caller holds can be disposed from
      * anywhere - a coroutine's completion, most of all - and this writes the Swing tree and the
@@ -248,42 +262,50 @@ internal class SwingContentComposition private constructor(
         try {
             composition.dispose()
         } finally {
+            release()
+        }
+    }
+
+    /** Detaches the root and ends what this owner holds for its nodes. */
+    private fun release() {
+        try {
+            root.attachedTo(null)
+        } finally {
             afterValidationActions.dispose()
             snapshotObserver.dispose()
         }
     }
 
     companion object {
-        /** Mounts a child composition of [parent]. */
-        fun nested(
+        /**
+         * Mounts a child composition of [parent] rooted at [root], which [applierFactory] builds the applier over
+         * once [root] is attached.
+         */
+        fun <T : Component> nested(
             parent: CompositionContext,
-            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
+            root: SwingNodeHolder<T>,
+            applierFactory: (root: SwingNodeHolder<T>) -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
-            return SwingContentComposition(parent, applierFactory)
+            return SwingContentComposition(parent, root) { applierFactory(root) }
         }
     }
 }
 
 /**
- * Runs [firstPass] - the pass that composes a composition's content for the first time - and runs
- * [dispose] before letting a failure out of it reach the caller.
- *
- * A first pass that throws composed nothing and hands its caller no handle, so there is nothing for
- * them to dispose what was already registered with. Every type is caught because what the content
- * throws is the caller's to choose.
+ * Runs [dispose] if [block] throws, then rethrows the original failure with any cleanup failure suppressed.
  */
 internal inline fun <R> disposingOnFailure(
     dispose: () -> Unit,
-    firstPass: () -> R,
+    block: () -> R,
 ): R =
     try {
-        firstPass()
+        block()
     } catch (
         @Suppress("TooGenericExceptionCaught") failure: Throwable,
     ) {
         runCatching(dispose).onFailure { cleanupFailure ->
-            // First-pass failure keeps its identity even when the owner's cleanup also fails.
+            // The failure keeps its identity even when the cleanup also fails.
             if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
         }
         throw failure

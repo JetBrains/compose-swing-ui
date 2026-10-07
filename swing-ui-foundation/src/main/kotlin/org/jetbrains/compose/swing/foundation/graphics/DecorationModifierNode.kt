@@ -5,8 +5,8 @@ import org.jetbrains.compose.swing.foundation.layout.writeFitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.requestAfterValidation
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.requestAfterValidation
 import java.awt.Component
 
 /**
@@ -97,7 +97,7 @@ internal fun publishDecoration(
 internal fun publishDecoration(
     decoratable: Decoratable,
     nodes: List<SwingModifier.Node>,
-    requesterComponent: SwingComponentNode,
+    requesterComponent: SwingComponentNode<*>,
 ): Boolean =
     publishSteps(
         decoratable,
@@ -121,7 +121,7 @@ internal fun publishSteps(
 internal fun publishSteps(
     decoratable: Decoratable,
     steps: DecorationSteps,
-    requesterComponent: SwingComponentNode,
+    requesterComponent: SwingComponentNode<*>,
 ): Boolean = publishSteps(decoratable, steps, requesterComponent as Any)
 
 private fun publishSteps(
@@ -138,7 +138,7 @@ private fun publishSteps(
     if (value === held) return false
     when (requester) {
         is SwingModifier.Node -> writeFitted(decoratable, held, value, requesterNode = requester)
-        is SwingComponentNode -> writeFitted(decoratable, held, value, requesterComponent = requester)
+        is SwingComponentNode<*> -> writeFitted(decoratable, held, value, requesterComponent = requester)
         else -> error("Publishing a decoration requires an attached requester")
     }
     component.repaint()

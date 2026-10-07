@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.requestAfterValidation
+import org.jetbrains.compose.swing.node.requestAfterValidation
 import java.awt.Dimension
 import java.awt.Rectangle
 import java.util.function.BiConsumer

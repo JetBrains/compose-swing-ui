@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.foundation.graphics.revalidateComponentAfterValidation
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.requestAfterValidation
 import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.node.requestAfterValidation
 
 /**
  * The entry every [Layout] appends to its panel's modifier, after the caller's. Its node is what each answer a

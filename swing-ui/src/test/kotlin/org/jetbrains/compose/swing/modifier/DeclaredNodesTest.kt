@@ -730,10 +730,10 @@ internal class ListeningPanel :
     JPanel(),
     DeclaredNodesListener {
     val received = ArrayList<List<String>>()
-    var componentNode: SwingComponentNode? = null
+    var componentNode: SwingComponentNode<*>? = null
 
     override fun onDeclaredNodesChanged(
-        componentNode: SwingComponentNode,
+        componentNode: SwingComponentNode<*>,
         nodes: List<SwingModifier.Node>,
     ) {
         this.componentNode = componentNode

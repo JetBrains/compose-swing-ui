@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.foundation.graphics.revalidateComponentAfterV
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 
 /**
@@ -38,7 +39,7 @@ internal fun writeFitted(
     held: Decoration,
     value: Decoration,
     transformChanged: Boolean = false,
-    requesterComponent: SwingComponentNode,
+    requesterComponent: SwingComponentNode<*>,
 ) = writeFitted(decoratable, held, value, transformChanged, requesterComponent as Any)
 
 private fun writeFitted(
@@ -98,7 +99,7 @@ private fun ChildMeasurables.moveChildren(
 /** A detached panel can still be laid out while its parent removes its decoration. */
 private fun Any?.revalidateAfterFit() {
     when (this) {
-        is SwingComponentNode -> invalidateLayout()
+        is SwingComponentNode<*> -> invalidateLayout()
         is SwingModifier.Node -> revalidateComponentAfterValidation()
         null -> Unit
         else -> error("Fitting a decoration requires a component or modifier node")

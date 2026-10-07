@@ -387,7 +387,7 @@ internal fun observeUnderAFreshCallback(
 }
 
 /** Whether [reference] is cleared, asking for a collection several times, since one `System.gc()` is a hint. */
-private suspend fun ComposeSwingTest.isCollected(reference: WeakReference<*>): Boolean {
+internal suspend fun ComposeSwingTest.isCollected(reference: WeakReference<*>): Boolean {
     repeat(20) {
         if (reference.get() == null) return true
         System.gc()

@@ -63,7 +63,7 @@ The declaring answer is a group rather than the whole composition because a `Com
 
 | What you want | Where to read it |
 |---------------|------------------|
-| The component | the group's `node`, a `SwingComponentNode` |
+| The component | the group's `node`, a `SwingComponentNode<*>` |
 | The values it was built from | the group's `data` |
 | A stable handle on it across walks | the group's `identity`, an anchor `CompositionData.find` gives the group back for |
 | What that component declared in turn | descend `compositionGroups` from the group |
@@ -97,9 +97,9 @@ val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
 
 <!--- CLEAR -->
 
-`JComponent.composedNode()` answers with the `SwingComponentNode` a composition published on this exact
+`JComponent.composedNode()` answers with the `SwingComponentNode<*>` a composition published on this exact
 component, or `null` where none did - it reads the component alone, with no slot table to walk. The same
-node is also what a group's own `node` holds, so `findDeclaringGroup()?.node as? SwingComponentNode`
+node is also what a group's own `node` holds, so `findDeclaringGroup()?.node as? SwingComponentNode<*>`
 answers the same object while descending a composition; `composedNode()` is the shorter way to it from a
 component you already have in hand. For a component that is not a `JComponent`, `findDeclaringGroup()`
 is the route to its node.

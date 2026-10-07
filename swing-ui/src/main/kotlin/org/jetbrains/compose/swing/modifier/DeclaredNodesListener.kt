@@ -18,7 +18,7 @@ public interface DeclaredNodesListener {
      * handed over is attached.
      */
     public fun onDeclaredNodesChanged(
-        componentNode: SwingComponentNode,
+        componentNode: SwingComponentNode<*>,
         nodes: List<SwingModifier.Node>,
     )
 }

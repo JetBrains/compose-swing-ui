@@ -2,6 +2,10 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.setContentAsMenuInteropHost
@@ -12,6 +16,7 @@ import javax.swing.JMenuBar
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
@@ -125,6 +130,62 @@ class EventDispatchThreadContractTest {
                 recomposer.dispose()
             }
         }
+    }
+
+    @Test
+    fun runSwingTestRunsItsBodyAndResumesOnTheEventDispatchThread() = runSwingTest {
+        assertTrue(SwingUtilities.isEventDispatchThread())
+
+        yield()
+
+        assertTrue(SwingUtilities.isEventDispatchThread())
+    }
+
+    @Test
+    fun runSwingTestPropagatesTheBodyFailureByIdentity() {
+        val expected = object : IllegalStateException("body failure") {}
+
+        val thrown =
+            assertFailsWith<IllegalStateException> {
+                runSwingTest { throw expected }
+            }
+
+        assertSame(expected, thrown)
+    }
+
+    @Test
+    fun runSwingTestPropagatesAChildCoroutineFailureByIdentity() {
+        val expected = object : IllegalStateException("child failure") {}
+
+        val thrown =
+            assertFailsWith<IllegalStateException> {
+                runSwingTest {
+                    launch { throw expected }
+                    yield()
+                }
+            }
+
+        assertSame(expected, thrown)
+    }
+
+    @Test
+    fun runSwingTestTimeoutCancelsAnAwaitingBodyAndRunsCleanupOnTheEventDispatchThread() {
+        var bodyStarted = false
+        var cleanupOnEdt = false
+
+        assertFailsWith<AssertionError> {
+            runSwingTest(timeout = 1.seconds) {
+                bodyStarted = true
+                try {
+                    awaitCancellation()
+                } finally {
+                    cleanupOnEdt = SwingUtilities.isEventDispatchThread()
+                }
+            }
+        }
+
+        assertTrue(bodyStarted)
+        assertTrue(cleanupOnEdt)
     }
 
     /**

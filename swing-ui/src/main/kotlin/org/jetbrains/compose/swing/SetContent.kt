@@ -111,9 +111,7 @@ private fun JComponent.mountContent(
         () -> Unit,
 ): SwingContentComposition {
     val composition =
-        SwingContentComposition.nested(parent.context) { owner ->
-            SwingApplier(CreatedNodeHolder(this).attachedTo(owner))
-        }
+        SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::SwingApplier)
     composition.setContent { ProvideContentLocals(window, this, content = content) }
     return composition
 }
@@ -147,9 +145,7 @@ internal fun Container.setContentAsInteropHost(
     setCompositionContext(parent)
 
     val composition =
-        SwingContentComposition.nested(parent) { owner ->
-            SwingApplier(CreatedNodeHolder(this).attachedTo(owner))
-        }
+        SwingContentComposition.nested(parent, CreatedNodeHolder(this), ::SwingApplier)
     composition.setContent(content)
     return DisposableHandle {
         checkEventDispatchThread()
@@ -217,9 +213,7 @@ public fun JMenuBar.setContent(
 
     return mountWhenParentResolves(this) { parent, window ->
         val composition =
-            SwingContentComposition.nested(parent.context) { owner ->
-                MenuApplier(CreatedNodeHolder(this).attachedTo(owner))
-            }
+            SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::MenuApplier)
         composition.setContent { ProvideContentLocals(window, this, content = content) }
         composition
     }
@@ -251,9 +245,7 @@ internal fun JMenuBar.setContentAsMenuInteropHost(
 ): DisposableHandle {
     checkEventDispatchThread()
     val composition =
-        SwingContentComposition.nested(parent) { owner ->
-            MenuApplier(CreatedNodeHolder(this).attachedTo(owner))
-        }
+        SwingContentComposition.nested(parent, CreatedNodeHolder(this), ::MenuApplier)
     composition.setContent(content)
     return DisposableHandle { composition.dispose() }
 }

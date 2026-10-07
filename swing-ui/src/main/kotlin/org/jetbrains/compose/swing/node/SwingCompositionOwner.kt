@@ -22,7 +22,8 @@ import kotlin.coroutines.CoroutineContext
  */
 internal interface SwingCompositionOwner {
     /**
-     * The observer every attached node's [observeReads] records with, the node itself as the scope.
+     * The observer every attached node's [observeReads] records with, the node itself as the scope: a modifier node,
+     * or a [SwingComponentNode].
      */
     val snapshotObserver: OwnerSnapshotObserver
 
@@ -40,13 +41,22 @@ internal interface SwingCompositionOwner {
     fun cancelAfterValidation(node: SwingModifier.Node)
 
     /**
+     * Runs [action] as [requestAfterValidation] does for a modifier node. Deferred requests end when the node detaches,
+     * with [cancelAfterValidation]. The component node must be attached to this composition.
+     */
+    fun <N : SwingComponentNode<*>> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    )
+
+    /**
      * Revalidates [node]'s component on the Event Dispatch Thread. Under the tree lock, invalidates immediately
      * and defers revalidation. The request survives modifier removal and ends on component reset or release.
      */
-    fun invalidateLayout(node: SwingNodeHolder<*>)
+    fun invalidateLayout(node: SwingComponentNode<*>)
 
-    /** Cancels queued revalidation for this component node. */
-    fun cancelLayoutInvalidation(node: SwingNodeHolder<*>)
+    /** Cancels this component node's pending after-validation actions, its revalidation included. */
+    fun cancelAfterValidation(node: SwingComponentNode<*>)
 
     /**
      * Runs the frame this composition's pending writes are owed inside the event being dispatched,
@@ -81,8 +91,8 @@ internal interface SwingCompositionOwner {
 }
 
 /**
- * The composition this node stands in. Fails on a node no composition has attached, which an applier's
- * root never is: it is attached before the applier is built over it.
+ * The composition this node stands in. Fails on a node that stands in none. A root stands in its composition from
+ * before the applier is built over it until the composition is disposed.
  */
-internal fun SwingNodeHolder<*>.requireOwner(): SwingCompositionOwner =
+internal fun SwingComponentNode<*>.requireOwner(): SwingCompositionOwner =
     checkNotNull(owner) { "The node holding $component has not been attached to a composition" }

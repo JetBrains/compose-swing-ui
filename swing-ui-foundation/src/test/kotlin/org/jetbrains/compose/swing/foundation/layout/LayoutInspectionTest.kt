@@ -29,7 +29,7 @@ class LayoutInspectionTest {
             }
 
             val group = onNodeWithTag(CONTAINER_TAG).fetch().findDeclaringGroup()
-            val node = assertNotNull(group?.node as? SwingComponentNode)
+            val node = assertNotNull(group?.node as? SwingComponentNode<*>)
             val names =
                 node.modifier.foldIn(emptyList<String?>()) { found, element ->
                     found + (element as? SwingModifier.InspectableElement)?.name

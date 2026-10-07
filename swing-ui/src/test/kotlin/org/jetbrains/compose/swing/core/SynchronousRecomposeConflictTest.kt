@@ -37,9 +37,7 @@ class SynchronousRecomposeConflictTest {
         val input = mutableStateOf("")
         val host = JPanel()
         val composition =
-            SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(CreatedNodeHolder(host).attachedTo(owner))
-            }
+            SwingContentComposition.nested(parentContext, CreatedNodeHolder(host), ::SwingApplier)
         try {
             composition.setContent {
                 val text = input.value

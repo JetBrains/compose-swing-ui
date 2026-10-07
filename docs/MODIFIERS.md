@@ -187,10 +187,24 @@ composition-local refresh that rewrites such a node, so it can paint or lay itse
 component. Override it when the component's `DeclaredNodesListener` must reread this node's state. A
 `ParentLayoutNode` defaults to `true`, so its parent measures the component again after an update; return `false`
 when the node requests its own layout invalidation. Structural changes always hand over the node list.
-Call `SwingComponentNode.invalidateLayout()` when such a node changes the component's measured size. It
+Call the extension `SwingComponentNode.invalidateLayout()` when such a node changes the component's measured size. It
 invalidates immediately and defers revalidation until the component tree lock is released.
 `swing-ui-foundation` paints a component through such nodes; see
 [Writing a decorator or draw node](FOUNDATION.md#writing-a-decorator-or-draw-node).
+
+A component that implements `SwingComponentNodeListener` is told each `SwingComponentNode` holding it as the node
+attaches and detaches. Two kinds of node hold it: the node a composition declares for it, and the root node of the
+content `setContent` mounts on it. A `SwingComponentNode` is typed by its component, and the listener types the node
+it is told with `node.asNodeOf(this)`. On an attached node, the extensions `observeReads(onChanged) { ... }` and
+`requestAfterValidation(action)` work as the node capabilities above do, so a component can follow state without a
+modifier node; both throw on a node that is not attached. The extension `invalidateLayout()` does nothing on such a
+node.
+
+A listener that throws from `onAttached` is told the node detached, and the node is left attached nowhere. What the
+listener observed under the node is dropped, and the failure reaches the caller. A `setContent` call that fails this
+way leaves the component free for another `setContent`. A listener that throws from `onDetached` has what it observed
+and requested under the node dropped all the same, and the failure reaches the caller. A listener that throws from
+`onDetached` as its node moves to another composition or is reused is still told the node attached again.
 
 ## Failure
 

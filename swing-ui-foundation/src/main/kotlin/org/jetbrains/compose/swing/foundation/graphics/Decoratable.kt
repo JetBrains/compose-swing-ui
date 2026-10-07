@@ -45,7 +45,7 @@ public interface Decoratable : DeclaredNodesListener {
      * @throws IllegalStateException if this `Decoratable` is not a `java.awt.Component`.
      */
     override fun onDeclaredNodesChanged(
-        componentNode: SwingComponentNode,
+        componentNode: SwingComponentNode<*>,
         nodes: List<SwingModifier.Node>,
     ) {
         publishDecoration(this, nodes, requesterComponent = componentNode)

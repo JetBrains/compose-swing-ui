@@ -398,9 +398,9 @@ private class DirectTabHeaderComposition(
         checkEventDispatchThread()
         rootHolder.childPlacement = ChildPlacement.Slots(content = rootSlot)
         composition =
-            SwingContentComposition.nested(parent) { owner ->
+            SwingContentComposition.nested(parent, rootHolder) { root ->
                 SwingApplier(
-                    rootHolder.attachedTo(owner),
+                    root,
                     rootSlotPolicy =
                         RootSlotPolicy {
                             if (!disposed) requireRoot()

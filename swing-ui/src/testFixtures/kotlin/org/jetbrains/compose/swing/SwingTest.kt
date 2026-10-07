@@ -25,7 +25,7 @@ import kotlin.time.Duration.Companion.seconds
  * @param testBody the test body, run on the event dispatch thread. It receives the scope it runs in
  * there, which is not the test scope [runTest] would hand it.
  */
-internal fun runSwingTest(
+public fun runSwingTest(
     context: CoroutineContext = EmptyCoroutineContext,
     timeout: Duration = 60.seconds,
     testBody: suspend CoroutineScope.() -> Unit,

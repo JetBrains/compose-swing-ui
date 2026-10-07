@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.requestAfterValidation
 import java.lang.reflect.InvocationTargetException
 import javax.swing.CellRendererPane
 import javax.swing.JPanel
@@ -359,6 +358,66 @@ class AfterValidationActionTest {
         assertEquals(1, calls)
         node.detach()
         owner.dispose()
+    }
+
+    @Test
+    fun movingAComponentToAnotherOwnerDropsItsModifierNodesOldRequest() {
+        val posted = mutableListOf<() -> Unit>()
+        val coordinator = AfterValidationCoordinator(posted::add)
+        val owner = TestCompositionOwner(coordinator)
+        val nextOwner = TestCompositionOwner(coordinator)
+        val component = LayoutPanel()
+        val holder = CreatedNodeHolder(component).attachedTo(owner)
+        val node = RequestNode().also { it.attach(holder) }
+        var calls = 0
+        SwingUtilities.invokeAndWait {
+            synchronized(component.treeLock) { node.requestAfterValidation { calls++ } }
+            holder.attachedTo(nextOwner)
+        }
+        assertEquals(1, posted.size, "moving to another owner keeps the queued drain")
+        SwingUtilities.invokeAndWait { posted.removeAt(0)() }
+        assertEquals(0, calls, "moving to another owner drops the old modifier request")
+        node.detach()
+        holder.onRelease()
+        owner.dispose()
+        nextOwner.dispose()
+    }
+
+    @Test
+    fun aComponentNodeRequestDeferredUnderTheTreeLockRunsOnceUnlessTheNodeDetachesFirst() {
+        val posted = mutableListOf<() -> Unit>()
+        val coordinator = AfterValidationCoordinator(posted::add)
+        val owner = TestCompositionOwner(coordinator)
+        val nextOwner = TestCompositionOwner(coordinator)
+        val endings: Map<String, (SwingNodeHolder<LayoutPanel>) -> Unit> =
+            mapOf(
+                "stays attached" to {},
+                "reused" to { it.onReuse() },
+                "deactivated" to { it.onDeactivate() },
+                "released" to { it.onRelease() },
+                "moved to another owner" to { it.attachedTo(nextOwner) },
+            )
+
+        for ((ending, end) in endings) {
+            val component = LayoutPanel()
+            val holder = CreatedNodeHolder(component).attachedTo(owner)
+            val received = mutableListOf<SwingNodeHolder<LayoutPanel>>()
+            val action: (SwingNodeHolder<LayoutPanel>) -> Unit = { received += it }
+            SwingUtilities.invokeAndWait {
+                synchronized(component.treeLock) {
+                    holder.requestAfterValidation(action)
+                    holder.requestAfterValidation(action)
+                }
+                end(holder)
+            }
+            assertEquals(1, posted.size, ending)
+            SwingUtilities.invokeAndWait { posted.removeAt(0)() }
+            assertEquals(if (ending == "stays attached") 1 else 0, received.size, ending)
+            if (ending == "stays attached") assertSame(holder, received.single(), ending)
+            holder.onRelease()
+        }
+        owner.dispose()
+        nextOwner.dispose()
     }
 
     @Test

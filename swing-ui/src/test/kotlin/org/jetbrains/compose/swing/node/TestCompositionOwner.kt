@@ -25,10 +25,15 @@ internal class TestCompositionOwner(
     override fun cancelAfterValidation(node: SwingModifier.Node): Unit =
         afterValidationActions.cancelAfterValidation(node)
 
-    override fun invalidateLayout(node: SwingNodeHolder<*>): Unit = afterValidationActions.invalidateLayout(node)
+    override fun <N : SwingComponentNode<*>> requestAfterValidation(
+        node: N,
+        action: (N) -> Unit,
+    ): Unit = afterValidationActions.requestAfterValidation(node, action)
 
-    override fun cancelLayoutInvalidation(node: SwingNodeHolder<*>): Unit =
-        afterValidationActions.cancelLayoutInvalidation(node)
+    override fun invalidateLayout(node: SwingComponentNode<*>): Unit = afterValidationActions.invalidateLayout(node)
+
+    override fun cancelAfterValidation(node: SwingComponentNode<*>): Unit =
+        afterValidationActions.cancelAfterValidation(node)
 
     /** A case that drives an applier without a composition around it has no pass to settle. */
     override fun settleNow(): Unit = Unit

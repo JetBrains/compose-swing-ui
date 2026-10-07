@@ -153,7 +153,7 @@ class ComponentInspectionTest {
             val group = assertNotNull(component.findDeclaringGroup())
             assertSame(
                 component,
-                (group.node as? SwingComponentNode)?.component,
+                (group.node as? SwingComponentNode<*>)?.component,
                 "the group must hold the very component it was asked about, never its parent or a sibling",
             )
         }
@@ -161,7 +161,7 @@ class ComponentInspectionTest {
             setOf(label, button),
             assertNotNull(panel.findDeclaringGroup())
                 .allGroups()
-                .mapNotNull { (it.node as? SwingComponentNode)?.component }
+                .mapNotNull { (it.node as? SwingComponentNode<*>)?.component }
                 .toSet(),
             "a group is a CompositionData too, so descending it finds what that component declared, " +
                 "identical to the components the harness fetched",
@@ -179,7 +179,7 @@ class ComponentInspectionTest {
 
             assertSame(
                 nestedHost,
-                (assertNotNull(nestedHost.findDeclaringGroup()).node as? SwingComponentNode)?.component,
+                (assertNotNull(nestedHost.findDeclaringGroup()).node as? SwingComponentNode<*>)?.component,
                 "the content composition a component hosts declared it no more than a stranger did, so " +
                     "the composition that did declare it is the one that answers",
             )
@@ -191,7 +191,7 @@ class ComponentInspectionTest {
                 onNodeWithTag(NESTED_TAG).fetch(),
                 (
                     assertNotNull(onNodeWithTag(NESTED_TAG).fetch().findDeclaringGroup()).node
-                        as? SwingComponentNode
+                        as? SwingComponentNode<*>
                 )?.component,
                 "while a component inside that composition is answered by it",
             )
@@ -235,7 +235,7 @@ class ComponentInspectionTest {
         )
         assertSame(
             label,
-            ((label.parent.findCompositionData()?.find(anchor))?.node as? SwingComponentNode)?.component,
+            ((label.parent.findCompositionData()?.find(anchor))?.node as? SwingComponentNode<*>)?.component,
             "an identity read off an earlier walk finds its group again on a later one, which is what a " +
                 "tool holds instead of the group itself",
         )
@@ -494,7 +494,7 @@ internal fun assertDeclaredBy(
     val group = assertNotNull(component.findDeclaringGroup())
     assertSame(
         component,
-        (group.node as? SwingComponentNode)?.component,
+        (group.node as? SwingComponentNode<*>)?.component,
         "the group answered with holds the component the search started at",
     )
     val trace = declarationTraceOf(component)

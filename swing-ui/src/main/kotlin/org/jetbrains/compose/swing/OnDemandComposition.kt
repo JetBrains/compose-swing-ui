@@ -68,9 +68,9 @@ public class OnDemandComposition(
         checkEventDispatchThread()
         rootHolder.childPlacement = ChildPlacement.Slots(content = slot)
         val built =
-            SwingContentComposition.nested(parent) { owner ->
+            SwingContentComposition.nested(parent, rootHolder) { root ->
                 SwingApplier(
-                    rootHolder.attachedTo(owner),
+                    root,
                     rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() },
                 )
             }

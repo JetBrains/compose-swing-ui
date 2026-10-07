@@ -385,17 +385,13 @@ class DebugInspectorInfoTest {
         // once another has taken its host is what is under test.
         val compositionHost = JPanel()
         val stale =
-            SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(CreatedNodeHolder(compositionHost).attachedTo(owner))
-            }
+            SwingContentComposition.nested(parentContext, CreatedNodeHolder(compositionHost), ::SwingApplier)
         stale.setContent { Label(text = "stale") }
         // Declared only once the stale composition is gone: disposing one empties the container it is
         // rooted at, which is the host these two share.
         var showTheLabel by mutableStateOf(false)
         val live =
-            SwingContentComposition.nested(parentContext) { owner ->
-                SwingApplier(CreatedNodeHolder(compositionHost).attachedTo(owner))
-            }
+            SwingContentComposition.nested(parentContext, CreatedNodeHolder(compositionHost), ::SwingApplier)
         try {
             live.setContent { if (showTheLabel) Label(text = "live") }
             awaitIdle()
@@ -471,7 +467,7 @@ private fun assertAnsweredWithItsOwnGroup(component: Component) {
     val group = assertNotNull(component.findDeclaringGroup(), "no group answers for $component")
     assertSame(
         component,
-        (group.node as? SwingComponentNode)?.component,
+        (group.node as? SwingComponentNode<*>)?.component,
         "the group answered with holds the component the search started at",
     )
 }

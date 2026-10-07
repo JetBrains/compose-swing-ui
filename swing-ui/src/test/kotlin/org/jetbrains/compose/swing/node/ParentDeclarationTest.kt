@@ -815,7 +815,7 @@ private class ListenerButton :
     JButton("child"),
     DeclaredNodesListener {
     override fun onDeclaredNodesChanged(
-        componentNode: SwingComponentNode,
+        componentNode: SwingComponentNode<*>,
         nodes: List<SwingModifier.Node>,
     ) = Unit
 }
