@@ -321,11 +321,11 @@ internal class ChildMeasurables(
         val children = intrinsicWalk
         with(owner.policy) {
             if (mode == MeasureMode.Minimum) {
-                askedWidth = PolicyMeasureScope.minIntrinsicWidth(children, Int.MAX_VALUE)
-                askedHeight = PolicyMeasureScope.minIntrinsicHeight(children, Int.MAX_VALUE)
+                askedWidth = PolicyMeasureScope.minIntrinsicWidth(children, Constraints.Infinity)
+                askedHeight = PolicyMeasureScope.minIntrinsicHeight(children, askedWidth)
             } else {
-                askedWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Int.MAX_VALUE)
-                askedHeight = PolicyMeasureScope.maxIntrinsicHeight(children, Int.MAX_VALUE)
+                askedWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
+                askedHeight = PolicyMeasureScope.maxIntrinsicHeight(children, askedWidth)
             }
         }
     }
@@ -486,9 +486,9 @@ internal class ChildMeasurables(
      * What the policy asks for in [mode], plus the panel's insets, its paint outsets included, as any Swing layout
      * manager adds them.
      *
-     * Swing asks for both axes at once and supplies no cross-axis extent. It therefore combines the
-     * two matching CMP intrinsic hooks with an unbounded opposite axis: min hooks for a Swing
-     * minimum-size query and max hooks for a preferred-size query.
+     * Swing reads both axes at once and supplies no extent on either. It is computed as androidx computes
+     * `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the width at an unbounded height, then the height
+     * at that width, with the max hooks for a preferred-size query and the min hooks for a minimum-size query.
      */
     fun askedSize(mode: MeasureMode): Dimension =
         synchronized(panel.treeLock) {

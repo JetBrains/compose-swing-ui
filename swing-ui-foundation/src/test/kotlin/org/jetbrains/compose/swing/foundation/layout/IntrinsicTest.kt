@@ -158,7 +158,10 @@ class IntrinsicTest {
                     "argument-less question and never the constrained one - asking one there would hand the " +
                     "child the outer pass's unbounded constraints",
             )
-            assertTrue(inner.plainQuestions > 0, "and it must ask, rather than answering for the child itself")
+            assertTrue(
+                inner.plainReads > 0,
+                "and it must read the child's intrinsic size rather than computing it itself",
+            )
         }
 
     @Test
@@ -235,14 +238,15 @@ private fun ShrinkableChild(
 /**
  * A container of this library's own, counting which of its policy's two kinds of entry points its
  * parent reaches: `measure`, which only a caller holding an extent to offer can ask, and one of the
- * four intrinsic functions, which argument-less questions route to with an unbounded opposite axis.
+ * four intrinsic functions, which argument-less size reads reach: the width at an unbounded height, then the height
+ * at that width.
  */
 private class CountingPanel : ConstrainedPanel(MeasurePolicyLayout(CountingPolicy(), null)) {
     private val counting: CountingPolicy get() = (layout as MeasurePolicyLayout).policy as CountingPolicy
 
     val constrainedQuestions: Int get() = counting.measured
 
-    val plainQuestions: Int get() = counting.asked
+    val plainReads: Int get() = counting.intrinsicHeight
 
     fun forgetQuestions(): Unit = counting.forget()
 }
@@ -252,12 +256,12 @@ private class CountingPolicy : MeasurePolicy {
     var measured: Int = 0
         private set
 
-    var asked: Int = 0
+    var intrinsicHeight: Int = 0
         private set
 
     fun forget() {
         measured = 0
-        asked = 0
+        intrinsicHeight = 0
     }
 
     override fun MeasureScope.measure(
@@ -272,7 +276,7 @@ private class CountingPolicy : MeasurePolicy {
         measurables: List<IntrinsicMeasurable>,
         height: Int,
     ): Int {
-        asked++
+        intrinsicHeight++
         return 0
     }
 
@@ -280,7 +284,7 @@ private class CountingPolicy : MeasurePolicy {
         measurables: List<IntrinsicMeasurable>,
         height: Int,
     ): Int {
-        asked++
+        intrinsicHeight++
         return 0
     }
 
@@ -288,7 +292,7 @@ private class CountingPolicy : MeasurePolicy {
         measurables: List<IntrinsicMeasurable>,
         width: Int,
     ): Int {
-        asked++
+        intrinsicHeight++
         return 0
     }
 
@@ -296,7 +300,7 @@ private class CountingPolicy : MeasurePolicy {
         measurables: List<IntrinsicMeasurable>,
         width: Int,
     ): Int {
-        asked++
+        intrinsicHeight++
         return 0
     }
 }
