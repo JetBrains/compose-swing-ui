@@ -137,34 +137,15 @@ class IntrinsicTest {
                 var measured = 0
                 var intrinsicHeight = 0
                 val policy =
-                    object : MeasurePolicy {
-                        override fun MeasureScope.measure(
-                            measurables: List<Measurable>,
-                            constraints: Constraints,
-                        ): MeasureResult {
-                            measured++
-                            return layout(0, 0) {}
-                        }
-
-                        override fun IntrinsicMeasureScope.minIntrinsicWidth(
-                            measurables: List<IntrinsicMeasurable>,
-                            height: Int,
-                        ): Int = 0.also { intrinsicHeight++ }
-
-                        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
-                            measurables: List<IntrinsicMeasurable>,
-                            height: Int,
-                        ): Int = 0.also { intrinsicHeight++ }
-
-                        override fun IntrinsicMeasureScope.minIntrinsicHeight(
-                            measurables: List<IntrinsicMeasurable>,
-                            width: Int,
-                        ): Int = 0.also { intrinsicHeight++ }
-
-                        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
-                            measurables: List<IntrinsicMeasurable>,
-                            width: Int,
-                        ): Int = 0.also { intrinsicHeight++ }
+                    IntrinsicQueryPolicy(
+                        measuring =
+                            MeasurePolicy { _, _ ->
+                                measured++
+                                layout(0, 0) {}
+                            },
+                    ) { _, _, _ ->
+                        intrinsicHeight++
+                        0
                     }
                 setContent {
                     Column(

@@ -1,147 +1,143 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.BorderFactory
+import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NestedIntrinsicRegressionTest {
     @Test
-    fun aFiniteIntrinsicReadReachesANestedFoundationPolicy() =
-        runSwingTest {
-            val childPolicy = finitePolicy()
-            val parent = ConstrainedPanel(MeasurePolicyLayout(finitePolicy()))
-            val child = ConstrainedPanel(MeasurePolicyLayout(childPolicy))
-            parent.add(child)
-            val measurable = parent.policyLayout.measurables.of(child)
-            val actual =
-                listOf(
-                    measurable.minIntrinsicWidth(80),
-                    measurable.maxIntrinsicWidth(80),
-                    measurable.minIntrinsicHeight(80),
-                    measurable.maxIntrinsicHeight(80),
-                )
-            assertEquals(listOf(40, 40, 40, 40), actual, "Every finite intrinsic read must reach the child policy.")
-        }
+    fun nestedFiniteQueriesReachTheChildPolicy() = assertNestedIntrinsicSizes(expected = { List(4) { 40 } })
 
     @Test
-    fun aBoxPreservesFiniteAspectRatioOffers() =
-        runComposeSwingTest {
-            val childPolicy =
-                object : MeasurePolicy {
-                    override fun MeasureScope.measure(
-                        measurables: List<Measurable>,
-                        constraints: Constraints,
-                    ): MeasureResult = layout(constraints.constrainWidth(50), constraints.constrainHeight(40)) {}
+    fun nestedFiniteQueriesIncludeTheChildBorder() =
+        assertNestedIntrinsicSizes(
+            expected = { listOf(45, 45, 42, 42) },
+            configure = { it.border = BorderFactory.createEmptyBorder(2, 3, 4, 5) },
+        )
 
-                    override fun IntrinsicMeasureScope.minIntrinsicWidth(
-                        measurables: List<IntrinsicMeasurable>,
-                        height: Int,
-                    ): Int = 50
+    @Test
+    fun nestedFiniteQueriesRespectExplicitSwingSizes() =
+        assertNestedIntrinsicSizes(
+            configure = {
+                it.border = BorderFactory.createEmptyBorder(2, 3, 4, 5)
+                it.minimumSize = Dimension(17, 19)
+                it.preferredSize = Dimension(23, 29)
+            },
+        )
 
-                    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
-                        measurables: List<IntrinsicMeasurable>,
-                        height: Int,
-                    ): Int = 50
-
-                    override fun IntrinsicMeasureScope.minIntrinsicHeight(
-                        measurables: List<IntrinsicMeasurable>,
-                        width: Int,
-                    ): Int = 40
-
-                    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
-                        measurables: List<IntrinsicMeasurable>,
-                        width: Int,
-                    ): Int = 40
-                }
-            setContent {
-                Column {
-                    Box(modifier = SwingModifier.testTag("box")) {
-                        Layout(content = {}, measurePolicy = childPolicy, modifier = SwingModifier.aspectRatio(2f))
+    @Test
+    fun nestedFiniteQueriesUseStockSwingSizes() =
+        assertNestedIntrinsicSizes {
+            SwingNode(
+                factory = {
+                    JPanel().apply {
+                        minimumSize = Dimension(11, 13)
+                        preferredSize = Dimension(17, 19)
                     }
-                }
-            }
-            val box = onNodeWithTag("box").fetch<ConstrainedPanel>()
-            val parent = box.parent as ConstrainedPanel
-            val measurable = parent.policyLayout.measurables.of(box)
-            assertEquals(
-                80,
-                measurable.maxIntrinsicWidth(40),
-                "A 2:1 aspect ratio offered 40px in height prefers 80px.",
+                },
+                modifier = SwingModifier.testTag("child"),
             )
         }
 
     @Test
-    fun bordersTakeSpaceInBothAxesAndExplicitSizesRemainAuthoritative() =
-        runSwingTest {
-            val parent = ConstrainedPanel(MeasurePolicyLayout(finitePolicy()))
-            val child = ConstrainedPanel(MeasurePolicyLayout(finitePolicy()))
-            child.border = BorderFactory.createEmptyBorder(2, 3, 4, 5)
-            parent.add(child)
-            val measurable = parent.policyLayout.measurables.of(child)
-            assertEquals(listOf(45, 45, 42, 42), intrinsicSizesAt(measurable, 80))
-            child.minimumSize = Dimension(17, 19)
-            child.preferredSize = Dimension(23, 29)
-            assertEquals(listOf(17, 23, 19, 29), intrinsicSizesAt(measurable, 80))
+    fun nestedFiniteQueriesCarryRatioOffers() =
+        assertNestedIntrinsicSizes(expected = { listOf(160, 160, 40, 40) }) {
+            Box(modifier = SwingModifier.testTag("child")) {
+                Layout(IntrinsicQueryPolicy { _, _, extent -> extent / 2 }, SwingModifier.aspectRatio(2f))
+            }
         }
 
+    private fun assertNestedIntrinsicSizes(
+        expected: (JComponent) -> List<Int> = {
+            listOf(it.minimumSize.width, it.preferredSize.width, it.minimumSize.height, it.preferredSize.height)
+        },
+        configure: (JComponent) -> Unit = {},
+        content: @Composable () -> Unit = {
+            Layout(IntrinsicQueryPolicy { _, _, extent -> extent / 2 }, SwingModifier.testTag("child"))
+        },
+    ) = runComposeSwingTest {
+        setContent {
+            Layout(
+                IntrinsicQueryPolicy { children, hook, extent -> query(children.single(), hook, extent) },
+                SwingModifier.testTag("parent"),
+            ) { content() }
+        }
+        val child = onNodeWithTag("child").fetch<JComponent>()
+        configure(child)
+        val parent = onNodeWithTag("parent").fetch<ConstrainedPanel>()
+        assertEquals(expected(child), intrinsicSizes(parent, opposite = 80))
+    }
+
     @Test
-    fun stockChildrenKeepTheirNativeSizePreferences() =
-        runSwingTest {
-            val parent = ConstrainedPanel(MeasurePolicyLayout(finitePolicy()))
-            val child =
-                JPanel().apply {
-                    minimumSize = Dimension(11, 13)
-                    preferredSize = Dimension(17, 19)
+    fun intrinsicModifiersKeepSettledBoundsAndReplayPlacementAfterFiniteQueries() =
+        runComposeSwingTest {
+            var measurements = 0
+            var childMeasurements = 0
+            var placements = 0
+            val parentPolicy =
+                IntrinsicQueryPolicy(
+                    measuring =
+                        MeasurePolicy { measurables, _ ->
+                            measurements++
+                            val child = measurables.single().measure(Constraints.fixed(width = 30, height = 20))
+                            layout(width = 30, height = 20) {
+                                placements++
+                                child.place(0, 0)
+                            }
+                        },
+                ) { children, hook, extent -> query(children.single(), hook, extent) }
+            val childPolicy =
+                IntrinsicQueryPolicy(
+                    measuring =
+                        MeasurePolicy { measurables, constraints ->
+                            childMeasurements++
+                            val children = measurables.map { it.measure(constraints) }
+                            layout(constraints.constrainWidth(1), constraints.constrainHeight(1)) {
+                                children.forEach { it.place(0, 0) }
+                            }
+                        },
+                ) { _, _, extent -> extent / 2 }
+            setContent {
+                Box {
+                    Layout(parentPolicy, SwingModifier.testTag("parent").size(30, 20)) {
+                        Layout(childPolicy, SwingModifier.testTag("child").width(IntrinsicSize.Min)) {
+                            SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("descendant"))
+                        }
+                    }
                 }
-            parent.add(child)
-            assertEquals(listOf(11, 17, 13, 19), intrinsicSizesAt(parent.policyLayout.measurables.of(child), 80))
-        }
-
-    @Test
-    fun intrinsicModifiersForwardFiniteReadsWithoutReplacingTheSettledResult() =
-        runSwingTest {
-            val parent =
-                composed(
-                    ConstrainedPanel(
-                        MeasurePolicyLayout(
-                            MeasurePolicy { children, _ ->
-                                val placeable = children.firstOrNull()?.measure(Constraints.fixed(30, 20))
-                                layout(30, 20) { placeable?.place(0, 0) }
-                            },
-                        ),
-                    ),
-                )
-            val child = composed(ConstrainedPanel(MeasurePolicyLayout(finitePolicy())))
-            parent.add(child)
-            parent.setSize(30, 20)
+            }
+            val parent = onNodeWithTag("parent").fetch<ConstrainedPanel>()
+            val child = onNodeWithTag("child").fetch<ConstrainedPanel>()
+            val descendant = onNodeWithTag("descendant").fetch<JComponent>()
+            val bounds = listOf(child.bounds, descendant.bounds)
+            val before = measurements
+            val childBefore = childMeasurements
+            assertEquals(List(4) { 40 }, intrinsicSizes(parent, opposite = 80))
+            val unboundedWidth = Constraints.Infinity / 2
+            assertEquals(Dimension(unboundedWidth, unboundedWidth / 2), child.preferredSize)
+            assertEquals(child.preferredSize, child.minimumSize)
+            assertEquals(bounds, listOf(child.bounds, descendant.bounds))
+            val placed = placements
             parent.doLayout()
             child.doLayout()
-            val state = child.policyLayout.measurables
-            val measured = state.measuredSize(Constraints.fixed(30, 20))
-            val retained = checkNotNull(state.measured)
-            val placed = checkNotNull(child.policyLayout.lastPlaced)
-            val measurable = parent.policyLayout.measurables.of(child)
-            measurable.declare(null, layoutChainOf { SwingModifier.width(IntrinsicSize.Min) })
-            assertEquals(listOf(40, 40, 40, 40), intrinsicSizesAt(measurable, 80))
-            assertSame(retained, state.measured)
-            assertSame(placed, child.policyLayout.lastPlaced)
-            assertEquals(Dimension(30, 20), measured)
-            assertEquals(Dimension(1_073_741_823, 536_870_911), child.preferredSize)
-            assertEquals(Dimension(1_073_741_823, 536_870_911), child.minimumSize)
-            assertSame(retained, state.measured)
-            assertSame(placed, child.policyLayout.lastPlaced)
+            awaitIdle()
+            assertEquals(before, measurements, "queries preserve the parent's settled measurement")
+            assertEquals(childBefore, childMeasurements, "queries preserve the child's settled measurement")
+            assertTrue(placements > placed, "the settled result can still place its descendant")
+            assertEquals(bounds, listOf(child.bounds, descendant.bounds))
         }
 
     @Test
@@ -151,139 +147,144 @@ class NestedIntrinsicRegressionTest {
                 val first = mutableIntStateOf(11)
                 val second = mutableIntStateOf(17)
                 var measurements = 0
-                var intrinsicResults = emptyList<Int>()
+                var intrinsicSizes = emptyList<Int>()
 
-                fun intrinsicResultAt(opposite: Int): Int =
-                    when (opposite) {
-                        40 -> first.intValue
-                        80 -> second.intValue
-                        else -> 0
-                    }
                 val childPolicy =
-                    object : MeasurePolicy {
-                        override fun MeasureScope.measure(
-                            measurables: List<Measurable>,
-                            constraints: Constraints,
-                        ): MeasureResult = layout(1, 1) {}
-
-                        override fun IntrinsicMeasureScope.minIntrinsicWidth(
-                            measurables: List<IntrinsicMeasurable>,
-                            height: Int,
-                        ): Int = intrinsicResultAt(height)
-
-                        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
-                            measurables: List<IntrinsicMeasurable>,
-                            height: Int,
-                        ): Int = intrinsicResultAt(height)
-
-                        override fun IntrinsicMeasureScope.minIntrinsicHeight(
-                            measurables: List<IntrinsicMeasurable>,
-                            width: Int,
-                        ): Int = intrinsicResultAt(width)
-
-                        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
-                            measurables: List<IntrinsicMeasurable>,
-                            width: Int,
-                        ): Int = intrinsicResultAt(width)
+                    IntrinsicQueryPolicy { _, _, opposite ->
+                        when (opposite) {
+                            40 -> first.intValue
+                            80 -> second.intValue
+                            else -> 0
+                        }
                     }
                 val horizontal = hook < 2
                 val parentPolicy =
                     MeasurePolicy { children, constraints ->
                         measurements++
                         val child = children.single()
-                        intrinsicResults = listOf(query(child, hook, 40), query(child, hook, 80))
-                        val offset = intrinsicResults.sum()
+                        intrinsicSizes = listOf(query(child, hook, 40), query(child, hook, 80))
+                        val offset = intrinsicSizes.sum()
                         val placeable = child.measure(Constraints.fixed(1, 1))
                         layout(constraints.constrainWidth(200), constraints.constrainHeight(200)) {
                             placeable.place(if (horizontal) offset else 0, if (horizontal) 0 else offset)
                         }
                     }
                 setContent {
-                    Layout(
-                        content = {
-                            Layout(
-                                content = {},
-                                measurePolicy = childPolicy,
-                                modifier = SwingModifier.testTag("nested"),
-                            )
-                        },
-                        measurePolicy = parentPolicy,
-                        modifier = SwingModifier.preferredSize(200, 200),
-                    )
+                    Layout(parentPolicy, SwingModifier.preferredSize(200, 200)) {
+                        Layout(childPolicy, SwingModifier.testTag("nested"))
+                    }
                 }
                 val child = onNodeWithTag("nested").fetch<Component>()
                 assertEquals(
                     listOf(11, 17),
-                    intrinsicResults,
+                    intrinsicSizes,
                     "hook $hook: both finite arguments must reach the child policy.",
                 )
                 assertEquals(if (horizontal) Rectangle(28, 0, 1, 1) else Rectangle(0, 28, 1, 1), child.bounds)
                 val before = measurements
                 awaitIdle()
                 assertEquals(before, measurements, "hook $hook: an unchanged parent must keep its measured result.")
-                first.intValue = 23
-                awaitIdle()
-                assertTrue(measurements > before, "hook $hook: the first dependency must remeasure the parent.")
-                assertEquals(listOf(23, 17), intrinsicResults, "hook $hook: and the parent reads again")
-                assertEquals(if (horizontal) Rectangle(40, 0, 1, 1) else Rectangle(0, 40, 1, 1), child.bounds)
-                val afterFirst = measurements
-                second.intValue = 29
-                awaitIdle()
-                assertTrue(measurements > afterFirst, "hook $hook: the second dependency must remeasure the parent.")
-                assertEquals(listOf(23, 29), intrinsicResults, "hook $hook: and the parent reads again")
-                assertEquals(if (horizontal) Rectangle(52, 0, 1, 1) else Rectangle(0, 52, 1, 1), child.bounds)
+                for ((state, value) in listOf(first to 23, second to 29)) {
+                    val previouslyMeasured = measurements
+                    state.intValue = value
+                    awaitIdle()
+                    assertTrue(measurements > previouslyMeasured, "hook $hook: each argument retains its dependency")
+                    val expected = listOf(first.intValue, second.intValue)
+                    assertEquals(expected, intrinsicSizes, "hook $hook: the parent reads both arguments again")
+                    val offset = expected.sum()
+                    assertEquals(
+                        if (horizontal) Rectangle(offset, 0, 1, 1) else Rectangle(0, offset, 1, 1),
+                        child.bounds,
+                    )
+                }
             }
         }
     }
 
-    private fun query(
-        child: IntrinsicMeasurable,
-        hook: Int,
-        opposite: Int,
-    ): Int =
-        when (hook) {
-            0 -> child.minIntrinsicWidth(opposite)
-            1 -> child.maxIntrinsicWidth(opposite)
-            2 -> child.minIntrinsicHeight(opposite)
-            else -> child.maxIntrinsicHeight(opposite)
+    @Test
+    fun finiteHooksKeepTheirIndependentObservedReads() =
+        runComposeSwingTest {
+            val states = List(4) { mutableIntStateOf(0) }
+            var measurements = 0
+            setContent {
+                Layout(
+                    measurePolicy =
+                        IntrinsicQueryPolicy(
+                            measuring =
+                                MeasurePolicy { children, _ ->
+                                    measurements++
+                                    val placeable = children.single().measure(Constraints.fixed(width = 1, height = 1))
+                                    layout(1, 1) { placeable.place(0, 0) }
+                                },
+                        ) { _, _, _ -> 1 },
+                ) {
+                    Layout(
+                        IntrinsicQueryPolicy { _, hook, extent -> extent / 2 + states[hook].intValue },
+                        SwingModifier.testTag("child"),
+                    )
+                }
+            }
+            val child = onNodeWithTag("child").fetch<ConstrainedPanel>()
+            assertEquals(List(4) { 40 }, intrinsicSizes(child, opposite = 80))
+            for ((hook, state) in states.withIndex()) {
+                val before = measurements
+                state.intValue++
+                awaitIdle()
+                assertTrue(measurements > before, "hook $hook must retain its own reads")
+            }
         }
-
-    private fun intrinsicSizesAt(
-        measurable: IntrinsicMeasurable,
-        opposite: Int,
-    ): List<Int> =
-        listOf(
-            measurable.minIntrinsicWidth(opposite),
-            measurable.maxIntrinsicWidth(opposite),
-            measurable.minIntrinsicHeight(opposite),
-            measurable.maxIntrinsicHeight(opposite),
-        )
 }
 
-private fun finitePolicy(): MeasurePolicy =
-    object : MeasurePolicy {
-        override fun MeasureScope.measure(
-            measurables: List<Measurable>,
-            constraints: Constraints,
-        ): MeasureResult = layout(constraints.constrainWidth(1), constraints.constrainHeight(1)) {}
-
-        override fun IntrinsicMeasureScope.minIntrinsicWidth(
-            measurables: List<IntrinsicMeasurable>,
-            height: Int,
-        ): Int = height / 2
-
-        override fun IntrinsicMeasureScope.maxIntrinsicWidth(
-            measurables: List<IntrinsicMeasurable>,
-            height: Int,
-        ): Int = height / 2
-
-        override fun IntrinsicMeasureScope.minIntrinsicHeight(
-            measurables: List<IntrinsicMeasurable>,
-            width: Int,
-        ): Int = width / 2
-
-        override fun IntrinsicMeasureScope.maxIntrinsicHeight(
-            measurables: List<IntrinsicMeasurable>,
-            width: Int,
-        ): Int = width / 2
+private fun query(
+    child: IntrinsicMeasurable,
+    hook: Int,
+    opposite: Int,
+): Int =
+    when (hook) {
+        0 -> child.minIntrinsicWidth(opposite)
+        1 -> child.maxIntrinsicWidth(opposite)
+        2 -> child.minIntrinsicHeight(opposite)
+        else -> child.maxIntrinsicHeight(opposite)
     }
+
+private fun intrinsicSizes(
+    child: Constrainable,
+    opposite: Int,
+): List<Int> =
+    listOf(
+        child.minIntrinsicWidth(opposite),
+        child.maxIntrinsicWidth(opposite),
+        child.minIntrinsicHeight(opposite),
+        child.maxIntrinsicHeight(opposite),
+    )
+
+internal class IntrinsicQueryPolicy(
+    measuring: MeasurePolicy =
+        MeasurePolicy { measurables, constraints ->
+            val children = measurables.map { it.measure(constraints) }
+            layout(constraints.constrainWidth(1), constraints.constrainHeight(1)) {
+                children.forEach { it.place(0, 0) }
+            }
+        },
+    private val querySize: (List<IntrinsicMeasurable>, hook: Int, extent: Int) -> Int,
+) : MeasurePolicy by measuring {
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = querySize(measurables, 0, height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = querySize(measurables, 1, height)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = querySize(measurables, 2, width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = querySize(measurables, 3, width)
+}

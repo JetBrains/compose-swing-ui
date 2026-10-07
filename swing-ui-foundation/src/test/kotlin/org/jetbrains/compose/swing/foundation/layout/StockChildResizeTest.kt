@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -8,7 +7,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -18,10 +16,12 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
+import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Graphics
 import java.awt.Insets
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,7 +45,7 @@ class StockChildResizeTest {
             runComposeSwingTest {
                 var width by mutableIntStateOf(WIDTH + 80)
                 setContent {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, HEIGHT)) {
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
                         Column(modifier = SwingModifier.center().testTag("column")) {
                             Box(modifier = heightModifier().fillMaxWidth()) {
                                 SwingNode(
@@ -79,19 +79,11 @@ class StockChildResizeTest {
 
     @Test
     fun wrappingTextAValidContainerResizesForItsPreferredSizeRequestsNoLayoutPass() {
-        // Stock components showing the text as HTML under the modifier given, preferring it on one line.
-        val htmlTexts: Map<String, @Composable (SwingModifier) -> Unit> =
-            mapOf(
-                "HTML Label" to { modifier -> Label("<html>$WRAPPING_TEXT</html>", modifier = modifier) },
-                "HTML EditorPane" to { modifier ->
-                    EditorPane("<html>$WRAPPING_TEXT</html>", {}, modifier, contentType = "text/html")
-                },
-            )
-        for ((kind, wrapping) in htmlTexts) {
+        for ((kind, wrapping) in WrappingTexts) {
             runComposeSwingTest {
                 var side by mutableStateOf("Side")
                 setContent {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDTH, HEIGHT)) {
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
                         Column(modifier = SwingModifier.center()) {
                             Row(modifier = SwingModifier.testTag("row").height(IntrinsicSize.Max)) {
                                 Box(modifier = SwingModifier.testTag("box")) {
@@ -144,7 +136,7 @@ class StockChildResizeTest {
                 }
             var height by mutableIntStateOf(WIDTH)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDTH, HEIGHT)) {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
                     Column(modifier = SwingModifier.center()) {
                         Row(modifier = SwingModifier.testTag("row").height(height)) {
                             Layout(
@@ -176,10 +168,46 @@ class StockChildResizeTest {
             }
         }
 
-    private companion object {
-        const val WIDTH = 320
-        const val HEIGHT = 600
-    }
+    @Test
+    fun readingANestedContainersPreferredSizeLaysNoStockChildOutAgain() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            val area = ResizeCountingTextArea()
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    Box(modifier = SwingModifier.north()) {
+                        Column(modifier = SwingModifier.testTag("column")) {
+                            SwingNode(
+                                factory = { JPanel(BorderLayout()).apply { add(area) } },
+                                modifier = SwingModifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            }
+            settleWithPaint()
+            width = WIDTH - 60
+            awaitIdle()
+            area.resizes = 0
+
+            // The box reads the column's preferred size, at a width wider than the one the border layout grants.
+            onNodeWithTag("column").fetch<JComponent>().revalidate()
+            awaitIdle()
+
+            assertEquals(0, area.resizes, "the panel holding the area is not laid out again")
+        }
+
+    @Test
+    fun aStockContainerHoldingTextNotReflowedSinceItsLastResizeLaysTheTextOutOnceAtANarrowerWidth() =
+        assertStockContainerLaysTextOutOnceAtANarrowerWidth(
+            mapOf<String, Holder>(
+                "Box" to { modifier, content -> Box(modifier = modifier) { content() } },
+                "Column" to { modifier, content -> Column(modifier = modifier) { content() } },
+                "Box holding a Column in a Box" to { modifier, content ->
+                    Box(modifier = modifier) { Box { Column { content() } } }
+                },
+            ),
+        )
 }
 
 /** A wrapping text area that paints through the decoration its modifier declares, its insets carrying the outsets. */
@@ -201,3 +229,5 @@ internal class DecoratedTextArea(
     override fun getInsets(insets: Insets?): Insets =
         decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
 }
+
+private const val WIDTH = 320

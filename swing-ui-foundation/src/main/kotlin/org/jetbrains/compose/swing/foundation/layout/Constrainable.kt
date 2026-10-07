@@ -3,26 +3,19 @@ package org.jetbrains.compose.swing.foundation.layout
 /**
  * A component that reports what extent it takes under given constraints, and its intrinsic sizes at a given extent.
  *
- * Swing's child protocol carries no constraints - `getPreferredSize()` takes no argument - so a container measuring a
- * child can only coerce what that child reports. A child implementing this is the exception: it is measured under the
- * constraints its parent computed for it, and its intrinsic sizes at the extent its parent names on the other
- * axis, as androidx reads an `IntrinsicMeasurable`.
+ * A child implementing this is measured under the constraints its parent computed for it. Its intrinsic
+ * sizes are read at the extent its parent names on the other axis, as androidx reads
+ * an [IntrinsicMeasurable]. A component that
+ * does not implement it has its preferred or minimum size read, which a container holds inside the constraints.
  *
- * Every component that [Row], [Column], [Box] and [Layout] create implements it, so a [Row] inside a [Column] inside a
- * [Box] receives a constrained size read, and an intrinsic read at an extent, at every step; both stop at a stock
- * widget or at a container from elsewhere, which returns its preferred or minimum size.
- *
- * A stock component whose height is read at an unbounded width returns a result at the width it holds, as
- * Swing provides no size preference for another
- * result. A container that takes its width from that height, such as a [Column] holding the component at an
- * `aspectRatio`, then returns another width for each width it is laid out at, so a parent that lays it out at the
- * width it prefers lays it out again each time, as plain Swing does with the same
- * layout. A component that can report a size
- * its height for an unbounded width, as androidx's text does on one line, implements this interface.
+ * Every component that [Row], [Column], [Box] and [Layout] create implements it. A component that can return its
+ * height for an unbounded width, as androidx's text does on one line, implements it too.
  *
  * [measure] is called only while a container is laying its children out. The intrinsic functions can be read at any
- * time, as androidx's `IntrinsicMeasurable` can. Read outside a layout pass, they start none, and leave every
- * component with the bounds and validity it had.
+ * time, and an implementation returns them without changing its own bounds or
+ * validity. A container whose height is read
+ * while it is invalid, and a parent that is not a Foundation container lays it out next, first sizes its stock
+ * children to the specified width, as that layout does.
  */
 public interface Constrainable {
     /** Measures under [constraints]; read the answer back from [constrainedWidth] and [constrainedHeight]. */
