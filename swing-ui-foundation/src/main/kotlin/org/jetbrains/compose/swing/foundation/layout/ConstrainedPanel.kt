@@ -254,10 +254,11 @@ internal open class ConstrainedPanel(
         y: Int,
         width: Int,
         height: Int,
-    ) = policyLayout.measurables.during(RunningCause.ParentPlacement) {
-        super.setBounds(x, y, width, height)
-        glassPane?.setBounds(0, 0, width, height)
-    }
+    ): Unit =
+        policyLayout.measurables.during(RunningCause.ParentPlacement) {
+            super.setBounds(x, y, width, height)
+            glassPane?.setBounds(0, 0, width, height)
+        }
 
     /**
      * A size set on the component outright answers for it, as it does for `getPreferredSize()`: setting
@@ -269,7 +270,7 @@ internal open class ConstrainedPanel(
             if (isPreferredSizeSet) {
                 super.getPreferredSize()
             } else {
-                policyLayout.measurables.measuredSize(constraints)
+                policyLayout.measurables.run { during(RunningCause.ParentPlacement) { measuredSize(constraints) } }
             }
     }
 
