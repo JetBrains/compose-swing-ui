@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.Constrainable
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.zIndex
@@ -302,6 +303,21 @@ class AnimatedVisibilityContainerTest {
 
             assertEquals(atRatio, container.preferredSize, "the preferred height is the ratio's height at that width")
             assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
+    fun `under a stock parent the container answers its max intrinsic width at the height asked`() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    AnimatedVisibility(visible = true, modifier = SwingModifier.testTag(CONTAINER)) {
+                        Label("Preview", modifier = SwingModifier.aspectRatio(RATIO))
+                    }
+                }
+            }
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>() as Constrainable
+
+            assertEquals(160, container.maxIntrinsicWidth(90), "the ratio's width at that height")
         }
 
     @Test

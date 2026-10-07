@@ -20,6 +20,9 @@ import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * What a [Row], a [Column] or a [Box] answers the layout above it, which is everything a parent can ask
@@ -263,14 +266,29 @@ class RowColumnParentQueryTest {
                     SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
                     SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
                 }
+                Column(modifier = SwingModifier.testTag(COLUMN_TAG)) {
+                    SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
+                    SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
+                }
                 Box(modifier = SwingModifier.testTag(BOX_TAG)) {
                     SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
                     SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
                 }
             }
 
-            for (tag in listOf(ROW_TAG, BOX_TAG)) {
+            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
                 val container = panel(tag)
+                assertEquals(2, container.componentCount, "$tag retains both declared children")
+                val children = container.childrenInDeclarationOrder()
+                val first = children[0]
+                val second = children[1]
+                assertSame(container, first.parent, "$tag attaches its first declared child")
+                assertFalse(first.isVisible, "$tag's first declared child is hidden")
+                assertTrue(second.isVisible, "$tag's other child remains visible")
+                assertEquals(TRAILING, first.alignmentX)
+                assertEquals(LEADING, first.alignmentY)
+                assertEquals(LEADING, second.alignmentX)
+                assertEquals(TRAILING, second.alignmentY)
                 assertEquals(TRAILING, container.alignmentX, "$tag reports the hidden child's x alignment")
                 assertEquals(LEADING, container.alignmentY, "and its y alignment on the other axis")
             }
@@ -365,10 +383,34 @@ class RowColumnParentQueryTest {
         )
     }
 
+    /**
+     * Preferred height is queried at the preferred width, so the aspect ratio can affect that answer
+     * even when measurement is unbounded. Unbounded measurement keeps the child's own size.
+     * A bounded Column queries the Box's width at a finite height and grants that width.
+     */
     @Test
-    fun aBoxsPreferredSizeIsItsMeasuredSizeWhateverLayoutModifierItsChildDeclares() {
+    fun aBoxUsesTheParentsFiniteIntrinsicOfferWhenItsChildDeclaresAnAspectRatio() {
         val mismatches =
-            preferredAndMeasuredMismatches(BOX_ANDROIDX_SIZES) { declare, bounded ->
+            preferredAndMeasuredMismatches(
+                mapOf(
+                    "aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(50, 40), Dimension(80, 40)),
+                    "aspectRatio(2f, matchHeightConstraintsFirst), bounded" to
+                        PreferredAndLaidOut(Dimension(50, 40), Dimension(80, 40)),
+                    "aspectRatio(2f).padding(5), bounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(100, 50)),
+                    "padding(5).aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(90, 50)),
+                    "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 100), Dimension(50, 40)),
+                    "aspectRatio(2f).padding(5), unbounded" to
+                        PreferredAndLaidOut(
+                            Dimension(60, 40),
+                            Dimension(60, 50),
+                        ),
+                    "padding(5).aspectRatio(2f), unbounded" to
+                        PreferredAndLaidOut(
+                            Dimension(60, 40),
+                            Dimension(60, 50),
+                        ),
+                ),
+            ) { declare, bounded ->
                 Column {
                     val bound = if (bounded) SwingModifier else SwingModifier.wrapContentSize(unbounded = true)
                     Box(modifier = SwingModifier.testTag(CONTAINER_TAG).then(bound)) {
@@ -381,9 +423,8 @@ class RowColumnParentQueryTest {
         assertEquals(
             emptyList(),
             mismatches,
-            "a box must be laid out at the size it prefers, with or without a genuine bound, whatever layout " +
-                "modifier its child declares, except where androidx itself lays it out at another size, at the " +
-                "sizes in BOX_ANDROIDX_SIZES",
+            "A box preserves finite intrinsic offers while its native preferred height " +
+                "is asked at its preferred width.",
         )
     }
 
@@ -524,18 +565,6 @@ private val COLUMN_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
         "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 140), Dimension(50, 80)),
         "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(100, 90), Dimension(60, 90)),
         "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(90, 90), Dimension(60, 90)),
-    )
-
-/**
- * The [SIZING_MODIFIERS] entries a [Box] with no bound at all prefers at one size and is laid out at another, as
- * androidx does. The box's max intrinsic height asks the ratio for the child's height at the box's intrinsic width,
- * while its measure, offered no constraint, leaves the ratio no size to find, so the child keeps its own size.
- */
-private val BOX_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
-    mapOf(
-        "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(50, 100), Dimension(50, 40)),
-        "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
-        "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(60, 40), Dimension(60, 50)),
     )
 
 /**

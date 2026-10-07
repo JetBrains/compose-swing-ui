@@ -59,9 +59,11 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
      *
      * The default runs this node's [measure] against a stand-in for the child, under a bounded cross axis and an
      * unbounded main axis, as androidx's `NodeMeasuringIntrinsics` does, so the answer carries this node's own
-     * transform. A node whose `measure` must not run for a query, such as an animation node, overrides the four
-     * intrinsic hooks and [intrinsicPlaceable] to ask [measurable] directly; a container's size query then runs its
-     * `measure` nowhere.
+     * transform. Asked a height under a width offer with a minimum, such as a width its parent fixes, the default
+     * measures under that offer, and [measurable] answers its own height questions under it, so a stock child answers
+     * at the width the measure grants it. A node whose `measure` must not run for a query, such as an animation node,
+     * overrides the four intrinsic hooks and [intrinsicPlaceable] to ask [measurable] directly; a container's size
+     * query then runs its `measure` nowhere.
      */
     public open fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurable: IntrinsicMeasurable,
@@ -285,6 +287,7 @@ private val RevalidateMeasuredChild: (LayoutModifierNode) -> Unit = { node ->
 }
 
 /** Runs [LayoutModifierNode.measure] against an intrinsic-mode stand-in for the real child. */
+context(scope: IntrinsicMeasureScope)
 private fun LayoutModifierNode.measureIntrinsically(
     measurable: IntrinsicMeasurable,
     intrinsicSize: IntrinsicSize,
@@ -292,7 +295,9 @@ private fun LayoutModifierNode.measureIntrinsically(
     crossAxisSize: Int,
 ): Int {
     val adapter = IntrinsicMeasurableAdapter(measurable, intrinsicSize, widthHeight)
-    return intrinsicExtent(widthHeight, crossAxisSize) {
+    val minCrossAxisSize =
+        if (widthHeight == IntrinsicWidthHeight.Height) scope.offeredMinWidth.coerceAtMost(crossAxisSize) else 0
+    return intrinsicExtent(widthHeight, crossAxisSize, minCrossAxisSize) {
         with(PolicyMeasureScope) { measure(adapter, it) }
     }
 }
@@ -301,8 +306,8 @@ private fun LayoutModifierNode.measureIntrinsically(
  * The child a layout modifier measures while its [LayoutModifierNode.intrinsicPlaceable] is asked for: measuring it
  * answers [source]'s own stand-in at the offered extent, or at the extent [source] prefers within a loose offer.
  */
-private class IntrinsicLineMeasurable(
-    private val source: IntrinsicMeasurable,
+internal class IntrinsicLineMeasurable(
+    val source: IntrinsicMeasurable,
 ) : Measurable {
     override val parentData: Any? get() = source.parentData
 
@@ -317,7 +322,7 @@ private class IntrinsicLineMeasurable(
             if (constraints.hasFixedHeight) {
                 constraints.minHeight
             } else {
-                constraints.constrainHeight(source.maxIntrinsicHeight(width))
+                constraints.constrainHeight(source.intrinsicHeightUnder(IntrinsicSize.Max, width, width))
             }
         return source.intrinsicPlaceable(width, height) ?: IntrinsicPlaceable(width, height)
     }

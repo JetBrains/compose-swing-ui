@@ -114,7 +114,8 @@ that cannot measure one is refused when it is applied. Decorations need no scope
 beyond `ConstrainedScope`.
 
 Swing's preferred and minimum size queries offer no extent; [Intrinsic size](FOUNDATION.md#intrinsic-size)
-describes how a policy answers them, and when it overrides its intrinsic functions.
+describes how a policy answers them, what a child answers when a policy asks it at an extent, and when a policy
+overrides its intrinsic functions.
 
 ### Parent data and layout modifiers
 

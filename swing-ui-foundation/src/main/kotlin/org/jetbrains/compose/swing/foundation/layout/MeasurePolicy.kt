@@ -57,7 +57,12 @@ public fun interface MeasurePolicy {
         height: Int,
     ): Int = intrinsicMeasure(measurables, IntrinsicSize.Max, IntrinsicWidthHeight.Width, height)
 
-    /** The smallest height that lets [measurables] paint correctly when they are [width] wide. */
+    /**
+     * The smallest height that lets [measurables] paint correctly when they are [width] wide.
+     *
+     * The default for this and [maxIntrinsicHeight] runs [measure] under a width offer up to [width], from
+     * [offeredMinWidth][IntrinsicMeasureScope.offeredMinWidth].
+     */
     public fun IntrinsicMeasureScope.minIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
@@ -71,9 +76,11 @@ public fun interface MeasurePolicy {
 }
 
 /**
- * CMP's default intrinsic-policy adapter, using Swing's integer constraints rather than packed ones. Where
- * [holdToMaximum], each child answers no more than its [maximum size][IntrinsicMeasurable.maximumSize].
+ * CMP's default intrinsic-policy adapter, using Swing's integer constraints rather than packed ones. A height question
+ * measures under a width offer from the least width [scope] names. Where [holdToMaximum], each child answers no more
+ * than its [maximum size][IntrinsicMeasurable.maximumSize].
  */
+context(scope: IntrinsicMeasureScope)
 internal fun MeasurePolicy.intrinsicMeasure(
     measurables: List<IntrinsicMeasurable>,
     intrinsicSize: IntrinsicSize,
@@ -85,24 +92,29 @@ internal fun MeasurePolicy.intrinsicMeasure(
         List(measurables.size) {
             IntrinsicMeasurableAdapter(measurables[it], intrinsicSize, widthHeight, holdToMaximum)
         }
-    return intrinsicExtent(widthHeight, crossAxisSize) { measure(constrained, it) }
+    val minCrossAxisSize = if (widthHeight == IntrinsicWidthHeight.Height) scope.offeredMinWidth else 0
+    return intrinsicExtent(widthHeight, crossAxisSize, minCrossAxisSize.coerceAtMost(crossAxisSize)) {
+        measure(constrained, it)
+    }
 }
 
 /**
- * The extent [measure] answers along [widthHeight] under a [crossAxisSize] bound on the other axis and an unbounded
- * one along it, which is how a policy or a layout modifier answers an intrinsic question by default.
+ * The extent [measure] answers along [widthHeight] under an offer from [minCrossAxisSize] to [crossAxisSize] on the
+ * other axis and an unbounded one along it, which is how a policy or a layout modifier answers an intrinsic question by
+ * default.
  */
 internal inline fun intrinsicExtent(
     widthHeight: IntrinsicWidthHeight,
     crossAxisSize: Int,
+    minCrossAxisSize: Int = 0,
     measure: MeasureScope.(Constraints) -> MeasureResult,
 ): Int {
     require(crossAxisSize >= 0) { "An intrinsic cross-axis size must be zero or more, but was $crossAxisSize." }
     val constraints =
         if (widthHeight == IntrinsicWidthHeight.Width) {
-            Constraints(maxHeight = crossAxisSize)
+            Constraints(minHeight = minCrossAxisSize, maxHeight = crossAxisSize)
         } else {
-            Constraints(maxWidth = crossAxisSize)
+            Constraints(minWidth = minCrossAxisSize, maxWidth = crossAxisSize)
         }
     val result = PolicyMeasureScope.measure(constraints)
     return if (widthHeight == IntrinsicWidthHeight.Width) result.width else result.height
@@ -123,7 +135,7 @@ internal enum class IntrinsicWidthHeight {
  * [source]'s [maximum size][IntrinsicMeasurable.maximumSize].
  */
 internal class IntrinsicMeasurableAdapter(
-    private val source: IntrinsicMeasurable,
+    val source: IntrinsicMeasurable,
     private val intrinsicSize: IntrinsicSize,
     private val widthHeight: IntrinsicWidthHeight,
     private val holdToMaximum: Boolean = false,
@@ -141,7 +153,7 @@ internal class IntrinsicMeasurableAdapter(
             }
         val height =
             if (widthHeight == IntrinsicWidthHeight.Height) {
-                val intrinsic = source.intrinsicHeight(intrinsicSize, constraints.maxWidth)
+                val intrinsic = source.intrinsicHeightUnder(intrinsicSize, constraints.minWidth, constraints.maxWidth)
                 if (maximum == null) intrinsic else minOf(intrinsic, maximum.height.coerceAtLeast(0))
             } else {
                 if (constraints.hasBoundedHeight) constraints.maxHeight else INTRINSIC_LARGE_DIMENSION
@@ -219,6 +231,8 @@ public sealed interface MeasureScope : IntrinsicMeasureScope {
 
 /** The [MeasureScope] every policy and layout modifier node of this library is run in; it holds nothing of its own. */
 internal object PolicyMeasureScope : MeasureScope {
+    override val offeredMinWidth: Int get() = 0
+
     override fun layout(
         width: Int,
         height: Int,

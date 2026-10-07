@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -27,12 +28,14 @@ import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JTextArea
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -298,6 +301,95 @@ class SwingParentBoundaryTest {
             )
             assertEquals(atRatio, box.size, "the stock parent grants what the container asks for")
             assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
+    fun aStockParentAsksAContainerItsIntrinsicSizesAtAnExtentWithoutLayingItOut() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Box(modifier = SwingModifier.testTag("box").emptyBorder(2)) {
+                        Label("Preview", modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(2f))
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            val label = onNodeWithTag("label").fetch<JComponent>()
+            val boxBounds = box.bounds
+            val labelBounds = label.bounds
+
+            assertEquals(
+                164,
+                (box as Constrainable).maxIntrinsicHeight(324),
+                "the box answers its content's height at the width inside its border, plus the border",
+            )
+            assertEquals(324, box.maxIntrinsicWidth(164), "and its content's width at the height inside it")
+            assertEquals(boxBounds, box.bounds, "asking lays the box out nowhere")
+            assertEquals(labelBounds, label.bounds, "nor its content")
+            assertTrue(box.isValid, "and leaves it valid")
+        }
+
+    @Test
+    fun aStockParentAsksAContainerTheHeightOfAWrappingTextAreaAtAWidthWithoutLayingItOut() =
+        runComposeSwingTest {
+            val sizes = mutableListOf<Dimension>()
+            val placements = mutableListOf<Rectangle>()
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                    Column(modifier = SwingModifier.north().testTag("column")) {
+                        TextArea(
+                            WRAPPING_TEXT,
+                            {},
+                            SwingModifier
+                                .testTag("text")
+                                .fillMaxWidth()
+                                .onSizeChanged { sizes += it }
+                                .onPlaced { placements += it },
+                            lineWrap = true,
+                            wrapStyleWord = true,
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            sizes.clear()
+            placements.clear()
+            val column = onNodeWithTag("column").fetch<JComponent>()
+            val text = onNodeWithTag("text").fetch<JTextArea>()
+            val columnBounds = column.bounds
+            val textBounds = text.bounds
+            val atHalf =
+                JTextArea(WRAPPING_TEXT)
+                    .apply {
+                        lineWrap = true
+                        wrapStyleWord = true
+                        font = text.font
+                        margin = text.margin
+                        border = text.border
+                        setSize(160, 1)
+                    }.preferredSize.height
+
+            withRecordedRepaints { recorder ->
+                assertEquals(
+                    atHalf,
+                    (column as Constrainable).maxIntrinsicHeight(160),
+                    "the column answers the area's height at half its width",
+                )
+                assertTrue(
+                    recorder.relayouts.all { it === text },
+                    "and asks for no layout pass; only the area asks, laying its text out there and back",
+                )
+            }
+            assertTrue(generateSequence<Component>(text) { it.parent }.all { it.isValid }, "and all stay valid")
+            assertEquals(columnBounds, column.bounds, "asking lays the column out nowhere")
+            assertEquals(textBounds, text.bounds, "and gives the area its own bounds back")
+            awaitIdle()
+            assertEquals(emptyList(), sizes, "the area reports no size it was asked at")
+            assertEquals(emptyList(), placements, "and no placement")
+            withRecordedRepaints { recorder ->
+                captureToImage()
+                assertEquals(emptyList(), recorder.relayouts, "the paint finds the area laid out as it was")
+            }
         }
 
     @Test

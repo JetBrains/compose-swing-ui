@@ -52,13 +52,6 @@ dependencies {
     testImplementation(project(":swing-ui-test"))
 }
 
-// The fixtures stand in for Swing services while this project's own tests run; they are not part of what
-// the library publishes.
-(components["java"] as AdhocComponentWithVariants).run {
-    withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
-    withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
-}
-
 jacocoCoverage {
     lineMinimum.set("0.95".toBigDecimal())
     branchMinimum.set("0.80".toBigDecimal())

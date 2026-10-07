@@ -228,8 +228,8 @@ internal open class ConstrainedPanel(
     /**
      * A child moved by a placement replay reports an invalidation that replay has already answered, and so
      * does the [StackingOrder.restack] it ends with: `setComponentZOrder` invalidates this panel, and a
-     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets, nor
-     * adding or removing the [glassPane].
+     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets, adding or
+     * removing the [glassPane], nor a child sized for a height question and given its size back.
      *
      * Resized by its parent's fit, the panel keeps its layout bounds but answers other sizes, which carry its paint
      * outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
@@ -237,9 +237,12 @@ internal open class ConstrainedPanel(
      */
     override fun invalidate() {
         val measurables = policyLayout.measurables
-        if (measurables.isFittingPaintOutsets && measurables.isKeepingSettledResult) return super.invalidate()
-        if (measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets }) return
-        super.invalidate()
+        when {
+            measurables.isFittingPaintOutsets && measurables.isKeepingSettledResult -> super.invalidate()
+            measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets } -> Unit
+            measurables.isSizingForQuestion -> Unit
+            else -> super.invalidate()
+        }
     }
 
     private var measured: Dimension = Dimension()
@@ -272,6 +275,84 @@ internal open class ConstrainedPanel(
             } else {
                 policyLayout.measurables.run { during(RunningCause.SettledResultKept) { measuredSize(constraints) } }
             }
+    }
+
+    /**
+     * A size set on the component outright answers the max functions, and a minimum size set answers the min ones, as
+     * they answer `getPreferredSize()` and `getMinimumSize()`. Otherwise the policy's own intrinsic functions answer,
+     * inside the border insets, as androidx answers a layout's intrinsics from its measure policy.
+     */
+    final override fun minIntrinsicWidth(height: Int): Int =
+        if (isMinimumSizeSet) {
+            minimumSize.width
+        } else {
+            policyWidth(height) { children, inner -> PolicyMeasureScope.minIntrinsicWidth(children, inner) }
+        }
+
+    final override fun maxIntrinsicWidth(height: Int): Int =
+        if (isPreferredSizeSet) {
+            preferredSize.width
+        } else {
+            policyWidth(height) { children, inner -> PolicyMeasureScope.maxIntrinsicWidth(children, inner) }
+        }
+
+    final override fun minIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Min, 0, width)
+
+    final override fun maxIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Max, 0, width)
+
+    /**
+     * The [intrinsicSize] height under an offer of a width from [minWidth] up to [width], as a Foundation parent asks
+     * it. A set size answers as it does for [minIntrinsicHeight] and [maxIntrinsicHeight].
+     */
+    internal fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int =
+        when {
+            intrinsicSize == IntrinsicSize.Min && isMinimumSizeSet -> minimumSize.height
+            intrinsicSize == IntrinsicSize.Max && isPreferredSizeSet -> preferredSize.height
+            else -> policyHeight(intrinsicSize, minWidth, width)
+        }
+
+    /**
+     * The policy's [intrinsicSize] height at the inner [width], run under the inner offer from [minWidth], plus the
+     * border's top and bottom insets.
+     */
+    private fun policyHeight(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(width, insets.left, insets.right)
+        val innerMinWidth = innerExtent(minWidth, insets.left, insets.right)
+        val scope = widthOfferScope(innerMinWidth.coerceAtMost(inner))
+        val answered =
+            policyLayout.measurables.run {
+                during(RunningCause.SettledResultKept) {
+                    askPolicy {
+                        if (intrinsicSize == IntrinsicSize.Min) {
+                            scope.minIntrinsicHeight(it, inner)
+                        } else {
+                            scope.maxIntrinsicHeight(it, inner)
+                        }
+                    }
+                }
+            }
+        return answered.grownBy(insets.top.grownBy(insets.bottom))
+    }
+
+    /** What [answer] works out for the inner extent at the outer [height], plus the border's left and right insets. */
+    private inline fun policyWidth(
+        height: Int,
+        answer: MeasurePolicy.(List<Measurable>, Int) -> Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(height, insets.top, insets.bottom)
+        val answered =
+            policyLayout.measurables.run { during(RunningCause.SettledResultKept) { askPolicy { answer(it, inner) } } }
+        return answered.grownBy(insets.left.grownBy(insets.right))
     }
 
     /**

@@ -55,6 +55,7 @@ import org.jetbrains.compose.swing.foundation.layout.MeasurePolicy
 import org.jetbrains.compose.swing.foundation.layout.MeasureResult
 import org.jetbrains.compose.swing.foundation.layout.MeasureScope
 import org.jetbrains.compose.swing.foundation.layout.RowScope
+import org.jetbrains.compose.swing.foundation.layout.withOfferedMinWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Dimension
 import kotlin.math.max
@@ -577,7 +578,7 @@ private class AnimatedEnterExitMeasurePolicy(
     override fun IntrinsicMeasureScope.minIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = measurables.fastMaxOfOrDefault(0) { it.minIntrinsicHeight(width) }
+    ): Int = measurables.fastMaxOfOrDefault(0) { it.withOfferedMinWidth(offeredMinWidth).minIntrinsicHeight(width) }
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
@@ -587,7 +588,7 @@ private class AnimatedEnterExitMeasurePolicy(
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(width) }
+    ): Int = measurables.fastMaxOfOrDefault(0) { it.withOfferedMinWidth(offeredMinWidth).maxIntrinsicHeight(width) }
 }
 
 /**

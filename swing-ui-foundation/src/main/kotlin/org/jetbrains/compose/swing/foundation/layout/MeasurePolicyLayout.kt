@@ -232,12 +232,20 @@ internal fun Component.keepingSettledResult(block: () -> Unit) {
     }
 }
 
-/** The non-negative extent left after the insets on its two edges have taken their space. */
-private fun innerExtent(
+/**
+ * The non-negative extent left after the insets on its two edges have taken their space; [Constraints.Infinity] stays
+ * unbounded.
+ */
+internal fun innerExtent(
     extent: Int,
     firstInset: Int,
     secondInset: Int,
-): Int = (extent.toLong() - firstInset.grownBy(secondInset)).coerceAtLeast(0L).toInt()
+): Int =
+    if (extent == Constraints.Infinity) {
+        extent
+    } else {
+        (extent.toLong() - firstInset.grownBy(secondInset)).coerceAtLeast(0L).toInt()
+    }
 
 /** [this] plus [amount], held between zero and the largest extent the geometry APIs can represent. */
 internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
@@ -249,6 +257,7 @@ internal enum class RunningCause {
     GlassPaneChange,
     ChildInvalidation,
     Validation,
+    SizingForQuestion,
 }
 
 /**
@@ -329,6 +338,9 @@ internal class ChildMeasurables(
         }
     }
 
+    /** The children an intrinsic question of this container's policy walks, in declaration order. */
+    internal val intrinsicChildren: List<Measurable> get() = gather(intrinsicWalk)
+
     private val runningCauses = EnumSet.noneOf(RunningCause::class.java)
 
     /**
@@ -349,6 +361,12 @@ internal class ChildMeasurables(
 
     /** Whether this container's panel is being validated, or validates the children its placement replay resized. */
     val isValidating: Boolean get() = RunningCause.Validation in runningCauses
+
+    /**
+     * Whether this container sizes a child for a height question no layout pass follows, and then gives the child its
+     * size back: the container stays as valid as it was.
+     */
+    val isSizingForQuestion: Boolean get() = RunningCause.SizingForQuestion in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -494,24 +512,18 @@ internal class ChildMeasurables(
      * at that width, with the max hooks for a preferred-size query and the min hooks for a minimum-size query.
      */
     fun askedSize(mode: MeasureMode): Dimension =
-        synchronized(panel.treeLock) {
-            gather(intrinsicWalk)
-            val retainedMode = this.mode
-            val retainedResult = measured
-            this.mode = mode
-            measured = null
+        askPolicy {
+            val retainedMode = this@ChildMeasurables.mode
+            this@ChildMeasurables.mode = mode
             try {
                 owner.observe(if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads, askBlock)
             } finally {
-                this.mode = retainedMode
-                measured = retainedResult
+                this@ChildMeasurables.mode = retainedMode
             }
-            val width = askedWidth
-            val height = askedHeight
             val insets = panel.insets
             Dimension(
-                width.grownBy(insets.left.grownBy(insets.right)),
-                height.grownBy(insets.top.grownBy(insets.bottom)),
+                askedWidth.grownBy(insets.left.grownBy(insets.right)),
+                askedHeight.grownBy(insets.top.grownBy(insets.bottom)),
             )
         }
 
@@ -632,10 +644,10 @@ internal class ChildMeasurable(
      * innermost measuring the unmodified child; null where the child has no layout modifier. It is built again only
      * when the child declares other nodes.
      *
-     * Intrinsic queries answer through it rather than through [measure], and the unmodified end answers with the
-     * component's own preferred or minimum extent. A stateful node overriding the intrinsic hooks, such as an
-     * animation node, then answers without running its `measure`, which would retarget its animation once per query
-     * in a single validate cycle.
+     * Intrinsic queries answer through it rather than through [measure], and the unmodified end answers through the
+     * component's own intrinsic functions where it is a [Constrainable], and with its preferred or minimum extent
+     * otherwise. A stateful node overriding the intrinsic hooks, such as an animation node, then answers without
+     * running its `measure`, which would retarget its animation once per query in a single validate cycle.
      */
     var outerMeasurable: Measurable? = null
         private set
@@ -693,22 +705,22 @@ internal class ChildMeasurable(
 
     // Each reads the field once rather than through a safe call, which would box the Int it answers.
     override fun minIntrinsicWidth(height: Int): Int {
-        val outer = outerMeasurable ?: return layoutMinimumSize.width
+        val outer = outerMeasurable ?: return unmodifiedMinIntrinsicWidth(height)
         return outer.minIntrinsicWidth(height)
     }
 
     override fun maxIntrinsicWidth(height: Int): Int {
-        val outer = outerMeasurable ?: return preferredExtent().width
+        val outer = outerMeasurable ?: return unmodifiedMaxIntrinsicWidth(height)
         return outer.maxIntrinsicWidth(height)
     }
 
     override fun minIntrinsicHeight(width: Int): Int {
-        val outer = outerMeasurable ?: return layoutMinimumSize.height
+        val outer = outerMeasurable ?: return unmodifiedMinIntrinsicHeight(0, width)
         return outer.minIntrinsicHeight(width)
     }
 
     override fun maxIntrinsicHeight(width: Int): Int {
-        val outer = outerMeasurable ?: return preferredExtent().height
+        val outer = outerMeasurable ?: return unmodifiedMaxIntrinsicHeight(0, width)
         return outer.maxIntrinsicHeight(width)
     }
 
@@ -844,7 +856,7 @@ internal class ChildMeasurable(
         get() = decoratable?.decoration?.layoutHeight(component) ?: component.height
 }
 
-private fun ChildMeasurable.preferredExtent(): Dimension =
+internal fun ChildMeasurable.preferredExtent(): Dimension =
     preferred?.takeIf { component.isValid } ?: layoutPreferredSize.also { preferred = it }
 
 /**
@@ -869,20 +881,20 @@ private inline fun ChildMeasurable.forEachLayoutNode(action: (LayoutModifierNode
 }
 
 /** The unmodified child, which its innermost layout modifier measures through. */
-private class UnmodifiedChildMeasurable(
+internal class UnmodifiedChildMeasurable(
     internal val child: ChildMeasurable,
 ) : Measurable {
     override val parentData: Any? get() = child.parentData
 
     override fun measure(constraints: Constraints): Placeable = child.measureUnmodified(constraints)
 
-    override fun minIntrinsicWidth(height: Int): Int = child.layoutMinimumSize.width
+    override fun minIntrinsicWidth(height: Int): Int = child.unmodifiedMinIntrinsicWidth(height)
 
-    override fun maxIntrinsicWidth(height: Int): Int = child.preferredExtent().width
+    override fun maxIntrinsicWidth(height: Int): Int = child.unmodifiedMaxIntrinsicWidth(height)
 
-    override fun minIntrinsicHeight(width: Int): Int = child.layoutMinimumSize.height
+    override fun minIntrinsicHeight(width: Int): Int = child.unmodifiedMinIntrinsicHeight(0, width)
 
-    override fun maxIntrinsicHeight(width: Int): Int = child.preferredExtent().height
+    override fun maxIntrinsicHeight(width: Int): Int = child.unmodifiedMaxIntrinsicHeight(0, width)
 
     override fun intrinsicPlaceable(
         width: Int,
@@ -921,7 +933,7 @@ private class UnmodifiedIntrinsicPlaceable(
 }
 
 /** One layout modifier of a child, measuring through [measurable]. */
-private class LayoutModifierMeasurable(
+internal class LayoutModifierMeasurable(
     val modifier: LayoutModifierNode,
     val measurable: Measurable,
     private val placement: ChildMeasurable,
