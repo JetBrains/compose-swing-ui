@@ -48,7 +48,7 @@ public fun assertStockContainerLaysTextOutOnceAtANarrowerWidth(holders: Map<Stri
             width = width - NARROWING_STEP
             awaitIdle()
             width = width - NARROWING_STEP
-            area.resizes = 0
+            area.resetCounts()
             awaitIdle()
 
             // A measure ahead of the area's own reflow, as an animation frame runs one.

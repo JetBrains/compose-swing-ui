@@ -190,7 +190,7 @@ class StockChildResizeTest {
             settleWithPaint()
             width = WIDTH - 60
             awaitIdle()
-            area.resizes = 0
+            area.resetCounts()
 
             // The box reads the column's preferred size, at a width wider than the one the border layout grants.
             onNodeWithTag("column").fetch<JComponent>().revalidate()

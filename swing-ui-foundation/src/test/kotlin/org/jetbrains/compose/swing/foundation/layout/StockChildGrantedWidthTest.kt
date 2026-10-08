@@ -236,7 +236,7 @@ class StockChildGrantedWidthTest {
                 val bounds = child.bounds
                 (child as? CountingSwingPanel)?.resetCounts()
                 resizes = 0
-                (child as? ResizeCountingTextArea)?.resizes = 0
+                (child as? ResizeCountingTextArea)?.resetCounts()
                 withRecordedRepaints { recorder ->
                     sibling = "After"
                     awaitIdle()

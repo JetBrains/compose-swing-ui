@@ -21,12 +21,16 @@ import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
+import org.jetbrains.compose.swing.foundation.layout.onSizeChanged
 import org.jetbrains.compose.swing.foundation.layout.swingParentSlots
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import javax.swing.JComponent
@@ -267,11 +271,154 @@ class AnimatedGridBagCellTest {
         }
     }
 
+    @Test
+    fun `an expand in a cell narrowed part-way is painted at the size each frame completes at and then fits it`() =
+        runComposeSwingTest {
+            val (trace, narrowedAt) = expandInACellNarrowedPartWay()
+            assertPaintedAtCompletedSizes(trace)
+            val completed = trace.sizes(Phase.COMPLETED)
+            assertEquals(
+                setOf(InNarrowedCell.width),
+                completed.drop(narrowedAt).map { it.width }.toSet(),
+                "the container is as wide as the cell on every frame after the cell narrowed",
+            )
+            assertEquals(
+                FittingInNarrowedCell,
+                completed.last(),
+                "the container ends at the cell's width and the content's minimum height",
+            )
+        }
+
+    @Test
+    fun `an expand in a cell narrowed part-way lays the content out within each grant and then fits it`() =
+        runComposeSwingTest {
+            val (trace) = expandInACellNarrowedPartWay()
+            val granted = trace.steps.filter { it.phase == Phase.COMPLETED }.associate { it.frame to it.size }
+            val reported = trace.steps.filter { it.phase == Phase.REPORTED }
+            assertEquals(
+                Dimension(WIDTH, InNarrowedCell.height),
+                reported.first().size,
+                "the content is first laid out in the cell's ordinary preference",
+            )
+            assertEquals(
+                reported.drop(1).map { step ->
+                    val grant = granted.getValue(step.frame)
+                    Dimension(grant.width, minOf(InNarrowedCell.height, grant.height))
+                },
+                reported.drop(1).map { it.size },
+                "the content reports the size that fits the grant of the frame it is laid out in",
+            )
+            assertEquals(FittingInNarrowedCell, reported.last().size, "the content ends at the size that fits the cell")
+            val fitFrame =
+                trace.steps.first { it.phase == Phase.COMPLETED && it.size == FittingInNarrowedCell }.frame
+            assertEquals(
+                fitFrame,
+                reported.last().frame,
+                "the content fits on the frame the container takes the cell's size",
+            )
+        }
+
+    /**
+     * Drives an expand in a `GridBagLayout` cell that narrows a quarter of the way through it, and returns the trace
+     * of the run with the number of the frame the cell narrowed at.
+     */
+    private suspend fun ComposeSwingTest.expandInACellNarrowedPartWay(): Pair<Trace, Int> {
+        val trace = Trace()
+        val panel = TracingPanel(trace)
+        val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
+        var width by mutableIntStateOf(WIDTH)
+        var visible by mutableStateOf(false)
+        setContent {
+            SwingNode(factory = { panel }) {
+                cell(width) { modifier ->
+                    AnimatedVisibility(
+                        visible = visible,
+                        modifier = modifier.testTag(CONTAINER),
+                        enter = expandIn(tween(TRANSITION_MILLIS)),
+                        exit = ExitTransition.None,
+                    ) {
+                        TallContent { trace.record(Phase.REPORTED, it) }
+                    }
+                }
+            }
+        }
+        mainClock.autoAdvance = false
+        visible = true
+        val transition = TRANSITION_MILLIS.milliseconds
+        val narrowedAt = (transition / 4 / mainClock.frameDuration).toInt()
+        repeat(narrowedAt + (transition * 2 / mainClock.frameDuration).toInt()) { frame ->
+            if (frame == narrowedAt) width = InNarrowedCell.width
+            drivePaintedFrame(trace, panel, frame)
+        }
+        return trace to narrowedAt
+    }
+
+    /**
+     * Records in [trace] the size frame [frame] paints the container at, and the size the container completes it at.
+     */
+    private suspend fun ComposeSwingTest.drivePaintedFrame(
+        trace: Trace,
+        panel: TracingPanel,
+        frame: Int,
+    ) {
+        trace.frame = frame
+        driveOneFrame()
+        val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+        panel.watched = container
+        captureToImage()
+        trace.record(Phase.COMPLETED, container.size)
+    }
+
+    private fun assertPaintedAtCompletedSizes(trace: Trace) {
+        fun framesAndSizes(phase: Phase) = trace.steps.filter { it.phase == phase }.map { it.frame to it.size }
+        assertEquals(
+            framesAndSizes(Phase.COMPLETED),
+            framesAndSizes(Phase.PAINT),
+            "each frame paints the container once, at the size the frame completed at, and the paint keeps that size",
+        )
+    }
+
+    @Test
+    fun `an expand in a cell narrower than the content holds the container at its natural size`() =
+        runComposeSwingTest {
+            val trace = Trace()
+            val panel = TracingPanel(trace)
+            var visible by mutableStateOf(false)
+            setContent {
+                SwingNode(factory = { panel }) {
+                    EnteringCell(
+                        visible,
+                        expandVertically(tween(TRANSITION_MILLIS, TRANSITION_MILLIS)),
+                        onContentSize = { trace.record(Phase.REPORTED, it) },
+                    )
+                }
+            }
+            mainClock.autoAdvance = false
+            visible = true
+            repeat((TRANSITION_MILLIS.milliseconds * 2 / mainClock.frameDuration).toInt() + 3) { frame ->
+                drivePaintedFrame(trace, panel, frame)
+            }
+            assertEquals(
+                listOf(AtNaturalWidth),
+                trace.sizes(Phase.COMPLETED).distinctRuns(),
+                "the container's size on every frame",
+            )
+            assertPaintedAtCompletedSizes(trace)
+            assertEquals(
+                listOf(AtCellWidth),
+                trace.sizes(Phase.REPORTED),
+                "the content reports the size that fits the container",
+            )
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            assertEquals(0, cyclesUntilStable(container), "a paint asks for no layout")
+        }
+
     /** An [AnimatedVisibility] in a `GridBagLayout` cell that fills the width of a panel as wide as the cell. */
     @Composable
     private fun EnteringCell(
         visible: Boolean,
         enter: EnterTransition,
+        onContentSize: (Dimension) -> Unit = {},
     ) {
         Panel(PanelLayout.Flow()) {
             Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(WIDTH, 2 * WIDTH)) {
@@ -284,7 +431,7 @@ class AnimatedGridBagCellTest {
                     enter = enter,
                     exit = ExitTransition.None,
                 ) {
-                    Content()
+                    Content(onContentSize)
                 }
             }
         }
@@ -326,21 +473,33 @@ private fun <T> delayedSpec() = tween<T>(TRANSITION_MILLIS, delayMillis = TRANSI
 
 /** A label with no minimum size, wider than the cell, at a 16:9 ratio. */
 @Composable
-private fun ConstrainedScope.Content() {
-    Label("", modifier = SwingModifier.testTag(CONTENT).aspectRatio(16f / 9f).preferredSize(2 * WIDTH, WIDTH))
-}
-
-/** The size of a cell narrowed below the animated width the container returns, at [TallContent]'s preferred height. */
-private val InNarrowedCell = Dimension(WIDTH / 8, WIDTH / 2)
-
-/** A label filling the width, whose minimum height is far below its preferred height. */
-@Composable
-private fun ConstrainedScope.TallContent() {
+private fun ConstrainedScope.Content(onSize: (Dimension) -> Unit = {}) {
     Label(
         "",
         modifier =
             SwingModifier
                 .testTag(CONTENT)
+                .onSizeChanged(onSize)
+                .aspectRatio(16f / 9f)
+                .preferredSize(2 * WIDTH, WIDTH),
+    )
+}
+
+/** The size of a cell narrowed below the animated width the container returns, at [TallContent]'s preferred height. */
+private val InNarrowedCell = Dimension(WIDTH / 8, WIDTH / 2)
+
+/** The size the cell's width and [TallContent]'s minimum height give the container and the content. */
+private val FittingInNarrowedCell = Dimension(InNarrowedCell.width, InNarrowedCell.height / 8)
+
+/** A label filling the width, whose minimum height is far below its preferred height. */
+@Composable
+private fun ConstrainedScope.TallContent(onSize: (Dimension) -> Unit = {}) {
+    Label(
+        "",
+        modifier =
+            SwingModifier
+                .testTag(CONTENT)
+                .onSizeChanged(onSize)
                 .fillMaxWidth()
                 .preferredSize(WIDTH / 4, InNarrowedCell.height)
                 .minimumSize(0, InNarrowedCell.height / 8),
