@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
-import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -337,21 +336,34 @@ internal class ChildMeasurables(
     private val askBlock: () -> Unit = {
         val children = intrinsicWalk
         // Only an answer a layout follows is kept: a paint checks no height that a question alone worked out.
-        val answer = if (answersStockParent) stockParentAnswer ?: StockParentAnswer() else null
         val current = panel.innerWidth()
         with(owner.policy) {
             if (mode == MeasureMode.Minimum) {
                 askedWidth = PolicyMeasureScope.minIntrinsicWidth(children, Constraints.Infinity)
-                // A container laid out at the width its preferred size asks for has its minimum height there.
-                val preferredWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
-                val width = answer?.widthFor(current, preferredWidth) ?: askedWidth
+                // A container laid out at the width its preferred size asks for has its minimum height there: the min
+                // intrinsic width gives a height the layout never uses.
+                val width =
+                    if (answersStockParent) {
+                        StockParentAnswer.widthFor(stockParentAnswer, current) {
+                            PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
+                        }
+                    } else {
+                        askedWidth
+                    }
                 askedHeight = PolicyMeasureScope.minIntrinsicHeight(children, width)
-                recordStockAnswer { answeredMinimum(current, width, askedHeight) }
+                recordStockAnswer { answeredMinimum(held = current, width = width, height = askedHeight) }
             } else {
                 askedWidth = PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
-                val width = answer?.widthFor(current, askedWidth) ?: askedWidth
+                val width =
+                    if (answersStockParent) {
+                        StockParentAnswer.widthFor(stockParentAnswer, current) { askedWidth }
+                    } else {
+                        askedWidth
+                    }
                 askedHeight = PolicyMeasureScope.maxIntrinsicHeight(children, width)
-                recordStockAnswer { answered(current, askedWidth, width, askedHeight) }
+                recordStockAnswer {
+                    answered(held = current, asked = askedWidth, width = width, height = askedHeight)
+                }
             }
         }
     }
@@ -363,8 +375,7 @@ internal class ChildMeasurables(
 
     /**
      * Whether the invalidation arriving is one a pass already running answers, so this container keeps the result it
-     * settled on: its parent measuring it, asking its intrinsic size or placing it, or this container resizing a child
-     * to answer one.
+     * settled on.
      */
     val isKeepingSettledResult: Boolean get() = RunningCause.SettledResultKept in runningCauses
 
@@ -384,13 +395,13 @@ internal class ChildMeasurables(
      * Whether this container answers a size query from a parent that is not a Foundation container while invalid: that
      * parent lays it out next.
      */
-    val answersBeforeLayout: Boolean get() = RunningCause.AnsweringBeforeLayout in runningCauses
+    val isAnsweringBeforeLayout: Boolean get() = RunningCause.AnsweringBeforeLayout in runningCauses
 
     /**
      * Whether this container answers a size query from Swing under a Foundation parent: its height there is at its
      * preferred width, which that parent's layout does not necessarily grant.
      */
-    val answersFoundationParent: Boolean get() = RunningCause.AnsweringFoundationParent in runningCauses
+    val isAnsweringFoundationParent: Boolean get() = RunningCause.AnsweringFoundationParent in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -522,7 +533,7 @@ internal class ChildMeasurables(
             val insets = panel.borderInsets()
             val horizontal = insets.left.grownBy(insets.right)
             val vertical = insets.top.grownBy(insets.bottom)
-            val result = measureObserved(constraints.offset(-horizontal, -vertical), MeasuredReads)
+            val result = measureObserved(constraints.offset(-horizontal, -vertical), AnswerReads.Measured)
             measured = result
             Dimension(result.width.grownBy(horizontal), result.height.grownBy(vertical))
         }
@@ -533,16 +544,15 @@ internal class ChildMeasurables(
      *
      * Swing asks for both axes at once and supplies no extent on either. It is answered as androidx answers
      * `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the width at an unbounded height, then the height
-     * at that width, with the max hooks for a preferred-size query and the min hooks for a minimum-size query. Under a
-     * parent that is not a Foundation container, the height is at the width the container expects that parent to give
-     * it; see [StockParentAnswer.widthFor].
+     * at that width. Under a parent that is not a Foundation container, the height is at the width the container
+     * expects that parent to give it; see [StockParentAnswer.grantedWidth].
      */
     fun askedSize(mode: MeasureMode): Dimension =
         askPolicy {
             val retainedMode = this@ChildMeasurables.mode
             this@ChildMeasurables.mode = mode
             try {
-                val reads = if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads
+                val reads = if (mode == MeasureMode.Minimum) AnswerReads.Minimum else AnswerReads.Preferred
                 val cause =
                     when {
                         panel.decoration.parentMeasurables != null -> RunningCause.AnsweringFoundationParent
@@ -620,7 +630,7 @@ internal fun ChildMeasurables.settledOn(
     height: Int,
 ): MeasureResult {
     measured?.let { if (it.width == width && it.height == height) return it }
-    val result = measureObserved(Constraints(width, width, height, height), SettledReads)
+    val result = measureObserved(Constraints(width, width, height, height), AnswerReads.Settled)
     measured = result
     return result
 }
@@ -1127,11 +1137,7 @@ internal class ChildPlaceable(
     }
 }
 
-/**
- * What the result its container settled on read from this child, or null where there is nothing to compare. A
- * displayable child holds that reading, and nothing where it was not asked. A child with no peer holds none: it is read
- * before the placement resizes it where it has no layout modifier, and gives null otherwise.
- */
+/** What the result its container settled on read from this child, or null where there is nothing to compare. */
 private fun ChildMeasurable.preferredAsMeasured(): Dimension? =
     when {
         component.isDisplayable -> preferred
@@ -1383,18 +1389,6 @@ internal class InnerPlacementScope : PlacementScope() {
         child.owner.fitPaintOutsets(child)
     }
 }
-
-/** Reads behind what `preferredLayoutSize` answers, which Swing caches as the container's preferred size. */
-private val PreferredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what `minimumLayoutSize` answers, which Swing caches as the container's minimum size. */
-private val MinimumReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what [ChildMeasurables.measuredSize] answers, which the parent lays out with. */
-private val MeasuredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what [settledOn] answers, which this container places. */
-private val SettledReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind the children's bounds, which the placement block sets. */
 private val PlacementReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = { it.component.placeChildrenAgain() }

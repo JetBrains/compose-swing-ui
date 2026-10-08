@@ -249,8 +249,8 @@ class SwingParentParityTest {
     @Test
     fun aContainerAStockParentStretchesLaysItsContentOutOnlyAtTheHeightItSettlesAt() {
         // Asked before its first layout, the text is one line as wide as itself. BoxLayout grants the preferred height
-        // that answer gives; GridBagLayout, short of the preferred width, the minimum height at the minimum width, or,
-        // shorter than that minimum, a height between it and its own.
+        // that answer gives; GridBagLayout, short of the preferred width, the minimum height at that width, or, shorter
+        // than that minimum, a height between it and its own.
         val weightedGridBag: Slot = { width, subject ->
             Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
                 Panel(PanelLayout.GridBag, modifier = SwingModifier.north().preferredSize(width, SQUEEZED_HEIGHT)) {
@@ -273,6 +273,11 @@ class SwingParentParityTest {
                     fillWidth,
                 ),
                 Triple("GridBagLayout fill HORIZONTAL $SQUEEZED_HEIGHT high, weighted", weightedGridBag, fillWidth),
+                Triple(
+                    "GridBagLayout fill HORIZONTAL $SQUEEZED_HEIGHT high, weighted, at a ratio",
+                    weightedGridBag,
+                    { SwingModifier.aspectRatio(2f) },
+                ),
             )
         for ((name, slot, textModifier) in cases) {
             runComposeSwingTest {
@@ -392,77 +397,35 @@ class SwingParentParityTest {
         }
 
     /**
-     * Pins behavior that differs from androidx. A Column answers its width from the height of a wrapping `JTextArea` at
+     * Pins behavior that differs from androidx. A Column answers its width from the height of a wrapping component at
      * an aspect ratio, asked at an unbounded width, which a stock component answers at the width it holds. So each
      * width `BorderLayout` east grants changes the answer, and each validation lays the Column out at another width, at
-     * the widths the same layout takes in plain Swing. Each paint asks for that validation, as in plain Swing. androidx
-     * asks an interop View that height with an `UNSPECIFIED` width spec (`AndroidViewHolder.android.kt` in
-     * `compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/viewinterop`), and a wrapping text answers it on one
-     * line. Aligning with androidx turns this test red; it should then assert that the Column keeps twice the height of
-     * one line as its width, and that a paint asks for no validation.
-     */
-    @Test
-    fun aColumnSizedByTheHeightOfAWrappingTextAreaUnderBorderLayoutEastTakesAnotherWidthAfterEachPaintAsInPlainSwing() =
-        assertLaidOutAtTheWidthsOfPlainSwing(paintAsks = true) {
-            JTextArea(WRAPPING_TEXT).apply {
-                lineWrap = true
-                wrapStyleWord = true
-            }
-        }
-
-    /**
-     * Pins behavior that differs from androidx. A Column answers its width from the height of a `JPanel` holding a
-     * wrapping `JTextArea` at an aspect ratio, asked at an unbounded width, which a stock component answers at the
-     * width it holds. So each width `BorderLayout` east grants changes the answer, and each validation lays the Column
-     * out at another width, at the widths the same layout takes in plain Swing. Each paint asks for that validation, as
-     * in plain Swing. androidx asks an interop View that height with an `UNSPECIFIED` width spec
+     * the widths the same layout takes in plain Swing. Each paint asks for that validation, as in plain Swing, except
+     * that answering the height of a `JLabel` showing HTML lays the HTML out at the width the label is then painted at,
+     * so its paint asks for none. androidx asks an interop View that height with an `UNSPECIFIED` width spec
      * (`AndroidViewHolder.android.kt` in `compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/viewinterop`), and a
      * wrapping text answers it on one line. Aligning with androidx turns this test red; it should then assert that the
      * Column keeps twice the height of one line as its width, and that a paint asks for no validation.
      */
     @Test
-    fun aColumnSizedByTheHeightOfAPanelHoldingAWrappingTextAreaUnderBorderLayoutEastTakesAnotherWidthAfterEachPaint() =
-        assertLaidOutAtTheWidthsOfPlainSwing(paintAsks = true) {
-            JPanel(BorderLayout()).apply {
-                add(
-                    JTextArea(WRAPPING_TEXT).apply {
-                        lineWrap = true
-                        wrapStyleWord = true
-                    },
-                )
+    fun aColumnSizedByTheHeightOfAWrappingComponentUnderBorderLayoutEastTakesAnotherWidthAsInPlainSwing() {
+        fun wrappingTextArea() =
+            JTextArea(WRAPPING_TEXT).apply {
+                lineWrap = true
+                wrapStyleWord = true
             }
+        val leaves: Map<String, Pair<Boolean, () -> JComponent>> =
+            mapOf(
+                "JTextArea" to (true to ::wrappingTextArea),
+                "JPanel holding a JTextArea" to
+                    (true to { JPanel(BorderLayout()).apply { add(wrappingTextArea()) } }),
+                "JLabel showing HTML" to (false to { JLabel("<html>$WRAPPING_TEXT</html>") }),
+                "JEditorPane showing HTML" to (true to { JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>") }),
+            )
+        for ((kind, leaf) in leaves) {
+            assertLaidOutAtTheWidthsOfPlainSwing(kind, paintAsks = leaf.first, leaf = leaf.second)
         }
-
-    /**
-     * Pins behavior that differs from androidx. A Column answers its width from the height of a `JLabel` showing HTML
-     * at an aspect ratio, asked at an unbounded width, which a stock component answers at the width it holds. So each
-     * width `BorderLayout` east grants changes the answer, and each validation lays the Column out at another width, at
-     * the widths the same layout takes in plain Swing. Answering that height lays the HTML out at the width the label
-     * is then painted at, so its paint asks for no validation, where it does in plain Swing. androidx asks an interop
-     * View that height with an `UNSPECIFIED` width spec (`AndroidViewHolder.android.kt` in
-     * `compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/viewinterop`), and a wrapping text answers it on one
-     * line. Aligning with androidx turns this test red; it should then assert that the Column keeps twice the height of
-     * one line as its width, and that a paint asks for no validation.
-     */
-    @Test
-    fun aColumnSizedByTheHeightOfAnHtmlLabelUnderBorderLayoutEastTakesAnotherWidthAtEachValidationAsInPlainSwing() =
-        assertLaidOutAtTheWidthsOfPlainSwing(paintAsks = false) { JLabel("<html>$WRAPPING_TEXT</html>") }
-
-    /**
-     * Pins behavior that differs from androidx. A Column answers its width from the height of a `JEditorPane` showing
-     * HTML at an aspect ratio, asked at an unbounded width, which a stock component answers at the width it holds. So
-     * each width `BorderLayout` east grants changes the answer, and each validation lays the Column out at another
-     * width, at the widths the same layout takes in plain Swing. Each paint asks for that validation, as in plain
-     * Swing. androidx asks an interop View that height with an `UNSPECIFIED` width spec (`AndroidViewHolder.android.kt`
-     * in `compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/viewinterop`), and a wrapping text answers it on one
-     * line. Aligning with androidx turns this test red; it should then assert that the Column keeps twice the height of
-     * one line as its width, and that a paint asks for no validation.
-     */
-    @Test
-    fun aColumnSizedByTheHeightOfAnHtmlEditorPaneUnderBorderLayoutEastTakesAnotherWidthAfterEachPaintAsInPlainSwing() =
-        assertLaidOutAtTheWidthsOfPlainSwing(paintAsks = true) {
-            JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>")
-        }
+    }
 
     /**
      * One step of a scenario: the cycles it took to settle, the height the subject settled at, the heights of the text
@@ -725,9 +688,11 @@ class SwingParentParityTest {
         /**
          * Asserts that in `BorderLayout` east a Column holding the component [leaf] makes at an aspect ratio of 2 is
          * laid out at the widths a panel with a [RatioLayout] holding that component takes, another width at each
-         * validation, and that a paint asks for a validation of the Column where [paintAsks] holds.
+         * validation, and that a paint asks for a validation of the Column where [paintAsks] holds. A failure names
+         * the [kind] of the component.
          */
         fun assertLaidOutAtTheWidthsOfPlainSwing(
+            kind: String,
             paintAsks: Boolean,
             leaf: () -> JComponent,
         ) {
@@ -741,16 +706,20 @@ class SwingParentParityTest {
                         SwingNode(factory = leaf, modifier = SwingModifier.fillMaxWidth().aspectRatio(2f))
                     }
                 }
-            assertEquals(List(CYCLES) { true }, plain.map { it.paintAsks }, "precondition: each plain paint asks")
+            assertEquals(
+                List(CYCLES) { true },
+                plain.map { it.paintAsks },
+                "$kind: precondition: each plain paint asks",
+            )
             assertTrue(
                 plain.zipWithNext().all { (before, after) -> before.width != after.width },
-                "precondition: plain Swing lays the panel out at another width each time: $plain",
+                "$kind: precondition: plain Swing lays the panel out at another width each time: $plain",
             )
-            assertEquals(plain.map { it.width }, column.map { it.width }, "the widths the Column is laid out at")
+            assertEquals(plain.map { it.width }, column.map { it.width }, "$kind: the widths the Column is laid out at")
             assertEquals(
                 List(CYCLES) { paintAsks },
                 column.map { it.paintAsks },
-                "whether a paint asks for a validation of the Column",
+                "$kind: whether a paint asks for a validation of the Column",
             )
         }
 

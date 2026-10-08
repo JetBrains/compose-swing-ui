@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -474,6 +475,30 @@ class SwingParentBoundaryTest {
             }
         }
 
+    @Test
+    fun aContainerItsParentLaysOutAtTheWidthItsPreferredSizeAsksForAnswersItsMinimumHeightThere() {
+        val parents: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
+            mapOf(
+                "a flow layout, which lays the box out at the width it prefers" to
+                    { box -> Panel(PanelLayout.Flow()) { box() } },
+                "a parent that has laid nothing out, so the box holds no width" to
+                    { box -> SwingNode(factory = { JPanel(null) }) { box() } },
+            )
+        for ((name, parent) in parents) {
+            runComposeSwingTest {
+                setContent {
+                    parent { Layout(measurePolicy = ConstantAreaPolicy, modifier = SwingModifier.testTag("box")) }
+                }
+
+                assertEquals(
+                    100,
+                    onNodeWithTag("box").fetch<JComponent>().minimumSize.height,
+                    "$name: the minimum height is the one at the width of 200 the box prefers, not at its minimum 50",
+                )
+            }
+        }
+    }
+
     private companion object {
         const val RATIO = 16f / 9f
 
@@ -504,4 +529,35 @@ private class InvalidatingHeightForWidthLayout : LayoutManager {
     ) = Unit
 
     override fun removeLayoutComponent(component: Component) = Unit
+}
+
+/** Prefers 200 wide and can shrink to 50, and needs 20000 square pixels, so its height is 20000 over its width. */
+private object ConstantAreaPolicy : MeasurePolicy {
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        val width = constraints.maxWidth.coerceIn(1, 200)
+        return layout(width, 20000 / width) {}
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 50
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 200
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
 }

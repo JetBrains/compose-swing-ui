@@ -196,14 +196,9 @@ that width in that pass, and so does a label showing HTML.
 Constraints also stop at a `Panel` backed by a Swing layout manager, which asks a constraint-based container inside it
 for its sizes, and the container answers its height for the width it expects the panel to give it. A panel that sets the
 container's width before asking, as `BorderLayout` does for its north and south children, has that height in the same
-layout pass, and so does a panel that lays the container out at the width it asks for, as `FlowLayout` does. A panel
-that stretches the container to another width without asking again, as `BoxLayout`, a filling `GridBagLayout` and the
-viewport of a `ScrollPane` do, lays it out at the height for that width one validation later, as it does a wrapping
-`TextArea`; content whose height does not follow its width is laid out once. Before its first layout, the container
-answers its minimum height at the width it prefers, as a wrapping stock widget does. A view in a `ScrollPane` that needs
-the vertical scroll bar at the viewport's width but not beside the bar keeps the bar, at the height for the wider width,
-and scrolls by the difference. Put a constraint-based container inside that panel when its descendants need layout
-modifiers:
+layout pass, and so does a panel that lays the container out at the width it asks for, as `FlowLayout` does. Before its
+first layout, the container answers its minimum height at the width it prefers, as a wrapping stock widget does. Put a
+constraint-based container inside that panel when its descendants need layout modifiers:
 
 ```kotlin
 Panel(PanelLayout.Border()) {

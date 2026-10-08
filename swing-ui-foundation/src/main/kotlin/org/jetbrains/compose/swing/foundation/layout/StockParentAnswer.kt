@@ -1,7 +1,5 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.node.SwingComponentNode
-import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 
 /**
@@ -10,14 +8,15 @@ import java.awt.Component
  * paint last found at its width. Swing drops the size it caches for the container when it resizes it.
  */
 internal class StockParentAnswer {
-    /** The inner width of the container's last layout. */
+    /** The inner width of the container's last layout at a width other than zero; a layout at zero leaves it. */
     private var laidOutWidth = 0
 
     /**
-     * Whether the parent lays the container out at the width its preferred size asks for, as `FlowLayout` does. Only a
-     * layout that follows a preferred or minimum size changes it. A layout at the width asked, which the container
-     * already held when asked, leaves it as it was, unless the parent set that width before asking, as `BorderLayout`
-     * does for its north and south children.
+     * Whether the parent lays the container out at the width its preferred size asks for. Only a layout that follows
+     * a preferred size changes it, and a layout at zero does not. A layout at the width asked, which the container
+     * already held when asked, leaves it as it was, unless the parent set that width before asking. A container that
+     * held no width when asked counts as holding [laidOutWidth]. A container never laid out at a width other than zero
+     * follows the answer.
      */
     private var followsAnswer = true
 
@@ -30,111 +29,74 @@ internal class StockParentAnswer {
     /** Which layouts a parent may lay the container out by the last preferred size. */
     private var preferred = Standing.Spent
 
-    /**
-     * The inner width the stock children held when the last heights were worked out, by an answer or by a paint, or
-     * the width a parent laid the container out at after asking at another width before that layout.
-     */
-    private var width = 0
-
-    /**
-     * The inner width a parent asked the last heights for through [Constrainable], or -1 where they are for the width
-     * the container is laid out at, as a preferred size's is.
-     */
-    var askedAt = -1
-        private set
-
-    /**
-     * The inner max intrinsic height last worked out with the stock children at [width], or -1 where none was: a
-     * preferred size answers one. A stock child answers it at the width it holds at the time.
-     */
-    var maxHeight = -1
-        private set
-
-    /** The inner min intrinsic height last worked out with the stock children at [width], or -1 where none was. */
-    var minHeight = -1
-        private set
-
-    /** Whether the last heights were worked out with the stock children sized for the layout that follows. */
-    private var answersNextLayout = false
-
-    /** The inner [width] before the last one, or -1 once a paint finds the container at [width]. */
-    private var previousWidth = -1
-
-    /**
-     * The width a paint revalidated the container away from, or -1. A paint finding the container back at that width
-     * leaves the answer alone, as `ScrollPaneLayout` checks its scroll bars again once and stops.
-     */
-    private var revalidatedFrom = -1
-
-    /**
-     * The inner width a stock parent's question is answered at, for a container now [current] wide whose policy asks
-     * for [asked]. A container not laid out yet, zero wide, has the height at the width asked. A parent that set
-     * another width than the last layout's before asking, as `BorderLayout` does for its north and south children, has
-     * it at that width. A parent that lays the container out at the width it asks for, as `FlowLayout` does, has it at
-     * the width asked now. Any other parent has it at the current width, unless the parent has just laid the
-     * container out there, away from the width answered before, and back: then the answer stays, as
-     * `ScrollPaneLayout` checks its scroll bars again once and stops.
-     */
-    fun widthFor(
-        current: Int,
-        asked: Int,
-    ): Int =
-        when {
-            current == 0 -> asked
-            current != laidOutWidth -> current
-            followsAnswer -> asked
-            current == previousWidth -> width
-            else -> current
-        }
+    /** Which layouts a parent may lay the container out by the last minimum size. */
+    private var minimum = Standing.Spent
 
     /** The inner height of the last minimum size the container answered, or -1 where it answered none. */
     private var minimumSizeHeight = -1
 
-    /** Which layouts a parent may lay the container out by the last minimum size. */
-    private var minimum = Standing.Spent
-
-    /**
-     * The inner width [minimumSizeHeight] is worked out at, where that is not the width the container held when asked,
-     * as for a container not laid out yet; -1 otherwise.
-     */
+    /** The inner width [minimumSizeHeight] is worked out at where that is not the width the container held; else -1. */
     private var minimumAwayAt = -1
 
-    /** Records the minimum size the container answered while [held] wide, with its [height] at the inner [width]. */
-    fun answeredMinimum(
-        held: Int,
-        width: Int,
-        height: Int,
-    ) {
-        val preferredHeight = maxHeight
-        record(width, -1)
-        maxHeight = preferredHeight
-        minHeight = height
-        minimumSizeHeight = height
-        minimumAwayAt = if (width == held) -1 else width
-        minimum = Standing.Cached
-    }
+    /**
+     * The inner width the stock children held when the last heights were worked out, by an answer or by a paint, or
+     * the width a parent laid the container out at after asking at another width.
+     */
+    private var heightsWidth = 0
+
+    /** The inner width a parent asked the last heights for through [Constrainable]; -1 for the laid-out width. */
+    private var askedAt = -1
 
     /**
-     * Which of its sizes a parent lays the container out by at the inner [width] by [height]: [MeasureMode.Preferred]
-     * for a preferred size answered with that height, [MeasureMode.Minimum] for a minimum size answered with it, or
-     * null for neither and for heights a parent asked through [Constrainable]. A height below a minimum worked out at a
-     * width the container did not hold, granted at another width, is also [MeasureMode.Minimum]: the parent squeezes
-     * the container by a minimum that stands for no width it holds, as `GridBagLayout` does short of room, and grants
-     * the minimum at [width] once it asks there. A parent that squeezes the container below the minimum at the width it
-     * held sets the height itself, as `JSplitPane` does short of room.
+     * The inner max intrinsic height last answered or checked, or -1 where none was. A minimum size read at another
+     * width keeps it, as a parent may still lay the container out by the preferred answer.
      */
-    private fun answeredAs(
-        width: Int,
-        height: Int,
-    ): MeasureMode? =
+    private var maxIntrinsicHeight = -1
+
+    /** The inner min intrinsic height last worked out at [heightsWidth], or -1 where none was. */
+    private var minIntrinsicHeight = -1
+
+    private var answersNextLayout = false
+
+    /** The [heightsWidth] before the last one, or -1 once a paint finds the container at [heightsWidth]. */
+    private var previousWidth = -1
+
+    /** The width a paint revalidated the container away from, or -1. A paint back at that width leaves the answer. */
+    private var revalidatedFrom = -1
+
+    /**
+     * The inner width a stock parent's question is answered at, for a container now [current] wide, or null for the
+     * width a preferred size asks for: the policy's max intrinsic width.
+     *
+     * A container not laid out yet has the height at that width, for a minimum size too. A parent that set another
+     * width than the last layout's before asking has it at that width. A parent that lays the container out at the
+     * width its preferred size asks for has it at that width now. Any other parent has it at the current width,
+     * unless the parent has just laid the container out there, away from the width answered before, and back: then
+     * the answer stays.
+     */
+    fun grantedWidth(current: Int): Int? =
         when {
-            askedAt >= 0 -> null
-            preferred != Standing.Spent && height == maxHeight -> MeasureMode.Preferred
-            minimum == Standing.Spent -> null
-            height == minimumSizeHeight -> MeasureMode.Minimum
-            height < minimumSizeHeight && minimumAwayAt >= 0 && width != minimumAwayAt -> MeasureMode.Minimum
-            else -> null
+            current == 0 -> null
+            current != laidOutWidth -> current
+            followsAnswer -> null
+            current == previousWidth -> heightsWidth
+            else -> current
         }
+
+    companion object {
+        /**
+         * The width [answer] grants a container now [current] wide. Where [answer] grants none, or a container that
+         * records none yet holds no width, it is the policy's max intrinsic width, which [preferred] works out.
+         */
+        inline fun widthFor(
+            answer: StockParentAnswer?,
+            current: Int,
+            preferred: () -> Int,
+        ): Int {
+            val width = if (answer != null) answer.grantedWidth(current) else current.takeIf { it != 0 }
+            return width ?: preferred()
+        }
+    }
 
     /**
      * Records the preferred size the container answered while [held] wide: [asked] wide, with its [height] at the inner
@@ -149,18 +111,23 @@ internal class StockParentAnswer {
         askedWidth = asked
         heldWidth = held
         record(width, -1)
-        maxHeight = height
+        maxIntrinsicHeight = height
         preferred = Standing.Cached
     }
 
-    /**
-     * Records Swing dropping the sizes it caches for the container, which was valid where [wasValid] holds. A parent
-     * may have read a size Swing cached until now, so the layout that follows still follows it. A size Swing dropped
-     * before is spent once the container was valid in between: no parent read it since.
-     */
-    fun dropped(wasValid: Boolean) {
-        preferred = preferred.dropped(wasValid)
-        minimum = minimum.dropped(wasValid)
+    /** Records the minimum size the container answered while [held] wide, with its [height] at the inner [width]. */
+    fun answeredMinimum(
+        held: Int,
+        width: Int,
+        height: Int,
+    ) {
+        val preferredHeight = maxIntrinsicHeight
+        record(width, -1)
+        maxIntrinsicHeight = preferredHeight
+        minIntrinsicHeight = height
+        minimumSizeHeight = height
+        minimumAwayAt = if (width == held) -1 else width
+        minimum = Standing.Cached
     }
 
     /**
@@ -177,8 +144,124 @@ internal class StockParentAnswer {
         forNextLayout: Boolean,
     ) {
         record(width, asked)
-        if (intrinsicSize == IntrinsicSize.Min) minHeight = height else maxHeight = height
+        if (intrinsicSize == IntrinsicSize.Min) minIntrinsicHeight = height else maxIntrinsicHeight = height
         answersNextLayout = forNextLayout
+    }
+
+    /**
+     * Records Swing dropping the sizes it caches for the container, which was valid where [wasValid] holds. A parent
+     * may have read a size Swing cached until now, so the layout that follows still follows it. A size Swing dropped
+     * before is spent once the container was valid in between: no parent read it since.
+     */
+    fun dropped(wasValid: Boolean) {
+        preferred = preferred.dropped(wasValid)
+        minimum = minimum.dropped(wasValid)
+    }
+
+    /**
+     * Records the container laid out at the inner [width] by [height], and returns which of its sizes the parent lays
+     * it out by, where the last heights do not stand for that width. The preferred size answered with that height
+     * gives [MeasureMode.Preferred], and the minimum size answered with it [MeasureMode.Minimum]. A height below a
+     * minimum worked out at a width the container did not hold, granted at another width, is also
+     * [MeasureMode.Minimum]: the parent squeezes the container by a minimum that stands for no width it holds, as
+     * `GridBagLayout` does short of room, and grants the minimum at [width] once it asks there. A parent that squeezes
+     * the container below the minimum at the width it held sets the height itself, as `JSplitPane` does short of room.
+     * Heights a parent asked through [Constrainable] are none of its sizes. A size stands for the layouts a parent may
+     * have read it for: while Swing caches it, and for the one layout after Swing drops it. A parent laying the
+     * container out again without asking, as `BorderLayout` does its center child, sets the height itself.
+     */
+    fun laidOutAt(
+        width: Int,
+        height: Int,
+    ): MeasureMode? {
+        // A layout advances the sizes the parent may have read, so select the answer before updating the record.
+        val size = sizeForLayout(width, height)
+        recordLaidOutWidth(width)
+        preferred = preferred.laidOut()
+        minimum = minimum.laidOut()
+        // The parent kept the heights it asked for before this layout at this width, so a paint has nothing to check.
+        if (answersNextLayout) heightsWidth = width
+        answersNextLayout = false
+        if (width == heightsWidth) revalidatedFrom = -1
+        return size
+    }
+
+    private fun sizeForLayout(
+        width: Int,
+        height: Int,
+    ): MeasureMode? {
+        val checks = checksHeightAt(width) && askedAt < 0
+        // Heights no parent asked through Constrainable are a preferred size's, with the max height its answer or a
+        // paint since worked out.
+        return when {
+            !checks -> null
+            preferred != Standing.Spent && height == maxIntrinsicHeight -> MeasureMode.Preferred
+            minimum == Standing.Spent -> null
+            height == minimumSizeHeight -> MeasureMode.Minimum
+            height < minimumSizeHeight && minimumAwayAt >= 0 && width != minimumAwayAt -> MeasureMode.Minimum
+            else -> null
+        }
+    }
+
+    private fun recordLaidOutWidth(width: Int) {
+        val bySize = preferred != Standing.Spent || minimum != Standing.Spent
+        if (width != 0) {
+            if (bySize) {
+                val held = if (heldWidth == 0) laidOutWidth else heldWidth
+                followsAnswer =
+                    when {
+                        width != askedWidth -> false
+                        width != held -> true
+                        held != laidOutWidth -> false
+                        else -> followsAnswer
+                    }
+            }
+            laidOutWidth = width
+        }
+    }
+
+    /**
+     * Records a paint finding the container at the inner [current] width, and returns whether the heights the policy of
+     * [panel] works out there, where [checksHeightAt] accepts it, differ from the last ones: the container is then
+     * revalidated away from the last width. Only a height worked out before is worked out again. A paint at the width
+     * the last heights stand for ends the back-and-forth for which [grantedWidth] keeps the answer. A change to what
+     * the policy reads for the heights worked out here lays the container out again.
+     */
+    fun heightsChangedAt(
+        current: Int,
+        panel: ConstrainedPanel,
+    ): Boolean {
+        if (current == heightsWidth) previousWidth = -1
+        if (!checksHeightAt(current)) return false
+        val at = if (askedAt >= 0) askedAt else current
+        val min =
+            if (minIntrinsicHeight < 0) {
+                -1
+            } else {
+                panel.observedIntrinsic(
+                    IntrinsicSize.Min,
+                    IntrinsicWidthHeight.Height,
+                    at,
+                    AnswerReads.CheckedMinHeight,
+                )
+            }
+        val max =
+            if (maxIntrinsicHeight < 0) {
+                -1
+            } else {
+                panel.observedIntrinsic(
+                    IntrinsicSize.Max,
+                    IntrinsicWidthHeight.Height,
+                    at,
+                    AnswerReads.CheckedMaxHeight,
+                )
+            }
+        val changed = min != minIntrinsicHeight || max != maxIntrinsicHeight
+        if (changed) revalidatedFrom = heightsWidth
+        record(current, askedAt)
+        minIntrinsicHeight = min
+        maxIntrinsicHeight = max
+        return changed
     }
 
     /** Starts a record at the inner [width] for the [asked] width, keeping the heights already worked out there. */
@@ -187,75 +270,19 @@ internal class StockParentAnswer {
         asked: Int,
     ) {
         answersNextLayout = false
-        if (width == this.width && asked == askedAt) return
-        if (width != this.width) previousWidth = this.width
-        this.width = width
+        if (width == heightsWidth && asked == askedAt) return
+        if (width != heightsWidth) previousWidth = heightsWidth
+        heightsWidth = width
         askedAt = asked
-        maxHeight = -1
-        minHeight = -1
-    }
-
-    /**
-     * Records the container laid out at the inner [width] by [height], and returns which of its sizes the parent lays
-     * it out by, where the last heights do not stand for that width; see [answeredAs]. A size stands for the layouts a
-     * parent may have read it for: while Swing caches it, and for the one layout after Swing drops it. A parent laying
-     * the container out again without asking, as `BorderLayout` does its center child, sets the height itself.
-     */
-    fun laidOutAt(
-        width: Int,
-        height: Int,
-    ): MeasureMode? {
-        val laidOutBy = if (checksHeightAt(width)) answeredAs(width, height) else null
-        if (preferred != Standing.Spent || minimum != Standing.Spent) {
-            followsAnswer =
-                when {
-                    width != askedWidth -> false
-                    width != heldWidth -> true
-                    heldWidth != laidOutWidth -> false
-                    else -> followsAnswer
-                }
-        }
-        laidOutWidth = width
-        preferred = preferred.laidOut()
-        minimum = minimum.laidOut()
-        // The parent kept the heights it asked for before this layout at this width, so a paint has nothing to check.
-        if (answersNextLayout) this.width = width
-        answersNextLayout = false
-        if (width == this.width) revalidatedFrom = -1
-        return laidOutBy
-    }
-
-    /**
-     * Records a paint finding the container at the inner [width]. One at the width the last heights stand for ends the
-     * back-and-forth for which [widthFor] keeps the answer.
-     */
-    fun paintedAt(width: Int) {
-        if (width == this.width) previousWidth = -1
+        maxIntrinsicHeight = -1
+        minIntrinsicHeight = -1
     }
 
     /**
      * Whether a paint finding the container at the inner [width] checks its heights: a width that is not zero, not the
      * one the last heights stand for, and not the one a paint revalidated the container away from.
      */
-    fun checksHeightAt(width: Int): Boolean = width != this.width && width != 0 && width != revalidatedFrom
-
-    /**
-     * Records the heights a paint found with the stock children at the inner [width], which [checksHeightAt] accepted,
-     * -1 for one not worked out before, and returns whether either differs from the last one: the container is then
-     * revalidated away from the last width.
-     */
-    fun heightsChangedAt(
-        width: Int,
-        minHeight: Int,
-        maxHeight: Int,
-    ): Boolean {
-        val changed = minHeight != this.minHeight || maxHeight != this.maxHeight
-        if (changed) revalidatedFrom = this.width
-        record(width, askedAt)
-        this.minHeight = minHeight
-        this.maxHeight = maxHeight
-        return changed
-    }
+    private fun checksHeightAt(width: Int): Boolean = width != heightsWidth && width != 0 && width != revalidatedFrom
 }
 
 /** Which layouts a parent may lay a container out by a size it answered. */
@@ -299,7 +326,7 @@ internal fun ChildMeasurables.contentHeightAt(
     val intrinsicSize = if (size == MeasureMode.Minimum) IntrinsicSize.Min else IntrinsicSize.Max
     // The layout pass follows, so the stock children are sized to the width before they answer.
     return during(RunningCause.AnsweringBeforeLayout) {
-        panel.observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, width, ContentHeightReads)
+        panel.observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, width, AnswerReads.ContentHeight)
     }
 }
 
@@ -308,34 +335,18 @@ internal fun ChildMeasurables.contentHeightAt(
  * heights it answered stand for, and either of them differs with the stock children at that width: the parent lays it
  * out at that height in the next validation, as it does a wrapping text area, which compares its width as it paints.
  * The heights are worked out at the width the parent asked them for, or at the width laid out at for a preferred size.
- * A change to what the policy reads for them lays the container out again.
+ * The heights checked are a preferred size's, a minimum size's and those asked through [Constrainable].
  */
 internal fun ChildMeasurables.revalidateWhereHeightChanged() {
     val answer = stockParentAnswer?.takeIf { answersStockParent } ?: return
-    val current = panel.innerWidth()
-    answer.paintedAt(current)
-    if (!answer.checksHeightAt(current)) return
-    val at = answer.askedAt.takeIf { it >= 0 } ?: current
-    val min =
-        if (answer.minHeight < 0) {
-            -1
-        } else {
-            panel.observedIntrinsic(IntrinsicSize.Min, IntrinsicWidthHeight.Height, at, CheckedMinHeightReads)
-        }
-    val max =
-        if (answer.maxHeight < 0) {
-            -1
-        } else {
-            panel.observedIntrinsic(IntrinsicSize.Max, IntrinsicWidthHeight.Height, at, CheckedMaxHeightReads)
-        }
-    if (answer.heightsChangedAt(current, min, max)) panel.revalidate()
+    if (answer.heightsChangedAt(panel.innerWidth(), panel)) panel.revalidate()
 }
 
 /**
  * Whether a validation of the validate root above this component is due or running, so a size it answers feeds its
  * parent's layout: a query while every layout is settled lays nothing out by the answer.
  */
-internal val Component.answersForALayout: Boolean
+internal val Component.isValidationPendingAbove: Boolean
     get() {
         var container = parent ?: return false
         while (!container.isValidateRoot) container = container.parent ?: break
@@ -354,19 +365,10 @@ internal val ChildMeasurables.stockParentLaysOutNext: Boolean
  * layout follows the answer.
  */
 internal inline fun ChildMeasurables.recordStockAnswer(record: StockParentAnswer.() -> Unit) {
-    if (!answersStockParent || !panel.answersForALayout) return
+    if (!answersStockParent || !panel.isValidationPendingAbove) return
     (stockParentAnswer ?: StockParentAnswer().also { stockParentAnswer = it }).record()
 }
 
 /** Whether this container answers its sizes to a parent that is not a Foundation container, which asks for them. */
 internal val ChildMeasurables.answersStockParent: Boolean
     get() = panel.decoration.parentMeasurables == null && !panel.isPreferredSizeSet
-
-/** Reads behind the height a layout pass lays the content out at, which the stock parent grants next. */
-private val ContentHeightReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind the min intrinsic height a paint last checked; see [revalidateWhereHeightChanged]. */
-private val CheckedMinHeightReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind the max intrinsic height a paint last checked; see [revalidateWhereHeightChanged]. */
-private val CheckedMaxHeightReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }

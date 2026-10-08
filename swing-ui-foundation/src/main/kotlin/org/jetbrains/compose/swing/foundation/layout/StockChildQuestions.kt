@@ -118,9 +118,9 @@ private val ChildMeasurables.isLaidOutNext: Boolean
             val parent = measurables.panel.decoration.parentMeasurables
             val record = parent?.find(measurables.panel)
             if (record != null && record.lastPlacement != ChildPlacement.Placed) return false
-            if (measurables.answersFoundationParent) return false
+            if (measurables.isAnsweringFoundationParent) return false
             if (measurables.layoutState != LayoutState.Idle) return true
-            if (measurables.answersBeforeLayout) return true
+            if (measurables.isAnsweringBeforeLayout) return true
             measurables = parent ?: return false
         }
     }

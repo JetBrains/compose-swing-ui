@@ -337,17 +337,17 @@ internal open class ConstrainedPanel(
                 // An invalid panel takes no invalidation from its children, so the settled-result mark is needed only
                 // while it is valid.
                 val cause = if (beforeLayout) RunningCause.AnsweringBeforeLayout else RunningCause.SettledResultKept
-                val reads = if (intrinsicSize == IntrinsicSize.Min) MinIntrinsicHeightReads else MaxIntrinsicHeightReads
+                val reads = if (intrinsicSize == IntrinsicSize.Min) AnswerReads.MinHeight else AnswerReads.MaxHeight
                 val height =
                     during(cause) { observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, inner, reads, scope) }
                 recordStockAnswer {
                     // The children of a valid panel answer at the width it was laid out at.
                     val workedOutAt = if (beforeLayout) inner else innerWidth()
                     answeredHeight(
-                        workedOutAt,
-                        inner,
-                        height,
-                        intrinsicSize,
+                        width = workedOutAt,
+                        asked = inner,
+                        height = height,
+                        intrinsicSize = intrinsicSize,
                         forNextLayout = beforeLayout,
                     )
                 }
@@ -357,20 +357,19 @@ internal open class ConstrainedPanel(
     }
 
     /** Which intrinsic function of the policy [intrinsicBlock] runs, at which extent and in which scope. */
-    private var intrinsicSize = IntrinsicSize.Max
-    private var intrinsicAxis = IntrinsicWidthHeight.Width
-    private var intrinsicExtent = 0
-    private var intrinsicScope: IntrinsicMeasureScope = PolicyMeasureScope
+    private var askedIntrinsicSize = IntrinsicSize.Max
+    private var askedAxis = IntrinsicWidthHeight.Width
+    private var askedExtent = 0
+    private var askedScope: IntrinsicMeasureScope = PolicyMeasureScope
 
-    /** What [intrinsicBlock] answers. */
     private var intrinsicAnswer = 0
 
     // Stored once and reading its inputs from fields, so observing an answer allocates nothing per call.
     private val intrinsicBlock: () -> Unit = {
-        val extent = intrinsicExtent
-        val scope = intrinsicScope
-        val height = intrinsicAxis == IntrinsicWidthHeight.Height
-        val max = intrinsicSize == IntrinsicSize.Max
+        val extent = askedExtent
+        val scope = askedScope
+        val height = askedAxis == IntrinsicWidthHeight.Height
+        val max = askedIntrinsicSize == IntrinsicSize.Max
         intrinsicAnswer =
             policyLayout.measurables.askPolicy { children ->
                 with(scope) {
@@ -395,15 +394,14 @@ internal open class ConstrainedPanel(
         reads: (SwingComponentNode<*>) -> Unit,
         scope: IntrinsicMeasureScope = PolicyMeasureScope,
     ): Int {
-        this.intrinsicSize = intrinsicSize
-        intrinsicAxis = axis
-        intrinsicExtent = extent
-        intrinsicScope = scope
+        askedIntrinsicSize = intrinsicSize
+        askedAxis = axis
+        askedExtent = extent
+        askedScope = scope
         policyLayout.observe(reads, intrinsicBlock)
         return intrinsicAnswer
     }
 
-    /** The policy's [intrinsicSize] width at the inner extent of [height], plus the border's left and right insets. */
     private fun policyWidth(
         intrinsicSize: IntrinsicSize,
         height: Int,
@@ -412,7 +410,7 @@ internal open class ConstrainedPanel(
         val inner = innerExtent(height, insets.top, insets.bottom)
         val answered =
             policyLayout.measurables.run {
-                val reads = if (intrinsicSize == IntrinsicSize.Min) MinIntrinsicWidthReads else MaxIntrinsicWidthReads
+                val reads = if (intrinsicSize == IntrinsicSize.Min) AnswerReads.MinWidth else AnswerReads.MaxWidth
                 during(RunningCause.SettledResultKept) {
                     observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Width, inner, reads)
                 }
@@ -714,21 +712,35 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
     return side(viewport.size) > side(preferredSize)
 }
 
-/** Reads behind what [ConstrainedPanel.minIntrinsicWidth] answers, under a callback of its own; see [observe]. */
-private val MinIntrinsicWidthReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what [ConstrainedPanel.maxIntrinsicWidth] answers, under a callback of its own; see [observe]. */
-private val MaxIntrinsicWidthReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
 /**
- * Reads behind what [ConstrainedPanel.minIntrinsicHeight] answers under any width offer, under a callback of its own.
+ * The answers of a container that invalidate its layout when what they read changes. Each answer records its reads
+ * under the callback of its own entry, so recording one drops no reads behind another; see [observe].
  */
-private val MinIntrinsicHeightReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
+internal enum class AnswerReads : (SwingComponentNode<*>) -> Unit {
+    /** What `preferredLayoutSize` answers, which Swing caches as the container's preferred size. */
+    Preferred,
 
-/**
- * Reads behind what [ConstrainedPanel.maxIntrinsicHeight] answers under any width offer, under a callback of its own.
- */
-private val MaxIntrinsicHeightReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
+    /** What `minimumLayoutSize` answers, which Swing caches as the container's minimum size. */
+    Minimum,
+
+    /** What [ChildMeasurables.measuredSize] answers, which the parent lays out with. */
+    Measured,
+
+    /** What [settledOn] answers, which this container places. */
+    Settled,
+    MinWidth,
+    MaxWidth,
+    MinHeight,
+    MaxHeight,
+
+    /** The height a layout pass lays the content out at, which the stock parent grants next. */
+    ContentHeight,
+    CheckedMinHeight,
+    CheckedMaxHeight,
+    ;
+
+    override fun invoke(node: SwingComponentNode<*>) = node.invalidateLayout()
+}
 
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */
 private val PaintReads: (SwingComponentNode<*>) -> Unit = { it.component.repaint() }
