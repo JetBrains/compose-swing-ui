@@ -960,7 +960,6 @@ internal class EnterExitTransitionLayout(
     private var currentSize = Dimension()
     private var offsetDelta: State<Point>? = null
     private var animSizeState: State<Dimension>? = null
-    private var hasMeasured = false
     private var animSlideOffsetState: State<Point>? = null
 
     /** The width [measure] settled on. */
@@ -1000,7 +999,6 @@ internal class EnterExitTransitionLayout(
         target = measuredSize
         val animSize = sizeAnimation?.animate(sizeTransitionSpec) { sizeByState(it, measuredSize) }
         animSizeState = animSize
-        hasMeasured = true
         currentSize = constraints.constrain(animSize?.value ?: measuredSize)
         offsetDelta = offsetAnimation?.animate({ DefaultOffsetAnimationSpec }) { targetOffsetByState(it, measuredSize) }
         val mutableTransformState = mutableTransformState
@@ -1019,20 +1017,14 @@ internal class EnterExitTransitionLayout(
     }
 
     /**
-     * The current transition size for content of [fullWidth] by [fullHeight]. After the first measure pass it does not
-     * set up an animation: a size query and the following layout pass may measure the content at different sizes,
-     * and only the layout pass may set the animation's target.
+     * The current transition size for content of [fullWidth] by [fullHeight]. A size query may measure the content at a
+     * size the following layout pass does not grant, so a query hands the animations no target; only the layout pass
+     * does. Reading the animated size can still update the animation's states for a new segment.
      */
     fun intrinsicSize(
         fullWidth: Int,
         fullHeight: Int,
-    ): Dimension {
-        if (!hasMeasured) {
-            measure(fullWidth, fullHeight, Unconstrained)
-            return Dimension(width, height)
-        }
-        return animSizeState?.value ?: Dimension(fullWidth, fullHeight)
-    }
+    ): Dimension = animSizeState?.value ?: Dimension(fullWidth, fullHeight)
 
     /** Resolves [contentX] and [contentY] for the result [measure] settled on; called while placing. */
     fun place() {
@@ -1051,8 +1043,6 @@ internal class EnterExitTransitionLayout(
 
 /** Read and never written or handed out. */
 private val ZeroOffset = Point(0, 0)
-
-private val Unconstrained = Constraints()
 
 private class EnterExitTransitionElement(
     val layout: EnterExitTransitionLayout,

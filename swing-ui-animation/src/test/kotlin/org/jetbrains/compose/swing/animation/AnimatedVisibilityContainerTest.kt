@@ -3,11 +3,14 @@ package org.jetbrains.compose.swing.animation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
+import org.jetbrains.compose.swing.animation.core.MutableTransitionState
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.BorderPanelScope
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
@@ -18,7 +21,10 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Constrainable
 import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.WRAPPING_TEXT
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
+import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
+import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -35,13 +41,16 @@ import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
+import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.GraphicsEnvironment
+import java.awt.GridBagConstraints
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JScrollPane
 import javax.swing.SwingUtilities
@@ -50,6 +59,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Which container an [AnimatedVisibility] is: a Foundation parent lays the scoped overload out through the transition,
@@ -306,6 +316,97 @@ class AnimatedVisibilityContainerTest {
         }
 
     @Test
+    fun `under a stock parent a slide out asked its size before its first layout runs its whole duration`() =
+        runComposeSwingTest {
+            mainClock.autoAdvance = false
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDE, PARENT_HEIGHT)) {
+                    val state = remember { MutableTransitionState(true).apply { targetState = false } }
+                    AnimatedVisibility(
+                        visibleState = state,
+                        modifier = SwingModifier.north().testTag(CONTAINER),
+                        enter = EnterTransition.None,
+                        exit = slideOutVertically(tween(EXIT_MILLIS)),
+                    ) {
+                        // Asked before its first layout, the label is as wide as its text; laid out, it fills the
+                        // region.
+                        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(RATIO))
+                    }
+                }
+            }
+
+            mainClock.advanceTimeBy((EXIT_MILLIS - MARGIN_MILLIS).milliseconds)
+            awaitIdle()
+            val running = onAllNodesWithTag(CONTAINER).fetchAll<Component>()
+            assertEquals(1, running.size, "the exit is still running")
+            mainClock.advanceTimeBy(EXIT_MILLIS.milliseconds)
+            awaitIdle()
+            onNodeWithTag(CONTAINER).assertDoesNotExist()
+        }
+
+    @Test
+    fun `under a box layout that stretches it an exit runs its whole duration`() =
+        assertStretchedExitRunsItsWholeDuration { exiting ->
+            Panel(PanelLayout.Box(BoxLayout.Y_AXIS), modifier = SwingModifier.north()) { exiting(SwingModifier) }
+        }
+
+    @Test
+    fun `under a grid bag layout that stretches it an exit runs its whole duration`() =
+        assertStretchedExitRunsItsWholeDuration { exiting ->
+            Panel(PanelLayout.GridBag, modifier = SwingModifier.north()) {
+                exiting(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+            }
+        }
+
+    /**
+     * Shows an exit inside the stock [parent], which stretches the container to the width of a region without asking
+     * its height there, and paints frames until the layout settles: the exit is still running part-way through it.
+     * The content's height follows its width: asked before its first layout, it is as wide as its text, and laid out,
+     * it fills the region.
+     */
+    private fun assertStretchedExitRunsItsWholeDuration(
+        parent: @Composable BorderPanelScope.(exiting: @Composable (SwingModifier) -> Unit) -> Unit,
+    ) {
+        val contents: Map<String, @Composable AnimatedVisibilityScope.() -> Unit> =
+            mapOf(
+                "a label at a ratio" to {
+                    Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(RATIO))
+                },
+                "wrapping HTML text" to {
+                    Label("<html>$WRAPPING_TEXT</html>", modifier = SwingModifier.fillMaxWidth())
+                },
+            )
+        for ((name, content) in contents) {
+            runComposeSwingTest {
+                mainClock.autoAdvance = false
+                setContent {
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDE, PARENT_HEIGHT)) {
+                        parent { modifier ->
+                            val state = remember { MutableTransitionState(true).apply { targetState = false } }
+                            AnimatedVisibility(
+                                visibleState = state,
+                                modifier = modifier.testTag(CONTAINER),
+                                enter = EnterTransition.None,
+                                exit = slideOutVertically(tween(EXIT_MILLIS)),
+                                content = content,
+                            )
+                        }
+                    }
+                }
+                cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
+
+                mainClock.advanceTimeBy((EXIT_MILLIS - MARGIN_MILLIS).milliseconds)
+                awaitIdle()
+                val running = onAllNodesWithTag(CONTAINER).fetchAll<Component>()
+                assertEquals(1, running.size, "$name: the exit is still running")
+                mainClock.advanceTimeBy(EXIT_MILLIS.milliseconds)
+                awaitIdle()
+                onNodeWithTag(CONTAINER).assertDoesNotExist()
+            }
+        }
+    }
+
+    @Test
     fun `under a stock parent the container answers its max intrinsic width at the height asked`() =
         runComposeSwingTest {
             setContent {
@@ -390,6 +491,42 @@ class AnimatedVisibilityContainerTest {
             val label = onNodeWithTag(CONTENT).fetch<JComponent>()
             assertEquals(label.width, container.maxIntrinsicWidth(label.height / 2), "the max width is the content's")
         }
+
+    @Test
+    fun `under a stock parent an enter from hidden that keeps the size lays the content out at the granted width`() {
+        val enters = mapOf("fadeIn" to fadeIn(HeldAlpha), "slideInVertically" to slideInVertically(HeldOffset))
+        for ((kind, enter) in enters) {
+            runComposeSwingTest {
+                var visible by mutableStateOf(false)
+                setContent {
+                    Panel(PanelLayout.Flow()) {
+                        Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(NARROW, PARENT_HEIGHT)) {
+                            AnimatedVisibility(
+                                visible = visible,
+                                modifier = SwingModifier.north().testTag(CONTAINER),
+                                enter = enter,
+                                exit = ExitTransition.None,
+                            ) {
+                                Filled(SwingModifier.testTag(CONTENT).aspectRatio(RATIO), width = WIDE)
+                            }
+                        }
+                    }
+                }
+
+                mainClock.autoAdvance = false
+                visible = true
+                repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+
+                val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+                assertEquals(NARROW, container.width, "$kind: precondition: the parent grants the container its width")
+                assertEquals(
+                    Dimension(NARROW, (NARROW / RATIO).roundToInt()),
+                    onNodeWithTag(CONTENT).fetch<JComponent>().size,
+                    "$kind: the content is laid out at the width the parent grants, at the ratio's height",
+                )
+            }
+        }
+    }
 
     @Test
     fun `under any parent a slide paints nothing outside the container`() =
@@ -558,3 +695,12 @@ private const val FADED = "faded"
 private const val CONTAINER = "container"
 private const val CLIP_WINDOW = "expand-clip"
 private const val COLUMN = "column"
+
+/** A slide that holds its initial offset past every frame these tests send. */
+private val HeldOffset: FiniteAnimationSpec<Point> = tween(durationMillis = 320, delayMillis = 320)
+
+private const val PARENT_HEIGHT = 320
+private const val EXIT_MILLIS = 1000
+
+/** The time an exit has left when a test checks that it is still running. */
+internal const val MARGIN_MILLIS = 320
