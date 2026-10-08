@@ -75,35 +75,23 @@ internal val treeDocumentOrder =
     }
 
 /**
- * Re-applies [selectedPaths] as the tree's selection, and answers whether the tree had to be written to.
- * Paths that no longer resolve against the current structure are dropped, and a `null` declaration leaves
- * the tree's selection alone.
+ * The nodes [selectedPaths] names in [model], in document order. A path the current structure no longer
+ * has is dropped.
  */
-internal fun applySelection(
-    tree: JTree,
+internal fun resolveSelection(
     model: TreeModel,
-    selectedPaths: Set<List<Int>>?,
-): Boolean {
-    if (selectedPaths == null) return false
-    return selectNodes(tree, selectedPaths.sortedWith(treeDocumentOrder).mapNotNull { resolvePath(model, it) })
-}
+    selectedPaths: Set<List<Int>>,
+): List<TreePath> = selectedPaths.sortedWith(treeDocumentOrder).mapNotNull { resolvePath(model, it) }
 
 /**
  * Leaves the tree selecting exactly [resolved], skipping the write where it already holds those nodes, and
  * answers whether it was written to.
- *
- * What it holds is compared as nodes rather than as the index paths naming them: a `TreePath` carries the
- * nodes it was built from, so two of them are equal exactly when they end at the same node by the same way
- * down, and answering takes no walk of the model.
  */
 internal fun selectNodes(
     tree: JTree,
     resolved: List<TreePath>,
 ): Boolean {
-    val standing = tree.selectionPaths.orEmpty()
-    val holdsExactly =
-        standing.size == resolved.size && (resolved.isEmpty() || standing.toHashSet().containsAll(resolved))
-    if (holdsExactly) return false
+    if (holdsExactly(tree.selectionPaths.orEmpty(), resolved)) return false
     if (resolved.isEmpty()) {
         tree.clearSelection()
     } else {
@@ -111,3 +99,15 @@ internal fun selectNodes(
     }
     return true
 }
+
+/**
+ * Whether [standing] holds exactly the nodes of [resolved].
+ *
+ * The nodes are compared as `TreePath`s rather than as the index paths naming them: a `TreePath` carries
+ * the nodes it was built from, so two of them are equal exactly when they end at the same node by the same
+ * way down, and answering takes no walk of the model.
+ */
+internal fun holdsExactly(
+    standing: Array<out TreePath>,
+    resolved: List<TreePath>,
+): Boolean = standing.size == resolved.size && (resolved.isEmpty() || standing.toHashSet().containsAll(resolved))

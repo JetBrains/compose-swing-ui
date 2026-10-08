@@ -25,11 +25,16 @@ import javax.swing.JTree
  * selecting a node or opening one writes the change back here. Both are snapshot-observable, so reading
  * one inside a composable (or a `snapshotFlow` collector) subscribes to the user's later changes as well.
  *
- * What this state names is the composition's own and is re-applied on every pass: a tree driven by a
- * state stands on exactly the nodes the state holds, so a state starting on the empty expansion opens
- * nothing - start it on `setOf(emptyList())` for a tree that opens on its root. A node the structure does
- * not have is left out of the tree while it goes on being named here - a structure that has it again
- * shows it selected, or open.
+ * The selection is re-applied on every pass, so a tree driven by a state stands on the nodes
+ * [selectedPaths] holds. The expansion is applied when it is assigned and again on each new structure, so a
+ * state starting on the empty expansion opens nothing - start it on `setOf(emptyList())` for a tree that
+ * opens on its root. A node the structure does not have is left out of the tree while it goes on being
+ * named here - a structure that has it again shows it selected, or open. A state is the only place a
+ * tree's expansion is held: a tree recreated with this state opens the nodes it names.
+ *
+ * The tree settles the two facets the way a `JTree` does and writes what it settles on back here. Closing
+ * a node over selected descendants selects that node in their place, in [selectedPaths]. Selecting a node
+ * under a closed one opens the nodes above it, in [expandedPaths].
  *
  * [revealPath] brings one node into view when the application decides to - a search hit, a node a load
  * has just filled in:
@@ -45,10 +50,10 @@ import javax.swing.JTree
  *
  * [rowCount], [isExpanded] and [shownSelectedPaths] answer for the tree instead of for what this state
  * holds. Each reads the bound tree where it is called, so what it reports is what the tree stands on -
- * which is not always what was declared, since a structure can drop a node and a closed node cannot show
- * its descendants selected. They are not snapshot state, so reading one subscribes to nothing; a composable
- * that has to follow the user reads [selectedPaths] and [expandedPaths]. An unbound state has no tree to
- * answer for and reports no rows, nothing open and nothing selected.
+ * which is not always what the state names, since a structure can drop a node and a leaf has nothing to
+ * open. They are not snapshot state, so reading one subscribes to nothing; a composable that has to
+ * follow the user reads [selectedPaths] and [expandedPaths]. An unbound state has no tree to answer for
+ * and reports no rows, nothing open and nothing selected.
  *
  * A state drives at most one tree: passing it to a second one moves it there and leaves the first
  * unbound.

@@ -28,8 +28,9 @@ private data class Folder(
  * The assertions read the rows the tree shows rather than the model behind them: a node the model gained
  * without the tree being told would answer for itself in the model and have no row at all.
  *
- * These are the undeclared facets throughout: a declared expansion or selection names index paths, and a
- * node inserted above one of them moves what that path names, which is the caller's declaration to make.
+ * The selection and the expansion here are the user's throughout: a declared selection, or the expansion a
+ * `TreeState` holds, names index paths, and a node inserted above one of them moves what that path names,
+ * which is the caller's to answer for.
  */
 class TreeStructureUpdateTest {
     private val opened = Folder("opened", listOf(Folder("leaf")))

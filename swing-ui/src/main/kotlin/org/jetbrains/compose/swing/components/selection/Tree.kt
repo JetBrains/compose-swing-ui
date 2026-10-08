@@ -39,10 +39,11 @@ import javax.swing.tree.TreeSelectionModel
  * its front and at its back keep the nodes they had, staying open if they were open and selected if they
  * were selected while the rows around them shift; what lies between them settles by position, so there
  * openness and selection stay with the place rather than following the value. Selection is declared with
- * [selectedPaths] and expansion with [expandedPaths], each path expressed as the chain of child indices
- * from the root (so `[]` is the root, `[0]` its first child, `[0, 2]` that child's third child), and the
- * user's changes to either arrive through [onSelectionChange] and [onExpansionChange]. Place it in a
- * [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll.
+ * [selectedPaths], each path expressed as the chain of child indices from the root (so `[]` is the root,
+ * `[0]` its first child, `[0, 2]` that child's third child), and the user's changes to it arrive through
+ * [onSelectionChange]. Expansion is the user's, and the nodes they open and close arrive through
+ * [onExpansionChange]; to set the expansion, or keep it when the tree is recreated, hold it in a
+ * [TreeState]. Place it in a [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll.
  *
  * ```
  * ScrollPane {
@@ -53,24 +54,23 @@ import javax.swing.tree.TreeSelectionModel
  *             label = { it.name },
  *             selectedPaths = selection,
  *             onSelectionChange = { selection = it },
- *             expandedPaths = expansion,
- *             onExpansionChange = { expansion = it },
  *         )
  *     }
  * }
  * ```
  *
- * [onSelectionChange] and [onExpansionChange] report the user's changes only; new data reaching the
- * structure produces neither. A declared selection or expansion is the composition's state and is
- * re-applied on every pass: it survives a new structure, and a user change the caller does not adopt does
- * not stand. Undeclared, either belongs to the user alone - the library never imposes one, and what the
- * user reached survives a new structure as well, the nodes they closed as much as the ones they opened. A
- * node the new structure no longer has is the exception: it leaves the selection, and [onSelectionChange]
- * reports what is left of it.
+ * [onSelectionChange] and [onExpansionChange] report the user's changes. New data reaching the structure is
+ * reported in two cases only, both described below: it takes a selected node away, or the tree opens a node
+ * to show the selection on it. A declared selection is the composition's state and is re-applied on every
+ * pass: it survives a new structure, and a user change the caller does not adopt does not stand. An
+ * undeclared selection, and the expansion, change with the user, and what the user reached survives a new
+ * structure as well, the nodes they closed as much as the ones they opened. A node the new structure no
+ * longer has leaves the selection, and [onSelectionChange] reports what is left of it.
  *
- * A selection and an expansion that cannot both stand settle the way a `JTree` settles them: a closed node
- * shows none of its descendants, so it holds the selection in place of the ones it hides, and
- * [onSelectionChange] reports what the tree was left with.
+ * A selection and an expansion settle the way a `JTree` settles them. Closing a node over selected
+ * descendants selects that node in their place, and [onSelectionChange] reports it. The tree opens the nodes
+ * above a selection it is given to show it - on the first pass, on new data, or where a declared selection
+ * the caller does not adopt goes back on - and [onExpansionChange] reports them in one call.
  *
  * [hasChildren] decides which values are branches. A value [children] yields nothing for is a leaf, with
  * no handle to click; declaring [hasChildren] lets such a value call itself a branch all the same, so the
@@ -92,14 +92,11 @@ import javax.swing.tree.TreeSelectionModel
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user changes the selection
- * @param expandedPaths the expanded nodes as index paths from the root; every other node is collapsed,
- *   except an ancestor of an expanded one, which stays expanded so that node is reachable. `null` - the
- *   default - leaves expansion to the tree and to the user
- * @param onExpansionChange callback invoked when the user expands or collapses a node, receiving every
- *   node that is then expanded
- * @param onWillExpand asked before a node opens - whether the user opened it or a declared expansion did
- *   - with the value and the index path of that node, and vetoes the expansion by returning `false`;
- *   `null` - the default - lets every expansion through
+ * @param onExpansionChange callback invoked when the user expands or collapses a node, or the tree opens
+ *   one to show a selection, receiving every node that is then expanded
+ * @param onWillExpand asked before a node opens - whether the user opened it or the tree did to show a
+ *   declared selection - with the value and the index path of that node, and vetoes the expansion by
+ *   returning `false`; `null` - the default - lets every expansion through
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
  *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
@@ -132,7 +129,6 @@ public fun <T> Tree(
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
     onSelectionChange: (Set<List<Int>>) -> Unit = {},
-    expandedPaths: Set<List<Int>>? = null,
     onExpansionChange: (Set<List<Int>>) -> Unit = {},
     onWillExpand: ((value: T, path: List<Int>) -> Boolean)? = null,
     isEditable: Boolean = false,
@@ -153,8 +149,9 @@ public fun <T> Tree(
         label = label,
         hasChildren = hasChildren,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
-        treeExpansionListener = rememberExpansionListener(onExpansionChange),
+        state = null,
+        treeExpansionListener = null,
+        onExpansionChange = onExpansionChange,
         treeWillExpandListener = rememberWillExpandListener(onWillExpand),
         isEditable = isEditable,
         onNodeEdit = onNodeEdit,
@@ -170,11 +167,13 @@ public fun <T> Tree(
 
 /**
  * A [Tree] driven by raw listeners instead of the `onSelectionChange`/`onExpansionChange`/`onWillExpand`
- * lambdas. A listener is notified of the user's changes only - the selection listener also of a selection
- * a new structure took away from the user - and is removed on the same instance; pass a stable instance
- * (e.g. `remember {}`) to avoid churn. The will-expand listener hears more than the user: it is announced
- * every expansion and every collapse, the ones a declaration applies as much as the ones the user asks
- * for, and vetoes the one it refuses by throwing an `ExpandVetoException`.
+ * lambdas. A listener is notified of the user's changes - the selection listener also of a selection a new
+ * structure took away from the user, and the expansion listener of a node the tree opens to show a
+ * selection - and is removed on the same instance; pass a stable instance (e.g. `remember {}`) to avoid
+ * churn. The will-expand listener hears more than the user: it is announced every expansion and every
+ * collapse, the ones the tree makes to show a declared selection or to keep the expansion across a new
+ * structure as much as the ones the user asks for, and vetoes the one it refuses by throwing an
+ * `ExpandVetoException`.
  *
  * @param root the root value of the tree
  * @param children yields the child values of a value, in display order
@@ -185,11 +184,8 @@ public fun <T> Tree(
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
- * @param expandedPaths the expanded nodes as index paths from the root; every other node is collapsed,
- *   except an ancestor of an expanded one, which stays expanded so that node is reachable. `null` - the
- *   default - leaves expansion to the tree and to the user
- * @param treeExpansionListener the listener notified of the user's expansions and collapses; `null`
- *   installs none
+ * @param treeExpansionListener the listener notified of the user's expansions and collapses, and of a node
+ *   the tree opens to show a selection; `null` installs none
  * @param treeWillExpandListener the listener announced each expansion and collapse before it happens;
  *   `null` installs none
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
@@ -224,7 +220,6 @@ public fun <T> Tree(
     label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
-    expandedPaths: Set<List<Int>>? = null,
     treeExpansionListener: TreeExpansionListener? = null,
     treeWillExpandListener: TreeWillExpandListener? = null,
     isEditable: Boolean = false,
@@ -245,8 +240,9 @@ public fun <T> Tree(
         label = label,
         hasChildren = hasChildren,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
+        state = null,
         treeExpansionListener = treeExpansionListener,
+        onExpansionChange = null,
         treeWillExpandListener = treeWillExpandListener,
         isEditable = isEditable,
         onNodeEdit = onNodeEdit,
@@ -276,8 +272,9 @@ private inline fun <T> TreeValuesImpl(
     noinline label: (T) -> @Nls String,
     noinline hasChildren: ((T) -> Boolean)?,
     selectedPaths: Set<List<Int>>?,
-    expandedPaths: Set<List<Int>>?,
+    state: TreeState?,
     treeExpansionListener: TreeExpansionListener?,
+    noinline onExpansionChange: ((Set<List<Int>>) -> Unit)?,
     treeWillExpandListener: TreeWillExpandListener?,
     isEditable: Boolean,
     noinline onNodeEdit: (value: T, path: List<Int>, newValue: Any?) -> Unit,
@@ -305,8 +302,9 @@ private inline fun <T> TreeValuesImpl(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
+        state = state,
         treeExpansionListener = treeExpansionListener,
+        onExpansionChange = onExpansionChange,
         treeWillExpandListener = treeWillExpandListener,
         isEditable = isEditable,
         selectionMode = selectionMode,
@@ -335,11 +333,11 @@ private inline fun <T> TreeValuesImpl(
  *
  * The [model] is displayed as-is: its own nodes and structure drive the tree, and the library never
  * mutates it. Supplying a new [model] instance swaps it into the tree on recomposition. Selection is
- * declared with [selectedPaths] and expansion with [expandedPaths], each path expressed as the chain of
- * child indices from the root (so `[]` is the root, `[0]` its first child, `[0, 2]` that child's third
- * child); the indices are resolved through the model's own accessors, so any [TreeModel] works. Both
- * survive a model swap, declared or not. Place it in a
- * [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll.
+ * declared with [selectedPaths], each path expressed as the chain of child indices from the root (so `[]`
+ * is the root, `[0]` its first child, `[0, 2]` that child's third child); the indices are resolved through
+ * the model's own accessors, so any [TreeModel] works. Expansion is the user's; to set it, or keep it when
+ * the tree is recreated, hold it in a [TreeState]. The selection and the expansion survive a model swap.
+ * Place it in a [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll.
  *
  * ```
  * ScrollPane {
@@ -353,23 +351,22 @@ private inline fun <T> TreeValuesImpl(
  * }
  * ```
  *
- * [onSelectionChange] and [onExpansionChange] report the user's changes only; installing a new [model]
- * produces neither. A declared selection or expansion is the composition's state and is re-applied on
- * every pass, so a user change the caller does not adopt does not stand; undeclared, either belongs to the
- * user alone and is never imposed - the nodes the user closed stay closed across a model swap as surely as
- * the ones they opened stay open. A node the new model does not have is the exception: it leaves the
- * selection, and [onSelectionChange] reports what is left of it.
+ * [onSelectionChange] and [onExpansionChange] report the user's changes. Installing a new [model] is
+ * reported in two cases only, both described below: it takes a selected node away, or the tree opens a node
+ * to show the selection on it. A declared selection is the composition's state and is re-applied on every
+ * pass, so a user change the caller does not adopt does not stand. An undeclared selection, and the
+ * expansion, change with the user - the nodes the user closed stay closed across a model swap as surely as
+ * the ones they opened stay open. A node the new model does not have leaves the selection, and
+ * [onSelectionChange] reports what is left of it. The tree opens the nodes above a selection it is given to
+ * show it, on the first model and on a new one too, and [onExpansionChange] reports them in one call.
  *
  * @param model the tree model to display; owned by the caller and never mutated by the library
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user changes the selection
- * @param expandedPaths the expanded nodes as index paths from the root; every other node is collapsed,
- *   except an ancestor of an expanded one, which stays expanded so that node is reachable. `null` - the
- *   default - leaves expansion to the tree and to the user
- * @param onExpansionChange callback invoked when the user expands or collapses a node, receiving every
- *   node that is then expanded
+ * @param onExpansionChange callback invoked when the user expands or collapses a node, or the tree opens
+ *   one to show a selection, receiving every node that is then expanded
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
@@ -390,7 +387,6 @@ public fun Tree(
     modifier: SwingModifier = SwingModifier,
     selectedPaths: Set<List<Int>>? = null,
     onSelectionChange: (Set<List<Int>>) -> Unit = {},
-    expandedPaths: Set<List<Int>>? = null,
     onExpansionChange: (Set<List<Int>>) -> Unit = {},
     @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
     rootVisible: Boolean = true,
@@ -404,8 +400,9 @@ public fun Tree(
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
-        treeExpansionListener = rememberExpansionListener(onExpansionChange),
+        state = null,
+        treeExpansionListener = null,
+        onExpansionChange = onExpansionChange,
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
@@ -417,23 +414,20 @@ public fun Tree(
 
 /**
  * A model-driven [Tree] driven by raw listeners instead of the `onSelectionChange`/`onExpansionChange`
- * lambdas. A listener is notified of the user's changes only - the selection listener also of a selection
- * a new model took away from the user - and is removed on the same instance; pass a stable instance (e.g.
- * `remember {}`) to avoid churn.
+ * lambdas. A listener is notified of the user's changes - the selection listener also of a selection a new
+ * model took away from the user, and the expansion listener of a node the tree opens to show a selection -
+ * and is removed on the same instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
  *
- * The [model] is displayed as-is and never mutated by the library; a selection and an expansion survive a
- * model swap, declared or not.
+ * The [model] is displayed as-is and never mutated by the library; the selection and the expansion survive
+ * a model swap.
  *
  * @param model the tree model to display; owned by the caller and never mutated by the library
  * @param treeSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
- * @param expandedPaths the expanded nodes as index paths from the root; every other node is collapsed,
- *   except an ancestor of an expanded one, which stays expanded so that node is reachable. `null` - the
- *   default - leaves expansion to the tree and to the user
- * @param treeExpansionListener the listener notified of the user's expansions and collapses; `null`
- *   installs none
+ * @param treeExpansionListener the listener notified of the user's expansions and collapses, and of a node
+ *   the tree opens to show a selection; `null` installs none
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
@@ -454,7 +448,6 @@ public fun Tree(
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier = SwingModifier,
     selectedPaths: Set<List<Int>>? = null,
-    expandedPaths: Set<List<Int>>? = null,
     treeExpansionListener: TreeExpansionListener? = null,
     @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
     rootVisible: Boolean = true,
@@ -468,8 +461,9 @@ public fun Tree(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
+        state = null,
         treeExpansionListener = treeExpansionListener,
+        onExpansionChange = null,
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
@@ -492,8 +486,9 @@ private inline fun TreeModelImpl(
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
     selectedPaths: Set<List<Int>>?,
-    expandedPaths: Set<List<Int>>?,
+    state: TreeState?,
     treeExpansionListener: TreeExpansionListener?,
+    noinline onExpansionChange: ((Set<List<Int>>) -> Unit)?,
     @TreeSelectionMode selectionMode: Int,
     rootVisible: Boolean,
     showsRootHandles: Boolean?,
@@ -505,8 +500,9 @@ private inline fun TreeModelImpl(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
         selectedPaths = selectedPaths,
-        expandedPaths = expandedPaths,
+        state = state,
         treeExpansionListener = treeExpansionListener,
+        onExpansionChange = onExpansionChange,
         treeWillExpandListener = null,
         isEditable = false,
         selectionMode = selectionMode,
@@ -526,10 +522,11 @@ private inline fun TreeModelImpl(
 }
 
 /**
- * A [Tree] driven by a [TreeState] instead of declared `selectedPaths`/`expandedPaths` and the
- * `onSelectionChange`/`onExpansionChange` lambdas. The state owns both facets: the nodes it holds are
- * what the tree shows selected and open, the user's own selecting and opening is written back into it,
- * and it is where a node is revealed from.
+ * A [Tree] driven by a [TreeState] instead of a declared `selectedPaths` and the
+ * `onSelectionChange`/`onExpansionChange` lambdas. The state holds both facets: assigning either applies
+ * it, the user's own selecting and opening is written back into it, and it is where a node is revealed
+ * from. It is the only place a tree's expansion is held, so it is what sets the expansion and keeps it when
+ * the tree is recreated.
  *
  * ```
  * val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
@@ -548,9 +545,9 @@ private inline fun TreeModelImpl(
  * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
- * @param onWillExpand asked before a node opens - whether the user opened it or the state's expansion did
- *   - with the value and the index path of that node, and vetoes the expansion by returning `false`;
- *   `null` - the default - lets every expansion through
+ * @param onWillExpand asked before a node opens - whether the user opened it or the tree did to show the
+ *   state's expansion or selection - with the value and the index path of that node, and vetoes the
+ *   expansion by returning `false`; `null` - the default - lets every expansion through
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
  *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
@@ -601,8 +598,9 @@ public fun <T> Tree(
         label = label,
         hasChildren = hasChildren,
         selectedPaths = state.selectedPaths,
-        expandedPaths = state.expandedPaths,
-        treeExpansionListener = rememberExpansionListener { paths -> state.expandedPaths = paths },
+        state = state,
+        treeExpansionListener = null,
+        onExpansionChange = null,
         treeWillExpandListener = rememberWillExpandListener(onWillExpand),
         isEditable = isEditable,
         onNodeEdit = onNodeEdit,
@@ -617,10 +615,11 @@ public fun <T> Tree(
 }
 
 /**
- * A model-driven [Tree] driven by a [TreeState] instead of declared `selectedPaths`/`expandedPaths` and
- * the `onSelectionChange`/`onExpansionChange` lambdas. The state owns both facets: the nodes it holds are
- * what the tree shows selected and open, the user's own selecting and opening is written back into it,
- * and it is where a node is revealed from.
+ * A model-driven [Tree] driven by a [TreeState] instead of a declared `selectedPaths` and the
+ * `onSelectionChange`/`onExpansionChange` lambdas. The state holds both facets: assigning either applies
+ * it, the user's own selecting and opening is written back into it, and it is where a node is revealed
+ * from. It is the only place a tree's expansion is held, so it is what sets the expansion and keeps it when
+ * the tree is recreated.
  *
  * The [model] is displayed as-is and never mutated by the library; the selection and the expansion
  * survive a model swap.
@@ -660,8 +659,9 @@ public fun Tree(
         treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
         selectedPaths = state.selectedPaths,
-        expandedPaths = state.expandedPaths,
-        treeExpansionListener = rememberExpansionListener { paths -> state.expandedPaths = paths },
+        state = state,
+        treeExpansionListener = null,
+        onExpansionChange = null,
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
@@ -676,7 +676,8 @@ public fun Tree(
  * declares - values walked through child accessors in one family of overloads, the caller's own model in
  * the other. It runs where [content], what the structure is keyed on, changes, handed the pass's
  * [TreeDeclarations] to apply with it, since giving the tree a new structure is one of the writes that
- * changes both of the facets they settle; see [TreeContentElement] for where in the pass that is.
+ * changes both of the facets they settle; see [TreeContentElement] for where in the pass that is. The
+ * expansion is held by [state], where one is given, and is the user's otherwise.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -685,8 +686,9 @@ private inline fun TreeNode(
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
     selectedPaths: Set<List<Int>>?,
-    expandedPaths: Set<List<Int>>?,
+    state: TreeState?,
     treeExpansionListener: TreeExpansionListener?,
+    noinline onExpansionChange: ((Set<List<Int>>) -> Unit)?,
     treeWillExpandListener: TreeWillExpandListener?,
     isEditable: Boolean,
     @TreeSelectionMode selectionMode: Int,
@@ -700,8 +702,10 @@ private inline fun TreeNode(
     crossinline installContent: JTree.(TreeDeclarations) -> Unit,
 ) {
     val selectionMirror = rememberMirrorState(selectedPaths)
-    val expansionMirror = rememberMirrorState(expandedPaths)
+    // A tree that has never had a root shows nothing open.
+    val expansionMirror = rememberMirrorState(emptySet<List<Int>>())
     val mirrors = remember(selectionMirror, expansionMirror) { TreeMirrors(selectionMirror, expansionMirror) }
+    val currentExpansionChange = rememberUpdatedState(onExpansionChange)
     // An event a write of the wrapper's own raised is never the user's, and the write reads the tree back
     // into its mirror once it has returned, so the walk that would answer with what the mirror is about to
     // be told anyway is skipped while one is in flight.
@@ -710,13 +714,11 @@ private inline fun TreeNode(
             TreeSelectionListener { event ->
                 if (selectionMirror.isWriting) return@TreeSelectionListener
                 val tree = event.source as JTree
-                selectionMirror.report(readSelection(tree, tree.model)) {
-                    treeSelectionListener.valueChanged(event)
-                }
+                selectionMirror.report(readSelection(tree, tree.model)) { treeSelectionListener.valueChanged(event) }
             }
         }
     val userExpansionListener =
-        remember(expansionMirror, treeExpansionListener) {
+        remember(mirrors, state, treeExpansionListener) {
             object : TreeExpansionListener {
                 override fun treeExpanded(event: TreeExpansionEvent) =
                     report(event) { target -> target.treeExpanded(event) }
@@ -730,27 +732,30 @@ private inline fun TreeNode(
                 ) {
                     if (expansionMirror.isWriting) return
                     val tree = event.source as JTree
-                    expansionMirror.report(readExpansion(tree, tree.model)) {
+                    val expansion = readExpansion(tree, tree.model)
+                    expansionMirror.report(expansion) {
+                        mirrors.appliedExpansion = expansion
+                        state?.expandedPaths = expansion
+                        currentExpansionChange.value?.invoke(expansion)
                         treeExpansionListener?.let(deliver)
                     }
                 }
             }
         }
 
-    // Redeclaring each mirror subscribes this composition to the user changing the tree's own selection or
-    // expansion, and answers whether that mirror or its declaration has changed since the last settling
-    // recorded the pair. Both are redeclared whatever either answers, so each records the pair this pass
-    // makes: a mirror left unrecorded would keep answering for a pass that is already over.
+    // Redeclaring the selection subscribes this composition to the user changing the tree's own selection,
+    // and answers whether the mirror or the declaration has changed since the last settling recorded the
+    // pair. The state's expansion is due where it differs from the one last in sync with the tree.
     val selectionChanged = selectionMirror.redeclare(selectedPaths)
-    val expansionChanged = expansionMirror.redeclare(expandedPaths)
+    val expansionAssigned = state != null && state.expandedPaths != mirrors.appliedExpansion
     SwingNode(
         // A tree starts on a rootless model, which the same pass replaces with the declared one. A tree
         // that has never had a root has no expansion of the user's to keep, which is how the first model
         // is told apart from a later one.
         factory = { JTree(DefaultTreeModel(null)) },
-        // The listeners go on before the content: installing the model applies the declared expansion, so a
+        // The listeners go on before the content: installing the model applies the state's expansion, so a
         // will-expand listener attached after it is never asked about the first pass - the one pass a
-        // caller cannot answer for by changing the declaration.
+        // caller cannot answer for by changing the state.
         modifier =
             modifier
                 .treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
@@ -758,13 +763,15 @@ private inline fun TreeNode(
                 .then(
                     TreeContentElement(
                         content = content,
-                        due = if (selectionChanged || expansionChanged) Any() else null,
+                        due = if (selectionChanged || expansionAssigned) Any() else null,
                         declarations = {
                             TreeDeclarations(
                                 mirrors = mirrors,
                                 declaredSelection = selectedPaths,
-                                declaredExpansion = expandedPaths,
+                                state = state,
                                 target = treeSelectionListener,
+                                expansionTarget = treeExpansionListener,
+                                onExpansionChange = currentExpansionChange.value,
                             )
                         },
                         install = { installContent(it) },
@@ -794,14 +801,15 @@ private inline fun TreeNode(
  * before its additive ones: only an additive element is applied after the listeners it follows in the modifier.
  *
  * [content] is what the structure is keyed on: where it differs from the one the tree holds, [install] gives
- * the tree the new structure and applies the declarations with it. [due] stands for a declaration, or the
- * mirror it stands against, having changed on an unchanged structure, which re-asserts the declarations on
- * the tree it holds; a fresh token the slot never holds, so a settle that is due always runs, and `null`
- * where none is. The two are settled together rather than each through its own declare: what a tree shows
- * is the two combined - a node is only selectable where its ancestors are open - so applying one without
- * the other would leave the tree standing on a pairing neither declaration asked for. Each mirror still
- * sees the write as its own, which is what the nesting inside [settleSelection] is for. The mirrors hold
- * what the settling left the tree on, so a change the user repeats is answered every time they make it.
+ * the tree the new structure and applies the declarations with it. [due] stands for the selection
+ * declaration or its mirror having changed, or the state's expansion having been assigned, on an unchanged
+ * structure, which re-asserts the declarations on the tree it holds; a fresh token the slot never holds, so
+ * a settle that is due always runs, and `null` where none is. The two facets are settled together rather
+ * than each through its own declare: what a tree shows is the two combined - a node is only selectable
+ * where its ancestors are open - so applying one without the other would leave the tree standing on a
+ * pairing neither asked for. Each mirror still sees the write as its own, which is what the nesting inside
+ * [settleSelection] is for. The mirrors hold what the settling left the tree on, so a change the user
+ * repeats is answered every time they make it.
  */
 private class TreeContentElement(
     private val content: Any,

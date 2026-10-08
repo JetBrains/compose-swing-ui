@@ -92,7 +92,7 @@ class TreeStateProjectionTest {
     }
 
     @Test
-    fun aClosedNodeReportsTheSelectionItTookOverRatherThanTheOneDeclared() = runComposeSwingTest {
+    fun aClosedNodeReportsTheSelectionItTookOver() = runComposeSwingTest {
         lateinit var state: TreeState
         setContent {
             state =
@@ -113,7 +113,7 @@ class TreeStateProjectionTest {
         assertEquals(
             setOf(listOf(0)),
             state.shownSelectedPaths,
-            "and the closed node holds the selection, not the descendant that was declared",
+            "and the closed node holds the selection in place of the descendant it hides",
         )
     }
 

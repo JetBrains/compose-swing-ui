@@ -14,7 +14,6 @@ import javax.swing.LookAndFeel
 import javax.swing.tree.DefaultMutableTreeNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * A small data tree used to feed [Tree] from nested values: each [Node] yields its [children], and its
@@ -342,13 +341,9 @@ class TreeBehaviorTest {
     @Test
     fun stateDrivenDataChangeMovesTheRows() = runComposeSwingTest {
         var data by mutableStateOf(sample)
+        val state = TreeState(initialExpandedPaths = setOf(emptyList(), listOf(0)))
         setContent {
-            Tree(
-                root = data,
-                children = { it.children },
-                label = { it.name },
-                expandedPaths = setOf(emptyList(), listOf(0)),
-            )
+            Tree(root = data, children = { it.children }, state = state, label = { it.name })
         }
 
         val tree = onNodeOfType<JTree>().fetch()
@@ -368,33 +363,6 @@ class TreeBehaviorTest {
         )
     }
 
-    /**
-     * The expansion twin of the selection case: a node the caller declares open is reopened for every
-     * collapse made against that declaration, not only for the first one.
-     */
-    @Test
-    fun aCollapseTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
-        setContent {
-            Tree(
-                root = sample,
-                children = { it.children },
-                label = { it.name },
-                expandedPaths = setOf(emptyList(), listOf(0)),
-            )
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        repeat(2) {
-            tree.collapsePath(tree.pathTo(0))
-            awaitIdle()
-        }
-
-        assertTrue(
-            tree.isExpanded(tree.pathTo(0)),
-            "an unadopted collapse does not stand, however often it is made",
-        )
-    }
-
     @Test
     fun aHiddenRootLeavesItsChildrenAsTheTopRows() = runComposeSwingTest {
         var rootVisible by mutableStateOf(false)
@@ -403,7 +371,6 @@ class TreeBehaviorTest {
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                expandedPaths = setOf(emptyList()),
                 rootVisible = rootVisible,
             )
         }
@@ -472,24 +439,6 @@ class TreeBehaviorTest {
             },
             change = { it.setSelectionRow(0) },
             read = { it.selectionRows?.toList().orEmpty() },
-        )
-    }
-
-    @Test
-    fun anExpansionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTree::class.java,
-            declared = false,
-            content = { report ->
-                Tree(
-                    root = "root",
-                    children = { node -> if (node == "root") listOf("one", "two") else emptyList() },
-                    expandedPaths = emptySet(),
-                    onExpansionChange = { report() },
-                )
-            },
-            change = { it.expandRow(0) },
-            read = { it.isExpanded(0) },
         )
     }
 }

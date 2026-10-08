@@ -171,7 +171,7 @@ private fun ColumnScope.ExpansionTreeCard() {
         Label("Expanded nodes: ${state.expandedPaths.size}")
         WrappedCaption(
             "Expand all and Collapse all drive the state's expandedPaths directly. The veto refuses the " +
-                "\"docs\" node whether the user opens it or a declared expansion does. Reveal scrolls to a " +
+                "\"docs\" node whether the user opens it or the state's expansion does. Reveal scrolls to a " +
                 "node, opening the ancestors that hide it.",
         )
     }
@@ -252,7 +252,7 @@ private fun describeSelection(selection: Set<List<Int>>): String {
 }
 
 /** The index path of [node] together with the index path of every node below it: what "Expand all"
- * declares as the tree's `expandedPaths`. */
+ * assigns to the state's `expandedPaths`. */
 private fun allPaths(
     node: Node,
     prefix: List<Int> = emptyList(),

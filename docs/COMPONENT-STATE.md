@@ -208,7 +208,7 @@ There are four cases:
    `onSelectedIndexChange`.
 2. **Undeclared** - the widget owns it. The parameter is nullable, defaults to `null`, and its callback
    is optional beside it: `ListBox`'s `selectedIndices` and `onSelectionChange`, `Tree`'s
-   `expandedPaths` and `onExpansionChange`.
+   `selectedPaths` and `onSelectionChange`.
 3. **Model-owned** - the caller hands the widget a model, which takes the value out of the composition
    altogether. The model holds it, the widget renders whatever it holds, and nothing is declared over it,
    so there is no half for a callback to pair with. The callback is then only a report of where the model

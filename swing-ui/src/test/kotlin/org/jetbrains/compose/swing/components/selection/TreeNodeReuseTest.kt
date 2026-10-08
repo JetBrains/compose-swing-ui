@@ -83,7 +83,6 @@ class TreeNodeReuseTest {
                     root = "root",
                     children = { if (it == "root") leaves else emptyList() },
                     label = { it },
-                    expandedPaths = setOf(emptyList()),
                 ) { value -> Label("<$value>") }
             }
         }

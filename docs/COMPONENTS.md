@@ -100,8 +100,7 @@ publishes through the `selectionModel` it holds when the listener is installed.
 
 ### Declaring a selection, or leaving it alone
 
-`ListBox`, `Table` and `Tree` take their selection (and a `Tree` its expansion) as a nullable
-parameter, and the two cases differ.
+`ListBox`, `Table` and `Tree` take their selection as a nullable parameter, and the two cases differ.
 
 Declare it - `selectedIndices = mine` - and the selection is the composition's state, reapplied on
 every pass: it survives new items, and a user change your callback does not adopt is undone. Leave it
@@ -114,8 +113,13 @@ of those parameters, which holds the same facets as two-way state (a `TableState
 order and the column layout), reveals a row and reads back what the widget shows besides; see
 [Lists and tables](#lists-and-tables).
 
-Either way the callback reports the user's changes only, once per settled change - dragging across
-rows produces one call at the end, and rendering fresh items produces none. A `ComboBox` is always
+A `Tree`'s expansion has no parameter. The user opens and closes nodes, and `onExpansionChange` reports
+it, along with a node the tree opens to show a selection; a `TreeState` is where an application sets the
+expansion or keeps it when the tree is recreated.
+
+Either way the callback reports the user's changes, once per settled change: dragging across rows
+produces one call at the end. Rendering fresh items produces a call only where they take away part of a
+selection the user made, or where a `Tree` opens nodes to show its selection. A `ComboBox` is always
 controlled instead: its `selectedItem` names the chosen item, `null` names none, and so does an item
 the current `items` do not contain. The selection names an item and not a position, so items that
 compare equal are one and the same selection.
@@ -481,22 +485,22 @@ the tree `root` and `children` describe is never written to. An open edit ends a
 a composition no longer puts the same value under it - the node took another value over, or left the
 structure.
 
-`onWillExpand` is asked before a node opens - whether the user opened it or a declared expansion did -
-and returning `false` leaves it closed. Together with `hasChildren` that is also how children are
-loaded lazily: a value `children` yields nothing for is a leaf with no handle to click, and declaring
-`hasChildren` lets such a value call itself a branch all the same, so the user can ask for children
-the data does not hold yet and `onWillExpand` - or `onExpansionChange` - is where fetching them starts.
+`onWillExpand` is asked before a node opens - whether the user opened it or the tree did to show a
+selection or a `TreeState`'s expansion - and returning `false` leaves it closed. Together with
+`hasChildren` that is also how children are loaded lazily: a value `children` yields nothing for is a
+leaf with no handle to click, and declaring `hasChildren` lets such a value call itself a branch all
+the same, so the user can ask for children the data does not hold yet and `onWillExpand` - or
+`onExpansionChange` - is where fetching them starts.
 
 ```kotlin
-var expanded by remember { mutableStateOf(setOf(emptyList<Int>())) }
+val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
 
 Tree(
     root = fileTree,
     children = { it.children },
+    state = state,
     label = { it.label },
     hasChildren = { it.isDirectory },
-    expandedPaths = expanded,
-    onExpansionChange = { expanded = it },
     onWillExpand = { node, _ ->
         loadChildren(node)
         true
@@ -1351,23 +1355,26 @@ and pass it to `Table` as `state`, in place of `selectedRowIndices`/`onSelection
 ### `TreeState`
 
 The same for one `Tree`, over index paths from the root: `[]` is the root, `[0]` its first child, and
-`[0, 2]` that child's third child. `selectedPaths` and `expandedPaths` are both two-way and both
-re-applied on every pass, so a state starting on the empty expansion opens nothing - start it on
-`setOf(emptyList())` for a tree that opens on its root.
+`[0, 2]` that child's third child. `selectedPaths` and `expandedPaths` are both two-way. The selection is
+re-applied on every pass. The expansion is applied when it is assigned and again on each new structure,
+so a state starting on the empty expansion opens nothing - start it on `setOf(emptyList())` for a tree
+that opens on its root.
 
 `revealPath(path)` brings a node into view, opening every ancestor that hides it, and answers whether
 the tree held such a node. The ancestors it opens arrive in `expandedPaths` like the user's own
 opening.
 
 `rowCount`, `shownSelectedPaths` and `isExpanded(path)` are the same read-back over the tree: how many
-rows it shows, which nodes it has selected, and whether one node shows its children below it. Closing
-a node takes the selection over from the descendants it hides, so what the tree reports selected is
-the closed node itself; a node the tree's current structure does not have is in none of the three
-answers.
+rows it shows, which nodes it has selected, and whether one node shows its children below it. A node
+the tree's current structure does not have is in none of the three answers.
+
+The tree settles the two facets the way a `JTree` does and writes the result back into the state.
+Closing a node over selected descendants selects that node in their place, in `selectedPaths`.
+Selecting a node under a closed one opens the nodes above it, in `expandedPaths`.
 
 Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as
-`state`, in place of `selectedPaths`/`onSelectionChange` and `expandedPaths`/`onExpansionChange`. A
-state drives one tree at a time.
+`state`, in place of `selectedPaths`/`onSelectionChange` and `onExpansionChange`. A state is the only
+place a tree's expansion is held, and it drives one tree at a time.
 
 ---
 

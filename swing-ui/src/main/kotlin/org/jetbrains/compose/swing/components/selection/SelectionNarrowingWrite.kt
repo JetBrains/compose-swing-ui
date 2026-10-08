@@ -8,7 +8,6 @@ import javax.swing.JTable
 import javax.swing.JTree
 import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
-import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.TreePath
 
@@ -238,10 +237,7 @@ internal fun JTree.heldSelection(named: Boolean): HeldSelection {
 /**
  * Tells [target] that [lost] left the tree's selection: the nodes among [selectedNodes] whose matching
  * entry in [selectedIndices] names one of the lost index paths, as removed from a selection event of the
- * tree's own, with [oldLead] and the tree's current lead path.
- *
- * A tree re-fires its selection model's event as its own, with itself as the source, and that is the event
- * a listener installed on the tree is handed.
+ * tree's own, with [oldLead] and the tree's current lead path. See [selectionLoss].
  */
 internal fun JTree.reportLostPaths(
     target: TreeSelectionListener,
@@ -251,6 +247,5 @@ internal fun JTree.reportLostPaths(
     oldLead: TreePath?,
 ) {
     val nodes = selectedNodes.filterIndexed { position, _ -> selectedIndices[position] in lost }
-    val removed = BooleanArray(nodes.size)
-    target.valueChanged(TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath))
+    target.valueChanged(selectionLoss(nodes, oldLead))
 }

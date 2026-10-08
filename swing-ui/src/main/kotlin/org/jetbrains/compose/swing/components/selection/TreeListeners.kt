@@ -32,28 +32,6 @@ internal fun rememberSelectionListener(onSelectionChange: (Set<List<Int>>) -> Un
 }
 
 /**
- * Remembers a [TreeExpansionListener] that reports every expanded node back through [onExpansionChange]
- * as index paths, after each expand and each collapse. An expansion event's source is the `JTree`
- * itself, so the expansion is read back from it.
- */
-@Composable
-internal fun rememberExpansionListener(onExpansionChange: (Set<List<Int>>) -> Unit): TreeExpansionListener {
-    val callback = rememberUpdatedState(onExpansionChange)
-    return remember {
-        object : TreeExpansionListener {
-            override fun treeExpanded(event: TreeExpansionEvent): Unit = report(event)
-
-            override fun treeCollapsed(event: TreeExpansionEvent): Unit = report(event)
-
-            private fun report(event: TreeExpansionEvent) {
-                val tree = event.source as JTree
-                callback.value(readExpansion(tree, tree.model))
-            }
-        }
-    }
-}
-
-/**
  * Remembers a [TreeWillExpandListener] that asks [onWillExpand] whether the node about to open may, and
  * answers a refusal with the [ExpandVetoException] a `JTree` reads as one. A collapse is announced through
  * the same listener and is never asked about: closing a node loads nothing and reveals nothing.
@@ -82,7 +60,7 @@ internal fun <T> rememberWillExpandListener(
  * Whether [onWillExpand] lets the node [event] announces open, asked with the value that node stands for
  * and its index path.
  *
- * A node opens on the wrapper's own write as well as on the user's click - applying a declared expansion
+ * A node opens on the wrapper's own write as well as on the user's click - applying a state's expansion
  * is such a write - so the answer is reached from inside a pass of the composition too, and a callback
  * that fails there would end it. A failure is contained here instead and answers nothing, which lets the
  * expansion through: refusing one is what returning `false` says.

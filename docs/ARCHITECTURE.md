@@ -391,12 +391,13 @@ is decides which one a component uses.
   passed in as a parameter, beside or in place of the plain declared value, so a caller hoists one only
   where they want what it observes.
 
-  The arrangement a table's own gestures change - its sort order, and the order and widths of its
-  columns - is held only by its holder, `TableState`, and is never a declared value. Assigning a holder
-  property applies it, and the user's change writes back. Without a holder the arrangement is the
-  user's, and a callback still reports each change. Nothing settles an arrangement back, so to refuse a
-  gesture, turn it off with the widget's own veto: `sortable`, a column's `isSortable`, or
-  `Header(reorderingAllowed, resizingAllowed)`.
+  A selection is a declared value with a callback. The arrangement a widget's own gestures change - a
+  table's sort order and the order and widths of its columns, a tree's expansion - is never a declared
+  value: a callback reports each change, and only the widget's state holder, `TableState` or
+  `TreeState`, holds it. Assigning a holder property applies it, and the user's change writes back.
+  Without a holder the arrangement changes with the user's own gestures. Nothing settles an arrangement
+  back, so to refuse a gesture, use the widget's own veto: `sortable`, a column's `isSortable`,
+  `Header(reorderingAllowed, resizingAllowed)`, or a tree's `onWillExpand`.
 
 - **An imperative handle** carries an interaction that is an event and leaves no value behind. A
   `FocusRequester` moves the keyboard when the application decides to - a validation failure, a

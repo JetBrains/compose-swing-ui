@@ -88,7 +88,6 @@ class TreeComposableNodeTest {
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                expandedPaths = setOf(emptyList()),
             ) { value ->
                 Panel { Label("${value.name} (${value.children.size})") }
             }
@@ -116,7 +115,6 @@ class TreeComposableNodeTest {
                 root = root,
                 children = { parent -> if (parent === root) listOf(null, Branch("leaf")) else emptyList() },
                 label = { it?.name ?: "(none)" },
-                expandedPaths = setOf(emptyList()),
             ) { value ->
                 Label(value?.name ?: "(none)")
             }
@@ -140,7 +138,6 @@ class TreeComposableNodeTest {
                 root = Branch("root", listOf(apple)),
                 children = { it.children },
                 label = { it.name },
-                expandedPaths = setOf(emptyList()),
             ) { value ->
                 Label("${value.name} ${value.badge}")
             }
@@ -172,7 +169,6 @@ class TreeComposableNodeTest {
                 root = Branch("root", listOf(apple, Branch("pear"))),
                 children = { it.children },
                 label = { it.name },
-                expandedPaths = setOf(emptyList()),
             ) { value ->
                 Label("${value.name} ${value.badge}")
             }
@@ -221,7 +217,6 @@ class TreeComposableNodeTest {
                 children = { it.children },
                 label = { it.name },
                 selectedPaths = selection,
-                expandedPaths = setOf(emptyList()),
             ) { value ->
                 Label(if (isSelected) "${value.name}*" else value.name)
             }
@@ -241,13 +236,13 @@ class TreeComposableNodeTest {
 
     @Test
     fun theNodeScopeReflectsExpansion() = runComposeSwingTest {
-        var expansion by mutableStateOf(setOf(emptyList<Int>()))
+        val state = TreeState(initialExpandedPaths = setOf(emptyList()))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                expandedPaths = expansion,
             ) { value ->
                 Label(if (isExpanded) "${value.name} open" else value.name)
             }
@@ -257,7 +252,7 @@ class TreeComposableNodeTest {
         assertEquals("root open", tree.renderRow(0).firstLabelText(), "the expanded root should render as open")
         assertEquals("fruit", tree.renderRow(1).firstLabelText(), "a collapsed row should render as closed")
 
-        expansion = setOf(emptyList(), listOf(0))
+        state.expandedPaths = setOf(emptyList(), listOf(0))
         awaitIdle()
         assertEquals(
             "fruit open",
