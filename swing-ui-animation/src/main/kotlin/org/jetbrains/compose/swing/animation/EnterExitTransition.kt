@@ -960,7 +960,8 @@ internal class EnterExitTransitionLayout(
     private var currentSize = Dimension()
     private var offsetDelta: State<Point>? = null
     private var animSizeState: State<Dimension>? = null
-    private var hasMeasured = false
+    var hasMeasured = false
+        private set
     private var animSlideOffsetState: State<Point>? = null
 
     /** The width [measure] settled on. */
@@ -983,13 +984,17 @@ internal class EnterExitTransitionLayout(
     /** The height of the content [measure] was handed. */
     val contentHeight: Int get() = target.height
 
-    /** Animates towards content measured at [measuredWidth] by [measuredHeight], under [constraints]. */
+    /**
+     * Animates towards content measured at [measuredWidth] by [measuredHeight], under [constraints]. Where [anchored]
+     * is false, the content is not aligned inside the animated box: the box is the bounds a Swing parent assigned.
+     */
     fun measure(
         measuredWidth: Int,
         measuredHeight: Int,
         constraints: Constraints,
+        anchored: Boolean = true,
     ) {
-        if (transition.currentState == transition.targetState) {
+        if (!anchored || transition.currentState == transition.targetState) {
             currentAlignment = null
         } else if (currentAlignment == null) {
             currentAlignment = alignment ?: Alignment.TopStart
@@ -1033,6 +1038,13 @@ internal class EnterExitTransitionLayout(
         }
         return animSizeState?.value ?: Dimension(fullWidth, fullHeight)
     }
+
+    /** The size a running size change stands at, or null: queries never set up or aim the animation. */
+    @OptIn(ExperimentalDeferredTransitionApi::class)
+    fun runningSize(): Dimension? =
+        animSizeState
+            ?.takeIf { transition.currentState != transition.targetState || transition.pendingTargetState != null }
+            ?.value
 
     /** Resolves [contentX] and [contentY] for the result [measure] settled on; called while placing. */
     fun place() {
