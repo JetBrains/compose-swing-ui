@@ -52,6 +52,23 @@ class AnimatedContentPreferencesAtWidthTest {
         )
 
     @Test
+    fun `a stock parent's preference read of a Box around it leaves no work behind while a content enters`() =
+        assertPreferencesSettle(
+            ContentEnteringInBoxContainers,
+            transitionTime = PartWay,
+            widthFromLeafHeight = RatioContentEnteringInBoxContainers,
+        )
+
+    @Test
+    fun `a stock parent's preference read of a Box around it leaves no work behind while a content leaves`() =
+        assertPreferencesSettle(
+            contentContainers(leafEnters = false, insideBox = true, finished = false, widthFromLeafHeight = false),
+            transitionTime = PartWay,
+            widthFromLeafHeight =
+                contentContainers(leafEnters = false, insideBox = true, finished = false, widthFromLeafHeight = true),
+        )
+
+    @Test
     fun `a stock parent's preference read of a Box around it leaves no work behind after a content entered`() =
         assertPreferencesSettle(
             ContentEnteringInBoxContainers,

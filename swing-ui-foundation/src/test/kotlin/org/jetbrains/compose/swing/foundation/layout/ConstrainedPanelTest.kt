@@ -1,9 +1,13 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.SharedInsetsBorder
@@ -15,11 +19,19 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onDescendants
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
+import java.util.stream.Stream
 import javax.accessibility.AccessibleContext
 import javax.accessibility.AccessibleRole
 import javax.accessibility.AccessibleState
@@ -102,7 +114,59 @@ class ConstrainedPanelTest {
 
             panel.setBounds(3, 4, 60, 70)
             assertEquals(Rectangle(0, 0, 60, 70), glassPane.bounds)
+            assertEquals(glassPane, panel.glassPane)
         }
+
+    @ParameterizedTest
+    @MethodSource("scaledChildSteps")
+    fun theTreeStaysValidWhileAScaledChildOrItsWidthChanges(case: ScaledChildCase) =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(case.width)
+            var scale by mutableFloatStateOf(case.scale)
+            setContent {
+                if (case.stockParent) {
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                        Box(modifier = SwingModifier.testTag("host").north()) {
+                            Box(modifier = SwingModifier.fillMaxWidth().placementLayer { scaleX = scale }) {
+                                Label("Scaled")
+                            }
+                        }
+                    }
+                } else {
+                    Box(modifier = SwingModifier.testTag("host")) {
+                        Box {
+                            Box(modifier = SwingModifier.placementLayer { scaleX = scale }) {
+                                Box(modifier = SwingModifier.preferredSize(width, 20))
+                            }
+                        }
+                    }
+                }
+            }
+            val host = onNodeWithTag("host").fetch<JComponent>()
+
+            for (next in case.scales) {
+                scale = next
+                awaitIdle()
+                assertTreeValid("the components left invalid at a scale of $next")
+                assertEquals(0, cyclesUntilStable(host), "a paint asks for no validation at a scale of $next")
+            }
+            for (next in case.widths) {
+                width = next
+                awaitIdle()
+                assertTreeValid("the components left invalid at a width of $next")
+                assertEquals(0, cyclesUntilStable(host), "a paint asks for no validation at a width of $next")
+            }
+        }
+
+    // A stock parent sizes the panel by a width, and a Foundation parent fits it to new paint outsets.
+    class ScaledChildCase(
+        val name: String,
+        val stockParent: Boolean,
+        val scale: Float,
+        val width: Int,
+        val scales: List<Float>,
+        val widths: List<Int>,
+    )
 
     @Test
     fun aPanelListsAChildRaisedByZIndexAfterTheSiblingsItPaintsOver() =
@@ -316,7 +380,37 @@ class ConstrainedPanelTest {
             assertEquals(Insets(2, 2, 2, 2), border.own, "the border's own insets are read, never written")
             assertEquals(Insets(10, 10, 10, 10), box.getInsets(Insets(0, 0, 0, 0)))
         }
+
+    companion object {
+        @JvmStatic
+        fun scaledChildSteps(): Stream<Arguments> =
+            Stream
+                .of(
+                    ScaledChildCase(
+                        "a child starts scaling under a stock parent, then the parent narrows",
+                        stockParent = true,
+                        scale = 1f,
+                        width = 320,
+                        scales = listOf(2f, 3f, 1f, 2f, 0.5f),
+                        widths = listOf(260, 200),
+                    ),
+                    ScaledChildCase(
+                        "a scaled panel's content widens under a Foundation parent that fits it to new paint outsets",
+                        stockParent = false,
+                        scale = 2f,
+                        width = 20,
+                        scales = emptyList(),
+                        widths = listOf(50, 25, 20, 60),
+                    ),
+                ).map { Arguments.of(Named.of(it.name, it)) }
+    }
 }
 
 private fun accessibleChildNames(context: AccessibleContext): List<String?> =
     List(context.accessibleChildrenCount) { context.getAccessibleChild(it).accessibleContext.accessibleName }
+
+private fun ComposeSwingTest.assertTreeValid(message: String) {
+    onRoot().assertProperty(null, message) { takeUnless { isValid } }
+    val descendants = onRoot().onDescendants()
+    repeat(descendants.fetchSize()) { descendants[it].assertProperty(null, message) { takeUnless { isValid } } }
+}

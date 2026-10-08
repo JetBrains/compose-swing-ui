@@ -182,9 +182,9 @@ public open class ConstrainedPanel internal constructor(
         policyLayout.measurables.during(RunningCause.GlassPaneChange) {
             if (standing == null) {
                 val pane = GlassPane()
-                pane.setBounds(0, 0, width, height)
                 glassPane = pane
                 add(pane, 0)
+                pane.setBounds(0, 0, width, height)
             } else {
                 remove(standing)
             }
@@ -519,6 +519,18 @@ public open class ConstrainedPanel internal constructor(
                     ?.isTransformed == true
 
         override fun paint(g: Graphics) = Unit
+
+        // The pane lays nothing out, so it is valid at any size. The panel resizes it outside its own layout, after a
+        // validation of the panel may have passed it, and adds it outside one; nothing else would validate it then.
+        override fun setBounds(
+            x: Int,
+            y: Int,
+            width: Int,
+            height: Int,
+        ) = synchronized(treeLock) {
+            super.setBounds(x, y, width, height)
+            validateTree()
+        }
 
         override fun processEvent(event: AWTEvent) {
             if (event is MouseEvent) routeMouseEvent(event) else super.processEvent(event)
