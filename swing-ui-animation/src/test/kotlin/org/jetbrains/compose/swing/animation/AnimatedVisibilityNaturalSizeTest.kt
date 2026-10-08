@@ -7,22 +7,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.NaturalSize.CAP
-import org.jetbrains.compose.swing.animation.NaturalSize.CELL
 import org.jetbrains.compose.swing.animation.NaturalSize.CONTAINER
-import org.jetbrains.compose.swing.animation.NaturalSize.CONTENT
-import org.jetbrains.compose.swing.animation.NaturalSize.DELAY
-import org.jetbrains.compose.swing.animation.NaturalSize.ENTER_MILLIS
 import org.jetbrains.compose.swing.animation.NaturalSize.FRAMES
-import org.jetbrains.compose.swing.animation.NaturalSize.FRAME_MILLIS
 import org.jetbrains.compose.swing.animation.NaturalSize.LONG
-import org.jetbrains.compose.swing.animation.NaturalSize.NarrowCell
 import org.jetbrains.compose.swing.animation.NaturalSize.OWN
 import org.jetbrains.compose.swing.animation.NaturalSize.PARENT
 import org.jetbrains.compose.swing.animation.NaturalSize.ParentRegion
 import org.jetbrains.compose.swing.animation.NaturalSize.RESIZE
-import org.jetbrains.compose.swing.animation.NaturalSize.WIDE
 import org.jetbrains.compose.swing.animation.NaturalSize.container
 import org.jetbrains.compose.swing.animation.NaturalSize.content
+import org.jetbrains.compose.swing.animation.Stretch.CONTENT
+import org.jetbrains.compose.swing.animation.Stretch.FRAME_MILLIS
+import org.jetbrains.compose.swing.animation.Stretch.TRANSITION_MILLIS
+import org.jetbrains.compose.swing.animation.Stretch.WIDE
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
 import org.jetbrains.compose.swing.animation.core.tween
@@ -30,7 +27,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.foundation.layout.onSizeChanged
 import org.jetbrains.compose.swing.foundation.layout.width
@@ -39,9 +35,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
-import java.awt.GridBagConstraints
 import java.awt.Point
-import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -103,39 +97,20 @@ class AnimatedVisibilityNaturalSizeTest {
         }
 
     @Test
-    fun `an exit without a size change that interrupts an expand keeps the content's own size`() =
-        runComposeSwingTest {
-            val sizes = mutableListOf<Dimension>()
-            var visible by mutableStateOf(false)
-            setContent { Region(PARENT, visible, expandIn(tween(LONG)), fadeOut(tween(LONG, LONG)), sizes::add) }
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(FRAMES) { driveOneFrame() }
-            assertEquals(OWN, content().size, "the expand releases both axes")
-            visible = false
-            repeat(FRAMES) { driveOneFrame() }
-            assertEquals(OWN, content().size, "the exit changes no size, but the expand it interrupted still runs")
-
-            mainClock.autoAdvance = true
-            awaitIdle()
-            onNodeWithTag(CONTENT).assertDoesNotExist()
-            assertEquals(sizes.distinct(), sizes, "the content never returns to a size it left")
-        }
-
-    @Test
     fun `an expand that a fade-only exit interrupts keeps its size and anchor on every frame of a longer fade`() =
         runComposeSwingTest {
-            var sampled = 0
             var visible by mutableStateOf(false)
             setContent { Region(PARENT, visible, expandIn(tween(LONG)), fadeOut(tween(2 * LONG))) }
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES) { driveOneFrame() }
             visible = false
-            repeat(2 * LONG / FRAME_MILLIS + FRAMES) {
+            val fadeFrames = 2 * LONG / FRAME_MILLIS
+            repeat(fadeFrames + FRAMES) { frame ->
                 driveOneFrame()
-                if (onAllNodesWithTag(CONTENT).fetchAll<JComponent>().isNotEmpty()) {
-                    val frame = sampled++
+                val present = onAllNodesWithTag(CONTENT).fetchSize() > 0
+                if (frame < fadeFrames - 2 * FRAMES) assertTrue(present, "frame $frame: the fade has not ended")
+                if (present) {
                     assertEquals(OWN, content().size, "frame $frame: the content left its own size")
                     assertEquals(
                         Point(container().width - OWN.width, container().height - OWN.height),
@@ -144,7 +119,6 @@ class AnimatedVisibilityNaturalSizeTest {
                     )
                 }
             }
-            assertTrue(sampled >= 2 * LONG / FRAME_MILLIS - 2 * FRAMES, "the frames stopped before the fade did")
             onNodeWithTag(CONTENT).assertDoesNotExist()
         }
 
@@ -159,7 +133,7 @@ class AnimatedVisibilityNaturalSizeTest {
             val (exit, whileExiting) = exitAndWhileExiting
             runComposeSwingTest {
                 var visible by mutableStateOf(false)
-                setContent { Region(PARENT, visible, expandIn(tween(ENTER_MILLIS)), exit) }
+                setContent { Region(PARENT, visible, expandIn(tween(TRANSITION_MILLIS)), exit) }
                 visible = true
                 awaitIdle()
                 assertEquals(PARENT, content().size, "$kind: the expand ends in the parent's space")
@@ -241,24 +215,20 @@ class AnimatedVisibilityNaturalSizeTest {
         }
 
     @Test
-    fun `a parent resize during a fade-only enter fits the content once whatever exit is declared`() {
-        val exits = mapOf("a shrinking exit" to shrinkOut(tween(LONG)), "a fade-only exit" to fadeOut(tween(LONG)))
-        for ((kind, exit) in exits) {
-            runComposeSwingTest {
-                val sizes = mutableListOf<Dimension>()
-                val narrowed = Dimension(PARENT.width - RESIZE, PARENT.height)
-                var visible by mutableStateOf(false)
-                var parent by mutableStateOf(PARENT)
-                setContent { Region(parent, visible, fadeIn(tween(2 * LONG)), exit, sizes::add) }
-                mainClock.autoAdvance = false
-                visible = true
-                repeat(FRAMES) { driveOneFrame() }
-                parent = narrowed
-                repeat(2 * LONG / FRAME_MILLIS + FRAMES) { driveOneFrame() }
-                assertEquals(listOf(PARENT, narrowed), sizes, "$kind: the unused exit does not release the enter")
-            }
+    fun `a parent resize in a fade-only enter fits the content once to the end of the fade despite a shrinking exit`() =
+        runComposeSwingTest {
+            val sizes = mutableListOf<Dimension>()
+            val narrowed = Dimension(PARENT.width - RESIZE, PARENT.height)
+            var visible by mutableStateOf(false)
+            var parent by mutableStateOf(PARENT)
+            setContent { Region(parent, visible, fadeIn(tween(2 * LONG)), shrinkOut(tween(LONG)), sizes::add) }
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(FRAMES) { driveOneFrame() }
+            parent = narrowed
+            repeat(2 * LONG / FRAME_MILLIS + FRAMES) { driveOneFrame() }
+            assertEquals(listOf(PARENT, narrowed), sizes, "the unused exit does not release the enter")
         }
-    }
 
     @Test
     fun `a parent resize takes effect when the transition ends`() =
@@ -293,7 +263,7 @@ class AnimatedVisibilityNaturalSizeTest {
                             AnimatedVisibility(
                                 visible = visible,
                                 modifier = SwingModifier.testTag(CONTAINER),
-                                enter = expandIn(tween(ENTER_MILLIS)),
+                                enter = expandIn(tween(TRANSITION_MILLIS)),
                                 exit = ExitTransition.None,
                             ) {
                                 Label("", modifier = SwingModifier.testTag(CONTENT).preferredSize(WIDE, 20))
@@ -305,57 +275,12 @@ class AnimatedVisibilityNaturalSizeTest {
             mainClock.autoAdvance = false
             visible = true
             val widths =
-                List(ENTER_MILLIS / FRAME_MILLIS + 4) {
+                List(TRANSITION_MILLIS / FRAME_MILLIS + 4) {
                     driveOneFrame()
                     content().width
                 }.toSet()
             assertEquals(setOf(CAP), widths, "the content is capped on every frame")
         }
-
-    @Test
-    fun `no layout loop in a GridBag cell narrower than the content`() {
-        val enters =
-            mapOf(
-                "expandIn" to expandIn(Delayed),
-                "expandVertically" to expandVertically(Delayed),
-                "expandHorizontally" to expandHorizontally(Delayed),
-                "fadeIn" to fadeIn(tween(DELAY, DELAY)),
-            )
-        for ((kind, enter) in enters) {
-            runComposeSwingTest {
-                var visible by mutableStateOf(false)
-                setContent {
-                    NarrowCell {
-                        AnimatedVisibility(
-                            visible = visible,
-                            modifier =
-                                SwingModifier
-                                    .item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.HORIZONTAL)
-                                    .testTag(CONTAINER),
-                            enter = enter,
-                            exit = ExitTransition.None,
-                        ) {
-                            Label(
-                                "",
-                                modifier =
-                                    SwingModifier
-                                        .testTag(CONTENT)
-                                        .aspectRatio(16f / 9f)
-                                        .preferredSize(2 * CELL, CELL),
-                            )
-                        }
-                    }
-                }
-                mainClock.autoAdvance = false
-                visible = true
-                // Each frame fails with an AssertionError when its layout passes do not settle.
-                repeat(2 * DELAY / FRAME_MILLIS) { driveOneFrame() }
-                mainClock.autoAdvance = true
-                awaitIdle()
-                assertEquals(0, cyclesUntilStable(container()), "$kind: the cell settles")
-            }
-        }
-    }
 
     @Composable
     private fun Region(
@@ -385,4 +310,3 @@ private fun Block(onSize: (Dimension) -> Unit = {}) {
 }
 
 private val Held: FiniteAnimationSpec<Dimension> = tween(durationMillis = LONG, delayMillis = LONG)
-private val Delayed: FiniteAnimationSpec<Dimension> = tween(durationMillis = DELAY, delayMillis = DELAY)

@@ -105,6 +105,29 @@ class AnimatedGridBagCellTest {
     }
 
     @Test
+    fun `an AnimatedContent takes the content's height at the cell's width at rest and once the content entered`() {
+        val transitions =
+            mapOf(
+                "fade" to (fadeIn(spec()) togetherWith fadeOut(spec())),
+                "expand and shrink" to (expandIn(spec()) togetherWith shrinkOut(spec())),
+            )
+        val shown =
+            buildMap<String, @Composable (SwingModifier) -> Unit> {
+                this["at rest"] = { modifier ->
+                    AnimatedContent(targetState = true, modifier = modifier) { shown -> if (shown) Content() }
+                }
+                for ((kind, transition) in transitions) {
+                    this["after a $kind"] = { modifier ->
+                        AnimatedContent(rememberGrown(), modifier, transitionSpec = { transition }) { grown ->
+                            if (grown) Content() else Label("Other content")
+                        }
+                    }
+                }
+            }
+        assertEachTakesTheCellWidth(shown)
+    }
+
+    @Test
     fun `a container with animateContentSize takes the content's height at the cell's width at rest and once grown`() {
         val shown =
             mapOf<String, @Composable (SwingModifier) -> Unit>(
@@ -284,7 +307,35 @@ class AnimatedGridBagCellTest {
                 "the container was at no size, then at the cell's height for the content's own size, then settled",
             )
             assertEquals(1, runs[1].second, "the container was at the content's own size on exactly one frame")
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            assertEquals(0, cyclesUntilStable(container), "a paint asks for no layout")
         }
+
+    /**
+     * A container in a cell narrowed past the contents lays each content out at its own size part-way through a change,
+     * at its preferred height. Here androidx's `AnimatedContentMeasurePolicy.measure` (AnimatedContent.kt:1305-1330
+     * under compose/animation/animation/src/commonMain/kotlin/androidx/compose/animation) measures every content with
+     * the constraints its parent hands the container, so it lays each content out at the narrowed width. Aligning with
+     * androidx turns this test red.
+     */
+    @Test
+    fun `an AnimatedContent lays each content out at its own size part-way through a change in a narrow cell`() {
+        val transform = expandIn(spec()) togetherWith shrinkOut(spec())
+        assertEachKeepsTheContentHeightInANarrowedCell(
+            mapOf(
+                "a content entering" to { modifier ->
+                    AnimatedContent(rememberGrown(), modifier, transitionSpec = { transform }) { grown ->
+                        if (grown) TallContent() else Label("Other content")
+                    }
+                },
+                "a content leaving" to { modifier ->
+                    AnimatedContent(rememberGrown(), modifier, transitionSpec = { transform }) { grown ->
+                        if (grown) Label("Other content") else TallContent()
+                    }
+                },
+            ),
+        )
+    }
 
     /** An [AnimatedVisibility] in a `GridBagLayout` cell that fills the width of a panel as wide as the cell. */
     @Composable

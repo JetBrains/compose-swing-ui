@@ -101,9 +101,20 @@ import kotlin.math.max
  *
  * Content is clipped to the container by default; set [SizeTransform.clip] to `false` to let it extend
  * past the animated size under a Foundation parent. A stock Swing ancestor still clips at its own bounds.
- * Mouse input follows the content's scale. The size animation targets each content's preferred size,
- * which content whose height depends on its width, such as a wrapping text area or an HTML label, reports
- * without knowing its final width.
+ * Mouse input follows the content's scale.
+ *
+ * While a transition with a [SizeTransform] runs, every content is measured with no maximum width and no maximum
+ * height, so it takes its own size on both axes, and the container clips it to the animated size. The default
+ * [SizeTransform] counts, so a transition that changes no size is released too; `using null` opts out. A transition
+ * without a size transform releases nothing. In every other measurement the contents are measured with the maximum
+ * width and height the container is measured with, and never with a minimum. The change lasts until the transition
+ * ends, not until its size animation does.
+ *
+ * So the contents are measured again in the parent's space when the transition ends. Content that depends on that
+ * space, such as content that fills, keeps an aspect ratio or wraps text, can change size at that moment. A parent
+ * that offers less room than the content's own size can show no size change until the transition ends, and a change
+ * to the container's bounds takes effect when the transition ends. Inside a Foundation layout, use the scoped
+ * overload: it measures the contents with that layout's constraints for the whole transition.
  *
  * Text loses LCD subpixel antialiasing while a fade runs: a fade paints through a translucent buffer, and
  * the JDK renders subpixel text only onto an opaque surface. A heavyweight child paints outside the
@@ -777,18 +788,22 @@ private class AnimatedContentMeasurePolicy(
         measurables: List<Measurable>,
         constraints: Constraints,
     ): MeasureResult {
-        val animating = rootScope.transition.currentState != rootScope.transition.targetState
         val placeables = arrayOfNulls<Placeable>(measurables.size)
+        val childConstraints =
+            Constraints(
+                maxWidth = offeredWidth(constraints.maxWidth),
+                maxHeight = offeredHeight(constraints.maxHeight),
+            )
         // Measure the target content first, but place it on top unless a zIndex is specified.
         measurables.forEachIndexed { index, measurable ->
             if ((measurable.parentData as? AnimatedContentChildData)?.isTarget == true) {
-                placeables[index] = measurable.measure(childConstraints(measurable, constraints, animating))
+                placeables[index] = measurable.measure(childConstraints)
             }
         }
         // The other contents are measured after the target, since they have no impact on the size animation.
         measurables.forEachIndexed { index, measurable ->
             if (placeables[index] == null) {
-                placeables[index] = measurable.measure(childConstraints(measurable, constraints, animating))
+                placeables[index] = measurable.measure(childConstraints)
             }
         }
         var maxW = 0
@@ -813,44 +828,42 @@ private class AnimatedContentMeasurePolicy(
         return layout(size.width, size.height, placementBlock = placementBlock)
     }
 
-    /**
-     * The constraints each content is measured under. The minimum is dropped: a Swing layout pass sets it to the
-     * container's own bounds when it measures the container again at them, and content smaller than the container
-     * must keep its size and be placed by the alignment. While the transition runs, a foreign parent hands a
-     * container that runs its own size animation the animated bounds, which are not an offer of available space,
-     * so each content is offered at least its preferred extent.
-     */
-    private fun childConstraints(
-        measurable: Measurable,
-        constraints: Constraints,
-        animating: Boolean,
-    ): Constraints =
-        if (sizeAnimation == null || !animating) {
-            Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
-        } else {
-            Constraints(
-                maxWidth = max(constraints.maxWidth, measurable.maxIntrinsicWidth(Constraints.Infinity)),
-                maxHeight = max(constraints.maxHeight, measurable.maxIntrinsicHeight(Constraints.Infinity)),
-            )
+    private val transitionRuns: Boolean
+        get() {
+            val transition = rootScope.transition
+            return transition.currentState != transition.targetState || transition.pendingTargetState != null
         }
 
+    /**
+     * Whether a size change runs: the transition runs under a size transform. The contents are then measured with no
+     * maxima, and are otherwise measured with the incoming maxima, minima dropped: a Swing layout pass sets them to the
+     * container's own bounds when it measures the container again at them, and content smaller than the container
+     * must keep its size and be placed by the alignment.
+     */
+    private val sizeChangeRuns: Boolean get() = sizeAnimation?.animation != null && transitionRuns
+
+    private fun offeredWidth(width: Int): Int = if (sizeChangeRuns) Constraints.Infinity else width
+
+    private fun offeredHeight(height: Int): Int = if (sizeChangeRuns) Constraints.Infinity else height
+
     // Content a deferred phase announced ahead of the transition is left out, as it is out of the measured size: a
-    // Swing parent sizes the container from these answers.
+    // Swing parent sizes the container from these answers. Each content is asked at the extent [measure] would measure
+    // it with under bounds of the query's extent.
     override fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = measurables.maxOfCounted { it.minIntrinsicWidth(height) }
+    ): Int = measurables.maxOfCounted { it.minIntrinsicWidth(offeredHeight(height)) }
 
     override fun IntrinsicMeasureScope.minIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = measurables.maxOfCounted { it.minIntrinsicHeight(width) }
+    ): Int = measurables.maxOfCounted { it.minIntrinsicHeight(offeredWidth(width)) }
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
     ): Int {
-        val width = measurables.maxOfCounted { it.maxIntrinsicWidth(height) }
+        val width = measurables.maxOfCounted { it.maxIntrinsicWidth(offeredHeight(height)) }
         return sizeAnimation?.intrinsicSize(width, 0)?.width ?: width
     }
 
@@ -858,7 +871,7 @@ private class AnimatedContentMeasurePolicy(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
     ): Int {
-        val height = measurables.maxOfCounted { it.maxIntrinsicHeight(width) }
+        val height = measurables.maxOfCounted { it.maxIntrinsicHeight(offeredWidth(width)) }
         return sizeAnimation?.intrinsicSize(0, height)?.height ?: height
     }
 
