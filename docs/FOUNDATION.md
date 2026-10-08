@@ -117,15 +117,13 @@ child again.
 
 Within Foundation layouts, preferred size uses `maxIntrinsicWidth` at unbounded height, then `maxIntrinsicHeight` at that width; minimum size uses the corresponding minimum functions. A stock Swing parent can establish a different width for a height query; see [Where constraints stop](#where-constraints-stop). A `Constrainable` child answers intrinsic queries at the extent the parent names; a stock Swing widget answers from its preferred or minimum size.
 
-At a bounded width, a stock widget's intrinsic height is the height it would take when measured under that width offer. A wrapping widget is laid out at the width its parent grants before its height is read when that layout pass sets the width first. For example, `BorderLayout` does this for its north and south children, so a wrapping `TextArea` reports the height for the granted width. `fillMaxWidth`, a filling `weight` or `requiredWidth(n)` fixes the offered width; `requiredWidthIn` supplies a minimum. `width(n)` reads intrinsic size at `n` and returns the preferred width up to `n`. When such a result differs from the width the widget holds and a layout pass follows, the widget is first sized to that width.
+Under a stock Swing parent, a preferred height follows the container's current inner width when it has one, and otherwise uses its natural preferred width. Minimum height uses the natural preferred width.
 
-An intrinsic read, `getPreferredSize()` or `getMinimumSize()` from a valid container starts no layout pass and leaves every component's bounds and validity unchanged. A read from an invalid container under a stock Swing parent can first size its stock children to the specified width.
-
-A stock widget queried for height at unbounded width answers at the width it currently holds; Swing has no size preference for another width. A widget that can answer at unbounded width implements [`Constrainable`](../swing-ui-foundation/src/main/kotlin/org/jetbrains/compose/swing/foundation/layout/Constrainable.kt).
+A stock widget's height at a bounded width follows the width its parent grants. At an unbounded width it answers at its current width. A widget that can answer at other extents implements [`Constrainable`](../swing-ui-foundation/src/main/kotlin/org/jetbrains/compose/swing/foundation/layout/Constrainable.kt).
 
 By default, a policy's and a `LayoutModifierNode`'s intrinsic functions use `measure` with a stand-in whose size on the queried axis is the child's intrinsic size. Override them when `measure` cannot answer an intrinsic query safely, such as when it starts an animation or divides bounded space. A container's maximum size is unbounded unless one is set.
 
-A `Row` or `Column` that aligns a child by a line reads it through `intrinsicPlaceable`. The default runs `measure` with a stand-in for the child and reads the line without placing it. Where `measure` cannot safely run during a query, a modifier overrides the four intrinsic functions and `intrinsicPlaceable`; it returns the child's stand-in when it only transforms its lines. A custom `Constrainable` reports its lines through `alignmentLines`, measured from the top-left of its extent.
+A `Row` or `Column` that aligns a child by a line reads it through `intrinsicPlaceable`. A custom `Constrainable` reports its lines through `alignmentLines`, measured from the top-left of its extent.
 
 #### Width offers
 
@@ -146,29 +144,7 @@ A direct child read carries no offer. A layout modifier whose `measure` drops th
 
 An explicit `preferredSize` on a constraint-based container answers constrained measurements and maximum intrinsic queries without running its policy. An explicit `minimumSize` does the same for minimum intrinsic queries. Without either size, constraints and intrinsic reads continue through nested `Row`, `Column`, `Box` and `Layout` containers. Implement [`Constrainable`](../swing-ui-foundation/src/main/kotlin/org/jetbrains/compose/swing/foundation/layout/Constrainable.kt) when a component must answer for offered constraints and extents. A Swing component that holds a constraint-based container can also read its intrinsic sizes.
 
-A layout manager that reads height at the width it grants gets that height in the same layout or at most one validation later. It gets the height in the same layout when it invalidates a valid container before reading preferences at the new width.
-
-A stock Swing widget or a foreign Swing container answers with its preferred or minimum size, held inside the
-offered constraints. Granted a width it does not hold by a layout pass, with its height left open, it is sized to
-that width first, so a component whose height follows its width, such as a wrapping `TextArea`, takes its height for
-that width in that pass, and so does a label showing HTML.
-
-A narrow wrapping stock widget inside a `Column` under `BorderLayout.NORTH` takes the offered width, including when `width`, `widthIn` or `size` requests a narrower width. The `Column` keeps the height it reports for itself, which can differ from the widget's wrapped height at that width.
-
-Constraints also stop at a `Panel` backed by a Swing layout manager. It reads the sizes of a constraint-based container inside it without a width offer:
-
-- Its preferred size is its max intrinsic width and its max intrinsic height at the width it holds. A preferred height with no held width uses its max intrinsic width. Its minimum size is its min intrinsic width and its min intrinsic height at the width of its last size-preference read or paint; before any preference read or paint, its minimum height uses its max intrinsic width. An explicit `preferredSize` or `minimumSize` replaces the corresponding preference.
-- It lays its content out at the bounds the panel gives it.
-- If a later layout or paint reads height at a width different from the last size-preference read, the container revalidates once when the returned height differs. The panel then reads preferences again. Layout alone does not request this correction.
-- Where two widths each make the other's height wrong, as a view in a `ScrollPane` can, the container keeps the result for the wider one until its content changes.
-
-Most cases need one layout. A wrapping container needs one extra validation where a wrapping `JTextArea` in the same slot needs one. A `Column` holding an HTML `JLabel` under `BorderLayout.EAST` needs validation at paint time. A container that reports preferences before its first layout can make its text wrap an extra time.
-
-A panel that sets the container's width before reading preferences has the height in the same layout pass. `BorderLayout` does this for north and south children. A panel that lays the container out at its held width does too. `FlowLayout` lays it out at its preferred width, so no second layout is needed while it holds that width.
-
-A panel can stretch the container without reading preferences again. `BoxLayout`, a filling `GridBagLayout` and a `ScrollPane` viewport do this. A wrapping container then takes the height for that width in the validation after paint. Content whose height does not follow width is laid out once.
-
-A view in a `ScrollPane` can need the vertical scroll bar at the viewport's width but not beside the bar. It keeps the bar and the height for the wider width, and scrolls by the difference. Put a constraint-based container inside the panel when its descendants need layout modifiers:
+Constraints stop at stock Swing components and foreign containers. A stock parent can assign a width before reading height; wrapping stock children then report the height for that width. A parent that stretches a container without reading its height at the new width may need one validation for wrapping content. Put a constraint-based container inside a Swing panel when its descendants need layout modifiers:
 
 ```kotlin
 Panel(PanelLayout.Flow()) {

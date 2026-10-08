@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -119,14 +120,14 @@ class UnplacedChildReportTest {
             leafSize = 20
             awaitIdle()
 
-            assertEquals(10, onNodeOfType<JLabel>().fetch().width, "an unplaced child lays nothing out")
+            onNodeOfType<JLabel>().assertProperty(10, "an unplaced child lays nothing out") { width }
             assertEquals(emptyList(), placements, "a descendant of an unplaced child must report no placement")
             assertEquals(emptyList(), sizes, "a descendant of an unplaced child must report no size")
 
             placed = true
             awaitIdle()
 
-            assertEquals(20, onNodeOfType<JLabel>().fetch().width, "placed again, the child lays out its own")
+            onNodeOfType<JLabel>().assertProperty(20, "placed again, the child lays out its own") { width }
             assertEquals(
                 listOf(Rectangle(0, 0, 20, 20)),
                 placements,
@@ -193,7 +194,7 @@ class UnplacedChildReportTest {
             leafSize = 20
             awaitIdle()
 
-            assertEquals(10, onNodeOfType<JLabel>().fetch().width, "a child never placed takes no later size")
+            onNodeOfType<JLabel>().assertProperty(10, "a child never placed takes no later size") { width }
             assertEquals(emptyList(), placements, "a descendant of a child still unplaced must report no placement")
             assertEquals(emptyList(), sizes, "a descendant of a child still unplaced must report no size")
         }

@@ -20,8 +20,6 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
-import java.awt.Dimension
-
 /**
  * This measurable's [intrinsicSize] height under an offer of a width from [minWidth] to [maxWidth]: a stock child
  * returns a result at the width its measure takes under that offer, and a
@@ -34,88 +32,11 @@ internal fun IntrinsicMeasurable.intrinsicHeightUnder(
     intrinsicSize: IntrinsicSize,
     minWidth: Int,
     maxWidth: Int,
+    maySizeStockChildren: Boolean = false,
 ): Int =
     when (this) {
-        is ChildMeasurable -> {
-            val outer = outerMeasurable
-            if (outer != null) {
-                outer.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
-            } else {
-                unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth)
-            }
-        }
-
-        is UnmodifiedChildMeasurable -> {
-            child.unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth)
-        }
-
-        is LayoutModifierMeasurable -> {
-            val offered = measurable.withOfferedMinWidth(minWidth)
-            with(widthOfferScope(minWidth.coerceAtMost(maxWidth))) {
-                with(modifier) {
-                    if (intrinsicSize == IntrinsicSize.Min) {
-                        minIntrinsicHeight(offered, maxWidth)
-                    } else {
-                        maxIntrinsicHeight(offered, maxWidth)
-                    }
-                }
-            }
-        }
-
-        is WidthOfferMeasurable -> {
-            measurable.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
-        }
-
-        is IntrinsicMeasurableAdapter -> {
-            source.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
-        }
-
-        is IntrinsicLineMeasurable -> {
-            source.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
-        }
+        is PreferencesMeasurable -> intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth, maySizeStockChildren)
     }
-
-private fun ChildMeasurable.unmodifiedIntrinsicHeight(
-    intrinsicSize: IntrinsicSize,
-    minWidth: Int,
-    maxWidth: Int,
-): Int =
-    if (intrinsicSize == IntrinsicSize.Min) {
-        unmodifiedMinIntrinsicHeight(minWidth, maxWidth)
-    } else {
-        unmodifiedMaxIntrinsicHeight(minWidth, maxWidth)
-    }
-
-/**
- * [measurable] as a layout modifier is handed it for an intrinsic height read read
- * under a width offer from [minWidth] up to
- * the specified width. Its height is read at a width, it returns a result under the
- * offer from [minWidth] up to that width, so a
- * modifier reading its child with the same arguments keeps the offer. Its intrinsic width reads are [measurable]'s own.
- */
-internal class WidthOfferMeasurable(
-    val measurable: IntrinsicMeasurable,
-    val minWidth: Int,
-) : IntrinsicMeasurable {
-    override val parentData: Any? get() = measurable.parentData
-
-    override fun minIntrinsicWidth(height: Int): Int = measurable.minIntrinsicWidth(height)
-
-    override fun maxIntrinsicWidth(height: Int): Int = measurable.maxIntrinsicWidth(height)
-
-    override fun minIntrinsicHeight(width: Int): Int =
-        measurable.intrinsicHeightUnder(IntrinsicSize.Min, minWidth.coerceAtMost(width), width)
-
-    override fun maxIntrinsicHeight(width: Int): Int =
-        measurable.intrinsicHeightUnder(IntrinsicSize.Max, minWidth.coerceAtMost(width), width)
-
-    override fun intrinsicPlaceable(
-        width: Int,
-        height: Int,
-    ): Placeable? = measurable.intrinsicPlaceable(width, height)
-
-    override fun maximumSize(): Dimension? = measurable.maximumSize()
-}
 
 /**
  * This measurable under a width offer from [minWidth], in place of any offer it carries: its height is read at a width,
@@ -127,8 +48,14 @@ internal class WidthOfferMeasurable(
  */
 public fun IntrinsicMeasurable.withOfferedMinWidth(minWidth: Int): IntrinsicMeasurable {
     require(minWidth >= 0) { "A width offer starts at zero or more, but $minWidth was named." }
-    val unoffered = (this as? WidthOfferMeasurable)?.measurable ?: this
-    return if (minWidth == 0) unoffered else WidthOfferMeasurable(unoffered, minWidth)
+    if (this is OfferedMinWidthMeasurable) {
+        return if (minWidth == this.minWidth) {
+            this
+        } else {
+            OfferedMinWidthMeasurable(source, maySizeStockChildren, minWidth)
+        }
+    }
+    return if (minWidth == 0) this else OfferedMinWidthMeasurable(this, false, minWidth)
 }
 
 /** This measurable under the minimum width declared on a size node. */

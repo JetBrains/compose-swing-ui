@@ -258,48 +258,111 @@ class ConstrainedPanelObservationTest {
             listOf(
                 HeightRead("BoxLayout shared heights", box, 80, 60, 120, read = Read.Shared),
                 HeightRead("GridBag shared heights", gridBag, 80, 60, 120, read = Read.Shared),
-                HeightRead("short GridBag shared heights", shortGridBag, 40, 60, 60, read = Read.Shared),
+                HeightRead(
+                    "short GridBag shared heights",
+                    shortGridBag,
+                    40,
+                    60,
+                    60,
+                    read = Read.SharedAtNaturalWidth,
+                ),
                 HeightRead("BoxLayout preferred", box, 80, 120, 120, read = Read.Preferred),
                 HeightRead("BoxLayout minimum", box, 80, 60, 80),
-                HeightRead("short GridBag minimum", shortGridBag, 40, 60, 60),
+                HeightRead(
+                    "short GridBag minimum",
+                    shortGridBag,
+                    40,
+                    60,
+                    40,
+                    read = Read.MinimumWithPreferredAtGrantedWidth,
+                ),
                 HeightRead("short GridBag preferred", shortGridBag, 40, 120, 40, read = Read.Preferred),
-                // BoxLayout grants neither intrinsic height here; paint must observe both checks independently.
-                HeightRead("squeezed BoxLayout shared heights", squeezedBox, 70, 100, 100, read = Read.Shared),
+                // BoxLayout grants neither intrinsic height here, so establish both observations explicitly.
+                HeightRead("squeezed BoxLayout shared heights", squeezedBox, 70, 100, 70, read = Read.Shared),
             )
-        for (scenario in scenarios) {
-            runComposeSwingTest {
-                val least = mutableIntStateOf(40)
-                val preferred = mutableIntStateOf(80)
-                val policy =
-                    ScriptedMeasurePolicy(
-                        minimumWidth = { 50 },
-                        preferredWidth = { 50 },
-                        minimumHeight = { if (it == 50) 40 else least.intValue },
-                        preferredHeight = {
-                            if (scenario.read == Read.Shared) {
-                                2 * (if (it == 50) 40 else least.intValue)
-                            } else if (it == 50) {
-                                80
-                            } else {
-                                preferred.intValue
-                            }
-                        },
-                    )
-                setContent { scenario.slot(300) { modifier -> Layout(policy, modifier.testTag(PANEL_TAG)) } }
-                val panel = onNodeWithTag(PANEL_TAG).fetch<ConstrainedPanel>()
-                assertEquals(Dimension(300, scenario.initial), panel.size, "${scenario.name}: before paint")
-                settleWithPaint()
-                assertEquals(Dimension(300, scenario.initial), panel.size, "${scenario.name}: after paint")
-                val changedState = if (scenario.read == Read.Preferred) preferred else least
-                changedState.intValue = scenario.changed
-                awaitIdle()
+        for (scenario in scenarios) verifyHeightRead(scenario)
+    }
+
+    private fun verifyHeightRead(scenario: HeightRead) {
+        runComposeSwingTest {
+            val least = mutableIntStateOf(40)
+            val preferred = mutableIntStateOf(80)
+            val policy =
+                ScriptedMeasurePolicy(
+                    minimumWidth = { 50 },
+                    preferredWidth = { 50 },
+                    minimumHeight = {
+                        if (it == 50 && scenario.read != Read.SharedAtNaturalWidth) 40 else least.intValue
+                    },
+                    preferredHeight = {
+                        if (scenario.read == Read.Shared ||
+                            scenario.read == Read.SharedAtNaturalWidth ||
+                            scenario.read == Read.MinimumWithPreferredAtGrantedWidth
+                        ) {
+                            if (it == 50 && scenario.read != Read.SharedAtNaturalWidth) 80 else 2 * least.intValue
+                        } else if (it == 50) {
+                            80
+                        } else {
+                            preferred.intValue
+                        }
+                    },
+                )
+            setContent { scenario.slot(300) { modifier -> Layout(policy, modifier.testTag(PANEL_TAG)) } }
+            val panel = onNodeWithTag(PANEL_TAG).fetch<ConstrainedPanel>()
+            assertEquals(Dimension(300, scenario.initial), panel.size, "${scenario.name}: initial grant")
+            observePreferences(panel, scenario.read)
+            settleWithPaint()
+            assertEquals(Dimension(300, scenario.initial), panel.size, "${scenario.name}: after paint")
+            val changedState = if (scenario.read == Read.Preferred) preferred else least
+            changedState.intValue = scenario.changed
+            awaitIdle()
+            assertEquals(
+                Dimension(300, scenario.expected),
+                panel.size,
+                "${scenario.name}: changed state without paint",
+            )
+            if (scenario.read == Read.MinimumWithPreferredAtGrantedWidth) {
+                assertEquals(
+                    120,
+                    queryPreferredHeight(panel),
+                    "${scenario.name}: preferred query at granted width",
+                )
                 assertEquals(
                     Dimension(300, scenario.expected),
                     panel.size,
-                    "${scenario.name}: changed state without paint",
+                    "${scenario.name}: direct query does not resize grant",
                 )
             }
         }
+    }
+
+    private fun observePreferences(
+        panel: ConstrainedPanel,
+        read: Read,
+    ) {
+        when (read) {
+            Read.Shared, Read.SharedAtNaturalWidth -> {
+                panel.minimumSize = null
+                panel.minimumSize
+                panel.preferredSize = null
+                panel.preferredSize
+            }
+
+            Read.Minimum, Read.MinimumWithPreferredAtGrantedWidth -> {
+                panel.minimumSize = null
+                panel.minimumSize
+            }
+
+            Read.Preferred -> {
+                panel.preferredSize = null
+                panel.preferredSize
+            }
+        }
+    }
+
+    private fun queryPreferredHeight(panel: ConstrainedPanel): Int {
+        panel.preferredSize = null
+        return panel.preferredSize.height
     }
 
     private fun <S : PanelScope> shortSlot(
@@ -314,7 +377,7 @@ class ConstrainedPanelObservationTest {
             }
         }
 
-    private enum class Read { Shared, Minimum, Preferred }
+    private enum class Read { Shared, Minimum, Preferred, SharedAtNaturalWidth, MinimumWithPreferredAtGrantedWidth }
 
     private class HeightRead(
         val name: String,

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -24,6 +25,7 @@ import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
@@ -37,8 +39,11 @@ import java.awt.FlowLayout
 import java.awt.LayoutManager
 import java.awt.Point
 import java.awt.Rectangle
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JTextArea
+import javax.swing.OverlayLayout
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -307,7 +312,7 @@ class SwingParentBoundaryTest {
         }
 
     @Test
-    fun aContainerUnderAStockParentGrantingItsPreferredWidthTakesItsNewSizeAfterOnePaint() =
+    fun aContainerUnderAStockParentUpdatesAfterParentValidation() =
         runComposeSwingTest {
             var text by mutableStateOf("Preview")
             setContent {
@@ -321,19 +326,28 @@ class SwingParentBoundaryTest {
             awaitIdle()
 
             val box = onNodeWithTag("box").fetch<JComponent>()
+            val initialGrant = box.size
             withRecordedRepaints { recorder ->
                 text = "A much longer preview text"
                 awaitIdle()
                 assertFalse(box in recorder.relayouts, "the box requests no validation after the label's own")
             }
-            settleWithPaint()
 
             val label = onNodeWithTag("label").fetch<JComponent>()
             val atRatio = atRatio(label.preferredSize.width)
             assertEquals(
+                initialGrant.height,
+                box.height,
+                "the stock parent keeps its initial height before validation",
+            )
+            assertEquals(label.preferredSize.width, box.width, "the stock parent grants the current preferred width")
+            (box.parent as JComponent).revalidate()
+            root.validate()
+            awaitIdle()
+            assertEquals(
                 atRatio,
                 box.size,
-                "the validation after the paint grants the ratio's height at the new preferred width",
+                "parent validation grants the ratio's height at the new preferred width",
             )
             assertEquals(Rectangle(Point(), atRatio), label.bounds, "and the label fills it")
         }
@@ -407,13 +421,87 @@ class SwingParentBoundaryTest {
             val third = onNodeWithTag("third").fetch<JComponent>().preferredSize
             val row = Dimension(second.width + third.width, maxOf(second.height, third.height))
 
-            assertEquals(row, onNodeWithTag("row").fetch<JComponent>().size, "the row is its children side by side")
-            assertEquals(
+            onNodeWithTag("row").assertProperty(row, "the row is its children side by side") { size }
+            onNodeWithTag("column").assertProperty(
                 Dimension(maxOf(first.width, row.width), first.height + row.height),
-                onNodeWithTag("column").fetch<JComponent>().size,
                 "the column is its children stacked",
-            )
+            ) { size }
         }
+
+    @Test
+    fun aStockParentGatheringItsChildrensSizesSurvivesAnInvalidationThePreferenceReadCauses() {
+        val text = "A text area that wraps its lines sizes its view while its size is read. ".repeat(6)
+        assertStockParentSurvivesContainerContent {
+            SwingNode(factory = { JTextArea(text).apply { lineWrap = true } })
+        }
+    }
+
+    @Test
+    fun aStockParentSurvivesAChildThatRevalidatesWhileItsSizePreferencesAreRead() =
+        assertStockParentSurvivesContainerContent {
+            SwingNode(factory = { SizeQueryCause { revalidate() } })
+        }
+
+    @Test
+    fun aStockParentSurvivesAChildThatInvalidatesWhileItsSizePreferencesAreRead() =
+        assertStockParentSurvivesContainerContent {
+            SwingNode(factory = { SizeQueryCause { invalidate() } })
+        }
+
+    /**
+     * Holds [content] in a container whose size a stock parent of each layout reads, and resizes the stock parent:
+     * it is valid afterwards, and lays the container out at the width it grants.
+     */
+    private fun assertStockParentSurvivesContainerContent(content: @Composable () -> Unit) {
+        val layouts =
+            mapOf<String, (JPanel) -> LayoutManager>(
+                "BoxLayout X_AXIS" to { BoxLayout(it, BoxLayout.X_AXIS) },
+                "BoxLayout Y_AXIS" to { BoxLayout(it, BoxLayout.Y_AXIS) },
+                "OverlayLayout" to { OverlayLayout(it) },
+            )
+        val holders =
+            mapOf<String, @Composable (SwingModifier, @Composable () -> Unit) -> Unit>(
+                "a Column in a Box" to { modifier, held -> Box(modifier = modifier) { Column { held() } } },
+                "a Box holding a Column in a Box" to { modifier, held ->
+                    Box(modifier = modifier) { Box { Column { held() } } }
+                },
+            )
+        for ((layoutName, layout) in layouts) {
+            for ((holderName, holder) in holders) {
+                runComposeSwingTest {
+                    var width by mutableIntStateOf(300)
+                    setContent {
+                        SwingNode(
+                            factory = { JPanel(BorderLayout()) },
+                            modifier = SwingModifier.preferredSize(width, 240),
+                        ) {
+                            SwingNode(
+                                factory = { JPanel().apply { this.layout = layout(this) } },
+                                modifier = SwingModifier.testTag("stock"),
+                            ) {
+                                holder(SwingModifier.testTag("container"), content)
+                            }
+                        }
+                    }
+                    val stock = onNodeWithTag("stock").fetch<JComponent>()
+                    val container = onNodeWithTag("container").fetch<JComponent>()
+                    for (resized in listOf(420, 200)) {
+                        width = resized
+                        awaitIdle()
+                        val at = "$layoutName, $holderName, width $resized"
+                        assertEquals(resized, stock.width, "$at: the stock parent is resized")
+                        assertEquals(
+                            resized,
+                            container.width,
+                            "$at: the stock parent lays out the container whose preferences it read",
+                        )
+                        assertTrue(stock.isValid, "$at: the stock parent is valid")
+                        assertTrue(container.isValid, "$at: the container whose preferences it read is valid")
+                    }
+                }
+            }
+        }
+    }
 
     @Test
     fun aContainerAStockParentMakesZeroWideComputesItsPreferredHeightAtItsPreferredWidth() =
@@ -475,12 +563,52 @@ class SwingParentBoundaryTest {
             }
         }
 
+    @Test
+    fun aContainerLaidOutAtItsPreferredWidthHasItsMinimumHeightThere() {
+        val parents: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
+            mapOf(
+                "a flow layout, which lays the box out at the width it prefers" to
+                    { box -> Panel(PanelLayout.Flow()) { box() } },
+                "a parent that has laid nothing out, so the box holds no width" to
+                    { box -> SwingNode(factory = { JPanel(null) }) { box() } },
+            )
+        for ((name, parent) in parents) {
+            runComposeSwingTest {
+                setContent {
+                    parent { Layout(measurePolicy = ConstantAreaPolicy, modifier = SwingModifier.testTag("box")) }
+                }
+
+                onNodeWithTag("box").assertProperty(
+                    100,
+                    "$name: the minimum height is the one at the width of 200 the box prefers, not at its minimum 50",
+                ) { minimumSize.height }
+            }
+        }
+    }
+
     private companion object {
         const val RATIO = 16f / 9f
 
         fun atRatio(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
 
         fun stockPanel(): JPanel = JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false }
+    }
+}
+
+/**
+ * A panel running [cause] each time its minimum or preferred size is read, and returning a height that depends on
+ * its width.
+ */
+private class SizeQueryCause(
+    private val cause: JComponent.() -> Unit,
+) : JPanel() {
+    override fun getPreferredSize(): Dimension = sizePreference()
+
+    override fun getMinimumSize(): Dimension = sizePreference()
+
+    private fun sizePreference(): Dimension {
+        cause()
+        return Dimension(width, 10 + width / 2)
     }
 }
 
@@ -505,4 +633,35 @@ private class InvalidatingHeightForWidthLayout : LayoutManager {
     ) = Unit
 
     override fun removeLayoutComponent(component: Component) = Unit
+}
+
+/** Prefers 200 wide and can shrink to 50, and needs 20000 square pixels, so its height is 20000 over its width. */
+private object ConstantAreaPolicy : MeasurePolicy {
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        val width = constraints.maxWidth.coerceIn(1, 200)
+        return layout(width, 20000 / width) {}
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 50
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 200
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
 }

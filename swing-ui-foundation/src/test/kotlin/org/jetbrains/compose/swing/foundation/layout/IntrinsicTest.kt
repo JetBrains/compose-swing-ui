@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -207,16 +208,14 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("direct").assertProperty(
                 Rectangle(0, 0, 320, 160),
-                onNodeWithTag("direct").fetch<JComponent>().bounds,
                 "a box holding the ratio child takes the ratio's height at its width",
-            )
-            assertEquals(
+            ) { bounds }
+            onNodeWithTag("nested").assertProperty(
                 Rectangle(0, 160, 320, 160),
-                onNodeWithTag("nested").fetch<JComponent>().bounds,
                 "each box takes its content's height at its width, so the column stacks them, as androidx does",
-            )
+            ) { bounds }
         }
 
     @Test
@@ -262,11 +261,10 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("box").assertProperty(
                 Rectangle(0, 0, 160, 80),
-                onNodeWithTag("box").fetch<JComponent>().bounds,
                 "the box takes its content's min intrinsic width at its height, the ratio's, as androidx does",
-            )
+            ) { bounds }
         }
 
     @Test
@@ -290,11 +288,10 @@ class IntrinsicTest {
                 val atWidth = if (size == IntrinsicSize.Max) text.preferredSize else text.minimumSize
 
                 assertEquals(312, text.width, "$size: the area fills the box inside its inset")
-                assertEquals(
+                onNodeWithTag("box").assertProperty(
                     atWidth.height,
-                    onNodeWithTag("box").fetch<JComponent>().height,
                     "$size: the box takes the area's height at the width the inset reads a default hook at",
-                )
+                ) { height }
             }
         }
     }
@@ -328,11 +325,10 @@ class IntrinsicTest {
             val text = onNodeWithTag("text").fetch<JTextArea>()
 
             assertEquals(text.preferredSize.height, text.height, "the area takes its height at its share")
-            assertEquals(
+            onNodeWithTag("row").assertProperty(
                 text.y + text.height,
-                onNodeWithTag("row").fetch<JComponent>().height,
                 "the row ends where the area does: its baseline read puts the area at its share's height",
-            )
+            ) { height }
         }
 
     @Test
@@ -350,16 +346,14 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("start").assertProperty(
                 Rectangle(0, 0, 160, 40),
-                onNodeWithTag("start").fetch<JComponent>().bounds,
                 "the weighted column takes its share of the row, and its ratio child's height at that share",
-            )
-            assertEquals(
+            ) { bounds }
+            onNodeWithTag("divider").assertProperty(
                 Rectangle(160, 0, 1, 40),
-                onNodeWithTag("divider").fetch<JComponent>().bounds,
                 "the row is as tall as the column's min intrinsic height at its share, so the divider spans it",
-            )
+            ) { bounds }
         }
 
     @Test
@@ -400,11 +394,10 @@ class IntrinsicTest {
             onNodeWithTag("box").fetch<JComponent>().revalidate()
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag("box").assertProperty(
                 Rectangle(0, 0, 320, 160),
-                onNodeWithTag("box").fetch<JComponent>().bounds,
                 "the box takes the leaf's intrinsic height at the width it fills",
-            )
+            ) { bounds }
             assertEquals(Rectangle(0, 0, 320, 160), leaf.bounds, "the leaf takes its height at the width it is granted")
             assertEquals(1, leaf.measures, "in the one measure of the pass that lays it out")
         }
@@ -616,11 +609,10 @@ class IntrinsicTest {
 
             assertEquals(200, text.width, "the least width the nested box is given reaches the area")
             assertEquals(text.preferredSize.height, text.height, "which takes the height it prefers at that width")
-            assertEquals(
+            onNodeWithTag("outer").assertProperty(
                 text.height,
-                onNodeWithTag("outer").fetch<JComponent>().height,
                 "and the outer box, reading the nested one its height under that least width, is as tall",
-            )
+            ) { height }
         }
 }
 

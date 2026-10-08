@@ -10,9 +10,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Dimension
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import javax.swing.JComponent
@@ -26,6 +28,131 @@ import kotlin.test.assertTrue
 
 /** A stock child whose height follows its width, in a container whose parent measures it. */
 class StockChildGrantedWidthTest {
+    @Test
+    fun readingTheBaselineOfAnUnplacedContainerKeepsItsStockLeafBounds() {
+        for ((name, child) in unplacedBaselineChildren) {
+            val (create, childModifier) = child
+            runComposeSwingTest(rootSize = Dimension(320, 600)) {
+                root.layout = BorderLayout()
+                val area = create()
+                var placed by mutableStateOf(true)
+                var offeredWidth by mutableIntStateOf(160)
+                var readBaseline by mutableStateOf(false)
+                var baselineReads = 0
+                setContent {
+                    Layout(
+                        modifier = SwingModifier.testTag("parent"),
+                        measurePolicy = { measurables, constraints ->
+                            val shouldPlace = placed
+                            val child = measurables.single().measure(Constraints(offeredWidth, offeredWidth, 100, 100))
+                            if (readBaseline) {
+                                child[FirstBaseline]
+                                baselineReads++
+                            }
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                if (shouldPlace) child.place(0, 0)
+                            }
+                        },
+                    ) {
+                        Box(modifier = SwingModifier.testTag("box")) {
+                            SwingNode(factory = { area }, modifier = childModifier())
+                        }
+                    }
+                }
+                captureToImage()
+                awaitIdle()
+                placed = false
+                awaitIdle()
+                val before = area.bounds
+                val box = onNodeWithTag("box").fetch<JComponent>()
+                offeredWidth = 240
+                readBaseline = true
+                awaitIdle()
+                assertTrue(baselineReads > 0, "$name: the parent read the unplaced container's baseline")
+                assertEquals(before, area.bounds, "$name: reading the baseline does not resize the stock leaf")
+                assertEquals(Dimension(0, 0), box.size, "$name: the nested container remains unplaced")
+            }
+        }
+    }
+
+    @Test
+    fun readingTheAlignmentLinesOfAnUnplacedContainerKeepsItsStockLeafBounds() {
+        for ((name, child) in unplacedBaselineChildren) {
+            val (create, childModifier) = child
+            runComposeSwingTest(rootSize = Dimension(320, 600)) {
+                root.layout = BorderLayout()
+                val area = create()
+                var placed by mutableStateOf(true)
+                var offeredWidth by mutableIntStateOf(160)
+                setContent {
+                    Layout(
+                        modifier = SwingModifier.testTag("parent"),
+                        measurePolicy = { measurables, constraints ->
+                            val child = measurables.single().measure(Constraints(offeredWidth, offeredWidth, 100, 100))
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                if (placed) child.place(0, 0)
+                            }
+                        },
+                    ) {
+                        Box(modifier = SwingModifier.testTag("box")) {
+                            SwingNode(factory = { area }, modifier = childModifier())
+                        }
+                    }
+                }
+                captureToImage()
+                awaitIdle()
+                placed = false
+                awaitIdle()
+                val before = area.bounds
+                val box = onNodeWithTag("box").fetch<JComponent>()
+                offeredWidth = 240
+                awaitIdle()
+                val lines = (box as Constrainable).alignmentLines
+                assertTrue(FirstBaseline in lines, "$name: the unplaced container provides its stock child's baseline")
+                assertEquals(before, area.bounds, "$name: reading alignment lines does not resize the stock leaf")
+                assertEquals(Dimension(0, 0), box.size, "$name: the nested container remains unplaced")
+            }
+        }
+    }
+
+    @Test
+    fun aPlacementBlockMayMeasureAndReadTheBaselineBeforePlacingAStockChildAtANewWidth() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            val area = ResizeCountingTextArea()
+            var baseline = -1
+            setContent {
+                borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
+                    Layout(
+                        content = { SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth()) },
+                        modifier = modifier.testTag("parent"),
+                        measurePolicy = { measurables, constraints ->
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                val child =
+                                    measurables.single().measure(
+                                        Constraints(
+                                            constraints.maxWidth,
+                                            constraints.maxWidth,
+                                            0,
+                                            constraints.maxHeight,
+                                        ),
+                                    )
+                                baseline = child[FirstBaseline]
+                                child.place(0, 0)
+                            }
+                        },
+                    )
+                }
+            }
+            settleWithPaint()
+            width = WIDTH / 2
+            awaitIdle()
+            val parent = onNodeWithTag("parent").fetch<JComponent>()
+            assertEquals(parent.width, area.width, "the placement-time measurement grants the stock child width")
+            assertTrue(baseline >= 0, "the placement block reads the stock child's baseline before placing it")
+            assertWrapped(area, "the placement-time baseline read lays out wrapping text at its new width")
+        }
+
     @Test
     fun aContainerMeasuredByAParentThatDoesNotPlaceItLeavesItsStockChildWhereItWas() {
         val children: Map<String, Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>> =
@@ -135,5 +262,24 @@ class StockChildGrantedWidthTest {
         }
     }
 }
+
+private val unplacedBaselineChildren: Map<String, Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>> =
+    mapOf(
+        "filling the width" to
+            ({ ResizeCountingTextArea(WRAPPING_TEXT.repeat(12)) } to { SwingModifier.fillMaxWidth() }),
+        "at a fixed height" to
+            (
+                { ResizeCountingTextArea(WRAPPING_TEXT.repeat(12)) } to
+                    { SwingModifier.fillMaxWidth().height(SLOT_HEIGHT / 4) }
+            ),
+        "with paint outsets" to
+            (
+                {
+                    DecoratedTextArea(
+                        WRAPPING_TEXT.repeat(12),
+                    )
+                } to { SwingModifier.fillMaxWidth().shadow(16, Color.BLACK) }
+            ),
+    )
 
 private const val WIDTH = 320

@@ -44,9 +44,6 @@ import javax.swing.SwingUtilities
  *
  * Records the reads behind its sizes, measure, placement and paint under the first attached node holding it, and
  * records them under the next one when that node detaches.
- *
- * Where two widths each make the other's height wrong, the panel keeps the result for the wider one until its content
- * changes.
  */
 @Suppress("TooManyFunctions")
 // The Swing component of a Foundation container: what Swing calls on a component, what its container's layout calls
@@ -177,7 +174,6 @@ internal open class ConstrainedPanel(
     }
 
     override fun paint(g: Graphics) {
-        checkPreferences()
         paintGraphics = g
         try {
             policyLayout.observe(PaintReads, paintBlock)
@@ -185,126 +181,6 @@ internal open class ConstrainedPanel(
             paintGraphics = null
         }
     }
-
-    /**
-     * The heights returned to a parent that is not a Foundation container at an inner [width]. A kind the parent has
-     * not read at that width is null.
-     */
-    private class PreferencesAtWidth(
-        val width: Int,
-        val minimumHeight: Int?,
-        val preferredHeight: Int?,
-    )
-
-    private var preferences: PreferencesAtWidth? = null
-
-    /** The inner width of the last size preference read or paint. */
-    internal val minimumSizeWidth: Int? get() = preferences?.width
-
-    /**
-     * The inner width the preferences last moved away from. While the panel is
-     * laid out at that width, its preferences stay
-     * those of the width they stand for, so two widths that each make the other's height wrong settle.
-     */
-    private var movedFrom: Int? = null
-
-    /** Whether a layout at another width than the preferences' width ran since they last moved. */
-    private var laidOutAway = false
-
-    /**
-     * The inner width the heights are reported at for a panel holding [held]: that width, or the wider of the two where
-     * the panel is back at the width its preferences moved away from.
-     */
-    internal fun widthForPreferences(held: Int): Int {
-        val standing = preferences ?: return held
-        return if (held == movedFrom && laidOutAway) maxOf(held, standing.width) else held
-    }
-
-    /** Notes a layout of the panel at the inner [width]. */
-    internal fun laidOutAt(width: Int) {
-        if (preferences?.width != width) laidOutAway = true
-    }
-
-    /**
-     * Notes the [mode] size preference reported to a parent that is not a Foundation
-     * container, with its [height] at [width].
-     */
-    internal fun recordSizePreference(
-        mode: MeasureMode,
-        width: Int,
-        height: Int,
-    ) {
-        val standing = preferences
-        val kept = standing?.takeIf { it.width == width }
-        preferences =
-            PreferencesAtWidth(
-                width,
-                if (mode == MeasureMode.Minimum) height else kept?.minimumHeight,
-                if (mode == MeasureMode.Preferred) height else kept?.preferredHeight,
-            )
-        if (standing != null && kept == null) {
-            laidOutAway = false
-            movedFrom = standing.width
-            val before = if (mode == MeasureMode.Minimum) standing.minimumHeight else standing.preferredHeight
-            // An invalid panel supplies preferences for its next layout; a valid panel invalidates bounds when the
-            // advertised height changes.
-            if (isValid && before != null && before != height) preferenceChanged()
-        }
-    }
-
-    /** Ends the hold on the preferences: what the panel holds changed, so any width may need another height. */
-    internal fun contentInvalidated() {
-        movedFrom = null
-    }
-
-    private fun preferenceChanged() = policyLayout.measurables.during(RunningCause.ParentPlacement) { revalidate() }
-
-    /**
-     * Finds the panel laid out at an inner width other than the one it last returned
-     * preferences at, as a wrapping `JTextArea` does
-     * when it paints. The panel then returns a result at the new width, and
-     * revalidates once where a height it returned is
-     * another there, so the parent reads again. A panel back at the width its preferences moved away from keeps them. A
-     * panel that has returned no preferences takes the width it is painted at as the width of its last preference read.
-     */
-    private fun checkPreferences() {
-        val width = innerWidth()
-        val recordedPreferences = preferences
-        if (recordedPreferences == null) {
-            if (width > 0) preferences = PreferencesAtWidth(width, null, null)
-            return
-        }
-        if (width == recordedPreferences.width) movedFrom = null
-        if (width == 0 || width == recordedPreferences.width || width == movedFrom) return
-        val minimumHeight =
-            recordedPreferences.minimumHeight?.let {
-                observedHeight(
-                    IntrinsicSize.Min,
-                    width,
-                    SizeReadKind.CheckedMinHeight,
-                )
-            }
-        val preferredHeight =
-            recordedPreferences.preferredHeight?.let {
-                observedHeight(
-                    IntrinsicSize.Max,
-                    width,
-                    SizeReadKind.CheckedMaxHeight,
-                )
-            }
-        preferences = PreferencesAtWidth(width, minimumHeight, preferredHeight)
-        if (minimumHeight != recordedPreferences.minimumHeight ||
-            preferredHeight != recordedPreferences.preferredHeight
-        ) {
-            preferenceChanged()
-        }
-    }
-
-    private fun observedHeight(
-        intrinsicSize: IntrinsicSize,
-        width: Int,
-        reads: (SwingComponentNode<*>) -> Unit,
-    ): Int = observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, width, reads)
 
     /**
      * A child's paint is observed by the child itself, so a paint that skips a child drops none of its
@@ -390,12 +266,19 @@ internal open class ConstrainedPanel(
      * one overrides what the layout manager would work out, and a constrained question is the same
      * question asked with an argument. The policy measures only where nothing has been set.
      */
-    final override fun measure(constraints: Constraints) {
+    final override fun measure(constraints: Constraints) = measureWithStockChildSizing(constraints, true)
+
+    internal fun measureWithStockChildSizing(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean,
+    ) {
         measured =
             if (isPreferredSizeSet) {
                 super.getPreferredSize()
             } else {
-                policyLayout.measurables.run { during(RunningCause.ParentPlacement) { measuredSize(constraints) } }
+                policyLayout.measurables.run {
+                    during(RunningCause.ParentPlacement) { measuredSize(constraints, maySizeStockChildren) }
+                }
             }
     }
 
@@ -432,11 +315,12 @@ internal open class ConstrainedPanel(
         intrinsicSize: IntrinsicSize,
         minWidth: Int,
         width: Int,
+        maySizeStockChildren: Boolean = false,
     ): Int =
         when {
             intrinsicSize == IntrinsicSize.Min && isMinimumSizeSet -> minimumSize.height
             intrinsicSize == IntrinsicSize.Max && isPreferredSizeSet -> preferredSize.height
-            else -> policyHeight(intrinsicSize, minWidth, width)
+            else -> policyHeight(intrinsicSize, minWidth, width, maySizeStockChildren)
         }
 
     /**
@@ -448,53 +332,32 @@ internal open class ConstrainedPanel(
         intrinsicSize: IntrinsicSize,
         minWidth: Int,
         width: Int,
+        maySizeStockChildren: Boolean,
     ): Int {
         val insets = borderInsets()
         val inner = innerExtent(width, insets.left, insets.right)
         val innerMinWidth = innerExtent(minWidth, insets.left, insets.right)
-        val scope = widthOfferScope(innerMinWidth.coerceAtMost(inner))
+        val scope =
+            PreferencesScope(
+                innerMinWidth.coerceAtMost(inner),
+                maySizeStockChildren || policyLayout.measurables.maySizeStockChildrenForPreferences,
+            )
         val height =
             policyLayout.measurables.run {
                 // An invalid panel takes no invalidation from its children, so the settled-result mark is needed only
                 // while it is valid.
-                val cause =
-                    if (stockParentLaysOutNext) {
-                        RunningCause.ReadingSizePreferencesBeforeLayout
-                    } else {
-                        RunningCause.ParentPlacement
-                    }
                 val reads = if (intrinsicSize == IntrinsicSize.Min) SizeReadKind.MinHeight else SizeReadKind.MaxHeight
-                during(cause) { observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, inner, reads, scope) }
-            }
-        return height.grownBy(insets.top.grownBy(insets.bottom))
-    }
-
-    /** Which intrinsic function of the policy [intrinsicBlock] runs, at which extent and in which scope. */
-    private var intrinsicSize = IntrinsicSize.Max
-    private var intrinsicAxis = IntrinsicWidthHeight.Width
-    private var intrinsicExtent = 0
-    private var intrinsicScope: IntrinsicMeasureScope = PolicyMeasureScope
-
-    /** What [intrinsicBlock] returns. */
-    private var intrinsicResult = 0
-
-    // Stored once and reading its inputs from fields, so observing a result allocates nothing per call.
-    private val intrinsicBlock: () -> Unit = {
-        val extent = intrinsicExtent
-        val scope = intrinsicScope
-        val height = intrinsicAxis == IntrinsicWidthHeight.Height
-        val max = intrinsicSize == IntrinsicSize.Max
-        intrinsicResult =
-            policyLayout.measurables.readPolicyPreferences { children ->
-                with(scope) {
-                    when {
-                        height && max -> maxIntrinsicHeight(children, extent)
-                        height -> minIntrinsicHeight(children, extent)
-                        max -> maxIntrinsicWidth(children, extent)
-                        else -> minIntrinsicWidth(children, extent)
-                    }
+                during(RunningCause.ParentPlacement) {
+                    observedIntrinsic(
+                        intrinsicSize,
+                        IntrinsicWidthHeight.Height,
+                        inner,
+                        reads,
+                        scope,
+                    )
                 }
             }
+        return height.grownBy(insets.top.grownBy(insets.bottom))
     }
 
     /**
@@ -506,17 +369,16 @@ internal open class ConstrainedPanel(
         axis: IntrinsicWidthHeight,
         extent: Int,
         reads: (SwingComponentNode<*>) -> Unit,
-        scope: IntrinsicMeasureScope = PolicyMeasureScope,
+        scope: PreferencesScope = PreferencesScope(),
     ): Int {
-        this.intrinsicSize = intrinsicSize
-        intrinsicAxis = axis
-        intrinsicExtent = extent
-        intrinsicScope = scope
-        policyLayout.observe(reads, intrinsicBlock)
-        return intrinsicResult
+        scope.policyLayout = policyLayout
+        scope.intrinsicSize = intrinsicSize
+        scope.axis = axis
+        scope.extent = extent
+        policyLayout.observe(reads, scope)
+        return scope.result
     }
 
-    /** The policy's [intrinsicSize] width at the inner extent of [height], plus the border's left and right insets. */
     private fun policyWidth(
         intrinsicSize: IntrinsicSize,
         height: Int,
@@ -833,22 +695,23 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
  * under the callback of its own entry, so recording one drops no reads behind another; see [observe].
  */
 internal enum class SizeReadKind : (SwingComponentNode<*>) -> Unit {
-    /** What [ConstrainedPanel.minIntrinsicWidth] returns. */
+    /** What `preferredLayoutSize` returns, which Swing caches as the container's preferred size. */
+    Preferred,
+
+    /** What `minimumLayoutSize` returns, which Swing caches as the container's minimum size. */
+    Minimum,
+
+    /** What [ChildMeasurables.measuredSize] returns, which the parent lays out with. */
+    Measured,
+
+    /** What [settledOn] returns, which this container places. */
+    Settled,
     MinWidth,
-
-    /** What [ConstrainedPanel.maxIntrinsicWidth] returns. */
     MaxWidth,
-
-    /** What [ConstrainedPanel.minIntrinsicHeight] returns a result under any width offer. */
     MinHeight,
-
-    /** What [ConstrainedPanel.maxIntrinsicHeight] returns a result under any width offer. */
     MaxHeight,
 
-    /** The min intrinsic height a paint last checked; see [ConstrainedPanel]. */
     CheckedMinHeight,
-
-    /** The max intrinsic height a paint last checked; see [ConstrainedPanel]. */
     CheckedMaxHeight,
     ;
 

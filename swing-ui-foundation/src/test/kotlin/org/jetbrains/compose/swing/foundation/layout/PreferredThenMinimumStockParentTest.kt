@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 
 class PreferredThenMinimumStockParentTest {
     @Test
-    fun aContainerIsMeasuredAtTheBoundsItsStockParentGivesItThenAtTheHeightForItsWidthAfterOnePaint() =
+    fun aContainerIsMeasuredAtItsGrantThenAtItsHeightAfterParentValidation() =
         runComposeSwingTest {
             val measuredHeights = mutableListOf<Int>()
             setStockContent(
@@ -19,7 +19,7 @@ class PreferredThenMinimumStockParentTest {
                         val preferred = child.preferredSize
                         if (first) assertEquals(Dimension(100, 200), preferred)
                         child.setSize(300, preferred.height)
-                        assertEquals(Dimension(50, if (first) 50 else 100), child.minimumSize)
+                        assertEquals(Dimension(50, 50), child.minimumSize)
                         child.setBounds(0, 0, 200, preferred.height)
                     },
                 ),
@@ -43,9 +43,16 @@ class PreferredThenMinimumStockParentTest {
 
             assertEquals(200, measuredHeights.first(), "the first measure is at the bounds the parent gave")
 
-            settleWithPaint()
+            val host = onNodeWithTag("host").fetch<JComponent>()
+            host.revalidate()
+            root.validate()
+            awaitIdle()
 
-            assertEquals(400, measuredHeights.last(), "the validation after the paint is at the height for the width")
+            assertEquals(
+                400,
+                measuredHeights.last(),
+                "explicit parent validation uses the height for its current width",
+            )
         }
 
     @Test
@@ -85,7 +92,10 @@ class PreferredThenMinimumStockParentTest {
                 }
             setWrappingContent(layout, inContainer, width = 400, height = 400)
             awaitIdle()
-            settleWithPaint()
+            val host = onNodeWithTag("host").fetch<JComponent>()
+            host.revalidate()
+            root.validate()
+            awaitIdle()
             val bounds = onNodeWithTag("host").fetch<JComponent>().getComponent(0).bounds
             reads = sizePreferences + listOf(bounds)
         }

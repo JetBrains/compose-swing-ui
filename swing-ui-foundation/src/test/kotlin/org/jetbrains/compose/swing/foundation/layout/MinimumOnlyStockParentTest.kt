@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 /** A container under a stock parent that reads its minimum size alone, and grants it a width of its own. */
 class MinimumOnlyStockParentTest {
     @Test
-    fun aContainerAParentGrantsAWidthAfterReadingItsMinimumSizeAloneTakesTheMinimumHeightForThatWidthAfterOnePaint() {
+    fun aContainerAParentUsesNaturalPreferredWidthForMinimumHeightWithoutPaintReconciliation() {
         for (granted in listOf(300, 60)) {
             runComposeSwingTest {
                 setStockContent(
@@ -41,15 +41,17 @@ class MinimumOnlyStockParentTest {
                 assertEquals(
                     Dimension(granted, 100 / 2),
                     box.size,
-                    "$granted wide: the parent grants the width at the minimum height at the preferred width",
+                    "$granted wide: minimum height uses maximum intrinsic width",
                 )
 
-                settleWithPaint()
+                val parent = box.parent as JComponent
+                parent.revalidate()
+                awaitIdle()
 
                 assertEquals(
-                    Dimension(granted, granted / 2),
+                    Dimension(granted, 100 / 2),
                     box.size,
-                    "$granted wide: the paint finds the minimum height at the width",
+                    "$granted wide: explicit validation preserves the natural preferred-width height",
                 )
             }
         }

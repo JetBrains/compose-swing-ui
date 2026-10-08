@@ -4,21 +4,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
-import org.junit.jupiter.api.DisplayName
-import java.awt.Component
-import java.awt.Container
 import java.awt.Dimension
-import java.awt.LayoutManager2
+import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTextArea
@@ -36,19 +30,103 @@ import kotlin.test.assertTrue
  */
 class CustomLayoutManagerParentTest {
     @Test
+    fun preferredSizeQueriesAcrossWidthsUseTheCurrentWidth() =
+        runComposeSwingTest {
+            val ratio = 8
+            val layout = parentQueryingAtTwoWidths(grantsFirst = true)
+            setContentOf(layout) { ratio.toFloat() }
+            val content = onNodeWithTag("content").fetch<JComponent>()
+
+            for (width in listOf(320, 160, 320)) {
+                content.setSize(width, content.height)
+                content.preferredSize = null
+                assertEquals(width / ratio, content.preferredSize.height, "preferred height at $width")
+            }
+        }
+
+    @Test
+    fun alternatingPreferenceReadsUseTheCurrentWidth() =
+        runComposeSwingTest {
+            val ratio = 8
+            val layout = parentQueryingAtTwoWidths()
+            setContentOf(layout) { ratio.toFloat() }
+            val content = onNodeWithTag("host").fetch<JComponent>().getComponent(0) as JComponent
+            for (width in listOf(320, 213, 320)) {
+                content.setSize(width, content.height)
+                content.preferredSize = null
+                assertEquals(
+                    (width.toFloat() / ratio).roundToInt(),
+                    content.preferredSize.height,
+                    "preferred height at $width",
+                )
+            }
+        }
+
+    @Test
+    fun alternatingMinimumSizeReadsUseNaturalWidth() =
+        runComposeSwingTest {
+            val ratio = 8
+            val layout = parentQueryingAtTwoWidths(minimum = true)
+            setContentOf(layout) { ratio.toFloat() }
+            val content = onNodeWithTag("host").fetch<JComponent>().getComponent(0) as JComponent
+            for (width in listOf(320, 213, 320)) {
+                content.setSize(width, content.height)
+                content.preferredSize = null
+                content.minimumSize = null
+                val preferred = content.preferredSize
+                val minimum = content.minimumSize
+                assertEquals(
+                    (preferred.width.toFloat() / ratio).roundToInt(),
+                    minimum.height,
+                    "minimum height at held width $width uses natural preferred width",
+                )
+            }
+        }
+
+    private fun ComposeSwingTest.setContentOf(
+        layout: ScriptedStockLayout,
+        ratio: () -> Float,
+    ) = setStockContent(JPanel(layout)) {
+        Box(modifier = SwingModifier.testTag("content")) {
+            Label(
+                "Preview",
+                modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(ratio()),
+            )
+        }
+    }
+
+    @Test
+    fun preferredHeightUsesTheHeldWidthAndMinimumHeightUsesItsNaturalWidth() =
+        runComposeSwingTest {
+            val ratio = 8
+            val layout = parentQueryingAtTwoWidths(grantsFirst = true)
+            setContentOf(layout) { ratio.toFloat() }
+            val content = onNodeWithTag("content").fetch<JComponent>()
+            awaitIdle()
+            withRecordedRepaints { recorder ->
+                captureToImage()
+                recorder.assertAskedForNoLayout(content, "painting does not reconcile size preferences")
+            }
+            awaitIdle()
+            assertEquals(320, content.width)
+            content.preferredSize = null
+            assertEquals(content.width / ratio, content.preferredSize.height)
+            content.minimumSize = null
+            val preferred = content.preferredSize
+            val minimum = content.minimumSize
+            assertEquals(
+                (preferred.width.toFloat() / ratio).roundToInt(),
+                minimum.height,
+                "minimum height uses natural preferred width",
+            )
+            assertEquals(320, content.width)
+        }
+
+    @Test
     fun aParentReadingPreferencesAtTwoWidthsAndGrantingTheSecondLaysContentOutAtThatWidthsHeightAndKeepsIt() =
         runComposeSwingTest {
-            val layout = Parent.ReadsPreferencesAtTwoWidths()
-            setContent {
-                SwingNode(
-                    factory = { JPanel(layout) },
-                    modifier = SwingModifier.testTag("host").preferredSize(320, 600),
-                ) {
-                    Box(modifier = SwingModifier.testTag("content")) {
-                        Label("Preview", modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(16f / 9f))
-                    }
-                }
-            }
+            val layout = parentQueryingAtTwoWidths()
+            setContentOf(layout) { 16f / 9f }
             val host = onNodeWithTag("host").fetch<JComponent>()
             val content = onNodeWithTag("content").fetch<JComponent>()
             val label = onNodeWithTag("label").fetch<JComponent>()
@@ -66,57 +144,44 @@ class CustomLayoutManagerParentTest {
         }
 
     @Test
-    fun aPreferredHeightReadBeforeADifferentWidthIsGrantedSettlesAfterOnePaint() =
+    fun aStockParentKeepsTheHeightItChoseBeforeChangingTheWidth() =
         runComposeSwingTest {
-            val layout = Parent.ReadsPreferredSizeBeforeGrantingWidth()
-            setContent {
-                SwingNode(
-                    factory = { JPanel(layout) },
-                    modifier = SwingModifier.testTag("host").preferredSize(320, 600),
-                ) {
-                    Column(modifier = SwingModifier.testTag("content")) {
-                        TextArea(
-                            WRAPPING_TEXT,
-                            {},
-                            modifier = SwingModifier.testTag("text").fillMaxWidth(),
-                            lineWrap = true,
-                            wrapStyleWord = true,
-                        )
-                    }
+            val layout =
+                ScriptedStockLayout { child, width ->
+                    child.setBounds(0, 0, grantedWidth ?: width, child.preferredSize.height)
                 }
-            }
+            setWrappingContent(layout, inContainer = true)
             val host = onNodeWithTag("host").fetch<JPanel>()
-            val content = onNodeWithTag("content").fetch<JComponent>()
-            val text = onNodeWithTag("text").fetch<JTextArea>()
-            settleWithPaint()
-            assertTrue(content.isValid)
+            val content = host.getComponent(0) as JComponent
+            val text = content.getComponent(0) as JTextArea
+            root.validate()
 
             for (width in listOf(160, 320)) {
-                val oldHeight = content.height
+                content.preferredSize = null
+                val heightChosenAtCurrentWidth = content.preferredSize.height
                 val settledLayouts = layout.layouts
                 layout.grantedWidth = width
                 host.invalidate()
                 root.validate()
-                assertEquals(Dimension(width, oldHeight), content.size, "the height returned at the held width")
                 assertEquals(width, text.width, "the leaf is laid out at the actual width")
-                val expectedHeight = text.preferredSize.height
-                if (width == 160) {
-                    assertTrue(expectedHeight > oldHeight, "narrowing wraps onto more lines")
-                } else {
-                    assertTrue(expectedHeight < oldHeight, "widening wraps onto fewer lines")
+                assertEquals(Dimension(width, heightChosenAtCurrentWidth), content.size)
+                assertEquals(settledLayouts + 1, layout.layouts, "the granted width is measured in its layout pass")
+
+                withRecordedRepaints { recorder ->
+                    content.captureToImage()
+                    recorder.assertAskedForNoLayout(content, "paint does not reconcile size preferences")
                 }
-
-                settleWithPaint()
-
-                assertEquals(Dimension(width, expectedHeight), content.size)
-                assertEquals(expectedHeight, text.height)
-                assertEquals(settledLayouts + 2, layout.layouts, "one corrective validation settles the new width")
-                assertEquals(0, cyclesUntilStable(content), "a settled paint requests no validation")
+                assertEquals(
+                    Dimension(width, heightChosenAtCurrentWidth),
+                    content.size,
+                    "painting keeps the granted bounds",
+                )
+                assertEquals(settledLayouts + 1, layout.layouts, "painting does not request another layout")
             }
         }
 
     @Test
-    fun paintReconcilesOnlyTheHeightPreferencesReadByTheParentAndSettledPaintsReadNone() {
+    fun paintingDoesNotReconcileSizePreferencesForAStockParent() {
         for (reads in listOf("minimum", "preferred", "both")) {
             runComposeSwingTest {
                 val minimumWidths = mutableListOf<Int>()
@@ -157,22 +222,14 @@ class CustomLayoutManagerParentTest {
                 preferredWidths.clear()
                 withRecordedRepaints { recorder ->
                     onNodeWithTag("content").captureToImage()
-                    assertEquals(1, recorder.relayouts.count { it === content }, "$reads: corrective layout request")
+                    recorder.assertAskedForNoLayout(content, "$reads: paint does not query size preferences")
                 }
-                assertEquals(
-                    if (reads == "preferred") emptyList() else listOf(240),
-                    minimumWidths,
-                    "$reads: minimum height queries at the granted width",
-                )
-                assertEquals(
-                    if (reads == "minimum") emptyList() else listOf(240),
-                    preferredWidths,
-                    "$reads: preferred height queries at the granted width",
-                )
+                assertEquals(emptyList(), minimumWidths, "$reads: paint minimum height queries")
+                assertEquals(emptyList(), preferredWidths, "$reads: paint preferred height queries")
                 awaitIdle()
-                onNodeWithTag("content").assertProperty(Dimension(240, if (reads == "minimum") 30 else 60)) { size }
-                assertEquals(layoutsBeforePaint + 1, parent.layouts, "$reads: one corrective validation")
-                assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: corrected")
+                onNodeWithTag("content").assertProperty(Dimension(240, initialHeight)) { size }
+                assertEquals(layoutsBeforePaint, parent.layouts, "$reads: paint does not request validation")
+                assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: painted")
             }
         }
     }
@@ -194,103 +251,82 @@ class CustomLayoutManagerParentTest {
     }
 
     @Test
-    fun aStateReadEstablishedByPaintReconciliationRemainsObservedWhenTheHeightDidNotChange() {
-        for (minimum in listOf(false, true)) {
-            runComposeSwingTest {
-                val height = mutableIntStateOf(40)
-                val widthsRead = mutableListOf<Int>()
-                val heightAt: (Int) -> Int = { width ->
-                    widthsRead += width
-                    if (width == 240) height.intValue else 40
-                }
-                val parent =
-                    ScriptedStockLayout(sizeOf = { Dimension(320, 600) }) { child, _ ->
-                        val preferred = if (minimum) child.minimumSize else child.preferredSize
-                        child.setBounds(0, 0, grantedWidth ?: 160, preferred.height)
-                    }
-                val policy =
-                    ScriptedMeasurePolicy(
-                        minimumWidth = { 160 },
-                        preferredWidth = { 160 },
-                        minimumHeight = heightAt,
-                        preferredHeight = heightAt,
-                    )
-                setStockContent(JPanel(parent)) {
-                    Layout(policy, SwingModifier.testTag("content"))
-                }
-                val host = onNodeWithTag("host").fetch<JComponent>()
-                val content = onNodeWithTag("content").fetch<JComponent>()
-                parent.grantedWidth = 240
-                host.invalidate()
-                root.validate()
-                onNodeWithTag("content").assertProperty(Dimension(240, 40)) { size }
-                assertTrue(240 !in widthsRead, "minimum=$minimum: the state was not read before paint")
-                widthsRead.clear()
-                withRecordedRepaints { recorder ->
-                    onNodeWithTag("content").captureToImage()
-                    recorder.assertAskedForNoLayout(content, "minimum=$minimum: the checked height stayed equal")
-                }
-                assertEquals(listOf(240), widthsRead, "minimum=$minimum: paint established the state read")
-
-                withRecordedRepaints { recorder ->
-                    height.intValue = 80
-                    awaitIdle()
-                    recorder.assertAskedForLayout(content, "minimum=$minimum: the state read during paint changed")
-                }
-                onNodeWithTag("content").assertProperty(Dimension(240, 80)) { size }
-                assertEquals(
-                    80,
-                    if (minimum) content.minimumSize.height else content.preferredSize.height,
-                    "minimum=$minimum: the parent consumes the changed height",
-                )
+    fun aStateReadEstablishedByAPreferredSizeQueryRemainsObservedWhenTheHeightDidNotChange() =
+        runComposeSwingTest {
+            val height = mutableIntStateOf(40)
+            val widthsRead = mutableListOf<Int>()
+            val heightAt: (Int) -> Int = { width ->
+                widthsRead += width
+                if (width == 240) height.intValue else 40
             }
+            val parent =
+                ScriptedStockLayout(sizeOf = { Dimension(320, 600) }) { child, _ ->
+                    val preferred = child.preferredSize
+                    child.setBounds(0, 0, grantedWidth ?: 160, preferred.height)
+                }
+            val policy =
+                ScriptedMeasurePolicy(
+                    minimumWidth = { 160 },
+                    preferredWidth = { 160 },
+                    minimumHeight = heightAt,
+                    preferredHeight = heightAt,
+                )
+            setStockContent(JPanel(parent)) {
+                Layout(policy, SwingModifier.testTag("content"))
+            }
+            val host = onNodeWithTag("host").fetch<JComponent>()
+            val content = onNodeWithTag("content").fetch<JComponent>()
+            parent.grantedWidth = 240
+            host.invalidate()
+            root.validate()
+            onNodeWithTag("content").assertProperty(Dimension(240, 40)) { size }
+            assertTrue(240 !in widthsRead, "layout did not query preferred size at this width")
+            widthsRead.clear()
+            content.preferredSize = null
+            assertEquals(40, content.preferredSize.height)
+            assertEquals(listOf(240), widthsRead, "the preferred-size query reads state")
+
+            withRecordedRepaints { recorder ->
+                height.intValue = 80
+                awaitIdle()
+                recorder.assertAskedForLayout(content, "the observed preferred-size query triggers layout")
+            }
+            onNodeWithTag("content").assertProperty(Dimension(240, 80)) { size }
+            assertEquals(80, content.preferredSize.height, "the parent consumes the changed height")
         }
-    }
 
     @Test
-    @DisplayName("Column cost matches raw leaf preference reads; accepted stretch cost: 95 vs 25 line breaks")
-    fun aContainerUnderEachParentCostsNoMoreValidationsAndLineBreaksThanAWrappingTextAreaInTheSameSlot() {
+    fun aContainerCostsNoMoreThanAWrappingTextAreaInTheSameSlot() {
         val parents =
-            mapOf<String, () -> Parent>(
-                "reads preferences at two widths and grants the second" to { Parent.ReadsPreferencesAtTwoWidths() },
-                "stretches without reading preferences again (accepted cost: 95 vs 25 line breaks)" to
-                    { Parent.StretchesWithoutReadingPreferencesAgain() },
-                "grants a fixed rectangle and never reads preferences" to { Parent.FixedRectangle() },
-                "grants the preferred width less one" to { Parent.PreferredWidthLessOne() },
+            mapOf<ParentSizeQueries, () -> ScriptedStockLayout>(
+                ParentSizeQueries.TwoWidths to { parentQueryingAtTwoWidths() },
+                ParentSizeQueries.Stretch to { stretchingParent() },
+                ParentSizeQueries.FixedRectangle to { fixedRectangleParent() },
+                ParentSizeQueries.PreferredWidthLessOne to {
+                    ScriptedStockLayout { child, _ ->
+                        val preferred = child.preferredSize
+                        child.setBounds(0, 0, preferred.width - 1, preferred.height)
+                    }
+                },
             )
         val dearer = mutableListOf<String>()
         for ((name, parent) in parents) {
             val area = costOf(parent(), inContainer = false)
-            val containerParent = parent()
-            val container = costOf(containerParent, inContainer = true)
+            val container =
+                costOf(
+                    parent(),
+                    inContainer = true,
+                    assertStableAfterQuery = name == ParentSizeQueries.Stretch,
+                )
             val matched =
-                if (containerParent is Parent.StretchesWithoutReadingPreferencesAgain) {
-                    costOf(
-                        Parent.StretchesWithoutReadingPreferencesAgain(readAtPreferredWidth = true),
-                        inContainer = false,
-                    ).also {
-                        assertEquals(25, area.lineBreaks, "$name: original raw control")
-                        assertEquals(101, assertNotNull(it.firstPreferredSize).width, "$name: natural width")
-                        assertTrue(
-                            assertNotNull(it.firstPreferredSize).height > assertNotNull(area.firstPreferredSize).height,
-                            "$name: the natural-width read wraps the text",
-                        )
-                        assertEquals(
-                            it.firstPreferredSize,
-                            container.firstPreferredSize,
-                            "$name: identical natural-width preference read",
-                        )
-                        assertEquals(it.lineBreaks, container.lineBreaks, "$name: matched raw preference reads")
-                        assertTrue(container.lineBreaks <= 95, "$name: accepted Column cost limit")
-                        assertTrue(container.lineBreaks > area.lineBreaks, "$name: extra natural-width wrapping")
-                        assertTrue(area.settled, "$name: the raw control keeps its bounds")
-                        assertTrue(container.settled, "$name: the container keeps its bounds")
-                        assertTrue(it.settled, "$name: the matched control keeps its bounds")
+                if (name == ParentSizeQueries.Stretch) {
+                    costOf(stretchingParent(readAtPreferredWidth = true), inContainer = false).also {
+                        assertStretchLifecycle(name.name, area, container, it)
                     }
                 } else {
                     area
                 }
-            if (containerParent is Parent.FixedRectangle) {
+            if (name == ParentSizeQueries.FixedRectangle) {
                 assertTrue(area.lineBreaks in 1..35, "$name: raw control cost limit")
                 assertEquals(area.lineBreaks, container.lineBreaks, "$name: fixed-width wrapping")
             }
@@ -304,10 +340,57 @@ class CustomLayoutManagerParentTest {
         assertEquals(emptyList(), dearer, "what a container costs beyond a wrapping text area")
     }
 
+    private fun assertStretchLifecycle(
+        name: String,
+        area: Cost,
+        container: Cost,
+        matched: Cost,
+    ) {
+        assertEquals(25, area.lineBreaks, "$name: original raw control")
+        assertTrue(
+            assertNotNull(matched.firstPreferredSize).height > assertNotNull(area.firstPreferredSize).height,
+            "$name: the natural-width read wraps the text",
+        )
+        assertEquals(matched.firstPreferredSize, container.firstPreferredSize, "$name: identical natural preference")
+        assertEquals(matched.lineBreaks, container.lineBreaks, "$name: matched raw preference reads")
+        assertTrue(container.lineBreaks <= 95, "$name: accepted Column cost limit")
+        assertTrue(container.lineBreaks > area.lineBreaks, "$name: extra natural-width wrapping")
+        assertEquals(
+            assertNotNull(matched.firstPreferredSize).height,
+            matched.initialBounds.height,
+            "$name: the matched parent initially grants its preferred height",
+        )
+        assertTrue(
+            assertNotNull(container.firstPreferredSize).width < container.initialBounds.width,
+            "$name: the slot stretches the natural preferred width",
+        )
+        assertTrue(
+            container.initialBounds.height > container.initialLeafBounds.height,
+            "$name: initial grant uses natural height while content uses slot width",
+        )
+        assertTrue(
+            container.initialBounds != container.queriedBounds,
+            "$name: explicit revalidation replaces the initial natural-size grant",
+        )
+        assertEquals(
+            Dimension(container.queriedBounds.width, container.initialLeafBounds.height),
+            container.queriedBounds.size,
+            "$name: explicit validation reads the current-width height",
+        )
+    }
+
     @Test
     fun aParentReadingMinimumSizeAtHalfTheSlotAndGrantingTheSlotCostsNoMoreValidationsThanForATextArea() {
-        val area = costOf(Parent.ReadsMinimumAtHalfWidthThenGrantsTheSlot(), inContainer = false)
-        val column = costOf(Parent.ReadsMinimumAtHalfWidthThenGrantsTheSlot(), inContainer = true)
+        val (area, column) =
+            listOf(false, true).map { inContainer ->
+                costOf(
+                    ScriptedStockLayout { child, width ->
+                        child.setSize(width / 2, child.height)
+                        child.setBounds(0, 0, width, child.minimumSize.height)
+                    },
+                    inContainer,
+                )
+            }
 
         assertTrue(
             column.layouts <= area.layouts,
@@ -317,48 +400,47 @@ class CustomLayoutManagerParentTest {
             column.lineBreaks <= area.lineBreaks,
             "the column breaks the text ${column.lineBreaks} times, a wrapping text area ${area.lineBreaks}",
         )
-        assertTrue(area.settled, "a wrapping text area keeps its bounds through a further validation")
-        assertTrue(column.settled, "a column keeps its bounds through a further validation")
     }
 
     @Test
-    fun aMinimumSizeReadAfterPaintUsesTheWidthTheContainerWasPaintedAt() =
+    fun aMinimumSizeReadAfterPaintUsesItsNaturalWidth() =
         runComposeSwingTest {
             val ratio = 8
-            setContent {
-                SwingNode(
-                    factory = { JPanel(Parent.FixedRectangle()) },
-                    modifier = SwingModifier.testTag("host").preferredSize(320, 600),
-                ) {
-                    Box(modifier = SwingModifier.testTag("content")) {
-                        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(ratio.toFloat()))
-                    }
-                }
-            }
+            setContentOf(fixedRectangleParent()) { ratio.toFloat() }
             awaitIdle()
             captureToImage()
             val content = onNodeWithTag("content").fetch<JComponent>()
-            assertEquals(content.width / ratio, content.minimumSize.height, "a wrapping text area formats at its paint")
+            content.preferredSize = null
+            content.minimumSize = null
+            val preferred = content.preferredSize
+            val minimum = content.minimumSize
+            assertEquals(
+                (preferred.width.toFloat() / ratio).roundToInt(),
+                minimum.height,
+                "minimum height uses natural preferred width",
+            )
         }
 
     /**
-     * What a parent took over the first show and four paints: its validations and the text's line breaks, and whether
-     * its child kept its bounds through one more validation.
+     * The first-show and four-paint cost, plus bounds before and after a separate explicit validation.
      */
     private class Cost(
         val layouts: Int,
         val lineBreaks: Int,
         val firstPreferredSize: Dimension?,
-        val settled: Boolean,
+        val initialBounds: Rectangle,
+        val initialLeafBounds: Rectangle,
+        val queriedBounds: Rectangle,
     )
 
     /**
-     * Shows [parent] holding a wrapping text area, in a `Column` where [inContainer] holds, and paints four times, each
-     * paint followed by the validation it requests. A parent that never settles costs more with each paint.
+     * Shows [parent] holding a wrapping text area, in a `Column` where [inContainer] holds, and records the first show
+     * and four paints. Then records its bounds after an explicit validation.
      */
     private fun costOf(
-        parent: Parent,
+        parent: ScriptedStockLayout,
         inContainer: Boolean,
+        assertStableAfterQuery: Boolean = false,
     ): Cost {
         lateinit var cost: Cost
         runComposeSwingTest {
@@ -368,151 +450,62 @@ class CustomLayoutManagerParentTest {
                     lineWrap = true
                     wrapStyleWord = true
                 }
-            setContent {
-                SwingNode(
-                    factory = { JPanel(parent).apply { if (!inContainer) add(area) } },
-                    modifier = SwingModifier.testTag("host").preferredSize(320, 600),
-                ) {
-                    if (inContainer) Column { SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth()) }
-                }
-            }
+            setWrappingContent(parent, inContainer, area)
             awaitIdle()
-            repeat(4) {
-                captureToImage()
-                awaitIdle()
-            }
             val host = onNodeWithTag("host").fetch<JComponent>()
-            val counted = Cost(parent.layouts, area.lineBreaks, parent.firstPreferredSize, settled = false)
-            val bounds = host.getComponent(0).bounds
+            val wrapper = host.getComponent(0)
+            val initialBounds = wrapper.bounds
+            val initialLeafBounds = area.bounds
+            repeat(4) { settleWithPaint() }
+            val layouts = parent.layouts
+            val lineBreaks = area.lineBreaks
             host.revalidate()
             awaitIdle()
+            val queriedBounds = wrapper.bounds
+            host.revalidate()
+            awaitIdle()
+            if (assertStableAfterQuery) {
+                assertEquals(queriedBounds, wrapper.bounds, "the next explicit validation is stable")
+            }
             cost =
                 Cost(
-                    counted.layouts,
-                    counted.lineBreaks,
-                    counted.firstPreferredSize,
-                    host.getComponent(0).bounds == bounds,
+                    layouts,
+                    lineBreaks,
+                    parent.firstPreferredSize,
+                    initialBounds,
+                    initialLeafBounds,
+                    queriedBounds,
                 )
         }
         return cost
     }
 
-    private sealed class Parent : LayoutManager2 {
-        var layouts = 0
-        var firstPreferredSize: Dimension? = null
+    private enum class ParentSizeQueries { TwoWidths, Stretch, FixedRectangle, PreferredWidthLessOne }
 
-        /** Sizes and places the one [child] of a host [width] wide. */
-        abstract fun place(
-            child: Component,
-            width: Int,
-        )
-
-        final override fun layoutContainer(parent: Container) {
-            layouts++
-            place(parent.getComponent(0), parent.width)
+    private fun parentQueryingAtTwoWidths(
+        grantsFirst: Boolean = false,
+        minimum: Boolean = false,
+    ) = ScriptedStockLayout { child, width ->
+        if (readsAtBothWidths) {
+            child.setSize(width, child.height)
+            if (minimum) child.minimumSize else child.preferredSize
         }
-
-        override fun preferredLayoutSize(parent: Container): Dimension = parent.getComponent(0).preferredSize
-
-        override fun minimumLayoutSize(parent: Container): Dimension = parent.getComponent(0).minimumSize
-
-        override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-
-        override fun getLayoutAlignmentX(target: Container): Float = 0f
-
-        override fun getLayoutAlignmentY(target: Container): Float = 0f
-
-        override fun invalidateLayout(target: Container) = Unit
-
-        override fun addLayoutComponent(
-            comp: Component,
-            constraints: Any?,
-        ) = Unit
-
-        override fun addLayoutComponent(
-            name: String?,
-            comp: Component,
-        ) = Unit
-
-        override fun removeLayoutComponent(comp: Component) = Unit
-
-        /**
-         * Sets the child to the host's width, reads its size, sets it to two thirds of that width and reads preferences
-         * again.
-         */
-        class ReadsPreferencesAtTwoWidths : Parent() {
-            override fun place(
-                child: Component,
-                width: Int,
-            ) {
-                child.setSize(width, child.height)
-                child.preferredSize
-                child.setSize(width * 2 / 3, child.height)
-                child.setBounds(0, 0, width * 2 / 3, child.preferredSize.height)
-            }
-        }
-
-        /** Sets the child to half the host's width, reads its minimum size and grants it the host's width. */
-        class ReadsMinimumAtHalfWidthThenGrantsTheSlot : Parent() {
-            override fun place(
-                child: Component,
-                width: Int,
-            ) {
-                child.setSize(width / 2, child.height)
-                val sizePreference = child.minimumSize
-                child.setBounds(0, 0, width, sizePreference.height)
-            }
-        }
-
-        /** Reads the preferred size before it sets any width, then stretches the child to the host's width. */
-        class StretchesWithoutReadingPreferencesAgain(
-            private val readAtPreferredWidth: Boolean = false,
-        ) : Parent() {
-            override fun place(
-                child: Component,
-                width: Int,
-            ) {
-                if (readAtPreferredWidth && child.width == 0) {
-                    val natural = child.preferredSize
-                    child.setSize(natural.width, natural.height)
-                }
-                val preferred = child.preferredSize
-                if (firstPreferredSize == null) firstPreferredSize = preferred
-                child.setBounds(0, 0, width, preferred.height)
-            }
-        }
-
-        class ReadsPreferredSizeBeforeGrantingWidth : Parent() {
-            var grantedWidth = 320
-
-            override fun place(
-                child: Component,
-                width: Int,
-            ) {
-                val height = child.preferredSize.height
-                child.setBounds(0, 0, grantedWidth, height)
-            }
-        }
-
-        class FixedRectangle : Parent() {
-            override fun place(
-                child: Component,
-                width: Int,
-            ) = child.setBounds(0, 0, 200, 100)
-
-            override fun preferredLayoutSize(parent: Container): Dimension = Dimension(200, 100)
-
-            override fun minimumLayoutSize(parent: Container): Dimension = Dimension(200, 100)
-        }
-
-        class PreferredWidthLessOne : Parent() {
-            override fun place(
-                child: Component,
-                width: Int,
-            ) {
-                val preferred = child.preferredSize
-                child.setBounds(0, 0, preferred.width - 1, preferred.height)
-            }
-        }
+        child.setSize(width * 2 / 3, child.height)
+        val sizePreference = if (minimum) child.minimumSize else child.preferredSize
+        child.setBounds(0, 0, width * 2 / 3, sizePreference.height)
+        if (grantsFirst) child.setBounds(0, 0, width, child.height)
     }
+
+    private fun stretchingParent(readAtPreferredWidth: Boolean = false) =
+        ScriptedStockLayout { child, width ->
+            if (readAtPreferredWidth && child.width == 0) child.setSize(child.preferredSize)
+            val preferred = child.preferredSize
+            if (firstPreferredSize == null) firstPreferredSize = preferred
+            child.setBounds(0, 0, width, preferred.height)
+        }
+
+    private fun fixedRectangleParent() =
+        ScriptedStockLayout(sizeOf = { Dimension(200, 100) }) { child, _ ->
+            child.setBounds(0, 0, 200, 100)
+        }
 }

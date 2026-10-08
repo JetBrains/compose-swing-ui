@@ -4,21 +4,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.Point
@@ -36,14 +42,27 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Content whose height follows its width. A stock component inside a Foundation container, such as a wrapping text
- * area, takes the height it reports for the width it is granted in the validation that grants it, and the paint that
- * follows finds nothing to lay out again. A Foundation container under a stock parent that sets its width before
- * reading preferences
- * its height takes the height for that width in the same validation; under a parent that stretches it to another width
- * than it prefers, it takes that height one validation later, as Swing's own wrapping components do.
+ * A stock wrapping component uses its granted bounds. A Foundation container uses the width a stock parent supplies
+ * when it queries the container's preferred size. If the parent later grants a different width, the container gets
+ * that width's height when the parent validates again.
  */
 class HeightFollowsWidthTest {
+    private fun ComposeSwingTest.assertInitialViewportState(
+        case: ScrollBarCase,
+        name: String,
+        scrolls: Boolean,
+        narrow: Int,
+        wide: Int,
+    ) {
+        onNodeOfType<JScrollPane>().assertProperty(scrolls, "$name: scrollbar visibility") {
+            verticalScrollBar.isVisible
+        }
+        onNodeWithTag("view").assertProperty(if (scrolls) narrow else wide, "$name: viewport width") { width }
+        if (case == ScrollBarCase.AtNeither) {
+            onNodeWithTag("label").assertProperty(wide.atRatio, "$name: ratio") { height }
+        }
+    }
+
     @Test
     fun stockBorderRegionsGrantTheRatioHeightInEachValidation() {
         assertWrappingScenario("Ratio", "Box", "BorderLayout NORTH")
@@ -52,7 +71,7 @@ class HeightFollowsWidthTest {
     }
 
     @Test
-    fun aViewTrackingTheViewportWidthSettlesWhereItsScrollBarChangesItsWidth() {
+    fun aViewUsesTheWidthChosenByAnAlwaysVisibleVerticalScrollBar() {
         val views: Map<String, @Composable (MutableIntState) -> Unit> =
             mapOf(
                 "a sibling's text changing" to
@@ -62,19 +81,73 @@ class HeightFollowsWidthTest {
                 },
             )
         for ((changing, view) in views) {
-            for (case in ScrollBarCase.entries) {
+            runComposeSwingTest {
+                val reference = JScrollPane()
+                val expectedWidth =
+                    WIDTH - reference.insets.run { left + right } - reference.verticalScrollBar.preferredSize.width
+                val change = mutableIntStateOf(0)
+                setContent {
+                    ScrollPane(
+                        modifier = SwingModifier.preferredSize(WIDTH, WIDTH),
+                        verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                    ) {
+                        Viewport { view(change) }
+                    }
+                }
+                awaitIdle()
+                val component = onNodeWithTag("view").fetch<JComponent>()
+                assertEquals(expectedWidth, component.width, "$changing: the explicit bar owns the viewport width")
+                onNodeOfType<JScrollPane>().assertProperty(true, "$changing: the bar remains visible") {
+                    verticalScrollBar.isVisible
+                }
+                val bounds = component.bounds
+                val answers = mutableListOf<Int>()
+                repeat(4) { changeIndex ->
+                    change.intValue++
+                    awaitIdle()
+                    component.preferredSize = null
+                    val answer = component.preferredSize.height
+                    answers += answer
+                    assertEquals(expectedWidth.atRatio, answer, "$changing: finite preferred height at current width")
+                    assertEquals(bounds, component.bounds, "$changing: size queries keep the viewport grant")
+                    withRecordedRepaints { recorder ->
+                        component.captureToImage()
+                        recorder.assertAskedForNoLayout(component, "$changing: paint has no size-query work")
+                    }
+                    assertEquals(
+                        bounds,
+                        component.bounds,
+                        "$changing: paint keeps the viewport grant after change $changeIndex",
+                    )
+                }
+                assertEquals(
+                    List(4) { expectedWidth.atRatio },
+                    answers,
+                    "$changing: query results have no width history",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun aViewTrackingTheViewportWidthKeepsStableAsNeededScrollbarOutcomes() {
+        val views: Map<String, @Composable (MutableIntState) -> Unit> =
+            mapOf(
+                "a sibling's text changing" to
+                    { change -> TrackingViewportView({ change.intValue }, movesContent = false) },
+                "its placement changing" to { change ->
+                    TrackingViewportView({ change.intValue }, movesContent = true)
+                },
+            )
+        for ((changing, view) in views) {
+            for (case in listOf(ScrollBarCase.AtBothWidths, ScrollBarCase.AtNeither)) {
                 runComposeSwingTest {
                     val reference = JScrollPane()
                     val wide = WIDTH - reference.insets.run { left + right }
                     val narrow = wide - reference.verticalScrollBar.preferredSize.width
                     val change = mutableIntStateOf(0)
                     setContent {
-                        val extent =
-                            when (case) {
-                                ScrollBarCase.AtBothWidths -> narrow.atRatio - 10
-                                ScrollBarCase.AtTheWideWidthOnly -> (narrow.atRatio + wide.atRatio) / 2
-                                ScrollBarCase.AtNeither -> wide.atRatio + 10
-                            }
+                        val extent = if (case == ScrollBarCase.AtBothWidths) narrow.atRatio - 10 else wide.atRatio + 10
                         ScrollPane(
                             modifier =
                                 SwingModifier.preferredSize(
@@ -85,87 +158,145 @@ class HeightFollowsWidthTest {
                             Viewport { view(change) }
                         }
                     }
-                    val pane = onNodeOfType<JScrollPane>().fetch()
-                    val settled = onNodeWithTag("view").fetch<JComponent>()
                     settleWithPaint()
                     val name = "$case, $changing"
-                    val bounds = settled.bounds
-                    val scrolls = case != ScrollBarCase.AtNeither
-                    assertEquals(scrolls, pane.verticalScrollBar.isVisible, "$name: the view settles on the scroll bar")
-                    assertEquals(if (scrolls) narrow else wide, bounds.width, "$name: at the width it leaves")
-                    if (case ==
-                        ScrollBarCase.AtTheWideWidthOnly
-                    ) {
-                        assertEquals(wide.atRatio, bounds.height, "$name: wide height")
-                    }
-                    if (case == ScrollBarCase.AtNeither) {
-                        assertEquals(wide.atRatio, onNodeWithTag("label").fetch<JComponent>().height, "$name: ratio")
-                    }
+                    val bounds = onNodeWithTag("view").fetch<JComponent>().bounds
+                    val scrolls = case == ScrollBarCase.AtBothWidths
+                    assertInitialViewportState(case, name, scrolls, narrow, wide)
 
-                    repeat(4) {
+                    repeat(4) { index ->
                         change.intValue++
                         awaitIdle()
                         settleWithPaint()
-                        assertEquals(bounds, settled.bounds, "$name: the view keeps its bounds after change $it")
-                        assertEquals(scrolls, pane.verticalScrollBar.isVisible, "$name: and the bar after change $it")
+                        onNodeWithTag("view").assertProperty(
+                            bounds,
+                            "$name: view bounds after change $index",
+                        ) { bounds }
+                        onNodeOfType<JScrollPane>().assertProperty(scrolls, "$name: scrollbar after change $index") {
+                            verticalScrollBar.isVisible
+                        }
                     }
                 }
             }
         }
     }
 
-    @Test
-    fun aStockParentReleasingOrRestoringAWidthUsesTheHeightForThatWidth() {
-        for (history in listOf("release", "queried release", "restore")) {
-            runComposeSwingTest {
-                var width by mutableIntStateOf(WIDTH)
-                var fills = true
-                val layout =
-                    SwingParentLayout(
-                        preferred = { it.getComponent(0).preferredSize },
-                        minimum = { it.getComponent(0).minimumSize },
-                    ) { parent ->
-                        val child = parent.getComponent(0)
-                        val preferred = child.preferredSize
-                        child.setBounds(0, 0, if (fills) parent.width else preferred.width, preferred.height)
-                    }
-                setContent {
-                    SwingNode(factory = { JPanel(layout) }, modifier = SwingModifier.preferredSize(width, 600)) {
-                        Box(modifier = SwingModifier.testTag("box")) {
-                            RatioLabel(SwingModifier.testTag("label").fillMaxWidth())
-                        }
-                    }
-                }
-                val box = onNodeWithTag("box").fetch<JComponent>()
-                settleWithPaint()
-                assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "$history: initial filled height")
-                if (history == "restore") {
-                    width = WIDTH / 2
-                    awaitIdle()
-                    settleWithPaint()
-                    settleWithPaint()
-                    assertEquals(Dimension(width, width.atRatio), box.size, "narrow height after paint")
-                    width = WIDTH
-                    awaitIdle()
-                    assertEquals(width, box.width, "restored grant")
-                    assertEquals(width.atRatio, box.preferredSize.height, "preferred height at restored width")
-                    assertEquals(width.atRatio, box.minimumSize.height, "minimum height at restored width")
+    @ParameterizedTest
+    @CsvSource("release, false", "release, true", "queried release, false", "queried release, true")
+    fun aStockParentReleasesWidthUsingItsCurrentHeight(
+        history: String,
+        native: Boolean,
+    ) = runComposeSwingTest {
+        val fixture = stockParentFixture(native)
+        val box = fixture.box
+        val naturalWidth = fixture.naturalWidth
+        assertEquals(
+            Dimension(WIDTH, naturalWidth.atRatio),
+            box.size,
+            "$history, native=$native: the first parent grant uses the natural preferred width",
+        )
+        (box.parent as JComponent).revalidate()
+        root.validate()
+        awaitIdle()
+        assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "$history, native=$native: current width")
+        fixture.fills = false
+        if (history == "queried release") box.preferredSize
+        (box.parent as JComponent).revalidate()
+        root.validate()
+        awaitIdle()
+        assertEquals(
+            Dimension(naturalWidth, WIDTH.atRatio),
+            box.size,
+            "$history, native=$native: the next parent query uses its current width before releasing the grant",
+        )
+        (box.parent as JComponent).revalidate()
+        root.validate()
+        awaitIdle()
+        assertEquals(
+            Dimension(naturalWidth, naturalWidth.atRatio),
+            box.size,
+            "$history, native=$native: explicit validation at natural width",
+        )
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun aStockParentRestoresWidthUsingItsCurrentHeight(native: Boolean) =
+        runComposeSwingTest {
+            val fixture = stockParentFixture(native)
+            val box = fixture.box
+            val naturalWidth = fixture.naturalWidth
+            assertEquals(
+                Dimension(WIDTH, naturalWidth.atRatio),
+                box.size,
+                "native=$native: the first parent grant uses the natural preferred width",
+            )
+            (box.parent as JComponent).revalidate()
+            root.validate()
+            awaitIdle()
+            assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "native=$native: current width")
+            fixture.width.intValue = WIDTH / 2
+            awaitIdle()
+            (box.parent as JComponent).revalidate()
+            root.validate()
+            awaitIdle()
+            assertEquals(Dimension(WIDTH / 2, (WIDTH / 2).atRatio), box.size, "narrow height after explicit validation")
+            fixture.width.intValue = WIDTH
+            awaitIdle()
+            assertEquals(WIDTH, box.width, "restored grant")
+            (box.parent as JComponent).revalidate()
+            root.validate()
+            awaitIdle()
+            assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "restored height after explicit validation")
+        }
+
+    private class StockParentFixture(
+        val width: MutableIntState,
+    ) {
+        var fills: Boolean = true
+        lateinit var box: JComponent
+        var naturalWidth: Int = 0
+    }
+
+    private suspend fun ComposeSwingTest.stockParentFixture(native: Boolean): StockParentFixture {
+        val fixture = StockParentFixture(mutableIntStateOf(WIDTH))
+        val raw =
+            object : JComponent() {
+                private val naturalWidth = JLabel("Preview").preferredSize.width
+
+                override fun getPreferredSize(): Dimension =
+                    Dimension(naturalWidth, (width.takeIf { it > 0 } ?: naturalWidth).atRatio)
+
+                override fun getMinimumSize(): Dimension = Dimension(0, 0)
+            }
+        val layout =
+            SwingParentLayout(
+                preferred = { it.getComponent(0).preferredSize },
+                minimum = { it.getComponent(0).minimumSize },
+            ) { parent ->
+                val child = parent.getComponent(0)
+                val preferred = child.preferredSize
+                child.setBounds(0, 0, if (fixture.fills) parent.width else preferred.width, preferred.height)
+            }
+        setContent {
+            SwingNode(
+                factory = { JPanel(layout) },
+                modifier = SwingModifier.preferredSize(fixture.width.intValue, 600),
+            ) {
+                if (native) {
+                    SwingNode(factory = { raw }, modifier = SwingModifier.testTag("box"))
                 } else {
-                    fills = false
-                    (box.parent as JComponent).revalidate()
-                    awaitIdle()
-                    if (history == "queried release") box.preferredSize
-                    settleWithPaint()
-                    val preferredWidth = onNodeWithTag("label").fetch<JComponent>().preferredSize.width
-                    assertEquals(
-                        Dimension(preferredWidth, preferredWidth.atRatio),
-                        box.size,
-                        "$history: natural width and ratio height",
-                    )
-                    assertEquals(box.preferredSize, box.size, "$history: preferred size after paint")
+                    Box(modifier = SwingModifier.testTag("box")) {
+                        RatioLabel(SwingModifier.testTag("label").fillMaxWidth())
+                    }
                 }
             }
         }
+        fixture.box = onNodeWithTag("box").fetch<JComponent>()
+        awaitIdle()
+        fixture.naturalWidth =
+            if (native) raw.preferredSize.width else onNodeWithTag("label").fetch<JComponent>().preferredSize.width
+        return fixture
     }
 
     @Test
@@ -231,7 +362,7 @@ class HeightFollowsWidthTest {
                     val expected = Dimension(offered, offered.atRatio)
                     assertEquals(expected, host.size, "$name: unchanged after paint")
                     if (shape == "nested Box") {
-                        assertEquals(expected, onNodeWithTag("box").fetch<JComponent>().size, "$name: box after paint")
+                        onNodeWithTag("box").assertProperty(expected, "$name: box after paint") { size }
                     }
                     assertEquals(0, cyclesUntilStable(host), "$name: no descendant correction")
                 }
@@ -314,7 +445,17 @@ class HeightFollowsWidthTest {
             val expected = Dimension(width, width.atRatio)
             assertEquals(expected, host.size, "$name: container at $width")
             assertEquals(Rectangle(Point(), expected), text.bounds, "$name: actual child at $width")
-            if (shape == "Box") assertEquals(expected.height, host.minimumSize.height, "$name: minimum at $width")
+            if (shape == "Box") {
+                host.preferredSize = null
+                host.minimumSize = null
+                val preferred = host.preferredSize
+                val minimum = host.minimumSize
+                assertEquals(
+                    preferred.width.atRatio,
+                    minimum.height,
+                    "$name: minimum height at natural preferred width",
+                )
+            }
         } else if (kind == "unbounded TextArea") {
             assertEquals(text.preferredSize, text.size, "$name: first validation at its preferred size")
         } else {
@@ -323,7 +464,7 @@ class HeightFollowsWidthTest {
         }
         if (shape == "nested Box") {
             assertEquals(text.size, host.size, "$name: column holds the nested box")
-            assertEquals(text.size, onNodeWithTag("box").fetch<JComponent>().size, name)
+            onNodeWithTag("box").assertProperty(text.size, name) { size }
         }
         if (parent == "FlowLayout") assertEquals(text.size, host.size, "$name: preferred size grant")
     }
@@ -388,6 +529,51 @@ class HeightFollowsWidthTest {
         }
     }
 
+    @ParameterizedTest(name = "HTML={0}")
+    @ValueSource(booleans = [true, false])
+    fun textChangesAtHeldWidthUpdateHtmlAndWrappingTextAreaHeights(html: Boolean) {
+        runComposeSwingTest {
+            val shortText = "Short"
+            val longText = "A sentence with enough words to wrap at a fixed width. ".repeat(12)
+            var text by mutableStateOf(shortText)
+            setContent {
+                borderLayoutSlot(BorderLayout.NORTH)(200) { modifier ->
+                    Column(modifier.testTag("column")) {
+                        if (html) {
+                            Label("<html>$text</html>", SwingModifier.fillMaxWidth().testTag("text"))
+                        } else {
+                            TextArea(
+                                text,
+                                {},
+                                SwingModifier.fillMaxWidth().testTag("text"),
+                                lineWrap = true,
+                                wrapStyleWord = true,
+                            )
+                        }
+                        Label("After", SwingModifier.testTag("after"))
+                    }
+                }
+            }
+            val leaf = onNodeWithTag("text").fetch<JComponent>()
+            val after = onNodeWithTag("after").fetch<JComponent>()
+            val initialHeight = leaf.height
+            assertEquals(200, leaf.width)
+
+            text = longText
+            awaitIdle()
+            val longExpected = nativeHeight(html, longText, leaf.width)
+            assertTrue(longExpected > initialHeight)
+            assertEquals(longExpected, leaf.height)
+            assertEquals(leaf.height, after.y)
+
+            text = shortText
+            awaitIdle()
+            val shortExpected = nativeHeight(html, shortText, leaf.width)
+            assertEquals(shortExpected, leaf.height)
+            assertEquals(leaf.height, after.y)
+        }
+    }
+
     @Test
     fun aWrappingTextAreaInValidContainersNestedInOneItsParentNarrowsTakesItsWrappedHeightInOneValidation() {
         for (readsIntrinsicHeight in listOf(false, true)) {
@@ -430,10 +616,25 @@ class HeightFollowsWidthTest {
         }
     }
 
+    private fun nativeHeight(
+        html: Boolean,
+        text: String,
+        width: Int,
+    ): Int {
+        val reference =
+            if (html) {
+                JLabel("<html>$text</html>")
+            } else {
+                wrappingTextArea().apply { this.text = text }
+            }
+        reference.setSize(width, 1000)
+        reference.getBaseline(width, 1000)
+        return reference.preferredSize.height
+    }
+
     /** Where the view's height, which follows its width, needs the viewport's vertical scroll bar. */
     private enum class ScrollBarCase {
         AtBothWidths,
-        AtTheWideWidthOnly,
         AtNeither,
     }
 

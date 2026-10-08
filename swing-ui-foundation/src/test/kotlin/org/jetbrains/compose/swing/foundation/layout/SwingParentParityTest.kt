@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -14,7 +15,7 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -45,9 +46,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A constraint-based container in a slot of a Swing layout manager, against a wrapping text area in that same slot: the
- * container needs no more validate-and-paint cycles to settle than the text area does, and settles at the same height.
- * Where the slot stretches the container, it lays its content out at its bounds and then at the settled height.
+ * A constraint-based container in a Swing layout-manager slot, compared with a wrapping text area in the same slot.
+ * The container lays its content out at the bounds the parent grants and does not correct the grant during painting.
  * A parent
  * that sets the container's width before reading preferences, or its height after the first layout, has it at that size
  * at once.
@@ -58,7 +58,7 @@ class SwingParentParityTest {
         for ((name, slot) in Slots) {
             val rows =
                 listOf(false, true).map { intrinsic ->
-                    settlingOf(slot) { modifier, area ->
+                    settlingOf(name, slot) { modifier, area ->
                         Column(modifier = modifier) {
                             val height = if (intrinsic) SwingModifier.height(IntrinsicSize.Min) else SwingModifier
                             Row(modifier = height.testTag("row")) {
@@ -69,10 +69,10 @@ class SwingParentParityTest {
                     }
                 }
             val column =
-                settlingOf(slot) { modifier, area ->
+                settlingOf(name, slot) { modifier, area ->
                     Column(modifier = modifier) { area(SwingModifier.fillMaxWidth()) }
                 }
-            val raw = settlingOf(slot) { modifier, area -> area(modifier) }
+            val raw = settlingOf(name, slot) { modifier, area -> area(modifier) }
             assertEquals(raw.map { it.name }, column.map { it.name }, "$name: raw comparison steps")
             assertEquals(rows[0].map { it.name }, rows[1].map { it.name }, "$name: intrinsic comparison steps")
             for ((control, actual) in raw.zip(column)) {
@@ -233,11 +233,9 @@ class SwingParentParityTest {
     }
 
     @Test
-    fun aContainerAStockParentStretchesIsLaidOutAtItsBoundsAndAtTheHeightItSettlesAtAfterOnePaint() {
-        // Read before its first layout, the text is one line as wide as itself. BoxLayout grants the preferred height
-        // that result gives; GridBagLayout, short of the preferred width, the minimum height at that width, or, shorter
-        // than that minimum, a height between it and its own. The container is laid out at those bounds, and again at
-        // the height for the width after the paint, as a wrapping text area is.
+    fun aContainerUnderAStockParentKeepsTheParentGrantUntilItIsValidatedAgain() {
+        // The stock parent reads its preferred size before it grants the slot width. The child lays out at the grant;
+        // paint does not query preferences or revise the parent's chosen bounds.
         val squeezedHeight =
             JLabel("<html>$WRAPPING_TEXT</html>").run {
                 setSize(minimumSize.width, SLOT_HEIGHT)
@@ -279,30 +277,26 @@ class SwingParentParityTest {
                 val container = onNodeWithTag("container").fetch<JComponent>()
                 val initialHeight = container.height
                 assertEquals(listOf(initialHeight), policy.heights.distinct(), "$name: laid out at the first bounds")
-                val cycles = cyclesUntilStable(container)
-
                 val text = onNodeWithTag("text").fetch<JComponent>()
-                assertEquals(Dimension(WIDTH, text.height), container.size, "$name: the slot grants the text's height")
-                assertEquals(text.height, policy.heights.last(), "$name: the last height laid out at")
-                assertEquals(
-                    listOf(initialHeight, text.height).distinct(),
-                    policy.heights.distinct(),
-                    "$name: the exact heights at its bounds and after paint",
-                )
-                assertTrue(cycles <= 1, "$name: settles after $cycles paints")
+                assertEquals(Dimension(WIDTH, initialHeight), container.size, "$name: the parent grant")
+                if (name.endsWith("ratio")) {
+                    assertEquals(WIDTH / 2, text.height, "$name: the child follows its ratio at the granted width")
+                }
+                val bounds = container.bounds
+                withRecordedRepaints { recorder ->
+                    container.captureToImage()
+                    recorder.assertAskedForNoLayout(container, "$name: paint does not correct the parent grant")
+                }
+                assertEquals(bounds, container.bounds, "$name: paint preserves the parent grant")
+                assertEquals(listOf(initialHeight), policy.heights.distinct(), "$name: paint does not remeasure")
             }
         }
     }
 
     @Test
     fun aContainerAStockParentSetsTheHeightOfAfterItsFirstLayoutIsLaidOutAtThatHeight() {
-        // Read at 100 wide, the container prefers 60 high and needs 40. Laid out at 120 wide without a preference read,
-        // it
-        // has dropped those preferences, and a paint finds it prefers 50 there. A height granted later at 160 wide
-        // without
-        // a preference read is the parent's own, even where it equals one of those; so is a height below the minimum
-        // the
-        // parent reads, at the width the container holds when its preferences are read.
+        // This parent can read preferences or grant its own size. The container measures each grant at the bounds it
+        // receives; painting does not revise the parent's choice.
         fun scripted(
             granted: Dimension,
             readsPreferences: Boolean,
@@ -319,7 +313,7 @@ class SwingParentParityTest {
         val resizes =
             listOf(
                 Triple("without reading preferences, the minimum height returned", 40, false),
-                Triple("without reading preferences, the preferred height a paint found", 50, false),
+                Triple("without reading preferences, the parent's preferred height", 50, false),
                 Triple("reading preferences, below the minimum", 30, true),
             )
         for ((name, granted, readsPreferences) in resizes) {
@@ -416,11 +410,10 @@ class SwingParentParityTest {
             }
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag("narrowed").assertProperty(
                 30,
-                onNodeWithTag("narrowed").fetch<JComponent>().width,
                 "the column's layout already ran, so the preference reads during its validation resize no stock child",
-            )
+            ) { width }
         }
 
     /**
@@ -474,9 +467,9 @@ class SwingParentParityTest {
         assertEquals(completed.map { it.width }, lazy.map { it.width }, "lazy raw widths match native completion")
         assertEquals(completed.map { it.width }, column.map { it.width }, "Column widths match native completion")
         assertEquals(
-            listOf(false, true, true, true),
+            List(CYCLES) { false },
             column.drop(1).map { it.paintRequestsLayout },
-            "Column paint requests",
+            "Column paints do not reconcile size preferences",
         )
         assertEquals(List(CYCLES) { true }, lazy.drop(1).map { it.paintRequestsLayout }, "lazy raw paint requests")
         assertEquals(
@@ -867,32 +860,32 @@ class SwingParentParityTest {
         const val CYCLES = 4
 
         fun settlingOf(
+            slotName: String,
             slot: Slot,
             subject: @Composable (SwingModifier, @Composable (SwingModifier) -> Unit) -> Unit,
         ): List<Settled> {
             val steps = mutableListOf<Settled>()
+            val area = LineBreakCountingTextArea()
             runComposeSwingTest {
                 var width by mutableIntStateOf(WIDTH)
                 var text by mutableStateOf(WRAPPING_TEXT)
                 setContent {
-                    slot(width) { modifier ->
-                        subject(modifier.testTag("subject")) { areaModifier ->
-                            SwingNode(
-                                factory = { LineBreakCountingTextArea() },
-                                modifier = areaModifier,
-                                update = {
-                                    set(text) { this.text = it }
-                                    set(true) {
-                                        lineWrap = it
-                                        wrapStyleWord = it
-                                    }
-                                },
-                            )
-                        }
-                    }
+                    SettlingContent(slot, width, text, subject, area)
                 }
                 val component = onNodeWithTag("subject").fetch<JComponent>()
-                val area = onNodeOfType<LineBreakCountingTextArea>().fetch()
+                val explicitParentRevalidation =
+                    slotName.startsWith("BoxLayout") || slotName.startsWith("GridBagLayout")
+                if (explicitParentRevalidation) {
+                    assertInitialSizeMismatch(slotName, component, area)
+                    component.parent.revalidate()
+                    root.validate()
+                    awaitIdle()
+                    assertEquals(
+                        area.height,
+                        component.height,
+                        "$slotName: explicit validation uses current content height",
+                    )
+                }
 
                 suspend fun step(name: String) {
                     val cycles = cyclesUntilStable(component)
@@ -902,18 +895,27 @@ class SwingParentParityTest {
                         } else {
                             onNodeWithTag("row").fetch<JComponent>().height
                         }
-                    val lineBreaks = area.lineBreaks
-                    steps += Settled(name, cycles, component.height, area.height, rowHeight, lineBreaks)
+                    steps += Settled(name, cycles, component.height, area.height, rowHeight, area.lineBreaks)
                     area.lineBreaks = 0
                 }
                 step("first show")
                 for (step in 1..5) {
                     width = WIDTH - 20 * step
                     awaitIdle()
+                    if (explicitParentRevalidation) {
+                        component.parent.revalidate()
+                        root.validate()
+                        awaitIdle()
+                    }
                     step("drag to $width")
                 }
                 width += 20
                 awaitIdle()
+                if (explicitParentRevalidation) {
+                    component.parent.revalidate()
+                    root.validate()
+                    awaitIdle()
+                }
                 step("drag back to $width")
                 text += " One more sentence, long enough to add a line or two to the wrapped text."
                 awaitIdle()
@@ -924,6 +926,42 @@ class SwingParentParityTest {
                 }
             }
             return steps
+        }
+    }
+}
+
+private fun assertInitialSizeMismatch(
+    slotName: String,
+    component: JComponent,
+    area: LineBreakCountingTextArea,
+) {
+    if (component.height != area.height) {
+        assertTrue(area.width in 1..component.width, "$slotName: content fits the initial parent grant")
+        assertTrue(component.height > area.height, "$slotName: initial wrapper keeps the parent grant")
+    }
+}
+
+@Composable
+private fun SettlingContent(
+    slot: Slot,
+    width: Int,
+    text: String,
+    subject: @Composable (SwingModifier, @Composable (SwingModifier) -> Unit) -> Unit,
+    area: LineBreakCountingTextArea,
+) {
+    slot(width) { modifier ->
+        subject(modifier.testTag("subject")) { areaModifier ->
+            SwingNode(
+                factory = { area },
+                modifier = areaModifier,
+                update = {
+                    set(text) { this.text = it }
+                    set(true) {
+                        lineWrap = it
+                        wrapStyleWord = it
+                    }
+                },
+            )
         }
     }
 }

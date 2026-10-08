@@ -3,6 +3,52 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import java.awt.Dimension
 
+/** What the component itself answers under [constraints], with no chain between. */
+internal fun ChildMeasurable.measureUnmodified(
+    constraints: Constraints,
+    maySizeStockChildren: Boolean = false,
+): ChildPlaceable {
+    if (constrainable != null) {
+        val panel = decoratable?.decoration?.childMeasurables?.panel
+        if (panel == null) {
+            constrainable.measure(constraints)
+        } else {
+            panel.measureWithStockChildSizing(constraints, maySizeStockChildren)
+        }
+        return ChildPlaceable(
+            this,
+            constrainable.constrainedWidth,
+            constrainable.constrainedHeight,
+            constraints,
+            if (decoratable?.decoration?.childMeasurables == null) constrainable.alignmentLines else emptyMap(),
+        )
+    }
+    // Swing has no constrained-measure operation for an ordinary component.  When both axes
+    // are exact, retain the established no-query fast path and use the granted extent. For every
+    // other offer, its preferred size is the only answer Swing gives us, so constrain it here.
+    // Only a Constrainable or layout modifier can deliberately report real overflow.
+    val fixed = constraints.hasFixedWidth && constraints.hasFixedHeight
+    val width: Int
+    val height: Int
+    if (fixed) {
+        width = constraints.minWidth
+        height = constraints.minHeight
+    } else {
+        var extent =
+            if (constraints.hasFixedWidth && constraints.minWidth > 0 && constraints.minWidth != layoutWidth) {
+                preferredExtentSizedTo(constraints.minWidth, constraints.maxHeight, maySizeStockChildren)
+            } else {
+                preferredExtent()
+            }
+        width = constraints.constrainWidth(extent.width)
+        if (!constraints.hasFixedHeight && width != layoutWidth) {
+            extent = preferredExtentSizedTo(width, constraints.constrainHeight(extent.height), maySizeStockChildren)
+        }
+        height = constraints.constrainHeight(extent.height)
+    }
+    return ChildPlaceable(this, width, height, constraints, emptyMap())
+}
+
 /**
  * Sizes this child to the layout extent [width] by [height] and returns what it prefers there, recording that as its
  * preferred extent. Swing has no query for a height at a given width: a component whose height follows its width, such
@@ -12,8 +58,9 @@ import java.awt.Dimension
 internal fun ChildMeasurable.preferredExtentSizedTo(
     width: Int,
     height: Int,
+    maySizeStockChildren: Boolean = false,
 ): Dimension =
-    if (owner.isLaidOutNext) {
+    if (maySizeStockChildren) {
         sizedTo(width, height) { layoutPreferredSize }.also { preferred = it }
     } else {
         preferredExtent()
@@ -57,11 +104,10 @@ private fun ChildMeasurable.widthForPreferences(
  * layout width from [minWidth] to [maxWidth], at its [widthForPreferences]. As `BorderLayout` sizes a north or south
  * child to
  * its width before reading its preferred height, where a layout pass lays its container out next and the child holds
- * another
- * width, which that offer leaves bounded, it is sized to that width at the height it holds, or the height it prefers
- * where it holds none, and read there. A preference read at the width it holds costs nothing beyond the preference
- * read: it is resized
- * and read again only for another width. Where it returns another height, it is sized to that height and read again,
+ * another width, which that offer leaves bounded, it is sized to that width at the height it holds, or the height it
+ * prefers where it holds none, and read there. At a positive held width, a permitted read of an invalid child asks for
+ * the baseline before the preferred height so newly installed markup is laid out. The child is resized only for another
+ * width. Where it returns another height, it is sized to that height and read again,
  * so the placement that follows does not resize it. Such a resize drops the preferred size Swing holds for it. A
  * measure that runs before a descendant whose height follows its width reflows on its own, as an animation frame does,
  * would then read the height for the descendant's new width and lay it out a second time. The child keeps that size but
@@ -73,6 +119,7 @@ private fun ChildMeasurable.stockHeightAt(
     minWidth: Int,
     maxWidth: Int,
     mode: MeasureMode,
+    maySizeStockChildren: Boolean,
 ): Int {
     val width = widthForPreferences(minWidth, maxWidth)
 
@@ -81,7 +128,17 @@ private fun ChildMeasurable.stockHeightAt(
     // its minimum from that layout, so the minimum is read after the preferred size.
     fun sizePreference(preferred: Dimension) = if (mode == MeasureMode.Minimum) layoutMinimumSize else preferred
 
-    if (width == layoutWidth || !owner.isLaidOutNext) return sizePreference(preferredExtent()).height
+    val refreshHeldWidth = width > 0 && width == layoutWidth && maySizeStockChildren && !component.isValid
+    if (refreshHeldWidth) layoutBaseline(width, layoutHeight)
+    if (width == layoutWidth || !maySizeStockChildren) {
+        val preferred =
+            if (refreshHeldWidth) {
+                layoutPreferredSize.also { this.preferred = it }
+            } else {
+                preferredExtent()
+            }
+        return sizePreference(preferred).height
+    }
     val height = if (layoutHeight > 0) layoutHeight else preferredExtent().height
     val preferred = sizedTo(width, height) { layoutPreferredSize }
     val kept = if (preferred.height == height) preferred else sizedTo(width, preferred.height) { layoutPreferredSize }
@@ -101,40 +158,30 @@ private fun ChildMeasurable.stockHeightAt(
 internal fun ChildMeasurable.baselineAt(
     width: Int,
     height: Int,
+    maySizeStockChildren: Boolean = false,
 ): Int {
     if (constrainable != null) return layoutBaseline(width, height)
     val baselineWidth = widthForPreferences(width, width)
-    return if (baselineWidth == layoutWidth || !owner.isLaidOutNext) {
+    return if (baselineWidth == layoutWidth || !maySizeStockChildren) {
         layoutBaseline(layoutWidth, height)
     } else {
         sizedTo(baselineWidth, height) { layoutBaseline(baselineWidth, height) }
     }
 }
 
-/**
- * Whether a layout pass lays this container out after the size read being performed: a layout pass of it, or of a
- * Foundation container holding it, is running, or it reports size preferences to a stock parent that lays it out next.
- * A container left
- * unplaced, or inside one left unplaced, lays nothing out. Neither does a size query from Swing under a Foundation
- * parent, such as that parent reading the container's preferred width: the height is computed at the preferred width,
- * which the parent does not necessarily grant. Only where a layout follows is a stock child resized for a preference
- * read of a
- * preference read. A stock child resized away and back is invalidated, so the next validation lays its children out
- * again.
- */
-private val ChildMeasurables.isLaidOutNext: Boolean
-    get() {
-        var measurables = this
-        while (true) {
-            val parent = measurables.panel.decoration.parentMeasurables
-            val record = parent?.find(measurables.panel)
-            if (record != null && record.lastPlacement != ChildPlacement.Placed) return false
-            if (measurables.isReadingSizePreferencesForFoundationParent) return false
-            if (measurables.layoutState != LayoutState.Idle) return true
-            if (measurables.isReadingSizePreferencesBeforeLayout) return true
-            measurables = parent ?: return false
-        }
+internal fun ChildMeasurable.unmodifiedIntrinsicHeight(
+    intrinsicSize: IntrinsicSize,
+    minWidth: Int,
+    maxWidth: Int,
+    maySizeStockChildren: Boolean = false,
+): Int {
+    val permitted = maySizeStockChildren && lastPlacement == ChildPlacement.Placed
+    return if (intrinsicSize == IntrinsicSize.Min) {
+        unmodifiedMinIntrinsicHeight(minWidth, maxWidth, permitted)
+    } else {
+        unmodifiedMaxIntrinsicHeight(minWidth, maxWidth, permitted)
     }
+}
 
 /**
  * The component's own min intrinsic width at [height], with no layout modifier between: a [Constrainable] returns a
@@ -171,9 +218,11 @@ internal fun ChildMeasurable.unmodifiedMaxIntrinsicWidth(height: Int): Int {
 internal fun ChildMeasurable.unmodifiedMinIntrinsicHeight(
     minWidth: Int,
     maxWidth: Int,
+    maySizeStockChildren: Boolean = false,
 ): Int {
-    val constrainable = constrainable ?: return stockHeightAt(minWidth, maxWidth, MeasureMode.Minimum)
-    return constrainedPanel?.intrinsicHeightUnder(IntrinsicSize.Min, minWidth, maxWidth)
+    val constrainable =
+        constrainable ?: return stockHeightAt(minWidth, maxWidth, MeasureMode.Minimum, maySizeStockChildren)
+    return constrainedPanel?.intrinsicHeightUnder(IntrinsicSize.Min, minWidth, maxWidth, maySizeStockChildren)
         ?: constrainable.minIntrinsicHeight(maxWidth)
 }
 
@@ -184,9 +233,10 @@ internal fun ChildMeasurable.unmodifiedMinIntrinsicHeight(
 internal fun ChildMeasurable.unmodifiedMaxIntrinsicHeight(
     minWidth: Int,
     maxWidth: Int,
+    maySizeStockChildren: Boolean = false,
 ): Int {
     val constrainable =
-        constrainable ?: return stockHeightAt(minWidth, maxWidth, MeasureMode.Preferred)
+        constrainable ?: return stockHeightAt(minWidth, maxWidth, MeasureMode.Preferred, maySizeStockChildren)
     val panel = constrainedPanel
     return if (panel == null) {
         constrainable.maxIntrinsicHeight(maxWidth)
@@ -195,7 +245,7 @@ internal fun ChildMeasurable.unmodifiedMaxIntrinsicHeight(
         if (held != null && held.width == maxWidth) {
             held.height
         } else {
-            panel.intrinsicHeightUnder(IntrinsicSize.Max, minWidth, maxWidth)
+            panel.intrinsicHeightUnder(IntrinsicSize.Max, minWidth, maxWidth, maySizeStockChildren)
         }
     }
 }

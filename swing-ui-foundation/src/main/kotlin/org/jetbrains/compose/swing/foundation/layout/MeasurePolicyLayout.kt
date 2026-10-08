@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
-import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -117,11 +116,12 @@ internal class MeasurePolicyLayout(
         // would call back here. A Foundation parent gives up only the extent it holds for this container. A
         // CellRendererPane is left alone: its invalidate() does nothing, whoever renders the cell validates it, and
         // revalidate() on a parent that is no JComponent validates the validate root above it at once.
+        // An invalidation caused while this container performs a size read leaves a stock parent alone: the parent is
+        // reading that result, which already reflects the cause, and invalidating it drops what it has gathered so far.
         if (!measurables.invalidate()) return
-        measurables.panel.contentInvalidated()
         val parent = measurables.panel.decoration.parentMeasurables
         if (parent == null) {
-            if (target.parent !is CellRendererPane) target.parent?.revalidate()
+            if (target.parent !is CellRendererPane && !measurables.isReadingSizePreferences) target.parent?.revalidate()
         } else {
             parent.find(target)?.preferred = null
             parent.during(RunningCause.ChildInvalidation) { target.parent?.revalidate() }
@@ -189,7 +189,6 @@ internal class MeasurePolicyLayout(
             val insets = panel.borderInsets()
             val width = panel.innerWidth(insets)
             val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
-            panel.laidOutAt(width)
             // A valid container replays its latest result at its current size.
             // An invalid container is measured again before placement.
             val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
@@ -260,8 +259,7 @@ internal enum class RunningCause {
     GlassPaneChange,
     ChildInvalidation,
     Validation,
-    ReadingSizePreferencesBeforeLayout,
-    ReadingSizePreferencesForFoundationParent,
+    ReadingSizePreferences,
 }
 
 /**
@@ -316,7 +314,15 @@ internal class ChildMeasurables(
 
     /** Which block of its policy this container is running. */
     var layoutState: LayoutState = LayoutState.Idle
-        internal set
+        internal set(value) {
+            field = value
+            val sizesStockChildren =
+                value == LayoutState.LayingOut ||
+                    (value == LayoutState.Measuring && measureSizesStockChildren)
+            layoutPass.fastForEach { it.layoutPassRunning = sizesStockChildren }
+        }
+
+    private var measureSizesStockChildren = true
 
     // Stored once, reading inputs from fields, so observing an answer allocates nothing per call.
     private val measureBlock: () -> Unit = {
@@ -329,8 +335,7 @@ internal class ChildMeasurables(
         }
     }
 
-    private val askBlock: () -> Unit = {
-        val children = intrinsicWalk
+    private val askBlock: (List<Measurable>) -> Unit = { children ->
         val minimum = mode == MeasureMode.Minimum
         val foundationParent = hasFoundationParent
         with(owner.policy) {
@@ -340,9 +345,8 @@ internal class ChildMeasurables(
                 } else {
                     PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
                 }
-            // A parent that is not a Foundation container supplies no width. Preferred heights follow the width the
-            // container holds; minimum heights follow the width of the last
-            // preference read or paint, as a text area's do.
+            // A stock parent supplies no width for a size query, so preferred height follows the held width when
+            // there is one. Minimum size uses the natural intrinsic width.
             val held = panel.innerWidth()
             val width =
                 when {
@@ -351,12 +355,11 @@ internal class ChildMeasurables(
                     }
 
                     minimum -> {
-                        panel.minimumSizeWidth
-                            ?: PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
+                        PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
                     }
 
                     held > 0 -> {
-                        panel.widthForPreferences(held)
+                        held
                     }
 
                     else -> {
@@ -369,7 +372,6 @@ internal class ChildMeasurables(
                 } else {
                     PolicyMeasureScope.maxIntrinsicHeight(children, width)
                 }
-            if (!foundationParent) panel.recordSizePreference(mode, width, askedHeight)
         }
     }
 
@@ -380,8 +382,7 @@ internal class ChildMeasurables(
 
     /**
      * Whether the invalidation arriving is one a pass already running returns, so this container keeps the result it
-     * settled on: its parent measuring it, reading its intrinsic size or placing it, or this container resizing a child
-     * to perform one.
+     * settled on.
      */
     val beingPlaced: Boolean get() = RunningCause.ParentPlacement in runningCauses
 
@@ -397,32 +398,14 @@ internal class ChildMeasurables(
     /** Whether this container's panel is being validated, or validates the children its placement replay resized. */
     val isValidating: Boolean get() = RunningCause.Validation in runningCauses
 
-    /**
-     * Whether this container performs a size read from a parent that is not a Foundation container while invalid: that
-     * parent lays it out next.
-     */
-    val isReadingSizePreferencesBeforeLayout: Boolean get() =
-        RunningCause.ReadingSizePreferencesBeforeLayout in
-            runningCauses
-
-    /**
-     * Whether this container performs a size read from Swing under a Foundation parent: its height there is at its
-     * preferred width, which that parent's layout does not necessarily grant.
-     */
-    val isReadingSizePreferencesForFoundationParent: Boolean get() =
-        RunningCause.ReadingSizePreferencesForFoundationParent in
-            runningCauses
-
     /** Whether a Foundation container lays this container out. */
     val hasFoundationParent: Boolean get() = panel.decoration.parentMeasurables != null
 
-    /**
-     * Whether a parent that is not a Foundation container lays this container out after the size read being performed:
-     * the container is invalid, and its own validation, which lays it out before
-     * anything inside it can read preferences, is not
-     * running.
-     */
-    val stockParentLaysOutNext: Boolean get() = !hasFoundationParent && !panel.isValid && !isValidating
+    /** Invalid-host intrinsic height reads may size stock leaves, except during the host's own validation. */
+    val maySizeStockChildrenForPreferences: Boolean get() = !hasFoundationParent && !panel.isValid && !isValidating
+
+    /** Whether this container performs a read for its preferred or minimum size; see [askedSize]. */
+    val isReadingSizePreferences: Boolean get() = RunningCause.ReadingSizePreferences in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -549,12 +532,16 @@ internal class ChildMeasurables(
      * Nothing is placed: the parent is deciding an extent, and the placement follows from the bounds it
      * then assigns, which is what `layoutContainer` runs.
      */
-    fun measuredSize(constraints: Constraints): Dimension =
+    fun measuredSize(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean = true,
+    ): Dimension =
         synchronized(panel.treeLock) {
             val insets = panel.borderInsets()
             val horizontal = insets.left.grownBy(insets.right)
             val vertical = insets.top.grownBy(insets.bottom)
-            val result = measureObserved(constraints.offset(-horizontal, -vertical), MeasuredReads)
+            val result =
+                measureObserved(constraints.offset(-horizontal, -vertical), SizeReadKind.Measured, maySizeStockChildren)
             measured = result
             Dimension(result.width.grownBy(horizontal), result.height.grownBy(vertical))
         }
@@ -565,23 +552,16 @@ internal class ChildMeasurables(
      *
      * Swing reads both axes at once and supplies no extent on either. It is computed as androidx computes
      * `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the width at an unbounded height, then the height
-     * at that width. Under a parent that is not a Foundation container, a preferred height follows the width the
-     * container holds and a minimum height follows the width of its last
-     * preference read or paint; see [ConstrainedPanel].
+     * at that width. Under a parent that is not a Foundation container, preferred height follows the width the
+     * container holds when it has one. Minimum size uses the natural intrinsic width.
      */
     fun askedSize(mode: MeasureMode): Dimension =
-        readPolicyPreferences {
+        readPolicyPreferences(maySizeStockChildrenForPreferences) { children ->
             val retainedMode = this@ChildMeasurables.mode
             this@ChildMeasurables.mode = mode
             try {
-                val reads = if (mode == MeasureMode.Minimum) MinimumReads else PreferredReads
-                val cause =
-                    when {
-                        hasFoundationParent -> RunningCause.ReadingSizePreferencesForFoundationParent
-                        stockParentLaysOutNext -> RunningCause.ReadingSizePreferencesBeforeLayout
-                        else -> null
-                    }
-                if (cause == null) owner.observe(reads, askBlock) else during(cause) { owner.observe(reads, askBlock) }
+                val reads = if (mode == MeasureMode.Minimum) SizeReadKind.Minimum else SizeReadKind.Preferred
+                during(RunningCause.ReadingSizePreferences) { owner.observe(reads) { askBlock(children) } }
             } finally {
                 this@ChildMeasurables.mode = retainedMode
             }
@@ -614,7 +594,15 @@ internal class ChildMeasurables(
                 lineScope.replaying(result, originX.toLong(), originY.toLong(), leftToRight)
                 Snapshot.withoutReadObservation {
                     lineScope.observesReplay = owner.lastPlaced !== result
-                    if (lineScope.observesReplay) owner.observe(LineReads, lineScope.replay) else lineScope.replay()
+                    if (lineScope.observesReplay) {
+                        // A replay does not place children; retain grants only where the placement record says placed.
+                        layoutPass.fastForEach {
+                            it.layoutPassRunning = it.lastPlacement == ChildPlacement.Placed
+                        }
+                        owner.observe(LineReads, lineScope.replay)
+                    } else {
+                        lineScope.replay()
+                    }
                 }
                 lineScope.takeLines()
             } finally {
@@ -627,9 +615,16 @@ internal class ChildMeasurables(
     internal fun measureObserved(
         constraints: Constraints,
         onChanged: (SwingComponentNode<ConstrainedPanel>) -> Unit,
+        maySizeStockChildren: Boolean = true,
     ): MeasureResult {
         measureConstraints = constraints
-        owner.observe(onChanged, measureBlock)
+        val retained = measureSizesStockChildren
+        measureSizesStockChildren = maySizeStockChildren
+        try {
+            owner.observe(onChanged, measureBlock)
+        } finally {
+            measureSizesStockChildren = retained
+        }
         val result = checkNotNull(measureResult)
         measureResult = null
         return result
@@ -652,7 +647,7 @@ internal fun ChildMeasurables.settledOn(
     height: Int,
 ): MeasureResult {
     measured?.let { if (it.width == width && it.height == height) return it }
-    val result = measureObserved(Constraints(width, width, height, height), SettledReads)
+    val result = measureObserved(Constraints(width, width, height, height), SizeReadKind.Settled)
     measured = result
     return result
 }
@@ -696,7 +691,7 @@ internal class ChildMeasurable(
     val decoratable: Decoratable?,
     /** [component] itself, where it answers constraints on its own. */
     val constrainable: Constrainable?,
-) : Measurable {
+) : PreferencesMeasurable {
     /** What the child is registered under, once the parent-data protocol of its container has accepted it. */
     override var parentData: Any? = null
         set(value) {
@@ -757,14 +752,27 @@ internal class ChildMeasurable(
      */
     val isPlacedByParent: Boolean get() = placedInRun == owner.placementRun
 
-    override fun measure(constraints: Constraints): Placeable {
+    /** The sizing permission supplied by the pass that owns this measurable. */
+    internal var layoutPassRunning = false
+
+    override val maySizeStockChildren: Boolean get() = layoutPassRunning
+
+    override fun measureWithStockChildSizing(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean,
+    ): Placeable {
         trackMeasurementByParent()
-        // A container that is not valid lays out what it measures, unlike a valid one its own container measures.
         val inLayoutPass = !owner.panel.isValid
         if (inLayoutPass) measurePending = false
         isMeasuring = inLayoutPass
+        val permitted = maySizeStockChildren && lastPlacement == ChildPlacement.Placed
         try {
-            return outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+            val outer = outerMeasurable
+            return if (outer == null) {
+                measureUnmodified(constraints, permitted)
+            } else {
+                outer.measureWithStockChildSizing(constraints, permitted)
+            }
         } finally {
             isMeasuring = false
         }
@@ -781,63 +789,35 @@ internal class ChildMeasurable(
         return outer.maxIntrinsicWidth(height)
     }
 
-    override fun minIntrinsicHeight(width: Int): Int {
-        val outer = outerMeasurable ?: return unmodifiedMinIntrinsicHeight(0, width)
-        return outer.minIntrinsicHeight(width)
-    }
-
-    override fun maxIntrinsicHeight(width: Int): Int {
-        val outer = outerMeasurable ?: return unmodifiedMaxIntrinsicHeight(0, width)
-        return outer.maxIntrinsicHeight(width)
+    override fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        maxWidth: Int,
+        maySizeStockChildren: Boolean,
+    ): Int {
+        val outer = outerMeasurable
+        return if (outer == null) {
+            unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth, maySizeStockChildren)
+        } else {
+            outer.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth, maySizeStockChildren)
+        }
     }
 
     override fun intrinsicPlaceable(
         width: Int,
         height: Int,
+        maySizeStockChildren: Boolean,
     ): Placeable? {
-        val outer = outerMeasurable ?: return UnmodifiedIntrinsicPlaceable(this, width, height)
-        return outer.intrinsicPlaceable(width, height)
+        val permitted = maySizeStockChildren && lastPlacement == ChildPlacement.Placed
+        val outer = outerMeasurable
+        return if (outer == null) {
+            UnmodifiedIntrinsicPlaceable(this, width, height, permitted)
+        } else {
+            outer.intrinsicPlaceable(width, height, permitted)
+        }
     }
 
     override fun maximumSize(): Dimension? = if (component.isMaximumSizeSet) component.maximumSize else null
-
-    /** What the component itself answers under [constraints], with no chain between. */
-    internal fun measureUnmodified(constraints: Constraints): ChildPlaceable {
-        if (constrainable != null) {
-            constrainable.measure(constraints)
-            return ChildPlaceable(
-                this,
-                constrainable.constrainedWidth,
-                constrainable.constrainedHeight,
-                constraints,
-                if (decoratable?.decoration?.childMeasurables == null) constrainable.alignmentLines else emptyMap(),
-            )
-        }
-        // Swing has no constrained-measure operation for an ordinary component.  When both axes
-        // are exact, retain the established no-query fast path and use the granted extent. For every
-        // other offer, its preferred size is the only answer Swing gives us, so constrain it here.
-        // Only a Constrainable or layout modifier can deliberately report real overflow.
-        val fixed = constraints.hasFixedWidth && constraints.hasFixedHeight
-        val width: Int
-        val height: Int
-        if (fixed) {
-            width = constraints.minWidth
-            height = constraints.minHeight
-        } else {
-            var extent =
-                if (constraints.hasFixedWidth && constraints.minWidth > 0 && constraints.minWidth != layoutWidth) {
-                    preferredExtentSizedTo(constraints.minWidth, constraints.maxHeight)
-                } else {
-                    preferredExtent()
-                }
-            width = constraints.constrainWidth(extent.width)
-            if (!constraints.hasFixedHeight && width != layoutWidth) {
-                extent = preferredExtentSizedTo(width, constraints.constrainHeight(extent.height))
-            }
-            height = constraints.constrainHeight(extent.height)
-        }
-        return ChildPlaceable(this, width, height, constraints, emptyMap())
-    }
 
     /**
      * Records every declaration this child makes to its container.
@@ -955,10 +935,38 @@ private inline fun ChildMeasurable.forEachLayoutNode(action: (LayoutModifierNode
 /** The unmodified child, which its innermost layout modifier measures through. */
 internal class UnmodifiedChildMeasurable(
     internal val child: ChildMeasurable,
-) : Measurable {
+) : PreferencesMeasurable {
     override val parentData: Any? get() = child.parentData
 
     override fun measure(constraints: Constraints): Placeable = child.measureUnmodified(constraints)
+
+    override fun measureWithStockChildSizing(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean,
+    ): Placeable =
+        child.measureUnmodified(
+            constraints,
+            maySizeStockChildren && child.lastPlacement == ChildPlacement.Placed,
+        )
+
+    override fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        maxWidth: Int,
+        maySizeStockChildren: Boolean,
+    ): Int = child.unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth, maySizeStockChildren)
+
+    override fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+        maySizeStockChildren: Boolean,
+    ): Placeable =
+        UnmodifiedIntrinsicPlaceable(
+            child,
+            width,
+            height,
+            maySizeStockChildren && child.lastPlacement == ChildPlacement.Placed,
+        )
 
     override fun minIntrinsicWidth(height: Int): Int = child.unmodifiedMinIntrinsicWidth(height)
 
@@ -980,11 +988,13 @@ internal class UnmodifiedChildMeasurable(
  * [child] at [width] by [height], standing in for it in an intrinsic question. It places nothing: only its
  * [FirstBaseline], read from the component itself, answers a line read of it.
  */
-private class UnmodifiedIntrinsicPlaceable(
+internal class UnmodifiedIntrinsicPlaceable(
     private val child: ChildMeasurable,
     override val measuredWidth: Int,
     override val measuredHeight: Int,
+    maySizeStockChildren: Boolean = false,
 ) : Placeable() {
+    private val baseline = child.baselineAt(measuredWidth, measuredHeight, maySizeStockChildren)
     override val width: Int = measuredWidth
     override val height: Int = measuredHeight
 
@@ -999,7 +1009,6 @@ private class UnmodifiedIntrinsicPlaceable(
         y: Long,
     ): Int {
         if (alignmentLine !== FirstBaseline) return AlignmentLine.UNSPECIFIED
-        val baseline = child.baselineAt(measuredWidth, measuredHeight)
         return if (baseline < 0) AlignmentLine.UNSPECIFIED else saturateLineCoordinate(y + baseline)
     }
 }
@@ -1008,8 +1017,8 @@ private class UnmodifiedIntrinsicPlaceable(
 internal class LayoutModifierMeasurable(
     val modifier: LayoutModifierNode,
     val measurable: Measurable,
-    private val placement: ChildMeasurable,
-) : Measurable {
+    internal val placement: ChildMeasurable,
+) : PreferencesMeasurable {
     override val parentData: Any? get() = measurable.parentData
 
     override fun measure(constraints: Constraints): Placeable =
@@ -1020,6 +1029,49 @@ internal class LayoutModifierMeasurable(
             placement.owner.panel.componentOrientation.isLeftToRight,
             placement,
         )
+
+    override fun measureWithStockChildSizing(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean,
+    ): Placeable =
+        LayoutModifierPlaceable(
+            modifier,
+            with(PolicyMeasureScope) {
+                with(modifier) { measure(OfferedMinWidthMeasurable(measurable, maySizeStockChildren), constraints) }
+            },
+            constraints,
+            placement.owner.panel.componentOrientation.isLeftToRight,
+            placement,
+        )
+
+    override fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        maxWidth: Int,
+        maySizeStockChildren: Boolean,
+    ): Int {
+        val offered = OfferedMinWidthMeasurable(measurable, maySizeStockChildren, minWidth.coerceAtMost(maxWidth))
+        return with(widthOfferScope(minWidth.coerceAtMost(maxWidth))) {
+            with(modifier) {
+                if (intrinsicSize == IntrinsicSize.Min) {
+                    minIntrinsicHeight(offered, maxWidth)
+                } else {
+                    maxIntrinsicHeight(offered, maxWidth)
+                }
+            }
+        }
+    }
+
+    override fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+        maySizeStockChildren: Boolean,
+    ): Placeable? =
+        with(PolicyMeasureScope) {
+            with(modifier) {
+                intrinsicPlaceable(OfferedMinWidthMeasurable(measurable, maySizeStockChildren), width, height)
+            }
+        }
 
     override fun minIntrinsicWidth(height: Int): Int =
         with(PolicyMeasureScope) { with(modifier) { minIntrinsicWidth(measurable, height) } }
@@ -1123,7 +1175,7 @@ internal class ChildPlaceable(
         val lines = lines
         scope.merge(lines, x + centeredOverflowOffset(width, measuredWidth), originY)
         if (FirstBaseline in lines) return
-        val baseline = child.baselineAt(measuredWidth, measuredHeight)
+        val baseline = child.baselineAt(measuredWidth, measuredHeight, child.layoutPassRunning)
         if (baseline >= 0) scope.merge(FirstBaseline, originY + baseline)
     }
 
@@ -1155,7 +1207,7 @@ internal class ChildPlaceable(
             }
 
             alignmentLine === FirstBaseline -> {
-                val baseline = child.baselineAt(measuredWidth, measuredHeight)
+                val baseline = child.baselineAt(measuredWidth, measuredHeight, child.layoutPassRunning)
                 if (baseline < 0) AlignmentLine.UNSPECIFIED else baseline
             }
 
@@ -1166,12 +1218,7 @@ internal class ChildPlaceable(
     }
 }
 
-/**
- * What the result its container settled on read from this child, or null where there is nothing to compare. A
- * displayable child holds that reading, and nothing where its preferences were not read. A
- * child with no peer holds none: it is read
- * before the placement resizes it where it has no layout modifier, and gives null otherwise.
- */
+/** What the result its container settled on read from this child, or null where there is nothing to compare. */
 private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
     when {
         component.isDisplayable -> preferred
@@ -1190,7 +1237,7 @@ private fun ChildMeasurable.answersOtherwiseThan(read: Dimension?): Boolean =
     if (read == null) outerMeasurable != null else preferredExtent() != read
 
 /** A [MeasureResult] held with the reading order it must replay its placement under. */
-private class LayoutModifierPlaceable(
+internal class LayoutModifierPlaceable(
     override val node: LayoutModifierNode,
     private val result: MeasureResult,
     constraints: Constraints,
@@ -1424,18 +1471,6 @@ internal class InnerPlacementScope : PlacementScope() {
         child.owner.fitPaintOutsets(child)
     }
 }
-
-/** Reads behind what `preferredLayoutSize` answers, which Swing caches as the container's preferred size. */
-private val PreferredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what `minimumLayoutSize` answers, which Swing caches as the container's minimum size. */
-private val MinimumReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what [ChildMeasurables.measuredSize] answers, which the parent lays out with. */
-private val MeasuredReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
-
-/** Reads behind what [settledOn] answers, which this container places. */
-private val SettledReads: (SwingComponentNode<*>) -> Unit = { it.invalidateLayout() }
 
 /** Reads behind the children's bounds, which the placement block sets. */
 private val PlacementReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = { it.component.placeChildrenAgain() }

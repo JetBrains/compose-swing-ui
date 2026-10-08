@@ -140,8 +140,26 @@ internal class IntrinsicMeasurableAdapter(
     private val intrinsicSize: IntrinsicSize,
     private val widthHeight: IntrinsicWidthHeight,
     private val holdToMaximum: Boolean = false,
-) : Measurable {
+) : PreferencesMeasurable {
     override val parentData: Any? get() = source.parentData
+
+    override fun measureWithStockChildSizing(
+        constraints: Constraints,
+        maySizeStockChildren: Boolean,
+    ): Placeable = measure(constraints)
+
+    override fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        maxWidth: Int,
+        maySizeStockChildren: Boolean,
+    ): Int = source.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth, maySizeStockChildren)
+
+    override fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+        maySizeStockChildren: Boolean,
+    ): Placeable? = source.intrinsicPlaceable(width, height)
 
     override fun measure(constraints: Constraints): Placeable {
         val maximum = if (holdToMaximum) source.maximumSize() else null
