@@ -3,14 +3,30 @@ name: Validation
 on:
   workflow_call:
 
+env:
+  ANDROIDX_FORKS: :swing-ui-foundation :swing-ui-animation
+
 jobs:
-  build:
-    name: Build & Verify
+  verify:
+    name: Verify (${{ matrix.group }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       checks: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # A new module is gated here without being listed.
+          - group: swing-ui
+            tasks: >-
+              :buildSrc:ktlintCheck :buildSrc:detekt
+              build $(printf -- '-x %s:build ' $ANDROIDX_FORKS)
+
+          - group: androidx-forks
+            tasks: $(printf -- '%s:check ' $ANDROIDX_FORKS)
 
     steps:
       - uses: actions/checkout@v6
@@ -21,55 +37,43 @@ jobs:
         with:
           java-version: 21
 
-      # A virtual framebuffer gives the headless runner a display so tests that realize a real
-      # top-level window run instead of skipping. Gradle is launched under xvfb-run below.
       - shell: bash
         name: Install Virtual Framebuffer
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
 
-      # buildSrc is an included build, so the root gates below do not reach it. Run its
-      # ktlint/detekt explicitly first so a convention-plugin regression fails fast.
-      - shell: bash
-        name: Verify Build Logic
-        run: |
-          ./gradlew --no-daemon --stacktrace --continue \
-            :buildSrc:ktlintCheck :buildSrc:detekt
-
-      # `build` runs `check` for every module (compile, ktlintCheck, detekt including this
-      # project's own rules and the Compose rules, the Android Lint checks, test, checkKotlinAbi,
-      # and the jacocoTestCoverageVerification floors)
-      # plus `assemble`. Driving it generically gates new modules automatically without
-      # enumerating them. `checkKotlinAbi` validates the committed api/*.api dumps; it is named
-      # explicitly alongside `build` so it stands out in the step's task list. `--continue`
-      # reports every failure in a single run. Run under xvfb-run so window tests have a
-      # display and exercise real top-level peers.
       - shell: bash
         name: Build & Run Gates
-        run: |
-          xvfb-run --auto-servernum ./gradlew --no-daemon --stacktrace --continue \
-            build checkKotlinAbi
-
-      # The API reference is not part of `check`, so nothing above would notice if it stopped
-      # rendering. Build the aggregated site so a change that breaks it fails here rather than at
-      # release time. It needs no display.
-      - shell: bash
-        name: Build API Reference
-        run: |
-          ./gradlew --no-daemon --stacktrace \
-            dokkaGenerate
-
-      # Sanity-check that the publishing configuration resolves and produces artifacts.
-      - shell: bash
-        name: Publish Dry Run
-        run: |
-          ./gradlew --no-daemon --stacktrace \
-            publishToMavenLocal
+        run: xvfb-run --auto-servernum ./gradlew --no-daemon --stacktrace --continue ${{ matrix.tasks }}
 
       - uses: ./.github/actions/upload-test-report
         name: Upload Test Report
         if: always()
         with:
-          artifact-name: tests-results-unit
+          artifact-name: tests-results-${{ matrix.group }}
           upload-artifact: ${{ job.status == 'failure' }}
+
+  publishing:
+    name: Publishing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        name: Checkout Repository
+
+      - uses: ./.github/actions/setup-prerequisites
+        name: Setup Prerequisites
+        with:
+          java-version: 21
+
+      - shell: bash
+        name: Build API Reference
+        run: ./gradlew --no-daemon --stacktrace dokkaGenerate
+
+      - shell: bash
+        name: Publish Dry Run
+        run: ./gradlew --no-daemon --stacktrace publishToMavenLocal

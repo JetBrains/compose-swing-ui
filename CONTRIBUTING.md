@@ -87,11 +87,13 @@ before pushing:
 ./gradlew build
 ```
 
-CI runs the same two - the second on a display a virtual framebuffer supplies, so tests that realize a
-real top-level window run instead of skipping - and then `publishToMavenLocal` to check that the
-publishing configuration still resolves. Nothing manages that display, and the toolkit answers for the
-capabilities of whatever does, so the tests that need maximizing, always-on-top or a system tray gate
-themselves on the capability and report as skipped there.
+CI runs the same gates as parallel jobs (see `.github/workflows/validation.yml`). CI also runs `dokkaGenerate` and `publishToMavenLocal`,
+which `build` does not reach, to check that the API reference renders and the publishing
+configuration resolves; run them locally too when a change touches either. Test jobs use a virtual
+framebuffer so tests that realize a real top-level window run instead of skipping. Nothing manages
+that display, and the toolkit answers for the capabilities of whatever does, so the tests that need
+maximizing, always-on-top or a system tray gate themselves on the capability and report as skipped
+there.
 
 Piece by piece:
 
