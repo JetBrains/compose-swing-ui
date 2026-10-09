@@ -58,7 +58,6 @@ import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.foundation.layout.withOfferedMinWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Dimension
-import kotlin.math.max
 
 // Derived from androidx.compose.animation.AnimatedVisibility: the entry points, the defaults each one is
 // tailored with, the emission gate, the enter/exit tracking and the measure policy are upstream's, with
@@ -88,9 +87,21 @@ import kotlin.math.max
  * `clip = false` on [expandIn] or [shrinkOut] to let content extend past the animated size under a
  * Foundation parent. A stock Swing ancestor still clips at its own bounds.
  *
+ * While a transition that changes size runs, the content is measured with no maximum width and no maximum height, so
+ * it takes its own size on both axes, and the container clips it to the animated size. An enter changes size when it
+ * includes [expandIn], [expandHorizontally] or [expandVertically], and an exit when it includes [shrinkOut],
+ * [shrinkHorizontally] or [shrinkVertically], so a fade-only enter is not released although the default exit shrinks.
+ * The change lasts until the transition ends, not until its size animation does. In every other measurement the
+ * content is measured with the maximum width and height the container is measured with, and never with a minimum.
+ *
+ * So the content is measured again in the parent's space when the transition ends. Content that depends on that space,
+ * such as content that fills, keeps an aspect ratio or wraps text, can change size at that moment. A parent that offers
+ * less room than the content's own size can show no size change until the transition ends, and a change to the
+ * container's bounds takes effect when the transition ends. Inside a Foundation layout, use the scoped overload: it
+ * measures the content with that layout's constraints for the whole transition.
+ *
  * Container scaling requires a Foundation layout parent; use the overload scoped to a
- * [ConstrainedScope] for scale transitions. Content whose height depends on its width reports a preferred
- * size the animation cannot match.
+ * [ConstrainedScope] for scale transitions.
  *
  * Text loses LCD subpixel antialiasing while a fade runs: a fade paints through a translucent buffer, and
  * the JDK renders subpixel text only onto an opaque surface. A heavyweight child paints outside the
@@ -596,23 +607,16 @@ private class AnimatedEnterExitMeasurePolicy(
  * children, because no Foundation parent runs them.
  *
  * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size. While
- * the transition runs, the bounds the parent assigns follow the animation, not the available space, so the content is
- * offered at least the size it was last measured at. Every intrinsic query asks the content at the extent [measure]
- * would offer it for that query, so a height that follows the width is answered for the width the content gets.
+ * [EnterExitTransitionLayout.sizeChangeRuns], the content is measured with no maximum on either axis and is clipped to
+ * the animated bounds. Otherwise the content is measured with the incoming maxima, minima dropped.
  */
 private class EnterExitContainerMeasurePolicy(
     val scope: AnimatedVisibilityScopeImpl,
     val layout: EnterExitTransitionLayout,
 ) : MeasurePolicy {
-    private val transitionRuns: Boolean
-        get() {
-            val transition = layout.transition
-            return transition.currentState != transition.targetState || transition.pendingTargetState != null
-        }
+    private fun offeredWidth(width: Int): Int = if (layout.sizeChangeRuns) Constraints.Infinity else width
 
-    private fun offeredWidth(width: Int): Int = if (transitionRuns) max(width, layout.contentWidth) else width
-
-    private fun offeredHeight(height: Int): Int = if (transitionRuns) max(height, layout.contentHeight) else height
+    private fun offeredHeight(height: Int): Int = if (layout.sizeChangeRuns) Constraints.Infinity else height
 
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
@@ -659,11 +663,14 @@ private class EnterExitContainerMeasurePolicy(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
         height: Int,
-    ): Dimension =
-        layout.intrinsicSize(
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(offeredHeight(height)) },
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(offeredWidth(width)) },
+    ): Dimension {
+        val offeredWidth = offeredWidth(width)
+        val offeredHeight = offeredHeight(height)
+        return layout.intrinsicSize(
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(offeredHeight) },
+            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(offeredWidth) },
         )
+    }
 }
 
 // This converts Boolean visible to EnterExitState

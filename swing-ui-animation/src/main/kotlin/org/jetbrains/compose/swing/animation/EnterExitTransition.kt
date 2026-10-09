@@ -401,11 +401,13 @@ internal class ExitTransitionImpl(
  * with the interrupted one for an enter picked up partway.
  *
  * A settled-visible container tracks [EnterTransition.None], so that a later exit is not combined with
- * the enter that brought the content in.
+ * the enter that brought the content in, and a composition that starts exiting tracks none, as no enter ran.
  */
 @Composable
 internal fun Transition<EnterExitState>.trackActiveEnter(enter: EnterTransition): EnterTransition {
-    var activeEnter by remember(this) { mutableStateOf(enter) }
+    var activeEnter by remember(this) {
+        mutableStateOf(if (targetState == EnterExitState.PostExit) EnterTransition.None else enter)
+    }
     if (currentState == targetState && currentState == EnterExitState.Visible) {
         activeEnter = if (isSeeking) enter else EnterTransition.None
     } else if (targetState != EnterExitState.PostExit) {
@@ -1015,6 +1017,28 @@ internal class EnterExitTransitionLayout(
                 }
             }
     }
+
+    /**
+     * Whether the transition that runs changes the size. It does when the tracked enter does, and when the tracked
+     * exit does while the transition is heading to or leaving [EnterExitState.PostExit]. The tracked enter holds the
+     * enter that ran, an enter an exit interrupted included, so a fade-only enter is no size change although the
+     * default exit shrinks, and an exit that only fades does not end the size change of the expand it interrupted.
+     * The size change lasts until the transition ends, not until its size animation does.
+     */
+    @OptIn(ExperimentalDeferredTransitionApi::class)
+    val sizeChangeRuns: Boolean
+        get() {
+            val transition = transition
+            if (transition.currentState == transition.targetState && transition.pendingTargetState == null) return false
+            return enter.config.changeSize != null ||
+                (
+                    exit.config.changeSize != null &&
+                        (
+                            transition.currentState == EnterExitState.PostExit ||
+                                transition.targetState == EnterExitState.PostExit
+                        )
+                )
+        }
 
     /**
      * The current transition size for content of [fullWidth] by [fullHeight]. A size query may measure the content at a

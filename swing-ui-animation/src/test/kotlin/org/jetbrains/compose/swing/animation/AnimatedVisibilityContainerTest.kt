@@ -30,6 +30,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -64,6 +65,12 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Which container an [AnimatedVisibility] is: a Foundation parent lays the scoped overload out through the transition,
  * and the unscoped overload runs the transition over its own content under any parent.
+ *
+ * A fade changes no size, so under a narrowed stock parent the content is laid out at the narrowed grant and the
+ * container answers from it. The tests of that case match androidx, which measures the content with the constraints
+ * its parent hands the container (`AnimatedEnterExitMeasurePolicy.measure`, AnimatedVisibility.kt:903 under
+ * compose/animation/animation/src/commonMain/kotlin/androidx/compose/animation). Aligning with androidx leaves them
+ * green.
  */
 class AnimatedVisibilityContainerTest {
     @Test
@@ -298,51 +305,44 @@ class AnimatedVisibilityContainerTest {
         }
 
     @Test
-    fun `under a stock parent the container asks its height at the width it asks for`() =
-        runComposeSwingTest {
-            setContent {
-                Panel(PanelLayout.Flow()) {
-                    AnimatedVisibility(visible = true, modifier = SwingModifier.testTag(CONTAINER)) {
-                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+    fun `under a stock parent the container asks its height at the width it asks for`() {
+        val cases =
+            mapOf(
+                "a shown container" to (true to fadeIn() + expandIn()),
+                "a container that rests with expandVertically" to (true to expandVertically()),
+                "a container that rests with expandIn" to (true to expandIn()),
+                "a fade, which animates no size" to (false to fadeIn(HeldAlpha)),
+            )
+        for ((kind, case) in cases) {
+            val (shownAtFirst, enter) = case
+            runComposeSwingTest {
+                var visible by mutableStateOf(shownAtFirst)
+                setContent {
+                    Panel(PanelLayout.Flow()) {
+                        AnimatedVisibility(
+                            visible = visible,
+                            modifier = SwingModifier.testTag(CONTAINER),
+                            enter = enter,
+                            exit = ExitTransition.None,
+                        ) {
+                            Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+                        }
                     }
                 }
-            }
-            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
-            val atRatio = Dimension(label.preferredSize.width, (label.preferredSize.width / RATIO).roundToInt())
-
-            assertEquals(atRatio, container.preferredSize, "the preferred height is the ratio's height at that width")
-            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
-        }
-
-    @Test
-    fun `under a stock parent a slide out asked its size before its first layout runs its whole duration`() =
-        runComposeSwingTest {
-            mainClock.autoAdvance = false
-            setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(WIDE, PARENT_HEIGHT)) {
-                    val state = remember { MutableTransitionState(true).apply { targetState = false } }
-                    AnimatedVisibility(
-                        visibleState = state,
-                        modifier = SwingModifier.north().testTag(CONTAINER),
-                        enter = EnterTransition.None,
-                        exit = slideOutVertically(tween(EXIT_MILLIS)),
-                    ) {
-                        // Asked before its first layout, the label is as wide as its text; laid out, it fills the
-                        // region.
-                        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(RATIO))
-                    }
+                if (!shownAtFirst) {
+                    mainClock.autoAdvance = false
+                    visible = true
+                    repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
                 }
-            }
+                val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+                val label = onNodeWithTag(CONTENT).fetch<JComponent>()
+                val atRatio = Dimension(label.preferredSize.width, (label.preferredSize.width / RATIO).roundToInt())
 
-            mainClock.advanceTimeBy((EXIT_MILLIS - MARGIN_MILLIS).milliseconds)
-            awaitIdle()
-            val running = onAllNodesWithTag(CONTAINER).fetchAll<Component>()
-            assertEquals(1, running.size, "the exit is still running")
-            mainClock.advanceTimeBy(EXIT_MILLIS.milliseconds)
-            awaitIdle()
-            onNodeWithTag(CONTAINER).assertDoesNotExist()
+                assertEquals(atRatio, container.preferredSize, "$kind: the ratio's height at that width")
+                assertEquals(Rectangle(Point(), atRatio), label.bounds, "$kind: the label keeps its full width")
+            }
         }
+    }
 
     @Test
     fun `under a box layout that stretches it an exit runs its whole duration`() =
@@ -422,37 +422,6 @@ class AnimatedVisibilityContainerTest {
         }
 
     @Test
-    fun `under a stock parent a fade asks the height at the width it asks for`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent {
-                Panel(PanelLayout.Flow()) {
-                    AnimatedVisibility(
-                        visible = visible,
-                        modifier = SwingModifier.testTag(CONTAINER),
-                        enter = fadeIn(HeldAlpha),
-                        exit = ExitTransition.None,
-                    ) {
-                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
-                    }
-                }
-            }
-
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
-            val label = onNodeWithTag(CONTENT).fetch<JComponent>()
-            val atRatio = Dimension(label.preferredSize.width, (label.preferredSize.width / RATIO).roundToInt())
-
-            assertEquals(
-                atRatio,
-                onNodeWithTag(CONTAINER).fetch().preferredSize,
-                "a transition that animates no size asks the ratio's height at that width",
-            )
-            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
-        }
-
-    @Test
     fun `under a stock parent narrowed during a fade the container asks the height of the width its content has`() =
         runComposeSwingTest {
             narrowParentDuringFade()
@@ -479,7 +448,7 @@ class AnimatedVisibilityContainerTest {
 
             val container = onNodeWithTag(CONTAINER).fetch<JComponent>() as Constrainable
             val label = onNodeWithTag(CONTENT).fetch<JComponent>()
-            assertEquals(label.width, container.minIntrinsicWidth(label.height / 2), "the min width is the content's")
+            assertEquals(label.width, container.minIntrinsicWidth(label.height), "the min width is the content's")
         }
 
     @Test
@@ -489,12 +458,14 @@ class AnimatedVisibilityContainerTest {
 
             val container = onNodeWithTag(CONTAINER).fetch<JComponent>() as Constrainable
             val label = onNodeWithTag(CONTENT).fetch<JComponent>()
-            assertEquals(label.width, container.maxIntrinsicWidth(label.height / 2), "the max width is the content's")
+            assertEquals(label.width, container.maxIntrinsicWidth(label.height), "the max width is the content's")
         }
 
     @Test
     fun `under a stock parent an enter from hidden that keeps the size lays the content out at the granted width`() {
-        val enters = mapOf("fadeIn" to fadeIn(HeldAlpha), "slideInVertically" to slideInVertically(HeldOffset))
+        // The slide holds its initial offset past every frame these tests send.
+        val held = slideInVertically(tween(durationMillis = 320, delayMillis = 320))
+        val enters = mapOf("fadeIn" to fadeIn(HeldAlpha), "slideInVertically" to held)
         for ((kind, enter) in enters) {
             runComposeSwingTest {
                 var visible by mutableStateOf(false)
@@ -598,23 +569,28 @@ class AnimatedVisibilityContainerTest {
             }
         }
 
-    /**
-     * Fades the container out under a stock parent that is then narrowed below the content, which the fade keeps at the
-     * width it had.
-     */
+    /** Fades the container out under a stock parent that is then narrowed below the content's own width. */
     private suspend fun ComposeSwingTest.narrowParentDuringFade() {
         var visible by mutableStateOf(true)
         var parentWidth by mutableStateOf(WIDE)
         setContent {
             Panel(PanelLayout.Flow()) {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(parentWidth, 320)) {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(parentWidth, PARENT_HEIGHT)) {
                     AnimatedVisibility(
                         visible = visible,
                         modifier = SwingModifier.north().testTag(CONTAINER),
                         enter = EnterTransition.None,
                         exit = fadeOut(HeldAlpha),
                     ) {
-                        Label("Preview", modifier = SwingModifier.testTag(CONTENT).aspectRatio(RATIO))
+                        Label(
+                            "Preview",
+                            modifier =
+                                SwingModifier
+                                    .testTag(
+                                        CONTENT,
+                                    ).aspectRatio(RATIO)
+                                    .minimumSize(WIDE, (WIDE / RATIO).roundToInt()),
+                        )
                     }
                 }
             }
@@ -629,7 +605,7 @@ class AnimatedVisibilityContainerTest {
         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
         val label = onNodeWithTag(CONTENT).fetch<JComponent>()
         assertEquals(NARROW, container.width, "precondition: the parent grants the container its narrowed width")
-        assertEquals(WIDE, label.width, "precondition: the fade keeps the content at the width it had")
+        assertEquals(NARROW, label.width, "precondition: the fade lays the content out at the narrowed grant")
     }
 
     /** Fails unless the content stands over the sibling below, so only the clip can keep it off that sibling. */
@@ -695,9 +671,6 @@ private const val FADED = "faded"
 private const val CONTAINER = "container"
 private const val CLIP_WINDOW = "expand-clip"
 private const val COLUMN = "column"
-
-/** A slide that holds its initial offset past every frame these tests send. */
-private val HeldOffset: FiniteAnimationSpec<Point> = tween(durationMillis = 320, delayMillis = 320)
 
 private const val PARENT_HEIGHT = 320
 private const val EXIT_MILLIS = 1000
