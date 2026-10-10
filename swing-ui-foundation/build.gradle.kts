@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
+    `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
@@ -25,6 +26,11 @@ dependencies {
     // @FloatRange on public declarations, mirroring upstream ui and foundation's api dependency.
     api(libs.androidxAnnotation)
     api(project(":swing-ui"))
+
+    // The question-width fixtures, which the animation module's tests reuse.
+    testFixturesImplementation(kotlin("test"))
+    testFixturesImplementation(testFixtures(project(":swing-ui")))
+    testFixturesImplementation(project(":swing-ui-test"))
 
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":swing-ui")))

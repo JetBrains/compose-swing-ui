@@ -663,6 +663,14 @@ class FirstBaselineTest {
         override val constrainedHeight: Int get() = CHILD_HEIGHT
 
         override val alignmentLines: Map<AlignmentLine, Int> get() = mapOf(FirstBaseline to OWN_LINE)
+
+        override fun minIntrinsicWidth(height: Int): Int = CHILD_WIDTH
+
+        override fun maxIntrinsicWidth(height: Int): Int = CHILD_WIDTH
+
+        override fun minIntrinsicHeight(width: Int): Int = CHILD_HEIGHT
+
+        override fun maxIntrinsicHeight(width: Int): Int = CHILD_HEIGHT
     }
 
     private companion object {

@@ -401,11 +401,13 @@ internal class ExitTransitionImpl(
  * with the interrupted one for an enter picked up partway.
  *
  * A settled-visible container tracks [EnterTransition.None], so that a later exit is not combined with
- * the enter that brought the content in.
+ * the enter that brought the content in, and a composition that starts exiting tracks none, as no enter ran.
  */
 @Composable
 internal fun Transition<EnterExitState>.trackActiveEnter(enter: EnterTransition): EnterTransition {
-    var activeEnter by remember(this) { mutableStateOf(enter) }
+    var activeEnter by remember(this) {
+        mutableStateOf(if (targetState == EnterExitState.PostExit) EnterTransition.None else enter)
+    }
     if (currentState == targetState && currentState == EnterExitState.Visible) {
         activeEnter = if (isSeeking) enter else EnterTransition.None
     } else if (targetState != EnterExitState.PostExit) {
@@ -960,7 +962,6 @@ internal class EnterExitTransitionLayout(
     private var currentSize = Dimension()
     private var offsetDelta: State<Point>? = null
     private var animSizeState: State<Dimension>? = null
-    private var hasMeasured = false
     private var animSlideOffsetState: State<Point>? = null
 
     /** The width [measure] settled on. */
@@ -1000,7 +1001,6 @@ internal class EnterExitTransitionLayout(
         target = measuredSize
         val animSize = sizeAnimation?.animate(sizeTransitionSpec) { sizeByState(it, measuredSize) }
         animSizeState = animSize
-        hasMeasured = true
         currentSize = constraints.constrain(animSize?.value ?: measuredSize)
         offsetDelta = offsetAnimation?.animate({ DefaultOffsetAnimationSpec }) { targetOffsetByState(it, measuredSize) }
         val mutableTransformState = mutableTransformState
@@ -1019,20 +1019,36 @@ internal class EnterExitTransitionLayout(
     }
 
     /**
-     * The current transition size for content of [fullWidth] by [fullHeight]. After the first measure pass it does not
-     * set up an animation: a size query and the following layout pass may measure the content at different sizes,
-     * and only the layout pass may set the animation's target.
+     * Whether the transition that runs changes the size. It does when the tracked enter does, and when the tracked
+     * exit does while the transition is heading to or leaving [EnterExitState.PostExit]. The tracked enter holds the
+     * enter that ran, an enter an exit interrupted included, so a fade-only enter is no size change although the
+     * default exit shrinks, and an exit that only fades does not end the size change of the expand it interrupted.
+     * The size change lasts until the transition ends, not until its size animation does.
+     */
+    @OptIn(ExperimentalDeferredTransitionApi::class)
+    val sizeChangeRuns: Boolean
+        get() {
+            val transition = transition
+            if (transition.currentState == transition.targetState && transition.pendingTargetState == null) return false
+            return enter.config.changeSize != null ||
+                (
+                    exit.config.changeSize != null &&
+                        (
+                            transition.currentState == EnterExitState.PostExit ||
+                                transition.targetState == EnterExitState.PostExit
+                        )
+                )
+        }
+
+    /**
+     * The current transition size for content of [fullWidth] by [fullHeight]. A size query may measure the content at a
+     * size the following layout pass does not grant, so a query hands the animations no target; only the layout pass
+     * does. Reading the animated size can still update the animation's states for a new segment.
      */
     fun intrinsicSize(
         fullWidth: Int,
         fullHeight: Int,
-    ): Dimension {
-        if (!hasMeasured) {
-            measure(fullWidth, fullHeight, Unconstrained)
-            return Dimension(width, height)
-        }
-        return animSizeState?.value ?: Dimension(fullWidth, fullHeight)
-    }
+    ): Dimension = animSizeState?.value ?: Dimension(fullWidth, fullHeight)
 
     /** Resolves [contentX] and [contentY] for the result [measure] settled on; called while placing. */
     fun place() {
@@ -1051,8 +1067,6 @@ internal class EnterExitTransitionLayout(
 
 /** Read and never written or handed out. */
 private val ZeroOffset = Point(0, 0)
-
-private val Unconstrained = Constraints()
 
 private class EnterExitTransitionElement(
     val layout: EnterExitTransitionLayout,

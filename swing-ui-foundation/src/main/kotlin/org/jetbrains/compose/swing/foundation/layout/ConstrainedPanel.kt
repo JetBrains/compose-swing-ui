@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
 import org.jetbrains.compose.swing.node.asNodeOf
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Container
@@ -41,8 +42,8 @@ import javax.swing.SwingUtilities
  * declared here as `JPanel.AccessibleJPanel` does. Without it, a name set through the `accessibleName` modifier has
  * nowhere to land.
  *
- * Records the reads behind its measure, placement and paint under the first attached node holding it, and records
- * them under the next one when that node detaches.
+ * Records the reads behind its sizes, measure, placement and paint under the first attached node holding it, and
+ * records them under the next one when that node detaches.
  */
 @Suppress("TooManyFunctions")
 // The Swing component of a Foundation container: what Swing calls on a component, what its container's layout calls
@@ -173,6 +174,7 @@ internal open class ConstrainedPanel(
     }
 
     override fun paint(g: Graphics) {
+        policyLayout.measurables.revalidateWhereHeightChanged()
         paintGraphics = g
         try {
             policyLayout.observe(PaintReads, paintBlock)
@@ -228,8 +230,8 @@ internal open class ConstrainedPanel(
     /**
      * A child moved by a placement replay reports an invalidation that replay has already answered, and so
      * does the [StackingOrder.restack] it ends with: `setComponentZOrder` invalidates this panel, and a
-     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets, nor
-     * adding or removing the [glassPane].
+     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets, adding or
+     * removing the [glassPane], nor a child sized for a height question and given its size back.
      *
      * Resized by its parent's fit, the panel keeps its layout bounds but answers other sizes, which carry its paint
      * outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
@@ -237,9 +239,11 @@ internal open class ConstrainedPanel(
      */
     override fun invalidate() {
         val measurables = policyLayout.measurables
-        if (measurables.isFittingPaintOutsets && measurables.beingPlaced) return super.invalidate()
-        if (measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets }) return
-        super.invalidate()
+        when {
+            measurables.isFittingPaintOutsets && measurables.isKeepingSettledResult -> super.invalidate()
+            measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets } -> Unit
+            else -> super.invalidate()
+        }
     }
 
     private var measured: Dimension = Dimension()
@@ -254,10 +258,11 @@ internal open class ConstrainedPanel(
         y: Int,
         width: Int,
         height: Int,
-    ) = policyLayout.measurables.during(RunningCause.ParentPlacement) {
-        super.setBounds(x, y, width, height)
-        glassPane?.setBounds(0, 0, width, height)
-    }
+    ): Unit =
+        policyLayout.measurables.during(RunningCause.SettledResultKept) {
+            super.setBounds(x, y, width, height)
+            glassPane?.setBounds(0, 0, width, height)
+        }
 
     /**
      * A size set on the component outright answers for it, as it does for `getPreferredSize()`: setting
@@ -269,8 +274,148 @@ internal open class ConstrainedPanel(
             if (isPreferredSizeSet) {
                 super.getPreferredSize()
             } else {
-                policyLayout.measurables.measuredSize(constraints)
+                policyLayout.measurables.run { during(RunningCause.SettledResultKept) { measuredSize(constraints) } }
             }
+    }
+
+    /**
+     * A size set on the component outright answers the max functions, and a minimum size set answers the min ones, as
+     * they answer `getPreferredSize()` and `getMinimumSize()`. Otherwise the policy's own intrinsic functions answer,
+     * inside the border insets, as androidx answers a layout's intrinsics from its measure policy.
+     */
+    final override fun minIntrinsicWidth(height: Int): Int =
+        if (isMinimumSizeSet) {
+            minimumSize.width
+        } else {
+            policyWidth(IntrinsicSize.Min, height)
+        }
+
+    final override fun maxIntrinsicWidth(height: Int): Int =
+        if (isPreferredSizeSet) {
+            preferredSize.width
+        } else {
+            policyWidth(IntrinsicSize.Max, height)
+        }
+
+    final override fun minIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Min, 0, width)
+
+    final override fun maxIntrinsicHeight(width: Int): Int = intrinsicHeightUnder(IntrinsicSize.Max, 0, width)
+
+    /**
+     * The [intrinsicSize] height under an offer of a width from [minWidth] up to [width], as a Foundation parent asks
+     * it. A set size answers as it does for [minIntrinsicHeight] and [maxIntrinsicHeight].
+     */
+    internal fun intrinsicHeightUnder(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int =
+        when {
+            intrinsicSize == IntrinsicSize.Min && isMinimumSizeSet -> minimumSize.height
+            intrinsicSize == IntrinsicSize.Max && isPreferredSizeSet -> preferredSize.height
+            else -> policyHeight(intrinsicSize, minWidth, width)
+        }
+
+    /**
+     * The policy's [intrinsicSize] height at the inner [width], run under the inner offer from [minWidth], plus the
+     * border's top and bottom insets. Asked by a stock parent while invalid and not validating, the panel is laid out
+     * next, so its stock children are sized to the width asked first. Asked by a stock parent whose layout follows, the
+     * answer is kept for a paint to check; see [revalidateWhereHeightChanged].
+     */
+    private fun policyHeight(
+        intrinsicSize: IntrinsicSize,
+        minWidth: Int,
+        width: Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(width, insets.left, insets.right)
+        val innerMinWidth = innerExtent(minWidth, insets.left, insets.right)
+        val scope = widthOfferScope(innerMinWidth.coerceAtMost(inner))
+        val answered =
+            policyLayout.measurables.run {
+                val beforeLayout = stockParentLaysOutNext
+                // An invalid panel takes no invalidation from its children, so the settled-result mark is needed only
+                // while it is valid.
+                val cause = if (beforeLayout) RunningCause.AnsweringBeforeLayout else RunningCause.SettledResultKept
+                val reads = if (intrinsicSize == IntrinsicSize.Min) AnswerReads.MinHeight else AnswerReads.MaxHeight
+                val height =
+                    during(cause) { observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Height, inner, reads, scope) }
+                recordStockAnswer {
+                    // The children of a valid panel answer at the width it was laid out at.
+                    val workedOutAt = if (beforeLayout) inner else innerWidth()
+                    answeredHeight(
+                        width = workedOutAt,
+                        asked = inner,
+                        height = height,
+                        intrinsicSize = intrinsicSize,
+                        forNextLayout = beforeLayout,
+                    )
+                }
+                height
+            }
+        return answered.grownBy(insets.top.grownBy(insets.bottom))
+    }
+
+    /** Which intrinsic function of the policy [intrinsicBlock] runs, at which extent and in which scope. */
+    private var askedIntrinsicSize = IntrinsicSize.Max
+    private var askedAxis = IntrinsicWidthHeight.Width
+    private var askedExtent = 0
+    private var askedScope: IntrinsicMeasureScope = PolicyMeasureScope
+
+    private var intrinsicAnswer = 0
+
+    // Stored once and reading its inputs from fields, so observing an answer allocates nothing per call.
+    private val intrinsicBlock: () -> Unit = {
+        val extent = askedExtent
+        val scope = askedScope
+        val height = askedAxis == IntrinsicWidthHeight.Height
+        val max = askedIntrinsicSize == IntrinsicSize.Max
+        intrinsicAnswer =
+            policyLayout.measurables.askPolicy { children ->
+                with(scope) {
+                    when {
+                        height && max -> maxIntrinsicHeight(children, extent)
+                        height -> minIntrinsicHeight(children, extent)
+                        max -> maxIntrinsicWidth(children, extent)
+                        else -> minIntrinsicWidth(children, extent)
+                    }
+                }
+            }
+    }
+
+    /**
+     * What the policy's [intrinsicSize] function on [axis] answers at the inner [extent] in [scope], its reads recorded
+     * under [reads], a callback for this answer alone, so recording them drops no reads behind another answer.
+     */
+    internal fun observedIntrinsic(
+        intrinsicSize: IntrinsicSize,
+        axis: IntrinsicWidthHeight,
+        extent: Int,
+        reads: (SwingComponentNode<*>) -> Unit,
+        scope: IntrinsicMeasureScope = PolicyMeasureScope,
+    ): Int {
+        askedIntrinsicSize = intrinsicSize
+        askedAxis = axis
+        askedExtent = extent
+        askedScope = scope
+        policyLayout.observe(reads, intrinsicBlock)
+        return intrinsicAnswer
+    }
+
+    private fun policyWidth(
+        intrinsicSize: IntrinsicSize,
+        height: Int,
+    ): Int {
+        val insets = borderInsets()
+        val inner = innerExtent(height, insets.top, insets.bottom)
+        val answered =
+            policyLayout.measurables.run {
+                val reads = if (intrinsicSize == IntrinsicSize.Min) AnswerReads.MinWidth else AnswerReads.MaxWidth
+                during(RunningCause.SettledResultKept) {
+                    observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Width, inner, reads)
+                }
+            }
+        return answered.grownBy(insets.left.grownBy(insets.right))
     }
 
     /**
@@ -567,5 +712,39 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
     return side(viewport.size) > side(preferredSize)
 }
 
+/**
+ * The answers of a container that invalidate its layout when what they read changes. Each answer records its reads
+ * under the callback of its own entry, so recording one drops no reads behind another; see [observe].
+ */
+internal enum class AnswerReads : (SwingComponentNode<*>) -> Unit {
+    /** What `preferredLayoutSize` answers, which Swing caches as the container's preferred size. */
+    Preferred,
+
+    /** What `minimumLayoutSize` answers, which Swing caches as the container's minimum size. */
+    Minimum,
+
+    /** What [ChildMeasurables.measuredSize] answers, which the parent lays out with. */
+    Measured,
+
+    /** What [settledOn] answers, which this container places. */
+    Settled,
+    MinWidth,
+    MaxWidth,
+    MinHeight,
+    MaxHeight,
+
+    /** The height a layout pass lays the content out at, which the stock parent grants next. */
+    ContentHeight,
+    CheckedMinHeight,
+    CheckedMaxHeight,
+    ;
+
+    override fun invoke(node: SwingComponentNode<*>) = node.invalidateLayout()
+}
+
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */
 private val PaintReads: (SwingComponentNode<*>) -> Unit = { it.component.repaint() }
+
+/** This panel's layout width less its [insets] on the left and right: the width its policy lays out in. */
+internal fun ConstrainedPanel.innerWidth(insets: Insets = borderInsets()): Int =
+    innerExtent(decoration.layoutWidth(this), insets.left, insets.right)

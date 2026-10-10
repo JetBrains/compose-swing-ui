@@ -62,3 +62,14 @@ internal fun ChildMeasurable.layoutBaseline(
         component.getBaseline(width.grownBy(outsets.left + outsets.right), height.grownBy(outsets.top + outsets.bottom))
     return if (baseline < 0) baseline else baseline - outsets.top
 }
+
+/**
+ * Lays this child's markup out at the size it holds where its width changed [widthChanged], by asking it its baseline.
+ * A label showing HTML lays its markup out at a new width only there or when painted, and a paint that lays it out
+ * revalidates it where its height changes, which starts another validation. Its preferred size and its baseline answer
+ * from the markup as last laid out: `getBaseline` places the text by the markup's height before it lays the markup out
+ * at the width asked. So a question at a new width lays the markup out first. A new height alone never reflows markup.
+ */
+internal fun ChildMeasurable.layOutMarkup(widthChanged: Boolean) {
+    if (widthChanged) layoutBaseline(layoutWidth, layoutHeight)
+}

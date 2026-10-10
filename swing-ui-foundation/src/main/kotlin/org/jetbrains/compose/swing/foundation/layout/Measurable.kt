@@ -33,10 +33,16 @@ public sealed interface IntrinsicMeasurable {
     /** The width beyond which growing this child no longer reduces its height at [height]. */
     public fun maxIntrinsicWidth(height: Int): Int
 
-    /** The least height that lets this child paint correctly when it is [width] wide. */
+    /**
+     * The least height that lets this child paint correctly when it is [width] wide. A direct ask carries no width
+     * offer; see [IntrinsicMeasureScope.offeredMinWidth].
+     */
     public fun minIntrinsicHeight(width: Int): Int
 
-    /** The height beyond which growing this child no longer reduces its width at [width]. */
+    /**
+     * The height beyond which growing this child no longer reduces its width at [width]. A direct ask carries no width
+     * offer; see [IntrinsicMeasureScope.offeredMinWidth].
+     */
     public fun maxIntrinsicHeight(width: Int): Int
 
     /**
@@ -62,7 +68,7 @@ public sealed interface IntrinsicMeasurable {
  *
  * Swing widgets expose argument-less preferred and minimum sizes, rather than a cross-axis-sensitive
  * intrinsic protocol. Foundation therefore answers its intrinsic functions from those stock Swing
- * sizes, while policy containers forward the question through their own policy.
+ * sizes, while a [Constrainable], such as a policy container, answers them at the extent asked.
  */
 public sealed interface Measurable : IntrinsicMeasurable {
     /**
@@ -80,7 +86,18 @@ public sealed interface Measurable : IntrinsicMeasurable {
 }
 
 /** The receiver of a [MeasurePolicy]'s four intrinsic measurement functions. */
-public sealed interface IntrinsicMeasureScope
+public sealed interface IntrinsicMeasureScope {
+    /**
+     * The least width of the offer the height question answered in this scope is asked under, at most the width asked,
+     * or 0 where the offer has none. It is 0 in `measure`, whose constraints carry the minimum.
+     *
+     * The default intrinsic functions of a [MeasurePolicy] and of a [LayoutModifierNode] measure under it, and the
+     * measurable a [LayoutModifierNode] is handed answers its height questions under it. A [MeasurePolicy] that
+     * overrides its height functions passes it on to a child only through [withOfferedMinWidth], as one whose `measure`
+     * keeps the minimum does.
+     */
+    public val offeredMinWidth: Int
+}
 
 /**
  * A child measured, and the handle its container places it by.

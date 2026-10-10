@@ -569,11 +569,7 @@ class PlacementRotationTest {
                         ) {
                             Layout(
                                 content = { SizedChild(0) },
-                                measurePolicy = { measurables, constraints ->
-                                    contentMeasures++
-                                    val placeable = measurables.single().measure(constraints)
-                                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                                },
+                                measurePolicy = countingMeasures { contentMeasures++ },
                             )
                         }
                     },
@@ -589,6 +585,42 @@ class PlacementRotationTest {
             awaitIdle()
 
             assertEquals(1, contentMeasures, "following the moved paint outsets must not measure the content again")
+        }
+
+    /**
+     * Measures its one child under the constraints it is offered and takes the child's size, running [counted] for each
+     * measure. Its intrinsic functions answer the child's own, so an intrinsic question runs no measure.
+     */
+    private fun countingMeasures(counted: () -> Unit): MeasurePolicy =
+        object : MeasurePolicy {
+            override fun MeasureScope.measure(
+                measurables: List<Measurable>,
+                constraints: Constraints,
+            ): MeasureResult {
+                counted()
+                val placeable = measurables.single().measure(constraints)
+                return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+
+            override fun IntrinsicMeasureScope.minIntrinsicWidth(
+                measurables: List<IntrinsicMeasurable>,
+                height: Int,
+            ): Int = measurables.single().minIntrinsicWidth(height)
+
+            override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                measurables: List<IntrinsicMeasurable>,
+                height: Int,
+            ): Int = measurables.single().maxIntrinsicWidth(height)
+
+            override fun IntrinsicMeasureScope.minIntrinsicHeight(
+                measurables: List<IntrinsicMeasurable>,
+                width: Int,
+            ): Int = measurables.single().minIntrinsicHeight(width)
+
+            override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                measurables: List<IntrinsicMeasurable>,
+                width: Int,
+            ): Int = measurables.single().maxIntrinsicHeight(width)
         }
 
     /** A fade and a turn set in one block paint what a fading layer holding a turning layer paints. */

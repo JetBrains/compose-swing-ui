@@ -28,6 +28,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import java.awt.ComponentOrientation
 import java.awt.Dimension
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
@@ -139,21 +140,13 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
                 targetSpace.toLong() - fixedSpace - arrangementSpacingTotal,
             ).coerceAtLeast(0)
         val weightUnitSpace = remainingToTarget / totalWeight
-        var remainder = remainingToTarget
-        for (index in measurables.indices) {
-            val weight = measurables[index].linearConstraint?.weight ?: continue
-            remainder -= (weightUnitSpace * weight.weight).roundToInt()
-        }
+        val remainder = weightRoundingRemainder(remainingToTarget, weightUnitSpace, measurables)
+        var weightedOrdinal = 0
         for (index in measurables.indices) {
             if (placeables[index] != null) continue
             val child = measurables[index]
             val weight = checkNotNull(child.linearConstraint?.weight)
-            val remainderUnit = remainder.sign
-            remainder -= remainderUnit
-            val allocated =
-                saturateLayoutCoordinate(
-                    (weightUnitSpace * weight.weight).roundToInt().toLong() + remainderUnit,
-                ).coerceAtLeast(0)
+            val allocated = weightedShare(weightUnitSpace, weight.weight, remainder, weightedOrdinal++)
             val childMainAxisSize = child.cappedMainAxisSize(allocated, this)
             val placeable =
                 child.measure(
@@ -233,12 +226,17 @@ private fun RowColumnMeasurePolicy.intrinsicMainAxisSize(
     return saturateLayoutCoordinate(fixedSpace).coerceAtLeast(0)
 }
 
-/** AndroidX's intrinsic cross-axis calculation, with Swing's maximum-size ceiling and alignment-line extent. */
-@Suppress("CyclomaticComplexMethod")
+/**
+ * AndroidX's intrinsic cross-axis calculation, with Swing's maximum-size ceiling and alignment-line extent, except
+ * that a weighted child is asked at the [share][weightedShare] its measure grants it. AndroidX's intrinsic function
+ * rounds the unit space instead and hands out no remainder. A child with a filling weight is asked under that share as
+ * a fixed offer, so a stock child answers at the width it is placed at; a share of an unbounded main axis is no offer.
+ * [crossAxisSize] is told whether the main-axis size it is handed is such a fixed offer.
+ */
 private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
     measurables: List<IntrinsicMeasurable>,
     mainAxisSize: (IntrinsicMeasurable, Int) -> Int,
-    crossAxisSize: (IntrinsicMeasurable, Int) -> Int,
+    crossAxisSize: (IntrinsicMeasurable, Int, Boolean) -> Int,
     mainAxisAvailable: Int,
 ): Int {
     if (measurables.isEmpty()) return 0
@@ -255,7 +253,7 @@ private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
             val childMainAxisSize =
                 minOf(child.cappedMainAxisSize(mainAxisSize(child, crossAxisAvailable), this), remaining)
             fixedSpace += childMainAxisSize
-            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
+            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize, false), this)
             crossAxisMaximum = maxOf(crossAxisMaximum, childCrossAxisSize)
             val line = alignmentLineOrUnspecified(child, childMainAxisSize, childCrossAxisSize)
             if (line != AlignmentLine.UNSPECIFIED) {
@@ -266,23 +264,22 @@ private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
             totalWeight += weight
         }
     }
-    val weightUnitSpace =
-        when {
-            totalWeight == 0f -> 0
-            mainAxisAvailable == Int.MAX_VALUE -> Int.MAX_VALUE
-            else -> ((mainAxisAvailable - fixedSpace).coerceAtLeast(0) / totalWeight).roundToIntOrZero()
-        }
+    val weightedSpace = (mainAxisAvailable - fixedSpace).coerceAtLeast(0)
+    val weightUnitSpace = weightedSpace / totalWeight
+    val remainder = weightRoundingRemainder(weightedSpace, weightUnitSpace, measurables)
+    var weightedOrdinal = 0
     measurables.fastForEach { child ->
         val weight = child.linearConstraint?.weight?.weight ?: 0f
         if (weight > 0f) {
             val weightedMainAxisSize =
-                if (weightUnitSpace == Int.MAX_VALUE) {
+                if (mainAxisAvailable == Int.MAX_VALUE) {
                     Int.MAX_VALUE
                 } else {
-                    (weightUnitSpace * weight).roundToIntOrZero()
+                    weightedShare(weightUnitSpace, weight, remainder, weightedOrdinal++)
                 }
             val childMainAxisSize = child.cappedMainAxisSize(weightedMainAxisSize, this)
-            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
+            val fills = child.linearConstraint?.weight?.fill == true && mainAxisAvailable != Int.MAX_VALUE
+            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize, fills), this)
             crossAxisMaximum = maxOf(crossAxisMaximum, childCrossAxisSize)
             val line = alignmentLineOrUnspecified(child, childMainAxisSize, childCrossAxisSize)
             if (line != AlignmentLine.UNSPECIFIED) {
@@ -309,6 +306,35 @@ private fun RowColumnMeasurePolicy.alignmentLineOrUnspecified(
     } else {
         AlignmentLine.UNSPECIFIED
     }
+}
+
+/** What [space] has left after the weighted children take their rounded shares; negative if they overshoot. */
+private fun weightRoundingRemainder(
+    space: Int,
+    weightUnitSpace: Float,
+    measurables: List<IntrinsicMeasurable>,
+): Int {
+    var remainder = space
+    measurables.fastForEach { child ->
+        val weight = child.linearConstraint?.weight ?: return@fastForEach
+        remainder -= (weightUnitSpace * weight.weight).roundToIntOrZero()
+    }
+    return remainder
+}
+
+/**
+ * [weight] units of [weightUnitSpace], rounded, and one pixel of the [rounding remainder][weightRoundingRemainder] for
+ * each of the first weighted children until it is used up, as androidx's measure pass hands it out.
+ */
+private fun weightedShare(
+    weightUnitSpace: Float,
+    weight: Float,
+    remainder: Int,
+    ordinal: Int,
+): Int {
+    val remainderUnit = if (ordinal < abs(remainder)) remainder.sign else 0
+    return saturateLayoutCoordinate((weightUnitSpace * weight).roundToIntOrZero().toLong() + remainderUnit)
+        .coerceAtLeast(0)
 }
 
 /** androidx's fast rounding maps NaN to zero; Kotlin's [roundToInt] instead throws for it. */
@@ -381,8 +407,9 @@ internal data class RowMeasurePolicy(
             crossAxisSize = {
                 child,
                 childWidth,
+                fixed,
                 ->
-                child.minIntrinsicHeight(childWidth)
+                child.intrinsicHeightUnder(IntrinsicSize.Min, if (fixed) childWidth else 0, childWidth)
             },
             mainAxisAvailable = width,
         )
@@ -397,8 +424,9 @@ internal data class RowMeasurePolicy(
             crossAxisSize = {
                 child,
                 childWidth,
+                fixed,
                 ->
-                child.maxIntrinsicHeight(childWidth)
+                child.intrinsicHeightUnder(IntrinsicSize.Max, if (fixed) childWidth else 0, childWidth)
             },
             mainAxisAvailable = width,
         )
@@ -478,12 +506,7 @@ internal data class ColumnMeasurePolicy(
         intrinsicCrossAxisSize(
             measurables,
             mainAxisSize = { child, width -> child.maxIntrinsicHeight(width) },
-            crossAxisSize = {
-                child,
-                childHeight,
-                ->
-                child.minIntrinsicWidth(childHeight)
-            },
+            crossAxisSize = { child, childHeight, _ -> child.minIntrinsicWidth(childHeight) },
             mainAxisAvailable = height,
         )
 
@@ -494,12 +517,7 @@ internal data class ColumnMeasurePolicy(
         intrinsicCrossAxisSize(
             measurables,
             mainAxisSize = { child, width -> child.maxIntrinsicHeight(width) },
-            crossAxisSize = {
-                child,
-                childHeight,
-                ->
-                child.maxIntrinsicWidth(childHeight)
-            },
+            crossAxisSize = { child, childHeight, _ -> child.maxIntrinsicWidth(childHeight) },
             mainAxisAvailable = height,
         )
 

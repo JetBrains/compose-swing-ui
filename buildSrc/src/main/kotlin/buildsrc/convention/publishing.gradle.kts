@@ -1,5 +1,6 @@
 package buildsrc.convention
 
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
@@ -84,6 +85,15 @@ publishing {
                 }
             }
         }
+    }
+}
+
+// Test fixtures serve the tests of this project and of the projects that depend on them; the library does not
+// publish them.
+plugins.withId("java-test-fixtures") {
+    components.named("java", AdhocComponentWithVariants::class.java).configure {
+        withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
+        withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
     }
 }
 

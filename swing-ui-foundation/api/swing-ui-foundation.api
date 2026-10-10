@@ -569,7 +569,11 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Co
 	public fun getAlignmentLines ()Ljava/util/Map;
 	public abstract fun getConstrainedHeight ()I
 	public abstract fun getConstrainedWidth ()I
+	public abstract fun maxIntrinsicHeight (I)I
+	public abstract fun maxIntrinsicWidth (I)I
 	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)V
+	public abstract fun minIntrinsicHeight (I)I
+	public abstract fun minIntrinsicWidth (I)I
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
@@ -623,6 +627,7 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/In
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope {
+	public abstract fun getOfferedMinWidth ()I
 }
 
 public final class org/jetbrains/compose/swing/foundation/layout/IntrinsicSize : java/lang/Enum {
@@ -708,6 +713,7 @@ public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
 	public static final fun width (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicSize;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun widthIn (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun widthIn$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun withOfferedMinWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;I)Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;
 	public static final fun wrapContentHeight (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun wrapContentHeight$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun wrapContentSize (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;

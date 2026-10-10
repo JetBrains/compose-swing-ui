@@ -193,7 +193,7 @@ class UnplacedChildReportTest {
             leafSize = 20
             awaitIdle()
 
-            assertEquals(0, onNodeOfType<JLabel>().fetch().width, "a child never placed lays nothing out")
+            assertEquals(10, onNodeOfType<JLabel>().fetch().width, "a child never placed takes no later size")
             assertEquals(emptyList(), placements, "a descendant of a child still unplaced must report no placement")
             assertEquals(emptyList(), sizes, "a descendant of a child still unplaced must report no size")
         }

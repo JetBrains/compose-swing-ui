@@ -115,15 +115,41 @@ child again.
 
 ### Intrinsic size
 
-Swing asks a container for its preferred and minimum sizes without offering a width or height. A preferred size
-query asks the policy's `maxIntrinsicWidth` and `maxIntrinsicHeight`, and a minimum size query its
-`minIntrinsicWidth` and `minIntrinsicHeight`, each with the other axis unbounded. A child answers the max functions
-with its preferred size and the min functions with its minimum size, through the intrinsic functions of its layout
-modifiers. By default, the intrinsic functions of a policy and of a `LayoutModifierNode` run its `measure`, as
-androidx's do, against a stand-in whose extent along the asked axis is the child's intrinsic size, whatever constraints
-it is measured under. A `LayoutModifierNode` whose `measure` must not run for a query, such as one that starts an
-animation, overrides all four, and so does a policy that divides bounded space, such as a weighted linear layout. A
-container's maximum size is unbounded unless one is set.
+Swing asks a container for its preferred and minimum sizes without offering a width or height. A preferred size query is
+answered as androidx answers `width(IntrinsicSize.Max).height(IntrinsicSize.Max)`: the policy's `maxIntrinsicWidth` with
+the height unbounded, then its `maxIntrinsicHeight` at that width. A minimum size query asks `minIntrinsicWidth` and
+`minIntrinsicHeight` the same way. Under a parent that is not a Foundation container, the height is at the width the
+container expects that parent to give it; see [Where constraints stop](#where-constraints-stop). A `Constrainable`
+child, such as a nested `Row`, answers the intrinsic functions at the extent it is asked at, as androidx's layouts do.
+
+A stock widget answers the max functions with its preferred size and the min functions with its minimum size. Asked a
+height at a width, it answers at the width its measure would take there, as an androidx leaf does: the width it prefers,
+up to the width asked and no less than a `requiredWidthIn` minimum, or all of a width that `fillMaxWidth`, a filling
+`weight` or `requiredWidth(n)` fixes. As androidx's `SizeNode` does, `width(n)` asks it at the width asked, and it
+answers at the width it prefers, up to that width. Where that is not the width it holds and a layout pass follows, it is
+sized to that width first, as `BorderLayout` sizes its north and south children before asking their heights, so a
+wrapping `TextArea` answers its height for that width.
+
+A child answers through the intrinsic functions of its layout modifiers, and a modifier answering by default, or asking
+its child as it is asked, keeps the width offer it is given, so a width `fillMaxWidth` fixes outside a `padding` reaches
+the widget inside it. A container asked a height by a Foundation parent runs its policy's intrinsic functions under the
+width offer it is given, so a `Box` that propagates its minimum asks its child at all of a width that offer fixes. An
+intrinsic question, `getPreferredSize()` or `getMinimumSize()` asked of a valid container starts no layout pass and
+leaves every component with the bounds and validity it had: a stock widget answers at the size it holds. Asked of an
+invalid container under a parent that is not a Foundation container, it first sizes the container's stock children to
+the width asked.
+
+Asked a height at an unbounded width, a stock widget answers at the width it holds, as Swing has no other answer.
+androidx asks an interop view with an unspecified width instead, which a wrapping text answers on one line. A container
+that takes its width from that answer, such as a `Column` holding the widget at an `aspectRatio` in `BorderLayout` east,
+is laid out at another width each time, as the same layout is in plain Swing. A widget that can answer for an unbounded
+width implements `Constrainable`.
+
+By default, the intrinsic functions of a policy and of a `LayoutModifierNode` run its `measure`, as androidx's do,
+against a stand-in whose extent along the asked axis is the child's intrinsic size, whatever constraints it is measured
+under. A `LayoutModifierNode` whose `measure` must not run for a query, such as one that starts an animation, overrides
+all four, and so does a policy that divides bounded space, such as a weighted linear layout. A container's maximum size
+is unbounded unless one is set.
 
 A `Row` or `Column` aligning a child by a line reads that line for its own size from the child's
 `intrinsicPlaceable`: the line the component reports, moved or named by each `LayoutModifierNode` through its
@@ -132,22 +158,52 @@ without placing anything, so the child itself is never measured. A node whose `m
 such as one that starts an animation, overrides `intrinsicPlaceable` too, alongside the four intrinsic functions, to
 pass the child's stand-in through.
 
-### Where constraints stop
+#### Width offers
 
-An explicit `preferredSize` on a constraint-based container is authoritative: it answers a constrained
-measurement without running the container's policy. Without one, constraints continue through any depth of
-`Row`, `Column`, `Box` and `Layout`. A component of your own can implement `Constrainable` to answer for the
-offered constraints, and name the alignment lines it provides in `alignmentLines`.
-
-A stock Swing widget or a foreign Swing container answers with its preferred or minimum size, held inside the
-offered constraints; it cannot reflow for an offered width, since Swing has no width-for-height query. Constraints
-also stop at a `Panel` backed by a Swing layout manager. Put a constraint-based container inside that panel when
-its descendants need layout modifiers:
+A height question can carry the least width its answer is for, as a `Box` that propagates its minimum constraints
+measures its child at least that wide. A policy's height functions read it as `offeredMinWidth`, which is 0 where the
+offer has none. A policy whose `measure` keeps the minimum width it is offered asks each child through
+`withOfferedMinWidth(offeredMinWidth)`, so the child answers under that minimum too:
 
 ```kotlin
-Panel(PanelLayout.Flow()) {
-    Box {
-        Label("Preview", modifier = SwingModifier.aspectRatio(16f / 9f))
+override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+    measurables: List<IntrinsicMeasurable>,
+    width: Int,
+): Int = measurables.maxOf { it.withOfferedMinWidth(offeredMinWidth).maxIntrinsicHeight(width) }
+```
+
+<!--- CLEAR -->
+
+A child asked directly carries no offer, so the policy answers as though the offer had no minimum. A layout modifier
+whose `measure` drops the minimum asks through `withOfferedMinWidth(0)`.
+
+### Where constraints stop
+
+An explicit `preferredSize` on a constraint-based container is authoritative: it answers a constrained measurement and
+the max intrinsic functions, and an explicit `minimumSize` the min ones, without running the container's policy. Without
+one, constraints continue through any depth of `Row`, `Column`, `Box` and `Layout`, and so do intrinsic questions at an
+extent. A component of your own can implement `Constrainable` to answer for the offered constraints and its intrinsic
+sizes at an extent, and name the alignment lines it provides in `alignmentLines`. A Swing component holding a
+constraint-based container can ask it the same intrinsic questions. A layout manager that asks the container's height
+at the width it lays the container out at, and lays it out at that height, has the height for that width at most one
+validation later, and in the same layout where it invalidates a valid container before asking at a new width.
+
+A stock Swing widget or a foreign Swing container answers with its preferred or minimum size, held inside the
+offered constraints. Granted a width it does not hold by a layout pass, with its height left open, it is sized to
+that width first, so a component whose height follows its width, such as a wrapping `TextArea`, takes its height for
+that width in that pass, and so does a label showing HTML.
+
+Constraints also stop at a `Panel` backed by a Swing layout manager, which asks a constraint-based container inside it
+for its sizes, and the container answers its height for the width it expects the panel to give it. A panel that sets the
+container's width before asking, as `BorderLayout` does for its north and south children, has that height in the same
+layout pass, and so does a panel that lays the container out at the width it asks for, as `FlowLayout` does. Before its
+first layout, the container answers its minimum height at the width it prefers, as a wrapping stock widget does. Put a
+constraint-based container inside that panel when its descendants need layout modifiers:
+
+```kotlin
+Panel(PanelLayout.Border()) {
+    Box(modifier = SwingModifier.north()) {
+        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(16f / 9f))
     }
 }
 ```
@@ -707,7 +763,7 @@ ProvideComponentDefaults(DefaultPaintOutsets provides FlatFocusRing) { App() }
 
 | Phase | Runs when | A state read in it |
 |---|---|---|
-| Intrinsic | Swing asks for a preferred or minimum size; see [Intrinsic size](#intrinsic-size) | Lays the container and its ancestors out again |
+| Intrinsic | Swing asks for a preferred or minimum size, a parent asks an intrinsic size through `Constrainable`, or a Swing parent grants a width other than the one the container answered its height at; see [Intrinsic size](#intrinsic-size) | Lays the container and its ancestors out again |
 | Measure | During a layout: the container's `doLayout`, or a constraint-based parent measuring it | Lays the container and its ancestors out again |
 | Place | In `doLayout` after measure, and alone when only placement reads change | Places the children again inside the container's current bounds, without measuring; a child that placement resizes is laid out |
 | Paint outsets | After placement, and when a layer block's reads change | Recomputes the paint outsets and repaints |
@@ -750,7 +806,8 @@ The model follows Compose UI, adapted to Swing:
 - Layout direction comes from `ComponentOrientation`.
 - Swing exposes one alignment line through `Component.getBaseline`, so there is `FirstBaseline` and
   no `LastBaseline`.
-- Intrinsic measurement maps to Swing's argument-less `preferredSize` and `minimumSize` queries.
+- Swing's argument-less `preferredSize` and `minimumSize` queries map to intrinsic measurement; see
+  [Intrinsic size](#intrinsic-size).
 - Placement ends in `Component.setBounds` on a real Swing component.
 - Children with equal z-index stack in declaration order. androidx stacks them in the order the parent places
   them.

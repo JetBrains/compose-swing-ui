@@ -8,9 +8,11 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
 import java.awt.Component
 import java.awt.GraphicsEnvironment
+import java.awt.GridBagConstraints
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -253,6 +256,62 @@ class AnimatedContentContainerTest {
         }
 
     /**
+     * A wrapping text area held at an aspect ratio arrives in a container under each parent that lays the container out
+     * at the height it asks for, with and without a size transform. Each case runs in its own composition, so a case
+     * whose layout never settles leaves the others to report. While a size transform runs, the area is laid out at its
+     * own size, which has no ratio, and it holds its ratio again once the transition ends; without one it holds the
+     * ratio on every frame. Here androidx's `AnimatedContentMeasurePolicy.measure` (AnimatedContent.kt:1305-1330 under
+     * compose/animation/animation/src/commonMain/kotlin/androidx/compose/animation) measures every content with the
+     * constraints its parent hands the container, so the area holds its ratio on every frame. Aligning with androidx
+     * turns this test red.
+     */
+
+    @Test
+    fun `content whose height follows its width settles while it arrives under a parent that asks the height`() {
+        val unsettled =
+            buildList {
+                for ((parentName, parent) in HeightAskingParents) {
+                    for ((sizingName, sizing) in Sizings) {
+                        runComposeSwingTest {
+                            var state by mutableStateOf("a")
+                            runCatching {
+                                setContent {
+                                    parent { modifier ->
+                                        AnimatedContent(
+                                            targetState = state,
+                                            modifier = modifier,
+                                            transitionSpec = {
+                                                expandIn(tween(TRANSITION_MILLIS)) togetherWith
+                                                    shrinkOut(tween(TRANSITION_MILLIS)) using sizing
+                                            },
+                                        ) {
+                                            if (it == "a") Filled() else WrappingArea()
+                                        }
+                                    }
+                                }
+                                mainClock.autoAdvance = false
+                                state = "b"
+                                // A frame whose layout never settles fails here rather than returning.
+                                repeat(10) { driveOneFrame() }
+                                if (sizing == null) {
+                                    val area = onNodeWithTag(AREA).fetch()
+                                    assertEquals(area.width, 2 * area.height, "the area left its aspect ratio")
+                                }
+                                mainClock.autoAdvance = true
+                                awaitIdle()
+                                val settled = onNodeWithTag(AREA).fetch()
+                                assertEquals(settled.width, 2 * settled.height, "the area did not return to its ratio")
+                            }.exceptionOrNull()?.let {
+                                add("$parentName, $sizingName: ${it.message.orEmpty().lines().first()}")
+                            }
+                        }
+                    }
+                }
+            }
+        assertEquals(emptyList(), unsettled)
+    }
+
+    /**
      * Pins CURRENT behavior, which DIFFERS FROM ANDROIDX: this library keeps Swing's default focus traversal,
      * so a Tab reaches the content arriving (component index 0) straight from the component before the
      * container, and a Tab from the content being left wraps back to that same component instead of landing
@@ -320,6 +379,39 @@ private fun Filled(
     height: Int = 20,
 ) = Label(text = "", modifier = modifier.preferredSize(width, height).opaque(true).background(color))
 
+/** A text area whose height follows the width it is laid out at, as it wraps and keeps an aspect ratio. */
+@Composable
+private fun AnimatedContentScope.WrappingArea() =
+    TextArea(
+        value = "A run of words long enough to wrap onto several lines at the widths these tests lay it out at",
+        onValueChange = {},
+        modifier = SwingModifier.aspectRatio(2f).testTag(AREA),
+        lineWrap = true,
+        wrapStyleWord = true,
+    )
+
+/** Parents that lay a container out at the height it asks for at the width they give it. */
+private val HeightAskingParents: Map<String, @Composable (@Composable (SwingModifier) -> Unit) -> Unit> =
+    mapOf(
+        "a grid-bag cell filled horizontally" to { container ->
+            Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(320, 400)) {
+                container(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+            }
+        },
+        "a border layout's north region" to { container ->
+            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 400)) {
+                container(SwingModifier.north())
+            }
+        },
+    )
+
+/** A container that runs a size animation between its contents, and one that takes each content's size at once. */
+private val Sizings: Map<String, SizeTransform?> =
+    mapOf(
+        "size transform" to SizeTransform { _, _ -> tween(TRANSITION_MILLIS) },
+        "no size transform" to null,
+    )
+
 /** A size that travels for longer than the frames each test sends, with contents that appear and leave at once. */
 private fun AnimatedContentTransitionScope<String>.traveling(): ContentTransform =
     EnterTransition.None togetherWith ExitTransition.None using SizeTransform { _, _ -> tween(TRANSITION_MILLIS) }
@@ -328,4 +420,5 @@ private const val TRANSITION_MILLIS = 320
 private const val BELOW = "below"
 private const val SIBLING = "sibling"
 private const val CONTAINER = "container"
+private const val AREA = "area"
 private const val FOCUS_WINDOW = "content-focus"

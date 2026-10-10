@@ -466,6 +466,13 @@ private class SizeNode(
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
 
+    /**
+     * This measurable under the offer from the minimum width this node declares, or under the incoming offer where it
+     * declares none or holds to the incoming constraints.
+     */
+    private fun IntrinsicMeasurable.offeredAsMeasured(target: Constraints): IntrinsicMeasurable =
+        if (enforceIncoming || minWidth == null) this else withOfferedMinWidth(target.minWidth)
+
     private fun targetConstraints(): Constraints {
         val maxWidth = maxWidth.normalizedMaximum()
         val maxHeight = maxHeight.normalizedMaximum()
@@ -499,7 +506,7 @@ private class SizeNode(
             constraints.maxHeight
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
-            constraints.constrainHeight(measurable.minIntrinsicHeight(childWidth))
+            constraints.constrainHeight(measurable.offeredAsMeasured(constraints).minIntrinsicHeight(childWidth))
         }
     }
 
@@ -525,7 +532,7 @@ private class SizeNode(
             constraints.maxHeight
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
-            constraints.constrainHeight(measurable.maxIntrinsicHeight(childWidth))
+            constraints.constrainHeight(measurable.offeredAsMeasured(constraints).maxIntrinsicHeight(childWidth))
         }
     }
 }

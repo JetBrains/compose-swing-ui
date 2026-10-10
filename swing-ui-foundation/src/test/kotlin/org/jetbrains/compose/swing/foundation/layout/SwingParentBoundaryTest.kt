@@ -1,11 +1,18 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertAskedForNoLayout
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -24,11 +31,16 @@ import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
+import java.awt.Container
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.LayoutManager
+import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -267,7 +279,285 @@ class SwingParentBoundaryTest {
             assertEquals(Rectangle(2, 2, 40, 30), child.bounds, "and lays its child out inside the border alone")
         }
 
+    @Test
+    fun aContainerUnderAStockParentAsksItsHeightAtTheWidthItAsksFor() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Box(modifier = SwingModifier.testTag("box")) {
+                        Label("Preview", modifier = SwingModifier.testTag("label").aspectRatio(RATIO))
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            val label = onNodeWithTag("label").fetch<JComponent>()
+            val atRatio = atRatio(label.preferredSize.width)
+
+            assertEquals(
+                atRatio,
+                box.preferredSize,
+                "the preferred height is the ratio's height at the preferred width",
+            )
+            assertEquals(
+                atRatio(label.minimumSize.width),
+                box.minimumSize,
+                "the minimum height is the ratio's height at the minimum width",
+            )
+            assertEquals(atRatio, box.size, "the stock parent grants what the container asks for")
+            assertEquals(Rectangle(Point(), atRatio), label.bounds, "the label keeps its full width at the ratio")
+        }
+
+    @Test
+    fun aContainerUnderAStockParentGrantingTheWidthItAsksForTakesItsNewSizeInOneValidation() =
+        runComposeSwingTest {
+            var text by mutableStateOf("Preview")
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Box(modifier = SwingModifier.testTag("box")) {
+                        Label(text, modifier = SwingModifier.testTag("label").aspectRatio(RATIO))
+                    }
+                }
+            }
+            captureToImage()
+            awaitIdle()
+
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            withRecordedRepaints { recorder ->
+                text = "A much longer preview text"
+                awaitIdle()
+                assertFalse(box in recorder.relayouts, "the box asks for no validation after the label's own")
+            }
+
+            val label = onNodeWithTag("label").fetch<JComponent>()
+            val atRatio = atRatio(label.preferredSize.width)
+            assertEquals(
+                atRatio,
+                box.size,
+                "the validation after the change grants the ratio's height at the new preferred width",
+            )
+            assertEquals(Rectangle(Point(), atRatio), label.bounds, "and the label fills it")
+        }
+
+    @Test
+    fun aStockParentAsksAContainerItsIntrinsicSizesAtAnExtentWithoutLayingItOut() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Box(modifier = SwingModifier.testTag("box").emptyBorder(2)) {
+                        Label("Preview", modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(2f))
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            val label = onNodeWithTag("label").fetch<JComponent>()
+            val boxBounds = box.bounds
+            val labelBounds = label.bounds
+
+            assertEquals(
+                164,
+                (box as Constrainable).maxIntrinsicHeight(324),
+                "the box answers its content's height at the width inside its border, plus the border",
+            )
+            assertEquals(324, box.maxIntrinsicWidth(164), "and its content's width at the height inside it")
+            assertEquals(boxBounds, box.bounds, "asking lays the box out nowhere")
+            assertEquals(labelBounds, label.bounds, "nor its content")
+            assertTrue(box.isValid, "and leaves it valid")
+        }
+
+    @Test
+    fun aContainerAStockParentLaysOutTakesItsIntrinsicHeightAtTheWidthItIsGranted() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                    Box(modifier = SwingModifier.north().testTag("box").emptyBorder(3)) {
+                        Box(modifier = SwingModifier.fillMaxWidth().aspectRatio(2f).shadow(6, Color.BLACK))
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+
+            assertEquals(
+                box.border.getBorderInsets(box),
+                box.insets,
+                "the box has no paint outsets under a stock parent, though its content casts a shadow",
+            )
+            assertEquals(
+                (box as Constrainable).maxIntrinsicHeight(box.width),
+                box.height,
+                "the box takes its intrinsic height at the width the stock parent grants",
+            )
+        }
+
+    @Test
+    fun aContainerUnderAStockParentWhoseHeightDoesNotFollowItsWidthStillTakesItsContentsCombinedSize() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Flow()) {
+                    Column(modifier = SwingModifier.testTag("column")) {
+                        Label("First", modifier = SwingModifier.testTag("first"))
+                        Row(modifier = SwingModifier.testTag("row")) {
+                            Label("Second", modifier = SwingModifier.testTag("second"))
+                            Label("Third, longer", modifier = SwingModifier.testTag("third"))
+                        }
+                    }
+                }
+            }
+            val first = onNodeWithTag("first").fetch<JComponent>().preferredSize
+            val second = onNodeWithTag("second").fetch<JComponent>().preferredSize
+            val third = onNodeWithTag("third").fetch<JComponent>().preferredSize
+            val row = Dimension(second.width + third.width, maxOf(second.height, third.height))
+
+            assertEquals(row, onNodeWithTag("row").fetch<JComponent>().size, "the row is its children side by side")
+            assertEquals(
+                Dimension(maxOf(first.width, row.width), first.height + row.height),
+                onNodeWithTag("column").fetch<JComponent>().size,
+                "the column is its children stacked",
+            )
+        }
+
+    @Test
+    fun aContainerAStockParentMakesZeroWideAnswersItsHeightAtTheWidthItAsksFor() =
+        runComposeSwingTest {
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                    Box(modifier = SwingModifier.testTag("box").north()) {
+                        Column { Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(2f)) }
+                    }
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            captureToImage()
+            awaitIdle()
+
+            box.setBounds(0, 0, 0, 0)
+            box.parent.invalidate()
+
+            val preferred = box.preferredSize
+            assertTrue(preferred.width > 0, "the box asks for a width")
+            assertEquals(preferred.width / 2, preferred.height, "and answers the ratio's height at that width")
+        }
+
+    @Test
+    fun aContainerItsStockParentInvalidatesBeforeAskingAtANewWidthTakesItsHeightThereInThatLayout() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(320)
+            setContent {
+                Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    SwingNode(factory = { JPanel(InvalidatingHeightForWidthLayout()) }) {
+                        Box(modifier = SwingModifier.testTag("box")) {
+                            TextArea(
+                                WRAPPING_TEXT,
+                                {},
+                                SwingModifier.testTag("text").fillMaxWidth(),
+                                lineWrap = true,
+                                wrapStyleWord = true,
+                            )
+                        }
+                    }
+                }
+            }
+            settleWithPaint()
+            val box = onNodeWithTag("box").fetch<JComponent>()
+            val text = onNodeWithTag("text").fetch<JComponent>()
+
+            for (granted in listOf(160, 400)) {
+                width = granted
+                awaitIdle()
+
+                val at = "at width $granted"
+                assertEquals(granted, text.width, "$at: the layout granting the width sizes the text to it")
+                assertWrapped(text, "$at: that layout")
+                assertEquals(text.height, box.height, "$at: the box takes the text's height there")
+                withRecordedRepaints { recorder ->
+                    settleWithPaint()
+                    recorder.assertAskedForNoLayout(box, "$at: the paint")
+                }
+            }
+        }
+
+    @Test
+    fun aContainerItsParentLaysOutAtTheWidthItsPreferredSizeAsksForAnswersItsMinimumHeightThere() {
+        val parents: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
+            mapOf(
+                "a flow layout, which lays the box out at the width it prefers" to
+                    { box -> Panel(PanelLayout.Flow()) { box() } },
+                "a parent that has laid nothing out, so the box holds no width" to
+                    { box -> SwingNode(factory = { JPanel(null) }) { box() } },
+            )
+        for ((name, parent) in parents) {
+            runComposeSwingTest {
+                setContent {
+                    parent { Layout(measurePolicy = ConstantAreaPolicy, modifier = SwingModifier.testTag("box")) }
+                }
+
+                assertEquals(
+                    100,
+                    onNodeWithTag("box").fetch<JComponent>().minimumSize.height,
+                    "$name: the minimum height is the one at the width of 200 the box prefers, not at its minimum 50",
+                )
+            }
+        }
+    }
+
     private companion object {
+        const val RATIO = 16f / 9f
+
+        fun atRatio(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
+
         fun stockPanel(): JPanel = JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false }
     }
+}
+
+/**
+ * Lays its one [Constrainable] child out at the container's width and the child's max intrinsic height there,
+ * invalidating the child first where that width is not the one it holds.
+ */
+private class InvalidatingHeightForWidthLayout : LayoutManager {
+    override fun layoutContainer(parent: Container) {
+        val child = parent.getComponent(0)
+        if (child.width != parent.width) child.invalidate()
+        child.setBounds(0, 0, parent.width, (child as Constrainable).maxIntrinsicHeight(parent.width))
+    }
+
+    override fun preferredLayoutSize(parent: Container): Dimension = parent.getComponent(0).preferredSize
+
+    override fun minimumLayoutSize(parent: Container): Dimension = parent.getComponent(0).minimumSize
+
+    override fun addLayoutComponent(
+        name: String?,
+        component: Component,
+    ) = Unit
+
+    override fun removeLayoutComponent(component: Component) = Unit
+}
+
+/** Prefers 200 wide and can shrink to 50, and needs 20000 square pixels, so its height is 20000 over its width. */
+private object ConstantAreaPolicy : MeasurePolicy {
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        val width = constraints.maxWidth.coerceIn(1, 200)
+        return layout(width, 20000 / width) {}
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 50
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = 200
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = 20000 / width
 }

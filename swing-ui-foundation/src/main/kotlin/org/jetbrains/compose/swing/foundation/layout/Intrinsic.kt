@@ -24,6 +24,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import java.awt.Dimension
 
 /**
  * Prefers the child's [intrinsicSize] width, while still allowing the constraints the parent offers
@@ -152,7 +153,8 @@ private class IntrinsicHeightNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val height = measurable.intrinsicHeight(intrinsicSize, constraints.maxWidth).coerceAtLeast(0)
+        val height =
+            measurable.intrinsicHeightUnder(intrinsicSize, constraints.minWidth, constraints.maxWidth).coerceAtLeast(0)
         val contentConstraints = Constraints.fixedHeight(height)
         val measuredConstraints = if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
         val placeable = measurable.measure(measuredConstraints)
@@ -189,3 +191,131 @@ internal fun IntrinsicMeasurable.intrinsicHeight(
     intrinsicSize: IntrinsicSize,
     width: Int,
 ): Int = if (intrinsicSize == IntrinsicSize.Min) minIntrinsicHeight(width) else maxIntrinsicHeight(width)
+
+/**
+ * This measurable's [intrinsicSize] height under an offer of a width from [minWidth] to [maxWidth]: a stock child
+ * answers at the width its measure takes under that offer, and a Foundation container and a layout modifier through
+ * their intrinsic functions under that offer. The stand-ins that forward every question to the measurable they wrap
+ * forward the offer too.
+ */
+internal fun IntrinsicMeasurable.intrinsicHeightUnder(
+    intrinsicSize: IntrinsicSize,
+    minWidth: Int,
+    maxWidth: Int,
+): Int =
+    when (this) {
+        is ChildMeasurable -> {
+            val outer = outerMeasurable
+            if (outer != null) {
+                outer.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
+            } else {
+                unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth)
+            }
+        }
+
+        is UnmodifiedChildMeasurable -> {
+            child.unmodifiedIntrinsicHeight(intrinsicSize, minWidth, maxWidth)
+        }
+
+        is LayoutModifierMeasurable -> {
+            val offered = measurable.withOfferedMinWidth(minWidth)
+            with(widthOfferScope(minWidth.coerceAtMost(maxWidth))) {
+                with(modifier) {
+                    if (intrinsicSize == IntrinsicSize.Min) {
+                        minIntrinsicHeight(offered, maxWidth)
+                    } else {
+                        maxIntrinsicHeight(offered, maxWidth)
+                    }
+                }
+            }
+        }
+
+        is WidthOfferMeasurable -> {
+            measurable.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
+        }
+
+        is IntrinsicMeasurableAdapter -> {
+            source.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
+        }
+
+        is IntrinsicLineMeasurable -> {
+            source.intrinsicHeightUnder(intrinsicSize, minWidth, maxWidth)
+        }
+    }
+
+private fun ChildMeasurable.unmodifiedIntrinsicHeight(
+    intrinsicSize: IntrinsicSize,
+    minWidth: Int,
+    maxWidth: Int,
+): Int =
+    if (intrinsicSize == IntrinsicSize.Min) {
+        unmodifiedMinIntrinsicHeight(minWidth, maxWidth)
+    } else {
+        unmodifiedMaxIntrinsicHeight(minWidth, maxWidth)
+    }
+
+/**
+ * [measurable] as a layout modifier is handed it for a height question asked under a width offer from [minWidth] up to
+ * the width asked. Asked its height at a width, it answers under the offer from [minWidth] up to that width, so a
+ * modifier asking its child as it is asked keeps the offer. Its width questions are [measurable]'s own.
+ */
+internal class WidthOfferMeasurable(
+    val measurable: IntrinsicMeasurable,
+    val minWidth: Int,
+) : IntrinsicMeasurable {
+    override val parentData: Any? get() = measurable.parentData
+
+    override fun minIntrinsicWidth(height: Int): Int = measurable.minIntrinsicWidth(height)
+
+    override fun maxIntrinsicWidth(height: Int): Int = measurable.maxIntrinsicWidth(height)
+
+    override fun minIntrinsicHeight(width: Int): Int =
+        measurable.intrinsicHeightUnder(IntrinsicSize.Min, minWidth.coerceAtMost(width), width)
+
+    override fun maxIntrinsicHeight(width: Int): Int =
+        measurable.intrinsicHeightUnder(IntrinsicSize.Max, minWidth.coerceAtMost(width), width)
+
+    override fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+    ): Placeable? = measurable.intrinsicPlaceable(width, height)
+
+    override fun maximumSize(): Dimension? = measurable.maximumSize()
+}
+
+/**
+ * This measurable under a width offer from [minWidth], in place of any offer it carries: asked its height at a width,
+ * it answers as it does measured under an offer from [minWidth], held to that width, up to that width. Its width
+ * questions are its own.
+ *
+ * @throws IllegalArgumentException if [minWidth] is negative
+ */
+public fun IntrinsicMeasurable.withOfferedMinWidth(minWidth: Int): IntrinsicMeasurable {
+    require(minWidth >= 0) { "A width offer starts at zero or more, but $minWidth was named." }
+    val unoffered = (this as? WidthOfferMeasurable)?.measurable ?: this
+    return if (minWidth == 0) unoffered else WidthOfferMeasurable(unoffered, minWidth)
+}
+
+/** The scope a height question is answered in under a width offer from [minWidth], at most the width asked. */
+internal fun widthOfferScope(minWidth: Int): IntrinsicMeasureScope =
+    if (minWidth == 0) PolicyMeasureScope else WidthOfferScope(minWidth)
+
+private class WidthOfferScope(
+    override val offeredMinWidth: Int,
+) : IntrinsicMeasureScope
+
+/**
+ * What [answer] works out from this container's policy over the children an intrinsic question walks. The result the
+ * last pass settled on is set aside while it runs and restored after.
+ */
+internal inline fun <T> ChildMeasurables.askPolicy(answer: MeasurePolicy.(List<Measurable>) -> T): T =
+    synchronized(panel.treeLock) {
+        val children = intrinsicChildren
+        val retained = measured
+        measured = null
+        try {
+            owner.policy.answer(children)
+        } finally {
+            measured = retained
+        }
+    }

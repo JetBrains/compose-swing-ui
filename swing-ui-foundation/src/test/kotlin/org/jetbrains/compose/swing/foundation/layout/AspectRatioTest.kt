@@ -199,10 +199,10 @@ class AspectRatioTest {
             }
 
             assertEquals(
-                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+                Dimension(CHILD_WIDTH, CHILD_WIDTH / 2),
                 containerPreferredSize(),
-                "a box asked what it prefers bounds neither extent, so the ratio names no size and the child " +
-                    "answers with the extent it asks for",
+                "a box asked what it prefers takes the width the child asks for and the ratio's height at that " +
+                    "width, as androidx's width(IntrinsicSize.Max).height(IntrinsicSize.Max) does",
             )
             assertEquals(
                 listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_WIDTH / 2)),

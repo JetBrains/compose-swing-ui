@@ -555,7 +555,7 @@ class MeasurePolicyTest {
         }
 
     @Test
-    fun aChildThePlacementResizedIsAskedAfreshAtTheExtentItWasPlacedAt() =
+    fun aChildGrantedAWidthItDoesNotHoldTakesTheHeightItPrefersAtThatWidth() =
         runSwingTest {
             val child = WrappingChild()
             val panel = composed(rowPolicyPanel())
@@ -567,9 +567,9 @@ class MeasurePolicyTest {
                 panel.doLayout()
 
                 assertEquals(
-                    WRAPPED_HEIGHT,
+                    UNWRAPPED_HEIGHT,
                     child.height,
-                    "the first pass reads what the child prefers while it is still no wider than nothing",
+                    "the first pass sizes the child to the width it grants before reading what it prefers",
                 )
 
                 panel.doLayout()
@@ -577,14 +577,68 @@ class MeasurePolicyTest {
                 assertEquals(
                     UNWRAPPED_HEIGHT,
                     child.height,
-                    "a placement that resized the child gives that reading up, so the pass after it asks " +
-                        "the child again at the width it now holds rather than keeping the one taken before",
+                    "and the pass after it keeps that height",
                 )
             }
         }
 
     @Test
-    fun aChildWithNoPeerThePlacementResizedIsAskedAfreshAtTheExtentItWasPlacedAt() =
+    fun aChildThePlacementResizedIsAskedAfreshAtTheExtentItWasPlacedAt() =
+        runSwingTest {
+            val child = ColumnWrappingChild()
+            val panel = policyPanel(FixedHeightPolicy, child)
+
+            peered(panel) {
+                panel.setSize(WRAPPING_WIDTH, WRAPPING_WIDTH)
+
+                panel.doLayout()
+
+                assertEquals(
+                    WRAPPED_WIDTH,
+                    child.width,
+                    "the first pass reads the width the child prefers at the height it holds",
+                )
+
+                panel.doLayout()
+
+                assertEquals(
+                    UNWRAPPED_WIDTH,
+                    child.width,
+                    "a placement that resized the child to an extent at which it answers otherwise gives that " +
+                        "reading up, so the pass after it asks the child again at the height it now holds",
+                )
+            }
+        }
+
+    @Test
+    fun aChildOfferedAnUnboundedWidthIsSizedToTheWidthItPrefersBeforeItsHeightIsRead() =
+        runSwingTest {
+            val child = WideningWrappingChild()
+            val panel =
+                policyPanel(
+                    MeasurePolicy { measurables, constraints ->
+                        val placeable = measurables.single().measure(Constraints())
+                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+                    },
+                    child,
+                )
+
+            peered(panel) {
+                panel.setSize(WRAPPING_WIDTH, WRAPPING_WIDTH)
+
+                panel.doLayout()
+
+                assertEquals(
+                    UNWRAPPED_HEIGHT,
+                    child.height,
+                    "a child offered no bound on its width takes the width it prefers, and the pass sizes it to that " +
+                        "width before reading the height it prefers there",
+                )
+            }
+        }
+
+    @Test
+    fun aChildWithNoPeerGrantedAWidthItDoesNotHoldTakesTheHeightItPrefersAtThatWidth() =
         runSwingTest {
             val child = WrappingChild()
             val panel = composed(rowPolicyPanel())
@@ -597,8 +651,25 @@ class MeasurePolicyTest {
             assertEquals(
                 UNWRAPPED_HEIGHT,
                 child.height,
-                "a child with no peer holds no reading to compare, so the pass after a placement that resized it " +
-                    "asks it again at the width it now holds",
+                "a child with no peer takes the height it prefers at the width it is granted",
+            )
+        }
+
+    @Test
+    fun aChildWithNoPeerThePlacementResizedIsAskedAfreshAtTheExtentItWasPlacedAt() =
+        runSwingTest {
+            val child = ColumnWrappingChild()
+            val panel = policyPanel(FixedHeightPolicy, child)
+            panel.setSize(WRAPPING_WIDTH, WRAPPING_WIDTH)
+
+            panel.doLayout()
+            panel.doLayout()
+
+            assertEquals(
+                UNWRAPPED_WIDTH,
+                child.width,
+                "a child with no peer holds no reading of its own, so the pass after a placement that resized it " +
+                    "to an extent at which it answers otherwise asks it again at the height it now holds",
             )
         }
 
@@ -1130,6 +1201,18 @@ private fun sized(): JComponent = JPanel().also { it.preferredSize = SHARING_CHI
 private const val WRAPPED_HEIGHT = 80
 private const val UNWRAPPED_HEIGHT = 20
 
+// The widths a ColumnWrappingChild asks for: several columns below the height its panel gives it, one column at it.
+private const val WRAPPED_WIDTH = 80
+private const val UNWRAPPED_WIDTH = 20
+
+/** Measures its single child at its whole height and any width up to its own, and places it at the origin. */
+private val FixedHeightPolicy =
+    MeasurePolicy { measurables, constraints ->
+        val height = constraints.maxHeight
+        val placeable = measurables.single().measure(Constraints(0, constraints.maxWidth, height, height))
+        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+    }
+
 /** A child asking for whatever it was last told to, with no reading of its own bounds behind it. */
 private class AskingChild : JPanel() {
     var wants: Dimension = SHARING_CHILD
@@ -1199,13 +1282,28 @@ private class WrappingChild : JPanel() {
         Dimension(0, if (width >= WRAPPING_WIDTH) UNWRAPPED_HEIGHT else WRAPPED_HEIGHT)
 }
 
+/** A [WrappingChild] asking for the width at which it needs one line. */
+private class WideningWrappingChild : JPanel() {
+    override fun getPreferredSize(): Dimension =
+        Dimension(WRAPPING_WIDTH, if (width >= WRAPPING_WIDTH) UNWRAPPED_HEIGHT else WRAPPED_HEIGHT)
+}
+
+/** A child whose width depends on its own height, the way a list wrapping its items into columns does. */
+private class ColumnWrappingChild : JPanel() {
+    override fun getPreferredSize(): Dimension =
+        Dimension(if (height >= WRAPPING_WIDTH) UNWRAPPED_WIDTH else WRAPPED_WIDTH, 0)
+}
+
 /** A child whose minimum height depends on its own width, the way [WrappingChild]'s preferred height does. */
 private class WrappingMinimumChild : JPanel() {
     override fun getMinimumSize(): Dimension =
         Dimension(0, if (width >= WRAPPING_WIDTH) UNWRAPPED_HEIGHT else WRAPPED_HEIGHT)
 }
 
-/** The width at which [WrappingChild] stops needing more than one line, the extent its panel is given. */
+/**
+ * The extent its panel is given: the width at which [WrappingChild] stops needing more than one line, and the height
+ * at which [ColumnWrappingChild] stops needing more than one column.
+ */
 private const val WRAPPING_WIDTH = 200
 
 /** A policy counting how often it is run, placing its children at their preferred extent. */
