@@ -4,11 +4,14 @@ import androidx.compose.runtime.CompositionLocal
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.compositionLocalWithComputedDefaultOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -92,6 +95,14 @@ class CompositionLocalConsumerLayoutNodeTest {
 
     @Test
     fun aPlacementReadingAChangedLocalPlacesAgainWithoutMeasuringAgain() = assertPlacementFollows(LocalX)
+
+    @Test
+    fun aPlacementReadingAChangedLocalNeverPlacesAResultMadeForAnotherWidth() =
+        assertPlacementFollowsResize(offer = 100, placedWidths = listOf(100, 100), expectedX = 50)
+
+    @Test
+    fun aPlacementReadingAChangedLocalIsPlacedWhenTheParentOffersTheWidthSwingAlreadySet() =
+        assertPlacementFollowsResize(offer = 120, placedWidths = listOf(120), expectedX = 60)
 
     @Test
     fun aPlacementReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
@@ -274,6 +285,73 @@ class CompositionLocalConsumerLayoutNodeTest {
             assertEquals(40, panel.width, "and at the changed local's width after the change")
         }
 
+    /**
+     * Swing resizes a 100 wide container to 120 and validates it alone, while a placement it reads changes to 5.
+     * The parent then offers [offer]: the container's width, 120, or the 100 it was measured for. The container is
+     * placed once per entry of [placedWidths], each time at that width with a result made for that same width, and
+     * its child lands at the center of that width, (width - 10) / 2, plus the changed 5, which is [expectedX].
+     */
+    private fun assertPlacementFollowsResize(
+        offer: Int,
+        placedWidths: List<Int>,
+        expectedX: Int,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val liveX = mutableIntStateOf(0)
+        var container: JComponent? = null
+        var parentOffer = 100
+        // The container's width at each placement, beside the width the placed result was made for.
+        val placements = mutableListOf<Pair<Int, Int>>()
+        val policy =
+            MeasurePolicy { measurables, constraints ->
+                val placeable = measurables.single().measure(Constraints())
+                val width = constraints.constrainWidth(100)
+                val height = constraints.constrainHeight(placeable.height)
+                layout(width, height) {
+                    container?.let { placements += it.width to width }
+                    // Centered in the width this result is made for, so the x names that width.
+                    placeable.place((width - placeable.width) / 2, 0)
+                }
+            }
+        val parentPolicy =
+            MeasurePolicy { measurables, _ ->
+                val offered = Constraints(parentOffer, parentOffer, 0, Constraints.Infinity)
+                val placeable = measurables.single().measure(offered)
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+        setWindowContent {
+            // A state read behind a local, so a change reaches a placement without a recomposition.
+            val x = remember { compositionLocalWithComputedDefaultOf { liveX.intValue } }
+            Layout(measurePolicy = parentPolicy) {
+                Layout(measurePolicy = policy, modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier then LocalReadingElement(width = null, x = x),
+                    )
+                }
+            }
+        }
+        val panel = windowContainer()
+        container = panel
+        val child = panel.getComponent(0)
+        assertEquals(100, panel.width, "the parent must size the container to the result's width")
+
+        parentOffer = offer
+        panel.setSize(120, panel.height)
+        panel.validate()
+        liveX.intValue = 5
+        Snapshot.sendApplyNotifications()
+        awaitIdle()
+
+        assertEquals(
+            placedWidths.map { it to it },
+            placements,
+            "a placement must not use a result made for another width",
+        )
+        assertEquals(offer, panel.width, "the parent must size the container to its offer")
+        assertEquals(expectedX, child.x, "and the changed local's x must be placed")
+    }
+
     private fun assertPlacementFollows(local: ProvidableCompositionLocal<Int>) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
@@ -358,7 +436,7 @@ private class LocalProbe {
  * local where its local is `null`.
  */
 private class LocalReadingElement(
-    private val probe: LocalProbe,
+    private val probe: LocalProbe = LocalProbe(),
     private val width: CompositionLocal<Int>? = LocalWidth,
     private val x: CompositionLocal<Int>? = LocalX,
     private val alpha: CompositionLocal<Float>? = null,

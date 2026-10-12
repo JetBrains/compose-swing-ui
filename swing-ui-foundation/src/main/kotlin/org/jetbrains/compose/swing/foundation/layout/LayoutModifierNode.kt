@@ -106,7 +106,7 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         height: Int,
     ): Placeable? {
         val constraints = Constraints.fixed(width, height)
-        val result = with(PolicyMeasureScope) { measure(IntrinsicLineMeasurable(measurable), constraints) }
+        val result = with(IntrinsicPolicyMeasureScope) { measure(IntrinsicLineMeasurable(measurable), constraints) }
         val leftToRight =
             child
                 ?.owner
@@ -299,7 +299,7 @@ private fun LayoutModifierNode.measureIntrinsically(
     val minCrossAxisSize =
         if (widthHeight == IntrinsicWidthHeight.Height) scope.offeredMinWidth.coerceAtMost(crossAxisSize) else 0
     return intrinsicExtent(widthHeight, crossAxisSize, minCrossAxisSize) {
-        with(PolicyMeasureScope) { measure(adapter, it) }
+        measure(adapter, it)
     }
 }
 

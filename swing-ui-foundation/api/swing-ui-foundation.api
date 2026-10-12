@@ -803,8 +803,10 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Me
 	public fun maxIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public fun maxIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
+	public fun measureAtAssignedSize (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;II)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
 	public fun minIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public fun minIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
+	public fun preferredSize (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;Ljava/lang/Integer;)Ljava/awt/Dimension;
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/MeasureResult {

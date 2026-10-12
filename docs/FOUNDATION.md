@@ -101,10 +101,13 @@ A policy must return a non-negative size. It should use `constraints.constrainWi
 A policy may read and write snapshot `State`. [Phases](#phases) lists what a read in each block invalidates;
 `Layout`'s KDoc states what a write costs.
 
+When laid out directly by a Swing parent, the container enters `measureAtAssignedSize(measurables, width, height)`, which
+delegates by default to `measure` with exact constraints for the assigned inner rectangle.
+
 ### Measure once
 
-A policy measures each child at most once per pass, and only in its measure block or its placement
-block; measuring the same child again, or outside both blocks, throws `IllegalStateException` with
+A policy measures each child at most once per pass, and only in `measure` or `measureAtAssignedSize`, or in its
+placement block; measuring the same child again, or outside those, throws `IllegalStateException` with
 androidx's message. A size the policy needs before it chooses a child's constraints comes from the child's
 intrinsic functions, and a baseline comes from the placeable already measured, as `placeable[FirstBaseline]`. A
 layout modifier may measure its inner measurable again, and each call returns an independent result.
@@ -115,9 +118,11 @@ child again.
 
 ### Intrinsic size
 
-Within Foundation layouts, preferred size uses `maxIntrinsicWidth` at unbounded height, then `maxIntrinsicHeight` at that width; minimum size uses the corresponding minimum functions. A stock Swing parent can establish a different width for a height query; see [Where constraints stop](#where-constraints-stop). A `Constrainable` child answers intrinsic queries at the extent the parent names; a stock Swing widget answers from its preferred or minimum size.
+Swing's `getPreferredSize()` calls the policy's `preferredSize(measurables, assignedWidth)`. By default it takes `maxIntrinsicWidth` at unbounded height as the width, and `maxIntrinsicHeight` at `assignedWidth` when that is positive, or at the natural width.
 
-Under a stock Swing parent, a preferred height follows the container's current inner width when it has one, and otherwise uses its natural preferred width. Minimum height uses the natural preferred width.
+Under a stock Swing parent `assignedWidth` is the container's current inner width when positive; otherwise, and under a Foundation parent, it is `null`.
+
+Minimum-size queries use the minimum intrinsic functions; under a stock Swing parent, minimum height uses the natural preferred width. A `Constrainable` child reports intrinsic queries at the extent the parent names; a stock Swing widget reports from its preferred or minimum size.
 
 A stock widget's height at a bounded width follows the width its parent grants. At an unbounded width it answers at its current width. A widget that can answer at other extents implements [`Constrainable`](../swing-ui-foundation/src/main/kotlin/org/jetbrains/compose/swing/foundation/layout/Constrainable.kt).
 
@@ -805,3 +810,5 @@ The model follows Compose UI, adapted to Swing:
 - Placement ends in `Component.setBounds` on a real Swing component.
 - Children with equal z-index stack in declaration order. androidx stacks them in the order the parent places
   them.
+
+A matching valid result from an earlier explicit offer is placed again without measuring. A Foundation child without an explicit preferred size waits for its parent's next offer when its result is invalid or no longer matches its bounds.

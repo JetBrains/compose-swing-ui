@@ -51,8 +51,9 @@ import org.jetbrains.compose.swing.setContent as setSwingContent
  * [org.jetbrains.compose.swing.node.SwingNode] or [setContent] declares it. Reads for children added with [add] are
  * not tracked.
  *
- * A stock parent reads a preferred or minimum size without offering constraints. The policy's intrinsic functions
- * answer it, and a preferred or minimum size set on the panel replaces the policy's result for that read.
+ * A stock parent reads a preferred or minimum size without offering constraints. The preferred size comes from
+ * [MeasurePolicy.preferredSize] and the minimum size from the policy's intrinsic functions. A preferred or minimum size
+ * set on the panel replaces the policy's result for that read.
  *
  * A layer a policy places a child with takes effect on a panel no node holds, which then revalidates nothing.
  */
@@ -107,13 +108,17 @@ public open class ConstrainedPanel internal constructor(
         val nodes = policyLayout.nodes
         nodes += node.asNodeOf(this)
         // Answers worked out while no node was attached recorded no reads.
-        if (nodes.size == 1) revalidate()
+        if (nodes.size == 1) {
+            policyLayout.intrinsics.invalidate()
+            revalidate()
+        }
     }
 
     override fun onDetached(node: SwingComponentNode<*>) {
         val layout = policyLayout
         val recorded = node === layout.node
         layout.nodes -= node.asNodeOf(this)
+        if (recorded) layout.intrinsics.invalidate()
         // The reads recorded under the detached node went with it.
         if (recorded && layout.node != null) {
             revalidate()
@@ -267,6 +272,7 @@ public open class ConstrainedPanel internal constructor(
     // outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
     // ChildMeasurables.childPaintOutsetsChanged for when it is laid out again.
     override fun invalidate() {
+        policyLayout.intrinsics.invalidate()
         val measurables = policyLayout.measurables
         if (measurables.isFittingPaintOutsets && measurables.beingPlaced) return super.invalidate()
         if (measurables.run { isPlacingAgain || isChangingGlassPane || isFittingPaintOutsets }) return
@@ -287,6 +293,7 @@ public open class ConstrainedPanel internal constructor(
         height: Int,
     ): Unit =
         policyLayout.measurables.during(RunningCause.ParentPlacement) {
+            if (this.width != width || this.height != height) policyLayout.intrinsics.invalidate()
             super.setBounds(x, y, width, height)
             glassPane?.setBounds(0, 0, width, height)
         }
@@ -373,37 +380,11 @@ public open class ConstrainedPanel internal constructor(
             policyLayout.measurables.run {
                 // An invalid panel takes no invalidation from its children, so the settled-result mark is needed only
                 // while it is valid.
-                val reads = if (intrinsicSize == IntrinsicSize.Min) SizeReadKind.MinHeight else SizeReadKind.MaxHeight
                 during(RunningCause.ParentPlacement) {
-                    observedIntrinsic(
-                        intrinsicSize,
-                        IntrinsicWidthHeight.Height,
-                        inner,
-                        reads,
-                        scope,
-                    )
+                    policyLayout.intrinsics.query(intrinsicSize, IntrinsicWidthHeight.Height, inner, scope)
                 }
             }
         return height.grownBy(insets.top.grownBy(insets.bottom))
-    }
-
-    /**
-     * What the policy's [intrinsicSize] function on [axis] returns at the inner [extent] in [scope], its reads recorded
-     * under [reads], a callback for this result alone, so recording them drops no reads behind another result.
-     */
-    internal fun observedIntrinsic(
-        intrinsicSize: IntrinsicSize,
-        axis: IntrinsicWidthHeight,
-        extent: Int,
-        reads: (SwingComponentNode<*>) -> Unit,
-        scope: PreferencesScope = PreferencesScope(),
-    ): Int {
-        scope.policyLayout = policyLayout
-        scope.intrinsicSize = intrinsicSize
-        scope.axis = axis
-        scope.extent = extent
-        policyLayout.observe(reads, scope)
-        return scope.result
     }
 
     private fun policyWidth(
@@ -414,9 +395,8 @@ public open class ConstrainedPanel internal constructor(
         val inner = innerExtent(height, insets.top, insets.bottom)
         val width =
             policyLayout.measurables.run {
-                val reads = if (intrinsicSize == IntrinsicSize.Min) SizeReadKind.MinWidth else SizeReadKind.MaxWidth
                 during(RunningCause.ParentPlacement) {
-                    observedIntrinsic(intrinsicSize, IntrinsicWidthHeight.Width, inner, reads)
+                    policyLayout.intrinsics.query(intrinsicSize, IntrinsicWidthHeight.Width, inner, PreferencesScope())
                 }
             }
         return width.grownBy(insets.left.grownBy(insets.right))
@@ -741,7 +721,7 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
  * changes. Each size read records its reads
  * under the callback of its own entry, so recording one drops no reads behind another; see [observe].
  */
-internal enum class SizeReadKind : (SwingComponentNode<*>) -> Unit {
+internal enum class SizeReadKind : (SwingComponentNode<ConstrainedPanel>) -> Unit {
     /** What `preferredLayoutSize` returns, which Swing caches as the container's preferred size. */
     Preferred,
 
@@ -762,7 +742,17 @@ internal enum class SizeReadKind : (SwingComponentNode<*>) -> Unit {
     CheckedMaxHeight,
     ;
 
-    override fun invoke(node: SwingComponentNode<*>) = node.invalidateLayout()
+    override fun invoke(node: SwingComponentNode<ConstrainedPanel>) {
+        when (this) {
+            MinWidth, MaxWidth, MinHeight, MaxHeight -> {
+                node.component.policyLayout.intrinsics
+                    .invalidate()
+            }
+
+            else -> {}
+        }
+        node.invalidateLayout()
+    }
 }
 
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */

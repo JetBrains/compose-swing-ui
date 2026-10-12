@@ -38,12 +38,61 @@ public fun interface MeasurePolicy {
      * with where each measured child goes inside it.
      *
      * Under an unbounded main axis a policy dividing a finite extent among its children has nothing to
-     * divide; see the four intrinsic functions, which answer Swing's argument-less size queries.
+     * divide; see [preferredSize] and the four intrinsic functions, which Swing's argument-less size queries reach.
      */
     public fun MeasureScope.measure(
         measurables: List<Measurable>,
         constraints: Constraints,
     ): MeasureResult
+
+    /**
+     * Measures [measurables] for the container's assigned inner bounds [width] by [height], and returns where each
+     * measured child goes. A Swing parent that sets the container's bounds, or the container laying itself out, calls
+     * this; a Foundation parent calls [measure]. [width] and [height] exclude the container's insets and paint outsets.
+     * They are the container's own size, not an offer to its children: an override can offer its children any
+     * constraints and still return `layout(width, height)`. Like [measure], it measures each child at most once. The
+     * default calls [measure] with exact constraints for [width] and [height].
+     */
+    public fun MeasureScope.measureAtAssignedSize(
+        measurables: List<Measurable>,
+        width: Int,
+        height: Int,
+    ): MeasureResult = measure(measurables, Constraints(width, width, height, height))
+
+    /**
+     * Returns the preferred size of this container for Swing's `getPreferredSize()`. [assignedWidth] is the inner width
+     * Swing has set on the container, or `null` where it has no positive width to offer, which includes every container
+     * under a Foundation parent; use it for height-for-width. The result excludes insets and paint outsets, which the
+     * container adds, and must be nonnegative, or `getPreferredSize()` throws IllegalArgumentException. Minimum size
+     * reads do not call this; they use the minimum intrinsic functions.
+     *
+     * The default returns the natural maximum intrinsic width and the maximum intrinsic height at [assignedWidth]
+     * if positive, or at the natural width otherwise.
+     */
+    public fun IntrinsicMeasureScope.preferredSize(
+        measurables: List<IntrinsicMeasurable>,
+        assignedWidth: Int?,
+    ): Dimension {
+        val naturalWidth =
+            policyIntrinsic(
+                this@MeasurePolicy,
+                measurables,
+                IntrinsicSize.Max,
+                IntrinsicWidthHeight.Width,
+                Constraints.Infinity,
+            )
+        val heightWidth = assignedWidth?.takeIf { it > 0 } ?: naturalWidth
+        return Dimension(
+            naturalWidth,
+            policyIntrinsic(
+                this@MeasurePolicy,
+                measurables,
+                IntrinsicSize.Max,
+                IntrinsicWidthHeight.Height,
+                heightWidth,
+            ),
+        )
+    }
 
     /** The smallest width that lets [measurables] paint correctly when they are [height] tall. */
     public fun IntrinsicMeasureScope.minIntrinsicWidth(
@@ -117,7 +166,7 @@ internal inline fun intrinsicExtent(
         } else {
             Constraints(minWidth = minCrossAxisSize, maxWidth = crossAxisSize)
         }
-    val result = PolicyMeasureScope.measure(constraints)
+    val result = IntrinsicPolicyMeasureScope.measure(constraints)
     return if (widthHeight == IntrinsicWidthHeight.Width) result.width else result.height
 }
 
@@ -264,6 +313,9 @@ internal object PolicyMeasureScope : MeasureScope {
         return SettledExtent(width, height, alignmentLines, placementBlock)
     }
 }
+
+/** The immutable receiver for a default intrinsic adapter's simulated measurement. */
+internal object IntrinsicPolicyMeasureScope : MeasureScope by PolicyMeasureScope
 
 /** What [MeasureScope.layout] hands back: the raw extent named there, and the block that was named with it. */
 private class SettledExtent(
