@@ -41,6 +41,7 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
+import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -1005,7 +1006,117 @@ class AnimatedVisibilityStateMachineTest {
         }
 
     @Test
-    fun `an expand anchors the corner its alignment names`() =
+    fun `an expand under a Foundation parent anchors the corner its alignment names`() =
+        runComposeSwingTest {
+            var visible by mutableStateOf(false)
+            setContent {
+                Column {
+                    for (anchor in ANCHORS) {
+                        org.jetbrains.compose.swing.animation.AnimatedVisibility(
+                            visible = visible,
+                            enter = expandIn(tween(1600), anchor.alignment),
+                            exit = ExitTransition.None,
+                        ) {
+                            Block(width = 80, height = 40)
+                        }
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+
+            // The column lists its children in the reverse of the order they were composed in.
+            val column = root.getComponent(0) as Container
+            for ((index, anchor) in ANCHORS.withIndex()) {
+                val panel = column.getComponent(ANCHORS.lastIndex - index) as Container
+                val box = panel.size
+                assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the expand was not under way: $box")
+                assertEquals(
+                    anchor.locationIn(box),
+                    panel.getComponent(0).location,
+                    "$anchor: the content was anchored at a corner the expand does not name",
+                )
+            }
+        }
+
+    @Test
+    fun `a shrink under a Foundation parent anchors the corner its alignment names`() =
+        runComposeSwingTest {
+            var visible by mutableStateOf(true)
+            setContent {
+                Column {
+                    for (anchor in ANCHORS) {
+                        org.jetbrains.compose.swing.animation.AnimatedVisibility(
+                            visible = visible,
+                            enter = EnterTransition.None,
+                            exit = shrinkOut(tween(1600), anchor.alignment),
+                        ) {
+                            Block(width = 80, height = 40)
+                        }
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            visible = false
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+
+            // The column lists its children in the reverse of the order they were composed in.
+            val column = root.getComponent(0) as Container
+            for ((index, anchor) in ANCHORS.withIndex()) {
+                val panel = column.getComponent(ANCHORS.lastIndex - index) as Container
+                val box = panel.size
+                assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the shrink was not under way: $box")
+                assertEquals(
+                    anchor.locationIn(box),
+                    panel.getComponent(0).location,
+                    "$anchor: the content was anchored at a corner the shrink does not name",
+                )
+            }
+        }
+
+    @Test
+    fun `an exit that changes no size under a Foundation parent keeps the anchor the enter named`() =
+        runComposeSwingTest {
+            var visible by mutableStateOf(false)
+            setContent {
+                Box {
+                    org.jetbrains.compose.swing.animation.AnimatedVisibility(
+                        visible = visible,
+                        enter = expandIn(animationSpec = tween(1600)),
+                        exit = fadeOut(animationSpec = tween(1600)),
+                    ) {
+                        Block(width = 80, height = 40)
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            val panel = animatedContainer().fetch<Container>().getComponent(0) as Container
+            val expanding = panel.size
+            assertEquals(
+                Point(expanding.width - 80, expanding.height - 40),
+                panel.getComponent(0).location,
+                "the expand did not anchor the trailing corner it names by default",
+            )
+
+            visible = false
+            driveOneFrame()
+            val leaving = panel.size
+            assertTrue(leaving.width < 80, "precondition: the box was still short of the content: $leaving")
+            assertEquals(
+                Point(leaving.width - 80, leaving.height - 40),
+                panel.getComponent(0).location,
+                "the exit, which changes no size of its own, dropped the anchor the enter named",
+            )
+        }
+
+    @Test
+    fun `an expand under a stock parent places the content at the origin whatever corner its alignment names`() =
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
@@ -1029,15 +1140,15 @@ class AnimatedVisibilityStateMachineTest {
                 val box = panel.size
                 assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the expand was not under way: $box")
                 assertEquals(
-                    anchor.locationIn(box),
-                    panel.getComponent(0).location,
-                    "$anchor: the content was anchored at a corner the expand does not name",
+                    Rectangle(Point(), box),
+                    panel.getComponent(0).bounds,
+                    "$anchor: the content was not laid out at the bounds the stock parent assigned",
                 )
             }
         }
 
     @Test
-    fun `a shrink anchors the corner its alignment names`() =
+    fun `a shrink under a stock parent places the content at the origin whatever corner its alignment names`() =
         runComposeSwingTest {
             var visible by mutableStateOf(true)
             setContent {
@@ -1061,15 +1172,15 @@ class AnimatedVisibilityStateMachineTest {
                 val box = panel.size
                 assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the shrink was not under way: $box")
                 assertEquals(
-                    anchor.locationIn(box),
-                    panel.getComponent(0).location,
-                    "$anchor: the content was anchored at a corner the shrink does not name",
+                    Rectangle(Point(), box),
+                    panel.getComponent(0).bounds,
+                    "$anchor: the content was not laid out at the bounds the stock parent assigned",
                 )
             }
         }
 
     @Test
-    fun `an exit that changes no size keeps the anchor the enter named`() =
+    fun `an exit that changes no size under a stock parent leaves the content at the origin the enter left it`() =
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
@@ -1087,10 +1198,11 @@ class AnimatedVisibilityStateMachineTest {
             repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
             val panel = animatedContainer().fetch<Container>()
             val expanding = panel.size
+            assertTrue(expanding.width in 1..79, "precondition: the expand was under way: $expanding")
             assertEquals(
-                Point(expanding.width - 80, expanding.height - 40),
-                panel.getComponent(0).location,
-                "the expand did not anchor the trailing corner it names by default",
+                Rectangle(Point(), expanding),
+                panel.getComponent(0).bounds,
+                "the expand did not lay the content out at the bounds the stock parent assigned",
             )
 
             visible = false
@@ -1098,9 +1210,9 @@ class AnimatedVisibilityStateMachineTest {
             val leaving = panel.size
             assertTrue(leaving.width < 80, "precondition: the box was still short of the content: $leaving")
             assertEquals(
-                Point(leaving.width - 80, leaving.height - 40),
-                panel.getComponent(0).location,
-                "the exit, which changes no size of its own, dropped the anchor the enter named",
+                Rectangle(Point(), leaving),
+                panel.getComponent(0).bounds,
+                "the exit, which changes no size of its own, moved the content off the bounds the parent assigned",
             )
         }
 

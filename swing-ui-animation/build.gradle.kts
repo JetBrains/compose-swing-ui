@@ -47,8 +47,10 @@ dependencies {
     // depends on the other.
     testImplementation(project(":swing-ui-test"))
     testImplementation(testFixtures(project(":swing-ui")))
+    testImplementation(testFixtures(project(":swing-ui-foundation")))
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinxCoroutinesTest)
+    testImplementation(libs.junitJupiterParams)
     testImplementation(libs.composeRuntimeSaveable)
 }
 

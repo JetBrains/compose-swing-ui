@@ -76,18 +76,18 @@ public sealed interface Measurable : IntrinsicMeasurable {
     /**
      * The extent the child takes under [constraints].
      *
-     * A [MeasurePolicy] measures each child at most once per pass, and only in its measure block or in
-     * its placement block. A size it needs before choosing the constraints comes from the intrinsic
-     * functions. A [LayoutModifierNode] may measure its inner measurable again; each answer is then an
+     * A [MeasurePolicy] measures each child at most once per pass, and only in `measure` or
+     * `measureAtAssignedSize`, or in its placement block. A size it needs before choosing the constraints comes from
+     * the intrinsic functions. A [LayoutModifierNode] may measure its inner measurable again; each answer is then an
      * independent [Placeable].
      *
      * @throws IllegalStateException if the policy already measured this child in the same pass, or
-     * measures it outside both blocks
+     * measures it outside those
      */
     public fun measure(constraints: Constraints): Placeable
 }
 
-/** The receiver of a [MeasurePolicy]'s four intrinsic measurement functions. */
+/** The receiver of a [MeasurePolicy]'s intrinsic measurement functions and `preferredSize`. */
 public sealed interface IntrinsicMeasureScope {
     /**
      * The least width of the offer used by an intrinsic height read in this scope, at most the specified width,

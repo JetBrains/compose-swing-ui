@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.DeferredTransition
 import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
@@ -579,13 +580,10 @@ private fun <S> AnimatedContentTransitionScopeImpl<S>.createSizeAnimation(
         shouldAnimateSize = true
     }
     val sizeAnimation = remember(this) { ContentSizeAnimation(this, sizeTransform) }
-    sizeAnimation.animation =
-        if (shouldAnimateSize) {
-            transition.createDeferredAnimation(DimensionToVector)
-        } else {
-            animatedSize = null
-            null
-        }
+    sizeAnimation.replaceAnimation(
+        if (shouldAnimateSize) transition.createDeferredAnimation(DimensionToVector) else null,
+    )
+    if (!shouldAnimateSize) animatedSize = null
     return sizeAnimation
 }
 
@@ -609,10 +607,23 @@ internal class ContentSizeAnimation<S>(
     // size, keeping the size continuous.
     private var lastSize: Dimension = UnspecifiedSize
 
+    // Intrinsic answers hold the size the animation ended at until a pass measures without the animation.
+    private var endedAt: Dimension? = null
+
     private fun lastContinuousSizeOrDefault(default: Dimension) = if (lastSize == UnspecifiedSize) default else lastSize
 
     fun reset() {
         lastSize = UnspecifiedSize
+        endedAt = null
+    }
+
+    /** Sets up the size animation, or drops it where the transition has ended. */
+    fun replaceAnimation(animation: Transition<S>.DeferredAnimation<Dimension, AnimationVector2D>?) {
+        if (animation == null && this.animation != null) {
+            val animatedSize = Snapshot.withoutReadObservation { scope.animatedSize?.value }
+            endedAt = animatedSize ?: lastSize.takeIf { it != UnspecifiedSize }
+        }
+        this.animation = animation
     }
 
     /** The size the container takes for content measured at [width] by [height]. */
@@ -626,7 +637,10 @@ internal class ContentSizeAnimation<S>(
         // without the arriving content, so there is no target size to aim at yet: while an animation runs, the size
         // stays where it stands, and the last size is left for the pass that aims at the arriving content.
         if (sizeAnimation == null || !scope.isTargetMeasured) {
-            if (sizeAnimation == null) lastSize = currentSize
+            if (sizeAnimation == null) {
+                lastSize = currentSize
+                endedAt = null
+            }
             return sizeAnimation?.let { scope.animatedSize?.value } ?: currentSize
         }
         val size =
@@ -636,9 +650,9 @@ internal class ContentSizeAnimation<S>(
                         if (initialState == scope.initialState) {
                             lastContinuousSizeOrDefault(currentSize)
                         } else {
-                            scope.targetSizeMap[initialState]?.value ?: Dimension(0, 0)
+                            scope.sizeOf(initialState)
                         }
-                    val target = scope.targetSizeMap[targetState]?.value ?: Dimension(0, 0)
+                    val target = scope.sizeOf(targetState)
                     sizeTransform.value?.createAnimationSpec(initial, target)
                         ?: spring(stiffness = Spring.StiffnessMediumLow)
                 },
@@ -646,7 +660,7 @@ internal class ContentSizeAnimation<S>(
                 if (it == scope.initialState) {
                     lastContinuousSizeOrDefault(currentSize)
                 } else {
-                    scope.targetSizeMap[it]?.value ?: Dimension(0, 0)
+                    scope.sizeOf(it)
                 }
             }
         scope.animatedSize = size
@@ -658,7 +672,7 @@ internal class ContentSizeAnimation<S>(
     fun intrinsicSize(
         width: Int,
         height: Int,
-    ): Dimension = animation?.let { scope.animatedSize?.value } ?: Dimension(width, height)
+    ): Dimension = animation?.let { scope.animatedSize?.value } ?: endedAt ?: Dimension(width, height)
 }
 
 /** Compared with and never handed out. */
@@ -777,18 +791,42 @@ private class AnimatedContentMeasurePolicy(
         measurables: List<Measurable>,
         constraints: Constraints,
     ): MeasureResult {
+        rootScope.naturalSizes.clear()
+        return measureContents(measurables, constraints, assigned = null)
+    }
+
+    override fun MeasureScope.measureAtAssignedSize(
+        measurables: List<Measurable>,
+        width: Int,
+        height: Int,
+    ): MeasureResult =
+        measureContents(
+            measurables,
+            Constraints(maxWidth = width, maxHeight = height),
+            assigned = Dimension(width, height),
+        )
+
+    private fun MeasureScope.measureContents(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+        assigned: Dimension?,
+    ): MeasureResult {
         val animating = rootScope.transition.currentState != rootScope.transition.targetState
+        // An assigned pass reads the natural sizes before the contents are measured, which can change them.
+        val natural = assigned?.let { naturalSizesOf(measurables) }
         val placeables = arrayOfNulls<Placeable>(measurables.size)
         // Measure the target content first, but place it on top unless a zIndex is specified.
         measurables.forEachIndexed { index, measurable ->
             if ((measurable.parentData as? AnimatedContentChildData)?.isTarget == true) {
-                placeables[index] = measurable.measure(childConstraints(measurable, constraints, animating))
+                placeables[index] =
+                    measurable.measure(childConstraints(measurable, constraints, animating, assigned))
             }
         }
         // The other contents are measured after the target, since they have no impact on the size animation.
         measurables.forEachIndexed { index, measurable ->
             if (placeables[index] == null) {
-                placeables[index] = measurable.measure(childConstraints(measurable, constraints, animating))
+                placeables[index] =
+                    measurable.measure(childConstraints(measurable, constraints, animating, assigned))
             }
         }
         var maxW = 0
@@ -808,30 +846,67 @@ private class AnimatedContentMeasurePolicy(
         this@AnimatedContentMeasurePolicy.placeables = placeables
         // A container its parent offers more than its contents need takes that room, and aligns them inside it.
         contentsSize = Dimension(maxW, maxH)
-        val size = constraints.constrain(sizeAnimation?.measure(maxW, maxH) ?: contentsSize)
+        val size =
+            if (assigned == null || natural == null) {
+                constraints.constrain(sizeAnimation?.measure(maxW, maxH) ?: contentsSize)
+            } else {
+                // The animation runs between the natural sizes read above; the container keeps its assigned bounds.
+                sizeAnimation?.measure(natural.width, natural.height)
+                assigned
+            }
         contentsOffset = rootScope.contentAlignment.align(contentsSize, size, ComponentOrientation.LEFT_TO_RIGHT)
         return layout(size.width, size.height, placementBlock = placementBlock)
     }
 
     /**
-     * The constraints each content is measured under. The minimum is dropped: a Swing layout pass sets it to the
-     * container's own bounds when it measures the container again at them, and content smaller than the container
-     * must keep its size and be placed by the alignment. While the transition runs, a foreign parent hands a
-     * container that runs its own size animation the animated bounds, which are not an offer of available space,
-     * so each content is offered at least its preferred extent.
+     * Refills the natural sizes of the size animation from the contents' intrinsics, each content's height read at its
+     * natural width, and returns the largest of them. Read before the contents are measured, since measuring one can
+     * change its intrinsics.
+     */
+    private fun naturalSizesOf(measurables: List<Measurable>): Dimension {
+        if (sizeAnimation == null) return Dimension()
+        val sizes = rootScope.naturalSizes
+        sizes.clear()
+        var width = 0
+        var height = 0
+        measurables.forEach { measurable ->
+            val data = measurable.parentData as? AnimatedContentChildData
+            if (data != null && !data.isPendingTarget) {
+                val naturalWidth = measurable.maxIntrinsicWidth(Constraints.Infinity)
+                val natural = Dimension(naturalWidth, measurable.maxIntrinsicHeight(naturalWidth))
+                sizes[data.stateForContent] = natural
+                width = max(width, natural.width)
+                height = max(height, natural.height)
+            }
+        }
+        return Dimension(width, height)
+    }
+
+    /**
+     * The constraints each content is measured under. Contents assigned bounds by a Swing parent are measured within
+     * them, with no minimum: content smaller than the container keeps its size and is placed by the alignment. A
+     * parent that offers constraints is passed through, except that while the transition runs each content is offered
+     * at least its preferred extent, since the size animation is not an offer of available space.
      */
     private fun childConstraints(
         measurable: Measurable,
         constraints: Constraints,
         animating: Boolean,
+        assigned: Dimension?,
     ): Constraints =
-        if (sizeAnimation == null || !animating) {
-            Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
-        } else {
-            Constraints(
-                maxWidth = max(constraints.maxWidth, measurable.maxIntrinsicWidth(Constraints.Infinity)),
-                maxHeight = max(constraints.maxHeight, measurable.maxIntrinsicHeight(Constraints.Infinity)),
-            )
+        when {
+            assigned != null || sizeAnimation == null || !animating -> {
+                constraints
+            }
+
+            else -> {
+                Constraints(
+                    minWidth = constraints.minWidth,
+                    minHeight = constraints.minHeight,
+                    maxWidth = max(constraints.maxWidth, measurable.maxIntrinsicWidth(Constraints.Infinity)),
+                    maxHeight = max(constraints.maxHeight, measurable.maxIntrinsicHeight(Constraints.Infinity)),
+                )
+            }
         }
 
     // Content a deferred phase announced ahead of the transition is left out, as it is out of the measured size: a

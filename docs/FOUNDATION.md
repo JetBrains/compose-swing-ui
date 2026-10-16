@@ -101,10 +101,13 @@ A policy must return a non-negative size. It should use `constraints.constrainWi
 A policy may read and write snapshot `State`. [Phases](#phases) lists what a read in each block invalidates;
 `Layout`'s KDoc states what a write costs.
 
+When laid out directly by a Swing parent, the container enters `measureAtAssignedSize(measurables, width, height)`, which
+delegates by default to `measure` with exact constraints for the assigned inner rectangle.
+
 ### Measure once
 
-A policy measures each child at most once per pass, and only in its measure block or its placement
-block; measuring the same child again, or outside both blocks, throws `IllegalStateException` with
+A policy measures each child at most once per pass, and only in `measure` or `measureAtAssignedSize`, or in its
+placement block; measuring the same child again, or outside those, throws `IllegalStateException` with
 androidx's message. A size the policy needs before it chooses a child's constraints comes from the child's
 intrinsic functions, and a baseline comes from the placeable already measured, as `placeable[FirstBaseline]`. A
 layout modifier may measure its inner measurable again, and each call returns an independent result.
@@ -115,9 +118,11 @@ child again.
 
 ### Intrinsic size
 
-Within Foundation layouts, preferred size uses `maxIntrinsicWidth` at unbounded height, then `maxIntrinsicHeight` at that width; minimum size uses the corresponding minimum functions. A stock Swing parent can establish a different width for a height query; see [Where constraints stop](#where-constraints-stop). A `Constrainable` child answers intrinsic queries at the extent the parent names; a stock Swing widget answers from its preferred or minimum size.
+Swing's `getPreferredSize()` calls the policy's `preferredSize(measurables, assignedWidth)`. By default it takes `maxIntrinsicWidth` at unbounded height as the width, and `maxIntrinsicHeight` at `assignedWidth` when that is positive, or at the natural width.
 
-Under a stock Swing parent, a preferred height follows the container's current inner width when it has one, and otherwise uses its natural preferred width. Minimum height uses the natural preferred width.
+Under a stock Swing parent `assignedWidth` is the container's current inner width when positive; otherwise, and under a Foundation parent, it is `null`.
+
+Minimum-size queries use the minimum intrinsic functions; under a stock Swing parent, minimum height uses the natural preferred width. A `Constrainable` child reports intrinsic queries at the extent the parent names; a stock Swing widget reports from its preferred or minimum size.
 
 A stock widget's height at a bounded width follows the width its parent grants. At an unbounded width it answers at its current width. A widget that can answer at other extents implements [`Constrainable`](../swing-ui-foundation/src/main/kotlin/org/jetbrains/compose/swing/foundation/layout/Constrainable.kt).
 
@@ -155,6 +160,51 @@ Panel(PanelLayout.Flow()) {
 ```
 
 <!--- KNIT example-foundation-layout-content-01.kt -->
+
+### Hosting content in a Swing tree
+
+Every constraint-based container (`Layout`, `Row`, `Column`, `Box`) is a `ConstrainedPanel`. Construct one to host Foundation
+content in a Swing tree of your own, and give it content with its `setContent`, which joins a composition as
+`JComponent.setContent` does. The content reads `ConstrainedScope`, so layout modifiers at its top level apply against
+the panel as they do inside a `Layout`. By default the panel behaves like the measure policy of androidx Compose UI's root: it measures each child
+under the panel's constraints, places each at its top-start corner, and takes the largest child's extent. A
+`MeasurePolicy` passed to the constructor replaces that, and is the only way to change it: the panel refuses
+another layout manager.
+
+Import `org.jetbrains.compose.swing.foundation.layout.setContent` to give the content its `ConstrainedScope`.
+
+Under a Foundation parent the panel is measured with the constraints that parent offers. A stock Swing parent asks its
+preferred and minimum sizes, which the panel reports as described in [Where constraints stop](#where-constraints-stop).
+
+<!--- INCLUDE .*foundation-panel-host.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.foundation.layout.*
+import org.jetbrains.compose.swing.modifier.*
+import java.awt.BorderLayout
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
+import javax.swing.JFrame
+-->
+
+```kotlin
+fun showPreview(frame: JFrame) {
+    val panel = ConstrainedPanel()
+    frame.contentPane.add(panel, BorderLayout.CENTER)
+    val content = panel.setContent {
+        Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(16f / 9f))
+    }
+    frame.addWindowListener(object : WindowAdapter() {
+        override fun windowClosed(event: WindowEvent) {
+            content.dispose()
+        }
+    })
+}
+```
+
+<!--- KNIT example-foundation-panel-host-01.kt -->
+
+Call `setContent` and dispose its handle on the Event Dispatch Thread.
+The example disposes the content when the frame closes.
 
 ### Layout modifiers
 
@@ -299,6 +349,7 @@ container offers these scopes:
 | `Column` | `ColumnScope`, `ConstrainedScope` |
 | `Box` | `BoxScope`, `ConstrainedScope` |
 | `Layout` | `ConstrainedScope` |
+| `ConstrainedPanel.setContent` | `ConstrainedScope` |
 
 `weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope`
 and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their
@@ -307,10 +358,12 @@ component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `
 container changes only what a `Decoratable` component reports and clips.
 
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
-cannot declare the row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a
+cannot declare the row's `weight`. The content of `JComponent.setContent` and of a Swing container, such as a `Panel`, a
 `ToolBar`, a `Window` or a `SwingNode` container, offers none of these either, because the layout manager placing
-that content reads none of them. A modifier that reaches a container unable to honor it is refused when it is
-applied.
+that content reads none of them. A scoped modifier that reaches a container unable to honor it is refused when it is
+applied, and a `Row`, `Column` or `Box` refuses an untyped `layoutConstraint` as well. A `Layout` and a
+`ConstrainedPanel` hand an untyped `layoutConstraint` to their policy as `Measurable.parentData`; the default policy of
+a `ConstrainedPanel` reads none, as androidx's root reads none, so it ignores one on the content of `setContent`.
 
 A modifier of your own declares the same scope as a context parameter, and resolves wherever the scope's own
 modifiers do. It builds on those modifiers, or on the scope's one member: `layout` declares a
@@ -361,6 +414,7 @@ kotlin {
   custom content scopes and layout constraints.
 - `Panel(PanelLayout.Xxx)` for a Swing layout manager's behavior, with a `Box` or another constraint-based
   container inside it wherever its descendants need layout modifiers.
+- `ConstrainedPanel` to host Foundation content in a Swing tree you build yourself; see [Hosting content in a Swing tree](#hosting-content-in-a-swing-tree).
 
 ## Graphics
 
@@ -756,3 +810,5 @@ The model follows Compose UI, adapted to Swing:
 - Placement ends in `Component.setBounds` on a real Swing component.
 - Children with equal z-index stack in declaration order. androidx stacks them in the order the parent places
   them.
+
+A matching valid result from an earlier explicit offer is placed again without measuring. A Foundation child without an explicit preferred size waits for its parent's next offer when its result is invalid or no longer matches its bounds.

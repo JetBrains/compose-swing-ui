@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -166,6 +167,57 @@ class AnimatedContentStateMachineTest {
                 "precondition: the container's size was mid-travel: $box",
             )
 
+            assertEquals(
+                Point(box.width - NARROW_WIDTH, box.height - BODY_HEIGHT),
+                panelShowing("a").location,
+                "the content being left was placed by something other than the container's alignment",
+            )
+            val arriving = panelShowing("b")
+            assertEquals(
+                box.width,
+                arriving.width,
+                "the arriving content was not measured within the room the container was assigned",
+            )
+            assertEquals(
+                Point(box.width - arriving.width, box.height - BODY_HEIGHT),
+                arriving.location,
+                "the arriving content was placed by something other than the container's alignment",
+            )
+        }
+
+    @Test
+    fun `the alignment places both contents while the container's size travels under a Foundation parent`() =
+        runComposeSwingTest {
+            var state by mutableStateOf("a")
+            setContent {
+                Box {
+                    org.jetbrains.compose.swing.animation.AnimatedContent(
+                        targetState = state,
+                        transitionSpec = { fadeIn(tween(1600)) togetherWith fadeOut(tween(1600)) },
+                        contentAlignment = Alignment.BottomEnd,
+                    ) {
+                        Body(text = it)
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            state = "b"
+            repeat(4) { driveOneFrame() }
+            val container = (root.getComponent(0) as Container).getComponent(0) as Container
+            val box = container.size
+            assertTrue(
+                box.width in (NARROW_WIDTH + 1) until WIDE_WIDTH,
+                "precondition: the container's size was mid-travel: $box",
+            )
+
+            fun panelShowing(state: String): Container =
+                container.contentPanel(
+                    assertNotNull(
+                        (0 until container.componentCount).firstOrNull { container.contentText(it) == state },
+                        "no content on screen is showing $state",
+                    ),
+                )
             assertEquals(
                 Point(box.width - NARROW_WIDTH, box.height - BODY_HEIGHT),
                 panelShowing("a").location,

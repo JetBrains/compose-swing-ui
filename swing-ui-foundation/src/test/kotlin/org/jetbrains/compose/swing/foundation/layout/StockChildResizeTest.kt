@@ -18,7 +18,9 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Dimension
 import java.awt.Graphics
+import java.awt.GridBagConstraints
 import java.awt.Insets
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -195,6 +197,46 @@ class StockChildResizeTest {
             awaitIdle()
 
             assertEquals(0, area.resizes, "the panel holding the area is not laid out again")
+        }
+
+    @Test
+    fun aStockPanelHoldingWrappingTextReportsItsHeightAtTheWidthItsLayoutGaveItWhenReadBeforeAnyPaint() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.north()) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("box")
+                                    .item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL),
+                        ) {
+                            SwingNode(
+                                factory = { JPanel(BorderLayout()).apply { add(wrappingTextArea()) } },
+                                modifier = SwingModifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            }
+            settleWithPaint()
+            val box = onNodeWithTag("box").fetch<JComponent>()
+
+            fun wrappedHeightAt(width: Int) = wrappingTextArea().apply { setSize(width, 1) }.preferredSize.height
+            assertEquals(Dimension(WIDTH, wrappedHeightAt(WIDTH)), box.preferredSize, "wide: preferred")
+
+            width = WIDTH - 60
+            awaitIdle()
+            box.invalidate()
+
+            assertTrue(wrappedHeightAt(WIDTH - 60) > wrappedHeightAt(WIDTH), "the text wraps into more lines")
+            assertEquals(
+                Dimension(WIDTH - 60, wrappedHeightAt(WIDTH - 60)),
+                box.preferredSize,
+                "narrow: preferred, read after the layout that sized the panel to it",
+            )
+            assertEquals(box.preferredSize, box.minimumSize, "narrow: minimum")
         }
 
     @Test

@@ -594,9 +594,13 @@ private class AnimatedEnterExitMeasurePolicy(
  * [AnimatedEnterExitMeasurePolicy] for a container that runs the transition's size change and slide over its own
  * children, because no Foundation parent runs them.
  *
- * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size. While
- * the transition runs, the bounds the parent assigns follow the animation, not the available space, so the content is
- * offered at least the size it was last measured at.
+ * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size. The
+ * bounds it assigns are the container's own: the content is measured within them, and the size animation aims at the
+ * content's natural size. While a size change runs, the preferred height is computed at the natural width, so wrapping
+ * content in a following parent can clip while the width animates.
+ *
+ * Where a Foundation parent measures the container, the bounds it assigns follow the animation, not the available
+ * space, so while the transition runs the content is offered at least the size it was last measured at.
  */
 private class EnterExitContainerMeasurePolicy(
     val scope: AnimatedVisibilityScopeImpl,
@@ -628,6 +632,34 @@ private class EnterExitContainerMeasurePolicy(
         }
     }
 
+    override fun MeasureScope.measureAtAssignedSize(
+        measurables: List<Measurable>,
+        width: Int,
+        height: Int,
+    ): MeasureResult {
+        val natural = naturalSize(measurables)
+        val placeables = measurables.fastMap { it.measure(Constraints(maxWidth = width, maxHeight = height)) }
+        layout.measure(natural.width, natural.height, Constraints.fixed(width, height), anchored = false)
+        return layout(width, height) {
+            layout.place()
+            placeables.fastForEach { it.place(layout.contentX, layout.contentY) }
+        }
+    }
+
+    override fun IntrinsicMeasureScope.preferredSize(
+        measurables: List<IntrinsicMeasurable>,
+        assignedWidth: Int?,
+    ): Dimension =
+        layout.runningSize() ?: run {
+            val naturalWidth = measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(Constraints.Infinity) }
+            Dimension(
+                naturalWidth,
+                measurables.fastMaxOfOrDefault(0) {
+                    it.maxIntrinsicHeight(assignedWidth ?: naturalWidth)
+                },
+            )
+        }
+
     override fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
@@ -641,18 +673,39 @@ private class EnterExitContainerMeasurePolicy(
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = animatedIntrinsicSize(measurables).width
+    ): Int = animatedIntrinsicSize(measurables, height, Constraints.Infinity).width
 
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = animatedIntrinsicSize(measurables).height
+    ): Int = animatedIntrinsicSize(measurables, Constraints.Infinity, width).height
 
-    private fun animatedIntrinsicSize(measurables: List<IntrinsicMeasurable>): Dimension =
-        layout.intrinsicSize(
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(Constraints.Infinity) },
-            measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(Constraints.Infinity) },
-        )
+    /** The contents' width unbounded, and their height at that width: what the size animation aims at. */
+    private fun naturalSize(measurables: List<IntrinsicMeasurable>): Dimension {
+        val naturalWidth = measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(Constraints.Infinity) }
+        return Dimension(naturalWidth, measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(naturalWidth) })
+    }
+
+    /**
+     * The size a running size change stands at, otherwise the contents' own size for the extent asked. The first query
+     * of a container nothing has measured yet sets the animation up at the natural size, as [measureAtAssignedSize]
+     * does.
+     */
+    private fun animatedIntrinsicSize(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+        width: Int,
+    ): Dimension {
+        if (!layout.hasMeasured) {
+            val natural = naturalSize(measurables)
+            layout.intrinsicSize(natural.width, natural.height)
+        }
+        return layout.runningSize()
+            ?: Dimension(
+                measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(height) },
+                measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(width) },
+            )
+    }
 }
 
 // This converts Boolean visible to EnterExitState

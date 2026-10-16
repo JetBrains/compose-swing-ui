@@ -124,28 +124,45 @@ internal inline fun <T> ChildMeasurables.readPolicyPreferences(
 internal class PreferencesScope(
     override val offeredMinWidth: Int = 0,
     val maySizeStockChildren: Boolean = false,
-) : IntrinsicMeasureScope,
-    () -> Unit {
-    lateinit var policyLayout: MeasurePolicyLayout
-    var intrinsicSize: IntrinsicSize = IntrinsicSize.Max
-    var axis: IntrinsicWidthHeight = IntrinsicWidthHeight.Width
-    var extent: Int = 0
-    var result: Int = 0
-        private set
+    val policyLayout: MeasurePolicyLayout? = null,
+    val measurables: List<IntrinsicMeasurable>? = null,
+) : IntrinsicMeasureScope
 
-    override fun invoke() {
-        val height = axis == IntrinsicWidthHeight.Height
-        val max = intrinsicSize == IntrinsicSize.Max
-        result =
-            policyLayout.measurables.readPolicyPreferences(maySizeStockChildren) { children ->
-                with(this@PreferencesScope) {
-                    when {
-                        height && max -> maxIntrinsicHeight(children, extent)
-                        height -> minIntrinsicHeight(children, extent)
-                        max -> maxIntrinsicWidth(children, extent)
-                        else -> minIntrinsicWidth(children, extent)
-                    }
-                }
-            }
+/** Routes the default Swing size through the same intrinsic answers as a Foundation parent. */
+internal fun IntrinsicMeasureScope.policyIntrinsic(
+    policy: MeasurePolicy,
+    measurables: List<IntrinsicMeasurable>,
+    intrinsicSize: IntrinsicSize,
+    axis: IntrinsicWidthHeight,
+    extent: Int,
+): Int {
+    val scope = this as? PreferencesScope
+    val layout = scope?.policyLayout
+    if (layout != null && policy === layout.policy && measurables === scope.measurables) {
+        return layout.intrinsics.query(intrinsicSize, axis, extent, scope)
     }
+    return with(policy) {
+        when {
+            axis == IntrinsicWidthHeight.Height && intrinsicSize == IntrinsicSize.Max -> {
+                maxIntrinsicHeight(measurables, extent)
+            }
+
+            axis == IntrinsicWidthHeight.Height -> {
+                minIntrinsicHeight(measurables, extent)
+            }
+
+            intrinsicSize == IntrinsicSize.Max -> {
+                maxIntrinsicWidth(measurables, extent)
+            }
+
+            else -> {
+                minIntrinsicWidth(measurables, extent)
+            }
+        }
+    }
+}
+
+internal fun ChildMeasurable.invalidateSizePreferences() {
+    preferred = null
+    if (constrainable == null) owner.owner.intrinsics.invalidate()
 }

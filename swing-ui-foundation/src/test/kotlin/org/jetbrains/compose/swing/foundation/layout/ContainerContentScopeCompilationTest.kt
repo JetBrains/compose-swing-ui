@@ -3,21 +3,101 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.test.InProcessCompilerHarness
 import org.junit.jupiter.api.BeforeAll
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
- * Pins that the content of every container with a scope of its own hides the `weight` of the row around
- * it. Content without a receiver passes the enclosing scopes through, as in androidx.
+ * Pins what an external consumer of the public layout API can compile: subclassing the host, implementing
+ * the policy operations and declaring a policy as a function literal, and that the content of every container
+ * with a scope of its own hides the `weight` of the row around it. Content without a receiver passes the
+ * enclosing scopes through, as in androidx.
  *
  * A caller cannot be shown a rejected program by a running test, so these compile one with the official
  * Kotlin compiler driven in-process and read the diagnostics it emits.
  */
 class ContainerContentScopeCompilationTest {
     @Test
+    fun aConsumerCanSubclassThePublicHostAndComposeScopedContent() {
+        compile(
+            """
+            class ApplicationPanel : ConstrainedPanel() {
+                override fun isOpaque(): Boolean = super.isOpaque()
+            }
+
+            fun host() = ApplicationPanel().setContent {
+                Label("Content", modifier = SwingModifier.fillMaxWidth())
+            }
+            """,
+        ).assertCompiled()
+    }
+
+    @Test
+    fun aConsumerCanOverrideMeasureInBoundsAndPreferredSize() {
+        compile(
+            """
+            class ConsumerPolicy : MeasurePolicy {
+                override fun MeasureScope.measure(
+                    measurables: List<Measurable>,
+                    constraints: Constraints,
+                ): MeasureResult = layout(constraints.maxWidth, constraints.maxHeight) {}
+
+                override fun MeasureScope.measureAtAssignedSize(
+                    measurables: List<Measurable>,
+                    width: Int,
+                    height: Int,
+                ): MeasureResult = layout(width, height) {}
+
+                override fun IntrinsicMeasureScope.preferredSize(
+                    measurables: List<IntrinsicMeasurable>,
+                    assignedWidth: Int?,
+                ): Dimension = Dimension(40, 20)
+            }
+
+            fun host() = ConstrainedPanel(ConsumerPolicy()).setContent {
+                Label("Content", modifier = SwingModifier.fillMaxWidth())
+            }
+            """,
+        ).assertCompiled()
+    }
+
+    @Test
+    fun aConsumerCanDeclareAMeasurePolicyAsAFunctionLiteral() {
+        compile(
+            """
+            val samPolicy: MeasurePolicy = MeasurePolicy { _, constraints ->
+                layout(constraints.maxWidth, constraints.maxHeight) {}
+            }
+            """,
+        ).assertCompiled()
+    }
+
+    @Test
+    fun aMenuItemComposedBesideAComponentInThePanelsContentIsFlaggedAsAnotherTarget() {
+        val result =
+            compile(
+                """
+                fun host() =
+                    ConstrainedPanel().setContent {
+                        Label("Content")
+                        MenuItem(text = "x", onClick = {})
+                    }
+                """,
+            )
+
+        result.assertCompiled()
+        assertTrue(
+            "calling a Swing Menu Composable composable function where a Swing Composable composable was expected" in
+                result.output,
+            "the menu item is flagged inside component content, but the output was:\n${result.output}",
+        )
+    }
+
+    @Test
     fun aSwingContainersContentInsideARowHidesItsWeight() {
         // Containers of Swing components, with `%s` standing for the child they hold.
         val swingHosts =
             listOf(
                 "Panel { %s }",
+                "ConstrainedPanel().setContent { %s }",
                 "Panel(PanelLayout.Border()) { %s }",
                 "Layer { %s }",
                 "ScrollPane { %s }",
@@ -191,6 +271,7 @@ class ContainerContentScopeCompilationTest {
                 import org.jetbrains.compose.swing.node.*
                 import org.jetbrains.compose.swing.window.*
                 import java.awt.Color
+                import java.awt.Dimension
                 import java.awt.Rectangle
                 import java.awt.image.BufferedImage
                 import javax.swing.JMenu

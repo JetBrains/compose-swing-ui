@@ -1,7 +1,11 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import kotlin.test.Test
 
 /**
@@ -73,6 +77,15 @@ class StockParentAtWidthTest {
         }
         assertPreferencesSettle(
             mapOf<String, ContainerContent>(
+                "ConstrainedPanel" to { modifier, leaf ->
+                    val panel = remember { ConstrainedPanel() }
+                    SwingNode(factory = { panel }, modifier = modifier)
+                    val context = rememberCompositionContext()
+                    DisposableEffect(panel) {
+                        val content = panel.setContent(context) { leaf(SwingModifier) }
+                        onDispose { content.dispose() }
+                    }
+                },
                 "Box" to { modifier, leaf -> Box(modifier = modifier) { leaf(SwingModifier.fillMaxWidth()) } },
                 "Column" to { modifier, leaf -> Column(modifier = modifier) { leaf(SwingModifier.fillMaxWidth()) } },
                 "Row with a weighted child" to { modifier, leaf ->

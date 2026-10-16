@@ -132,6 +132,49 @@ class IntrinsicTest {
         }
 
     @Test
+    fun anIntrinsicWalkAsksANestedContainerNoConstrainedQuery() =
+        runComposeSwingTest {
+            val counting = CountingPolicy()
+            val inner = ConstrainedPanel(counting)
+            setContent {
+                Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SwingNode(factory = { inner })
+                }
+            }
+            counting.forget()
+
+            containerPreferredSize()
+            containerMinimumSize()
+
+            assertEquals(
+                0,
+                counting.measured,
+                "a container asked what it prefers has no extent to offer, so it must ask a child its intrinsic " +
+                    "sizes and never the constrained query - asking one there would hand the child the outer " +
+                    "pass's unbounded constraints",
+            )
+            assertTrue(counting.intrinsicHeight > 0, "and it must ask, rather than reporting for the child itself")
+        }
+
+    @Test
+    fun aLayoutPassDoesAskANestedContainerAConstrainedQuery() =
+        runComposeSwingTest {
+            val counting = CountingPolicy()
+            val inner = ConstrainedPanel(counting)
+            setContent {
+                Column(modifier = containerModifier(200, 200)) {
+                    SwingNode(factory = { inner })
+                }
+            }
+
+            assertTrue(
+                counting.measured > 0,
+                "a container laying its children out has an extent to offer, which is what carries a " +
+                    "constraint through a container of this library's own",
+            )
+        }
+
+    @Test
     fun intrinsicQueriesAndLayoutUseDifferentPolicyEntryPoints() {
         for (queryOnly in listOf(true, false)) {
             runComposeSwingTest {
@@ -716,4 +759,70 @@ private fun ShrinkableChild(
         "child $index",
         modifier = modifier.preferredSize(prefers, prefers).minimumSize(shrinksTo, shrinksTo),
     )
+}
+
+/**
+ * A policy that takes the extent of nothing, and counts which of its two kinds of entry points its container's
+ * parent reaches: `measure`, which only a caller holding an extent to offer can ask, and one of the four intrinsic
+ * functions, which a parent's own intrinsic queries reach.
+ */
+private class CountingPolicy : MeasurePolicy {
+    var measured: Int = 0
+        private set
+
+    var intrinsicHeight: Int = 0
+        private set
+
+    fun forget() {
+        measured = 0
+        intrinsicHeight = 0
+    }
+
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        measured++
+        return NoExtent
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int {
+        intrinsicHeight++
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int {
+        intrinsicHeight++
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int {
+        intrinsicHeight++
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int {
+        intrinsicHeight++
+        return 0
+    }
+}
+
+/** A result occupying nothing and placing nobody. */
+private object NoExtent : MeasureResult {
+    override val width: Int get() = 0
+    override val height: Int get() = 0
+
+    override fun PlacementScope.placeChildren(): Unit = Unit
 }

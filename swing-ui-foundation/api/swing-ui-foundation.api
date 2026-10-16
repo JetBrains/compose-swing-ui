@@ -576,6 +576,47 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Co
 	public abstract fun minIntrinsicWidth (I)I
 }
 
+public class org/jetbrains/compose/swing/foundation/layout/ConstrainedPanel : javax/swing/JComponent, javax/accessibility/Accessible, javax/swing/Scrollable, org/jetbrains/compose/swing/foundation/graphics/Decoratable, org/jetbrains/compose/swing/foundation/layout/Constrainable, org/jetbrains/compose/swing/node/SwingComponentNodeListener {
+	public static final field $stable I
+	public fun <init> (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;)V
+	public synthetic fun <init> (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected fun addImpl (Ljava/awt/Component;Ljava/lang/Object;I)V
+	public fun contains (II)Z
+	public fun getAccessibleContext ()Ljavax/accessibility/AccessibleContext;
+	public final fun getAlignmentLines ()Ljava/util/Map;
+	public final fun getConstrainedHeight ()I
+	public final fun getConstrainedWidth ()I
+	public fun getDecoration ()Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;
+	public fun getInsets ()Ljava/awt/Insets;
+	public fun getInsets (Ljava/awt/Insets;)Ljava/awt/Insets;
+	public fun getPreferredScrollableViewportSize ()Ljava/awt/Dimension;
+	public fun getScrollableBlockIncrement (Ljava/awt/Rectangle;II)I
+	public fun getScrollableTracksViewportHeight ()Z
+	public fun getScrollableTracksViewportWidth ()Z
+	public fun getScrollableUnitIncrement (Ljava/awt/Rectangle;II)I
+	public fun invalidate ()V
+	public fun isOpaque ()Z
+	public fun isOptimizedDrawingEnabled ()Z
+	protected fun isPaintingOrigin ()Z
+	public final fun maxIntrinsicHeight (I)I
+	public final fun maxIntrinsicWidth (I)I
+	public final fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)V
+	public final fun minIntrinsicHeight (I)I
+	public final fun minIntrinsicWidth (I)I
+	public fun onAttached (Lorg/jetbrains/compose/swing/node/SwingComponentNode;)V
+	public fun onDetached (Lorg/jetbrains/compose/swing/node/SwingComponentNode;)V
+	public fun paint (Ljava/awt/Graphics;)V
+	protected fun paintChildren (Ljava/awt/Graphics;)V
+	public fun paintImmediately (IIII)V
+	public fun remove (I)V
+	public fun removeAll ()V
+	public fun repaint (JIIII)V
+	public final fun setBounds (IIII)V
+	public fun setDecoration (Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;)V
+	public final fun setLayout (Ljava/awt/LayoutManager;)V
+	protected fun validateTree ()V
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
 	public fun layout (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/LayoutModifierNodeElement;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
@@ -705,6 +746,8 @@ public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
 	public static final fun requiredWidthIn (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun requiredWidthIn$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun rowMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun setContent (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedPanel;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function3;)Lkotlinx/coroutines/DisposableHandle;
+	public static synthetic fun setContent$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedPanel;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun size (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun size (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun sizeIn (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -760,8 +803,10 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Me
 	public fun maxIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public fun maxIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
+	public fun measureAtAssignedSize (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;II)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
 	public fun minIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
 	public fun minIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;I)I
+	public fun preferredSize (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Ljava/util/List;Ljava/lang/Integer;)Ljava/awt/Dimension;
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/MeasureResult {

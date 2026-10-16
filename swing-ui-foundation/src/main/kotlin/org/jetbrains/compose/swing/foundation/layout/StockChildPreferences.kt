@@ -80,7 +80,8 @@ private inline fun <T> ChildMeasurable.sizedTo(
     return owner.during(RunningCause.ParentPlacement) {
         component.setSize(width.grownBy(outsets.left + outsets.right), height.grownBy(outsets.top + outsets.bottom))
         layOutMarkupIfWidthChanged(previousWidth)
-        read()
+        // Swing caches the preferred size computed before this child's layout, and that layout does not clear it.
+        read().also { component.invalidate() }
     }
 }
 
@@ -187,10 +188,8 @@ internal fun ChildMeasurable.unmodifiedIntrinsicHeight(
  * The component's own min intrinsic width at [height], with no layout modifier between: a [Constrainable] returns a
  * result for
  * [height], and any other component with its minimum width. A Foundation container's minimum size is its min intrinsic
- * width at an unbounded height and its min intrinsic height at that width, and its preferred size the same of the max
- * functions, which Swing holds until the container is invalidated: the intrinsic width reads at an unbounded height
- * read
- * them.
+ * width at an unbounded height and its min intrinsic height at that width, which Swing holds until the container is
+ * invalidated. Its minimum width therefore supplies an intrinsic width at an unbounded height.
  */
 internal fun ChildMeasurable.unmodifiedMinIntrinsicWidth(height: Int): Int {
     val constrainable = constrainable
@@ -203,9 +202,7 @@ internal fun ChildMeasurable.unmodifiedMinIntrinsicWidth(height: Int): Int {
 /** The component's own max intrinsic width at [height]; see [unmodifiedMinIntrinsicWidth]. */
 internal fun ChildMeasurable.unmodifiedMaxIntrinsicWidth(height: Int): Int {
     val constrainable = constrainable
-    if (constrainable == null || (height == Constraints.Infinity && constrainedPanel != null)) {
-        return preferredExtent().width
-    }
+    if (constrainable == null) return preferredExtent().width
     return constrainable.maxIntrinsicWidth(height)
 }
 
@@ -238,16 +235,8 @@ internal fun ChildMeasurable.unmodifiedMaxIntrinsicHeight(
     val constrainable =
         constrainable ?: return stockHeightAt(minWidth, maxWidth, MeasureMode.Preferred, maySizeStockChildren)
     val panel = constrainedPanel
-    return if (panel == null) {
-        constrainable.maxIntrinsicHeight(maxWidth)
-    } else {
-        val held = preferred?.takeIf { minWidth == 0 && component.isValid }
-        if (held != null && held.width == maxWidth) {
-            held.height
-        } else {
-            panel.intrinsicHeightUnder(IntrinsicSize.Max, minWidth, maxWidth, maySizeStockChildren)
-        }
-    }
+    return panel?.intrinsicHeightUnder(IntrinsicSize.Max, minWidth, maxWidth, maySizeStockChildren)
+        ?: constrainable.maxIntrinsicHeight(maxWidth)
 }
 
 private val ChildMeasurable.constrainedPanel: ConstrainedPanel?

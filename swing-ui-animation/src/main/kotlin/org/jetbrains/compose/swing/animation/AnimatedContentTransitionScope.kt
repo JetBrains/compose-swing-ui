@@ -253,28 +253,28 @@ internal class AnimatedContentTransitionScopeImpl<S>(
             // The target size is zero for content that composes nothing.
             towards.isLeft -> {
                 slideOutHorizontally(animationSpec) {
-                    val targetSize = targetSizeMap[transition.targetState]?.value ?: Dimension(0, 0)
+                    val targetSize = sizeOf(transition.targetState)
                     targetOffset(-calculateOffset(it, targetSize).x - it)
                 }
             }
 
             towards.isRight -> {
                 slideOutHorizontally(animationSpec) {
-                    val targetSize = targetSizeMap[transition.targetState]?.value ?: Dimension(0, 0)
+                    val targetSize = sizeOf(transition.targetState)
                     targetOffset(-calculateOffset(it, targetSize).x + targetSize.width)
                 }
             }
 
             towards == AnimatedContentTransitionScope.SlideDirection.Up -> {
                 slideOutVertically(animationSpec) {
-                    val targetSize = targetSizeMap[transition.targetState]?.value ?: Dimension(0, 0)
+                    val targetSize = sizeOf(transition.targetState)
                     targetOffset(-calculateOffset(it, targetSize).y - it)
                 }
             }
 
             towards == AnimatedContentTransitionScope.SlideDirection.Down -> {
                 slideOutVertically(animationSpec) {
-                    val targetSize = targetSizeMap[transition.targetState]?.value ?: Dimension(0, 0)
+                    val targetSize = sizeOf(transition.targetState)
                     targetOffset(-calculateOffset(it, targetSize).y + targetSize.height)
                 }
             }
@@ -289,6 +289,12 @@ internal class AnimatedContentTransitionScopeImpl<S>(
 
     /** The size each content on screen measured at, registered by that content and dropped as it leaves. */
     val targetSizeMap: MutableScatterMap<S, State<Dimension>> = mutableScatterMapOf()
+
+    /** The natural size of each content state, which an assigned pass of the container fills before measuring. */
+    val naturalSizes = mutableMapOf<Any?, Dimension>()
+
+    /** The size of [state]'s content: its natural size where the container was assigned bounds, else as measured. */
+    fun sizeOf(state: S): Dimension = naturalSizes[state] ?: targetSizeMap[state]?.value ?: Dimension(0, 0)
 
     /** Whether the last measure pass measured content showing the transition's target state. */
     var isTargetMeasured: Boolean = true

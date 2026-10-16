@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.invalidateLayout
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -28,24 +29,32 @@ import javax.swing.CellRendererPane
  * extents `LayoutManager2` asks for from the policy, and lays the container out by what the policy
  * measured.
  *
- * `preferredLayoutSize` asks the policy's [MeasurePolicy.maxIntrinsicWidth] and
- * [MeasurePolicy.maxIntrinsicHeight], `minimumLayoutSize` its min ones, and `layoutContainer` runs
- * [MeasurePolicy.measure]. Of the three, only `layoutContainer` has a rectangle for the policy to divide
- * among its children. The other rectangle comes from outside: a parent measuring this container offers
- * one through [ChildMeasurables.measuredSize], which places nothing.
+ * `preferredLayoutSize` asks [MeasurePolicy.preferredSize] and `minimumLayoutSize` asks its minimum intrinsic
+ * functions. A fresh own layout runs [MeasurePolicy.measureAtAssignedSize] in the assigned rectangle. A Foundation
+ * parent offers constraints through [ChildMeasurables.measuredSize] and [MeasurePolicy.measure], which places nothing
+ * until the parent grants the measured extent.
  *
  * The policy works inside the container's insets: it is handed the inner extent and places children
  * relative to the inner rectangle's own origin.
  *
- * @property policy the policy this container is laid out by, written in place when a later pass of [Layout] hands
- *   a different one.
+ * @param policy the initial policy used to measure and place this container's children.
  * @property parentDataProtocol the parent data [policy] reads, the same instance while the layout is composed.
  */
 internal class MeasurePolicyLayout(
-    var policy: MeasurePolicy,
+    policy: MeasurePolicy,
     val parentDataProtocol: LayoutParentDataProtocol? = null,
 ) : LayoutManager2,
     MeasurementLayoutManager {
+    /** The policy this container uses, replaced when a later pass of [Layout] supplies another. */
+    var policy: MeasurePolicy = policy
+        set(value) {
+            if (field === value) return
+            field = value
+            intrinsics.invalidate()
+        }
+
+    internal val intrinsics = IntrinsicCache(this)
+
     /** One measurable per child, and the two ways the policy is run over them. */
     val measurables: ChildMeasurables = ChildMeasurables(this)
 
@@ -61,17 +70,15 @@ internal class MeasurePolicyLayout(
     /** A placement replay request still awaiting a pass that actually places the panel's children. */
     internal var placementPending: Boolean = false
 
-    /** What [placeBlock] places. */
-    private lateinit var placed: MeasureResult
-
-    /** What the placement block last placed, or null before its first run. */
-    val lastPlaced: MeasureResult? get() = if (::placed.isInitialized) placed else null
+    /** What [placeBlock] places, and the placement block last placed, or null before its first run. */
+    var lastPlaced: MeasureResult? = null
+        private set
 
     // Stored once, so observing a placement allocates nothing per pass.
     private val placeBlock: () -> Unit = {
         val previous = measurables.enter(LayoutState.LayingOut)
         try {
-            with(placed) { placementScope.placeChildren() }
+            with(checkNotNull(lastPlaced)) { placementScope.placeChildren() }
         } finally {
             measurables.layoutState = previous
         }
@@ -189,19 +196,24 @@ internal class MeasurePolicyLayout(
             val insets = panel.borderInsets()
             val width = panel.innerWidth(insets)
             val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
-            // A valid container replays its latest result at its current size.
-            // An invalid container is measured again before placement.
-            val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
-            placementPending = false
-            val result =
-                if (replaysPlacement) {
-                    measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
+            // A valid container replays a result made for its current size.
+            // An invalid container, or one resized since its last placement, is measured again before placement.
+            val replayed =
+                if (measurables.isPlacingAgain && parent.isValid) {
+                    measurables.measured.madeFor(width, height) ?: lastPlaced.madeFor(width, height)
                 } else {
-                    measurables.settledOn(width, height)
+                    null
                 }
+            if (replayed == null && measurables.defersToFoundationParent(width, height)) {
+                // Nothing else asks the parent again: its next offer may be the width Swing already set.
+                if (measurables.isPlacingAgain) node?.invalidateLayout()
+                return@synchronized
+            }
+            placementPending = false
+            val result = replayed ?: measurables.settledOn(width, height)
             if (result === measurables.measured) measurables.lineScope.observesReplay = false
             placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
-            placed = result
+            lastPlaced = result
             observe(PlacementReads, placeBlock)
             measurables.panel.stackingOrder.order.fastForEach {
                 val child = measurables.of(it)
@@ -213,6 +225,124 @@ internal class MeasurePolicyLayout(
                 measurables.panel.stackingOrder.restack()
             }
         }
+
+    internal class IntrinsicCache(
+        private val owner: MeasurePolicyLayout,
+    ) {
+        private val minWidth = IntrinsicSlot(SizeReadKind.MinWidth)
+        private val maxWidth = IntrinsicSlot(SizeReadKind.MaxWidth)
+        private val minHeight = IntrinsicSlot(SizeReadKind.MinHeight)
+        private val maxHeight = IntrinsicSlot(SizeReadKind.MaxHeight)
+
+        fun invalidate() {
+            minWidth.clear()
+            maxWidth.clear()
+            minHeight.clear()
+            maxHeight.clear()
+        }
+
+        fun query(
+            intrinsicSize: IntrinsicSize,
+            axis: IntrinsicWidthHeight,
+            extent: Int,
+            scope: PreferencesScope,
+        ): Int {
+            val slot = slot(intrinsicSize, axis)
+            val offeredMinWidth =
+                if (axis == IntrinsicWidthHeight.Height) {
+                    scope.offeredMinWidth.coerceAtMost(extent)
+                } else {
+                    scope.offeredMinWidth
+                }
+            val snapshotId = Snapshot.current.snapshotId
+            val cacheable = canCache()
+            if (!cacheable) {
+                invalidate()
+            } else if (slot.matches(extent, offeredMinWidth, scope.maySizeStockChildren)) {
+                slot.hitSnapshotId = snapshotId
+                return slot.result
+            }
+            val retainReads = cacheable && slot.hitSnapshotId == snapshotId && slot.observedSnapshotId != snapshotId
+            val queryScope = PreferencesScope(offeredMinWidth, scope.maySizeStockChildren)
+            var result = 0
+            owner.observe(slot.reads) {
+                // A hit in this snapshot still needs its older reads when a different key replaces the observation.
+                if (retainReads) restoreReads(slot, intrinsicSize, axis)
+                result = calculate(intrinsicSize, axis, extent, queryScope)
+            }
+            if (cacheable && canCache()) {
+                slot.extent = extent
+                slot.offeredMinWidth = offeredMinWidth
+                slot.maySizeStockChildren = scope.maySizeStockChildren
+                slot.result = result
+                slot.observedSnapshotId = snapshotId
+                slot.hitSnapshotId = -1L
+            }
+            return result
+        }
+
+        private fun slot(
+            intrinsicSize: IntrinsicSize,
+            axis: IntrinsicWidthHeight,
+        ): IntrinsicSlot =
+            when {
+                axis == IntrinsicWidthHeight.Height && intrinsicSize == IntrinsicSize.Min -> minHeight
+                axis == IntrinsicWidthHeight.Height -> maxHeight
+                intrinsicSize == IntrinsicSize.Min -> minWidth
+                else -> maxWidth
+            }
+
+        private fun canCache(): Boolean {
+            val panel = owner.measurables.panel
+            if (!panel.isValid || !panel.isDisplayable || owner.node == null) return false
+            return owner.measurables.run { !isPlacingAgain && !isChangingGlassPane && !isFittingPaintOutsets }
+        }
+
+        private fun restoreReads(
+            slot: IntrinsicSlot,
+            intrinsicSize: IntrinsicSize,
+            axis: IntrinsicWidthHeight,
+        ) {
+            val scope = PreferencesScope(slot.offeredMinWidth, slot.maySizeStockChildren)
+            calculate(intrinsicSize, axis, slot.extent, scope)
+        }
+
+        private fun calculate(
+            intrinsicSize: IntrinsicSize,
+            axis: IntrinsicWidthHeight,
+            extent: Int,
+            scope: PreferencesScope,
+        ): Int =
+            owner.measurables.readPolicyPreferences(scope.maySizeStockChildren) { children ->
+                scope.policyIntrinsic(this, children, intrinsicSize, axis, extent)
+            }
+
+        /** One plain result per intrinsic operation; its observed reads survive an unchanged query. */
+        private class IntrinsicSlot(
+            val reads: SizeReadKind,
+        ) {
+            var extent = -1
+            var offeredMinWidth = 0
+            var maySizeStockChildren = false
+            var result = 0
+            var observedSnapshotId = -1L
+            var hitSnapshotId = -1L
+
+            fun matches(
+                extent: Int,
+                offeredMinWidth: Int,
+                maySizeStockChildren: Boolean,
+            ): Boolean =
+                this.extent == extent && this.offeredMinWidth == offeredMinWidth &&
+                    this.maySizeStockChildren == maySizeStockChildren
+
+            fun clear() {
+                extent = -1
+                observedSnapshotId = -1L
+                hitSnapshotId = -1L
+            }
+        }
+    }
 }
 
 /**
@@ -324,54 +454,61 @@ internal class ChildMeasurables(
 
     private var measureSizesStockChildren = true
 
-    // Stored once, reading inputs from fields, so observing an answer allocates nothing per call.
+    // The observation block is reused; each preference query still creates its own scope.
     private val measureBlock: () -> Unit = {
-        val children = layoutPassOf()
-        val previous = enter(LayoutState.Measuring)
-        try {
-            measureResult = with(owner.policy) { PolicyMeasureScope.measure(children, measureConstraints) }
-        } finally {
-            layoutState = previous
-        }
+        measureResult =
+            measuringPass { children ->
+                with(owner.policy) { PolicyMeasureScope.measure(children, measureConstraints) }
+            }
     }
 
     private val askBlock: (List<Measurable>) -> Unit = { children ->
         val minimum = mode == MeasureMode.Minimum
         val foundationParent = hasFoundationParent
         with(owner.policy) {
-            askedWidth =
-                if (minimum) {
-                    PolicyMeasureScope.minIntrinsicWidth(children, Constraints.Infinity)
-                } else {
-                    PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
-                }
-            // A stock parent supplies no width for a size query, so preferred height follows the held width when
-            // there is one. Minimum size uses the natural intrinsic width.
+            val scope =
+                PreferencesScope(
+                    maySizeStockChildren = maySizeStockChildrenForPreferences,
+                    policyLayout = owner,
+                    measurables = children,
+                )
             val held = panel.innerWidth()
-            val width =
-                when {
-                    foundationParent -> {
-                        askedWidth
-                    }
+            if (minimum) {
+                askedWidth =
+                    scope.policyIntrinsic(
+                        owner.policy,
+                        children,
+                        IntrinsicSize.Min,
+                        IntrinsicWidthHeight.Width,
+                        Constraints.Infinity,
+                    )
+                val width =
+                    when {
+                        foundationParent -> {
+                            askedWidth
+                        }
 
-                    minimum -> {
-                        PolicyMeasureScope.maxIntrinsicWidth(children, Constraints.Infinity)
+                        else -> {
+                            scope.policyIntrinsic(
+                                owner.policy,
+                                children,
+                                IntrinsicSize.Max,
+                                IntrinsicWidthHeight.Width,
+                                Constraints.Infinity,
+                            )
+                        }
                     }
-
-                    held > 0 -> {
-                        held
-                    }
-
-                    else -> {
-                        askedWidth
-                    }
+                askedHeight =
+                    scope.policyIntrinsic(owner.policy, children, IntrinsicSize.Min, IntrinsicWidthHeight.Height, width)
+            } else {
+                val effectiveWidth = if (!foundationParent && held > 0) held else null
+                val preferred = scope.preferredSize(children, effectiveWidth)
+                require(preferred.width >= 0 && preferred.height >= 0) {
+                    "A preferred size must be nonnegative, but was ${preferred.width} by ${preferred.height}."
                 }
-            askedHeight =
-                if (minimum) {
-                    PolicyMeasureScope.minIntrinsicHeight(children, width)
-                } else {
-                    PolicyMeasureScope.maxIntrinsicHeight(children, width)
-                }
+                askedWidth = preferred.width
+                askedHeight = preferred.height
+            }
         }
     }
 
@@ -421,6 +558,7 @@ internal class ChildMeasurables(
      */
     fun of(child: Component): ChildMeasurable =
         measurables.getOrPut(child) {
+            owner.intrinsics.invalidate()
             measured = null
             ChildMeasurable(child, this, child as? Decoratable, child as? Constrainable)
         }
@@ -471,6 +609,7 @@ internal class ChildMeasurables(
      */
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
+        owner.intrinsics.invalidate()
         layoutPass.remove(measurable)
         measurable.decoratable?.let {
             val held = it.decoration
@@ -501,6 +640,7 @@ internal class ChildMeasurables(
         if (RunningCause.ChildInvalidation !in runningCauses) {
             measurables.forEach(BiConsumer { _, measurable -> measurable.preferred = null })
         }
+        owner.intrinsics.invalidate()
         if (beingPlaced) return false
         measured = null
         return true
@@ -647,7 +787,7 @@ internal fun ChildMeasurables.settledOn(
     height: Int,
 ): MeasureResult {
     measured?.let { if (it.width == width && it.height == height) return it }
-    val result = measureObserved(Constraints(width, width, height, height), SizeReadKind.Settled)
+    val result = measureAtAssignedSizeObserved(width, height)
     measured = result
     return result
 }
@@ -858,7 +998,10 @@ internal class ChildMeasurable(
         }
         val changed = this.parentData != parentData || chainChanged
         this.parentData = parentData
-        if (changed) owner.measured = null
+        if (changed) {
+            owner.owner.intrinsics.invalidate()
+            owner.measured = null
+        }
     }
 
     /** What the last placement block did with this child; a child no block has run over yet counts as placed. */
@@ -1142,7 +1285,7 @@ internal class ChildPlaceable(
         val readable = resized && child.constrainable == null
         val previousWidth = child.layoutWidth
         val read = if (readable) child.preferredAtOldSize() else null
-        if (resized) child.preferred = null
+        if (resized) child.invalidateSizePreferences()
         val placedAgain = child.lastPlacement != ChildPlacement.Placed
         // Where this child is already visible, showing it below reports nothing on its own: it owes this report itself.
         val reportsOwnPlacement = placedAgain && component.isVisible

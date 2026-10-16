@@ -79,7 +79,7 @@ public fun Layout(
     content: @Composable ConstrainedScope.() -> Unit = {},
 ) {
     SwingNode(
-        factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy, parentDataProtocol)) },
+        factory = { ConstrainedPanel(measurePolicy, parentDataProtocol) },
         modifier = modifier,
         update = {
             update(parentDataProtocol) {
@@ -103,7 +103,7 @@ public fun Layout(
     modifier: SwingModifier = SwingModifier,
 ) {
     SwingNode(
-        factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy)) },
+        factory = { ConstrainedPanel(measurePolicy) },
         modifier = modifier,
         update = {
             update(measurePolicy, SetMeasurePolicy)

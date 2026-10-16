@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Container
 import java.awt.Dimension
@@ -21,7 +22,6 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -84,31 +84,52 @@ class ClipToBoundsTest {
     @Test
     fun aClippedBoxBecomesThePaintingOriginSoADescendantsOwnRepaintStaysClipped() =
         runComposeSwingTest {
+            val repaints = mutableListOf<Rectangle>()
+            val host =
+                object : JPanel(BorderLayout()) {
+                    override fun isPaintingOrigin(): Boolean = true
+
+                    override fun paintImmediately(
+                        x: Int,
+                        y: Int,
+                        w: Int,
+                        h: Int,
+                    ) {
+                        repaints += Rectangle(x, y, w, h)
+                    }
+                }
+
+            fun repaintingChild() =
+                object : JComponent() {
+                    override fun isShowing(): Boolean = true
+                }.apply { isOpaque = true }
+            val clipped = repaintingChild()
+            val plain = repaintingChild()
             setContent {
-                Row(modifier = SwingModifier.testTag("row").preferredSize(Dimension(200, 200))) {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("clipped")
-                                .clipToBounds()
-                                .reportedSize(20, 20)
-                                .preferredSize(Dimension(80, 80)),
-                    )
-                    Box(modifier = SwingModifier.testTag("sibling").preferredSize(Dimension(30, 30)))
+                SwingNode(factory = { host }) {
+                    Row(modifier = SwingModifier.preferredSize(Dimension(200, 200))) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .clipToBounds()
+                                    .reportedSize(20, 20)
+                                    .preferredSize(Dimension(80, 80)),
+                        ) {
+                            SwingNode(factory = { clipped }, modifier = SwingModifier.preferredSize(Dimension(80, 80)))
+                        }
+                        Box(modifier = SwingModifier.preferredSize(Dimension(30, 30))) {
+                            SwingNode(factory = { plain }, modifier = SwingModifier.preferredSize(Dimension(30, 30)))
+                        }
+                    }
                 }
             }
-
-            val clipped = onNodeWithTag("clipped").fetch<ConstrainedPanel>()
-            val sibling = onNodeWithTag("sibling").fetch<ConstrainedPanel>()
-
-            assertTrue(
-                clipped.isPaintingOrigin(),
-                "a clipped box must become the painting origin, or Swing would route a descendant's own " +
-                    "repaint - a hover, a caret - around it and paint the overflow unclipped",
-            )
-            assertFalse(
-                sibling.isPaintingOrigin(),
-                "an ordinary box carries no clip, so nothing routes a descendant's repaint through it",
+            clipped.paintImmediately(0, 0, clipped.width, clipped.height)
+            assertEquals(emptyList(), repaints, "the clipped box intercepts its descendant's repaint")
+            plain.paintImmediately(0, 0, plain.width, plain.height)
+            assertEquals(
+                listOf(Rectangle(20, 0, 30, 30)),
+                repaints,
+                "the plain box passes the repaint to the stock origin",
             )
         }
 
@@ -216,6 +237,27 @@ class ClipToBoundsTest {
                 recomposer.dispose()
             }
         }
+
+    @Test
+    fun aContainerStandingAGlassPaneOverAScaledChildIsAPaintingOriginForItsOtherChildren() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val host = PaintCountingPanel()
+            val child = ClipRecordingChild().apply { isOpaque = true }
+            setWindowContent {
+                SwingNode(factory = { host }) {
+                    Box {
+                        Box(modifier = SwingModifier.preferredSize(20, 20).placementLayer { scaleX = 2f })
+                        SwingNode(factory = { child }, modifier = SwingModifier.preferredSize(30, 30))
+                    }
+                }
+            }
+
+            assertTrue(
+                host.isPaintedForTheRepaintOf(child),
+                "a repaint of the other child starts at the container, so the glass pane stays painted over it",
+            )
+        }
 }
 
 /**
@@ -259,5 +301,26 @@ internal class ClipRecordingChild : JComponent() {
 
     override fun paintComponent(g: Graphics) {
         clips += g.clipBounds
+    }
+}
+
+/**
+ * An opaque Swing panel counting its paints. Swing paints a repaint an opaque descendant asks for from that descendant
+ * alone, unless a container between them is a painting origin: then from the nearest opaque ancestor of that origin.
+ */
+internal class PaintCountingPanel : JPanel(BorderLayout()) {
+    private var paints = 0
+
+    override fun paint(g: Graphics) {
+        paints++
+        super.paint(g)
+    }
+
+    /** Whether a repaint the opaque [descendant] asks for alone paints this panel. */
+    fun isPaintedForTheRepaintOf(descendant: JComponent): Boolean {
+        check(descendant.isOpaque) { "a repaint of a descendant that is not opaque paints its opaque ancestor anyway" }
+        paints = 0
+        descendant.paintImmediately(0, 0, descendant.width, descendant.height)
+        return paints > 0
     }
 }
