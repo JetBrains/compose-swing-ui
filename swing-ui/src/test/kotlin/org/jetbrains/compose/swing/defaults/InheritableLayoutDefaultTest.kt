@@ -56,7 +56,7 @@ class InheritableLayoutDefaultTest {
         setContent {
             ProvideComponentDefaults(DefaultInset provides provided) {
                 SwingNode(factory = { JPanel().apply { add(JLabel("claimed")) } }) {
-                    ExistingSwingNode<JPanel, JLabel>(claim = { getComponent(0) as JLabel })
+                    ExistingSwingNode<JPanel, _, JLabel>(claim = { getComponent(0) as JLabel })
                 }
             }
         }

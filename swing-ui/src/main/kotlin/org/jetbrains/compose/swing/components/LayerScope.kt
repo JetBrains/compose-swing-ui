@@ -90,7 +90,8 @@ public sealed interface LayerScope {
 
 /** The [LayerScope] one [Layer] hands its content, remembered alongside the layer. */
 internal class LayerScopeImpl : LayerScope {
-    private val glassPane = ownedGlassPaneDeclaration(JLayer<*>::getGlassPane)
+    // The layer's slot names the pane, so a declaring call here would be refused.
+    private val glassPane = ownedGlassPaneDeclaration(JLayer<*>::getGlassPane, declaringCall = null)
 
     @Composable
     override fun GlassPane(

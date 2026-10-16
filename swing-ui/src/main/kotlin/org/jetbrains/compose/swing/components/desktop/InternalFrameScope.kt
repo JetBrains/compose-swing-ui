@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.GLASS_PANE_DECLARATION
 import org.jetbrains.compose.swing.components.LayerScope
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
@@ -68,7 +69,7 @@ public sealed interface InternalFrameScope {
 
 /** The [InternalFrameScope] one internal frame hands its content, remembered alongside the frame. */
 internal class InternalFrameScopeImpl : InternalFrameScope {
-    private val glassPane = ownedGlassPaneDeclaration(JInternalFrame::getGlassPane)
+    private val glassPane = ownedGlassPaneDeclaration(JInternalFrame::getGlassPane, GLASS_PANE_DECLARATION)
 
     @Composable
     override fun GlassPane(

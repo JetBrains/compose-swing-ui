@@ -1129,7 +1129,7 @@ public final class org/jetbrains/compose/swing/node/CreatedNodeHolder : org/jetb
 
 public final class org/jetbrains/compose/swing/node/ExistingNodeHolder : org/jetbrains/compose/swing/node/SwingNodeHolder {
 	public static final field $stable I
-	public fun <init> (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public fun <init> (Ljava/lang/Class;Ljava/lang/Class;Landroidx/compose/runtime/State;Lkotlin/jvm/functions/Function1;)V
 	public fun getComponent ()Ljava/awt/Component;
 	public fun onRelease ()V
 }

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.currentComposer
+import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -21,9 +22,12 @@ import java.awt.Component
  *
  * The parent is the component of the node this one is composed directly under. [claim] runs on the parent
  * when the node is created, and returns the component this node configures; it need not be a direct Swing
- * child of the parent. A function reference infers both type parameters -
- * `ExistingSwingNode(claim = JScrollPane::getVerticalScrollBar)` - and a lambda needs them written:
- * `ExistingSwingNode<JScrollPane, JScrollBar>(claim = { verticalScrollBar })`.
+ * child of the parent. [P] is the type of the parent, [R] the type [claim] returns, and [T] the type the node
+ * configures, which is [R] unless written narrower. A function reference infers the type parameters -
+ * `ExistingSwingNode(claim = JScrollPane::getVerticalScrollBar)` - and a lambda needs them written, with `_`
+ * for [R]: `ExistingSwingNode<JScrollPane, _, JScrollBar>(claim = { verticalScrollBar })`. A getter typed wider
+ * than the part, such as `JInternalFrame.getGlassPane`, names the part's type as [T]:
+ * `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane) { ... }`.
  *
  * [claim] is read once, when the node is created, as [SwingNode] reads its `factory`: a later [claim] is
  * not called and changes nothing. The claim holds for the node's life. Relocated under another parent, such as
@@ -37,10 +41,13 @@ import java.awt.Component
  * component stays where its parent holds it. What [update] wrote stays on the component.
  *
  * Within one composition, a component is claimed by at most one node at a time. A second node claiming it
- * is refused, including a node that replaces the first one under a changed `key`. Separate content compositions
- * do not see each other's claims, so a component claimed in two compositions is not detected.
+ * is refused, including a node that replaces the first one under a changed `key`. The refusal names the
+ * declaration by the region its `slot` names or, under a host that uses indexed children, by
+ * [declaringCall]. It names the claimed component's type when neither is given, or when the two declarations
+ * name different regions or calls. Separate content compositions do not see each other's claims, so a
+ * component claimed in two compositions is not detected.
  *
- * Under a host that holds its children in regions, the node names the region its component stands in with
+ * Under a host that places children in regions, the node names the region its component is in with
  * [org.jetbrains.compose.swing.modifier.layout.slot] without an attachment. Under an indexed
  * host it names nothing. That is the one placement the node declares: the parent placed the component, so
  * parent data such as `layoutConstraint` or a row's `weight` is refused.
@@ -50,18 +57,24 @@ import java.awt.Component
  *   and what was found.
  * @param modifier the [SwingModifier] applied to the claimed component, after [update] has run.
  * @param update typed update block; see [SwingNodeUpdater].
+ * @param declaringCall the call that declares this node, written as a caller writes it, such as
+ *   `"GlassPane { }"`. A refusal of a second claim of the component names it. Under a host that places
+ *   children in regions, the region the node's `slot` names is that name, so a declaring call is refused when
+ *   the node is inserted, or, when set later, when a second claim of the component is inserted.
  */
 @Composable
 @SwingComposable
-public inline fun <reified P : Component, reified T : Component> ExistingSwingNode(
-    noinline claim: @DisallowComposableCalls P.() -> T?,
+public inline fun <reified P : Component, R : Component, reified T : R> ExistingSwingNode(
+    noinline claim: @DisallowComposableCalls P.() -> R?,
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
+    declaringCall: String? = null,
 ) {
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
+    val declaringCallState = rememberUpdatedState(declaringCall)
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        factory = { ExistingNodeHolder(P::class.java, T::class.java, null, claim) },
+        factory = { ExistingNodeHolder(P::class.java, T::class.java, declaringCallState, claim) },
         update = {
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
@@ -74,7 +87,7 @@ public inline fun <reified P : Component, reified T : Component> ExistingSwingNo
 /**
  * Container variant of [ExistingSwingNode] that composes [content] into the claimed container.
  *
- * The claimed container keeps its own layout manager.
+ * The claimed container keeps its own layout manager. [P], [R] and [T] are those of the leaf overload.
  *
  * When the node leaves the composition, the children [content] composed are removed from the container,
  * and what [update] wrote - the layout included - stays on it.
@@ -82,42 +95,28 @@ public inline fun <reified P : Component, reified T : Component> ExistingSwingNo
  * @param claim finds the container this node configures on its parent; see the leaf overload.
  * @param modifier the [SwingModifier] applied to the claimed container, after [update] has run.
  * @param update typed update block; see [SwingNodeUpdater].
+ * @param declaringCall the call that declares this node; see the leaf overload.
  * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
  *   to [ChildPlacement.Indexed].
  * @param content the composables the claimed container holds as its children.
  */
 @Composable
 @SwingComposable
-public inline fun <reified P : Component, reified T : Component> ExistingSwingNode(
-    noinline claim: @DisallowComposableCalls P.() -> T?,
+public inline fun <reified P : Component, R : Component, reified T : R> ExistingSwingNode(
+    noinline claim: @DisallowComposableCalls P.() -> R?,
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
+    declaringCall: String? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
-    crossinline content:
-        @Composable @SwingComposable
-        () -> Unit,
-) {
-    ExistingSwingNode<P, T>(declaringCall = null, claim, modifier, update, childPlacement, content)
-}
-
-/** [ExistingSwingNode] whose [declaringCall] names it in a refusal when no slot does. */
-@Composable
-@SwingComposable
-@PublishedApi
-internal inline fun <reified P : Component, reified T : Component> ExistingSwingNode(
-    declaringCall: String?,
-    noinline claim: @DisallowComposableCalls P.() -> Component?,
-    modifier: SwingModifier,
-    crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit,
-    childPlacement: ChildPlacement,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit,
 ) {
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
+    val declaringCallState = rememberUpdatedState(declaringCall)
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        factory = { ExistingNodeHolder(P::class.java, T::class.java, declaringCall, claim) },
+        factory = { ExistingNodeHolder(P::class.java, T::class.java, declaringCallState, claim) },
         update = {
             set(childPlacement) { this.childPlacement = it }
             val updater = SwingNodeUpdater(this)

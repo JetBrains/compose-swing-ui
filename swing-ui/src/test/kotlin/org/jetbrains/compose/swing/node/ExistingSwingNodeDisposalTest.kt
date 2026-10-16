@@ -20,7 +20,7 @@ class ExistingSwingNodeDisposalTest {
         val host = JPanel().apply { add(borrowed) }
         val handle =
             host.setContent(context) {
-                ExistingSwingNode<JPanel, JLabel>(claim = { borrowed })
+                ExistingSwingNode<JPanel, _, JLabel>(claim = { borrowed })
             }
 
         try {
@@ -47,7 +47,7 @@ class ExistingSwingNodeDisposalTest {
             }
         val handle =
             host.setContent(context) {
-                ExistingSwingNode<JPanel, JLabel>(claim = { borrowed })
+                ExistingSwingNode<JPanel, _, JLabel>(claim = { borrowed })
                 SwingNode(factory = { created })
             }
 
@@ -73,7 +73,7 @@ class ExistingSwingNodeDisposalTest {
         val host = JPanel().apply { add(borrowed) }
         val handle =
             host.setContent(context) {
-                ExistingSwingNode<JPanel, JPanel>(
+                ExistingSwingNode<JPanel, _, JPanel>(
                     claim = { borrowed },
                     content = { SwingNode(factory = { composedChild }) },
                 )

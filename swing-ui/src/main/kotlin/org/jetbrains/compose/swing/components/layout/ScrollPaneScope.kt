@@ -179,12 +179,10 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
             increments,
             content,
             ->
-            ExistingSwingNode<JScrollPane, JViewport>(
-                declaringCall = null,
+            ExistingSwingNode<JScrollPane, _, JViewport>(
                 claim = JScrollPane::getViewport,
                 modifier = modifier.slot(ScrollPaneParentProtocol, VIEWPORT_REGION),
                 update = { set(increments) { declare(it) } },
-                childPlacement = ChildPlacement.Indexed,
                 content = content,
             )
             DisposableEffect(Unit) { onDispose { declare(ScrollIncrements.None) } }
@@ -213,7 +211,7 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         key(bar) {
             // A pane not built yet has installed no bar, so its own bar is the one the node finds.
             val composedBar = bar ?: pane?.paneBar()
-            ExistingSwingNode<JScrollPane, JScrollBar>(
+            ExistingSwingNode<JScrollPane, _, JScrollBar>(
                 claim = { composedBar ?: paneBar() },
                 modifier = modifier.slot(ScrollPaneParentProtocol, region),
             )

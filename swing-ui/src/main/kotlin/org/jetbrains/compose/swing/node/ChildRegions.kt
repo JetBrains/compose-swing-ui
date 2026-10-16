@@ -421,11 +421,18 @@ internal class ClaimedComponents {
 
     /**
      * Records [claim] as the node claiming its component until it is released or parked. A relocated node
-     * arrives again.
+     * arrives again. A claim whose slot names a region is refused a declaring call when it is inserted, and,
+     * for one set later, when a second claim of its component is inserted.
      */
     fun record(claim: ExistingNodeHolder<*, *>) {
+        // These refusals throw during apply on purpose. Deferring them lets a replacing node apply
+        // before the node it replaces is removed.
         val standing = claims[claim.component]
-        if (standing != null) check(standing === claim) { claimedTwice(standing, claim) }
+        if (standing !== claim) {
+            if (standing != null && standing.declaresSlotAndCall) refuseDeclaringCall(standing)
+            if (claim.declaresSlotAndCall) refuseDeclaringCall(claim)
+            if (standing != null) error(claimedTwice(standing, claim))
+        }
         claims[claim.component] = claim
         claim.releaseBlock = { forget(claim) }
     }
@@ -461,8 +468,20 @@ internal class ClaimedComponents {
         }
     }
 
-    private val ExistingNodeHolder<*, *>.declarationName: String? get() = declaredSlot?.name ?: declaringCall
+    private val ExistingNodeHolder<*, *>.declarationName: String? get() = declaredSlot?.name ?: declaringCall.value
+
+    /** Read from the declarations, which a node removed for a move keeps while its installation is cleared. */
+    private val ExistingNodeHolder<*, *>.declaresSlotAndCall: Boolean
+        get() = declaredSlot != null && declaringCall.value != null
 }
+
+/** Refuses [node] its declaring call, since the region its slot names already names it. */
+private fun refuseDeclaringCall(node: ExistingNodeHolder<*, *>): Nothing =
+    error(
+        "A ${node.component.declaredName} claimed by ExistingSwingNode is declared as ${node.declaringCall.value}, " +
+            "but the ${node.parentComponent.declaredName} holds each child in a region, so the region its slot " +
+            "names is the declaration's name. Leave declaringCall out.",
+    )
 
 /**
  * The container that actually holds a host's indexed children. A root-pane container such as

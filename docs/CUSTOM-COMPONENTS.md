@@ -268,8 +268,8 @@ Some Swing components build parts of themselves and keep them: a `JScrollPane` b
 both scroll bars, a `JLayer` its glass pane, a `JTable` its header. `ExistingSwingNode` configures such a
 part the way `SwingNode` configures a component its `factory` builds, with the same `modifier`, `update`
 and, for a container, `content`. `claim` runs once, on the parent - the component of the node this one is
-composed directly under - and returns the part; a function reference infers both type parameters, a lambda
-needs them written. `TitledPanel` builds its `title` label and keeps it:
+composed directly under - and returns the part; a function reference infers the type parameters, a lambda
+needs them written, with `_` for the type the claim returns: `ExistingSwingNode<TitledPanel, _, JLabel>(claim = { title })`. `TitledPanel` builds its `title` label and keeps it:
 
 <!--- INCLUDE .*custom-02.*
 import androidx.compose.runtime.Composable
@@ -295,7 +295,9 @@ fun Titled(text: String) {
 A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc
 holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given
 back through the modifier. Within one composition, a component is claimed by at most one node at a time;
-a second claim is refused.
+a second claim is refused. When Swing types a getter wider than the part it returns, write the part's type as
+the third type argument: `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane)`.
+Under a host that uses indexed children, `declaringCall` names the declaration in that refusal.
 
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 

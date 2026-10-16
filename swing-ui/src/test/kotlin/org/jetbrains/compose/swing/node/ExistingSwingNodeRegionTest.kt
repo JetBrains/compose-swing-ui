@@ -2,6 +2,8 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
@@ -15,12 +17,16 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Color
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -157,6 +163,62 @@ class ExistingSwingNodeRegionTest {
             ),
             "the refusal should list the regions: $message",
         )
+    }
+
+    @TestFactory
+    fun aClaimWithADeclaringCallUnderARegionHostIsRefused(): List<DynamicTest> =
+        listOf<Pair<String, @Composable () -> Unit>>(
+            "as the only child" to {},
+            "inserted as a second claim of the header" to { FramedHeader() },
+        ).map { (name, before) ->
+            dynamicTest(name) {
+                runComposeSwingTest {
+                    val message =
+                        assertFailsWith<IllegalStateException> {
+                            setContent {
+                                Framed {
+                                    before()
+                                    ExistingSwingNode(
+                                        claim = FramedPanel::header,
+                                        modifier = SwingModifier.slot(FramedProtocol, HEADER_REGION),
+                                        declaringCall = "Header { }",
+                                    )
+                                }
+                            }
+                            awaitIdle()
+                        }.message.orEmpty()
+
+                    assertTrue(message.contains("Header { }"), message)
+                }
+            }
+        }
+
+    @Test
+    fun aDeclaringCallAddedToAClaimInARegionIsRefusedWhenASecondClaimIsInserted() = runComposeSwingTest {
+        var call by mutableStateOf<String?>(null)
+        var generation by mutableIntStateOf(0)
+        setContent {
+            Framed {
+                key(generation) {
+                    ExistingSwingNode(
+                        claim = FramedPanel::header,
+                        modifier = SwingModifier.slot(FramedProtocol, HEADER_REGION),
+                        declaringCall = if (generation == 0) call else null,
+                    )
+                }
+            }
+        }
+        call = "Header { }"
+        awaitIdle()
+
+        // The node under the new key is inserted before the one it replaces is removed.
+        val message =
+            assertFailsWith<IllegalStateException> {
+                generation = 1
+                awaitIdle()
+            }.message.orEmpty()
+
+        assertTrue(message.contains("Header { }"), message)
     }
 
     @Test

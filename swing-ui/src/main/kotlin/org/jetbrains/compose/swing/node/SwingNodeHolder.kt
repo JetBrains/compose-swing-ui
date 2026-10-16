@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
+import androidx.compose.runtime.State
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.core.runEveryStep
@@ -579,12 +580,14 @@ internal class CreatedNodeHolder<out T : Component>
 /**
  * A node whose component its claim found; the composition only borrows it. See [ExistingSwingNode].
  *
- * [claim] runs as the applier first inserts the node, on the component of the node it inserts it under,
- * before the node's update runs. It is refused when that component is not a [parentType], or when it returns
- * `null` or something that is not a [type].
- *
- * [declaringCall] is the call that declared this node, which a refusal names it by when no slot does; null for a
- * caller's own ExistingSwingNode.
+ * @param parentType the type of the component of the node this one is inserted under; the node is refused when
+ *   that component is not a [parentType]
+ * @param type the type of the claimed component; the node is refused when [claim] returns `null` or something
+ *   that is not a [type]
+ * @property declaringCall the call that declared this node, which a refusal names it by when no slot does; its
+ *   value is null when the caller gave none
+ * @param claim runs as the applier first inserts the node, on the component of the node it inserts it under,
+ *   before the node's update runs
  */
 @PublishedApi
 internal class ExistingNodeHolder<P : Component, out T : Component>
@@ -592,7 +595,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
     internal constructor(
         private val parentType: Class<P>,
         private val type: Class<out T>,
-        internal val declaringCall: String?,
+        internal val declaringCall: State<String?>,
         private val claim: P.() -> Component?,
     ) : SwingNodeHolder<T>() {
         private lateinit var claimed: T

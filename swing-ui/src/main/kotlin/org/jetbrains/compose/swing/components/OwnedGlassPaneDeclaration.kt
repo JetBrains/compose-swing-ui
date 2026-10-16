@@ -5,7 +5,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
-import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.ExistingSwingNode
@@ -46,21 +45,23 @@ internal class OwnedGlassPaneDeclaration(
  * its declarations share one `movableContentOf`, so that an `if`/`else` selecting between two declarations in
  * the same pass keeps one node, and one claim of the pane.
  *
- * [claim] may return any component. One that is not a `Container` is refused when the node is created,
- * naming the parent and what the claim returned.
+ * @param claim finds the glass pane on the parent. It may return any component; one that is not a `Container`
+ *   is refused when the node is created, naming the parent and what the claim returned.
+ * @param declaringCall names the declaration in the refusal of a second one under a parent that uses
+ *   indexed children; `null` where the parent's slot names the pane.
  */
 internal inline fun <reified P : Component> ownedGlassPaneDeclaration(
     noinline claim: P.() -> Component?,
+    declaringCall: String?,
 ): OwnedGlassPaneDeclaration =
     OwnedGlassPaneDeclaration(
         movableContentOf { layout, modifier, content ->
-            ExistingSwingNode<P, Container>(
-                declaringCall = GLASS_PANE_DECLARATION,
+            ExistingSwingNode<P, _, Container>(
                 claim = claim,
                 // Last in the chain, so the pane is shown whatever the caller's modifier declares.
                 modifier = modifier.visible(true),
                 update = { layout.installOn(this) },
-                childPlacement = ChildPlacement.Indexed,
+                declaringCall = declaringCall,
             ) {
                 key(layout.javaClass) { content() }
             }

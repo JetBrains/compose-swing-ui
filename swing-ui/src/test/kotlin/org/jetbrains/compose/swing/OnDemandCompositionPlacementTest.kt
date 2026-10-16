@@ -579,7 +579,7 @@ private enum class Refusal(
     }),
     ClaimedNamingARegion({ JPanel().apply { add(JLabel("claimed")) } }, { failing ->
         if (failing) {
-            ExistingSwingNode<JPanel, JLabel>(
+            ExistingSwingNode<JPanel, _, JLabel>(
                 claim = { getComponent(0) as JLabel },
                 modifier = SwingModifier.slot(AnyContainer, "Part"),
             )

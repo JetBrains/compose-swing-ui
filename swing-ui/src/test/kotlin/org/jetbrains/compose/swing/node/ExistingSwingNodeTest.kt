@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -8,12 +7,9 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanelScope
-import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.failureOf
@@ -34,7 +30,6 @@ import java.awt.Container
 import java.awt.FlowLayout
 import java.awt.event.ContainerEvent
 import java.awt.event.ContainerListener
-import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
@@ -122,180 +117,6 @@ class ExistingSwingNodeTest {
         awaitIdle()
 
         assertEquals(Color.RED, parent.part.background, "the reactivated content should claim the component again")
-    }
-
-    @Test
-    fun aClaimComposedUnderAnotherTypeOfParentIsRefused() = runComposeSwingTest {
-        val message =
-            failureOf {
-                setContent {
-                    Panel { ExistingSwingNode(claim = PartsPanel::part) }
-                }
-                awaitIdle()
-            }
-
-        assertTrue(
-            message.contains("claims its component from a PartsPanel, but it is composed under a JPanel"),
-            "the refusal should name the parent type the claim needs and the one it found: $message",
-        )
-    }
-
-    @Test
-    fun aClaimThatFindsNothingIsRefused() = runComposeSwingTest {
-        val message =
-            failureOf {
-                setContent {
-                    SwingNode(factory = { PartsPanel() }) {
-                        ExistingSwingNode<PartsPanel, JLabel>(claim = { null })
-                    }
-                }
-                awaitIdle()
-            }
-
-        assertTrue(
-            message.contains("found no component: its claim returned null on the JPanel"),
-            "the refusal should say the claim found nothing on its parent: $message",
-        )
-    }
-
-    @Test
-    fun aClaimThatFindsAnotherTypeIsRefused() = runComposeSwingTest {
-        // A claim erased to another result type is what a caller's unchecked cast hands over.
-        @Suppress("UNCHECKED_CAST")
-        val claim = PartsPanel::part as PartsPanel.() -> JButton?
-        val message =
-            failureOf {
-                setContent {
-                    SwingNode(factory = { PartsPanel() }) { ExistingSwingNode(claim = claim) }
-                }
-                awaitIdle()
-            }
-
-        assertTrue(
-            message.contains("claims a JButton, but its claim returned a JLabel from the JPanel"),
-            "the refusal should name the expected type and what was found: $message",
-        )
-    }
-
-    @Test
-    fun aChangedClaimIsNotCalledAndTheNodeKeepsItsComponent() = runComposeSwingTest {
-        var laterCalls = 0
-        val later: PartsPanel.() -> JLabel = {
-            laterCalls++
-            other
-        }
-        var changed by mutableStateOf(false)
-        setContent {
-            SwingNode(factory = { PartsPanel() }) {
-                ExistingSwingNode(
-                    claim = if (changed) later else PartsPanel::part,
-                    modifier = SwingModifier.background(if (changed) Color.BLUE else Color.RED),
-                )
-            }
-        }
-        val parent = onNodeOfType<PartsPanel>().fetch()
-        val original = parent.other.background
-
-        changed = true
-        awaitIdle()
-
-        assertEquals(0, laterCalls, "a claim changed after the node was created should not be called")
-        assertEquals(Color.BLUE, parent.part.background, "the node should go on configuring the component it claimed")
-        assertEquals(original, parent.other.background, "the component the changed claim names should be left alone")
-    }
-
-    @Test
-    fun aSecondNodeClaimingTheSameComponentIsRefused() = runComposeSwingTest {
-        val message =
-            failureOf {
-                setContent {
-                    SwingNode(factory = { PartsPanel() }) {
-                        ExistingSwingNode(claim = PartsPanel::part)
-                        ExistingSwingNode(claim = PartsPanel::part)
-                    }
-                }
-                awaitIdle()
-            }
-
-        assertTrue(
-            message.contains("A JLabel is declared twice at once"),
-            "the refusal should say the component is claimed twice: $message",
-        )
-    }
-
-    @Test
-    fun aNodeReplacingTheClaimUnderAChangedKeyIsRefused() = runComposeSwingTest {
-        // The replacing node arrives before the node it replaces is released, so both would configure the
-        // component. An on-demand composition reports a failure of its pass to the caller that drove it.
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
-        var generation by mutableIntStateOf(0)
-        val composition =
-            OnDemandComposition(parentContext) {
-                SwingNode(factory = { PartsPanel() }) {
-                    key(generation) { ExistingSwingNode(claim = PartsPanel::part) }
-                }
-            }
-        try {
-            val message = failureOf { composition.recompose { generation = 1 } }
-
-            assertTrue(
-                message.contains("A JLabel is declared twice at once"),
-                "the refusal should say the component is claimed twice: $message",
-            )
-        } finally {
-            composition.dispose()
-        }
-    }
-
-    @Test
-    fun aClaimRelocatedByMovableContentIsNotASecondClaim() = runComposeSwingTest {
-        var first by mutableStateOf(true)
-        setContent {
-            SwingNode(factory = { PartsPanel() }) {
-                val claim =
-                    remember {
-                        movableContentOf {
-                            ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
-                        }
-                    }
-                if (first) claim()
-                Label("between")
-                if (!first) claim()
-            }
-        }
-        val parent = onNodeOfType<PartsPanel>().fetch()
-
-        first = false
-        awaitIdle()
-
-        assertSame(
-            parent,
-            parent.part.parent,
-            "the relocated claim should leave the component where its parent holds it",
-        )
-        assertEquals(Color.RED, parent.part.background, "the relocated claim should go on configuring the component")
-    }
-
-    @Test
-    fun keyingOnAReplacedPartMovesTheDeclarationsToIt() = runComposeSwingTest {
-        var current by mutableStateOf<JLabel?>(null)
-        setContent {
-            SwingNode(factory = { PartsPanel() }) {
-                key(current) {
-                    ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
-                }
-            }
-        }
-        val parent = onNodeOfType<PartsPanel>().fetch()
-        val replaced = parent.part
-        val original = PartsPanel().part.background
-
-        current = parent.replacePart()
-        awaitIdle()
-
-        assertEquals(Color.RED, parent.part.background, "the new part should carry the declarations")
-        assertEquals(original, replaced.background, "the replaced part should get its background back")
     }
 
     @Test
@@ -575,7 +396,7 @@ class ExistingSwingNodeTest {
                             "body",
                             SwingModifier.tab(
                                 "General",
-                                header = { ExistingSwingNode<Container, JLabel>(claim = { part }) },
+                                header = { ExistingSwingNode<Container, _, JLabel>(claim = { part }) },
                             ),
                         )
                     }
@@ -607,7 +428,7 @@ class ExistingSwingNodeTest {
             }
 
         assertEquals(
-            "A JLabel claimed by ExistingSwingNode cannot be the unnamed child of a JPanel, which installs that " +
+            "A JLabel claimed by ExistingSwingNode cannot be the unnamed child of a PartsPanel, which installs that " +
                 "child as its content while the claimed component's parent already holds it. Its ChildPlacement " +
                 "offers no region to name, so the part cannot be claimed under it.",
             message,
@@ -633,7 +454,7 @@ class ExistingSwingNodeTest {
         assertTrue(
             message.contains(
                 "SwingModifier.layoutConstraint() places a component in its parent, but this ExistingSwingNode " +
-                    "configures a JLabel its parent JPanel placed. Declare placement where the parent builds the " +
+                    "configures a JLabel its parent PartsPanel placed. Declare placement where the parent builds the " +
                     "component.",
             ),
             "the refusal should say the parent placed the component: $message",
@@ -667,7 +488,7 @@ class ExistingSwingNodeTest {
         assertTrue(
             message.contains(
                 "SwingModifier.layoutConstraint() places a component in its parent, but this ExistingSwingNode " +
-                    "configures a JLabel its parent JPanel placed.",
+                    "configures a JLabel its parent PartsPanel placed.",
             ),
             "the refusal should say the parent placed the component: $message",
         )
@@ -691,8 +512,8 @@ class ExistingSwingNodeTest {
 
         assertTrue(
             message.contains(
-                "A JLabel claimed by ExistingSwingNode was placed by a JPanel, but the node was relocated under " +
-                    "another JPanel, which did not place it. Keep the claim under the node whose component holds " +
+                "A JLabel claimed by ExistingSwingNode was placed by a PartsPanel, but the node was relocated under " +
+                    "another PartsPanel, which did not place it. Keep the claim under the node whose component holds " +
                     "the part, or key it on the part there.",
             ),
             "the refusal should say the node was relocated under a parent that did not place its component: $message",
@@ -706,7 +527,7 @@ class ExistingSwingNodeTest {
         val loose = JLabel("loose")
         setContent {
             SwingNode(factory = { PartsPanel() }) {
-                ExistingSwingNode<PartsPanel, JLabel>(
+                ExistingSwingNode<PartsPanel, _, JLabel>(
                     claim = { loose },
                     modifier = SwingModifier.background(Color.RED),
                 )
@@ -723,11 +544,13 @@ class ExistingSwingNodeTest {
 private const val CLAIM = "claim"
 private const val ITEM_REGION = "SwingModifier.item()"
 
-private class PartsPanel : JPanel() {
+internal class PartsPanel : JPanel() {
     var part: JLabel = JLabel("part")
         private set
+    val wide: Component get() = part
     val other: JLabel = JLabel("other")
     val pane: JPanel = JPanel()
+    val widePane: Component get() = pane
 
     init {
         add(part)
