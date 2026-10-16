@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.Menu
@@ -11,6 +12,8 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.menuItemTexts
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -23,6 +26,7 @@ import javax.swing.JFrame
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
+import javax.swing.JPanel
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.MenuElement
 import javax.swing.MenuSelectionManager
@@ -600,6 +604,37 @@ class WindowMenuBarTest {
         } finally {
             selection.clearSelectedPath()
             outsideFrame.dispose()
+        }
+    }
+
+    @Test
+    fun disposingTheHandleOfAMenuBarCompositionKeepsAMenuTheCallerAddedToTheBar() = runSwingTest {
+        // Only JMenuBar and JPopupMenu take a menu tree, so a JMenu the caller adds to a bar is the one
+        // caller-owned menu a disposal can meet; no public entry point composes into a JMenu itself.
+        val test = TestRecomposer(this)
+        try {
+            val host = JPanel()
+            val hostHandle = host.setContent(parent = test.recomposer) {}
+            val bar = JMenuBar().also { host.add(it) }
+            val handle = bar.setContent { Menu("Composed") { MenuItem("Cut", onClick = {}) } }
+            val added = JMenu("Added").also { bar.add(it) }
+            test.awaitIdle()
+            assertEquals(
+                listOf("Composed", "Added"),
+                bar.components.filterIsInstance<JMenu>().map { it.text },
+                "the composed menu and the caller's menu should both be on the bar",
+            )
+
+            handle.dispose()
+
+            assertEquals(
+                listOf(added),
+                bar.components.filterIsInstance<JMenu>(),
+                "disposing the handle should take the composed menu off the bar and keep the caller's",
+            )
+            hostHandle.dispose()
+        } finally {
+            test.cancel()
         }
     }
 

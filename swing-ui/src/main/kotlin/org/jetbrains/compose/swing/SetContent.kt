@@ -22,6 +22,7 @@ import java.awt.Container
 import java.awt.Window
 import javax.swing.JComponent
 import javax.swing.JMenuBar
+import javax.swing.JPopupMenu
 import javax.swing.RootPaneContainer
 
 /**
@@ -82,7 +83,8 @@ import javax.swing.RootPaneContainer
  *   closing that window ends this content wherever its container has moved to.
  * @param content the composable content to set
  * @return a [DisposableHandle] that disposes this content composition when invoked (or cancels it if it
- *   has not mounted yet). Must be disposed on the Event Dispatch Thread.
+ *   has not mounted yet). Must be disposed on the Event Dispatch Thread. The container takes no other
+ *   `setContent` until the handle is disposed: a call on it meanwhile throws [IllegalStateException].
  */
 public fun JComponent.setContent(
     parent: CompositionContext? = null,
@@ -98,7 +100,14 @@ public fun JComponent.setContent(
     return if (parent == null) {
         mountWhenParentResolves(this, compose)
     } else {
-        mountUnderNamedParent(this, parent, compose)
+        mountUnderNamedParent(
+            this,
+            parent,
+            remedy =
+                "Name a recomposer that is not shut down, or name no parent at all to join the composition " +
+                    "this container's own place resolves to.",
+            compose,
+        )
     }
 }
 
@@ -210,7 +219,8 @@ public fun Window.setContent(
  *
  * @param content the composable menu tree (`Menu`, `MenuItem`, ...)
  * @return a [DisposableHandle] that disposes this menu-bar composition (or cancels it if it has not
- *   mounted yet). Must be disposed on the Event Dispatch Thread.
+ *   mounted yet). Must be disposed on the Event Dispatch Thread. The menu bar takes no other
+ *   `setContent` until the handle is disposed: a call on it meanwhile throws [IllegalStateException].
  */
 @ComposableOpenTarget(-1)
 public fun JMenuBar.setContent(
@@ -221,10 +231,9 @@ public fun JMenuBar.setContent(
     checkEventDispatchThread()
 
     return mountWhenParentResolves(this) { parent, window, lifecycle ->
-        val composition =
-            SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::MenuApplier)
-        composition.setContent { ProvideContentLocals(window, lifecycle, this, content = content) }
-        composition
+        composeMenuContent(parent.context) {
+            ProvideContentLocals(window, lifecycle, this, content = content)
+        }
     }
 }
 
@@ -253,8 +262,59 @@ internal fun JMenuBar.setContentAsMenuInteropHost(
         () -> Unit,
 ): DisposableHandle {
     checkEventDispatchThread()
+    val composition = composeMenuContent(parent, content)
+    return DisposableHandle { composition.dispose() }
+}
+
+/**
+ * Sets the composable menu [content] of this popup menu, composed under [parent] on this call.
+ *
+ * A popup menu is not a descendant of its invoker in the component tree, so the caller names the parent.
+ * The content shares [parent]'s state and CompositionLocals. Where [parent] states no
+ * [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow], the content reads the window of the
+ * popup's invoker, and keeps it after the popup hides. A popup takes one content composition until its
+ * handle is disposed, whether menu content or [JComponent.setContent] content: a call on a popup that
+ * has one throws [IllegalStateException]. A [parent] whose recomposer is shut down throws
+ * [IllegalArgumentException]. The content reads a lifecycle owner the popup creates only where it finds
+ * none above it.
+ *
+ * To host components in the popup, add a panel to it and call [JComponent.setContent] on that panel
+ * without naming a parent: until the handle is disposed, the panel joins [parent] as well.
+ *
+ * Must be called, and its handle disposed, on the Event Dispatch Thread.
+ *
+ * @param parent the composition context this content joins
+ * @param content the composable menu tree (`Menu`, `MenuItem`, ...)
+ * @return a [DisposableHandle] that disposes this content composition, taking the composed items off the
+ *   popup and clearing the `MenuSelectionManager`'s selected path through it. A panel the caller added
+ *   stays. Must be disposed on the Event Dispatch Thread.
+ */
+@ComposableOpenTarget(-1)
+public fun JPopupMenu.setContent(
+    parent: CompositionContext,
+    content:
+        @Composable @SwingMenuComposable
+        () -> Unit,
+): DisposableHandle {
+    checkEventDispatchThread()
+
+    return mountUnderNamedParent(
+        this,
+        parent,
+        remedy = "Name a recomposer that is not shut down.",
+    ) { named, window, lifecycle ->
+        composeMenuContent(named.context) { ProvideContentLocals(window, lifecycle, this, content = content) }
+    }
+}
+
+private fun JComponent.composeMenuContent(
+    parent: CompositionContext,
+    content:
+        @Composable @SwingMenuComposable
+        () -> Unit,
+): SwingContentComposition {
     val composition =
         SwingContentComposition.nested(parent, CreatedNodeHolder(this), ::MenuApplier)
     composition.setContent(content)
-    return DisposableHandle { composition.dispose() }
+    return composition
 }

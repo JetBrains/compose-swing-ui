@@ -1,24 +1,34 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.window.LocalWindow
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
+import java.awt.Container
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import java.awt.Panel
+import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JFrame
+import javax.swing.JMenuBar
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -38,24 +48,58 @@ import kotlin.test.assertTrue
  * transition is worse than the misuse it guards against.
  */
 class SetContentMisuseTest {
-    @Test
-    fun aContainerAlreadyHoldingALiveCompositionRefusesMoreContent() = runSwingTest {
-        val panel = JPanel()
-        val recomposer = SwingRecomposer.create(panel)
-        try {
-            panel.setContent(parent = recomposer.compositionContext) { Label(text = "first") }
+    @TestFactory
+    fun aSetContentOnAContainerWithUndisposedContentIsRefused(): List<DynamicTest> = listOf(
+        RefusalRow(
+            name = "panel",
+            container = JPanel(),
+            composeFirst = { parent, text -> setContent(parent = parent) { Label(text = text) } },
+            composeRefused = { parent, text -> setContent(parent = parent) { Label(text = text) } },
+        ),
+        menuBarUnderAHostPanel(),
+        RefusalRow(
+            name = "popup menu content over popup menu content",
+            container = JPopupMenu(),
+            composeFirst = { parent, text -> setMenuContent(parent, text) },
+            composeRefused = { parent, text -> setMenuContent(parent, text) },
+        ),
+        RefusalRow(
+            name = "popup component content over popup menu content",
+            container = JPopupMenu(),
+            composeFirst = { parent, text -> setMenuContent(parent, text) },
+            composeRefused = { parent, text -> setComponentContent(parent, text) },
+        ),
+        RefusalRow(
+            name = "popup menu content over popup component content",
+            container = JPopupMenu(),
+            composeFirst = { parent, text -> setComponentContent(parent, text) },
+            composeRefused = { parent, text -> setMenuContent(parent, text) },
+        ),
+    ).map { row ->
+        dynamicTest(row.name) {
+            runSwingTest {
+                val recomposer = SwingRecomposer.create(JPanel())
+                val parent = recomposer.compositionContext
+                val hostHandle = row.host?.setContent(parent = parent) {}
+                try {
+                    val first = row.first(parent, "first")
+                    val composed = row.container.components.toList()
+                    assertTrue(composed.isNotEmpty(), "the first content must be composed before the second is refused")
 
-            val refused =
-                assertFailsWith<IllegalStateException> {
-                    panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
+                    assertFailsWith<IllegalStateException> { row.refused(parent, "second") }
+                    assertEquals(
+                        composed,
+                        row.container.components.toList(),
+                        "a refused call must leave the composed content as it was",
+                    )
+
+                    first.dispose()
+                    row.refused(parent, "third").dispose()
+                } finally {
+                    hostHandle?.dispose()
+                    recomposer.dispose()
                 }
-            assertTrue(
-                "two content compositions cannot both be" in refused.message.orEmpty(),
-                "the refusal must say why a container answers for one content composition only, " +
-                    "and said: ${refused.message}",
-            )
-        } finally {
-            recomposer.dispose()
+            }
         }
     }
 
@@ -131,34 +175,52 @@ class SetContentMisuseTest {
         }
     }
 
-    @Test
-    fun aContainerWhoseContentThrewOnItsFirstPassTakesContentAgain() = runSwingTest {
-        val panel = JPanel()
-        val recomposer = SwingRecomposer.create(panel)
-        try {
-            val failure =
-                assertFailsWith<IllegalStateException> {
-                    panel.setContent(parent = recomposer.compositionContext) { error("boom") }
+    @TestFactory
+    fun aContainerWhoseContentThrewOnItsFirstPassTakesContentAgain(): List<DynamicTest> = listOf(
+        FirstPassRow(
+            name = "panel",
+            container = JPanel(),
+            composeFailing = { parent -> setContent(parent = parent) { throw FirstPassFailure() } },
+            composeAgain = { parent -> setContent(parent = parent) { Label(text = "second") } },
+        ),
+        FirstPassRow(
+            name = "popup menu",
+            container = JPopupMenu(),
+            composeFailing = { parent -> setContent(parent) { throw FirstPassFailure() } },
+            composeAgain = { parent -> setMenuContent(parent, "second") },
+        ),
+    ).map { row ->
+        dynamicTest(row.name) {
+            runSwingTest {
+                val recomposer = SwingRecomposer.create(JPanel())
+                val parent = recomposer.compositionContext
+                try {
+                    assertFailsWith<FirstPassFailure> { row.failing(parent) }
+                    assertEquals(
+                        0,
+                        row.container.componentCount,
+                        "a content composition that failed its first pass leaves the container empty",
+                    )
+                    assertEquals(
+                        0,
+                        row.container.hierarchyListeners.size,
+                        "a content composition that failed its first pass leaves no listener behind",
+                    )
+
+                    // The failed call composed nothing and handed its caller no handle, so nothing blocks
+                    // the next one.
+                    val again = row.again(parent)
+
+                    assertEquals(
+                        1,
+                        row.container.componentCount,
+                        "the container should have the content mounted second",
+                    )
+                    again.dispose()
+                } finally {
+                    recomposer.dispose()
                 }
-            assertEquals("boom", failure.message, "the first pass's failure reaches the caller as it is")
-            assertEquals(
-                0,
-                panel.componentCount,
-                "a content composition that failed its first pass leaves the container empty",
-            )
-            assertEquals(
-                0,
-                panel.hierarchyListeners.size,
-                "a content composition that failed its first pass leaves no listener behind",
-            )
-
-            // The failed call composed nothing and handed its caller no handle, so nothing stands in
-            // the way of the next one.
-            panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
-
-            assertEquals(1, panel.componentCount, "the container should hold the content mounted second")
-        } finally {
-            recomposer.dispose()
+            }
         }
     }
 
@@ -434,8 +496,71 @@ class SetContentMisuseTest {
         }
     }
 
+    /** A menu bar in a host panel, whose content composes under the host's published context. */
+    private fun menuBarUnderAHostPanel(): RefusalRow<JMenuBar> {
+        val host = JPanel()
+        val bar = JMenuBar().also { host.add(it) }
+        return RefusalRow(
+            name = "menu bar under a host panel with a named parent",
+            container = bar,
+            composeFirst = { _, text -> setContent { MenuItem(text = text, onClick = {}) } },
+            composeRefused = { _, text -> setContent { MenuItem(text = text, onClick = {}) } },
+            host = host,
+        )
+    }
+
+    private fun JPopupMenu.setMenuContent(
+        parent: CompositionContext,
+        text: String,
+    ): DisposableHandle = setContent(parent) { MenuItem(text = text, onClick = {}) }
+
+    private fun JPopupMenu.setComponentContent(
+        parent: CompositionContext,
+        text: String,
+    ): DisposableHandle {
+        val component: JComponent = this
+        return component.setContent(parent) { Label(text = text) }
+    }
+
     private companion object {
         /** Event-dispatch cycles a window's own teardown may take after `dispose()` posts it. */
         const val CLOSE_CYCLES: Int = 50
     }
 }
+
+/**
+ * A container under test, where [refused] must fail while the content [first] set is undisposed. A [host]
+ * is composed under the same parent first, for a container that composes under its published context.
+ */
+private class RefusalRow<C : Container>(
+    val name: String,
+    val container: C,
+    private val composeFirst: C.(CompositionContext, String) -> DisposableHandle,
+    private val composeRefused: C.(CompositionContext, String) -> DisposableHandle,
+    val host: JPanel? = null,
+) {
+    fun first(
+        parent: CompositionContext,
+        text: String,
+    ): DisposableHandle = container.composeFirst(parent, text)
+
+    fun refused(
+        parent: CompositionContext,
+        text: String,
+    ): DisposableHandle = container.composeRefused(parent, text)
+}
+
+/** A container under test, where [failing] throws on its first pass and [again] then takes content. */
+private class FirstPassRow<C : Container>(
+    val name: String,
+    val container: C,
+    private val composeFailing: C.(CompositionContext) -> Unit,
+    private val composeAgain: C.(CompositionContext) -> DisposableHandle,
+) {
+    fun failing(parent: CompositionContext) = container.composeFailing(parent)
+
+    fun again(parent: CompositionContext): DisposableHandle = container.composeAgain(parent)
+}
+
+/** Thrown by content under test, so a test asserts the failure by its type rather than by its message. */
+private class FirstPassFailure : RuntimeException()

@@ -114,13 +114,17 @@ internal class MenuApplier(
     }
 
     override fun onClear() {
-        val rootMenu = root.component
-        // The whole tree goes at once, so the menu interaction it carried ends outright. The manager
-        // holds one selection for the toolkit, so only a selection that starts at this root is this
-        // composition's to end - another window's open menu is not.
         val selection = MenuSelectionManager.defaultManager()
-        if (selection.selectedPath.firstOrNull() === rootMenu) selection.clearSelectedPath()
-        removeAllChildren(rootMenu)
+        val path = selection.selectedPath
+        // Only a selection passing through this root is this composition's to clear; the prefix above it
+        // belongs to the menu that opened it.
+        val cut = path.indexOfFirst { it === root.component }
+        if (cut >= 0) selection.selectedPath = path.copyOfRange(0, cut)
+        // A JMenu creates its popup when asked for it, so a root with no children asks for none.
+        if (root.children.isEmpty()) return
+        // The root is the caller's, so a component the caller added to it stays.
+        val container = root.menuContainer("clear menu children")
+        root.children.removeComposedFrom(container) { batch.markChanged(container, it) }
         root.children.clear()
     }
 
@@ -151,32 +155,6 @@ internal class MenuApplier(
             else -> Unit
         }
         children.fastForEach { it.packShowingPopups() }
-    }
-
-    private fun removeAllChildren(node: Component) {
-        val (container, items) =
-            when (node) {
-                is JMenu -> {
-                    val popup = if (node.menuComponents.isNotEmpty()) node.popupMenu else null
-                    popup to popup?.components.orEmpty()
-                }
-
-                is JMenuBar -> {
-                    node to node.components
-                }
-
-                is JPopupMenu -> {
-                    node to node.components
-                }
-
-                else -> {
-                    error("Cannot clear children of menu node $node")
-                }
-            }
-        if (container != null) {
-            items.forEach { batch.markChanged(container, it.bounds) }
-        }
-        node.removeAll()
     }
 }
 

@@ -9,6 +9,7 @@ public final class org/jetbrains/compose/swing/SetContentKt {
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JMenuBar;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
+	public static final fun setContent (Ljavax/swing/JPopupMenu;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static synthetic fun setContent$default (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
 }
 

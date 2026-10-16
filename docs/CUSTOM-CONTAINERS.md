@@ -512,6 +512,15 @@ share the parent's snapshot state, recomposer, and `CompositionLocal`s. Descenda
 without their own parent also resolve to that named parent. A child whose parent is omitted uses the
 ordinary Swing-tree/window lookup described in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+`JMenuBar.setContent { }` resolves its parent from the enclosing composition, then the owning window.
+`JPopupMenu.setContent(parent) { }` always names its parent, because a popup is not a descendant of its
+invoker. The content composes on the call. A popup has one content composition until its handle is
+disposed on the Event Dispatch Thread; a `setContent` from either overload throws in the meantime. Content
+whose parent states no window reads the window of the popup's invoker. To host components inside a popup,
+add a panel and call `JComponent.setContent { }` on that panel without naming a parent: until the popup's
+handle is disposed, the panel joins the popup's parent and shares its snapshot state, recomposer, and
+`CompositionLocal`s.
+
 When the host needs one component back synchronously rather than a composition mounted into a
 `JComponent`, use `OnDemandComposition`:
 

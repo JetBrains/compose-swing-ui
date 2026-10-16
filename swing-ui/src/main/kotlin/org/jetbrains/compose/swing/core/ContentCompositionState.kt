@@ -16,17 +16,25 @@ import java.awt.Window
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import javax.swing.JComponent
+import javax.swing.JPopupMenu
 import javax.swing.RootPaneContainer
 import javax.swing.SwingUtilities
 
 /**
- * The top-level [Window] this component is in; a [Window] is its own.
+ * The top-level [Window] this component is in; a [Window] is its own, and a component in a [JPopupMenu]
+ * that has an invoker is in the window of that invoker, whichever window the popup is shown in.
  *
  * The receiver is answered before the ancestor walk because an owned window's Swing parent is the
- * window that owns it: a dialog asked for the window it is in is in itself, not in the frame it hangs
- * off.
+ * window that owns it: a dialog asked for the window it is in is in itself, not in the frame that
+ * owns it.
  */
-internal fun Component.ownerWindowOrNull(): Window? = this as? Window ?: SwingUtilities.getWindowAncestor(this)
+internal fun Component.ownerWindowOrNull(): Window? {
+    if (this is Window) return this
+    val invoker =
+        generateSequence(this) { c -> c.parent.takeUnless { c is Window } }
+            .firstNotNullOfOrNull { (it as? JPopupMenu)?.invoker }
+    return if (invoker != null) invoker.ownerWindowOrNull() else SwingUtilities.getWindowAncestor(this)
+}
 
 /**
  * The composition a `setContent` nests into: the [context] its content composes under, the [window]
@@ -82,6 +90,10 @@ internal fun resolveParentOrNull(component: Component): ParentComposition? {
  *
  * The returned handle is idempotent: disposing before the content composes removes the listener and
  * mounts nothing; disposing after it disposes the content composition.
+ *
+ * @param component the container the content is composed into.
+ * @param compose creates and starts the content composition once the parent resolves. It receives the
+ *   [ParentComposition] the content joins, the window the content reads, and the [LifecycleOwner] it reads.
  */
 internal fun mountWhenParentResolves(
     component: JComponent,
@@ -93,17 +105,25 @@ internal fun mountWhenParentResolves(
  * Mounts a `setContent` on [component] under the [namedParent] its caller supplied, composing on the
  * call, and returns a [DisposableHandle] over that content composition.
  *
- * The handle is idempotent and disposes this content's composition, never [namedParent].
+ * The handle is idempotent and disposes this content's composition, never [namedParent]. A [namedParent]
+ * whose recomposer is shut down is refused; [remedy] closes the message with what the caller of this entry
+ * point can do instead.
+ *
+ * @param component the container the content is composed into.
+ * @param namedParent the composition context the content joins.
+ * @param remedy the closing sentence of the message that refuses a shut-down [namedParent].
+ * @param compose creates and starts the content composition. It receives the [ParentComposition] built over
+ *   [namedParent], the window the content reads, and the [LifecycleOwner] it reads.
  */
 internal fun mountUnderNamedParent(
     component: JComponent,
     namedParent: CompositionContext,
+    remedy: String,
     compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
 ): DisposableHandle {
-    require(!namedParent.hasEnded) {
+    require(!namedParent.isShutDown) {
         "The composition context named for ${component.javaClass.name} belongs to a recomposer that " +
-            "has ended, so content composed under it would never recompose. Name a live one, or name no " +
-            "parent at all to join the composition this container's own place resolves to."
+            "is shut down, so content composed under it would never recompose. $remedy"
     }
     val owning = windowOwning(namedParent)
     val kept = owning?.swingRecomposerOrNull() ?: libraryKeptRecomposerDriving(namedParent)
@@ -168,7 +188,7 @@ private fun Component.mountedRecomposerDriving(context: CompositionContext): Swi
  * The states are named rather than compared by order, so a state added between them cannot change what
  * this answers.
  */
-private val CompositionContext.hasEnded: Boolean
+private val CompositionContext.isShutDown: Boolean
     get() {
         val recomposer = this as? Recomposer ?: return false
         return when (recomposer.currentState.value) {
@@ -436,7 +456,7 @@ internal class ContentCompositionState(
                 // Adopting keeps the composition rather than composing again, so this is the one
                 // move that can register content composed while its container hung in no window -
                 // under a caller-named context that is no window's own, which named no recomposer either.
-                parentRecomposer = arrivedIn.swingRecomposerOrNull()
+                parentRecomposer = component.enclosingContentRecomposerOrNull() ?: arrivedIn.swingRecomposerOrNull()
                 registerWith(parentRecomposer)
             }
 

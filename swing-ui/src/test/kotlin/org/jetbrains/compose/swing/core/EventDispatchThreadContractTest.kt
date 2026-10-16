@@ -3,10 +3,17 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
@@ -20,10 +27,12 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import java.awt.Component
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JMenuBar
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -49,9 +58,14 @@ class EventDispatchThreadContractTest {
     fun setContentOffTheEventDispatchThreadFailsFast(): List<DynamicTest> = listOf<Pair<String, () -> Unit>>(
         "container" to { JPanel().setContent { } },
         "menu bar" to { JMenuBar().setContent { } },
-    ).map { (name, setContent) ->
-        dynamicTest(name) { assertRejectedOffEdt(setContent) }
-    }
+    ).map { (name, setContent) -> dynamicTest(name) { assertRejectedOffEdt(setContent) } } +
+        dynamicTest("popup") {
+            runTest {
+                withRecomposer { recomposer ->
+                    assertRejectedOffEdt { JPopupMenu().setContent(recomposer.compositionContext) { } }
+                }
+            }
+        }
 
     @Test
     fun windowSetContentOffTheEventDispatchThreadFailsFast() {
@@ -64,15 +78,63 @@ class EventDispatchThreadContractTest {
         }
     }
 
+    @TestFactory
+    fun contentDisposalOffTheEventDispatchThreadFailsFast(): List<DynamicTest> =
+        listOf<Pair<String, (CompositionContext) -> MountedContent>>(
+            "container" to ::mountedContainer,
+            "interop host" to ::mountedInteropHost,
+            "menu interop host" to ::mountedMenuInteropHost,
+            "popup" to ::mountedPopup,
+        ).map { (name, mount) -> dynamicTest(name) { runTest { assertDisposalRejectedOffEdt(mount) } } }
+
+    @TestFactory
+    fun contentDisposalOffTheEventDispatchThreadKeepsRefusingASecondSetContent(): List<DynamicTest> =
+        listOf<Pair<String, (CompositionContext) -> OccupiedHost>>(
+            "container" to { parent ->
+                val panel = JPanel()
+                OccupiedHost(panel.setContent(parent) { }) { panel.setContent(parent) { } }
+            },
+            "popup" to { parent ->
+                val popup = JPopupMenu()
+                OccupiedHost(popup.setContent(parent) { }) { popup.setContent(parent) { } }
+            },
+        ).map { (name, mount) ->
+            dynamicTest(name) {
+                runTest {
+                    withRecomposer { recomposer ->
+                        val mounted = onEventDispatchThread { mount(recomposer.compositionContext) }
+                        try {
+                            assertRejectedOffEdt { mounted.handle.dispose() }
+
+                            onEventDispatchThread {
+                                assertFailsWith<IllegalStateException> { mounted.setContentAgain() }
+                            }
+                        } finally {
+                            onEventDispatchThread { mounted.handle.dispose() }
+                        }
+                    }
+                }
+            }
+        }
+
     @Test
-    fun contentCompositionDisposalOffTheEventDispatchThreadFailsFast() {
+    fun interopHostDisposalOffTheEventDispatchThreadKeepsItsPublishedContext() = runTest {
         val panel = JPanel()
-        lateinit var handle: DisposableHandle
-        SwingUtilities.invokeAndWait { handle = panel.setContent { } }
-        try {
-            assertRejectedOffEdt { handle.dispose() }
-        } finally {
-            SwingUtilities.invokeAndWait { handle.dispose() }
+        withRecomposer { recomposer ->
+            val handle =
+                onEventDispatchThread { panel.setContentAsInteropHost(recomposer.compositionContext) { } }
+            try {
+                assertRejectedOffEdt { handle.dispose() }
+
+                assertSame(
+                    recomposer.compositionContext,
+                    onEventDispatchThread { panel.findParentCompositionContext() },
+                    "a disposal rejected off the Event Dispatch Thread must leave the interop host's " +
+                        "published context in place",
+                )
+            } finally {
+                onEventDispatchThread { handle.dispose() }
+            }
         }
     }
 
@@ -85,57 +147,6 @@ class EventDispatchThreadContractTest {
             assertRejectedOffEdt { recomposer.dispose() }
         } finally {
             SwingUtilities.invokeAndWait { recomposer.dispose() }
-        }
-    }
-
-    @Test
-    fun interopHostDisposalOffTheEventDispatchThreadFailsFast() {
-        val panel = JPanel()
-        lateinit var recomposer: SwingRecomposer
-        lateinit var handle: DisposableHandle
-        SwingUtilities.invokeAndWait {
-            recomposer = SwingRecomposer.create(panel)
-            handle = panel.setContentAsInteropHost(recomposer.compositionContext) { }
-        }
-        try {
-            assertRejectedOffEdt { handle.dispose() }
-
-            // The disposal empties the host and withdraws the context it published on it, so a rejected
-            // one must have touched neither. Read on the EDT, asserted off it.
-            var published: CompositionContext? = null
-            SwingUtilities.invokeAndWait { published = panel.findParentCompositionContext() }
-            assertSame(
-                recomposer.compositionContext,
-                published,
-                "a disposal rejected off the Event Dispatch Thread must leave the interop host's " +
-                    "published context standing",
-            )
-        } finally {
-            SwingUtilities.invokeAndWait {
-                handle.dispose()
-                recomposer.dispose()
-            }
-        }
-    }
-
-    @Test
-    fun menuInteropHostDisposalOffTheEventDispatchThreadFailsFast() {
-        val menuBar = JMenuBar()
-        lateinit var recomposer: SwingRecomposer
-        lateinit var handle: DisposableHandle
-        SwingUtilities.invokeAndWait {
-            recomposer = SwingRecomposer.create(menuBar)
-            handle = menuBar.setContentAsMenuInteropHost(recomposer.compositionContext) { }
-        }
-        try {
-            // The handle disposes only what the call mounted, so the thread it demands is that
-            // content's own.
-            assertRejectedOffEdt { handle.dispose() }
-        } finally {
-            SwingUtilities.invokeAndWait {
-                handle.dispose()
-                recomposer.dispose()
-            }
         }
     }
 
@@ -250,6 +261,87 @@ class EventDispatchThreadContractTest {
             "the failure must name the calling thread, but was: $message",
         )
     }
+
+    private fun mountedContainer(parent: CompositionContext): MountedContent {
+        val panel = JPanel()
+        return MountedContent(
+            panel.setContent(parent) { Label("inner") },
+            items = { panel.components.toList() },
+        )
+    }
+
+    private fun mountedInteropHost(parent: CompositionContext): MountedContent {
+        val panel = JPanel()
+        return MountedContent(
+            panel.setContentAsInteropHost(parent) { Label("inner") },
+            items = { panel.components.toList() },
+        )
+    }
+
+    private fun mountedMenuInteropHost(parent: CompositionContext): MountedContent {
+        val menuBar = JMenuBar()
+        return MountedContent(
+            menuBar.setContentAsMenuInteropHost(parent) { Menu("File") },
+            items = { menuBar.components.toList() },
+        )
+    }
+
+    private fun mountedPopup(parent: CompositionContext): MountedContent {
+        val popup = JPopupMenu()
+        return MountedContent(
+            popup.setContent(parent) { MenuItem(text = "Cut", onClick = {}) },
+            items = { popup.components.toList() },
+        )
+    }
+
+    private suspend fun assertDisposalRejectedOffEdt(mount: (CompositionContext) -> MountedContent) {
+        withRecomposer { recomposer ->
+            val mounted = onEventDispatchThread { mount(recomposer.compositionContext) }
+            try {
+                val itemsBefore = onEventDispatchThread { mounted.items() }
+                assertTrue(itemsBefore.isNotEmpty(), "the mounted content must have composed a component")
+
+                assertRejectedOffEdt { mounted.handle.dispose() }
+
+                assertEquals(
+                    itemsBefore,
+                    onEventDispatchThread { mounted.items() },
+                    "a disposal rejected off the Event Dispatch Thread must leave the composed components",
+                )
+            } finally {
+                onEventDispatchThread { mounted.handle.dispose() }
+            }
+        }
+    }
+
+    private suspend fun withRecomposer(body: suspend (SwingRecomposer) -> Unit) {
+        val recomposer = onEventDispatchThread { SwingRecomposer.create(JPanel()) }
+        try {
+            body(recomposer)
+        } finally {
+            onEventDispatchThread { recomposer.dispose() }
+        }
+    }
+
+    private suspend fun <T> onEventDispatchThread(read: () -> T): T = withContext(Dispatchers.Swing) { read() }
+
+    /**
+     * Content mounted by a case of the disposal matrix: its [handle] and the [items] it composed into its
+     * container, which a rejected disposal must not change. [items] is read on the Event Dispatch Thread.
+     */
+    private class MountedContent(
+        val handle: DisposableHandle,
+        val items: () -> List<Component>,
+    )
+
+    /**
+     * Content a host takes one at a time: its [handle] and [setContentAgain], which sets further content
+     * on the same host and is refused while [handle] is undisposed.
+     */
+    private class OccupiedHost(
+        val handle: DisposableHandle,
+        val setContentAgain: () -> Unit,
+    )
 
     private class ObservingProbe(
         private val onCreate: (ObservingProbeNode) -> Unit,

@@ -76,7 +76,7 @@ windows, dialogs and menus - is cataloged with the parameters that decide how it
 
 You can also drive composition into any container without the `application`/`Window` entry points.
 `setContent` is an extension on `javax.swing.JComponent`, with `java.awt.Window.setContent` (covering
-`JFrame`, `JDialog`, and `JWindow`) and `JMenuBar.setContent` provided too. A single
+`JFrame`, `JDialog`, and `JWindow`), `JMenuBar.setContent` and `JPopupMenu.setContent` provided too. A single
 `import org.jetbrains.compose.swing.setContent` resolves all of them:
 
 ```kotlin

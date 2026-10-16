@@ -2,10 +2,9 @@ package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
+import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.SwingContentComposition
-import org.jetbrains.compose.swing.node.CreatedNodeHolder
-import org.jetbrains.compose.swing.node.MenuApplier
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.util.DeferredAction
 import javax.swing.JPopupMenu
 import javax.swing.event.PopupMenuEvent
@@ -29,8 +28,7 @@ internal class MenuPopup(
 ) {
     val popup: JPopupMenu = JPopupMenu()
 
-    private val composition =
-        SwingContentComposition.nested(parentContext, CreatedNodeHolder(popup), ::MenuApplier)
+    private val contentHandle: DisposableHandle
 
     // Whether the menu has closed, by close() or by the popup closing itself. Hiding the popup here
     // still fires the listener, so this flag stops that from being reported as a close of its own.
@@ -39,7 +37,7 @@ internal class MenuPopup(
     // The look and feel clears the selection path and then clicks the item, both within one event
     // dispatch, so a close the popup publishes may still have a click to come. Releasing on that close
     // would take the item off the popup and its listeners with it, and the click would reach nothing.
-    private val deferredRelease = DeferredAction(composition::dispose)
+    private val deferredRelease = DeferredAction { contentHandle.dispose() }
 
     private val closeListener =
         object : PopupMenuListener {
@@ -57,7 +55,7 @@ internal class MenuPopup(
         }
 
     init {
-        composition.setContent(content)
+        contentHandle = popup.setContent(parentContext, content)
         popup.addPopupMenuListener(closeListener)
     }
 
@@ -71,6 +69,6 @@ internal class MenuPopup(
         if (closed) return
         closed = true
         popup.isVisible = false
-        composition.dispose()
+        contentHandle.dispose()
     }
 }
