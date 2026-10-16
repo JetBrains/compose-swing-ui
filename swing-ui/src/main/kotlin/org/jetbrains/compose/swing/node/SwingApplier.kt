@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Container
 
 /**
@@ -87,6 +88,10 @@ internal class SwingApplier internal constructor(
         val node = current
         super.up()
         if (node.declaredSlot?.name != node.installation?.region) changes.recordRegionRestated(current)
+        val container = current.component as? Container
+        if (container != null && node.installation?.fillsRegion == true) {
+            with(regions) { current.checkNoConstraintInRegion(container, node) }
+        }
     }
 
     override fun insertTopDown(
@@ -182,13 +187,10 @@ internal class SwingApplier internal constructor(
     }
 
     override fun onClear() {
-        // The root is user-supplied. Remove only the children the composition owns, through the same
-        // child host that added them; claimed components and children the composition did not add stay.
-        // Region attachments and children composed into claimed containers are released by each node's
-        // onRelease, which the runtime calls after clearing the applier.
+        // The root is user-supplied. Each root child leaves through what installed it; claimed components and
+        // children the composition did not add stay.
         val container = root.component as? Container ?: return
-        val childHost = container.childHost
-        root.children.removeComposedFrom(childHost) { batch.markChanged(childHost, it) }
+        root.children.fastForEach { it.leaveHost(container, batch) }
         root.children.clear()
         changes.forget()
     }

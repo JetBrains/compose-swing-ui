@@ -199,6 +199,8 @@ out under the placements they declare, and neither knows about the other.
 A constraint that changes while its component is already attached re-registers the component with its
 parent's manager rather than re-adding it, so placement follows state without the component losing
 its position in the container, its focus, or its native resources.
+A child placed in a region of its host, whether its modifier names the region or the host installs it as
+its content, is refused a constraint.
 
 The two kinds of placement differ in when a change takes hold. A layout constraint is the parent's
 layout manager's, and the manager can be told about it at any time, so a new value takes effect as it

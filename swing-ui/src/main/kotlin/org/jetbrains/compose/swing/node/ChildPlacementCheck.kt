@@ -102,6 +102,18 @@ internal fun SwingNodeHolder<*>.checkChildKind(
 }
 
 /**
+ * The refusal of a layout constraint on a child that fills a region of [host]: the host's own setter places
+ * the child, so no layout manager reads a constraint for it.
+ */
+internal fun SwingNodeHolder<*>.constraintInRegionRefusal(host: Container): String {
+    val filled = declaredSlot?.let { namedRegion() } ?: "the content"
+    return "A ${component.declaredName} filling $filled of a ${host.declaredName} is placed by that host's own " +
+        "setter rather than measured by a layout manager, so there is nothing to place it under the " +
+        "SwingModifier.layoutConstraint() it declares. Put the component in a Box inside the region and " +
+        "declare the layout modifiers on the Box's child."
+}
+
+/**
  * Holds this host to one child per region, and to one child filling its content. Called on a
  * [ChildPlacement.Slots] host once the change pass that filled its regions has been dispatched whole and
  * every child it holds is installed in the region its own modifier names, so each child is counted against

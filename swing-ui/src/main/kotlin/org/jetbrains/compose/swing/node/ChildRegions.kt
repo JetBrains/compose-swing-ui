@@ -83,6 +83,7 @@ internal class ChildRegions(
         // A child naming no region keeps the attachment its host installed it through.
         val attachment = child.declaredSlot?.attachment ?: childPlacement.contentAttachment
         if (attachment != null) {
+            checkNoConstraintInRegion(container, child)
             val slotIndex = slotIndexOf(container, index)
             child.installation =
                 Installation.Region(child.declaredSlot?.name, attachment.install(container, child.component, slotIndex))
@@ -100,6 +101,22 @@ internal class ChildRegions(
             if (childHost.componentCount == standing) childCheck.hold(this)
             batch.markChanged(childHost, child.component.bounds)
         }
+    }
+
+    /**
+     * Refuses a layout constraint on [child], which fills a region of this host: the host's own setter places it,
+     * so no layout manager reads a constraint for it. Asked of a child arriving at a region and, by the applier, of
+     * one already there whose modifier has come to declare one.
+     *
+     * The root of a composition with a [rootSlotPolicy] is left to that policy, which refuses what the
+     * composition's top-level component declares once the pass has settled, and disposes the composition.
+     */
+    fun SwingNodeHolder<*>.checkNoConstraintInRegion(
+        container: Container,
+        child: SwingNodeHolder<*>,
+    ) {
+        if (this === root && rootSlotPolicy != null) return
+        check(child.declaration.parentData == null) { child.constraintInRegionRefusal(container) }
     }
 
     /**

@@ -7,18 +7,25 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Separator
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Component
 import javax.swing.JLabel
@@ -171,6 +178,65 @@ class ContentRegionTest {
         )
     }
 
+    @TestFactory
+    fun aContentChildDeclaringALayoutConstraintIsRefused(): List<DynamicTest> = listOf(
+        constraintRefused("when it arrives", constrainedAtFirst = true),
+        constraintRefused("when its modifier changes", constrainedAtFirst = false),
+    )
+
+    private fun constraintRefused(
+        name: String,
+        constrainedAtFirst: Boolean,
+    ) = DynamicTest.dynamicTest(name) {
+        runComposeSwingTest {
+            var constrained by mutableStateOf(constrainedAtFirst)
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    Titled {
+                        Label(
+                            "body",
+                            if (constrained) SwingModifier.layoutConstraint(BorderLayout.SOUTH) else SwingModifier,
+                        )
+                    }
+                }
+                awaitIdle()
+                constrained = true
+                awaitIdle()
+            }
+        }
+    }
+
+    @Test
+    fun aMeasuringHostReceivesTheNewDeclarationOfItsContentChild() = runComposeSwingTest {
+        var wide by mutableStateOf(false)
+        val layout = RecordingMeasurementLayout()
+        setContent {
+            SwingNode(
+                factory = { JPanel(layout) },
+                childPlacement =
+                    ChildPlacement.Slots(
+                        content =
+                            SlotAttachment { host, component, _ ->
+                                host.add(component)
+                                return@SlotAttachment { host.remove(component) }
+                            },
+                    ),
+            ) {
+                Label("body", SwingModifier then if (wide) Wide else Narrow)
+            }
+        }
+        onNodeWithText("body").assertProperty(listOf<ParentLayoutElement>(Narrow), "parent layout elements") {
+            layout.elementsOf(this)
+        }
+
+        wide = true
+        awaitIdle()
+
+        onNodeWithText("body").assertProperty(listOf<ParentLayoutElement>(Wide), "parent layout elements") {
+            layout.elementsOf(this)
+        }
+    }
+
     @Test
     fun aParkedContentChildGivesTheContentUpToItsSuccessor() = runComposeSwingTest {
         var parked by mutableStateOf(false)
@@ -218,6 +284,16 @@ private val BodyContent =
     }
 
 private val TitledPlacement = ChildPlacement.Slots(TITLE_REGION, content = BodyContent)
+
+private val MeasuringProtocol: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring host")
+
+private data object Narrow : ParentLayoutElement {
+    override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+}
+
+private data object Wide : ParentLayoutElement {
+    override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+}
 
 @Composable
 private inline fun Titled(crossinline content: @Composable () -> Unit) {

@@ -33,7 +33,8 @@ internal val RawParentProtocol: ParentProtocol =
  * position among its siblings. It reaches the node whose modifier declares it and travels no further, so a
  * container placed this way lays its own children out under the constraints each of them declares. The
  * last constraint declared in a modifier chain wins, and a modifier declaring none leaves the component placed by
- * index alone.
+ * index alone. A child placed in a region of its host - one named through [slot], or the content a host installs - is
+ * refused a constraint.
  *
  * The placement is re-applied whenever the declared value does not compare equal to the one applied last,
  * so a constraint compared by identity - as a raw `GridBagConstraints` is - re-registers the component on
@@ -64,7 +65,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  * modifier declaring none is refused under a host that declares no content attachment, and a modifier
  * declaring one is refused under a host that adds its children by index. The last region declared in a
  * modifier chain wins, and a modifier declaring a region as well as a [layoutConstraint] is refused, since a
- * parent holds a child by one of the two.
+ * parent holds a child by one of the two. So is a [layoutConstraint] on a child the host installs as its content.
  *
  * The placement follows the region named: a modifier naming another region moves the component there,
  * released from the region it fills through the [SlotAttachment] that filled it and installed through the

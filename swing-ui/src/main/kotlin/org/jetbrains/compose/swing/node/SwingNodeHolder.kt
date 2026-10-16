@@ -461,10 +461,8 @@ internal sealed class SwingNodeHolder<out T : Component> :
         try {
             reset(resetNodes = false, detaching = isAttached)
         } finally {
-            // The applier frees a region when it removes or moves a node. Whole-subtree disposal goes
-            // through neither path: SwingApplier.onClear() removes the root's composed children and
-            // clears its child list, releasing no region on the way.
-            // A node installed in a region is therefore still installed when the runtime releases it.
+            // A node released together with its host is still installed in its region when the runtime
+            // releases it; the remove, move and clear routes free it otherwise.
             // The call is unguarded because both the installed and the uninstalled state are
             // legitimate: an ordinary remove or move has already freed the region.
             try {
