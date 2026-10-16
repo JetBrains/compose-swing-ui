@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -412,55 +413,56 @@ class TabbedPaneBehaviorTest {
 
     @Test
     fun aHeaderWithMultipleDirectRootsIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                        Label(
-                            "body",
-                            SwingModifier.tab(
-                                "General",
-                                header = {
-                                    Label("first")
-                                    Label("second")
-                                },
-                            ),
-                        )
-                    }
+        assertFailsWith<IllegalStateException> {
+            setContent {
+                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                    Label(
+                        "body",
+                        SwingModifier.tab(
+                            "General",
+                            header = {
+                                Label("first")
+                                Label("second")
+                            },
+                        ),
+                    )
                 }
             }
-
-        assertTrue(
-            failure.message.orEmpty().contains("exactly one direct Component root"),
-            "the failure should explain that a tab header needs one direct root: ${failure.message}",
-        )
+        }
     }
 
     @Test
-    fun anInitiallyEmptyHeaderIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                        Label(
-                            "body",
-                            SwingModifier.tab(
-                                "General",
-                                header = {},
-                            ),
-                        )
-                    }
-                }
+    fun aFirstPagesHeaderIsInstalledInTheTabOnThePanesFirstComposition() = runComposeSwingTest {
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label("g", SwingModifier.tab("General", header = { Label("first") }))
+                Label("a", SwingModifier.tab("Advanced", header = { Label("second") }))
             }
+        }
 
-        assertTrue(
-            failure.message.orEmpty().contains("exactly one direct Component root"),
-            "the failure should explain that a tab header needs one direct root: ${failure.message}",
-        )
+        onNodeOfType<JTabbedPane>().assertProperty(
+            listOf<String?>("first", "second"),
+            "each header is in its own tab at once",
+        ) { headers(this) }
     }
 
     @Test
-    fun aHeaderBecomingEmptyFromItsOwnInvalidationIsRefused() = runComposeSwingTest {
+    fun aHeaderComposingNothingLeavesTheStripRenderingTheTitle() = runComposeSwingTest {
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label("body", SwingModifier.tab("General", header = {}))
+            }
+        }
+
+        val pane = onNodeOfType<JTabbedPane>()
+        pane.assertProperty(listOf<String?>(null), "no header component, so the strip renders the title") {
+            headers(this)
+        }
+        pane.assertProperty(listOf("General")) { titles(this) }
+    }
+
+    @Test
+    fun aHeaderBecomingEmptyHandsTheStripBackToTheTitle() = runComposeSwingTest {
         var showHeader by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
@@ -478,16 +480,63 @@ class TabbedPaneBehaviorTest {
             }
         }
 
-        showHeader = false
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                awaitIdle()
-            }
+        val pane = onNodeOfType<JTabbedPane>()
+        pane.assertProperty(listOf<String?>("header")) { headers(this) }
 
-        assertTrue(
-            failure.message.orEmpty().contains("exactly one direct Component root"),
-            "the failure should explain that a tab header needs one direct root: ${failure.message}",
-        )
+        showHeader = false
+        awaitIdle()
+        pane.assertProperty(listOf<String?>(null), "the emptied header leaves the strip rendering the title") {
+            headers(this)
+        }
+        pane.assertProperty(listOf("General")) { titles(this) }
+
+        showHeader = true
+        awaitIdle()
+        pane.assertProperty(listOf<String?>("header"), "the header composition outlives an empty pass") {
+            headers(this)
+        }
+    }
+
+    @Test
+    fun aHeaderGainingASecondRootFromItsOwnInvalidationIsRefusedForGood() = runComposeSwingTest {
+        var showSecond by mutableStateOf(false)
+        var caption by mutableStateOf("first")
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label(
+                    "body",
+                    SwingModifier.tab(
+                        "General",
+                        header = {
+                            Label(caption)
+                            if (showSecond) {
+                                Label("second")
+                            }
+                        },
+                    ),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JTabbedPane>()
+        pane.assertProperty(listOf<String?>("first")) { headers(this) }
+
+        showSecond = true
+        assertFailsWith<IllegalStateException> { awaitIdle() }
+
+        pane.assertProperty(listOf<String?>(null), "the refused header is disposed, so the tab shows its title") {
+            headers(this)
+        }
+        pane.assertProperty(listOf("General")) { titles(this) }
+
+        caption = "later"
+        awaitIdle()
+        pane.assertProperty(
+            listOf<String?>(null),
+            "the refusal is terminal, so later state changes compose no header",
+        ) {
+            headers(this)
+        }
     }
 
     @Test

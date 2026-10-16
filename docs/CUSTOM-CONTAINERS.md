@@ -549,13 +549,26 @@ private class LabelRenderer(parent: CompositionContext) {
 <!--- KNIT example-custom-container-03.kt -->
 
 `OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and
-`CompositionLocal`s, but it is a separate controlled composition. Its constructor composes the content once;
-`recompose` writes the current inputs and applies a synchronous pass before returning. The returned
-component is not inserted anywhere by the composition - the caller places it - and `null` means that the
-content currently composes no component. When the content stops composing the component, or the composition
-is disposed, the composition removes it from whatever container the caller placed it in. Content must produce
-at most one top-level component; producing more than one throws `IllegalStateException` and disposes that
-composition. Construct, recompose, and dispose it on the Event Dispatch Thread.
+`CompositionLocal`s. Its constructor composes the content once. The content recomposes when snapshot state it
+reads changes, and `recompose` runs its update and applies the result before returning. Inputs the content
+reads must be snapshot state such as `mutableStateOf`.
+
+Created this way, the composition places nothing: `recompose` returns the top-level component, and `null`
+means that the content currently composes none. A component that leaves the composition is removed from
+whatever container it is in. Content composes at most one top-level component, and that component names no
+region and carries no parent data. A pass that breaks one of these rules is refused and
+disposes the composition first, so the caller has nothing to dispose.
+
+To have the composition place the component itself, pass a container and a `SlotAttachment`:
+`OnDemandComposition(parent, host, placement) { ... }`. The composition calls `placement` for each new
+top-level component, runs the action it returns when that component leaves and when the composition is
+disposed, and sends its layout and repaint requests to `host`. The placement and its action must not call
+`recompose` or `dispose` on the composition. A failure the placement throws also disposes the composition
+before it reaches the caller. A top-level component that names a region of another kind of parent than the
+composition's root is the one refusal that leaves the composition undisposed: the caller disposes it, and that
+disposal can throw too. See [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
+
+Construct, recompose, and dispose an `OnDemandComposition` on the Event Dispatch Thread.
 
 <!--- CLEAR -->
 

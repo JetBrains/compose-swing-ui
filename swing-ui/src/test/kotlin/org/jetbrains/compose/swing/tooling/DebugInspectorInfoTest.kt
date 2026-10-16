@@ -385,13 +385,23 @@ class DebugInspectorInfoTest {
         // once another has taken its host is what is under test.
         val compositionHost = JPanel()
         val stale =
-            SwingContentComposition.nested(parentContext, CreatedNodeHolder(compositionHost), ::SwingApplier)
+            SwingContentComposition.nested(
+                parentContext,
+                CreatedNodeHolder(compositionHost),
+                compositionHost,
+                ::SwingApplier,
+            )
         stale.setContent { Label(text = "stale") }
         // Declared only once the stale composition is gone: disposing one empties the container it is
         // rooted at, which is the host these two share.
         var showTheLabel by mutableStateOf(false)
         val live =
-            SwingContentComposition.nested(parentContext, CreatedNodeHolder(compositionHost), ::SwingApplier)
+            SwingContentComposition.nested(
+                parentContext,
+                CreatedNodeHolder(compositionHost),
+                compositionHost,
+                ::SwingApplier,
+            )
         try {
             live.setContent { if (showTheLabel) Label(text = "live") }
             awaitIdle()

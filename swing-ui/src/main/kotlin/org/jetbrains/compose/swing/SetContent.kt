@@ -129,7 +129,7 @@ private fun JComponent.mountContent(
         () -> Unit,
 ): SwingContentComposition {
     val composition =
-        SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), ::SwingApplier)
+        SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), this, ::SwingApplier)
     composition.setContent { ProvideContentLocals(window, lifecycle, this, content = content) }
     return composition
 }
@@ -163,7 +163,7 @@ internal fun Container.setContentAsInteropHost(
     setCompositionContext(parent)
 
     val composition =
-        SwingContentComposition.nested(parent, CreatedNodeHolder(this), ::SwingApplier)
+        SwingContentComposition.nested(parent, CreatedNodeHolder(this), this, ::SwingApplier)
     composition.setContent(content)
     return DisposableHandle {
         checkEventDispatchThread()
@@ -314,7 +314,7 @@ private fun JComponent.composeMenuContent(
         () -> Unit,
 ): SwingContentComposition {
     val composition =
-        SwingContentComposition.nested(parent, CreatedNodeHolder(this), ::MenuApplier)
+        SwingContentComposition.nested(parent, CreatedNodeHolder(this), this, ::MenuApplier)
     composition.setContent(content)
     return composition
 }

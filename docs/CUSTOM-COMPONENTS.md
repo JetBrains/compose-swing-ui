@@ -241,6 +241,11 @@ pane leaves an empty header viewport still claiming layout space, so the library
 attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`,
 identity-checked so a child already replaced by another does not clear the new one.
 
+A `SlotAttachment` also places a nested composition's top-level component: pass it to
+`OnDemandComposition(parent, host, placement) { ... }`. It installs the component into `host` and returns the
+action that takes it out.
+See [Hosting nested compositions](CUSTOM-CONTAINERS.md#hosting-nested-compositions).
+
 ### `@SwingComposable`: keeping Swing and `compose.ui` apart
 
 `@SwingComposable` marks Swing-target content so the compiler can tell it apart from `compose.ui`'s

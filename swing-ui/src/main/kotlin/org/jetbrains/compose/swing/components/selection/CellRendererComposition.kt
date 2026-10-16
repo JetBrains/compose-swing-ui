@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import org.jetbrains.compose.swing.MultipleTopLevelComponentsException
 import org.jetbrains.compose.swing.OnDemandComposition
 import java.awt.Component
 import java.awt.Container
@@ -26,15 +25,12 @@ import java.awt.Dimension
  * top-level component, so nothing of that composition's stands between the component and the cell.
  *
  * @param parentContext the enclosing composition this cell composition joins.
- * @param singleComponentMessage reports a cell body that composes more than one component, in the words
- *   of the widget this cell composition renders for.
  * @param body the cell body every render composes, holding the composition state the renders write; a
  *   [render] whose `hasCell` is `false` composes none of it, which is what leaves the widget the empty
  *   cell - decided once here rather than by each renderer inferring it from the value it rendered.
  */
 internal class CellRendererComposition(
     parentContext: CompositionContext,
-    private val singleComponentMessage: String,
     body: @Composable () -> Unit,
 ) {
     // Whether the widget named a cell for the pending render; see render()'s `hasCell` parameter
@@ -63,14 +59,10 @@ internal class CellRendererComposition(
         hasCell: Boolean,
         writeInputs: () -> Unit,
     ): Component =
-        try {
-            composition.recompose {
-                hasCellState.value = hasCell
-                writeInputs()
-            } ?: EMPTY_CELL
-        } catch (overflow: MultipleTopLevelComponentsException) {
-            throw IllegalStateException(singleComponentMessage, overflow)
-        }
+        composition.recompose {
+            hasCellState.value = hasCell
+            writeInputs()
+        } ?: EMPTY_CELL
 
     /**
      * Disposes this cell composition and its observer. A renderer over it stays safe to invoke

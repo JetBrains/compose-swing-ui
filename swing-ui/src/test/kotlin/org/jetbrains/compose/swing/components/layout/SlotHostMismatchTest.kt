@@ -2,8 +2,13 @@ package org.jetbrains.compose.swing.components.layout
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JTabbedPane
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -82,5 +87,27 @@ class SlotHostMismatchTest {
         assertTrue(TAB_SLOT_NAME in message, "the refusal should name the builder that would place the child: $message")
         assertTrue("JTabbedPane" in message, "the refusal should name the host type the builder expects: $message")
         assertTrue("JSplitPane" in message, "the refusal should name the host the child actually arrived at: $message")
+    }
+
+    @Test
+    fun aTabDeclaredThroughAnotherPanesScopeIsInstalledInThePaneItIsComposedIn() = runComposeSwingTest {
+        setContent {
+            lateinit var first: TabbedPaneScope
+            Panel {
+                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                    first = this
+                    Label(text = "first page", modifier = SwingModifier.tab("First"))
+                }
+                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, modifier = SwingModifier.testTag("second")) {
+                    Label(text = "stray page", modifier = with(first) { SwingModifier.tab("Stray") })
+                }
+            }
+        }
+
+        onAllNodesOfType<JTabbedPane>()
+            .filterToOne(hasTestTag("second"))
+            .assertProperty(listOf("Stray"), "the stray tab is installed in the pane it is composed in") {
+                (0 until tabCount).map { getTitleAt(it) }
+            }
     }
 }

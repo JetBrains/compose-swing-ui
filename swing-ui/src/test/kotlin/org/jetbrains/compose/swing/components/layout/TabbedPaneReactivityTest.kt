@@ -1,14 +1,20 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onDescendants
 import org.jetbrains.compose.swing.test.interaction.performTabClick
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -470,5 +476,49 @@ class TabbedPaneReactivityTest {
         withHeader = true
         awaitIdle()
         assertTrue(pane.getTabComponentAt(0) != null, "redeclaring the header should render the tab again")
+    }
+
+    @Test
+    fun aPageMovedToAnotherPaneTakesItsHeaderAndWhatItRemembers() = runComposeSwingTest {
+        var inFirst by mutableStateOf(true)
+        var caption by mutableStateOf("before")
+        setContent {
+            val page =
+                remember {
+                    movableContentOf<TabbedPaneScope> { scope ->
+                        with(scope) {
+                            Label(
+                                "body",
+                                SwingModifier.tab(
+                                    "Page",
+                                    header = {
+                                        val first = remember { caption }
+                                        Label("$first/$caption", SwingModifier.testTag("header"))
+                                    },
+                                ),
+                            )
+                        }
+                    }
+                }
+            Panel {
+                TabbedPane(0, {}, SwingModifier.testTag("first")) { if (inFirst) page(this) }
+                TabbedPane(0, {}, SwingModifier.testTag("second")) { if (!inFirst) page(this) }
+            }
+        }
+
+        inFirst = false
+        awaitIdle()
+        caption = "after"
+        awaitIdle()
+
+        onAllNodesOfType<JTabbedPane>()
+            .filterToOne(hasTestTag("first"))
+            .assertProperty(0, "the first pane lost the page") { tabCount }
+        val second = onAllNodesOfType<JTabbedPane>().filterToOne(hasTestTag("second"))
+        second.assertProperty("Page", "the second pane has the page") { getTitleAt(0) }
+        second
+            .onDescendants()
+            .filterToOne(hasTestTag("header"))
+            .assertTextEquals("before/after")
     }
 }

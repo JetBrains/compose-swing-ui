@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
+import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
 import org.jetbrains.compose.swing.node.SwingNodeHolder
@@ -58,10 +59,7 @@ class ContentCompositionFailureTest {
         awaitIdle()
         val root = CreatedNodeHolder(probe)
         val composition =
-            SwingContentComposition.nested(parentContext, root) {
-                org.jetbrains.compose.swing.node
-                    .SwingApplier(root)
-            }
+            SwingContentComposition.nested(parentContext, root, probe, ::SwingApplier)
         val text = mutableIntStateOf(0)
         val component = JPanel()
         composition.setContent {
@@ -141,7 +139,12 @@ class ContentCompositionFailureTest {
 
         val thrown =
             assertFailsWith<IllegalStateException> {
-                SwingContentComposition.nested(parentContext, CreatedNodeHolder(probe)) { applierFactory() }
+                SwingContentComposition.nested(
+                    parentContext,
+                    CreatedNodeHolder(probe),
+                    compositionDataHost = probe,
+                    applierFactory = { applierFactory() },
+                )
             }
 
         assertSame(failure, thrown, "the construction's own failure reaches the caller")

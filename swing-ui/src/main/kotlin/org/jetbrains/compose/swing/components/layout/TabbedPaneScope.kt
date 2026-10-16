@@ -1,29 +1,19 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
-import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.core.SwingContentComposition
-import org.jetbrains.compose.swing.core.checkEventDispatchThread
-import org.jetbrains.compose.swing.core.disposingOnFailure
-import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.MirrorState
-import org.jetbrains.compose.swing.node.RootSlotPolicy
-import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.checkOneChildPerRegion
-import org.jetbrains.compose.swing.node.compositionEmitsTwo
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Color
 import java.awt.Component
@@ -57,6 +47,9 @@ public sealed interface TabbedPaneScope {
      * A [header] takes over what the tab strip renders for this tab. [title] and [icon] keep their
      * meaning either way: they name the tab for accessibility and remain the values recomposition
      * writes, so a tab that renders only a header is still named.
+     *
+     * A header composes at most one top-level component. One that composes none leaves the strip
+     * rendering [title] and [icon]; one that composes two is refused.
      *
      * [mnemonic] selects the tab from the keyboard together with the look and feel's mouseless modifier,
      * and the tab underlines the first character of [title] that key names. [displayedMnemonicIndex]
@@ -144,7 +137,7 @@ internal class TabbedPaneScopeImpl(
     /** Adds the page's tab slot and the node that keeps its metadata current. */
     private fun SwingModifier.tab(
         metadata: TabMetadata,
-        header: TabHeaderBinding? = null,
+        header: TabHeaderAttachment? = null,
     ): SwingModifier =
         this
             .slot(TabbedPaneParentProtocol, TAB_SLOT_NAME, TabAttachment(metadata, header, mirror))
@@ -161,21 +154,23 @@ internal class TabbedPaneScopeImpl(
         composed {
             val parentContext = rememberCompositionContext()
             val currentHeader = rememberUpdatedState(header)
-            val binding = remember(parentContext) { TabHeaderBinding() }
-            DisposableEffect(binding, parentContext) {
+            val attachment = remember(parentContext) { TabHeaderAttachment() }
+            DisposableEffect(attachment, parentContext) {
+                // The pass running this effect has installed the page, which records its pane. A page moved to
+                // another pane keeps this composition, so its host stays the pane of the first install and
+                // receives the header's layout and repaint requests, while the attachment places the header in
+                // the pane the page is in now.
                 val composition =
-                    DirectTabHeaderComposition(
-                        parent = parentContext,
-                        content = { currentHeader.value() },
-                        onApplied = binding::show,
-                        onRemoved = binding::clearIfCurrent,
-                    )
-                onDispose {
-                    binding.dispose()
-                    composition.dispose()
-                }
+                    OnDemandComposition(
+                        parentContext,
+                        checkNotNull(attachment.pane) { "A tab header composes only after its page is in a pane." },
+                        attachment,
+                    ) {
+                        currentHeader.value()
+                    }
+                onDispose { composition.dispose() }
             }
-            tab(metadata, binding)
+            tab(metadata, attachment)
         }
 }
 
@@ -239,15 +234,15 @@ private data class TabMetadata(
 
 /**
  * Hosts one child as a page of the pane, through `insertTab` at the composition index the applier hands
- * over, and takes it out again by component identity - `remove(component)`, which the pane resolves to the
- * tab's current position - so removing an earlier tab first never invalidates a later tab's removal.
+ * over, and takes it out again by component identity - `remove(component)`, which the pane resolves to
+ * the tab's current position - so removing an earlier tab first never invalidates a later tab's removal.
  *
  * A [header] has a composition of its own, owned by the composed modifier that declared it. This attachment
  * only lets that composition find the page's live tab; it neither creates nor disposes the composition.
  */
 private class TabAttachment(
     val metadata: TabMetadata,
-    val header: TabHeaderBinding?,
+    val header: TabHeaderAttachment?,
     val mirror: MirrorState<Int>,
 ) : SlotAttachment {
     override fun install(
@@ -271,7 +266,7 @@ private class TabAttachment(
  */
 private class TabElement(
     val metadata: TabMetadata,
-    val header: TabHeaderBinding?,
+    val header: TabHeaderAttachment?,
 ) : SwingModifier.NodeElement<Component, TabNode>() {
     override val name: String get() = "tab"
 
@@ -293,7 +288,7 @@ private class TabNode : SwingModifier.ComponentNode<Component>() {
     /** Writes [metadata] and associates [header] with this component's live tab, where it has one. */
     fun declare(
         metadata: TabMetadata,
-        header: TabHeaderBinding?,
+        header: TabHeaderAttachment?,
     ) {
         val pane = component.parent as? JTabbedPane ?: return
         val index = pane.indexOfComponent(component)
@@ -304,137 +299,57 @@ private class TabNode : SwingModifier.ComponentNode<Component>() {
 }
 
 /**
- * Couples a direct header root to the page tab it renders for. The binding retains no composition lifecycle:
- * its effect owns that. It only re-installs the current root whenever the page reaches a live tab or the
- * nested composition applies a new root.
+ * Places a header's top-level component in its page's tab, and again whenever the page arrives in a tab.
+ * The header composition owns the component; this only decides where it goes.
  */
-private class TabHeaderBinding {
-    private var pane: JTabbedPane? = null
+private class TabHeaderAttachment : SlotAttachment {
+    /** The pane the page is in; `null` until the page's tab attachment has run. */
+    var pane: JTabbedPane? = null
+        private set
     private var page: Component? = null
-    private var root: Component? = null
+    private var header: Component? = null
 
+    /**
+     * Records that [page] is in a tab of [pane]; called by the page's [TabAttachment] and [TabNode]. A
+     * page moved to another pane arrives here with that pane, which is where the header goes.
+     */
     fun attachTo(
         pane: JTabbedPane,
         page: Component,
     ) {
         this.pane = pane
         this.page = page
-        installRoot()
+        place()
     }
 
-    fun show(root: Component) {
-        this.root = root
-        installRoot()
-    }
-
-    fun clearIfCurrent(root: Component) {
-        if (this.root === root) {
-            this.root = null
-            disposeTabComponent(root)
+    override fun install(
+        host: Container,
+        component: Component,
+        index: Int,
+    ): () -> Unit {
+        header = component
+        place()
+        return {
+            if (header === component) {
+                header = null
+                clear(component)
+            }
         }
     }
 
-    fun dispose() {
-        val root = root
-        if (root != null) {
-            disposeTabComponent(root)
-        }
-        pane = null
-        page = null
-        this.root = null
-    }
-
-    private fun disposeTabComponent(root: Component) {
-        val pane = pane ?: return
-        val page = page ?: return
-        val index = pane.indexOfComponent(page)
-        if (index >= 0 && pane.getTabComponentAt(index) === root) {
-            pane.setTabComponentAt(index, null)
-        }
-    }
-
-    private fun installRoot() {
+    private fun place() {
         val pane = pane
         val page = page
-        val root = root
-        if (pane != null && page != null && root != null) {
-            val index = pane.indexOfComponent(page)
-            if (index >= 0 && pane.getTabComponentAt(index) !== root) {
-                pane.setTabComponentAt(index, root)
-            }
-        }
-    }
-}
-
-/**
- * A nested header composition that exposes exactly one root instead of wrapping it in a generated panel.
- * The root-slot check runs after every root-changing apply, including one caused by snapshot invalidation
- * inside [content], when the runtime has finished deactivating a replaced root.
- */
-private class DirectTabHeaderComposition(
-    parent: CompositionContext,
-    private val content: @Composable () -> Unit,
-    private val onApplied: (Component) -> Unit,
-    private val onRemoved: (Component) -> Unit,
-) : DisposableHandle {
-    private var current: Component? = null
-    private var disposed = false
-    private val rootHolder = CreatedNodeHolder(Container())
-    private val rootSlot =
-        SlotAttachment { _, component, _ ->
-            current = component
-            onApplied(component)
-            return@SlotAttachment {
-                component.parent?.remove(component)
-                if (current === component) {
-                    current = null
-                    onRemoved(component)
-                }
-            }
-        }
-    private val composition: SwingContentComposition
-
-    init {
-        checkEventDispatchThread()
-        rootHolder.childPlacement = ChildPlacement.Slots(content = rootSlot)
-        composition =
-            SwingContentComposition.nested(parent, rootHolder) { root ->
-                SwingApplier(
-                    root,
-                    rootSlotPolicy =
-                        RootSlotPolicy {
-                            if (!disposed) requireRoot()
-                        },
-                )
-            }
-        disposingOnFailure(::disposeComposition) {
-            composition.setContent(content)
-            requireRoot()
-        }
+        val header = header
+        if (pane == null || page == null || header == null) return
+        val index = pane.indexOfComponent(page)
+        if (index >= 0 && pane.getTabComponentAt(index) !== header) pane.setTabComponentAt(index, header)
     }
 
-    override fun dispose() {
-        checkEventDispatchThread()
-        disposeComposition()
-    }
-
-    private fun disposeComposition() {
-        disposed = true
-        composition.dispose()
-    }
-
-    private fun requireRoot(): Component {
-        try {
-            rootHolder.checkOneChildPerRegion(::compositionEmitsTwo)
-        } catch (overflow: IllegalStateException) {
-            throw IllegalStateException(
-                "A custom tab header must emit exactly one direct Component root. " + overflow.message.orEmpty(),
-                overflow,
-            )
-        }
-        return checkNotNull(current) {
-            "A custom tab header must emit exactly one direct Component root, but emitted none."
-        }
+    private fun clear(component: Component) {
+        val pane = pane ?: return
+        val index = pane.indexOfComponent(page ?: return)
+        if (index >= 0 && pane.getTabComponentAt(index) === component) pane.setTabComponentAt(index, null)
     }
 }
 

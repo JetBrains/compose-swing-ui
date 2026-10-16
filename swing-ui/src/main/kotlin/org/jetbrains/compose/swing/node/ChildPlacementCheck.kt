@@ -158,16 +158,6 @@ private fun contentFilledTwice(
         "${first.declaredName} and a ${second.declaredName}. Keep one, or wrap several in a container of " +
         "their own."
 
-/** A composition emitting two top-level components into a root that shows one of them as its content. */
-internal fun compositionEmitsTwo(
-    root: Component,
-    first: Component,
-    second: Component,
-): String =
-    "A composition mounted into a ${root.declaredName} shows the one top-level component it emits as its " +
-        "content. This composition emits two: a ${first.declaredName} and a ${second.declaredName}. Emit " +
-        "one, wrapping several in a container of their own."
-
 /** The attachment a host with this placement installs its children naming no region through, if any. */
 internal val ChildPlacement.contentAttachment: SlotAttachment?
     get() =

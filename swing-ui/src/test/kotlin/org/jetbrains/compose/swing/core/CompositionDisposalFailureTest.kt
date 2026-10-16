@@ -175,7 +175,7 @@ class CompositionDisposalFailureTest {
                     }
                 }
             }
-        val component = content.recompose {}
+        content.recompose {}
         try {
             val reported =
                 reportedUncaught {
@@ -184,7 +184,7 @@ class CompositionDisposalFailureTest {
                 }
             assertEquals(emptyList(), reported)
             assertEquals(1, disposals)
-            assertSame(component, content.recompose { error("disposed content must skip updates") })
+            assertNull(content.recompose { error("disposed content must skip updates") })
         } finally {
             content.dispose()
             parent.cancel()

@@ -130,6 +130,7 @@ private inline fun <R> withMutableSnapshot(
 internal class SwingContentComposition private constructor(
     private val parent: CompositionContext,
     private val root: SwingNodeHolder<*>,
+    private val compositionDataHost: JComponent?,
     applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
 ) : SwingCompositionOwner {
     /**
@@ -181,13 +182,6 @@ internal class SwingContentComposition private constructor(
 
     private val composition = Composition(applier, parent)
 
-    /**
-     * The component this composition is rooted at, when it is one that carries a client-property bag.
-     * This is the component the composition publishes its slot table on, and so the one an inspecting
-     * walk up from a declared component reaches.
-     */
-    private val host: JComponent? = root.component as? JComponent
-
     /** Whether this composition records where it declared each component. */
     private val inspection = InspectionGate()
 
@@ -201,7 +195,7 @@ internal class SwingContentComposition private constructor(
      */
     fun setContent(content: @Composable () -> Unit) {
         disposingOnFailure(::dispose) {
-            composition.setContent { InspectedContent(host, inspection.isRecording, content) }
+            composition.setContent { InspectedContent(compositionDataHost, inspection.isRecording, content) }
         }
     }
 
@@ -281,14 +275,21 @@ internal class SwingContentComposition private constructor(
         /**
          * Mounts a child composition of [parent] rooted at [root], which [applierFactory] builds the applier over
          * once [root] is attached.
+         *
+         * @param parent the composition context the new composition joins.
+         * @param root the node the composition is rooted at.
+         * @param compositionDataHost the component this composition publishes its `CompositionData` on, which
+         *   `findCompositionData` reads; `null` publishes none.
+         * @param applierFactory builds the applier over [root].
          */
         fun <T : Component> nested(
             parent: CompositionContext,
             root: SwingNodeHolder<T>,
+            compositionDataHost: JComponent?,
             applierFactory: (root: SwingNodeHolder<T>) -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
-            return SwingContentComposition(parent, root) { applierFactory(root) }
+            return SwingContentComposition(parent, root, compositionDataHost) { applierFactory(root) }
         }
     }
 }

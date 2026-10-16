@@ -21,8 +21,9 @@ class ContentCompositionObserverTest {
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
+        val host = JPanel()
         val composition =
-            SwingContentComposition.nested(parentContext, CreatedNodeHolder(JPanel()), ::SwingApplier)
+            SwingContentComposition.nested(parentContext, CreatedNodeHolder(host), host, ::SwingApplier)
         try {
             var shown by mutableStateOf(true)
             composition.setContent { if (shown) Label("plain") }

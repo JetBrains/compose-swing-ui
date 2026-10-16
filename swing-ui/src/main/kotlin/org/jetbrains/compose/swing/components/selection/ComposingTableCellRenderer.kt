@@ -73,11 +73,7 @@ internal class ComposingTableCellRenderer<R>(
     private val contentState = mutableStateOf<(@Composable TableCellScope.(row: R) -> Unit)?>(null)
 
     private val cellComposition =
-        CellRendererComposition(
-            parentContext,
-            "A composable cell renders a single component, and this one composes several. Compose them " +
-                "into one container - a panel whose layout arranges them - and the table renders that.",
-        ) {
+        CellRendererComposition(parentContext) {
             TableCell(rowState, scope, contentState)
         }
 

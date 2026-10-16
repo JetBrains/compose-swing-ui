@@ -107,11 +107,7 @@ internal class ComposingTreeCellRenderer<T>(
     private val scope = MutableTreeNodeScope()
 
     private val cellComposition =
-        CellRendererComposition(
-            parentContext,
-            "A composable node renders a single component, and this one composes several. Compose them " +
-                "into one container - a panel whose layout arranges them - and the tree renders that.",
-        ) {
+        CellRendererComposition(parentContext) {
             TreeNodeCell(valueState, scope, currentNodeContent)
         }
 

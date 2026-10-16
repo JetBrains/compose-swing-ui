@@ -6,16 +6,21 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JList
+import javax.swing.JTable
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
@@ -111,25 +116,52 @@ class ComposableCellLayoutTest {
         assertEquals("beta", second.firstLabelText(), "the second widget renders its own row")
     }
 
-    @Test
-    fun aCellComposingSeveralComponentsIsRefused() {
-        // The failure message names the container that would arrange the components instead.
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                runComposeSwingTest {
-                    setContent {
-                        ListBox(items = listOf("alpha")) { item ->
-                            Label("*")
-                            Label(item)
-                        }
-                    }
+    @TestFactory
+    fun aCellComposingSeveralComponentsIsRefused(): List<DynamicTest> = listOf<Pair<String, Composing>>(
+        "a list cell" to {
+            setContent {
+                ListBox(items = listOf("alpha")) { item ->
+                    Label("*")
+                    Label(item)
                 }
             }
-        assertContains(
-            failure.message.orEmpty(),
-            "single component",
-            message = "the failure must say what a cell renders",
-        )
+        },
+        "a table cell" to {
+            setContent {
+                Table(
+                    rows = listOf("alpha"),
+                    columns = {
+                        column(
+                            header = "Name",
+                            cellContent = { row ->
+                                Label("*")
+                                Label(row)
+                            },
+                        ) { it }
+                    },
+                )
+            }
+            onNodeOfType<JTable>().assertProperty(Unit, "the render is what refuses the cell") {
+                getCellRenderer(0, 0).getTableCellRendererComponent(this, getValueAt(0, 0), false, false, 0, 0)
+                Unit
+            }
+        },
+        "a tree node" to {
+            setContent {
+                Tree(
+                    root = "alpha",
+                    children = { if (it == "alpha") listOf("beta") else emptyList() },
+                    label = { it },
+                ) { value ->
+                    Label("*")
+                    Label(value)
+                }
+            }
+        },
+    ).map { (name, compose) ->
+        dynamicTest(name) {
+            assertFailsWith<IllegalStateException> { runComposeSwingTest { compose() } }
+        }
     }
 
     @Test
@@ -146,3 +178,6 @@ class ComposableCellLayoutTest {
         assertEquals(Dimension(0, 0), cell.preferredSize, "an empty cell must ask for no room")
     }
 }
+
+/** A widget composed over a cell that composes two components, and any render the widget needs to ask for it. */
+private typealias Composing = suspend ComposeSwingTest.() -> Unit

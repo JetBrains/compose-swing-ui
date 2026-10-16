@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -8,26 +9,34 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
+import java.awt.Container
 import java.util.concurrent.Executors
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JPanel
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.fail
 
 /**
- * The contract of [OnDemandComposition]: it recomposes only on [OnDemandComposition.recompose], hands
- * back the one top-level component its content composes, terminally refuses more than one, answers a
- * reentrant call without recomposing again, and answers `null` once disposed.
+ * The contract of [OnDemandComposition], placed or not: it hands back the one top-level component its content
+ * composes, terminally refuses more than one, returns from a reentrant call without recomposing again, and
+ * returns `null` once disposed.
  */
 class OnDemandCompositionTest {
     @Test
@@ -73,77 +82,6 @@ class OnDemandCompositionTest {
                 composition.recompose {},
                 "the replacement is the component the composition now holds",
             )
-        } finally {
-            composition.dispose()
-        }
-    }
-
-    @Test
-    fun aRecomposeThatComposesASecondTopLevelComponentIsTerminal() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
-
-        var showSecond by mutableStateOf(false)
-        val cleanup = IllegalStateException("effect disposal failed")
-        val composition =
-            OnDemandComposition(parentContext) {
-                Label("first")
-                if (showSecond) Label("second")
-                DisposableEffect(Unit) { onDispose { throw cleanup } }
-            }
-        try {
-            assertEquals("first", (composition.recompose {} as JLabel).text)
-
-            val failure =
-                assertFailsWith<MultipleTopLevelComponentsException> {
-                    composition.recompose { showSecond = true }
-                }
-            assertContains(
-                failure.message.orEmpty(),
-                "top-level component",
-                message = "the failure must say what content is refused for composing too many of",
-            )
-            assertEquals(listOf(cleanup), failure.suppressed.toList(), "the refusal keeps the failed disposal")
-
-            var updates = 0
-            assertNull(
-                composition.recompose { updates++ },
-                "a composition that overflowed its root is terminally disposed",
-            )
-            assertEquals(0, updates, "a terminally disposed composition must not execute its update callback")
-        } finally {
-            composition.dispose()
-        }
-    }
-
-    @Test
-    fun aParentSnapshotOverflowIsTerminal() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
-
-        var showSecond by mutableStateOf(false)
-        val composition =
-            OnDemandComposition(parentContext) {
-                Label("first")
-                if (showSecond) Label("second")
-            }
-        try {
-            assertEquals("first", (composition.recompose {} as JLabel).text)
-
-            showSecond = true
-            val failure = assertFailsWith<MultipleTopLevelComponentsException> { awaitIdle() }
-            assertContains(
-                failure.message.orEmpty(),
-                "top-level component",
-                message = "the parent-driven refusal must name the invalid root",
-            )
-
-            var updates = 0
-            assertNull(
-                composition.recompose { updates++ },
-                "a composition that overflows from its parent is terminally disposed",
-            )
-            assertEquals(0, updates, "a terminally disposed composition must not execute updates")
         } finally {
             composition.dispose()
         }
@@ -202,43 +140,107 @@ class OnDemandCompositionTest {
         assertEquals(0, updates, "a disposed composition must not execute its update callback")
     }
 
-    @Test
-    fun aRecomposeOffTheEventDispatchThreadIsRefused() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
+    @TestFactory
+    fun aCompositionComposingASecondTopLevelComponentIsRefusedAndDisposed(): List<DynamicTest> =
+        Constructor.entries.flatMap { constructor ->
+            Pass.entries.flatMap { pass ->
+                Teardown.entries.map { teardown ->
+                    dynamicTest("${constructor.name}, ${pass.name}, ${teardown.name}") {
+                        runComposeSwingTest {
+                            lateinit var parentContext: CompositionContext
+                            setContent { parentContext = rememberCompositionContext() }
+                            var overflowing by mutableStateOf(pass.onConstruction)
+                            val host = JPanel()
+                            var composition: OnDemandComposition? = null
 
-        val composition = OnDemandComposition(parentContext) { Label("content") }
-        try {
-            val thrown =
-                Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { offTheEventDispatchThread ->
-                    withContext(offTheEventDispatchThread) {
-                        runCatching { composition.recompose {} }.exceptionOrNull()
+                            val failure =
+                                assertFailsWith<IllegalStateException> {
+                                    pass.drive(
+                                        this,
+                                        build = {
+                                            constructor
+                                                .create(parentContext, host) {
+                                                    Label("first")
+                                                    if (overflowing) Label("second")
+                                                    // Composed last, so it is disposed first and stops the runtime
+                                                    // before it releases either label.
+                                                    teardown.failures.forEach { failure ->
+                                                        DisposableEffect(Unit) { onDispose { throw failure } }
+                                                    }
+                                                }.also { composition = it }
+                                        },
+                                        write = { overflowing = true },
+                                    )
+                                }
+
+                            assertEquals(
+                                teardown.failures,
+                                failure.suppressed.toList(),
+                                "the refusal keeps the failed disposal",
+                            )
+                            assertEquals(0, host.componentCount, "the refusal disposed the composition, releasing both")
+                            assertNull(
+                                composition?.recompose { fail("a disposed composition runs no update") },
+                                "the refusal is terminal",
+                            )
+                        }
                     }
                 }
-
-            assertIs<IllegalStateException>(thrown, "a recompose off the event dispatch thread must be refused")
-        } finally {
-            composition.dispose()
+            }
         }
-    }
 
-    @Test
-    fun aDisposeOffTheEventDispatchThreadIsRefused() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
+    @TestFactory
+    fun aDisposalThatThrowsStillTakesTheComponentOutOfItsContainer(): List<DynamicTest> =
+        Constructor.entries.map { constructor ->
+            dynamicTest(constructor.name) {
+                runComposeSwingTest {
+                    lateinit var parentContext: CompositionContext
+                    setContent { parentContext = rememberCompositionContext() }
+                    val cleanup = IllegalStateException("effect disposal failed")
+                    val host = JPanel()
+                    val composition =
+                        constructor.create(parentContext, host) {
+                            Label("content")
+                            // Disposed ahead of the label, so the failure stops the runtime before the label's release.
+                            DisposableEffect(Unit) { onDispose { throw cleanup } }
+                        }
 
-        val composition = OnDemandComposition(parentContext) { Label("content") }
-        try {
-            val thrown =
-                Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { offTheEventDispatchThread ->
-                    withContext(offTheEventDispatchThread) {
-                        runCatching { composition.dispose() }.exceptionOrNull()
+                    assertSame(cleanup, assertFailsWith<IllegalStateException> { composition.dispose() })
+                    assertEquals(0, host.componentCount, "the component leaves the container it is in")
+                    assertNull(composition.recompose { fail("a disposed composition runs no update") })
+                }
+            }
+        }
+
+    @TestFactory
+    fun aCallOffTheEventDispatchThreadIsRefused(): List<DynamicTest> = Constructor.entries.flatMap { constructor ->
+        Operation.entries.map { operation ->
+            dynamicTest("${constructor.name}, ${operation.name}") {
+                runComposeSwingTest {
+                    lateinit var parentContext: CompositionContext
+                    setContent { parentContext = rememberCompositionContext() }
+                    val host = JPanel()
+
+                    fun create() = constructor.create(parentContext, host) { Label("content") }
+                    val composition = create()
+                    try {
+                        val thrown =
+                            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+                                withContext(dispatcher) {
+                                    runCatching { operation.run(composition, ::create) }.exceptionOrNull()
+                                }
+                            }
+
+                        assertIs<IllegalStateException>(
+                            thrown,
+                            "a call off the event dispatch thread must be refused",
+                        )
+                        assertEquals(1, host.componentCount, "and it composed or removed nothing")
+                    } finally {
+                        composition.dispose()
                     }
                 }
-
-            assertIs<IllegalStateException>(thrown, "a dispose off the event dispatch thread must be refused")
-        } finally {
-            composition.dispose()
+            }
         }
     }
 
@@ -268,4 +270,64 @@ class OnDemandCompositionTest {
             composition.dispose()
         }
     }
+}
+
+/** When the content of a composition first breaks the rule under test. */
+internal enum class Pass(
+    val onConstruction: Boolean,
+    private val run: suspend ComposeSwingTest.(build: () -> OnDemandComposition, write: () -> Unit) -> Unit,
+) {
+    OnConstruction(true, { build, _ -> build() }),
+    InARecompose(false, { build, write -> build().recompose(write) }),
+    InAParentDrivenPass(false, { build, write ->
+        build()
+        write()
+        awaitIdle()
+    }),
+    ;
+
+    /** Builds the composition in this pass, then runs [write] so that the pass this names applies it. */
+    suspend fun drive(
+        test: ComposeSwingTest,
+        build: () -> OnDemandComposition,
+        write: () -> Unit,
+    ) = test.run(build, write)
+}
+
+/** The constructors of [OnDemandComposition]; the component of an unplaced one is put in the host by the caller. */
+private enum class Constructor(
+    val create: (
+        CompositionContext,
+        JPanel,
+        @Composable @SwingComposable
+        () -> Unit,
+    ) -> OnDemandComposition,
+) {
+    Unplaced({ parent, host, content ->
+        OnDemandComposition(parent, content).also { composition -> composition.recompose {}?.let(host::add) }
+    }),
+    Placed({ parent, host, content -> OnDemandComposition(parent, host, addingTo(host), content) }),
+}
+
+/** Whether a disposal callback in the content throws while the composition is torn down. */
+private enum class Teardown(
+    val failures: List<Throwable>,
+) {
+    Quiet(emptyList()),
+    Failing(listOf(IllegalStateException("effect disposal failed"))),
+}
+
+/** The calls an [OnDemandComposition] refuses off the Event Dispatch Thread. */
+private enum class Operation(
+    val run: (composition: OnDemandComposition, construct: () -> OnDemandComposition) -> Unit,
+) {
+    Construct({ _, construct -> construct() }),
+    Recompose({ composition, _ -> composition.recompose {} }),
+    Dispose({ composition, _ -> composition.dispose() }),
+}
+
+/** A placement that adds each component to [host] and removes it again on release. */
+internal fun addingTo(host: Container): SlotAttachment = SlotAttachment { _, component, _ ->
+    host.add(component)
+    ({ host.remove(component) })
 }

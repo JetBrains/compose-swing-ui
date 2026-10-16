@@ -1,5 +1,6 @@
 public final class org/jetbrains/compose/swing/OnDemandComposition : kotlinx/coroutines/DisposableHandle {
 	public static final field $stable I
+	public fun <init> (Landroidx/compose/runtime/CompositionContext;Ljava/awt/Container;Lorg/jetbrains/compose/swing/layout/SlotAttachment;Lkotlin/jvm/functions/Function2;)V
 	public fun <init> (Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)V
 	public fun dispose ()V
 	public final fun recompose (Lkotlin/jvm/functions/Function0;)Ljava/awt/Component;

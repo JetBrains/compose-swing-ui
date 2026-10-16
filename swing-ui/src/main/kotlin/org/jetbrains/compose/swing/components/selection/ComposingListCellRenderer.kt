@@ -88,11 +88,7 @@ internal class ComposingListCellRenderer<T>(
     private var lastItemIndex = 0
 
     private val cellComposition =
-        CellRendererComposition(
-            parentContext,
-            "A composable cell renders a single component, and this one composes several. Compose them " +
-                "into one container - a panel whose layout arranges them - and the widget renders that.",
-        ) {
+        CellRendererComposition(parentContext) {
             Cell(itemState, scope, currentItemContent)
         }
 

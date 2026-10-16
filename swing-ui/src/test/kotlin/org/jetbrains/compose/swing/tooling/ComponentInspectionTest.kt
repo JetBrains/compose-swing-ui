@@ -1,14 +1,17 @@
 package org.jetbrains.compose.swing.tooling
 
 import androidx.compose.runtime.Composer
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionGroup
+import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
@@ -16,6 +19,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingComponentNode
@@ -203,6 +207,36 @@ class ComponentInspectionTest {
             )
         } finally {
             handle.dispose()
+        }
+    }
+
+    @Test
+    fun aPlacedCompositionPublishesNothingOnItsHost() = runComposeSwingTest {
+        lateinit var parentContext: CompositionContext
+        isDebugInspectorInfoEnabled = true
+        setContent { parentContext = rememberCompositionContext() }
+
+        val host = JPanel()
+        val hostContent = host.setContent(parent = parentContext) { Label(text = "existing") }
+        try {
+            awaitIdle()
+            val published = assertNotNull(host.findCompositionData(), "the host's own composition publishes")
+            val placement =
+                SlotAttachment { container, component, _ ->
+                    container.add(component)
+                    return@SlotAttachment { container.remove(component) }
+                }
+
+            val first = OnDemandComposition(parentContext, host, placement) { Label(text = "placed") }
+            val second = OnDemandComposition(parentContext, host, placement) { Label(text = "other") }
+            awaitIdle()
+            assertSame(published, host.findCompositionData(), "creating placed compositions overwrites nothing")
+
+            first.dispose()
+            second.dispose()
+            assertSame(published, host.findCompositionData(), "and disposing them clears nothing")
+        } finally {
+            hostContent.dispose()
         }
     }
 
