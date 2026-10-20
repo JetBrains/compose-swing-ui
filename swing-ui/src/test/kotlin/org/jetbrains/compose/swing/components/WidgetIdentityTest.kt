@@ -29,10 +29,21 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberTableState
+import org.jetbrains.compose.swing.components.style.borderPainted
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.caretBlinkRate
 import org.jetbrains.compose.swing.components.style.caretColor
+import org.jetbrains.compose.swing.components.style.contentAreaFilled
+import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
 import org.jetbrains.compose.swing.components.style.highlights
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
+import org.jetbrains.compose.swing.components.style.icon
+import org.jetbrains.compose.swing.components.style.margin
+import org.jetbrains.compose.swing.components.style.mnemonic
+import org.jetbrains.compose.swing.components.style.rolloverEnabled
+import org.jetbrains.compose.swing.components.style.rolloverIcon
+import org.jetbrains.compose.swing.components.style.rolloverSelectedIcon
+import org.jetbrains.compose.swing.components.style.selectedIcon
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -43,18 +54,7 @@ import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
-import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
-import org.jetbrains.compose.swing.modifier.appearance.borderPainted
-import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.margin
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
-import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
-import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.key
@@ -750,6 +750,7 @@ class WidgetIdentityTest {
             labelTooltipRemovalCases(),
             modifierValueChangeAfterUnchangedElementCases(),
             displayedMnemonicIndexChangeCases(),
+            modifierKeyChangeCases(),
             listenerRegistrationChangeCases(),
             horizontalAlignmentChangeCases(),
         ).flatten()
@@ -884,10 +885,10 @@ class WidgetIdentityTest {
                 Button(
                     "Save As",
                     onClick = {},
-                    modifier =
-                        SwingModifier.mnemonic('A').let { modifier ->
-                            if (it) modifier.displayedMnemonicIndex(5) else modifier
-                        },
+                    style = {
+                        mnemonic('A')
+                        if (it) displayedMnemonicIndex(5)
+                    },
                 )
             },
             case<AbstractButton>(
@@ -902,10 +903,10 @@ class WidgetIdentityTest {
                 Button(
                     "Save As",
                     onClick = {},
-                    modifier =
-                        SwingModifier.mnemonic('A').let { modifier ->
-                            if (it) modifier else modifier.displayedMnemonicIndex(5)
-                        },
+                    style = {
+                        mnemonic('A')
+                        if (!it) displayedMnemonicIndex(5)
+                    },
                 )
             },
         )
@@ -920,9 +921,15 @@ class WidgetIdentityTest {
                 Button(
                     "Save As",
                     onClick = {},
-                    modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(if (it) -1 else 5),
+                    style = {
+                        mnemonic('A')
+                        displayedMnemonicIndex(if (it) -1 else 5)
+                    },
                 )
             },
+        )
+
+        private fun modifierKeyChangeCases(): List<Case> = listOf(
             case<JComponent>(
                 "Modifier key change",
                 applied = {
@@ -1024,13 +1031,16 @@ class WidgetIdentityTest {
         private fun horizontalAlignmentChangeCases(): List<Case> = listOf(
             case<JLabel>(
                 "Horizontal alignment change",
+                initial = {
+                    assertProperty(SwingConstants.LEFT) { this.horizontalAlignment }
+                },
                 applied = {
                     assertProperty(SwingConstants.RIGHT) { this.horizontalAlignment }
                 },
             ) {
                 Label(
                     "a",
-                    modifier = SwingModifier.horizontalAlignment(if (it) SwingConstants.RIGHT else SwingConstants.LEFT),
+                    style = { horizontalAlignment(if (it) SwingConstants.RIGHT else SwingConstants.LEFT) },
                 )
             },
         )
@@ -1043,6 +1053,7 @@ class WidgetIdentityTest {
             textChangeUnderStandingHighlightsCases(),
             opacityRemovalUnderStandingContentFillCases(),
             selectedIconRemovalCases(),
+            rolloverIconWithSwitchCases(),
             rolloverIconRemovalCases(),
         ).flatten()
 
@@ -1144,52 +1155,60 @@ class WidgetIdentityTest {
         )
 
         private fun textChangeUnderStandingHighlightsCases(): List<Case> = listOf(
+            "Text change under standing highlights" to "hello there",
+            "Text growth before standing highlights" to "xhello world",
+        ).map { (name, replacement) ->
             case<JTextComponent>(
-                "Text change under standing highlights",
-                applied = {
-                    assertProperty("hello there") { this.text }
-                },
-            ) {
-                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
-                TextArea(
-                    if (it) "hello there" else "hello world",
-                    onValueChange = {},
-                    style = { highlights(listOf(TextRange(6, 11)), painter) },
-                )
-            },
-            case<JTextComponent>(
-                "Text growth before standing highlights",
-                applied = {
-                    assertProperty("xhello world") { this.text }
-                },
-            ) {
-                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
-                TextArea(
-                    if (it) "xhello world" else "hello world",
-                    onValueChange = {},
-                    style = { highlights(listOf(TextRange(6, 11)), painter) },
-                )
-            },
-            case<AbstractButton>(
-                "Border painted removal",
+                name,
                 initial = {
-                    assertProperty(false) { isBorderPainted }
+                    assertProperty("hello world") { this.text }
+                    assertProperty(listOf(TextRange(6, 11))) {
+                        this.highlighter.highlights.map { TextRange(it.startOffset, it.endOffset) }
+                    }
                 },
                 applied = {
-                    assertProperty(JButton().isBorderPainted) { this.isBorderPainted }
+                    assertProperty(replacement) { this.text }
+                    assertProperty(listOf(TextRange(6, 11))) {
+                        this.highlighter.highlights.map { TextRange(it.startOffset, it.endOffset) }
+                    }
                 },
             ) {
-                Button("a", onClick = {}, modifier = if (it) SwingModifier else SwingModifier.borderPainted(false))
-            },
-            case<AbstractButton>(
-                "Content fill change under standing opacity",
-                applied = {
-                    assertProperty(false) { this.isContentAreaFilled }
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
+                TextArea(
+                    if (it) replacement else "hello world",
+                    onValueChange = {},
+                    style = { highlights(listOf(TextRange(6, 11)), painter) },
+                )
+            }
+        } +
+            listOf(
+                case<AbstractButton>(
+                    "Border painted removal",
+                    initial = {
+                        assertProperty(false) { isBorderPainted }
+                    },
+                    applied = {
+                        assertProperty(JButton().isBorderPainted) { this.isBorderPainted }
+                    },
+                ) {
+                    Button("a", onClick = {}, style = { if (!it) borderPainted(false) })
                 },
-            ) {
-                Button("a", onClick = {}, modifier = SwingModifier.contentAreaFilled(!it), style = { opaque(true) })
-            },
-        )
+                case<AbstractButton>(
+                    "Content fill change under standing opacity",
+                    applied = {
+                        assertProperty(false) { this.isContentAreaFilled }
+                    },
+                ) {
+                    Button(
+                        "a",
+                        onClick = {},
+                        style = {
+                            contentAreaFilled(!it)
+                            opaque(true)
+                        },
+                    )
+                },
+            )
 
         private fun opacityRemovalUnderStandingContentFillCases(): List<Case> = listOf(
             case<AbstractButton>(
@@ -1200,8 +1219,10 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = SwingModifier.contentAreaFilled(false),
-                    style = { if (!it) opaque(true) },
+                    style = {
+                        contentAreaFilled(false)
+                        if (!it) opaque(true)
+                    },
                 )
             },
             case<AbstractButton>(
@@ -1209,7 +1230,7 @@ class WidgetIdentityTest {
                 initial = { assertProperty(false) { isContentAreaFilled } },
                 applied = { assertProperty(JButton().isContentAreaFilled) { this.isContentAreaFilled } },
             ) {
-                Button("a", onClick = {}, modifier = if (it) SwingModifier else SwingModifier.contentAreaFilled(false))
+                Button("a", onClick = {}, style = { if (!it) contentAreaFilled(false) })
             },
             case<AbstractButton>(
                 "Content fill addition under standing opacity",
@@ -1218,8 +1239,10 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = if (it) SwingModifier.contentAreaFilled(false) else SwingModifier,
-                    style = { opaque(true) },
+                    style = {
+                        if (it) contentAreaFilled(false)
+                        opaque(true)
+                    },
                 )
             },
             case<JTextComponent>(
@@ -1240,7 +1263,7 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = if (it) SwingModifier else SwingModifier.margin(Insets(1, 2, 3, 4)),
+                    style = { if (!it) margin(Insets(1, 2, 3, 4)) },
                 )
             },
         )
@@ -1253,7 +1276,7 @@ class WidgetIdentityTest {
                     initial = { assertProperty(icon) { selectedIcon } },
                     applied = { assertProperty(null) { this.selectedIcon } },
                 ) { changed ->
-                    Button("a", {}, modifier = if (changed) SwingModifier else SwingModifier.selectedIcon(icon))
+                    Button("a", {}, style = { if (!changed) selectedIcon(icon) })
                 }
             },
             case<AbstractButton>(
@@ -1261,8 +1284,11 @@ class WidgetIdentityTest {
                 initial = { assertProperty(true) { isRolloverEnabled } },
                 applied = { assertProperty(JButton().isRolloverEnabled) { this.isRolloverEnabled } },
             ) {
-                Button("a", onClick = {}, modifier = if (it) SwingModifier else SwingModifier.rolloverEnabled(true))
+                Button("a", onClick = {}, style = { if (!it) rolloverEnabled(true) })
             },
+        )
+
+        private fun rolloverIconWithSwitchCases(): List<Case> = listOf(
             run {
                 val before = ImageIcon(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
                 val after = ImageIcon(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
@@ -1276,7 +1302,10 @@ class WidgetIdentityTest {
                     Button(
                         "a",
                         onClick = {},
-                        modifier = SwingModifier.rolloverEnabled(false).rolloverIcon(if (changed) after else before),
+                        style = {
+                            rolloverEnabled(false)
+                            rolloverIcon(if (changed) after else before)
+                        },
                     )
                 }
             },
@@ -1296,8 +1325,12 @@ class WidgetIdentityTest {
                     Button(
                         "a",
                         onClick = {},
-                        modifier =
-                            if (changed) SwingModifier else SwingModifier.rolloverIcon(icon).rolloverEnabled(false),
+                        style = {
+                            if (!changed) {
+                                rolloverIcon(icon)
+                                rolloverEnabled(false)
+                            }
+                        },
                     )
                 }
             },
@@ -1318,7 +1351,7 @@ class WidgetIdentityTest {
                     Button(
                         "a",
                         onClick = {},
-                        modifier = if (changed) SwingModifier else SwingModifier.rolloverIcon(icon),
+                        style = { if (!changed) rolloverIcon(icon) },
                     )
                 }
             },
@@ -1337,7 +1370,7 @@ class WidgetIdentityTest {
                         "a",
                         checked = true,
                         onCheckedChange = {},
-                        modifier = if (changed) SwingModifier else SwingModifier.rolloverSelectedIcon(icon),
+                        style = { if (!changed) rolloverSelectedIcon(icon) },
                     )
                 }
             },
@@ -1352,7 +1385,7 @@ class WidgetIdentityTest {
                         assertProperty(null) { this.icon }
                     },
                 ) { changed ->
-                    Button("a", onClick = {}, modifier = if (changed) SwingModifier else SwingModifier.icon(icon))
+                    Button("a", onClick = {}, style = { if (!changed) icon(icon) })
                 }
             },
         )

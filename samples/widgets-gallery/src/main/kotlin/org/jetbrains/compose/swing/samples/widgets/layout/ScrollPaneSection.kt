@@ -18,10 +18,10 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.rememberScrollState
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.listener.adjustmentListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -267,8 +267,9 @@ private fun Cell(
 ) {
     Label(
         text = text,
-        modifier = modifier.horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier,
         style = {
+            horizontalAlignment(SwingConstants.CENTER)
             opaque(true)
             background(color)
             preferredSize(Dimension(60, 24))

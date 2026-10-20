@@ -5,10 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.style.horizontalTextPosition
+import org.jetbrains.compose.swing.components.style.margin
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.TestLabelKind
 import org.jetbrains.compose.swing.style.TestNodeKind
+import org.jetbrains.compose.swing.style.TestTextNodeKind
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
@@ -45,7 +49,7 @@ import kotlin.test.assertTrue
  * layout pass that would act on it or for a paint of the text it moves, so the property must ask for both;
  * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
  * nothing, so a declaration the label is already carrying must reach its setter no further - a
- * recomposition rebuilds the chain, and a redundant write would cost a layout and a paint each time.
+ * recomposition declares the style again, and a redundant write would cost a layout and a paint each time.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier or style under
  * test, applied again when its state changes) and observes behavior deterministically under headless.
@@ -232,7 +236,7 @@ class AppearanceInvalidationTest {
         val field = CountingTextField()
 
         setContent {
-            SwingNode(factory = { field }, modifier = SwingModifier.margin(margin))
+            SwingNode(factory = { field }, modifier = SwingModifier.styleable({ margin(margin) }, TestTextNodeKind))
         }
 
         awaitIdle()
@@ -265,10 +269,10 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { label },
-                modifier = SwingModifier.horizontalTextPosition(SwingConstants.RIGHT),
+                modifier = SwingModifier.styleable({ horizontalTextPosition(SwingConstants.RIGHT) }, TestLabelKind),
             )
-            // Read by this composable, so a change recomposes it and the label's modifier chain is
-            // rebuilt declaring the very same position.
+            // Read by this composable, so a change recomposes it and the label's style is declared again
+            // with the very same position.
             Label("tick $tick")
         }
 
@@ -295,25 +299,8 @@ class AppearanceInvalidationTest {
 
     @Test
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { borderPainted(true) }
-        assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
-        assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
-        assertDeclaredChainCarriedOnce { focusPainted(true) }
-        assertDeclaredChainCarriedOnce { icon(null) }
-        assertDeclaredChainCarriedOnce { pressedIcon(null) }
-        assertDeclaredChainCarriedOnce { selectedIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { margin(Insets(1, 1, 1, 1)) }
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
-        assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { iconTextGap(4) }
     }
 }

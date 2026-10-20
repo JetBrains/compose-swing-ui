@@ -5,13 +5,10 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.HorizontalAlignment
 import org.jetbrains.compose.swing.annotations.VerticalAlignment
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
+import org.jetbrains.compose.swing.components.style.HorizontalAlignmentDescriptor
+import org.jetbrains.compose.swing.components.style.VerticalAlignmentDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import javax.swing.AbstractButton
-import javax.swing.JLabel
-import javax.swing.JTextField
 
 /**
  * Sets where a component's content sits along its width, when it is given more width than it needs.
@@ -25,9 +22,10 @@ import javax.swing.JTextField
  * @see javax.swing.AbstractButton.setHorizontalAlignment
  * @see javax.swing.JTextField.setHorizontalAlignment
  */
+@Deprecated("Set it in the component's style: style = { horizontalAlignment(alignment) }")
 public fun SwingModifier.horizontalAlignment(
     @HorizontalAlignment alignment: Int,
-): SwingModifier = property(HorizontalAlignmentProperty, alignment, inheritable = true)
+): SwingModifier = property(HorizontalAlignmentDescriptor, alignment, inheritable = true)
 
 /**
  * Sets where a component's content sits along its height, when it is given more height than it needs.
@@ -41,36 +39,7 @@ public fun SwingModifier.horizontalAlignment(
  * @see javax.swing.JLabel.setVerticalAlignment
  * @see javax.swing.AbstractButton.setVerticalAlignment
  */
+@Deprecated("Set it in the component's style: style = { verticalAlignment(alignment) }")
 public fun SwingModifier.verticalAlignment(
     @VerticalAlignment alignment: Int,
-): SwingModifier = property(VerticalAlignmentProperty, alignment, inheritable = true)
-
-private val HorizontalAlignmentProperty =
-    ComponentPropertyDescriptor(
-        "horizontalAlignment",
-        accessor<JLabel, Int>(
-            read = { it.horizontalAlignment },
-            write = { component, value -> component.horizontalAlignment = value },
-        ),
-        accessor<AbstractButton, Int>(
-            read = { it.horizontalAlignment },
-            write = { component, value -> component.horizontalAlignment = value },
-        ),
-        accessor<JTextField, Int>(
-            read = { it.horizontalAlignment },
-            write = { component, value -> component.horizontalAlignment = value },
-        ),
-    )
-
-private val VerticalAlignmentProperty =
-    ComponentPropertyDescriptor(
-        "verticalAlignment",
-        accessor<JLabel, Int>(
-            read = { it.verticalAlignment },
-            write = { component, value -> component.verticalAlignment = value },
-        ),
-        accessor<AbstractButton, Int>(
-            read = { it.verticalAlignment },
-            write = { component, value -> component.verticalAlignment = value },
-        ),
-    )
+): SwingModifier = property(VerticalAlignmentDescriptor, alignment, inheritable = true)

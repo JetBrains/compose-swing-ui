@@ -14,13 +14,13 @@ import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
+import org.jetbrains.compose.swing.components.style.margin
+import org.jetbrains.compose.swing.components.style.verticalAlignment
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.margin
-import org.jetbrains.compose.swing.modifier.appearance.verticalAlignment
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.alignmentX
@@ -135,8 +135,7 @@ private fun GeometryPreview(
             "Adjust the spinners",
             modifier =
                 SwingModifier
-                    .layer(JLayeredPane.DEFAULT_LAYER)
-                    .horizontalAlignment(SwingConstants.CENTER),
+                    .layer(JLayeredPane.DEFAULT_LAYER),
             style = {
                 background(Color(0xC8, 0xE6, 0xC9))
                 x(frameX)
@@ -144,6 +143,7 @@ private fun GeometryPreview(
                 width(frameWidth)
                 height(frameHeight)
                 opaque(true)
+                horizontalAlignment(SwingConstants.CENTER)
             },
         )
     }
@@ -216,13 +216,11 @@ internal fun ColumnScope.VerticalAlignmentCard() {
         Panel {
             Label(
                 "Tall content ↕",
-                modifier =
-                    SwingModifier
-                        .verticalAlignment(alignment),
                 style = {
                     preferredSize(Dimension(160, 70))
                     background(Color(0xE3, 0xF2, 0xFD))
                     opaque(true)
+                    verticalAlignment(alignment)
                 },
             )
         }
@@ -249,7 +247,7 @@ internal fun ColumnScope.MarginCard() {
             Button(
                 "Padded button",
                 onClick = { },
-                modifier = SwingModifier.margin(Insets(padding, padding, padding, padding)),
+                style = { margin(Insets(padding, padding, padding, padding)) },
             )
         }
     }

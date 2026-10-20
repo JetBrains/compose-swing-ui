@@ -14,12 +14,12 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.PopupMenu
 import org.jetbrains.compose.swing.components.menu.popupAnchor
 import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
+import org.jetbrains.compose.swing.components.style.actionCommand
+import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
+import org.jetbrains.compose.swing.components.style.mnemonic
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
-import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
-import org.jetbrains.compose.swing.modifier.interaction.actionCommand
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
@@ -134,10 +134,10 @@ internal fun ColumnScope.DisplayedMnemonicIndexCard() {
             Button(
                 "Save As",
                 onClick = { },
-                modifier =
-                    SwingModifier
-                        .mnemonic('A')
-                        .displayedMnemonicIndex(if (underlineAs) 5 else 1),
+                style = {
+                    mnemonic('A')
+                    displayedMnemonicIndex(if (underlineAs) 5 else 1)
+                },
             )
         }
     }
@@ -149,11 +149,11 @@ internal fun ColumnScope.ActionCommandCard() {
         var lastCommand by remember { mutableStateOf("none") }
         val listener = remember { ActionListener { event -> lastCommand = event.actionCommand } }
         Panel {
-            Button("Print", actionListener = listener, modifier = SwingModifier.actionCommand("print-doc"))
+            Button("Print", actionListener = listener, style = { actionCommand("print-doc") })
             Button(
                 "Print Preview",
                 actionListener = listener,
-                modifier = SwingModifier.actionCommand("print-preview-doc"),
+                style = { actionCommand("print-preview-doc") },
             )
         }
         Label("Last command: $lastCommand")

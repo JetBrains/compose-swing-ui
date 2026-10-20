@@ -25,6 +25,7 @@ import org.jetbrains.compose.swing.modifier.appearance.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.*
+import org.jetbrains.compose.swing.components.style.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Color
 import java.awt.Dimension
@@ -46,7 +47,8 @@ fun main() = application {
         Panel(PanelLayout.Border()) {
             Label(
                 "Compose Swing UI",
-                modifier = SwingModifier.north().horizontalAlignment(SwingConstants.CENTER),
+                modifier = SwingModifier.north(),
+                style = { horizontalAlignment(SwingConstants.CENTER) },
             )
             Panel {
                 Label("Count: $count")
@@ -55,7 +57,8 @@ fun main() = application {
             }
             Label(
                 "Status: ready",
-                modifier = SwingModifier.south().horizontalAlignment(SwingConstants.CENTER),
+                modifier = SwingModifier.south(),
+                style = { horizontalAlignment(SwingConstants.CENTER) },
             )
         }
     }

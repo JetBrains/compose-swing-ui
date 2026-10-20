@@ -3,13 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
+import org.jetbrains.compose.swing.components.style.MarginDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import java.awt.Insets
-import javax.swing.AbstractButton
-import javax.swing.text.JTextComponent
 
 /**
  * Sets the space a component keeps between its border and its content. Applies to everything built on
@@ -18,38 +15,13 @@ import javax.swing.text.JTextComponent
  * This is the space inside the border; to put space outside it, size the component or space it in its
  * container. Removing the modifier restores the space the look and feel had chosen.
  *
- * It is the component's default border that turns this into space, so a style that also sets a
- * [border][org.jetbrains.compose.swing.style.border] leaves the margin to that border - one built by
- * [lineBorder][org.jetbrains.compose.swing.style.lineBorder] or
- * [emptyBorder][org.jetbrains.compose.swing.style.emptyBorder] ignores it.
+ * It is the component's default border that turns this into space, so a chain that also declares a
+ * [border] leaves the margin to that border - one built by [lineBorder] or [emptyBorder] ignores it.
  *
  * @param margin how much each side keeps; all four at zero pulls the content flush with the border.
  * @return this chain with the margin declared on it.
  * @see javax.swing.AbstractButton.setMargin
  * @see javax.swing.text.JTextComponent.setMargin
  */
-public fun SwingModifier.margin(margin: Insets): SwingModifier = property(MarginProperty, margin)
-
-/**
- * A button and a text component each declare margin for themselves, and no supertype between them
- * declares it. Both report no margin as null, even though the public function always takes an [Insets].
- */
-private val MarginProperty =
-    ComponentPropertyDescriptor(
-        "margin",
-        accessor<AbstractButton, Insets?>(
-            read = { it.margin },
-            write = { component, value -> component.margin = value },
-        ),
-        accessor<JTextComponent, Insets?>(
-            read = { it.margin },
-            // JTextComponent.setMargin only invalidates. A margin changes the preferred size and also moves
-            // the text inside the border, which a relayout that keeps the bounds does not repaint, so this
-            // write asks for both.
-            write = { component, value ->
-                component.margin = value
-                component.revalidate()
-                component.repaint()
-            },
-        ),
-    )
+@Deprecated("Set it in the component's style: style = { margin(margin) }")
+public fun SwingModifier.margin(margin: Insets): SwingModifier = property(MarginDescriptor, margin)

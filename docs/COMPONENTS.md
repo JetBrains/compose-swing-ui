@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.modifier.layout.*
 import org.jetbrains.compose.swing.style.*
+import org.jetbrains.compose.swing.components.style.*
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Color
@@ -221,7 +222,7 @@ toggle the caller does not adopt goes back where it was.
 var wrap by remember { mutableStateOf(false) }
 var pinned by remember { mutableStateOf(false) }
 
-Button("Save", onClick = ::save, modifier = SwingModifier.icon(saveIcon))
+Button("Save", onClick = ::save, style = { icon(saveIcon) })
 CheckBox("Word wrap", checked = wrap, onCheckedChange = { wrap = it })
 ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 ```
@@ -695,7 +696,7 @@ TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
         modifier =
             SwingModifier.tab(
                 title = "Console",
-                header = { Label("Console", modifier = SwingModifier.icon(saveIcon)) },
+                header = { Label("Console", style = { icon(saveIcon) }) },
             ),
     )
     documents.forEach { document ->
@@ -1055,7 +1056,7 @@ caller gives it. An item's label, checked flag and enabled state follow
 composition state like any other component's, and a checkable item takes its state the way the
 two-state controls do: what the composition declares is what the item shows, so a choice the caller
 does not adopt goes back where it was. An `accelerator` is a `KeyStroke` that fires the item without
-opening the menu; a mnemonic is the `mnemonic` modifier.
+opening the menu; a mnemonic is set with `mnemonic` in the item's `style`.
 
 ```kotlin
 val bar = JMenuBar()

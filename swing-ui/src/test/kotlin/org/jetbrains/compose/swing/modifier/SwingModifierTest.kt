@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
-import org.jetbrains.compose.swing.modifier.interaction.actionCommand
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
@@ -835,7 +834,6 @@ class SwingModifierTest {
 
     @Test
     fun everyInteractionBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { actionCommand(null) }
         assertDeclaredChainCarriedOnce { buttonGroup(ButtonGroup()) }
         assertDeclaredChainCarriedOnce { defaultButton() }
         assertDeclaredChainCarriedOnce { focusRequester(FocusRequester()) }

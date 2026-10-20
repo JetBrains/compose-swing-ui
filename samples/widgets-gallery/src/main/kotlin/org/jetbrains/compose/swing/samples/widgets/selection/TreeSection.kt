@@ -16,9 +16,9 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.rememberTreeState
+import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
@@ -200,7 +200,7 @@ private fun ColumnScope.EditableTreeCard() {
                             UIManager.getIcon(
                                 if (this@Tree.isLeaf) "FileView.fileIcon" else "FileView.directoryIcon",
                             )
-                        Label("", modifier = SwingModifier.icon(icon))
+                        Label("", style = { icon(icon) })
                         Label(renamed[value] ?: value.name)
                     }
                 }

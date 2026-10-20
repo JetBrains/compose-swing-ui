@@ -18,6 +18,8 @@ import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
+import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
@@ -27,8 +29,6 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -78,7 +78,7 @@ private fun ColumnScope.ButtonAndLabelCard() {
             Button("Decrement", onClick = { counter-- })
             Button("Reset", onClick = { counter = 0 })
         }
-        Label("Right-aligned label", modifier = SwingModifier.horizontalAlignment(SwingConstants.RIGHT))
+        Label("Right-aligned label", style = { horizontalAlignment(SwingConstants.RIGHT) })
     }
 }
 
@@ -280,10 +280,12 @@ private fun ColumnScope.ChoiceCard() {
                         "",
                         modifier =
                             SwingModifier
-                                .west()
-                                .icon(swatch)
-                                .horizontalAlignment(SwingConstants.CENTER),
-                        style = { preferredSize(GLYPH_SLOT, GLYPH_SLOT) },
+                                .west(),
+                        style = {
+                            preferredSize(GLYPH_SLOT, GLYPH_SLOT)
+                            icon(swatch)
+                            horizontalAlignment(SwingConstants.CENTER)
+                        },
                     )
                     Label(language.name, SwingModifier.center())
                 }

@@ -7,6 +7,8 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.style.ButtonStyleScope
 import org.jetbrains.compose.swing.components.style.LabelStyleScope
+import org.jetbrains.compose.swing.components.style.contentAreaFilled
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.border
@@ -14,8 +16,6 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.accessibleName
@@ -71,9 +71,10 @@ internal fun LayoutSwatch(
 ) {
     Label(
         text = text,
-        modifier = modifier.horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier,
         style = {
             layoutSampleSurface(color)
+            horizontalAlignment(SwingConstants.CENTER)
             with(style) { applyStyle() }
         },
     )
@@ -91,12 +92,11 @@ internal fun InteractiveLayoutSwatch(
     Button(
         text = text,
         onClick = onClick,
-        modifier =
-            modifier
-                .contentAreaFilled(false)
-                .horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier,
         style = {
             layoutSampleSurface(color)
+            contentAreaFilled(false)
+            horizontalAlignment(SwingConstants.CENTER)
             cursor(cursor)
             with(style) { applyStyle() }
         },
