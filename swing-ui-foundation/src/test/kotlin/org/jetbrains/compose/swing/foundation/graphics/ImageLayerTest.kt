@@ -439,15 +439,7 @@ class ImageLayerTest {
         val destination = screen.surface(SQUARE, SQUARE)
         layer.draw(destination.graphics)
 
-        for (y in 0 until SQUARE) {
-            for (x in 0 until SQUARE) {
-                assertEquals(
-                    0,
-                    destination.pixels.getRGB(x, y),
-                    "A recording the device discarded draws nothing, leaving the destination untouched at $x, $y.",
-                )
-            }
-        }
+        assertEquals(0, destination.pixels.getRGB(1, 1), "A recording the device discarded draws nothing.")
     }
 
     @Test

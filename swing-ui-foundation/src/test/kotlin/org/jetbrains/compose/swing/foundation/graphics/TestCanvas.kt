@@ -20,7 +20,7 @@ import javax.swing.JComponent
 import kotlin.math.abs
 
 /** Creates a transparent raster and gives its graphics to a test drawing directly without a Swing component. */
-internal fun renderImage(
+internal inline fun renderImage(
     width: Int,
     height: Int,
     type: Int = BufferedImage.TYPE_INT_ARGB,
@@ -118,7 +118,6 @@ internal fun JComponent.levelsOffAWholeRepaint(
 /** The paint outsets of this decorated component. */
 internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()
 
-/** The sizes of the images a plain `drawImage(image, x, y, observer)` call draws while this paints [clip]. */
 internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension> {
     val sizes = mutableListOf<Dimension>()
     renderImage(width, height) { graphics ->

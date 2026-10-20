@@ -20,6 +20,8 @@ internal open class DecoratedPanel(
     Decoratable {
     override var decoration: Decoration = Decoration.None
 
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 
     /** Fills the layout bounds; the delegate's `update` would fill the whole bounds, or nothing once not opaque. */

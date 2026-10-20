@@ -264,6 +264,8 @@ internal class DecoratedTextArea(
         wrapStyleWord = true
     }
 
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 
     override fun getInsets(): Insets = decoration.insets(super.getInsets())

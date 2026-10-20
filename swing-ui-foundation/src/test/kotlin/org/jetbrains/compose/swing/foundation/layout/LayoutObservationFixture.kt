@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -14,6 +15,7 @@ import java.awt.event.ComponentEvent
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.RepaintManager
+import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -70,6 +72,21 @@ internal fun Component.isValidUpToTheValidateRoot(): Boolean = withAncestors().a
 
 /** The area of this component waiting to be painted. */
 internal fun JComponent.dirtyRegion(): Rectangle = RepaintManager.currentManager(this).getDirtyRegion(this)
+
+/** [expected] is in [owner]'s own coordinates. */
+internal fun ComposeSwingTest.assertDirtyRegionsDuring(
+    owner: JComponent,
+    expected: List<Rectangle>,
+    message: String,
+    change: () -> Unit,
+) {
+    val asked =
+        withRecordedRepaints {
+            change()
+            it
+        }
+    assertEquals(expected, asked.dirtyRegionsOf(owner), message)
+}
 
 /** The title of the window a test that needs a showing hierarchy composes. */
 internal const val WINDOW_TITLE = "layout-observation"

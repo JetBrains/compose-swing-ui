@@ -47,3 +47,17 @@ internal fun Component.layOutAgain() {
     (this as? Decoratable)?.decoration?.childMeasurables?.during(RunningCause.ParentPlacement) { invalidate() }
         ?: invalidate()
 }
+
+/**
+ * Queues the frame of a placement layer on [child] whose alpha or clip changed, as [panel]'s repaint of [child]'s area.
+ * A dirty container takes in the dirty areas of its children, so children whose alpha changes on one frame paint in one
+ * pass.
+ *
+ * @return false where [child] is the only child of [panel] (its glass pane is not one), which its layer then redraws.
+ */
+internal fun ChildMeasurables.queueLayerRedraw(child: ChildMeasurable): Boolean {
+    if (panel.componentCount - panel.stackingOrder.topmostIndex <= 1) return false
+    val component = child.component
+    panel.repaint(component.x, component.y, component.width, component.height)
+    return true
+}

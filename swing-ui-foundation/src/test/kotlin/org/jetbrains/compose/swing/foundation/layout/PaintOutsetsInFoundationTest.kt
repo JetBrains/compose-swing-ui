@@ -698,6 +698,8 @@ class PaintOutsetsInFoundationTest {
         Decoratable {
         override var decoration: Decoration = Decoration.None
 
+        override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
         override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 
         override fun paintComponent(g: Graphics) {

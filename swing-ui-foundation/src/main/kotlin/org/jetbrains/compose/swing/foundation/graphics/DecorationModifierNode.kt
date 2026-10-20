@@ -3,9 +3,12 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.foundation.layout.fitted
 import org.jetbrains.compose.swing.foundation.layout.writeFitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
+import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import java.awt.Component
+import java.awt.Graphics2D
+import java.awt.Rectangle
 
 /**
  * A modifier node that is one step of its component's decoration, at the node's position in the modifier:
@@ -50,15 +53,168 @@ public abstract class DecorationModifierNode<T : Component> :
     }
 
     /**
-     * Runs [onRemovedFromDecoration]. The component is handed the decoration without this step once the modifier
-     * pass ends.
+     * Runs [onRemovedFromDecoration] and releases the layers [obtainImageLayer] made. The component is handed the
+     * decoration without this step once the modifier pass ends.
      */
     final override fun onDetach() {
         onRemovedFromDecoration()
+        drawCaches.fastForEach { it.release() }
     }
 
     /** Runs where [onDetach] would, while the node is still attached and still part of the decoration. */
     protected open fun onRemovedFromDecoration() {}
+
+    /**
+     * A new [ImageLayer] for this step to keep a drawing in across paints, through [drawCached] and [recordCached]. A
+     * recording made with [ImageLayer.record] directly is never reused. A repaint request on the component, or graphics
+     * taken from it outside paint, makes the layer record again. The step owns the layer until it leaves the
+     * decoration, which releases it. Call this before the node attaches, such as in a property initializer.
+     *
+     * @throws IllegalStateException if the node is attached.
+     */
+    protected fun obtainImageLayer(): ImageLayer {
+        check(!isAttached) { "${javaClass.name} obtains its image layers before it attaches" }
+        val host = cacheHost ?: StepCacheHost().also { cacheHost = it }
+        val layer = ImageLayer()
+        drawCaches = drawCaches + DrawCache(host, layer)
+        return layer
+    }
+
+    private inner class StepCacheHost : DrawCacheHost {
+        override val component: Component? get() = if (isAttached) this@DecorationModifierNode.component else null
+
+        override val steps: DecorationSteps? get() = if (isAttached) decoratable.decoration.steps else null
+    }
+
+    private var cacheHost: DrawCacheHost? = null
+
+    internal var drawCaches: List<DrawCache> = emptyList()
+        private set
+
+    /** The size of the paint under way; negative outside this node's paint. */
+    private var paintWidth = -1
+    private var paintHeight = -1
+
+    /** Paints through [paint] at [width] by [height], the size [drawCached] and [recordCached] take for the paint. */
+    internal fun paintAtSize(
+        graphics: Graphics2D,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) {
+        val outerWidth = paintWidth
+        val outerHeight = paintHeight
+        paintWidth = width
+        paintHeight = height
+        try {
+            paint(graphics, width, height, content)
+        } finally {
+            paintWidth = outerWidth
+            paintHeight = outerHeight
+        }
+    }
+
+    private fun cacheOf(layer: ImageLayer): DrawCache {
+        checkEventDispatchThread()
+        check(paintWidth >= 0) { "${javaClass.name} draws its image layers from its paint" }
+        drawCaches.fastForEach { if (it.layer === layer) return it }
+        throw IllegalArgumentException("${javaClass.name} draws only the image layers it obtained")
+    }
+
+    /**
+     * Draws this layer's cached image at [x], [y] and returns `true`, or draws nothing and returns `false`. On `false`,
+     * the caller records in the same paint.
+     *
+     * The image is drawn only while nothing made the layer record again since [recordCached] began, the layer holds the
+     * recording and the component is not printing. A component with children draws it only in the paint that
+     * [invalidateLayerProperties] asks for. The paint must have the recorded size, an [area] inside the recorded one,
+     * the recorded scale, shear and rotation, and a shift of whole device pixels.
+     *
+     * Call it from this node's [paint], on the event dispatch thread, for a layer from [obtainImageLayer].
+     *
+     * @param graphics the graphics to draw on.
+     * @param area the area this paint needs, in the coordinates [recordCached] was given.
+     * @param x the horizontal position of the recording's origin, as [ImageLayer.draw] takes it. Defaults to `0`.
+     * @param y the vertical position of the recording's origin, as [ImageLayer.draw] takes it. Defaults to `0`.
+     * @throws IllegalStateException if called off the event dispatch thread or outside this node's paint.
+     * @throws IllegalArgumentException for a layer this node did not obtain.
+     */
+    protected fun ImageLayer.drawCached(
+        graphics: Graphics2D,
+        area: Rectangle,
+        x: Int = 0,
+        y: Int = 0,
+    ): Boolean =
+        with(cacheOf(this)) {
+            isReusable(area, paintWidth, paintHeight) && drawCached(graphics, x, y)
+        }
+
+    /**
+     * Records this layer through [block], on any destination, and caches it for paints over [area] under [graphics]'
+     * transform, at the size of the paint under way. Nothing is cached while the component prints or when a request to
+     * record again arrives during [block].
+     *
+     * Call it from this node's [paint], on the event dispatch thread, for a layer from [obtainImageLayer].
+     *
+     * @param graphics the graphics the paint is under; left as it was found.
+     * @param area the area [block] records, in the coordinates [drawCached] is asked in.
+     * @param block records the layer.
+     * @throws IllegalStateException if called off the event dispatch thread or outside this node's paint.
+     * @throws IllegalArgumentException for a layer this node did not obtain.
+     */
+    protected fun ImageLayer.recordCached(
+        graphics: Graphics2D,
+        area: Rectangle,
+        block: (ImageLayer) -> Unit,
+    ) {
+        cacheOf(this).record(graphics, area, paintWidth, paintHeight, block)
+    }
+
+    /**
+     * Makes every layer of this node, and of each step declared before it, record on its next draw. On a node with no
+     * layer from [obtainImageLayer], it makes every layer of the component record. Requests no repaint.
+     *
+     * Call it on the event dispatch thread when something a recording is made from changes, such as a property of the
+     * step. Off it, a repaint request of the component makes every layer of the component record.
+     *
+     * @throws IllegalStateException if called off the event dispatch thread.
+     */
+    public fun invalidateDrawCache() {
+        checkEventDispatchThread()
+        val owned = if (drawCaches.isEmpty() && isAttached) decoratable.decoration.steps.drawCaches else drawCaches
+        owned.lastOrNull()?.invalidate()
+    }
+
+    /**
+     * Asks for a paint that draws every layer of this node again with the properties now set on it, as a layer property
+     * change does. That paint also shows the repaints of the component's children requested before the call.
+     *
+     * The layers of the steps declared before this node record again; this node's layers and those declared after it
+     * are drawn again. A component with children reuses the images only in that paint.
+     *
+     * A further call before that paint, or a call on a component that is not valid, can call `repaint()` instead, which
+     * makes every layer record again. Until that paint runs, a repaint request on the component, or a
+     * `paintImmediately` of it, on the event dispatch thread covers its whole bounds and takes that paint's place.
+     *
+     * With no layer from [obtainImageLayer], it repaints the component. Does nothing while the node is not attached.
+     *
+     * Limits:
+     * - Where an ancestor's paint paints an opaque component, the first graphics the ancestor takes from the component
+     *   before the component paints make no layer record.
+     * - A fade inside another fade on one component can show the inner fade one paint old, until the inner fade's own
+     *   paint.
+     * - A partial repaint of an ancestor between a property change and its redraw shows that part at the new value one
+     *   event early.
+     * - A transform that starts or stops may paint the content twice in one frame.
+     *
+     * @throws IllegalStateException if called off the event dispatch thread.
+     */
+    public fun invalidateLayerProperties() {
+        checkEventDispatchThread()
+        if (!isAttached) return
+        val first = drawCaches.firstOrNull()
+        if (first == null) component.repaint() else first.redraw()
+    }
 
     /** Whether this step paints its content unchanged and takes no outsets, so the component is not decorated by it. */
     internal open val paintsNothing: Boolean get() = false
@@ -114,7 +270,7 @@ internal fun <R : Any> publishDecoration(
 ): Boolean =
     publishSteps(
         decoratable,
-        DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer),
+        DecorationSteps.of(nodes, decoratable.decoration.steps),
         requester,
         revalidate,
     )

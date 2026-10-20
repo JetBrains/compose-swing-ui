@@ -15,6 +15,7 @@ import java.awt.Shape
 import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
+import javax.swing.SwingUtilities
 import kotlin.math.floor
 
 /**
@@ -22,12 +23,14 @@ import kotlin.math.floor
  * hold the same steps reporting the same outsets, and the same [paintOutsets].
  */
 internal class DecorationSteps private constructor(
-    private val decorators: List<Decorator>,
+    internal val decorators: List<Decorator>,
     /**
      * The value the modifier's `paintOutsets` declaration holds, or null where it declares none or
      * [PaintOutsets.Decoration].
      */
     val paintOutsets: PaintOutsets?,
+    /** The caches of the steps, outermost first; a node's caches are next to each other. */
+    val drawCaches: List<DrawCache>,
 ) {
     /** The [Decorator.outsets] of the steps, added together. */
     val outsets: Insets =
@@ -74,6 +77,35 @@ internal class DecorationSteps private constructor(
         height: Int,
     ): Boolean = decorators.fastAll { it !is BoxedStep || it.isAtLayoutBox(width, height) }
 
+    /**
+     * Tells every step's cache that content may change, on any thread: graphics were taken outside paint where
+     * [outsidePaint], and otherwise the component asked to be repainted or painted at once. Where not [outsidePaint],
+     * the request settles a redraw that is owed: the paint it asks for covers the whole bounds and is that redraw's
+     * paint.
+     *
+     * @param outsidePaint whether graphics were taken outside paint.
+     * @return whether a cache owed a redraw that [DecorationModifierNode.invalidateLayerProperties] asked for, on the
+     *   event dispatch thread. Always false where [outsidePaint].
+     */
+    fun onContentMayChange(outsidePaint: Boolean): Boolean {
+        val onEventDispatchThread = SwingUtilities.isEventDispatchThread()
+        val settlesRedraw = !outsidePaint
+        var owed = false
+        // Innermost first: a recording that reads the moved count of an outer cache finds every cache inside it
+        // invalid too, also off the event dispatch thread.
+        for (index in drawCaches.lastIndex downTo 0) {
+            val cache = drawCaches[index]
+            if (settlesRedraw && onEventDispatchThread && cache.takeOwedRedraw()) owed = true
+            cache.onContentMayChange(outsidePaint, onEventDispatchThread)
+        }
+        return owed
+    }
+
+    /** Tells every step's cache that the component's decoration paint begins. */
+    fun onPaintBegun() {
+        if (SwingUtilities.isEventDispatchThread()) drawCaches.fastForEach { it.onPaintBegun() }
+    }
+
     /** The layer the component's container places it with, the outermost step, or null for none. */
     val containerLayer: PlacementLayer? get() = decorators.firstOrNull() as? PlacementLayer.ContainerLayer
 
@@ -82,15 +114,18 @@ internal class DecorationSteps private constructor(
         val held = containerLayer
         if (layer === held) return this
         val decorators = ArrayList<Decorator>(decorators.size + 1)
+        val caches = ArrayList<DrawCache>(drawCaches.size + 1)
         if (layer != null) {
             decorators += layer
+            caches += layer.drawCache
         }
         val skipped = if (held == null) 0 else 1
         decorators.addAll(this.decorators.subList(skipped, this.decorators.size))
+        drawCaches.fastForEach { if (held == null || it !== held.drawCache) caches += it }
         return if (decorators.isEmpty() && paintOutsets == null) {
             None
         } else {
-            DecorationSteps(decorators, paintOutsets)
+            DecorationSteps(decorators, paintOutsets, caches)
         }
     }
 
@@ -161,7 +196,7 @@ internal class DecorationSteps private constructor(
             try {
                 when {
                     decorator is PlacementLayer -> decorator.paint(start, decorated, stepWidth, stepHeight, next)
-                    decorator.isAttached -> decorator.paint(decorated, stepWidth, stepHeight, next)
+                    decorator.isAttached -> decorator.paintStep(decorated, stepWidth, stepHeight, next)
                     else -> next(decorated, stepWidth, stepHeight)
                 }
             } finally {
@@ -177,41 +212,7 @@ internal class DecorationSteps private constructor(
         width: Int,
         height: Int,
     ) {
-        bounds.setBounds(paintBoundsOutward(Rectangle(bounds), decorators.lastIndex, width, height).bounds)
-    }
-
-    /** Maps [seed] through the steps from [start] outward to the first. */
-    private fun paintBoundsOutward(
-        seed: Shape,
-        start: Int,
-        width: Int,
-        height: Int,
-    ): Shape {
-        var painted = seed
-        for (index in start downTo 0) painted = decorators[index].paintBounds(painted, width, height)
-        return painted
-    }
-
-    /**
-     * The bounds of the innermost clipping placed layer's box, mapped through the steps outside it, in layout
-     * coordinates at layout bounds of [width] by [height]; null where no placed layer clips.
-     */
-    fun placedClipBounds(
-        width: Int,
-        height: Int,
-    ): Rectangle? {
-        var clipIndex = -1
-        for (index in decorators.lastIndex downTo 0) {
-            val decorator = decorators[index]
-            if (decorator is PlacementLayer && decorator.hasPlacedLayer && decorator.clips) {
-                clipIndex = index
-                break
-            }
-        }
-        if (clipIndex < 0) return null
-        val clip = decorators[clipIndex] as PlacementLayer
-        val box = Rectangle(clip.boxX, clip.boxY, clip.boxWidth, clip.boxHeight)
-        return paintBoundsOutward(box, clipIndex, width, height).bounds
+        bounds.setBounds(decorators.paintBoundsOutward(Rectangle(bounds), decorators.lastIndex, width, height).bounds)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -227,12 +228,12 @@ internal class DecorationSteps private constructor(
 
     companion object {
         /** No steps. */
-        val None: DecorationSteps = DecorationSteps(emptyList(), null)
+        val None: DecorationSteps = DecorationSteps(emptyList(), null, emptyList())
 
         /**
          * The [DecorationModifierNode]s, leaving out those that paint nothing, and the
-         * [steps][LayoutModifierNode.decorationStep] of the [LayoutModifierNode]s among [nodes], in order, inside
-         * [containerLayer] where one is given.
+         * [steps][LayoutModifierNode.decorationStep] of the [LayoutModifierNode]s among [nodes], in order, inside the
+         * [containerLayer] of [replaced] where it holds one.
          *
          * A step declared before a layout node paints at the box of the first layout node declared after it; one
          * declared after every layout node paints at the component's layout bounds. A layout node's decorator paints
@@ -241,11 +242,14 @@ internal class DecorationSteps private constructor(
          */
         fun of(
             nodes: List<SwingModifier.Node>,
-            containerLayer: PlacementLayer?,
+            replaced: DecorationSteps,
         ): DecorationSteps {
+            val containerLayer = replaced.containerLayer
             val decorators = ArrayList<Decorator>()
+            val caches = ArrayList<DrawCache>()
             if (containerLayer != null) {
                 decorators += containerLayer
+                caches += containerLayer.drawCache
             }
             // The steps declared since the last layout node, which paint at the next one's box.
             var unboxed = decorators.size
@@ -264,6 +268,7 @@ internal class DecorationSteps private constructor(
                         val layer = node.layerOrNull
                         if (step != null && step === layer) {
                             decorators += layer
+                            caches += layer.drawCache
                         } else if (step != null) {
                             decorators += BoxedStep(step, node)
                         }
@@ -271,13 +276,64 @@ internal class DecorationSteps private constructor(
                     }
 
                     is DecorationModifierNode<*> -> {
-                        if (!node.paintsNothing) decorators += node
+                        if (!node.paintsNothing) {
+                            decorators += node
+                            caches += node.drawCaches
+                        }
                     }
                 }
             }
             if (decorators.isEmpty() && paintOutsets == null) return None
-            return DecorationSteps(decorators, paintOutsets)
+            return DecorationSteps(decorators, paintOutsets, caches)
         }
+    }
+}
+
+/**
+ * The bounds of the innermost clipping placed layer's box, mapped through the steps outside it, in layout coordinates
+ * at layout bounds of [width] by [height]; null where no placed layer clips.
+ */
+internal fun DecorationSteps.placedClipBounds(
+    width: Int,
+    height: Int,
+): Rectangle? {
+    var clipIndex = -1
+    for (index in decorators.lastIndex downTo 0) {
+        val decorator = decorators[index]
+        if (decorator is PlacementLayer && decorator.hasPlacedLayer && decorator.clips) {
+            clipIndex = index
+            break
+        }
+    }
+    if (clipIndex < 0) return null
+    val clip = decorators[clipIndex] as PlacementLayer
+    val box = Rectangle(clip.boxX, clip.boxY, clip.boxWidth, clip.boxHeight)
+    return decorators.paintBoundsOutward(box, clipIndex, width, height).bounds
+}
+
+/** Maps [seed] through the steps from [start] outward to the first. */
+private fun List<Decorator>.paintBoundsOutward(
+    seed: Shape,
+    start: Int,
+    width: Int,
+    height: Int,
+): Shape {
+    var painted = seed
+    for (index in start downTo 0) painted = this[index].paintBounds(painted, width, height)
+    return painted
+}
+
+/** Paints this step; a [DecorationModifierNode] is also told the size of the paint. */
+private fun Decorator.paintStep(
+    graphics: Graphics2D,
+    width: Int,
+    height: Int,
+    content: (Graphics2D, Int, Int) -> Unit,
+) {
+    if (this is DecorationModifierNode<*>) {
+        paintAtSize(graphics, width, height, content)
+    } else {
+        paint(graphics, width, height, content)
     }
 }
 
@@ -358,7 +414,7 @@ private class BoxedStep(
         val x = box.x
         val y = box.y
         graphics.translate(x, y)
-        decorator.paint(graphics, box.width, box.height) { inner, _, _ ->
+        decorator.paintStep(graphics, box.width, box.height) { inner, _, _ ->
             inner.translate(-x, -y)
             try {
                 content(inner, width, height)

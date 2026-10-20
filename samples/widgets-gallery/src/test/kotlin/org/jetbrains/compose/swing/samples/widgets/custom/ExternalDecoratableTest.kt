@@ -45,6 +45,7 @@ import java.awt.Graphics2D
 import java.awt.GraphicsEnvironment
 import java.awt.Insets
 import java.awt.LayoutManager
+import java.awt.Point
 import java.awt.Rectangle
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -411,6 +412,49 @@ class ExternalDecoratableTest {
     fun aChildsRepaintInATurnedPanelRepaintsThePanelWhole() =
         assertRepaintPaints({ PanelNode(it) }, Turned, ChildRepaint, RepaintExpectation({ it.whole() }))
 
+    @Test
+    fun takingACardsGraphicsShowsChangedContentInALaterPaint() =
+        assertTakingGraphicsShowsChangedContent { CardNode(it) }
+
+    @Test
+    fun takingAPanelsGraphicsShowsChangedContentInALaterPaint() =
+        assertTakingGraphicsShowsChangedContent { PanelNode(it) }
+
+    private fun assertTakingGraphicsShowsChangedContent(node: @Composable (SwingModifier) -> Unit) =
+        runComposeSwingTest {
+            var fill = Color.RED
+            val draw: DrawScope.() -> Unit = {
+                graphics.color = fill
+                graphics.fillRect(0, 0, width, height)
+            }
+            setContent {
+                Box {
+                    node(
+                        SwingModifier
+                            .testTag("component")
+                            .preferredSize(120, 80)
+                            .opaque(false)
+                            .shadow(8, Color.BLACK)
+                            .drawBehind(draw),
+                    )
+                }
+            }
+            val component = onNodeWithTag("component").fetch<JComponent>()
+            val outsets = (component as Decoratable).decoration.paintOutsets()
+            val inside = Point(outsets.left + 10, outsets.top + 10)
+            val before = onNodeWithTag("component").captureToImage()
+            assertEquals(Color.RED.rgb, before.getRGB(inside.x, inside.y), "initial content is red")
+
+            fill = Color.BLUE
+            component.graphics?.dispose()
+
+            assertEquals(
+                Color.BLUE.rgb,
+                onNodeWithTag("component").captureToImage().getRGB(inside.x, inside.y),
+                "a later paint shows the changed content after taking graphics",
+            )
+        }
+
     /**
      * Composes the component [decoratable] composes, decorated by [decorate], in a window, marks a 10 by 10 area of
      * it and has [ask] repaint that area. Checks that the repaint covers [RepaintExpectation.requiredArea], in its
@@ -491,6 +535,8 @@ class ExternalDecoratableTest {
         Decoratable {
         var writes = 0
 
+        override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
         override var decoration: Decoration = Decoration.None
             set(value) {
                 writes++
@@ -503,6 +549,8 @@ class Card :
     JComponent(),
     Decoratable {
     override var decoration: Decoration = Decoration.None
+
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
 
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 
@@ -568,6 +616,8 @@ class DecoratedPanel(
         set(value) {
             held = value
         }
+
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
 
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 

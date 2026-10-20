@@ -425,6 +425,9 @@ internal class ChildMeasurables(
     /** The receiver [alignmentLinesOf] replays the placement in. */
     internal val lineScope = LineMergingPlacementScope()
 
+    /** The region a repaint grows for this container's children; live during one walk of them. */
+    internal val repaintSpread = Rectangle()
+
     /** The panel laid out by [owner], which keeps the stacking order of its children. */
     lateinit var panel: ConstrainedPanel
 

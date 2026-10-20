@@ -10,6 +10,7 @@ import java.awt.Container
 import java.awt.FocusTraversalPolicy
 import java.awt.Graphics2D
 import java.awt.KeyboardFocusManager
+import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
@@ -41,6 +42,10 @@ internal class EnterExitLayerElement(
 /**
  * Paints the content faded as one image: the content is recorded into an [ImageLayer] aligned to the graphics it paints
  * on and drawn back at the alpha.
+ *
+ * Between positive values below `1f`, a change to the alpha alone redraws the last recording while it is reusable.
+ * Any other repaint records the content again; a redraw painted ahead of it in the same cycle still draws the previous
+ * recording.
  */
 internal class EnterExitLayerNode(
     var layout: EnterExitTransitionLayout,
@@ -55,13 +60,12 @@ internal class EnterExitLayerNode(
     // Stored once, so observing the layer allocates nothing per paint.
     private val readLayer: () -> Unit = { observedBlock = layout.graphicsLayerBlock?.also { it.update() } }
 
-    /** Created by the first fade and kept for this node's lifetime. */
-    private var fadeLayer: ImageLayer? = null
+    private val layer = obtainImageLayer()
 
-    override fun onRemovedFromDecoration() {
-        fadeLayer?.release()
-        fadeLayer = null
-    }
+    private var holdsFade = false
+
+    // Shared by every paint, which runs only on the event dispatch thread.
+    private val fadeArea = Rectangle()
 
     override fun paint(
         graphics: Graphics2D,
@@ -69,16 +73,25 @@ internal class EnterExitLayerNode(
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
-        observeReads(RepaintOnLayerChange, readLayer)
-        val block = observedBlock ?: return content(graphics, width, height)
+        observeReads({ it.invalidateLayerProperties() }, readLayer)
+        val block = observedBlock
         // NaN compares false either way, so it is refused along with 0 rather than reaching AlphaComposite.
-        val alpha = block.alpha.coerceAtMost(1f)
+        val alpha = block?.alpha?.coerceAtMost(1f)
+        if (alpha == null || alpha == 1f || !(alpha > 0f)) dropFade()
+        if (alpha == null) return content(graphics, width, height)
         if (!(alpha > 0f)) return
         if (alpha == 1f) {
             content(graphics, width, height)
         } else {
             paintFaded(graphics, width, height, alpha, content)
         }
+    }
+
+    // Runs on every paint outside a fade, so it drops the recording only on the first.
+    private fun dropFade() {
+        if (!holdsFade) return
+        holdsFade = false
+        invalidateDrawCache()
     }
 
     private fun paintFaded(
@@ -88,29 +101,29 @@ internal class EnterExitLayerNode(
         alpha: Float,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
-        val layer = fadeLayer ?: ImageLayer().also { fadeLayer = it }
+        holdsFade = true
         layer.alpha = alpha
-        fade(layer, graphics, width, height, content)
-        // A surface lost between recording and drawing is recorded and drawn once more.
-        if (!Snapshot.withoutReadObservation { layer.hasContent }) fade(layer, graphics, width, height, content)
+        // A graphics with no clip leaves the bounds as they are.
+        fadeArea.setBounds(0, 0, width, height)
+        graphics.getClipBounds(fadeArea)
+        SwingUtilities.computeIntersection(0, 0, width, height, fadeArea)
+        if (Snapshot.withoutReadObservation { layer.drawCached(graphics, fadeArea) }) return
+        layer.recordCached(graphics, fadeArea) { recordFade(it, graphics, width, height, content) }
+        drawFade(graphics)
     }
 
-    private fun fade(
-        layer: ImageLayer,
+    private fun recordFade(
+        target: ImageLayer,
         graphics: Graphics2D,
         width: Int,
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
-    ) {
-        layer.record(graphics, width, height) { content(it, width, height) }
-        // Drawing reads the layer's own state, which this recording has just written: observed, the write would
-        // repaint the component and record again, without end.
-        Snapshot.withoutReadObservation { layer.draw(graphics) }
-    }
-}
+    ) = target.record(graphics, width, height) { content(it, width, height) }
 
-/** A change to a read the layer made repaints the component it paints on. */
-private val RepaintOnLayerChange: (EnterExitLayerNode) -> Unit = { it.component.repaint() }
+    // Drawing reads the layer's own state, which the recording has just written: observed, the write would repaint the
+    // component and record again, without end.
+    private fun drawFade(graphics: Graphics2D) = Snapshot.withoutReadObservation { layer.draw(graphics) }
+}
 
 /**
  * Takes an animated container's content out of focus traversal while it [exits], and passes on the focus a

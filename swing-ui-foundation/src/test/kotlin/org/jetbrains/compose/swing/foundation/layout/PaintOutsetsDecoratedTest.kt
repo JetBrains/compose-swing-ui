@@ -559,6 +559,8 @@ private class AwtCard :
     Decoratable {
     override var decoration: Decoration = Decoration.None
 
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
 
     override fun getInsets(): Insets = decoration.insets(super.getInsets())

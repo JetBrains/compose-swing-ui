@@ -273,8 +273,8 @@ class PlacementLayerTest {
     fun aReadInALayerBlockRepaintsWithoutLayingOutAgain() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val alpha = mutableFloatStateOf(1f)
-            val block: PlacementLayerScope.() -> Unit = { this.alpha = alpha.floatValue }
+            val scale = mutableFloatStateOf(1f)
+            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
             setWindowContent {
                 Row {
                     Box(
@@ -293,13 +293,13 @@ class PlacementLayerTest {
             box.paintImmediately(0, 0, box.width, box.height)
             assertTrue(box.isValidUpToTheValidateRoot(), "the realized box must start valid")
 
-            alpha.floatValue = 0f
-            Snapshot.sendApplyNotifications()
-
-            assertEquals(Rectangle(0, 0, box.width, box.height), box.dirtyRegion(), "a changed read must repaint")
+            assertDirtyRegionsDuring(box, listOf(Rectangle(0, 0, 40, 40)), "a changed read must repaint") {
+                scale.floatValue = 0.5f
+                Snapshot.sendApplyNotifications()
+            }
             assertTrue(box.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
             awaitIdle()
-            assertEquals(0, node.captureToImage().getRGB(10, 10), "the next paint skips the invisible content")
+            node.captureToImage().assertScaledRed()
         }
 
     /** A layer on a component that is not a [Layout]'s panel observes its block's reads itself. */
@@ -307,8 +307,8 @@ class PlacementLayerTest {
     fun aReadInALayerBlockOnACanvasRepaintsWithoutLayingOutAgain() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val alpha = mutableFloatStateOf(1f)
-            val block: PlacementLayerScope.() -> Unit = { this.alpha = alpha.floatValue }
+            val scale = mutableFloatStateOf(1f)
+            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
             setWindowContent {
                 Row {
                     Canvas(
@@ -322,17 +322,13 @@ class PlacementLayerTest {
             canvas.paintImmediately(0, 0, canvas.width, canvas.height)
             assertTrue(canvas.isValidUpToTheValidateRoot(), "the realized canvas must start valid")
 
-            alpha.floatValue = 0f
-            Snapshot.sendApplyNotifications()
-
-            assertEquals(
-                Rectangle(0, 0, canvas.width, canvas.height),
-                canvas.dirtyRegion(),
-                "a changed read must repaint",
-            )
+            assertDirtyRegionsDuring(canvas, listOf(Rectangle(0, 0, 40, 40)), "a changed read must repaint") {
+                scale.floatValue = 0.5f
+                Snapshot.sendApplyNotifications()
+            }
             assertTrue(canvas.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
             awaitIdle()
-            assertEquals(0, node.captureToImage().getRGB(10, 10), "the next paint skips the invisible content")
+            node.captureToImage().assertScaledRed()
         }
 
     @Test
@@ -786,4 +782,9 @@ private class PlacementReadOffsetNode(
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) { placeable.place(sign * offset.value, 0) }
     }
+}
+
+private fun BufferedImage.assertScaledRed() {
+    assertEquals(Color.RED.rgb, getRGB(20, 10), "the scaled layer still paints its content")
+    assertEquals(0, getRGB(5, 10), "the scale leaves the edge transparent")
 }

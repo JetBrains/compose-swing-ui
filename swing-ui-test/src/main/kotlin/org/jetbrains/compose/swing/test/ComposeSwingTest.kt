@@ -31,15 +31,19 @@ import org.jetbrains.compose.swing.test.interaction.SwingWindowInteraction
 import org.jetbrains.compose.swing.test.interaction.SwingWindowInteractionCollection
 import org.jetbrains.compose.swing.test.interaction.castOrFail
 import org.jetbrains.compose.swing.test.interaction.realizedWindowsTreeDump
+import java.awt.AWTEvent
+import java.awt.ActiveEvent
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Toolkit
 import java.awt.event.ComponentEvent
 import java.awt.event.InvocationEvent
+import java.awt.event.PaintEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
@@ -114,11 +118,11 @@ public interface ComposeSwingTest {
     /**
      * Suspends until the composition is idle, making the AWT tree reflect the latest state.
      *
-     * It runs the event dispatch thread's queue itself, so recomposition makes progress while it waits,
-     * and returns once there is neither pending recomposition nor pending snapshot work AND the EDT
-     * queue has drained the runnables the idle composition scheduled - a window show that a
-     * `Dialog { }` defers to its own dispatch, for example, has landed by the time this returns. The tree
-     * is validated only once that queue is drained, as a window validates after the events ahead of it.
+     * It runs the event dispatch thread's queue itself, so recomposition makes progress while it waits, and returns
+     * once there is neither pending recomposition nor pending snapshot work AND the EDT queue has drained the runnables
+     * the idle composition scheduled - a window show that a `Dialog { }` defers to its own dispatch, for example, has
+     * landed by the time this returns. The tree is validated only once that queue is drained, as a window validates
+     * after the events ahead of it. It also waits for events of paint priority already queued.
      *
      * With [mainClock]'s `autoAdvance` at its default of `true`, reaching that state is this call's
      * own job: it sends whatever frames are needed. With `autoAdvance` set to `false`, this drains
@@ -150,8 +154,8 @@ public interface ComposeSwingTest {
     public suspend fun awaitIdle()
 
     /**
-     * Suspends until every AWT notification already queued on the event dispatch thread has been
-     * dispatched, **without producing a composition frame**.
+     * Suspends until every AWT notification already queued on the event dispatch thread has been dispatched, **without
+     * producing a composition frame**. It also waits for events of paint priority already queued.
      *
      * A frame is what lets the composition recompose and apply its changes, so withholding one takes
      * apart the two things [awaitIdle] waits for together. Once this returns, whatever the widgets
@@ -429,6 +433,17 @@ private class TestRootPanel : JPanel() {
     }
 
     override fun isShowing(): Boolean = false
+}
+
+/**
+ * A task AWT dispatches at paint priority, after every event of normal priority and every paint-priority event
+ * posted before it. Its source is not a component, so AWT never coalesces it.
+ */
+private class PaintPriorityTask(
+    private val task: () -> Unit,
+) : AWTEvent(task, PaintEvent.UPDATE),
+    ActiveEvent {
+    override fun dispatch() = task()
 }
 
 private class ComposeSwingTestImpl(
@@ -722,7 +737,7 @@ private class ComposeSwingTestImpl(
     }
 
     /**
-     * Dispatches everything already queued on the event dispatch thread without leaving it, and answers
+     * Dispatches everything already queued on the event dispatch thread without leaving it, and returns
      * whether nothing a dispatch could still run was left behind - see [noPendingDispatch]. With [layOut],
      * a drained queue is followed by validating [root], as a window lays itself out only after the events
      * ahead of it, and the notifications that layout posts count as left behind.
@@ -732,19 +747,46 @@ private class ComposeSwingTestImpl(
      * event queued before it has run, and the loop's own teardown has not been posted yet. The task exits
      * the loop even when the layout throws; the throw reaches the thread's handler as an uncaught failure,
      * which [drainQueue] then throws.
+     *
+     * When only events of paint priority are left, the task hands the exit to a [PaintPriorityTask] posted behind
+     * them. With an event of normal priority still queued it exits at once, returning `false`: a queue that never
+     * empties would starve a [PaintPriorityTask], and the drain would never end.
+     *
+     * A paint-priority event can start such a stream after the task has looked. While a [PaintPriorityTask] is
+     * pending, a timer checks once per frame of the test clock for an event of normal priority and exits the same way,
+     * returning `false`, so a starved drain costs at most one frame's wait. The exit runs once: a [PaintPriorityTask]
+     * left in the queue afterwards does nothing.
      */
     private fun dispatchQueued(layOut: Boolean): Boolean {
-        val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
+        val queue = Toolkit.getDefaultToolkit().systemEventQueue
+        val loop = queue.createSecondaryLoop()
         val drained = booleanArrayOf(false)
-        SwingUtilities.invokeLater {
-            try {
-                if (layOut && noPendingDispatch()) {
-                    root.validate()
-                    root.layoutUnplacedSubtrees()
+        var finished = false
+        var timer: Timer? = null
+        val finish = {
+            if (!finished) {
+                finished = true
+                timer?.stop()
+                try {
+                    if (layOut && noPendingDispatch()) {
+                        root.validate()
+                        root.layoutUnplacedSubtrees()
+                    }
+                    drained[0] = noPendingDispatch()
+                } finally {
+                    loop.exit()
                 }
-                drained[0] = noPendingDispatch()
-            } finally {
-                loop.exit()
+            }
+        }
+        SwingUtilities.invokeLater {
+            if (noPendingNormalEvent() && hasPendingPaintPriorityEvent()) {
+                timer =
+                    Timer(MainTestClockImpl.FRAME_DURATION.inWholeMilliseconds.toInt()) {
+                        if (!noPendingNormalEvent()) finish()
+                    }.also { it.start() }
+                queue.postEvent(PaintPriorityTask(finish))
+            } else {
+                finish()
             }
         }
         loop.enter()
@@ -778,27 +820,33 @@ private class ComposeSwingTestImpl(
         (!recomposer.hasPendingWork || clock.hasAwaiters) && !Snapshot.current.hasPendingChanges()
 
     /**
-     * True when the EDT holds nothing that could still run something the test can observe: no
-     * scheduled `invokeLater` callback or coroutine continuation awaiting dispatch, and no bounds
+     * True when the EDT holds no event of normal priority that could still run something the test can observe:
+     * no scheduled `invokeLater` callback or coroutine continuation awaiting dispatch, and no bounds
      * notification a component has queued but not yet delivered to its listeners.
      *
-     * This is the "nothing queued remains" signal the gates drain toward. Bounds notifications
-     * belong in it because a layout pass posts them rather than delivering them, so a gate that
-     * returned on the invocation queue alone would return before a modifier reporting the extent a
+     * Bounds notifications belong in it because a layout pass posts them rather than delivering them, so a gate
+     * that returned on the invocation queue alone would return before a modifier reporting the extent a
      * pass settled on had heard about it - and they are finite, since AWT posts one only for a
      * component whose bounds actually changed.
      *
      * Every other event class is deliberately ignored. A realized visible window peer posts native
      * paint events continuously, and treating those as pending work would keep the gate spinning even
-     * though they never revive the composition. A paint event is itself a [ComponentEvent], carrying an
-     * id of its own outside the range walked here, so peeking that range takes the notifications a
-     * component sends about itself without taking those.
+     * though they never revive the composition. A native paint event is itself a [ComponentEvent], carrying
+     * the id [PaintEvent.PAINT], outside the range walked here, so peeking that range takes the notifications
+     * a component sends about itself without taking those.
      */
-    private fun noPendingDispatch(): Boolean {
+    private fun noPendingNormalEvent(): Boolean {
         val queue = Toolkit.getDefaultToolkit().systemEventQueue
         return queue.peekEvent(InvocationEvent.INVOCATION_DEFAULT) == null &&
             (ComponentEvent.COMPONENT_FIRST..ComponentEvent.COMPONENT_LAST).none { queue.peekEvent(it) != null }
     }
+
+    /** True when the EDT holds an event of the id [PaintEvent.UPDATE]; native paints have the id [PaintEvent.PAINT]. */
+    private fun hasPendingPaintPriorityEvent(): Boolean =
+        Toolkit.getDefaultToolkit().systemEventQueue.peekEvent(PaintEvent.UPDATE) != null
+
+    /** True when the EDT holds nothing that could still run something a test can observe, at either priority. */
+    private fun noPendingDispatch(): Boolean = noPendingNormalEvent() && !hasPendingPaintPriorityEvent()
 
     /** Fails a gate whose work never ran out, naming what was still outstanding. */
     private fun notIdle(gate: String): AssertionError =

@@ -50,6 +50,25 @@ public class Decoration internal constructor(
     public val isDecorated: Boolean get() = !steps.isEmpty
 
     /**
+     * Returns [graphics], the superclass `getGraphics()` result of [decoratable], unchanged. Makes the steps' image
+     * layers record on their next draw, as the caller can draw on it outside paint, with the exception that
+     * [DecorationModifierNode.invalidateLayerProperties] names. Requests no repaint.
+     * Call this from `getGraphics()` of a `Decoratable`, on the event dispatch thread.
+     *
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
+     * @throws IllegalStateException if called off the event dispatch thread.
+     */
+    public fun getGraphics(
+        decoratable: Decoratable,
+        graphics: Graphics?,
+    ): Graphics? {
+        decoratable.requireComponent()
+        checkEventDispatchThread()
+        steps.onContentMayChange(outsidePaint = true)
+        return graphics
+    }
+
+    /**
      * Whether [decoratable], painted through this decoration, still covers every pixel of its bounds: `false` where it
      * has paint outsets, or where a step paints translucently, cuts the content ([Decorator.isOpaque]) or paints at a
      * box smaller than the layout bounds. The steps' own opacity is the one the library last gathered; the boxes are
@@ -124,6 +143,7 @@ public class Decoration internal constructor(
             "A decoration paints through Graphics2D, which is what Swing hands a component's paint; this one was " +
                 "handed a ${graphics.javaClass.name}"
         }
+        steps.onPaintBegun()
         val decorated = graphics.create() as Graphics2D
         try {
             if (decorated.clip == null) decorated.clipRect(0, 0, component.width, component.height)
@@ -173,16 +193,15 @@ public class Decoration internal constructor(
     }
 
     /**
-     * Records a repaint of the area at ([x], [y]) of [width] by [height], in [decoratable]'s coordinates,
-     * grown to all a change in it repaints: by how far the steps spread a change, such as a blur's or a shadow's reach,
-     * held inside the bounds, or to the whole bounds while the steps move what [decoratable] paints, as a rotating
-     * layer does. The grown area goes to [repaint], the caller's superclass repaint, as [paintImmediately] takes the
-     * caller's paint. Where Swing paints [decoratable] as the dirty component, its `paintImmediately` grows the area
-     * again, which paints more pixels and changes none; where Swing merges the area into the repaint of a dirty
-     * ancestor, the ancestor paints it as recorded. [tm] is ignored, as `JComponent.repaint` ignores it. What
-     * `repaint(long, int, int, int, int)` of a `Decoratable` does.
+     * Hands [repaint], the superclass repaint, [tm] and the area at ([x], [y]) of [width] by [height], in
+     * [decoratable]'s coordinates, grown to all a change in it repaints: by how far the steps spread a change, such as
+     * a blur's or a shadow's reach, held inside the bounds, or to the whole bounds while the steps move what
+     * [decoratable] paints, as a rotating layer does. On the event dispatch thread, the area is the whole bounds until
+     * the paint that [DecorationModifierNode.invalidateLayerProperties] asked for runs. Content changes must request a
+     * repaint for decoration steps to show them on the next paint.
+     * Call this from `repaint(long, int, int, int, int)` of a `Decoratable`.
      *
-     * @throws IllegalStateException if [decoratable] is not a `java.awt.Component`.
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
     @Suppress("LongParameterList") // JComponent.repaint's parameters, as forwarded.
     public fun repaint(
@@ -195,7 +214,8 @@ public class Decoration internal constructor(
         repaint: (Long, Int, Int, Int, Int) -> Unit,
     ) {
         val component = decoratable.requireComponent()
-        if (stepsMoveContent(component)) {
+        val redrawOwed = steps.onContentMayChange(outsidePaint = false)
+        if (redrawOwed || stepsMoveContent(component)) {
             repaint(tm, 0, 0, component.width, component.height)
             return
         }
@@ -210,18 +230,17 @@ public class Decoration internal constructor(
     // This expansion preserves coverage of every required pixel; direct and descendant requests still need it.
 
     /**
-     * Hands [paint] the area at ([x], [y]) of [width] by [height], in [decoratable]'s coordinates, grown as [repaint]
-     * grows it; [paint] is `super.paintImmediately`. In a Foundation container, the area is grown first by what each
-     * visible child it touches spreads its part of the area into, if the child has a transform, paint outsets or
-     * Foundation descendants whose repaints may need to grow. The area grows by the steps' reach, held inside the
-     * child's bounds, or to the whole child if its steps move content or can spread a change farther than their
-     * outsets. For these children, a step that does not
-     * [repaint within its outsets][Decorator.repaintsWithinOutsets] grows the area to the whole child.
-     * Swing calls `paintImmediately` on a decorated component as the painting origin of its descendants' repaints
-     * and to paint a repaint it recorded itself.
-     * Application code may call it too. What `paintImmediately(int, int, int, int)` of a `Decoratable` answers.
+     * Hands [paint], `super.paintImmediately`, the area at ([x], [y]) of [width] by [height], in [decoratable]'s
+     * coordinates, grown as [repaint] grows it. In a Foundation container, the area grows first by what each visible
+     * child it touches spreads its part of the area into, if the child has a transform, steps with outsets or a step
+     * that does not repaint within its outsets, or holds such a child: by the steps' reach, held inside the child's
+     * bounds, or to the whole child if its steps move content or a step does not [repaint within its
+     * outsets][Decorator.repaintsWithinOutsets]. Until the paint that
+     * [DecorationModifierNode.invalidateLayerProperties] asked for runs, the area is the whole bounds, so no paint
+     * shows the component at two values of what that paint changes. Decoration steps show content changes in this
+     * paint. Call this from `paintImmediately(int, int, int, int)` of a `Decoratable`.
      *
-     * @throws IllegalStateException if [decoratable] is not a `java.awt.Component`.
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
     @Suppress("ForbiddenComment", "LongParameterList")
     public fun paintImmediately(
@@ -233,11 +252,12 @@ public class Decoration internal constructor(
         paint: (x: Int, y: Int, width: Int, height: Int) -> Unit,
     ) {
         val component = decoratable.requireComponent()
-        if (stepsMoveContent(component)) return paint(0, 0, component.width, component.height)
+        val redrawOwed = steps.onContentMayChange(outsidePaint = false)
+        if (redrawOwed || stepsMoveContent(component)) return paint(0, 0, component.width, component.height)
         val area = Rectangle(x, y, width, height)
         val children = childMeasurables
         if (children != null && children.hasChildSpreadingRepaint) {
-            children.addChildrenSpread(Rectangle(area), area, 0, 0)
+            children.addChildrenSpread(Rectangle(area), area, 0, 0, Rectangle())
         }
         // TODO Grow an already-expanded repaint region only once,
         // while still expanding direct paintImmediately requests.
@@ -353,37 +373,47 @@ private fun grownEnd(
  * area this one grew and adds what that area spreads into in turn, which changes no pixel.
  *
  * Both rectangles are in the coordinates of the component being repainted, where this container stands at
- * ([x], [y]).
+ * ([x], [y]). [scratch] is any rectangle; every level shares it.
  */
 private fun ChildMeasurables.addChildrenSpread(
     asked: Rectangle,
     area: Rectangle,
     x: Int,
     y: Int,
+    scratch: Rectangle,
 ) {
-    val bounds = Rectangle()
-    val spread = Rectangle()
     layoutPass.fastForEach {
         val child = it.component
         val decoration = it.decoratable?.decoration
         if (!child.isVisible || decoration?.holdsSpreadingRepaint != true) return@fastForEach
-        child.getBounds(bounds)
-        bounds.translate(x, y)
-        if (!asked.intersects(bounds)) return@fastForEach
+        child.getBounds(scratch)
+        scratch.translate(x, y)
+        if (!asked.intersects(scratch)) return@fastForEach
         if (!decoration.steps.repaintsWithinOutsets || decoration.stepsMoveContent(child)) {
-            return@fastForEach area.add(bounds)
+            return@fastForEach area.add(scratch)
         }
-        Rectangle2D.intersect(asked, bounds, spread)
+        val boundsX = scratch.x
+        val boundsY = scratch.y
+        val boundsWidth = scratch.width
+        val boundsHeight = scratch.height
+        Rectangle2D.intersect(asked, scratch, scratch)
         val children = decoration.childMeasurables
-        if (children != null && children.hasChildSpreadingRepaint) {
-            children.addChildrenSpread(asked, spread, bounds.x, bounds.y)
-        }
+        // The level below shares the scratch, so what it adds to goes in the rectangle its container holds.
+        val spread =
+            if (children != null && children.hasChildSpreadingRepaint) {
+                children.repaintSpread.also { region ->
+                    region.setBounds(scratch)
+                    children.addChildrenSpread(asked, region, boundsX, boundsY, scratch)
+                }
+            } else {
+                scratch
+            }
         val reach = decoration.steps.outsets
-        val left = grownStart(spread.x - bounds.x, reach.left)
-        val top = grownStart(spread.y - bounds.y, reach.top)
-        val right = grownEnd(spread.x - bounds.x, spread.width, reach.right, bounds.width)
-        val bottom = grownEnd(spread.y - bounds.y, spread.height, reach.bottom, bounds.height)
-        spread.setBounds(bounds.x + left, bounds.y + top, right - left, bottom - top)
+        val left = grownStart(spread.x - boundsX, reach.left)
+        val top = grownStart(spread.y - boundsY, reach.top)
+        val right = grownEnd(spread.x - boundsX, spread.width, reach.right, boundsWidth)
+        val bottom = grownEnd(spread.y - boundsY, spread.height, reach.bottom, boundsHeight)
+        spread.setBounds(boundsX + left, boundsY + top, right - left, bottom - top)
         area.add(spread)
     }
 }

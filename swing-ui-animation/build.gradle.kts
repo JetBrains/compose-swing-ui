@@ -7,6 +7,8 @@ plugins {
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
+    id("buildsrc.convention.window-system-lock")
+    id("buildsrc.convention.exclusive-window-system-tests")
 }
 
 // This module holds two bodies of code. `org.jetbrains.compose.swing.animation` is hand-written project

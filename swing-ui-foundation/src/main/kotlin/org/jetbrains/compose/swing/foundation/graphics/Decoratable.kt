@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.node.invalidateLayout
  * [DecorationModifierNode] target.
  *
  * The library writes [decoration]; the component stores it and applies it, as it applies its `Border`:
+ * - `getGraphics()` returns `decoration.getGraphics(this, super.getGraphics())`;
  * - `paint` answers `decoration.paint(this, g) { super.paint(it) }`;
  * - `paintBorder` paints the border at `decoration.localLayoutBounds(this)`;
  * - both `getInsets` overloads answer through [Decoration.insets];

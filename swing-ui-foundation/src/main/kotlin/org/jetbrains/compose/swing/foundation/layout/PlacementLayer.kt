@@ -1,9 +1,10 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.annotation.FloatRange
-import org.jetbrains.annotations.VisibleForTesting
+import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
-import org.jetbrains.compose.swing.foundation.graphics.ImageLayer
+import org.jetbrains.compose.swing.foundation.graphics.DrawCache
+import org.jetbrains.compose.swing.foundation.graphics.DrawCacheHost
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.clipArea
 import org.jetbrains.compose.swing.foundation.graphics.publishSteps
@@ -45,6 +46,10 @@ public sealed interface PlacementLayerScope {
     /**
      * The opacity the content paints at, as one image: overlapping content inside it does not show through.
      * `1f` by default. A value above `1f` paints at `1f`; `0f`, a value below it and `NaN` paint nothing.
+     *
+     * A change of the alpha or of [clip] shows one event after the change, together with the repaints requested before
+     * it. A repaint of a component inside the layer shows when that repaint paints; a frame painted before it shows the
+     * content as last drawn.
      */
     @setparam:FloatRange(from = 0.0, to = 1.0)
     public var alpha: Float
@@ -89,8 +94,8 @@ internal class PlacementLayerProperties : PlacementLayerScope {
  * cuts to and what [PlacementLayerScope.transformOrigin] is a fraction of. Nested layers nest as decoration
  * steps, so a clip intersects every enclosing one and a scale applies inside every enclosing scale.
  *
- * A fade records the content into an [ImageLayer] aligned to the graphics it paints on and draws that back at the
- * alpha, so it fades as one image.
+ * A fade records the content into an image layer, aligned to the graphics it paints on, and draws that back at
+ * the alpha, so it fades as one image.
  */
 internal sealed class PlacementLayer : Decorator {
     /** The layer [node] places its content with, a step of its component's decoration at the node's position. */
@@ -192,12 +197,31 @@ internal sealed class PlacementLayer : Decorator {
         layerBlock(properties)
     }
 
-    /** Created by the first fade and released once the content is placed without the layer. */
-    private var fadeLayer: ImageLayer? = null
+    private inner class FadeCacheHost : DrawCacheHost {
+        override val component: Component? get() = placement?.component
 
-    /** Whether the fade's recorded buffer is still held. */
-    @get:VisibleForTesting
-    internal val hasFadeContent: Boolean get() = fadeLayer?.hasContent == true
+        override val steps: DecorationSteps? get() = placement?.decoratable?.decoration?.steps
+    }
+
+    /** Holds the fade's recording; released once the content is placed without the layer. */
+    internal val drawCache = DrawCache(FadeCacheHost())
+
+    /** Whether a paint faded the content since the cache last dropped its recording. */
+    private var holdsFade = false
+
+    /**
+     * Drops the fade's recording once, on leaving the fade, so that a resting layer does not invalidate the caches
+     * outside it on every paint.
+     */
+    private fun dropFade() {
+        if (!holdsFade) return
+        holdsFade = false
+        drawCache.invalidate()
+    }
+
+    /** The bounds of the graphics' clip before and after a clipped fade's box clip. */
+    private val unclippedBounds = Rectangle()
+    private val clippedBounds = Rectangle()
 
     override val isOpaque: Boolean get() = false
 
@@ -239,8 +263,7 @@ internal sealed class PlacementLayer : Decorator {
         if (layerBlock === NoLayer) return false
         layerBlock = NoLayer
         transform = null
-        fadeLayer?.release()
-        fadeLayer = null
+        drawCache.release()
         return true
     }
 
@@ -266,37 +289,25 @@ internal sealed class PlacementLayer : Decorator {
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
-        if (layerBlock === NoLayer || isDetached) return content(graphics, width, height)
+        if (layerBlock === NoLayer || isDetached) {
+            dropFade()
+            return content(graphics, width, height)
+        }
         val layer = properties
         // NaN compares false either way, so it is refused along with 0 rather than reaching AlphaComposite.
         val alpha = layer.alpha.coerceAtMost(1f)
-        if (!(alpha > 0f) || layer.scaleX == 0f || layer.scaleY == 0f) return
+        if (!(alpha > 0f) || layer.scaleX == 0f || layer.scaleY == 0f) {
+            dropFade()
+            return
+        }
         transform?.let(graphics::transform)
-        if (layer.clip) graphics.clipRect(boxX, boxY, boxWidth, boxHeight)
         if (alpha == 1f) {
+            dropFade()
+            if (layer.clip) graphics.clipRect(boxX, boxY, boxWidth, boxHeight)
             content(graphics, width, height)
         } else {
-            // What the steps inside this layer paint may reach anywhere in the component's bounds, as a shadow or a
-            // scale does; where nothing paints, the recording stays transparent. The bounds are in the coordinates
-            // the component's own decoration started painting in, ahead of every layer on it, and the clip is in
-            // those after every layer up to and including this one, so the bounds are mapped through all of them to
-            // meet it; a flattened plane, which has no inverse, never paints either.
-            val fadeLayer = fadeLayer ?: ImageLayer().also { fadeLayer = it }
-            fadeLayer.alpha = alpha
-            val area = placement?.component?.recordingArea(graphics, start)
-            if (area != null && !area.isEmpty) {
-                val shifted = graphics.create() as Graphics2D
-                try {
-                    shifted.translate(area.x, area.y)
-                    fadeLayer.record(shifted, area.width, area.height) { recording ->
-                        recording.translate(-area.x, -area.y)
-                        content(recording, width, height)
-                    }
-                } finally {
-                    shifted.dispose()
-                }
-                fadeLayer.draw(graphics)
-            }
+            holdsFade = true
+            paintFaded(start, graphics, width, height, content)
         }
     }
 
@@ -361,11 +372,75 @@ internal sealed class PlacementLayer : Decorator {
     }
 
     companion object {
+        private fun PlacementLayer.paintFaded(
+            start: AffineTransform,
+            graphics: Graphics2D,
+            width: Int,
+            height: Int,
+            content: (Graphics2D, Int, Int) -> Unit,
+        ) {
+            // What the steps inside this layer paint may reach anywhere in the component's bounds, as a shadow or a
+            // scale does; where nothing paints, the recording stays transparent. The bounds are in the coordinates
+            // the component's own decoration started painting in, ahead of every layer on it, and the clip is in
+            // those after every layer up to and including this one, so the bounds are mapped through all of them to
+            // meet it; a flattened plane, which has no inverse, never paints either. The area is taken before the
+            // box clip, which is applied as the recording is drawn, so a clip that changes needs no new recording.
+            val cache = drawCache
+            cache.layer.alpha = properties.alpha
+            val area = placement?.component?.recordingArea(graphics, start)
+            if (area != null && !area.isEmpty) paintFadedOver(graphics, area, width, height, content)
+        }
+
+        private fun PlacementLayer.paintFadedOver(
+            graphics: Graphics2D,
+            area: Rectangle,
+            width: Int,
+            height: Int,
+            content: (Graphics2D, Int, Int) -> Unit,
+        ) {
+            val cache = drawCache
+            val clip = properties.clip
+            if (clip) {
+                graphics.getClipBounds(unclippedBounds)
+                graphics.clipRect(boxX, boxY, boxWidth, boxHeight)
+                graphics.getClipBounds(clippedBounds)
+            }
+            val visible = !clip || clippedBounds.intersects(area)
+            if (visible && !(cache.isReusable(area, width, height) && cache.drawCached(graphics))) {
+                cache.record(graphics, area, width, height) { layer ->
+                    val shifted = graphics.create() as Graphics2D
+                    try {
+                        if (clip) shifted.clip = unclippedBounds
+                        shifted.translate(area.x, area.y)
+                        layer.record(shifted, area.width, area.height) { recording ->
+                            recording.translate(-area.x, -area.y)
+                            content(recording, width, height)
+                        }
+                    } finally {
+                        shifted.dispose()
+                    }
+                }
+                cache.layer.draw(graphics)
+            }
+        }
+
+        /**
+         * Has [placement]'s container queue the frame where [ChildMeasurables.queueLayerRedraw] takes it; otherwise
+         * redraws the component. Either way the caches before this layer record again.
+         */
+        private fun PlacementLayer.redrawLayer(placement: ChildMeasurable) {
+            if (placement.owner.queueLayerRedraw(placement)) return drawCache.invalidateBefore()
+            drawCache.redraw()
+        }
+
         /**
          * Reads made while the layer block runs; a change runs the block again and repaints the component where the
          * layer paints differently.
          */
-        val LayerReads: (LayoutModifierNode) -> Unit = { it.layer.update() }
+        val LayerReads: (LayoutModifierNode) -> Unit = { node ->
+            val placement = node.layer.placement
+            if (node.layer.update() && placement != null) node.layer.redrawLayer(placement)
+        }
 
         /**
          * Reads made while the blocks of the layers a [MeasurePolicy] places its container's children with run. A
@@ -376,8 +451,12 @@ internal sealed class PlacementLayer : Decorator {
          */
         private val ContainerLayerReads: (SwingComponentNode<ConstrainedPanel>) -> Unit = { node ->
             node.component.policyLayout.measurables.layoutPass.fastForEach { child ->
-                val steps = child.decoratable?.decoration?.steps
-                if (!child.isLeftUnplaced) steps?.containerLayer?.update()
+                val layer =
+                    child.decoratable
+                        ?.decoration
+                        ?.steps
+                        ?.containerLayer
+                if (!child.isLeftUnplaced && layer != null && layer.update()) layer.redrawLayer(child)
             }
         }
 
@@ -387,20 +466,30 @@ internal sealed class PlacementLayer : Decorator {
             val clip = properties.clip
             val transform = transform
             update()
-            return alpha.compareTo(properties.alpha) != 0 || clip != properties.clip || transform != this.transform
+            return alpha.compareTo(properties.alpha) != 0 || !hasSameClipAndTransformAs(clip, transform)
         }
 
+        private fun PlacementLayer.hasSameClipAndTransformAs(
+            clip: Boolean,
+            transform: AffineTransform?,
+        ): Boolean = clip == properties.clip && transform == this.transform
+
         /**
-         * Runs the layer's block again for a changed read, and repaints the component where the layer paints
-         * differently.
+         * Runs the layer's block again for a changed read and fits paint outsets where its clip or transform changed.
+         * A changed transform repaints the component. Returns whether only the alpha or the clip changed, which its
+         * caller redraws.
          */
-        private fun PlacementLayer.update() {
-            val wasTransformed = transform != null
-            if (!changesPaint { updateProperties() }) return
-            placement?.let {
-                it.owner.fitPaintOutsets(it, transformChanged = wasTransformed != (transform != null))
-                it.component.repaint()
-            }
+        private fun PlacementLayer.update(): Boolean {
+            val clip = properties.clip
+            val transform = transform
+            val changed = changesPaint { updateProperties() }
+            val placement = placement
+            if (!changed || placement == null || hasSameClipAndTransformAs(clip, transform)) return changed
+            val startedOrStoppedTransforming = (transform != null) != (this.transform != null)
+            placement.owner.fitPaintOutsets(placement, transformChanged = startedOrStoppedTransforming)
+            val retransformed = transform != this.transform
+            if (retransformed) placement.component.repaint()
+            return !retransformed
         }
     }
 }

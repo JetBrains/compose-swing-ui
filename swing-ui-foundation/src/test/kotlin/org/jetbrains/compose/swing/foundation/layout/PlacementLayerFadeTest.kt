@@ -4,8 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.Canvas
-import org.jetbrains.compose.swing.foundation.graphics.Brush
-import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.blur
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -21,38 +19,40 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** A fading placement layer fades everything the steps inside it paint, past its content's box too. */
 class PlacementLayerFadeTest {
     @Test
-    fun aLayoutModifierNodeReleasesTheFadeBufferWhenItsComponentLeaves() =
+    fun aFadedChildThatLeavesAndComesBackWithOtherContentShowsItAtOnce() =
         runComposeSwingTest {
-            val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ alpha = 0.5f })
-            val element = CapturingPlacementReadLayerElement(layer)
+            val fixture = FadeFixture()
             var present by mutableStateOf(true)
             setContent {
                 Row {
                     if (present) {
-                        Box(
+                        Canvas(
                             modifier =
                                 SwingModifier
-                                    .testTag("layered")
+                                    .testTag("faded")
                                     .preferredSize(40, 40)
-                                    .then(element)
-                                    .background(Brush.of(Color.RED)),
-                        )
+                                    .placementLayer { alpha = 0.5f },
+                        ) { fixture.paintVersion(graphics, width, height) }
                     }
                 }
             }
-            onNodeWithTag("layered").captureToImage()
-            assertTrue(element.node.layerOrNull?.hasFadeContent == true, "the fade recorded a buffer")
+            onNodeWithTag("faded").captureToImage()
 
             present = false
             awaitIdle()
+            fixture.bumpPlain()
+            present = true
+            awaitIdle()
+            val painted = fixture.paints
+            val shown = onNodeWithTag("faded").captureToImage()
 
-            assertFalse(element.node.layerOrNull?.hasFadeContent == true, "the released buffer is not held")
+            assertTrue(fixture.paints > painted, "the returned child paints its content")
+            assertTrue(shown.shows(fixture.color), "the returned child shows its new content")
         }
 
     @Test

@@ -90,9 +90,8 @@ internal class FakeScreen(
 }
 
 /**
- * A surface a test can have the graphics device discard: it holds its drawing in [pixels], and reports its contents
- * lost once [lost] is set. Java2D draws only surfaces it made itself, so only [DelegatingGraphics2D.drawImage] with
- * a width and height draws this one.
+ * A surface a test can have the graphics device discard. Java2D draws only surfaces it made itself, so only
+ * [DelegatingGraphics2D.drawImage] with a width and height draws this one.
  */
 internal class LosableSurface(
     width: Int,
@@ -100,6 +99,9 @@ internal class LosableSurface(
 ) : VolatileImage() {
     val pixels = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     var lost = false
+
+    /** Lost once [DelegatingGraphics2D] has copied the pixels, which clears this. */
+    var losesWhenDrawn = false
 
     override fun createGraphics(): Graphics2D = pixels.createGraphics()
 
@@ -118,7 +120,11 @@ internal class LosableSurface(
         observer: ImageObserver?,
     ): Any = UndefinedProperty
 
-    override fun validate(gc: GraphicsConfiguration?) = IMAGE_OK
+    override fun validate(gc: GraphicsConfiguration?): Int {
+        if (!lost) return IMAGE_OK
+        lost = false
+        return IMAGE_RESTORED
+    }
 
     override fun contentsLost() = lost
 
@@ -440,7 +446,14 @@ internal class DelegatingGraphics2D(
         width: Int,
         height: Int,
         observer: ImageObserver?,
-    ) = g.drawImage((img as? LosableSurface)?.pixels ?: img, x, y, width, height, observer)
+    ): Boolean {
+        val drawn = g.drawImage((img as? LosableSurface)?.pixels ?: img, x, y, width, height, observer)
+        if (img is LosableSurface && img.losesWhenDrawn) {
+            img.losesWhenDrawn = false
+            img.lost = true
+        }
+        return drawn
+    }
 
     override fun drawImage(
         img: Image,

@@ -8,6 +8,10 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.Graphics
@@ -28,39 +32,28 @@ import kotlin.test.assertFailsWith
  * would show.
  */
 class DecorationTest {
-    @Test
-    fun componentMembersRejectADecoratableThatIsNotAComponent() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("componentMemberRejectionCases")
+    fun componentMembersRejectADecoratableThatIsNotAComponent(
+        name: String,
+        operation: (Decoratable, Graphics) -> Unit,
+    ) {
         val decoratable =
             object : Decoratable {
                 override var decoration: Decoration = Decoration.None
             }
         val graphics = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics()
         try {
-            val operations: List<() -> Unit> =
-                listOf(
-                    { Decoration.None.isOpaque(decoratable) },
-                    { Decoration.None.localLayoutBounds(decoratable) },
-                    { Decoration.None.paint(decoratable, graphics) { error("Invalid target painted") } },
-                    { Decoration.None.contains(decoratable, 0, 0) },
-                    {
-                        Decoration.None.repaint(decoratable, 0, 0, 0, 1, 1) { _, _, _, _, _ ->
-                            error("Invalid target repainted")
-                        }
-                    },
-                    {
-                        Decoration.None.paintImmediately(decoratable, 0, 0, 1, 1) { _, _, _, _ ->
-                            error("Invalid target painted")
-                        }
-                    },
-                )
-            operations.forEach { operation ->
-                val failure = assertFailsWith<IllegalArgumentException> { operation() }
-                assertEquals(
-                    "A ${Decoratable::class.java.name} paints as a component, and " +
-                        "${decoratable.javaClass.name} is not one",
-                    failure.message,
-                )
-            }
+            val failure =
+                assertFailsWith<IllegalArgumentException>("$name must require a Component") {
+                    operation(decoratable, graphics)
+                }
+            assertEquals(
+                "A ${Decoratable::class.java.name} paints as a component, and " +
+                    "${decoratable.javaClass.name} is not one",
+                failure.message,
+                "$name must identify the invalid target",
+            )
         } finally {
             graphics.dispose()
         }
@@ -85,6 +78,16 @@ class DecorationTest {
 
             assertEquals(listOf(Rectangle(1, 2, 3, 4), Rectangle(1, 2, 3, 4)), handed)
         }
+
+    @Test
+    fun getGraphicsFailsOffTheEventDispatchThread() {
+        val failure = assertFailsWith<IllegalStateException> { DecoratedPanel().graphics }
+        assertEquals(
+            "Compose-Swing must be used on the Event Dispatch Thread, but was called on " +
+                "'${Thread.currentThread().name}'. Wrap the call in SwingUtilities.invokeLater { }.",
+            failure.message,
+        )
+    }
 
     @Test
     fun noStepsPaintTheContentUnchanged() =
@@ -359,5 +362,32 @@ class DecorationTest {
 
     private companion object {
         const val SIZE = 64
+
+        @JvmStatic
+        fun componentMemberRejectionCases(): List<Arguments> {
+            val operations: List<Pair<String, (Decoratable, Graphics) -> Unit>> =
+                listOf(
+                    "getGraphics" to { target, graphics -> Decoration.None.getGraphics(target, graphics) },
+                    "isOpaque" to { target, _ -> Decoration.None.isOpaque(target) },
+                    "localLayoutBounds" to { target, _ -> Decoration.None.localLayoutBounds(target) },
+                    "paint" to { target, graphics ->
+                        Decoration.None.paint(target, graphics) { error("Invalid target painted") }
+                    },
+                    "contains" to { target, _ -> Decoration.None.contains(target, 0, 0) },
+                    "repaint" to { target, _ ->
+                        Decoration.None.repaint(target, 0, 0, 0, 1, 1) { _, _, _, _, _ ->
+                            error("Invalid target repainted")
+                        }
+                    },
+                    "paintImmediately" to { target, _ ->
+                        Decoration.None.paintImmediately(target, 0, 0, 1, 1) { _, _, _, _ ->
+                            error("Invalid target painted")
+                        }
+                    },
+                )
+            return operations.map { (name, operation) ->
+                Arguments.of(Named.of("$name rejects a Decoratable that is not a Component", name), operation)
+            }
+        }
     }
 }

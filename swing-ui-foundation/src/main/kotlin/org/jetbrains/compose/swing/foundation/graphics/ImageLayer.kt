@@ -35,6 +35,13 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.sqrt
 
+internal fun checkEventDispatchThread() {
+    check(SwingUtilities.isEventDispatchThread()) {
+        "Compose-Swing must be used on the Event Dispatch Thread, but was called on " +
+            "'${Thread.currentThread().name}'. Wrap the call in SwingUtilities.invokeLater { }."
+    }
+}
+
 /**
  * Creates an [ImageLayer] that is remembered across compositions and released when the composition
  * leaves.
@@ -81,6 +88,18 @@ public class ImageLayer
     @RememberInComposition
     public constructor() {
         private var recording: Recording? = null
+            set(value) {
+                field = value
+                recordingCount++
+            }
+
+        /** Advances each time the recording is replaced, dropped or released, so a holder can tell its own. */
+        internal var recordingCount: Int = 0
+            private set
+
+        /** Whether the recording is aligned to a destination's device pixels. */
+        internal var isAligned: Boolean = false
+            private set
 
         /** Made by the first recording or filter that takes a buffer. */
         private var spares: Spares? = null
@@ -97,8 +116,7 @@ public class ImageLayer
          */
         private var recordsInSystemMemory = false
 
-        /** Whether the recording is aligned to a destination, and the device pixel its origin is drawn at. */
-        private var aligned = false
+        /** The device pixel an aligned recording's origin is drawn at. */
         private var alignedLeft = 0
         private var alignedTop = 0
 
@@ -235,7 +253,7 @@ public class ImageLayer
             }
             recording?.recycle(surfaces, spares)
             recording = next
-            aligned = false
+            isAligned = false
         }
 
         /**
@@ -276,7 +294,7 @@ public class ImageLayer
                     recording = null
                     it.recycle(surfaces, spares)
                 }
-                aligned = false
+                isAligned = false
                 return
             }
             record(device.width, device.height) { graphics ->
@@ -290,7 +308,7 @@ public class ImageLayer
                 graphics.clip(area)
                 block(graphics)
             }
-            aligned = true
+            isAligned = true
             alignedLeft = device.x
             alignedTop = device.y
             // The scale of a destination that scales evenly, turned or not; the mean scale of one that does not.
@@ -331,7 +349,7 @@ public class ImageLayer
             val lost = recording.dropIfLost()
             if (lost) {
                 this.recording = null
-                aligned = false
+                isAligned = false
             }
             return lost
         }
@@ -360,10 +378,7 @@ public class ImageLayer
             component: JComponent,
             scale: Double = 1.0,
         ) {
-            check(SwingUtilities.isEventDispatchThread()) {
-                "Compose-Swing must be used on the Event Dispatch Thread, but was called on " +
-                    "'${Thread.currentThread().name}'. Wrap the call in SwingUtilities.invokeLater { }."
-            }
+            checkEventDispatchThread()
             require(component.width > 0 && component.height > 0) {
                 "Cannot record a component sized ${component.width}x${component.height}. Recording lays " +
                     "nothing out, so size the component first."
@@ -447,13 +462,13 @@ public class ImageLayer
             // Before anything is drawn: a lost recording usually comes with a new configuration, which the next
             // recording needs. An aligned recording already set its configuration when it was made, for the same
             // destination it is drawn back onto, so it does not flip a spare surface between configurations here.
-            if (!aligned) surfaces.recordFor(destination)
+            if (!isAligned) surfaces.recordFor(destination)
             val recording = recording ?: return
             if (dropIfLost(recording)) return
 
             val graphics = destination.create() as Graphics2D
             try {
-                if (aligned) {
+                if (isAligned) {
                     // The graphics clip is held in device space, so replacing the transform keeps it.
                     graphics.transform = IDENTITY
                     graphics.translate(alignedLeft, alignedTop)
@@ -524,7 +539,7 @@ public class ImageLayer
             val width = recording.deviceWidth
             val height = recording.deviceHeight
             recordsInSystemMemory = true
-            val scale = if (aligned) alignedScale else width / recording.width.toDouble()
+            val scale = if (isAligned) alignedScale else width / recording.width.toDouble()
             val outsets = effect.outsets(scale)
             require(outsets.left >= 0 && outsets.top >= 0 && outsets.right >= 0 && outsets.bottom >= 0) {
                 "A render effect's outsets must not be negative, but $effect answered $outsets at scale $scale."
@@ -590,7 +605,7 @@ public class ImageLayer
                 it.release(spares)
             }
             recordsInSystemMemory = false
-            aligned = false
+            isAligned = false
             surfaces.flush()
             spares?.flush()
             applied?.result?.flush()

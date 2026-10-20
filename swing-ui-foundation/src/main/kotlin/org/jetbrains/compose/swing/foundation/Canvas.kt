@@ -196,6 +196,8 @@ private class CanvasComponent :
     override fun getInsets(insets: Insets?): Insets =
         decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
 
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
     override fun paint(g: Graphics) = decoration.paint(this, g, paintContent)
 
     override fun repaint(

@@ -617,6 +617,30 @@ fixed, and request their own repaint. Outside element updates, a node that chang
 `invalidateDraw()`, or `invalidateDecoration()` where its `outsets` or `isOpaque` changed. A `LayoutModifierNode`
 paints at its own box through its `decorator`.
 
+A step that reuses a drawing across paints calls `obtainImageLayer()` before it attaches, such as in a property
+initializer. In `paint`, it returns when `layer.drawCached(graphics, area)` returns `true`. Otherwise it calls
+`layer.recordCached(graphics, area) { }` to paint the content into the layer, and `layer.draw(graphics)`. A layer drawn
+with `layer.draw(graphics, x, y)` takes the same position in `layer.drawCached(graphics, area, x, y)`. `drawCached` and
+`recordCached` fail with `IllegalStateException` outside the step's `paint`, and with `IllegalArgumentException` for a
+layer another node obtained.
+
+The next paint records again after a repaint request of the component or graphics taken outside paint, and for an area
+outside the recorded one, another size, scale, shear or rotation, or a shift of a fraction of a device pixel. A
+component with children reuses the image only in the paint of an `invalidateLayerProperties()`.
+
+A step calls `invalidateDrawCache()`, on the event dispatch thread, when a property of its own changes what a recording
+holds. The layers of the step and of the steps declared before it then record again, or every layer of the component
+for a step with no layer. It requests no repaint, so a change that must show also calls `invalidateDraw()` or
+`repaint()`. Off the event dispatch thread, a repaint request of the component makes every layer record again.
+
+A step calls `invalidateLayerProperties()` when a property it draws its layers with changes and its content does not.
+That paint also shows the repaints of the component's children requested before the call. It draws the layers of the
+step and of the steps declared after it again from their recordings, and the layers of the steps declared before it
+record again. A repaint request or graphics taken by other code, also during that paint, makes the layers record again,
+and so can a further call before that paint or a call on a component that is not valid. Until that paint, a repaint
+request or `paintImmediately` of the component on the event dispatch thread paints its whole bounds and takes that
+paint's place, so no paint shows the component at two values of the property.
+
 `ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
 it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are
 androidx's `GraphicsLayer` properties of the same names and defaults, and apply at the next `draw`; `BlurEffect` is

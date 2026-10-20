@@ -220,6 +220,8 @@ public open class ConstrainedPanel internal constructor(
         decoration.paint(this, checkNotNull(paintGraphics), paintContent)
     }
 
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
     override fun paint(g: Graphics) {
         paintGraphics = g
         try {
