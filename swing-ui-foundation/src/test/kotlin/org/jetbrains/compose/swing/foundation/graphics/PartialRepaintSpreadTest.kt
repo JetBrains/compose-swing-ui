@@ -89,12 +89,14 @@ class PartialRepaintSpreadTest {
     /** A shadowed leaf under no decorated container repaints the shadow its change casts. */
     @Test
     fun aPartialRepaintOfAShadowedLeafUnderNoDecoratedContainerRepaintsTheShadowItsChangeCasts() =
-        assertLeafRepaintCoversItsOutsets { it.shadow(8, Color.BLACK, offsetX = 4, offsetY = 4) }
+        assertLeafRepaintCoversItsOutsets(Rectangle(-16, -16, 104, 104)) {
+            it.shadow(8, Color.BLACK, offsetX = 4, offsetY = 4)
+        }
 
     /** A blurred leaf under no decorated container repaints what the blur spreads its change into. */
     @Test
     fun aPartialRepaintOfABlurredLeafUnderNoDecoratedContainerRepaintsWhatTheBlurSpreadsItInto() =
-        assertLeafRepaintCoversItsOutsets { it.blur(6) }
+        assertLeafRepaintCoversItsOutsets(Rectangle(-8, -8, 76, 76)) { it.blur(6) }
 
     /**
      * A shadowed leaf's repaint that Swing merges into the repaint of the window's content pane, which is no
@@ -102,14 +104,14 @@ class PartialRepaintSpreadTest {
      */
     @Test
     fun aPartialRepaintOfAShadowedLeafMergedIntoTheContentPanesRepaintRepaintsTheShadowItsChangeCasts() =
-        assertLeafRepaintCoversItsOutsets(mergedIntoContentPane = true) {
+        assertLeafRepaintCoversItsOutsets(Rectangle(4, 4, 84, 84), mergedIntoContentPane = true) {
             it.shadow(8, Color.BLACK, offsetX = 4, offsetY = 4)
         }
 
     /** The same holds for a shadowed box, which draws the mark itself, with no child. */
     @Test
     fun aPartialRepaintOfAShadowedBoxMergedIntoTheContentPanesRepaintRepaintsTheShadowItsChangeCasts() =
-        assertLeafRepaintCoversItsOutsets(mergedIntoContentPane = true, asBox = true) {
+        assertLeafRepaintCoversItsOutsets(Rectangle(4, 4, 84, 84), mergedIntoContentPane = true, asBox = true) {
             it.shadow(8, Color.BLACK, offsetX = 4, offsetY = 4)
         }
 
@@ -132,13 +134,8 @@ class PartialRepaintSpreadTest {
             assertEquals(listOf(whole), leaf.clips, "the leaf repaints whole")
         }
 
-    /**
-     * Composes a 60 by 60 leaf decorated by [decorate], a canvas or, where [asBox], a box, in plain boxes, which give
-     * it the paint outsets of its steps, and checks that a repaint of its mark, alone or
-     * [merged into the content pane's][mergedIntoContentPane], paints the mark's area grown by those outsets. Painted
-     * alone, the leaf's `paintImmediately` grows the recorded area again, inside the leaf.
-     */
     private fun assertLeafRepaintCoversItsOutsets(
+        expected: Rectangle,
         mergedIntoContentPane: Boolean = false,
         asBox: Boolean = false,
         decorate: (SwingModifier) -> SwingModifier,
@@ -146,30 +143,12 @@ class PartialRepaintSpreadTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val leaf = MarkedLeaf(mark = Rectangle(24, 24, 12, 12))
         setWindowContent { LeafInPlainBoxes(leaf, asBox, decorate) }
-        val component = windowNode("leaf")
-        val outsets = component.paintOutsets
         val contentPane = windowNode("root").parent as JComponent
         assertFalse(contentPane is Decoratable, "the content pane is no Foundation container")
 
         repaintTheMark(leaf, mergedInto = contentPane.takeIf { mergedIntoContentPane })
 
-        val spread =
-            Rectangle(
-                leaf.mark.x - outsets.left,
-                leaf.mark.y - outsets.top,
-                leaf.mark.width + outsets.left + outsets.right,
-                leaf.mark.height + outsets.top + outsets.bottom,
-            )
-        spread.translate(outsets.left, outsets.top)
-        if (mergedIntoContentPane) {
-            val corner = Rectangle(contentPane.width - 2, contentPane.height - 2, 1, 1)
-            spread.add(SwingUtilities.convertRectangle(contentPane, corner, component))
-        } else {
-            spread.setBounds(spread.grownBy(outsets))
-        }
-        Rectangle2D.intersect(spread, Rectangle(component.size), spread)
-        spread.translate(-outsets.left, -outsets.top)
-        assertEquals(listOf(spread), leaf.clips, "the repaint covers what the steps spread the mark into")
+        assertEquals(listOf(expected), leaf.clips, "the repaint covers what the steps spread the mark into")
     }
 
     /**
@@ -245,16 +224,11 @@ class PartialRepaintSpreadTest {
             assertEquals(listOf(painted), leaf.clips, "the shadow of the mark reaches all of the leaf, and no further")
         }
 
-    /**
-     * Two decorated boxes stand over three leaves whose shadows overlap. The inner box grows a repaint of part of the
-     * first leaf to that leaf, and the outer box, asked for the first leaf, adds the second, which the first leaf's
-     * shadow overlaps. The third, which it does not, is not added.
-     */
     @Test
-    fun aPartialRepaintOfOneOfThreeLeavesWhoseShadowsOverlapUnderTwoDecoratedBoxesRepaintsTheNextLeafToo() =
+    fun aPartialRepaintOfOneOfThreeLeavesWhoseShadowsOverlapUnderTwoDecoratedBoxesRepaintsWhatTheShadowsSpreadItInto() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val leaf = MarkedLeaf(mark = Rectangle(14, 2, 12, 4), painter = "outer")
+            val leaf = MarkedLeaf(mark = Rectangle(14, 110, 12, 4), painter = "outer")
             setWindowContent {
                 Box(modifier = SwingModifier.testTag("root")) {
                     val outer = SwingModifier.testTag("outer").padding(40).drawBehind(leaf.onPaint)
@@ -270,17 +244,119 @@ class PartialRepaintSpreadTest {
                     }
                 }
             }
-            val first = windowNode("leaf").bounds
-            val second = windowNode("second").bounds
-            assertTrue(first.intersects(second), "the shadows overlap")
-            assertFalse(first.intersects(windowNode("third").bounds), "the first leaf's shadow ends before the third")
+            val first = windowNode("leaf")
+            val second = windowNode("second")
+            val third = windowNode("third")
+            assertTrue(first.bounds.intersects(second.bounds), "the shadows overlap")
 
             repaintTheMark(leaf)
 
             val column = windowNode("column")
-            val firstTwo = SwingUtilities.convertRectangle(column, first.union(second), windowNode("outer"))
-            assertEquals(listOf(firstTwo), leaf.clips, "the first two leaves repaint whole")
+            val outer = windowNode("outer")
+            val painted = SwingUtilities.convertRectangle(outer, leaf.clips.single(), column)
+            assertTrue(painted.contains(Rectangle(20, 116, 60, 52)), "$painted covers the shadow the mark casts")
+            val firstTwo = first.bounds.union(second.bounds)
+            assertTrue(firstTwo.contains(painted), "$painted stays inside the first two leaves")
+            assertTrue(painted.intersects(second.bounds), "$painted reaches into the second leaf")
+            assertFalse(painted.contains(second.bounds), "$painted does not cover the second leaf whole")
+            assertFalse(painted.intersects(third.bounds), "$painted does not reach the third leaf")
         }
+
+    // The decorated box cannot tell the leaf's repaint from a change inside the shadowed box under it.
+    @Test
+    fun aPartialRepaintOfALeafOverAShadowedBoxInADecoratedBoxRepaintsWhatTheShadowSpreadsTheMarkInto() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val leaf = MarkedLeaf(mark = Rectangle(4, 4, 8, 8), painter = "outer")
+            setWindowContent {
+                Box(modifier = SwingModifier.testTag("root")) {
+                    val outer = SwingModifier.testTag("outer").padding(40).drawBehind(leaf.onPaint)
+                    Box(modifier = outer.background(Brush.of(Color.WHITE))) {
+                        val card = SwingModifier.testTag("card").size(200, 200).shadow(12, Color.BLACK)
+                        Box(modifier = card.background(Brush.of(Color.LIGHT_GRAY)))
+                        val placed = SwingModifier.testTag("leaf").size(16, 16).offset(x = 90, y = 90)
+                        Canvas(modifier = placed, onDraw = leaf.draw)
+                    }
+                }
+            }
+            val card = windowNode("card")
+            assertEquals(Insets(32, 32, 32, 32), card.paintOutsets, "the shadow reaches 32 past the box on each side")
+
+            repaintTheMark(leaf)
+
+            assertEquals(
+                listOf(Rectangle(62, 62, 72, 72)),
+                leaf.clips,
+                "the decorated box paints what the shadow spreads the mark into",
+            )
+        }
+
+    @Test
+    fun aPartialRepaintOfALeafInAShadowedBoxMergedIntoTheDecoratedBoxsRepaintRepaintsWhatTheShadowSpreadsItInto() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val leaf = MarkedLeaf(painter = "outer")
+            setWindowContent {
+                Box(modifier = SwingModifier.testTag("root")) {
+                    val outer = SwingModifier.testTag("outer").padding(40).drawBehind(leaf.onPaint)
+                    Box(modifier = outer.background(Brush.of(Color.WHITE))) {
+                        Box(modifier = SwingModifier.testTag("card").shadow(8, Color.BLACK, offsetX = 4, offsetY = 4)) {
+                            Canvas(modifier = SwingModifier.testTag("leaf").size(60, 60), onDraw = leaf.draw)
+                        }
+                    }
+                }
+            }
+            val outer = windowNode("outer")
+
+            repaintTheMark(leaf, mergedInto = outer)
+
+            assertEquals(
+                listOf(Rectangle(-6, -6, 94, 94)),
+                leaf.clips,
+                "the decorated box paints what the shadow spreads the area into",
+            )
+        }
+
+    @Test
+    fun aMergedRepaintOfALeafInNestedShadowedBoxesRepaintsWhatBothShadowsSpreadItInto() =
+        assertMergedRepaintOfALeafInABoxInAShadowedBoxSpreads(turned = false, expected = Rectangle(-22, -22, 126, 126))
+
+    // A turned box moves what the leaf paints, so the merged area grows by all of the turned box.
+    @Test
+    fun aMergedRepaintOfALeafInATurnedBoxInAShadowedBoxRepaintsTheTurnedBoxAndWhatTheShadowSpreadsItInto() =
+        assertMergedRepaintOfALeafInABoxInAShadowedBoxSpreads(turned = true, expected = Rectangle(-31, -31, 130, 130))
+
+    private fun assertMergedRepaintOfALeafInABoxInAShadowedBoxSpreads(
+        turned: Boolean,
+        expected: Rectangle,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val leaf = MarkedLeaf(painter = "outer")
+        setWindowContent {
+            Box(modifier = SwingModifier.testTag("root")) {
+                val outer = SwingModifier.testTag("outer").padding(60).drawBehind(leaf.onPaint)
+                Box(modifier = outer.background(Brush.of(Color.WHITE))) {
+                    Box(modifier = SwingModifier.testTag("card").shadow(8, Color.BLACK, offsetX = 4, offsetY = 4)) {
+                        val inner = SwingModifier.testTag("inner")
+                        val decorated =
+                            if (turned) inner.placementLayer { rotationZ = 30f } else inner.shadow(6, Color.BLUE)
+                        Box(modifier = decorated) {
+                            Canvas(modifier = SwingModifier.testTag("leaf").size(60, 60), onDraw = leaf.draw)
+                        }
+                    }
+                }
+            }
+        }
+        val outer = windowNode("outer")
+
+        repaintTheMark(leaf, mergedInto = outer)
+
+        assertEquals(
+            listOf(expected),
+            leaf.clips,
+            "the decorated box paints what the inner box and the shadow spread",
+        )
+    }
 
     /**
      * A shadowed leaf placed past a box whose only decoration is a background, in a decorated box: the background
@@ -499,14 +575,6 @@ class PartialRepaintSpreadTest {
             val grownOnce = Rectangle(16, 16, 58, 58).apply { translate(-outsets.left, -outsets.top) }
             assertEquals(listOf(grownOnce), leaf.clips, "the leaf paints the mark grown once by its outsets")
         }
-
-    private fun Rectangle.grownBy(insets: Insets): Rectangle =
-        Rectangle(
-            x - insets.left,
-            y - insets.top,
-            width + insets.left + insets.right,
-            height + insets.top + insets.bottom,
-        )
 
     private fun DrawScope.fill(color: Color) {
         graphics.color = color

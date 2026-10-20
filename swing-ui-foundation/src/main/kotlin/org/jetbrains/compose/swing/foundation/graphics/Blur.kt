@@ -53,6 +53,8 @@ private data class BlurElement(
 private class BlurNode(
     radius: Int,
 ) : DecorationModifierNode<Component>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     /** What the content is recorded in, created by the first paint and released while the blur paints nothing. */
     private var layer: ImageLayer? = null
 

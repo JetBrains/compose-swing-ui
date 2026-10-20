@@ -5,12 +5,15 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.drawingOn
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import java.awt.Graphics2D
 
 /**
- * Draws [onDraw] into the component's area before the content declared after this modifier. A shortcut for a
- * [DrawModifierNode] whose [ContentDrawScope.drawContent] runs after the block.
+ * Draws [onDraw] into the component's area before the content declared after this modifier. The block draws on
+ * its own copy of the graphics, so nothing it sets on them affects the content.
+ * Use [drawWithContent] to transform or clip the content.
  *
  * Snapshot state read in [onDraw] repaints the component when it changes. The component must paint through
  * [Decoratable], as every drawing modifier does.
@@ -60,8 +63,15 @@ private class DrawBehindElement(
 private class DrawBehindNode(
     var onDraw: DrawScope.() -> Unit,
 ) : DrawModifierNode<Component>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     override fun ContentDrawScope.draw() {
-        onDraw()
+        val canvas = graphics.create() as Graphics2D
+        try {
+            drawingOn(canvas) { onDraw() }
+        } finally {
+            canvas.dispose()
+        }
         drawContent()
     }
 }

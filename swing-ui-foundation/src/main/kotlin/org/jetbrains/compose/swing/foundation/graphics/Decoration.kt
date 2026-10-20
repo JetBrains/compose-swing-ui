@@ -197,11 +197,15 @@ public class Decoration internal constructor(
 
     /**
      * Hands [paint] the area at ([x], [y]) of [width] by [height], in [component]'s coordinates, grown as [repaint]
-     * grows it; [paint] is `super.paintImmediately`. In a Foundation container, the area is grown first by the whole
-     * of each visible component it touches whose steps spread or move what it paints, as found among the children and
-     * inside the Foundation containers among them. Swing calls `paintImmediately` on a decorated component as the
-     * painting origin of its descendants' repaints and to paint a repaint it recorded itself, and application code
-     * may call it. What `paintImmediately(int, int, int, int)` of a `Decoratable` answers.
+     * grows it; [paint] is `super.paintImmediately`. In a Foundation container, the area is grown first by what each
+     * visible child it touches spreads its part of the area into, if the child has a transform, paint outsets or
+     * Foundation descendants whose repaints may need to grow. The area grows by the steps' reach, held inside the
+     * child's bounds, or to the whole child if its steps move content or can spread a change farther than their
+     * outsets. For these children, a step that does not
+     * [repaint within its outsets][Decorator.repaintsWithinOutsets] grows the area to the whole child.
+     * Swing calls `paintImmediately` on a decorated component as the painting origin of its descendants' repaints
+     * and to paint a repaint it recorded itself.
+     * Application code may call it too. What `paintImmediately(int, int, int, int)` of a `Decoratable` answers.
      */
     @Suppress("ForbiddenComment", "LongParameterList")
     public fun paintImmediately(
@@ -215,8 +219,8 @@ public class Decoration internal constructor(
         if (stepsMoveContent(component)) return paint(0, 0, component.width, component.height)
         val area = Rectangle(x, y, width, height)
         val children = childMeasurables
-        if (children != null && children.hasChildRepaintingWhole) {
-            children.addChildrenRepaintingWhole(Rectangle(area), area, 0, 0, Rectangle())
+        if (children != null && children.hasChildSpreadingRepaint) {
+            children.addChildrenSpread(Rectangle(area), area, 0, 0)
         }
         // TODO Grow an already-expanded repaint region only once,
         // while still expanding direct paintImmediately requests.
@@ -228,13 +232,13 @@ public class Decoration internal constructor(
         paint(left, top, right - left, bottom - top)
     }
 
-    /**
-     * Whether a repaint that touches the component may have to grow: it [holdsTransform], its steps paint past what
-     * they are given, or it is a Foundation container [holding a child][ChildMeasurables.hasChildRepaintingWhole]
-     * this is true for.
-     */
-    internal val holdsRepaintingWhole: Boolean
-        get() = holdsTransform || steps.outsets != NoPaintOutsets || childMeasurables?.hasChildRepaintingWhole == true
+    /** Whether a repaint that touches the component may have to grow. */
+    internal val holdsSpreadingRepaint: Boolean
+        get() =
+            holdsTransform ||
+                steps.outsets != NoPaintOutsets ||
+                !steps.repaintsWithinOutsets ||
+                childMeasurables?.hasChildSpreadingRepaint == true
 
     /**
      * The point whose content the placement layers paint at ([x], [y]), both in the component's own coordinates: the
@@ -300,17 +304,6 @@ private fun Decoration.stepsMoveContent(component: Component): Boolean =
                 steps.movesContent(layoutWidth(component), layoutHeight(component))
         )
 
-/**
- * Whether a Foundation container grows a repaint that touches [component] by the whole of it: its own
- * [steps move what it paints][stepsMoveContent], or they paint past what they are given, so they spread a change in
- * one part of it into another. A clip declared before a blur leaves the component no paint outsets, and the blur
- * still spreads a change inside the clip. Steps that neither move nor spread anything, such as a background, a border
- * or a clip, paint a part of the component from that part alone, whatever paint outsets it holds for its children, so
- * a Foundation container holding them is walked into, and each of its children answers for itself.
- */
-private fun Decoration.repaintsWhole(component: Component): Boolean =
-    steps.outsets != NoPaintOutsets || stepsMoveContent(component)
-
 /** Where an area starting at [start] starts, grown by [reach] and held at 0. */
 private fun grownStart(
     start: Int,
@@ -329,38 +322,52 @@ private fun grownEnd(
 ): Int = minOf(start.toLong() + length + reach, limit.toLong()).toInt()
 
 /**
- * Grows [area] by the bounds of each visible child that [asked] touches and that
- * [repaints whole][Decoration.repaintsWhole]. The children of a Foundation container that does not are walked in its
- * place, while it [holds one a repaint may have to grow for][ChildMeasurables.hasChildRepaintingWhole].
+ * Grows [area] by what each visible child that [asked] touches spreads its part of [asked] into.
+ *
+ * A child's reach is its steps' outsets, not its paint outsets: a clip declared before a blur leaves the child no
+ * paint outsets, but the blur still reaches as far inside the clip.
+ *
+ * The part is grown even where the repaint is a sibling's over the child: a repaint Swing merged into this
+ * container's, or one a stock component inside the child recorded, arrives in the same call, ungrown.
  *
  * Each child is tested against [asked], the area the repaint names, and not against [area] as it grows: every
  * decoration step paints from its own component's content alone, so a child the repaint does not touch paints the
  * same pixels as before wherever the grown area reaches it. A decorated container above this one is asked for the
- * area this one grew and adds the children that area touches in turn, so neighbors whose paint bounds overlap repaint
- * one further per decorated container, which changes no pixel.
+ * area this one grew and adds what that area spreads into in turn, which changes no pixel.
  *
  * Both rectangles are in the coordinates of the component being repainted, where this container stands at
- * ([x], [y]); [bounds] is scratch space.
+ * ([x], [y]).
  */
-private fun ChildMeasurables.addChildrenRepaintingWhole(
+private fun ChildMeasurables.addChildrenSpread(
     asked: Rectangle,
     area: Rectangle,
     x: Int,
     y: Int,
-    bounds: Rectangle,
 ) {
+    val bounds = Rectangle()
+    val spread = Rectangle()
     layoutPass.fastForEach {
         val child = it.component
         val decoration = it.decoratable?.decoration
-        if (!child.isVisible || decoration?.holdsRepaintingWhole != true) return@fastForEach
+        if (!child.isVisible || decoration?.holdsSpreadingRepaint != true) return@fastForEach
         child.getBounds(bounds)
         bounds.translate(x, y)
         if (!asked.intersects(bounds)) return@fastForEach
-        if (decoration.repaintsWhole(child)) {
-            area.add(bounds)
-        } else {
-            decoration.childMeasurables?.addChildrenRepaintingWhole(asked, area, bounds.x, bounds.y, bounds)
+        if (!decoration.steps.repaintsWithinOutsets || decoration.stepsMoveContent(child)) {
+            return@fastForEach area.add(bounds)
         }
+        Rectangle2D.intersect(asked, bounds, spread)
+        val children = decoration.childMeasurables
+        if (children != null && children.hasChildSpreadingRepaint) {
+            children.addChildrenSpread(asked, spread, bounds.x, bounds.y)
+        }
+        val reach = decoration.steps.outsets
+        val left = grownStart(spread.x - bounds.x, reach.left)
+        val top = grownStart(spread.y - bounds.y, reach.top)
+        val right = grownEnd(spread.x - bounds.x, spread.width, reach.right, bounds.width)
+        val bottom = grownEnd(spread.y - bounds.y, spread.height, reach.bottom, bounds.height)
+        spread.setBounds(bounds.x + left, bounds.y + top, right - left, bottom - top)
+        area.add(spread)
     }
 }
 

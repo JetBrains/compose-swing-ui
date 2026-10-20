@@ -226,7 +226,7 @@ class ClipToBoundsTest {
             try {
                 val row = host.components.single() as Container
 
-                val failure = assertFailsWith<IllegalStateException> { row.doLayout() }
+                val failure = assertFailsWith<IllegalArgumentException> { row.doLayout() }
 
                 assertTrue(
                     failure.message.orEmpty().contains("JPanel") && failure.message.orEmpty().contains("Decoratable"),

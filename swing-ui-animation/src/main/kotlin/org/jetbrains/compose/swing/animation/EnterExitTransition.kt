@@ -1224,6 +1224,8 @@ private class VeilModifierNode(
     var block: VeilBlockForEnterExit,
     var contentBox: EnterExitTransitionLayout?,
 ) : DrawModifierNode<JComponent>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     override fun ContentDrawScope.draw() {
         drawContent()
         val color = block.color() ?: return

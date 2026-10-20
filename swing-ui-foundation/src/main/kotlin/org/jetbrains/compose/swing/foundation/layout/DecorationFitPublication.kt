@@ -12,8 +12,8 @@ import java.awt.Component
  * where its last pass placed them, and the parent fits its bounds around the layout bounds it placed, and works out its
  * own paint outsets in turn; see [childPaintOutsetsChanged]. The invalidations this causes lay nothing out; see
  * [RunningCause.PaintOutsetFit]. Where none of these changed, the parent only works out
- * [whether it holds a child a repaint may have to grow for][updateHasChildRepaintingWhole], if
- * [that][Decoration.holdsRepaintingWhole] changed for the component. Where the outsets the steps take changed, the
+ * [whether it holds a child a repaint may have to grow for][updateHasChildSpreadingRepaint], if
+ * [that][Decoration.holdsSpreadingRepaint] changed for the component. Where the outsets the steps take changed, the
  * parent is measured again if the component's `paintOutsets` value takes its layout box to another size; see
  * [revalidateForExcess].
  *
@@ -56,8 +56,8 @@ internal fun <R : Any> Decoratable.writeFitted(
                     parent.childPaintOutsetsChanged(component, previous)
                 }
             }
-        } else if (value !== held && value.holdsRepaintingWhole != held.holdsRepaintingWhole) {
-            parent.updateHasChildRepaintingWhole(component.takeIf { value.holdsRepaintingWhole })
+        } else if (value !== held && value.holdsSpreadingRepaint != held.holdsSpreadingRepaint) {
+            parent.updateHasChildSpreadingRepaint(component.takeIf { value.holdsSpreadingRepaint })
         }
     }
 }

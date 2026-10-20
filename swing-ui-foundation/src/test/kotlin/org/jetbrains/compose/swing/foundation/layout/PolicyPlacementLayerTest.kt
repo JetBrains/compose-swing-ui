@@ -285,7 +285,7 @@ class PolicyPlacementLayerTest {
     @Test
     fun placingAChildThatIsNotDecoratableWithALayerFails() =
         runComposeSwingTest {
-            var failure: IllegalStateException? = null
+            var failure: IllegalArgumentException? = null
             setContent {
                 Layout(
                     content = { Label("plain") },
@@ -295,7 +295,7 @@ class PolicyPlacementLayerTest {
                             layout(placeable.width, placeable.height) {
                                 try {
                                     placeable.placeWithLayer(0, 0, layerBlock = QuarterTurn)
-                                } catch (thrown: IllegalStateException) {
+                                } catch (thrown: IllegalArgumentException) {
                                     failure = thrown
                                     placeable.place(0, 0)
                                 }

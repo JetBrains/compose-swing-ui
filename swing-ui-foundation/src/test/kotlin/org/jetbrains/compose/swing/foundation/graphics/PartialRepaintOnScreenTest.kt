@@ -25,8 +25,9 @@ import java.awt.Robot
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -41,8 +42,8 @@ import kotlin.time.Duration.Companion.seconds
 class PartialRepaintOnScreenTest {
     /**
      * A leaf draws a mark it did not draw before and repaints the mark's area. The shadow the mark casts reaches the
-     * bounds of all four [neighbors][LeafAmongNeighbors], so that repaints the leaf and each of them whole, and leaves
-     * on screen what a repaint of the whole window shows.
+     * bounds of all four [neighbors][LeafAmongNeighbors], so that repaints part of the leaf and of each of them, and
+     * leaves on screen what a repaint of the whole window shows.
      */
     @Test
     fun aChangeInALeafAmongNeighborsWithOverlappingPaintOutsetsShowsAsARepaintOfTheWholeWindowShowsIt() =
@@ -62,11 +63,12 @@ class PartialRepaintOnScreenTest {
             )
 
             val root = windowNode("root")
-            val reached =
-                listOf("leaf", "above", "left", "right", "below")
-                    .map { windowNode(it).run { SwingUtilities.convertRectangle(parent, bounds, root) } }
-                    .reduce(Rectangle::union)
-            assertEquals(listOf(reached), repainted, "the leaf repaints whole, with every neighbor")
+            val painted = repainted.single()
+            for (neighbor in listOf("above", "left", "right", "below")) {
+                val bounds = windowNode(neighbor).run { SwingUtilities.convertRectangle(parent, bounds, root) }
+                assertTrue(painted.intersects(bounds), "$painted reaches into the $neighbor neighbor")
+                assertFalse(painted.contains(bounds), "$painted does not cover the $neighbor neighbor whole")
+            }
         }
 
     /**

@@ -470,7 +470,8 @@ operations specific to Java2D.
 ### Drawing modifiers
 
 `SwingModifier.drawBehind { ... }` paints into a decorated component before the content declared after
-the modifier, without reserving space. `SwingModifier.drawWithContent { ... }` exposes `drawContent()`
+the modifier, without reserving space. A change the block makes to the graphics does not reach the content.
+`SwingModifier.drawWithContent { ... }` exposes `drawContent()`
 so the block can choose where that content is painted. Both observe state read by the drawing block and
 require `Decoratable`.
 
@@ -574,7 +575,7 @@ decoration declared before the node paints outside the layer, and one declared a
 node paints through its `decorator` or with a layer, not both. Placing the child without a layer on a later pass
 removes the layer.
 
-The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise.
+The child must be `Decoratable`: the first placement with a layer fails with `IllegalArgumentException` otherwise.
 Without `clip`, transformed content takes paint outsets, which grow the bounds of the containers around it up to the
 first Swing parent, which clips it. Mouse input follows a rotation or a scale under a Foundation container. A click
 there goes to the deepest component under the point, as in `JTable`, so a component without a mouse listener of its
@@ -602,6 +603,11 @@ An effect that reads the content's pixels calls the continuation inside `ImageLa
 Override `paintBounds` when painting or clipping changes the area the decorator can paint. Its default includes
 the decorated box, the content's bounds, and the declared `outsets`. Past the layout bounds, a press reaches a child
 only where `paintBounds` keeps the content.
+
+A decorator returns `true` from `repaintsWithinOutsets` when a change of the content changes its painting only within
+the changed area grown by its `outsets`. A Foundation container then repaints a child whose decorators all do so around
+the changed area only. With the default, `false`, it repaints the whole child. A decorator that moves, mirrors or
+scales its content keeps `false`.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
 `ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
@@ -641,8 +647,8 @@ A decorated component, one that implements `Decoratable`, has these rectangles:
 
 ![Bounds of a decorated component](images/foundation-bounds.svg)
 
-The component keeps only its paint outsets: its layout bounds are its bounds less the outsets, so any `setBounds`,
-`setSize` or `setLocation` moves them. When the outsets change, the Foundation container that placed the component
+A component's layout bounds are its bounds less its paint outsets, so any `setBounds`, `setSize` or `setLocation`
+moves them. When the outsets change, the Foundation container that placed the component
 sets its bounds around the unchanged layout bounds at once, and measures nothing again, unless a `shadow`, a `blur`
 or another decoration step changed its outsets and the component's `paintOutsets` value leaves another amount of
 them in layout, as it does under `PaintOutsets.None`: then the container measures the component again.

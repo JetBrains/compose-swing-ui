@@ -111,6 +111,8 @@ private class CanvasDrawNode(
     var renderingHints: Map<RenderingHints.Key, Any>?,
     var onDraw: DrawScope.() -> Unit,
 ) : DrawModifierNode<JComponent>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     override fun ContentDrawScope.draw() {
         // onDraw paints on a copy, so nothing it leaves set reaches the border drawContent paints next.
         val canvas = graphics.create() as Graphics2D

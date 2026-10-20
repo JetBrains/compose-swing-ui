@@ -87,4 +87,13 @@ public fun interface Decorator {
      * behind the component instead of letting the decorator blend over a reused back buffer.
      */
     public val isOpaque: Boolean get() = true
+
+    /**
+     * Whether a change of the content's pixels changes what this decorator paints only within the changed area grown
+     * by [outsets], with the content painted at its own coordinates; `false` by default.
+     *
+     * A Foundation container repaints a child whose decorators all return `true` around the changed area only, and
+     * the child's whole bounds otherwise. A decorator that moves, mirrors or scales its content returns `false`.
+     */
+    public val repaintsWithinOutsets: Boolean get() = false
 }

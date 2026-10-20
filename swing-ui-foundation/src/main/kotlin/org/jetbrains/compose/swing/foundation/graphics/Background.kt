@@ -58,6 +58,8 @@ private data class BackgroundDecorator(
     private val shape: Shape,
     private val alpha: Float,
 ) : Decorator {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     override fun paint(
         graphics: Graphics2D,
         width: Int,

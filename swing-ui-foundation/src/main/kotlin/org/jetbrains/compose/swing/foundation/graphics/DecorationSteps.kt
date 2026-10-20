@@ -52,6 +52,12 @@ internal class DecorationSteps private constructor(
     val isEmpty: Boolean get() = decorators.isEmpty()
 
     /**
+     * Whether every step returns `true` from [Decorator.repaintsWithinOutsets]. A `false` result makes a Foundation
+     * container's repaint over the child grow to the child's whole bounds.
+     */
+    val repaintsWithinOutsets: Boolean get() = decorators.fastAll { it.repaintsWithinOutsets }
+
+    /**
      * Whether a step paints past the content, or transforms or clips what is inside it, at layout bounds of [width]
      * by [height].
      */
@@ -327,6 +333,8 @@ private class BoxedStep(
     override val outsets: Insets get() = decorator.outsets
 
     override val isOpaque: Boolean get() = decorator.isOpaque
+
+    override val repaintsWithinOutsets: Boolean get() = decorator.repaintsWithinOutsets
 
     override fun paintBounds(
         content: Shape,

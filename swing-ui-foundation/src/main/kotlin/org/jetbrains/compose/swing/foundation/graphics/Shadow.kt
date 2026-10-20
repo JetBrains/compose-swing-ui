@@ -78,6 +78,8 @@ private class ShadowNode(
     var offsetX: Int,
     var offsetY: Int,
 ) : DecorationModifierNode<Component>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     var radius: Int = radius
         set(value) {
             if (field == value) return

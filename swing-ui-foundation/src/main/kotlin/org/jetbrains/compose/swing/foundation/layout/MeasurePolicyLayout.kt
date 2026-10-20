@@ -574,16 +574,16 @@ internal class ChildMeasurables(
 
     /**
      * Whether a repaint that touches a child the last layout pass placed
-     * [may have to grow][Decoration.holdsRepaintingWhole]: the child repaints whole, or is a Foundation container
-     * this is true for in turn. [Decoration.paintImmediately] walks the children only while it is.
+     * [may have to grow][Decoration.holdsSpreadingRepaint]: the child's steps spread or move what it paints, or it is a
+     * Foundation container this is true for in turn. [Decoration.paintImmediately] walks the children only while it is.
      */
-    var hasChildRepaintingWhole: Boolean = false
+    var hasChildSpreadingRepaint: Boolean = false
         private set
 
     /**
-     * Works [hasChildRepaintingWhole] out from what the children hold and, where it changed, has the Foundation parent
+     * Works [hasChildSpreadingRepaint] out from what the children hold and, where it changed, has the Foundation parent
      * work its own out, and so on up. [holding] is a child a repaint
-     * [may have to grow for][Decoration.holdsRepaintingWhole]: unless the last placement left it unplaced, it answers
+     * [may have to grow for][Decoration.holdsSpreadingRepaint]: unless the last placement left it unplaced, it decides
      * for all the children; null walks them.
      *
      * [gatherPaintBounds] calls it whenever this container's paint outsets are fitted: at the end of each of its
@@ -592,13 +592,13 @@ internal class ChildMeasurables(
      * validation lays a container out before its children, so no layout pass of the parent follows a change here.
      * Once a validation ends, every container holds what its children give it.
      */
-    fun updateHasChildRepaintingWhole(holding: Component? = null) {
+    fun updateHasChildSpreadingRepaint(holding: Component? = null) {
         val value =
             holding?.let(::find)?.isLeftUnplaced == false ||
-                layoutPass.fastAny { !it.isLeftUnplaced && it.decoratable?.decoration?.holdsRepaintingWhole == true }
-        if (value == hasChildRepaintingWhole) return
-        hasChildRepaintingWhole = value
-        panel.decoration.parentMeasurables?.updateHasChildRepaintingWhole(panel.takeIf { value })
+                layoutPass.fastAny { !it.isLeftUnplaced && it.decoratable?.decoration?.holdsSpreadingRepaint == true }
+        if (value == hasChildSpreadingRepaint) return
+        hasChildSpreadingRepaint = value
+        panel.decoration.parentMeasurables?.updateHasChildSpreadingRepaint(panel.takeIf { value })
     }
 
     /**
@@ -1060,11 +1060,12 @@ internal fun ChildMeasurable.preferredExtent(): Dimension =
  * @throws IllegalStateException if the component is not a [Decoratable].
  */
 internal val ChildMeasurable.requireDecoratable: Decoratable
+    get() = checkNotNull(decoratable) { notDecoratableMessage }
+
+private val ChildMeasurable.notDecoratableMessage: String
     get() =
-        checkNotNull(decoratable) {
-            "A decoration step requires a ${Decoratable::class.java.name} target, but the component is a " +
-                "${component.javaClass.name}"
-        }
+        "A decoration step requires a ${Decoratable::class.java.name} target, but the component is a " +
+            "${component.javaClass.name}"
 
 /** Runs [action] on each layout modifier node this child is measured through, outermost first. */
 private inline fun ChildMeasurable.forEachLayoutNode(action: (LayoutModifierNode) -> Unit) {
@@ -1470,7 +1471,8 @@ private class NodePlacementScope(
     }
 
     /**
-     * @throws IllegalStateException if the node holds a decorator, or the component placed is not a [Decoratable].
+     * @throws IllegalStateException if the node holds a decorator.
+     * @throws IllegalArgumentException if the component placed is not a [Decoratable].
      */
     override fun Placeable.placeWithLayer(
         x: Int,
@@ -1485,7 +1487,7 @@ private class NodePlacementScope(
             "A layout node holding a decorator cannot place its content with a layer, which paints in the " +
                 "decorator's place. Declare the decorator on a node of its own."
         }
-        child.requireDecoratable
+        requireNotNull(child.decoratable) { child.notDecoratableMessage }
         layer.placeWith(node, layerBlock) {
             placeAt(
                 originX + x,
@@ -1565,7 +1567,7 @@ internal class InnerPlacementScope : PlacementScope() {
         placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong(), zIndex, null)
     }
 
-    /** @throws IllegalStateException if the component placed is not a [Decoratable]. */
+    /** @throws IllegalArgumentException if the component placed is not a [Decoratable]. */
     override fun Placeable.placeWithLayer(
         x: Int,
         y: Int,
@@ -1575,7 +1577,7 @@ internal class InnerPlacementScope : PlacementScope() {
         placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong(), zIndex, layerBlock)
     }
 
-    /** @throws IllegalStateException if the component placed is not a [Decoratable]. */
+    /** @throws IllegalArgumentException if the component placed is not a [Decoratable]. */
     override fun Placeable.placeRelativeWithLayer(
         x: Int,
         y: Int,
@@ -1605,7 +1607,7 @@ internal class InnerPlacementScope : PlacementScope() {
             val steps = child.decoratable?.decoration?.steps
             steps?.containerLayer?.placedPlainly()
         } else {
-            val decoratable = child.requireDecoratable
+            val decoratable = requireNotNull(child.decoratable) { child.notDecoratableMessage }
             val layer = decoratable.decoration.steps.containerLayer ?: PlacementLayer.ContainerLayer(child)
             layer.placeWith(node, layerBlock) { placeAt(x, y, zIndex) }
         }

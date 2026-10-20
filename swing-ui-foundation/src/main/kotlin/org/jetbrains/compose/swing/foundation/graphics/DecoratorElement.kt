@@ -52,6 +52,8 @@ internal class DecoratorElement(
 
         override val isOpaque: Boolean get() = decorator?.isOpaque ?: true
 
+        override val repaintsWithinOutsets: Boolean get() = decorator?.repaintsWithinOutsets ?: true
+
         override fun needsPaintBounds(
             width: Int,
             height: Int,

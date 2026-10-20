@@ -672,7 +672,7 @@ class AnimateContentSizeTest {
         var placed by mutableStateOf(false)
         var measuredUnplaced = false
         val failure =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 runComposeSwingTest {
                     setContent {
                         val place = placed

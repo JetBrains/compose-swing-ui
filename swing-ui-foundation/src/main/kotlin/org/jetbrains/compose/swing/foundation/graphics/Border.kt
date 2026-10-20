@@ -159,6 +159,8 @@ private class BorderNode(
     brush: Brush,
     shape: Shape,
 ) : DecorationModifierNode<Component>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     var width: Int = width
     var brush: Brush = brush
     var shape: Shape = shape

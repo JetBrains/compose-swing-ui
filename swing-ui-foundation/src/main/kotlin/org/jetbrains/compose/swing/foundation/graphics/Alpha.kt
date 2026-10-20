@@ -38,6 +38,8 @@ private data class AlphaDecorator(
 ) : Decorator {
     override val isOpaque: Boolean get() = false
 
+    override val repaintsWithinOutsets: Boolean get() = true
+
     override fun needsPaintBounds(
         width: Int,
         height: Int,

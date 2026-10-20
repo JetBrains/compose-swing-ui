@@ -23,7 +23,7 @@ import java.awt.Rectangle
  * [bounds], or to a rectangle allocated on the first child added where [bounds] is null. This container's paint
  * outsets are [outsets]. A child whose placed layer clips adds only [what that clip lets paint][clippedPaintBounds],
  * and one with no area to paint adds nothing. The [panel] holds its [glass pane][ConstrainedPanel.glassPane] while a
- * layer rotates or scales one of these children. [hasChildRepaintingWhole] is worked out again.
+ * layer rotates or scales one of these children.
  *
  * @return [bounds] grown by the gathered children, a rectangle allocated for them where [bounds] is null, or null
  *   where nothing was gathered.
@@ -63,7 +63,7 @@ internal fun ChildMeasurables.gatherPaintBounds(
                 } ?: Rectangle(x, y, width, height)
         }
     }
-    updateHasChildRepaintingWhole()
+    updateHasChildSpreadingRepaint()
     panel.updateGlassPane(transformed)
     return gathered
 }

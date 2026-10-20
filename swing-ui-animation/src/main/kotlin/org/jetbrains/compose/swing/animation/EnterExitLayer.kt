@@ -47,6 +47,8 @@ internal class EnterExitLayerNode(
 ) : DecorationModifierNode<JComponent>() {
     override val isOpaque: Boolean get() = false
 
+    override val repaintsWithinOutsets: Boolean get() = true
+
     /** The block [readLayer] last read, so a paint observes the block itself along with what it combines. */
     private var observedBlock: GraphicsLayerBlockForEnterExit? = null
 

@@ -322,50 +322,57 @@ class PartialRepaintTest {
         assertTrue(repainted.any { it.contains(reach) }, "the child's repaint must reach $reach: $repainted")
     }
 
-    /** A leaf repainting part of itself repaints its whole shadow, through the plain box around it. */
     @Test
-    fun aPartialRepaintOfAShadowedLeafInAPlainBoxInADecoratedOneRepaintsTheLeafWhole() =
-        assertLeafRepaintCoversTheLeaf(padded = false) { it.shadow(8, Color(0, 0, 0, 160)) }
+    fun aPartialRepaintOfAShadowedLeafInAPlainBoxInADecoratedOneRepaintsWhatThePixelSpreadsInto() =
+        assertLeafRepaintCoversItsSpread(Rectangle(6, 6, 49, 49), padded = false) {
+            it.shadow(8, Color(0, 0, 0, 160))
+        }
 
     /**
      * The same holds where the leaf's shadow lies inside the plain box, which then has no paint outsets for the box
      * above it to find.
      */
     @Test
-    fun aPartialRepaintOfAShadowedLeafInsideAPaddedPlainBoxRepaintsTheLeafWhole() =
-        assertLeafRepaintCoversTheLeaf(padded = true) { it.shadow(8, Color(0, 0, 0, 160)) }
+    fun aPartialRepaintOfAShadowedLeafInsideAPaddedPlainBoxRepaintsWhatThePixelSpreadsInto() =
+        assertLeafRepaintCoversItsSpread(Rectangle(6, 6, 49, 49), padded = true) {
+            it.shadow(8, Color(0, 0, 0, 160))
+        }
 
     /** The same holds for a shadow the leaf declares once every box around it is laid out. */
     @Test
-    fun aPartialRepaintOfALeafInsideAPaddedPlainBoxShadowedLaterRepaintsTheLeafWhole() =
-        assertLeafRepaintCoversTheLeaf(padded = true, decoratedLater = true) { it.shadow(8, Color(0, 0, 0, 160)) }
+    fun aPartialRepaintOfALeafInsideAPaddedPlainBoxShadowedLaterRepaintsWhatThePixelSpreadsInto() =
+        assertLeafRepaintCoversItsSpread(Rectangle(6, 6, 49, 49), padded = true, decoratedLater = true) {
+            it.shadow(8, Color(0, 0, 0, 160))
+        }
 
     /**
      * A repaint of part of a blurred leaf that Swing merges into an outer container's repaint covers what the blur
      * spreads that part into, inside a plain box that has no paint outsets.
      */
     @Test
-    fun aPartialRepaintOfABlurredLeafInsideAPaddedPlainBoxMergedIntoAnOuterRepaintRepaintsTheLeafWhole() =
-        assertLeafRepaintCoversTheLeaf(padded = true, mergedIntoOuter = true) { it.blur(6) }
+    fun aPartialRepaintOfABlurredLeafInsideAPaddedPlainBoxMergedIntoAnOuterRepaintRepaintsWhatThePixelSpreadsInto() =
+        assertLeafRepaintCoversItsSpread(Rectangle(14, 14, 33, 33), padded = true, mergedIntoOuter = true) {
+            it.blur(6)
+        }
 
     /**
      * The same holds for a blur a clip declared before it cuts to the leaf's layout bounds, both declared once every
      * box around the leaf is laid out: the leaf takes no paint outsets for them.
      */
     @Test
-    fun aPartialRepaintOfALeafClippedAndBlurredLaterMergedIntoAnOuterRepaintRepaintsTheLeafWhole() =
-        assertLeafRepaintCoversTheLeaf(padded = true, mergedIntoOuter = true, decoratedLater = true) {
+    fun aPartialRepaintOfALeafClippedAndBlurredLaterMergedIntoAnOuterRepaintRepaintsWhatThePixelSpreadsInto() =
+        assertLeafRepaintCoversItsSpread(
+            Rectangle(14, 14, 26, 26),
+            padded = true,
+            mergedIntoOuter = true,
+            decoratedLater = true,
+        ) {
             it.clip(RectangleShape).blur(6)
         }
 
-    /**
-     * Composes a 40 by 40 leaf decorated by [decorate], from the start or, where [decoratedLater], once it is laid
-     * out, in a plain box, 30 larger than the leaf on each side where [padded], in a box with a background. Repaints
-     * one pixel of the leaf, alone or, where [mergedIntoOuter], together with a corner of the outermost box, which
-     * makes Swing paint both from that box, and checks that the leaf repainted whole, with its paint outsets, in its
-     * layout coordinates.
-     */
-    private fun assertLeafRepaintCoversTheLeaf(
+    /** [expected] is in the leaf's layout coordinates. With [mergedIntoOuter], Swing paints the leaf from the outer. */
+    private fun assertLeafRepaintCoversItsSpread(
+        expected: Rectangle,
         padded: Boolean,
         mergedIntoOuter: Boolean = false,
         decoratedLater: Boolean = false,
@@ -399,14 +406,10 @@ class PartialRepaintTest {
         if (mergedIntoOuter) outer.repaint(outer.width - 2, outer.height - 2, 1, 1)
         awaitIdle()
 
-        val whole = Rectangle(-outsets.left, -outsets.top, leaf.width, leaf.height)
-        assertTrue(repainted.any { it.contains(whole) }, "the leaf's repaint must reach $whole: $repainted")
+        assertTrue(repainted.any { it.contains(expected) }, "the leaf's repaint must reach $expected: $repainted")
     }
 
-    /**
-     * A leaf repainting part of itself repaints whole, and the leaves beside it whose shadows overlap its own do not:
-     * a leaf's shadow is cast by that leaf's content alone.
-     */
+    // A leaf's shadow is cast by that leaf's content alone.
     @Test
     fun aPartialRepaintOfOneOfSeveralLeavesWhoseShadowsOverlapRepaintsThatLeafAlone() =
         runComposeSwingTest {
@@ -441,8 +444,11 @@ class PartialRepaintTest {
             leaves[0].repaint(outsets.left + 20, outsets.top + 5, 1, 1)
             awaitIdle()
 
-            val whole = Rectangle(-outsets.left, -outsets.top, leaves[0].width, leaves[0].height)
-            assertEquals(listOf(whole), repainted, "the first leaf repaints whole, and nothing more")
+            val whole = Rectangle(-24, -24, 88, 168)
+            val spread = Rectangle(-4, -19, 49, 49)
+            val painted = repainted.single()
+            assertTrue(painted.contains(spread.intersection(whole)), "$painted covers the shadow the pixel casts")
+            assertTrue(whole.contains(painted), "$painted stays inside the first leaf")
         }
 
     /**

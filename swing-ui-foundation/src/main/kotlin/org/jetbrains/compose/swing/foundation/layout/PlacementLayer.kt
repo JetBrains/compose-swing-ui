@@ -201,6 +201,8 @@ internal sealed class PlacementLayer : Decorator {
 
     override val isOpaque: Boolean get() = false
 
+    override val repaintsWithinOutsets: Boolean get() = transform == null
+
     /** Only a rotation or a scale moves the content off its box; a fade or a clip alone takes no paint outsets. */
     override fun needsPaintBounds(
         width: Int,

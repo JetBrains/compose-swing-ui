@@ -67,6 +67,8 @@ private class ClipNode(
     shape: Shape,
     antialias: Boolean,
 ) : DecorationModifierNode<Component>() {
+    override val repaintsWithinOutsets: Boolean get() = true
+
     /** What an antialiased clip records its content into, created by the first paint that needs it. */
     private var layer: ImageLayer? = null
 
