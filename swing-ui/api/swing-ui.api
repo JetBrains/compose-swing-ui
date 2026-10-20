@@ -579,13 +579,23 @@ public abstract interface class org/jetbrains/compose/swing/components/style/Sel
 }
 
 public final class org/jetbrains/compose/swing/components/style/StyleKt {
+	public static final fun actionCommand (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljava/lang/String;)V
+	public static final fun borderPainted (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Z)V
+	public static final fun borderPainted (Lorg/jetbrains/compose/swing/components/style/ProgressBarStyleScope;Z)V
+	public static final fun borderPainted (Lorg/jetbrains/compose/swing/components/style/ToolBarStyleScope;Z)V
 	public static final fun caret (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljavax/swing/text/Caret;)V
 	public static final fun caretBlinkRate (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;I)V
 	public static final fun caretColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
 	public static final fun caretUpdatePolicy (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;I)V
 	public static final fun checked (Lorg/jetbrains/compose/swing/components/style/CheckableStyleScope;Lkotlin/jvm/functions/Function0;)V
+	public static final fun contentAreaFilled (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Z)V
+	public static final fun disabledIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
+	public static final fun disabledSelectedIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
 	public static final fun disabledTextColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
+	public static final fun displayedMnemonicIndex (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun displayedMnemonicIndex (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
 	public static final fun focusAccelerator (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;C)V
+	public static final fun focusPainted (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Z)V
 	public static final fun getButtons ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getCheckBoxMenuItems ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getCheckBoxes ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
@@ -625,9 +635,33 @@ public final class org/jetbrains/compose/swing/components/style/StyleKt {
 	public static final fun getTrees ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getViewports ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun highlights (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/util/List;Ljavax/swing/text/Highlighter$HighlightPainter;)V
+	public static final fun horizontalAlignment (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun horizontalAlignment (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
+	public static final fun horizontalAlignment (Lorg/jetbrains/compose/swing/components/style/TextFieldStyleScope;I)V
+	public static final fun horizontalTextPosition (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun horizontalTextPosition (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
+	public static final fun icon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
+	public static final fun icon (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;Ljavax/swing/Icon;)V
+	public static final fun iconTextGap (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun iconTextGap (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
+	public static final fun margin (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljava/awt/Insets;)V
+	public static final fun margin (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Insets;)V
+	public static final fun mnemonic (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;C)V
+	public static final fun mnemonic (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun mnemonic (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;C)V
+	public static final fun mnemonic (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
+	public static final fun pressedIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
+	public static final fun rolloverEnabled (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Z)V
+	public static final fun rolloverIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
+	public static final fun rolloverSelectedIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
 	public static final fun selected (Lorg/jetbrains/compose/swing/components/style/SelectableStyleScope;Lkotlin/jvm/functions/Function0;)V
+	public static final fun selectedIcon (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;Ljavax/swing/Icon;)V
 	public static final fun selectedTextColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
 	public static final fun selectionColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
+	public static final fun verticalAlignment (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun verticalAlignment (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
+	public static final fun verticalTextPosition (Lorg/jetbrains/compose/swing/components/style/ButtonStyleScope;I)V
+	public static final fun verticalTextPosition (Lorg/jetbrains/compose/swing/components/style/LabelStyleScope;I)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/style/TextFieldStyleScope : org/jetbrains/compose/swing/components/style/TextStyleScope {

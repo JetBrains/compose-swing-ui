@@ -6,11 +6,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimatedContainersSection
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimationSection
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
@@ -163,6 +163,6 @@ internal fun WrappedCaption(
 ) {
     Label(
         text = "<html><body style='width:${width}px'>$text</body></html>",
-        modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
+        style = { horizontalAlignment(SwingConstants.LEADING) },
     )
 }

@@ -25,6 +25,7 @@ import org.jetbrains.compose.swing.modifier.appearance.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.*
+import org.jetbrains.compose.swing.components.style.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Color
 import java.awt.Dimension
@@ -46,7 +47,8 @@ fun main() = application {
         Panel(PanelLayout.Border()) {
             Label(
                 "Compose Swing UI",
-                modifier = SwingModifier.north().horizontalAlignment(SwingConstants.CENTER),
+                modifier = SwingModifier.north(),
+                style = { horizontalAlignment(SwingConstants.CENTER) },
             )
             Panel {
                 Label("Count: $count")
@@ -55,7 +57,8 @@ fun main() = application {
             }
             Label(
                 "Status: ready",
-                modifier = SwingModifier.south().horizontalAlignment(SwingConstants.CENTER),
+                modifier = SwingModifier.south(),
+                style = { horizontalAlignment(SwingConstants.CENTER) },
             )
         }
     }
@@ -179,8 +182,8 @@ Further guides carry the rest:
 
 - [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
   the composition, and the state holders that carry what a declared value cannot.
-- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - the `modifier` parameter, how a modifier takes effect
-  as the composition changes, and attaching listeners.
+- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across
+  passes, the `modifier` parameter, and attaching listeners.
 - [`docs/STYLES.md`](docs/STYLES.md) - what a style is, when it runs, how it restores and nests, and writing a
   property or styled component of your own.
 - [`docs/FOUNDATION.md`](docs/FOUNDATION.md) - constraint-based layout, drawing and decorations.

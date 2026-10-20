@@ -16,8 +16,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.TestLabelKind
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.util.fastForEach
+import java.awt.Color
+import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -143,6 +156,52 @@ class SwingFrameClockOutOfTurnFrameTest {
             outerFrame.cancel()
             clock.dispose()
             recomposer.cancel()
+        }
+    }
+
+    @Test
+    fun aSettlementAskedWhileRestylesAreResolvedLeavesTheRestQueued() = runSwingTest {
+        var color by mutableStateOf(Color.GREEN)
+        val labels = listOf(JLabel("first"), JLabel("second"))
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        var mounted: DisposableHandle? = null
+        try {
+            mounted =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    Panel(style = SwingStyle<ContainerStyleScope> { foreground(color) }) {
+                        // Each label reports its restyle, which asks for a settlement while the others still wait.
+                        labels.fastForEach { label ->
+                            val mirror = rememberMirrorState("declared")
+                            SwingNode(
+                                factory = {
+                                    label.apply {
+                                        addPropertyChangeListener("foreground") {
+                                            toolTipText = "$foreground"
+                                            mirror.report(toolTipText) {}
+                                        }
+                                    }
+                                },
+                                modifier = SwingModifier.styleable(TestLabelKind, SwingStyle),
+                                update = {
+                                    declare(
+                                        "declared",
+                                        mirror,
+                                        JLabel::getToolTipText,
+                                        JLabel::setToolTipText,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+
+            color = Color.RED
+
+            awaitUntil("every label is restyled") { labels.all { it.foreground == Color.RED } }
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
         }
     }
 

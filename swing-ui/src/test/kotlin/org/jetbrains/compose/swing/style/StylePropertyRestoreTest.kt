@@ -698,7 +698,10 @@ class StylePropertyRestoreTest {
     companion object {
         @JvmStatic
         fun customPropertyOverlaps(): List<Arguments> = (
-            OverlapProperty.entries - OverlapProperty.toolTips
+            OverlapProperty.entries - OverlapProperty.toolTips -
+                setOf(
+                    OverlapProperty.Caret,
+                )
         ).flatMap { property ->
             RemovalOrder.entries.map { order -> Arguments.of(property, order) }
         }
@@ -890,6 +893,7 @@ enum class OverlapProperty(
             declare = { border(it) },
         )
     }),
+    Caret({ caretOverlapProperty() }),
     BlinkRate({ caretBlinkRateOverlapProperty() }),
     BlinkRateAfterCaretSwap({ caretBlinkRateOverlapProperty(ReplacesCaret) }),
     BlinkRateAfterNullCaretSwap({ caretBlinkRateOverlapProperty(ReplacesNullCaret) }),

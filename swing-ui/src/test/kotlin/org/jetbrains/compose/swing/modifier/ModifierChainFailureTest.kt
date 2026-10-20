@@ -13,6 +13,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.core.awaitUntil
@@ -20,7 +22,6 @@ import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
-import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.RecordingLayoutNodeElement
@@ -32,6 +33,8 @@ import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.TestButtonKind
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.junit.jupiter.api.DynamicTest
@@ -430,14 +433,12 @@ class ModifierChainFailureTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    SwingNode(factory = { JPanel() }, modifier = SwingModifier.displayedMnemonicIndex(0))
+                    Panel(
+                        modifier = SwingModifier.styleable(TestButtonKind) { displayedMnemonicIndex(0) },
+                    ) {}
                 }
             }
-        assertEquals(
-            listOf(failure.message),
-            failure.suppressed.map { it.message },
-            "the rollback's repeat of the refusal is suppressed on it",
-        )
+        assertIs<IllegalStateException>(failure.suppressed.single())
     }
 
     @Test

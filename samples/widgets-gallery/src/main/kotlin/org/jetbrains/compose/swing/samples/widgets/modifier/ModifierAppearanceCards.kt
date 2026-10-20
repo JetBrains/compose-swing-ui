@@ -13,26 +13,26 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.borderPainted
+import org.jetbrains.compose.swing.components.style.contentAreaFilled
+import org.jetbrains.compose.swing.components.style.disabledIcon
+import org.jetbrains.compose.swing.components.style.disabledSelectedIcon
+import org.jetbrains.compose.swing.components.style.focusPainted
+import org.jetbrains.compose.swing.components.style.horizontalTextPosition
+import org.jetbrains.compose.swing.components.style.icon
+import org.jetbrains.compose.swing.components.style.iconTextGap
+import org.jetbrains.compose.swing.components.style.pressedIcon
+import org.jetbrains.compose.swing.components.style.rolloverEnabled
+import org.jetbrains.compose.swing.components.style.rolloverIcon
+import org.jetbrains.compose.swing.components.style.rolloverSelectedIcon
+import org.jetbrains.compose.swing.components.style.selectedIcon
+import org.jetbrains.compose.swing.components.style.verticalTextPosition
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.borderPainted
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
-import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.disabledIcon
-import org.jetbrains.compose.swing.modifier.appearance.disabledSelectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.focusPainted
-import org.jetbrains.compose.swing.modifier.appearance.horizontalTextPosition
-import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.iconTextGap
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.pressedIcon
-import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
-import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
-import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.verticalTextPosition
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
@@ -101,16 +101,16 @@ internal fun ColumnScope.IconFamilyCard() {
             text = "Status",
             checked = checked,
             onCheckedChange = { checked = it },
-            modifier =
-                SwingModifier
-                    .icon(baseDot)
-                    .selectedIcon(selectedDot)
-                    .pressedIcon(pressedDot)
-                    .rolloverIcon(rolloverDot)
-                    .rolloverSelectedIcon(rolloverSelectedDot)
-                    .disabledIcon(disabledDot)
-                    .disabledSelectedIcon(disabledSelectedDot),
-            style = { enabled(enabled) },
+            style = {
+                enabled(enabled)
+                icon(baseDot)
+                selectedIcon(selectedDot)
+                pressedIcon(pressedDot)
+                rolloverIcon(rolloverDot)
+                rolloverSelectedIcon(rolloverSelectedDot)
+                disabledIcon(disabledDot)
+                disabledSelectedIcon(disabledSelectedDot)
+            },
         )
     }
 }
@@ -148,12 +148,12 @@ internal fun ColumnScope.TextPositionCard() {
             Button(
                 "Labeled",
                 onClick = { },
-                modifier =
-                    SwingModifier
-                        .icon(dot)
-                        .horizontalTextPosition(textSide)
-                        .verticalTextPosition(textRow)
-                        .iconTextGap(gap),
+                style = {
+                    icon(dot)
+                    horizontalTextPosition(textSide)
+                    verticalTextPosition(textRow)
+                    iconTextGap(gap)
+                },
             )
         }
     }
@@ -179,12 +179,12 @@ internal fun ColumnScope.ButtonPaintingCard() {
             Button(
                 "Hover, focus or click me",
                 onClick = { },
-                modifier =
-                    SwingModifier
-                        .borderPainted(isBorderPainted)
-                        .contentAreaFilled(isContentAreaFilled)
-                        .rolloverEnabled(isRolloverEnabled)
-                        .focusPainted(isFocusPainted),
+                style = {
+                    borderPainted(isBorderPainted)
+                    contentAreaFilled(isContentAreaFilled)
+                    rolloverEnabled(isRolloverEnabled)
+                    focusPainted(isFocusPainted)
+                },
             )
         }
     }

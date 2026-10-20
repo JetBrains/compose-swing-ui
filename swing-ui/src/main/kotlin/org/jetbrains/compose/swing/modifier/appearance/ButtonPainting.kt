@@ -3,16 +3,13 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
+import org.jetbrains.compose.swing.components.style.BorderPaintedDescriptor
+import org.jetbrains.compose.swing.components.style.ContentAreaFilledDescriptor
+import org.jetbrains.compose.swing.components.style.FocusPaintedDescriptor
+import org.jetbrains.compose.swing.components.style.RolloverEnabledDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.style.OpaqueDescriptor
-import javax.swing.AbstractButton
-import javax.swing.JMenuBar
-import javax.swing.JPopupMenu
-import javax.swing.JProgressBar
-import javax.swing.JToolBar
 
 /*
  * Button painting SwingModifiers - what a button paints around and behind its content. Each of these is
@@ -36,7 +33,8 @@ import javax.swing.JToolBar
  * @see javax.swing.JMenuBar.setBorderPainted
  * @see javax.swing.JPopupMenu.setBorderPainted
  */
-public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = property(BorderPaintedProperty, painted)
+@Deprecated("Set it in the component's style: style = { borderPainted(painted) }")
+public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = property(BorderPaintedDescriptor, painted)
 
 /**
  * Sets whether a button fills the area behind its content. Applies to everything built on a button.
@@ -44,17 +42,18 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = proper
  * A button stops taking this from the look and feel once the property is set, and Swing offers no way to
  * hand it back.
  *
- * This, rather than [opaque][org.jetbrains.compose.swing.style.opaque]`(false)`, is how a button is made
- * transparent: a look and feel paints the fill from this property, and keeps the opaque flag in step with
- * it - for every button but a menu item, whose flag stands on its own.
+ * This, rather than [opaque]`(false)`, is how a button is made transparent: a look and feel paints the
+ * fill from this property, and keeps the opaque flag in step with it - for every button but a menu item,
+ * whose flag stands on its own.
  *
  * @param filled `false` leaves the area behind the text and icon unpainted, so whatever is behind the
  *   button shows through it.
  * @return this modifier with content-area painting declared on it.
  * @see javax.swing.AbstractButton.setContentAreaFilled
  */
+@Deprecated("Set it in the component's style: style = { contentAreaFilled(filled) }")
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
-    property(ContentAreaFilledProperty, filled, alsoOverwrites = listOf(OpaqueDescriptor))
+    property(ContentAreaFilledDescriptor, filled, alsoOverwrites = listOf(OpaqueDescriptor))
 
 /**
  * Sets whether a button paints its rollover state - the look it takes while the pointer is over it.
@@ -69,9 +68,10 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
  * @return this modifier with rollover painting declared on it.
  * @see javax.swing.AbstractButton.setRolloverEnabled
  */
+@Deprecated("Set it in the component's style: style = { rolloverEnabled(enabled) }")
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
     property(
-        RolloverEnabledProperty,
+        RolloverEnabledDescriptor,
         enabled,
         // Writing either rollover icon switches the state on after announcing the icon, so the
         // icon's own announcement comes too early to answer.
@@ -90,65 +90,5 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
  * @return this modifier with focus painting declared on it.
  * @see javax.swing.AbstractButton.setFocusPainted
  */
-public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier = property(FocusPaintedProperty, painted)
-
-/**
- * Each of these types declares `borderPainted` for itself; the classes they share declare no such
- * property, so the accessors are named separately.
- *
- * Every case writes only a value differing from the one the component carries. A menu item takes this
- * property from the look and feel until something writes it, and nothing clears that again, so a
- * redundant write would detach it from the look and feel for good while changing nothing; the other
- * types answer one with a repaint of a component that looks no different.
- */
-private val BorderPaintedProperty =
-    ComponentPropertyDescriptor(
-        "borderPainted",
-        accessor<AbstractButton, Boolean>(
-            read = { it.isBorderPainted },
-            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
-        ),
-        accessor<JProgressBar, Boolean>(
-            read = { it.isBorderPainted },
-            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
-        ),
-        accessor<JToolBar, Boolean>(
-            read = { it.isBorderPainted },
-            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
-        ),
-        accessor<JMenuBar, Boolean>(
-            read = { it.isBorderPainted },
-            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
-        ),
-        accessor<JPopupMenu, Boolean>(
-            read = { it.isBorderPainted },
-            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
-        ),
-    )
-
-/** The switch's own accessors. The write is latched by the first, as a button's border painting is. */
-internal val RolloverEnabledProperty =
-    ComponentPropertyDescriptor<AbstractButton, Boolean>(
-        name = "rolloverEnabled",
-        read = { it.isRolloverEnabled },
-        write = { component, value ->
-            if (component.isRolloverEnabled != value) component.isRolloverEnabled = value
-        },
-    )
-
-private val ContentAreaFilledProperty =
-    ComponentPropertyDescriptor<AbstractButton, Boolean>(
-        name = "contentAreaFilled",
-        read = { it.isContentAreaFilled },
-        // Latched by the first write, as a button's border painting is.
-        write = { component, value ->
-            if (component.isContentAreaFilled != value) component.isContentAreaFilled = value
-        },
-    )
-
-private val FocusPaintedProperty =
-    ComponentPropertyDescriptor<AbstractButton, Boolean>(
-        name = "focusPainted",
-        read = { it.isFocusPainted },
-        write = { component, value -> component.isFocusPainted = value },
-    )
+@Deprecated("Set it in the component's style: style = { focusPainted(painted) }")
+public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier = property(FocusPaintedDescriptor, painted)

@@ -5,10 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.style.horizontalTextPosition
+import org.jetbrains.compose.swing.components.style.margin
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.TestLabelKind
 import org.jetbrains.compose.swing.style.TestNodeKind
+import org.jetbrains.compose.swing.style.TestTextNodeKind
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
@@ -26,6 +30,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
+import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -45,7 +50,7 @@ import kotlin.test.assertTrue
  * layout pass that would act on it or for a paint of the text it moves, so the property must ask for both;
  * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
  * nothing, so a declaration the label is already carrying must reach its setter no further - a
- * recomposition rebuilds the chain, and a redundant write would cost a layout and a paint each time.
+ * recomposition declares the style again, and a redundant write would cost a layout and a paint each time.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier or style under
  * test, applied again when its state changes) and observes behavior deterministically under headless.
@@ -231,7 +236,7 @@ class AppearanceInvalidationTest {
         val field = CountingTextField()
 
         setContent {
-            SwingNode(factory = { field }, modifier = SwingModifier.margin(margin))
+            SwingNode(factory = { field }, modifier = SwingModifier.styleable(TestTextNodeKind) { margin(margin) })
         }
 
         awaitIdle()
@@ -264,10 +269,10 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { label },
-                modifier = SwingModifier.horizontalTextPosition(SwingConstants.RIGHT),
+                modifier = SwingModifier.styleable(TestLabelKind) { horizontalTextPosition(SwingConstants.RIGHT) },
             )
-            // Read by this composable, so a change recomposes it and the label's modifier chain is
-            // rebuilt declaring the very same position.
+            // Read by this composable, so a change recomposes it and the label's style is declared again
+            // with the very same position.
             Label("tick $tick")
         }
 
@@ -292,14 +297,25 @@ class AppearanceInvalidationTest {
         )
     }
 
+    // Tests the deprecated forwarding builders and their declared chain.
+    @Suppress("DEPRECATION")
     @Test
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
+        assertDeclaredChainCarriedOnce { background(null) }
+        assertDeclaredChainCarriedOnce { border(null) }
+        assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
+        assertDeclaredChainCarriedOnce { emptyBorder(1) }
+        assertDeclaredChainCarriedOnce { emptyBorder(1, 1, 1, 1) }
+        assertDeclaredChainCarriedOnce { emptyBorder(Insets(1, 1, 1, 1)) }
         assertDeclaredChainCarriedOnce { borderPainted(true) }
         assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
         assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
         assertDeclaredChainCarriedOnce { focusPainted(true) }
+        assertDeclaredChainCarriedOnce { cursor(null) }
+        assertDeclaredChainCarriedOnce { font(null) }
+        assertDeclaredChainCarriedOnce { foreground(null) }
         assertDeclaredChainCarriedOnce { icon(null) }
         assertDeclaredChainCarriedOnce { pressedIcon(null) }
         assertDeclaredChainCarriedOnce { selectedIcon(null) }
@@ -311,8 +327,16 @@ class AppearanceInvalidationTest {
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
+        assertDeclaredChainCarriedOnce { opaque(true) }
+        assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { disabledTextColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { highlights(emptyList(), DefaultHighlightPainter(Color.RED)) }
         assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
         assertDeclaredChainCarriedOnce { iconTextGap(4) }
+        assertDeclaredChainCarriedOnce { toolTip("tip") }
+        assertDeclaredChainCarriedOnce { toolTip { null } }
     }
 }

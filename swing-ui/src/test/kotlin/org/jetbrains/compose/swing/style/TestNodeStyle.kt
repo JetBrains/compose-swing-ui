@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.style
 
+import org.jetbrains.compose.swing.components.style.ButtonStyleScope
 import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
 import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.components.style.ListBoxStyleScope
@@ -14,6 +15,10 @@ internal val TestNodeKind =
 /** As [TestNodeKind], for a raw node built on a label. */
 internal val TestLabelKind =
     SwingStyleKind<LabelStyleScope, Unit>({ base, _ -> object : LabelStyleScope, ComponentStyleScope by base {} })
+
+/** As [TestNodeKind], for a raw node built on a button. */
+internal val TestButtonKind =
+    SwingStyleKind<ButtonStyleScope, Unit>({ base, _ -> object : ButtonStyleScope, ComponentStyleScope by base {} })
 
 /** As [TestNodeKind], for a test's raw text component. */
 internal val TestTextNodeKind =

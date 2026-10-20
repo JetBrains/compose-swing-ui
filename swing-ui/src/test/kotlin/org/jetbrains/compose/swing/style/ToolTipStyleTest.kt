@@ -11,7 +11,9 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -48,6 +50,15 @@ class ToolTipStyleTest {
     }
 
     private fun JComponent.isUnderToolTipManager(): Boolean = ToolTipManager.sharedInstance() in mouseListeners
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("toolTipOverlaps")
+    fun tooltipSharesModifierAndStyleBaseline(
+        property: OverlapProperty,
+        order: RemovalOrder,
+    ) = runComposeSwingTest {
+        assertCustomPropertyBaseline(property, order)
+    }
 
     @ParameterizedTest
     @EnumSource(ToolTipSource::class)
@@ -132,7 +143,7 @@ class ToolTipStyleTest {
     }
 
     @Test
-    fun recompositionReplacesTooltipCallback() = runComposeSwingTest {
+    fun theLambdaOfTheLatestCompositionAnswers() = runComposeSwingTest {
         var declared by mutableIntStateOf(1)
         setContent {
             val generation = declared
@@ -213,6 +224,13 @@ class ToolTipStyleTest {
                 false,
                 "a component the declaration put under the tooltip manager is taken back out with it",
             ) { isUnderToolTipManager() }
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun toolTipOverlaps(): List<Arguments> = OverlapProperty.toolTips.flatMap { property ->
+            RemovalOrder.entries.map { order -> Arguments.of(property, order) }
         }
     }
 

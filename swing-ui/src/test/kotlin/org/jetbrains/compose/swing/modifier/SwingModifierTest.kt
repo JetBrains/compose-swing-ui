@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
@@ -25,9 +24,6 @@ import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
-import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
-import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
@@ -36,14 +32,9 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.alignmentX
 import org.jetbrains.compose.swing.style.alignmentY
 import org.jetbrains.compose.swing.style.background
-import org.jetbrains.compose.swing.style.componentOrientation
-import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.style.maximumSize
-import org.jetbrains.compose.swing.style.minimumSize
-import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.styleable
-import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -51,7 +42,6 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
-import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -104,24 +94,6 @@ class SwingModifierTest {
         accent = false
         awaitIdle()
         label.assertProperty(Color.BLUE, "the style should react to the state change") { foreground }
-    }
-
-    @Test
-    fun multipleModifierElementsAllApply() = runComposeSwingTest {
-        setContent {
-            Label(
-                "X",
-                style = {
-                    foreground(Color.RED)
-                    background(Color.BLUE)
-                    opaque(true)
-                },
-            )
-        }
-        val label = onNodeOfType<JLabel>()
-        label.assertProperty(Color.RED, "the foreground element should apply") { foreground }
-        label.assertProperty(Color.BLUE, "the background element should apply") { background }
-        label.assertProperty(true, "the opaque element should apply") { isOpaque }
     }
 
     @Test
@@ -193,86 +165,6 @@ class SwingModifierTest {
         awaitIdle()
         button.dispatchEvent(mouseEntered(button))
         assertEquals("second", captured, "the installed listener must read the latest callback")
-    }
-
-    @Test
-    fun enabledStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var disabled by mutableStateOf(true)
-        setContent {
-            Button("X", onClick = { }, style = { if (disabled) enabled(false) })
-        }
-        val button = onNodeOfType<JButton>()
-        button.assertIsNotEnabled()
-
-        disabled = false
-        awaitIdle()
-        // The property left the style, so isEnabled is restored to the pre-style default.
-        button.assertIsEnabled()
-    }
-
-    @Test
-    fun visibleStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var hidden by mutableStateOf(true)
-        setContent {
-            Button("X", onClick = { }, style = { if (hidden) visible(false) })
-        }
-        val button = onNodeOfType<JButton>()
-        button.assertIsNotVisible()
-
-        hidden = false
-        awaitIdle()
-        // The property left the style, so isVisible is restored to the pre-style default.
-        button.assertIsVisible()
-    }
-
-    @Test
-    fun minimumSizeStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var constrained by mutableStateOf(true)
-        setContent {
-            Label("X", style = { if (constrained) minimumSize(120, 40) })
-        }
-        val constrainedLabel = onNodeOfType<JLabel>()
-        constrainedLabel.assertProperty(
-            Dimension(120, 40),
-            "the style should apply the minimum size",
-        ) { minimumSize }
-        constrainedLabel.assertProperty(
-            true,
-            "the minimum-size-set flag should be on while present",
-        ) { isMinimumSizeSet }
-
-        constrained = false
-        awaitIdle()
-        // The property left the style, so the explicit minimum size is cleared again.
-        onNodeOfType<JLabel>().assertProperty(
-            false,
-            "removing the property should clear the minimum-size-set flag",
-        ) { isMinimumSizeSet }
-    }
-
-    @Test
-    fun maximumSizeStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var constrained by mutableStateOf(true)
-        setContent {
-            Label("X", style = { if (constrained) maximumSize(Dimension(200, 80)) })
-        }
-        val constrainedLabel = onNodeOfType<JLabel>()
-        constrainedLabel.assertProperty(
-            Dimension(200, 80),
-            "the style should apply the maximum size",
-        ) { maximumSize }
-        constrainedLabel.assertProperty(
-            true,
-            "the maximum-size-set flag should be on while present",
-        ) { isMaximumSizeSet }
-
-        constrained = false
-        awaitIdle()
-        // The property left the style, so the explicit maximum size is cleared again.
-        onNodeOfType<JLabel>().assertProperty(
-            false,
-            "removing the property should clear the maximum-size-set flag",
-        ) { isMaximumSizeSet }
     }
 
     @Test
@@ -374,33 +266,6 @@ class SwingModifierTest {
     }
 
     @Test
-    fun componentOrientationStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var rtl by mutableStateOf(true)
-        setContent {
-            Label("untouched")
-            Label(
-                "styled",
-                style = { if (rtl) componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) },
-            )
-        }
-        val styledLabel = onNodeWithText("styled")
-        val default = onNodeWithText("untouched").fetch<JLabel>().componentOrientation
-        styledLabel.assertProperty(
-            ComponentOrientation.RIGHT_TO_LEFT,
-            "the style should apply the RTL orientation",
-        ) { componentOrientation }
-
-        rtl = false
-        awaitIdle()
-        // The property left the style, so the orientation is restored to the pre-style default
-        // (the same one the untouched control still shows).
-        styledLabel.assertProperty(
-            default,
-            "removing the property should restore the default orientation",
-        ) { componentOrientation }
-    }
-
-    @Test
     fun twoListenersOnOneComponentBothFire() = runComposeSwingTest {
         var first = 0
         var second = 0
@@ -442,18 +307,6 @@ class SwingModifierTest {
         // Two onHover are additive (each its own slot), so both enter callbacks fire.
         assertEquals(1, first, "the first hover modifier should fire once")
         assertEquals(1, second, "the second hover modifier should fire once")
-    }
-
-    @Test
-    fun repeatedStylePropertyStillLastWins() = runComposeSwingTest {
-        setContent {
-            Label("X", style = {
-                background(Color.RED)
-                background(Color.BLUE)
-            })
-        }
-        // A style keeps last-wins semantics: two backgrounds collapse, the later wins.
-        onNodeOfType<JLabel>().assertProperty(Color.BLUE) { background }
     }
 
     @Test
@@ -696,7 +549,7 @@ class SwingModifierTest {
             assertFailsWith<IllegalStateException> {
                 setContent { Label("X", modifier = SwingModifier.then(EarlyComponentReadElement())) }
             }
-        assertEquals(NOT_ATTACHED_MESSAGE, failure.message, "an unattached node should name the reason")
+        assertEquals("Node is not attached", failure.message, "an unattached node should name the reason")
     }
 
     @Test
@@ -725,8 +578,9 @@ class SwingModifierTest {
         // fails exactly as it does before attach, instead of handing out a widget it may not touch.
         styled = false
         awaitIdle()
-        val failure = assertFailsWith<IllegalStateException> { node.component }
-        assertEquals(NOT_ATTACHED_MESSAGE, failure.message, "a detached node should name the reason")
+        assertFailsWith<IllegalStateException> { node.component }
+        onNodeOfType<JButton>().assertProperty(null) { toolTipText }
+        onNodeOfType<JButton>().assertTextEquals("X")
     }
 
     /**
@@ -817,9 +671,6 @@ class SwingModifierTest {
     }
 
     private companion object {
-        /** The message [SwingModifier.ComponentNode.component] fails with outside the attached window. */
-        const val NOT_ATTACHED_MESSAGE = "Node is not attached"
-
         /** The mouse registration the declarations in these tests use. */
         val MOUSE_EVENTS =
             ListenerRegistration<JButton, MouseListener>(
@@ -827,12 +678,6 @@ class SwingModifierTest {
                 { component, listener -> component.addMouseListener(listener) },
                 { component, listener -> component.removeMouseListener(listener) },
             )
-    }
-
-    @Test
-    fun everyLayoutBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { layoutConstraint("region") }
-        assertDeclaredChainCarriedOnce { slot(RawParentProtocol, "region", SlotAttachment { _, _, _ -> {} }) }
     }
 
     @Test

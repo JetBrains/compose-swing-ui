@@ -3,15 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.accessibility
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
-import org.jetbrains.compose.swing.modifier.RestorePolicy
+import org.jetbrains.compose.swing.components.style.DisplayedMnemonicIndexElement
+import org.jetbrains.compose.swing.components.style.MnemonicDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
 import java.awt.event.KeyEvent
-import javax.swing.AbstractButton
-import javax.swing.JLabel
 
 /*
  * Mnemonic SwingModifiers - the underlined letter that activates a component when pressed with Alt -
@@ -34,7 +30,8 @@ import javax.swing.JLabel
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
-public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier = property(MnemonicProperty, keyCode)
+@Deprecated("Set it in the component's style: style = { mnemonic(keyCode) }")
+public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier = property(MnemonicDescriptor, keyCode)
 
 /**
  * Sets the keyboard mnemonic to the key that types [mnemonic], resolved with
@@ -46,21 +43,21 @@ public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier = property(Mnemon
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
+@Deprecated("Set it in the component's style: style = { mnemonic(mnemonic) }")
 public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
-    this.mnemonic(KeyEvent.getExtendedKeyCodeForChar(mnemonic.code))
+    property(MnemonicDescriptor, KeyEvent.getExtendedKeyCodeForChar(mnemonic.code))
 
 /**
  * Sets which occurrence of the mnemonic letter in the text is underlined, as a zero-based index into
  * the text; `-1` underlines none of them. Use it when the letter appears more than once and the first
  * one is not the one to decorate - `displayedMnemonicIndex(5)` underlines the `A` of `Save As`.
  *
- * A widget derives the index again from its text and its mnemonic whenever either is written, and every
- * pass writes this declaration back over what it derived. Declare it after the [mnemonic], since a later
- * element in the modifier chain is applied last. Removing it leaves the index the widget derives for the text
- * and mnemonic that stand.
+ * An unchanged declaration does not rewrite the index. After the text or mnemonic changes, the declared
+ * index is written back while the text reaches it, wherever the [mnemonic] appears in the modifier.
+ * Removing the declaration leaves the index the widget derives from its current text and mnemonic.
  *
- * Throws when [index] is below `-1` or beyond the end of the text, as Swing does - including where a
- * shortened text is what leaves the declared index past its end.
+ * Throws when [index] is below `-1` or beyond the end of the text, as Swing does. Where a later text no
+ * longer reaches it, the widget keeps the index it derives.
  *
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline
  *   none of them.
@@ -68,80 +65,6 @@ public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
  * @see javax.swing.AbstractButton.setDisplayedMnemonicIndex
  * @see javax.swing.JLabel.setDisplayedMnemonicIndex
  */
+@Deprecated("Set it in the component's style: style = { displayedMnemonicIndex(index) }")
 public fun SwingModifier.displayedMnemonicIndex(index: Int): SwingModifier =
     this then DisplayedMnemonicIndexElement(index)
-
-/**
- * `AbstractButton` and `JLabel` each declare the mnemonic for themselves and under different names, so
- * the accessors are named separately.
- */
-private val MnemonicProperty =
-    ComponentPropertyDescriptor(
-        "mnemonic",
-        accessor<AbstractButton, Int>(
-            read = { it.mnemonic },
-            write = { component, value -> component.mnemonic = value },
-        ),
-        accessor<JLabel, Int>(
-            read = { it.displayedMnemonic },
-            write = { component, value -> component.displayedMnemonic = value },
-        ),
-    )
-
-private class DisplayedMnemonicIndexNode : SwingModifier.ComponentNode<Component>() {
-    var index: Int = -1
-
-    fun apply(newIndex: Int) {
-        index = newIndex
-        write(newIndex)
-    }
-
-    override fun onAttach() {
-        write(index)
-    }
-
-    override fun onDetach() {
-        write(null)
-    }
-
-    private fun write(value: Int?) {
-        when (val c = component) {
-            is AbstractButton -> if (value == null) c.text = c.text else c.displayedMnemonicIndex = value
-            is JLabel -> if (value == null) c.text = c.text else c.displayedMnemonicIndex = value
-            else -> error("displayedMnemonicIndex applies to AbstractButton or JLabel, got: ${c.javaClass.name}")
-        }
-    }
-}
-
-/**
- * The element [displayedMnemonicIndex] declares. An index unchanged since the last pass is still due to
- * be written back over what the widget derived, so the element is equal only to itself.
- *
- * Both widgets announce the derived index, but a listener answering that announcement would write from
- * inside `setText`, against text the pass has already installed that the declared index may no longer
- * reach - including on the pass that shortens the text and withdraws the declaration together. Writing
- * on the pass instead puts the index in after the text it indexes into.
- */
-private class DisplayedMnemonicIndexElement(
-    private val index: Int,
-) : SwingModifier.NodeElement<Component, DisplayedMnemonicIndexNode>() {
-    override val targetType: Class<Component> get() = Component::class.java
-
-    override val name: String get() = "displayedMnemonicIndex"
-
-    override val key: Any get() = "displayedMnemonicIndex"
-
-    override val restores: RestorePolicy get() = RestorePolicy.None
-
-    override val declaredValues: Map<String, Any?> get() = mapOf(name to index)
-
-    override fun create(): DisplayedMnemonicIndexNode = DisplayedMnemonicIndexNode()
-
-    override fun update(node: DisplayedMnemonicIndexNode) {
-        node.apply(index)
-    }
-
-    override fun equals(other: Any?): Boolean = this === other
-
-    override fun hashCode(): Int = System.identityHashCode(this)
-}
