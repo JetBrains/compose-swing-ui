@@ -5,8 +5,13 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -14,35 +19,19 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Color
+import java.awt.Component
+import java.awt.ComponentOrientation
+import java.awt.Font
+import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val LocalProbe = compositionLocalOf { "default" }
 
 class StyleLocalTest {
-    @Test
-    fun theNearestAncestorSettingALocalWins() = runComposeSwingTest {
-        setContent {
-            ProbeContainer(
-                StyleProbe(),
-                {
-                    InheritedFirst.provide("farther")
-                    InheritedSecond.provide("farther")
-                },
-            ) {
-                ProbeContainer(StyleProbe(), { InheritedFirst.provide("nearer") }) {
-                    ProbeLeaf(StyleProbe("leaf"), SwingStyle, PlainProbe)
-                }
-            }
-        }
-        onProbe("leaf")
-            .assertProperty("nearer") { first }
-            .assertProperty("farther", "a local the nearer ancestor leaves unset comes from the farther one") {
-                second
-            }
-    }
-
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun localsSharingADescriptorUseTheLastDeclarationForParentAndDescendants(reverse: Boolean) = runComposeSwingTest {
@@ -225,4 +214,79 @@ class StyleLocalTest {
             read = { it.toolTipText },
             write = { label, value -> label.toolTipText = value },
         )
+
+    @Test
+    fun foregroundFontAndOrientationSetOnAContainerReachLabelsButtonsAndTextFieldsBelowIt() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        setContent {
+            Panel(
+                style = {
+                    if (styled) {
+                        foreground(Color.RED)
+                        font(BOLD)
+                        componentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+                    }
+                },
+            ) {
+                Label("label", modifier = SwingModifier.testTag("label"))
+                Panel {
+                    Button("button", onClick = {}, modifier = SwingModifier.testTag("button"))
+                    TextField("field", onValueChange = {}, modifier = SwingModifier.testTag("field"))
+                }
+            }
+        }
+        val own = listOf(JLabel(), JButton(), JTextField()).map { it.locals() }
+        val reached = listOf("label", "button", "field")
+        reached.forEach { tag ->
+            onNodeWithTag(tag).assertProperty(
+                listOf(Color.RED, BOLD, ComponentOrientation.RIGHT_TO_LEFT),
+                "every styled descendant at any depth takes the container's locals",
+            ) { locals() }
+        }
+
+        styled = false
+        awaitIdle()
+        reached.zip(own).forEach { (tag, ownLocals) ->
+            onNodeWithTag(tag).assertProperty(
+                ownLocals,
+                "a container that stops setting them gives each descendant back its own",
+            ) { locals() }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun nearestLocalWinsAndNullStopsInheritance(initiallyBlocked: Boolean) = runComposeSwingTest {
+        var blocked by mutableStateOf(initiallyBlocked)
+        setContent {
+            Panel(style = {
+                foreground(Color.RED)
+                font(BOLD)
+            }) {
+                Label("sibling")
+                Panel(style = {
+                    foreground(if (blocked) null else Color.BLUE)
+                    if (blocked) font(null)
+                }) { Label("label") }
+            }
+        }
+        if (!initiallyBlocked) {
+            onNodeWithText("label")
+                .assertProperty(Color.BLUE) { foreground }
+                .assertProperty(BOLD) { font }
+            blocked = true
+            awaitIdle()
+        }
+        onNodeWithText("sibling")
+            .assertProperty(Color.RED) { foreground }
+            .assertProperty(BOLD) { font }
+        val own = JLabel()
+        onNodeWithText("label")
+            .assertProperty(own.foreground) { foreground }
+            .assertProperty(own.font) { font }
+    }
 }
+
+private val BOLD = Font(Font.SANS_SERIF, Font.BOLD, 17)
+
+private fun Component.locals(): List<Any?> = listOf(foreground, font, componentOrientation)

@@ -4,8 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -286,7 +287,7 @@ class NestedIntrinsicRegressionTest {
                     }
                 }
             setContent {
-                Layout(parentPolicy, SwingModifier.preferredSize(200, 200)) {
+                Layout(parentPolicy, modifier = SwingModifier.styleable { preferredSize(200, 200) }) {
                     Layout(childPolicy, SwingModifier.testTag("nested"))
                 }
             }

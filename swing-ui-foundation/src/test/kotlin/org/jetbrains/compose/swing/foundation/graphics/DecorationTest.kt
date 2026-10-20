@@ -2,11 +2,13 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.RawKind
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -133,9 +135,9 @@ class DecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(SIZE, SIZE)
                                 .spill(Insets(1, 2, 3, 4))
-                                .spill(Insets(10, 20, 30, 40)),
+                                .spill(Insets(10, 20, 30, 40))
+                                .styleable({ preferredSize(SIZE, SIZE) }, RawKind),
                     )
                 }
             }
@@ -329,9 +331,10 @@ class DecorationTest {
         side: Int,
         decorators: List<Decorator>,
     ): SwingModifier =
-        decorators.fold(SwingModifier.testTag(tag).opaque(false).preferredSize(side, side)) { modifier, decorator ->
-            modifier.then(DecoratorElement(decorator))
-        }
+        decorators
+            .fold(SwingModifier.testTag(tag).opaque(false)) { modifier, decorator ->
+                modifier.then(DecoratorElement(decorator))
+            }.styleable({ preferredSize(side, side) }, RawKind)
 
     /** What a [SIZE] by [SIZE] component declaring [decorators], the first outermost, paints with [content] inside. */
     private fun ComposeSwingTest.paint(

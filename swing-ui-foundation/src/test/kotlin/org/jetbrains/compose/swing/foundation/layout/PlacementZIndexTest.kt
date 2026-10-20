@@ -15,10 +15,11 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -45,11 +46,11 @@ class PlacementZIndexTest {
             setContent {
                 Layout(
                     content = {
-                        Panel(PanelLayout.Flow(), modifier = filled(Color.RED).testTag("lifted")) {}
-                        Panel(PanelLayout.Flow(), modifier = filled(Color.BLUE)) {}
+                        FilledPanel(Color.RED, SwingModifier.testTag("lifted"))
+                        FilledPanel(Color.BLUE)
                     },
                     measurePolicy = overlapping { index -> if (index == 0) 1f else 0f },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
 
@@ -73,11 +74,11 @@ class PlacementZIndexTest {
             setContent {
                 Layout(
                     content = {
-                        Panel(PanelLayout.Flow(), modifier = filled(Color.RED).testTag("lifted")) {}
-                        Panel(PanelLayout.Flow(), modifier = filled(Color.BLUE)) {}
+                        FilledPanel(Color.RED, SwingModifier.testTag("lifted"))
+                        FilledPanel(Color.BLUE)
                     },
                     measurePolicy = overlapping(relative = true) { index -> if (index == 0) 1f else 0f },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
 
@@ -105,7 +106,7 @@ class PlacementZIndexTest {
                         Box(modifier = SwingModifier.background(Brush.of(Color.BLUE)))
                     },
                     measurePolicy = overlapping { 0f },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
 
@@ -133,7 +134,7 @@ class PlacementZIndexTest {
                         Box(modifier = SwingModifier.background(Brush.of(Color.BLUE)))
                     },
                     measurePolicy = overlapping(layered = true) { index -> if (index == 0) 1f else 0f },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
 
@@ -161,7 +162,7 @@ class PlacementZIndexTest {
                         Label("child b")
                     },
                     measurePolicy = overlapping { index -> if (index == 0) 0.6f else 1f },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
 
@@ -238,13 +239,25 @@ private fun InsetOverlappingChildren(zIndexOf: (Int) -> Float) {
             SizedChild(1)
         },
         measurePolicy = overlapping(10, zIndexOf = zIndexOf),
-        modifier = containerModifier(CHILD_WIDTH + 20, CHILD_HEIGHT + 20),
+        modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH + 20, CHILD_HEIGHT + 20)),
     )
 }
 
-/** A child filling its whole area with [color], at the fixture child's size. */
-private fun filled(color: Color): SwingModifier =
-    SwingModifier.opaque(true).background(color).preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+/** A child filling its whole area with [color], at the fixture child's size, declaring [modifier]. */
+@Composable
+private fun FilledPanel(
+    color: Color,
+    modifier: SwingModifier = SwingModifier,
+) {
+    Panel(
+        PanelLayout.Flow(),
+        modifier = SwingModifier.opaque(true).then(modifier),
+        style = {
+            background(color)
+            preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+        },
+    ) {}
+}
 
 /** Places its content with an empty layer at the reported [zIndex], to pin a layer's contribution to the stack. */
 private data class ZIndexLayerElement(

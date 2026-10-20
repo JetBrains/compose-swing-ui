@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
@@ -15,6 +18,7 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Color
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -123,34 +127,28 @@ class StyleNodeCostTest {
     @Test
     fun restyleReadsDoNotGrowWithDepth() {
         assertEquals(
-            statesReadByARestyleBelowAPublisher(plainContainers = 1),
-            statesReadByARestyleBelowAPublisher(plainContainers = 32),
-            "the states a leaf's restyle reads do not grow with the containers between it and the publisher",
+            statesReadByARestyleBelowAPublisher(plainPanels = 1),
+            statesReadByARestyleBelowAPublisher(plainPanels = 32),
+            "the states a label's restyle reads do not grow with the panels between it and the publisher",
         )
     }
 
-    private fun statesReadByARestyleBelowAPublisher(plainContainers: Int): Int {
+    private fun statesReadByARestyleBelowAPublisher(plainPanels: Int): Int {
         var read = 0
         runComposeSwingTest {
-            val shade = mutableStateOf("a")
-            val provider =
-                SwingStyle<ProbeContainerScope> {
-                    provideNestedStyle(Probes) { ProbeSecond.provide("nested") }
-                }
+            val shade = mutableStateOf(Color.RED)
             setContent {
-                ProbeContainer(StyleProbe(), provider) {
-                    Plain(plainContainers) {
-                        ProbeLeaf(StyleProbe("leaf"), { ProbeThird.provide(shade.value) }, NestedProbe)
-                    }
+                Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) {
+                    Plain(plainPanels) { Label("label", style = { background(shade.value) }) }
                 }
             }
             awaitIdle()
             val states = HashSet<Any>()
             Snapshot.observe(readObserver = { states += it }) {
-                Snapshot.withMutableSnapshot { shade.value = "b" }
+                Snapshot.withMutableSnapshot { shade.value = Color.BLUE }
             }
             awaitIdle()
-            assertTrue(shade in states, "the restyle reads the leaf's own state at $plainContainers containers")
+            assertTrue(shade in states, "the restyle reads the label's own state at $plainPanels panels")
             read = states.size
         }
         return read
@@ -161,6 +159,6 @@ class StyleNodeCostTest {
         depth: Int,
         content: @Composable () -> Unit,
     ) {
-        if (depth == 0) content() else ProbeContainer(StyleProbe(), SwingStyle) { Plain(depth - 1, content) }
+        if (depth == 0) content() else Panel { Plain(depth - 1, content) }
     }
 }

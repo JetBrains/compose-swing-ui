@@ -1,3 +1,6 @@
+// Covers the deprecated component-defaults API until its removal.
+@file:Suppress("DEPRECATION")
+
 package org.jetbrains.compose.swing.defaults
 
 import androidx.compose.runtime.getValue

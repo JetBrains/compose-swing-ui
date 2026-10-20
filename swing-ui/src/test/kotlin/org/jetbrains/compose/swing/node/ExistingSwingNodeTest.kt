@@ -14,13 +14,11 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.layout.ChildPlacement
-import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
-import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
@@ -31,7 +29,6 @@ import java.awt.FlowLayout
 import java.awt.event.ContainerEvent
 import java.awt.event.ContainerListener
 import javax.swing.JLabel
-import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,7 +45,7 @@ class ExistingSwingNodeTest {
             SwingNode(factory = { PartsPanel() }) {
                 ExistingSwingNode(
                     claim = PartsPanel::part,
-                    modifier = SwingModifier.background(Color.RED),
+                    modifier = SwingModifier.styleable { background(Color.RED) },
                     update = { set("declared") { toolTipText = it } },
                 )
             }
@@ -56,7 +53,7 @@ class ExistingSwingNodeTest {
 
         val parent = onNodeOfType<PartsPanel>().fetch()
         assertSame(parent, parent.part.parent, "the claimed component should stay where its parent put it")
-        assertEquals(Color.RED, parent.part.background, "the modifier should reach the claimed component")
+        assertEquals(Color.RED, parent.part.background, "the style should reach the claimed component")
         assertEquals("declared", parent.part.toolTipText, "the update block should reach the claimed component")
     }
 
@@ -68,7 +65,7 @@ class ExistingSwingNodeTest {
                 if (claimed) {
                     ExistingSwingNode(
                         claim = PartsPanel::pane,
-                        modifier = SwingModifier.background(Color.RED),
+                        modifier = SwingModifier.styleable { background(Color.RED) },
                         update = { set("declared") { toolTipText = it } },
                     ) {
                         Label("child")
@@ -100,7 +97,10 @@ class ExistingSwingNodeTest {
         setContent {
             SwingNode(factory = { PartsPanel() }) {
                 ReusableContentHost(active = active) {
-                    ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
+                    ExistingSwingNode(
+                        claim = PartsPanel::part,
+                        modifier = SwingModifier.styleable { background(Color.RED) },
+                    )
                 }
             }
         }
@@ -166,201 +166,6 @@ class ExistingSwingNodeTest {
 
         assertEquals(0, pane.componentCount, "leaving should remove the children the content composed")
         assertSame(borderLayout, pane.layout, "the layout the update block installed should stay")
-    }
-
-    @Test
-    fun anIndexedHostNeverAddsRemovesOrMovesAClaimedComponent() = runComposeSwingTest {
-        var order by mutableStateOf(listOf("A", CLAIM, "B"))
-        setContent {
-            SwingNode(factory = { LonePartPanel() }) {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) ExistingSwingNode(claim = LonePartPanel::part) else Label(name)
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<LonePartPanel>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.part)
-        assertEquals(
-            listOf("A", "B", "part"),
-            parent.texts(),
-            "the composed siblings should be placed in composition order ahead of the part their parent placed",
-        )
-
-        order = listOf("A", "B")
-        awaitIdle()
-        assertEquals(listOf("A", "B", "part"), parent.texts(), "removing the claim should leave the component in place")
-
-        order = listOf("B", CLAIM, "A")
-        awaitIdle()
-        assertEquals(listOf("B", "A", "part"), parent.texts(), "reordering should move only the composed siblings")
-
-        order = listOf("B", CLAIM, "C", "A")
-        awaitIdle()
-        assertEquals(
-            listOf("B", "C", "A", "part"),
-            parent.texts(),
-            "a child inserted after the claim should land in composition order among the composed siblings",
-        )
-
-        assertSame(parent, parent.part.parent, "the claimed component should stay in its parent")
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
-    }
-
-    @Test
-    fun aJLayeredPaneDepthNeverCountsAClaimedComponent() = runComposeSwingTest {
-        var order by mutableStateOf(listOf("A", CLAIM, "B"))
-        setContent {
-            SwingNode(factory = { LayeredPartPane() }) {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) {
-                            ExistingSwingNode(claim = LayeredPartPane::part)
-                        } else {
-                            Label(name, SwingModifier.layoutConstraint(PART_LAYER))
-                        }
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<LayeredPartPane>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.part)
-        assertEquals(
-            listOf("A", "B", "part"),
-            parent.texts(),
-            "the composed siblings should be placed in depth order ahead of the part their parent placed",
-        )
-
-        order = listOf("B", CLAIM, "A")
-        awaitIdle()
-        assertEquals(listOf("B", "A", "part"), parent.texts(), "reordering should move only the composed siblings")
-
-        order = listOf("B", CLAIM, "C", "A")
-        awaitIdle()
-        assertEquals(
-            listOf("B", "C", "A", "part"),
-            parent.texts(),
-            "a child inserted after the claim should land in composition order among the composed siblings",
-        )
-
-        assertSame(parent, parent.part.parent, "the claimed component should stay in its parent")
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
-    }
-
-    @Test
-    fun aClaimReorderedAmongCreatedSiblingsStaysWhereItsParentHoldsIt() = runComposeSwingTest {
-        var order by mutableStateOf(listOf("A", CLAIM, "B"))
-        setContent {
-            SwingNode(factory = { LonePartPanel() }) {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) ExistingSwingNode(claim = LonePartPanel::part) else Label(name)
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<LonePartPanel>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.part)
-
-        order = listOf(CLAIM, "A", "B")
-        awaitIdle()
-        order = listOf("B", "A", CLAIM)
-        awaitIdle()
-
-        assertEquals(listOf("B", "A", "part"), parent.texts(), "only the composed siblings should follow the order")
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
-    }
-
-    @Test
-    fun aCreatedChildInsertedBetweenAClaimAndASiblingAfterAReorderLandsInCompositionOrder() = runComposeSwingTest {
-        var order by mutableStateOf(listOf("A", CLAIM, "B"))
-        setContent {
-            SwingNode(factory = { LonePartPanel() }) {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) ExistingSwingNode(claim = LonePartPanel::part) else Label(name)
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<LonePartPanel>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.part)
-
-        order = listOf("B", CLAIM, "A")
-        awaitIdle()
-        order = listOf("B", CLAIM, "C", "A")
-        awaitIdle()
-
-        assertEquals(
-            listOf("B", "C", "A", "part"),
-            parent.texts(),
-            "the inserted child should land between the siblings it was composed between",
-        )
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
-    }
-
-    @Test
-    fun aClaimReorderedInARegionHostStaysWhereItsParentHoldsIt() = runComposeSwingTest {
-        var order by mutableStateOf(listOf(CLAIM, "body"))
-        setContent {
-            Framed {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) {
-                            FramedHeader()
-                        } else {
-                            Label(name, SwingModifier.slot(FramedProtocol, BODY_REGION, BodyAttachment))
-                        }
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<FramedPanel>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.header)
-
-        order = listOf("body", CLAIM)
-        awaitIdle()
-
-        val layout = parent.layout as BorderLayout
-        assertSame(parent.header, layout.getLayoutComponent(BorderLayout.NORTH), "the header should stay where it was")
-        assertEquals("body", (layout.getLayoutComponent(BorderLayout.CENTER) as JLabel).text)
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
-    }
-
-    @Test
-    fun aClaimReorderedInAnOrderedRegionHostStaysWhereItsParentHoldsIt() = runComposeSwingTest {
-        var order by mutableStateOf(listOf("A", CLAIM, "B"))
-        setContent {
-            SwingNode(factory = { LonePartPanel() }, childPlacement = ChildPlacement.OrderedSlots(ITEM_REGION)) {
-                for (name in order) {
-                    key(name) {
-                        if (name == CLAIM) {
-                            ExistingSwingNode(
-                                claim = LonePartPanel::part,
-                                modifier = SwingModifier.slot(StripProtocol, ITEM_REGION),
-                            )
-                        } else {
-                            Label(name, SwingModifier.slot(StripProtocol, ITEM_REGION, ItemAttachment))
-                        }
-                    }
-                }
-            }
-        }
-        val parent = onNodeOfType<LonePartPanel>().fetch()
-        val events = parent.recordAddsAndRemovesOf(parent.part)
-
-        order = listOf(CLAIM, "A", "B")
-        awaitIdle()
-        order = listOf(CLAIM, "C", "A", "B")
-        awaitIdle()
-
-        assertEquals(
-            listOf("C", "A", "B", "part"),
-            parent.texts(),
-            "the composed items should stand in composition order ahead of the part their parent placed",
-        )
-        assertEquals(emptyList(), events, "the claimed component should never be added to or removed from its parent")
     }
 
     @Test
@@ -469,9 +274,8 @@ class ExistingSwingNodeTest {
                 ExistingSwingNode(
                     claim = PartsPanel::part,
                     modifier =
-                        SwingModifier.background(Color.RED).let {
-                            if (constrained) it.layoutConstraint(BorderLayout.NORTH) else it
-                        },
+                        (if (constrained) SwingModifier.layoutConstraint(BorderLayout.NORTH) else SwingModifier)
+                            .styleable { background(Color.RED) },
                 )
             }
         }
@@ -529,7 +333,7 @@ class ExistingSwingNodeTest {
             SwingNode(factory = { PartsPanel() }) {
                 ExistingSwingNode<PartsPanel, _, JLabel>(
                     claim = { loose },
-                    modifier = SwingModifier.background(Color.RED),
+                    modifier = SwingModifier.styleable { background(Color.RED) },
                 )
                 Label("sibling")
             }
@@ -537,12 +341,9 @@ class ExistingSwingNodeTest {
         awaitIdle()
 
         assertNull(loose.parent, "the claimed component should stay outside any container")
-        assertEquals(Color.RED, loose.background, "the modifier should reach the claimed component")
+        assertEquals(Color.RED, loose.background, "the style should reach the claimed component")
     }
 }
-
-private const val CLAIM = "claim"
-private const val ITEM_REGION = "SwingModifier.item()"
 
 internal class PartsPanel : JPanel() {
     var part: JLabel = JLabel("part")
@@ -568,28 +369,6 @@ internal class PartsPanel : JPanel() {
     }
 }
 
-private class LonePartPanel : JPanel() {
-    val part: JLabel = JLabel("part")
-
-    init {
-        add(part)
-    }
-
-    fun texts(): List<String> = components.map { (it as JLabel).text }
-}
-
-private const val PART_LAYER = 5
-
-private class LayeredPartPane : JLayeredPane() {
-    val part: JLabel = JLabel("part")
-
-    init {
-        add(part, PART_LAYER as Any)
-    }
-
-    fun texts(): List<String> = components.map { (it as JLabel).text }
-}
-
 /** Records every time [child] is added to or removed from this container. */
 internal fun Container.recordAddsAndRemovesOf(child: Component): List<String> {
     val events = ArrayList<String>()
@@ -607,9 +386,7 @@ internal fun Container.recordAddsAndRemovesOf(child: Component): List<String> {
     return events
 }
 
-private val StripProtocol: ParentProtocol = parentProtocolOf("LonePartPanel item") { it is LonePartPanel }
-
-private val ItemAttachment =
+internal val ItemAttachment =
     SlotAttachment { host, component, index ->
         host.add(component, index)
         return@SlotAttachment { host.remove(component) }

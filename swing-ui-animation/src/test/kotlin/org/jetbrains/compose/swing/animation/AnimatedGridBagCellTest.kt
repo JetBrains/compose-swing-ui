@@ -25,9 +25,9 @@ import org.jetbrains.compose.swing.foundation.layout.onSizeChanged
 import org.jetbrains.compose.swing.foundation.layout.swingParentSlots
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -360,7 +360,7 @@ class AnimatedGridBagCellTest {
         onContentSize: (Dimension) -> Unit = {},
     ) {
         Panel(PanelLayout.Flow()) {
-            Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(WIDTH, 2 * WIDTH)) {
+            Panel(PanelLayout.GridBag, style = { preferredSize(WIDTH, 2 * WIDTH) }) {
                 AnimatedVisibility(
                     visible = visible,
                     modifier =
@@ -536,8 +536,8 @@ private fun ConstrainedScope.Content(onSize: (Dimension) -> Unit = {}) {
             SwingModifier
                 .testTag(CONTENT)
                 .onSizeChanged(onSize)
-                .aspectRatio(16f / 9f)
-                .preferredSize(2 * WIDTH, WIDTH),
+                .aspectRatio(16f / 9f),
+        style = { preferredSize(2 * WIDTH, WIDTH) },
     )
 }
 
@@ -556,9 +556,11 @@ private fun ConstrainedScope.TallContent(onSize: (Dimension) -> Unit = {}) {
             SwingModifier
                 .testTag(CONTENT)
                 .onSizeChanged(onSize)
-                .fillMaxWidth()
-                .preferredSize(WIDTH / 4, InNarrowedCell.height)
-                .minimumSize(0, InNarrowedCell.height / 8),
+                .fillMaxWidth(),
+        style = {
+            preferredSize(WIDTH / 4, InNarrowedCell.height)
+            minimumSize(0, InNarrowedCell.height / 8)
+        },
     )
 }
 

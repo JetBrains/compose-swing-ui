@@ -10,8 +10,9 @@ import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -248,7 +249,7 @@ private fun ComposeSwingTest.setUpFixture(
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(160, 100)
+                                .styleable { preferredSize(160, 100) }
                                 .placementLayer { alpha = 0.5f }
                                 .drawBehind(content.draw),
                     )
@@ -262,7 +263,7 @@ private fun ComposeSwingTest.setUpFixture(
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(160, 100)
+                                .styleable { preferredSize(160, 100) }
                                 .opaque(false)
                                 .then(step)
                                 .drawBehind(content.draw),

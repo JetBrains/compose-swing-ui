@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -56,12 +57,12 @@ class SwingNodeTest {
         setContent {
             SwingNode(
                 factory = { JPanel() },
-                modifier = SwingModifier.background(color),
+                modifier = SwingModifier.styleable { background(color) },
                 update = { set(Unit) { background = Color.RED } },
             ) {
                 SwingNode(
                     factory = { JLabel() },
-                    modifier = SwingModifier.background(color),
+                    modifier = SwingModifier.styleable { background(color) },
                     update = { set(Unit) { background = Color.RED } },
                 )
             }

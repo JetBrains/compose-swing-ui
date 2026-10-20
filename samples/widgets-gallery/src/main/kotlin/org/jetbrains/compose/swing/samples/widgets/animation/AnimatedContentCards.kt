@@ -23,12 +23,12 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.font
 import java.awt.Font
 import javax.swing.BoxLayout
 import javax.swing.UIManager
@@ -176,11 +176,11 @@ private fun PageBody(
         PanelLayout.Box(axis = BoxLayout.Y_AXIS),
         modifier =
             SwingModifier
-                .background(themePanelColor())
                 .opaque(true)
                 .border(panelBorder),
+        style = { background(themePanelColor()) },
     ) {
-        Label(title, modifier = titleFont?.let(SwingModifier::font) ?: SwingModifier)
+        Label(title, style = { if (titleFont != null) font(titleFont) })
         details.forEach { Label(it) }
         controls()
     }

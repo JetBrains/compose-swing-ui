@@ -7,18 +7,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 
-/**
- * Pins the compile-time scoping of styles: a nested style reaches only the scopes its key covers, only a scope
- * that holds children provides one, and a provided style covers the key's whole scope. A third-party widget
- * builds its scope, key and kind on public API only.
- *
- * Each snippet compiles in-process against a widget hierarchy it declares itself: a leaf scope, a label-like and
- * a button-like scope under it, a panel-like scope that provides nested styles, and a third-party rating widget.
- */
 class StyleCompilationTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("snippets")
-    fun aSnippetCompilesExactlyWhenItsScopeAllowsIt(
+    fun styleScopesAreChecked(
         program: String,
         rejectedWith: List<String>?,
     ) {
@@ -34,10 +26,21 @@ class StyleCompilationTest {
         ): Arguments = Arguments.of(Named.of(name, program), rejectedWith)
 
         @JvmStatic
-        fun snippets(): List<Arguments> = listOf(
+        fun snippets(): List<Arguments> = scopeSnippets() + providerSnippets() + stateSnippets()
+
+        private fun scopeSnippets(): List<Arguments> = listOf(
             case(
                 "a third-party widget is styled through public API only",
                 """
+                interface PanelScope : ComponentStyleScope, NestedStyleProviderScope
+
+                private val PanelKind =
+                    SwingStyleKind<PanelScope, Unit>({ base, _ -> object : PanelScope, NestedStyleProviderScope by base {} })
+
+                @Composable
+                fun Panel(style: SwingStyle<PanelScope> = SwingStyle, content: @Composable () -> Unit) =
+                    SwingNode(factory = ::JPanel, modifier = SwingModifier.styleable(style, PanelKind), content = content)
+
                 @Composable
                 fun RatedSection() {
                     Panel(style = { provideNestedStyle(Ratings) { stars(5) } }) { Rating(3) }
@@ -48,8 +51,8 @@ class StyleCompilationTest {
                 "a label scope applies a key that covers it",
                 """
                 private val LabelKind =
-                    SwingStyleKind<LabelScope, Unit>({ base, _ -> object : LabelScope, ComponentStyleScope by base {} }) {
-                        applyNestedStyle(AllWidgets)
+                    SwingStyleKind<LabelStyleScope, Unit>({ base, _ -> object : LabelStyleScope, ComponentStyleScope by base {} }) {
+                        applyNestedStyle(AllComponents)
                         applyNestedStyle(Labels)
                     }
                 """,
@@ -58,22 +61,25 @@ class StyleCompilationTest {
                 "a label scope cannot apply the key of an unrelated scope",
                 """
                 private val LabelKind =
-                    SwingStyleKind<LabelScope, Unit>({ base, _ -> object : LabelScope, ComponentStyleScope by base {} }) {
+                    SwingStyleKind<LabelStyleScope, Unit>({ base, _ -> object : LabelStyleScope, ComponentStyleScope by base {} }) {
                         applyNestedStyle(Buttons)
                     }
                 """,
-                listOf("NestedStyleKey<in LabelScope>"),
+                listOf("NestedStyleKey<in LabelStyleScope>"),
             ),
+        )
+
+        private fun providerSnippets(): List<Arguments> = listOf(
             case(
                 "a panel scope provides a nested style",
                 """
-                val PanelStyle = SwingStyle<PanelScope> { provideNestedStyle(Labels) {} }
+                val PanelStyle = SwingStyle<ContainerStyleScope> { provideNestedStyle(Labels) {} }
                 """,
             ),
             case(
                 "a leaf scope cannot provide a nested style",
                 """
-                val LabelStyle = SwingStyle<LabelScope> { provideNestedStyle(Labels) {} }
+                val LabelStyle = SwingStyle<LabelStyleScope> { provideNestedStyle(Labels) {} }
                 """,
                 listOf("provideNestedStyle"),
             ),
@@ -81,16 +87,71 @@ class StyleCompilationTest {
                 "a provider gives a key the style of the key's whole scope",
                 """
                 val Everything = SwingStyle<ComponentStyleScope> {}
-                val PanelStyle = SwingStyle<PanelScope> { provideNestedStyle(AllWidgets, Everything) }
+                val PanelStyle = SwingStyle<ContainerStyleScope> { provideNestedStyle(AllComponents, Everything) }
                 """,
             ),
             case(
                 "a provider cannot narrow the scope of a key",
                 """
                 val FiveStars = SwingStyle<RatingStyleScope> { stars(5) }
-                val PanelStyle = SwingStyle<PanelScope> { provideNestedStyle(AllWidgets, FiveStars) }
+                val PanelStyle = SwingStyle<ContainerStyleScope> { provideNestedStyle(AllComponents, FiveStars) }
                 """,
                 listOf("SwingStyle<ComponentStyleScope>"),
+            ),
+        )
+
+        private fun stateSnippets(): List<Arguments> = listOf(
+            case(
+                "check box accepts checked",
+                """@Composable fun StateSnippet() { CheckBox("a", true, {}, style = { checked { font(null) } }) }""",
+            ),
+            case(
+                "menu item accepts checked",
+                """
+                @Composable fun StateSnippet() {
+                    CheckBoxMenuItem("a", true, {}, style = { checked { font(null) } })
+                }
+                """,
+            ),
+            case(
+                "label rejects checked",
+                """@Composable fun StateSnippet() { Label("a", style = { checked { font(null) } }) }""",
+                listOf(
+                    "candidate 'fun CheckableStyleScope.checked(block: () -> Unit): Unit' " +
+                        "is inapplicable because of a receiver type mismatch.",
+                ),
+            ),
+            case(
+                "button rejects checked",
+                """@Composable fun StateSnippet() { Button("a", {}, style = { checked { font(null) } }) }""",
+                listOf(
+                    "candidate 'fun CheckableStyleScope.checked(block: () -> Unit): Unit' " +
+                        "is inapplicable because of a receiver type mismatch.",
+                ),
+            ),
+            case(
+                "radio button accepts selected",
+                """
+                @Composable fun StateSnippet() {
+                    RadioButton("a", true, {}, style = { selected { font(null) } })
+                }
+                """,
+            ),
+            case(
+                "toggle button accepts selected",
+                """
+                @Composable fun StateSnippet() {
+                    ToggleButton("a", true, {}, style = { selected { font(null) } })
+                }
+                """,
+            ),
+            case(
+                "check box rejects selected",
+                """@Composable fun StateSnippet() { CheckBox("a", true, {}, style = { selected { font(null) } }) }""",
+                listOf(
+                    "candidate 'fun SelectableStyleScope.selected(block: () -> Unit): Unit' " +
+                        "is inapplicable because of a receiver type mismatch.",
+                ),
             ),
         )
 
@@ -100,40 +161,27 @@ class StyleCompilationTest {
             InProcessCompilerHarness.resolveComposePluginClasspath()
         }
 
-        /** Compiles [program] beside the widget hierarchy every snippet shares. */
         fun compile(program: String) = InProcessCompilerHarness.compileSnippet(
             "StyleSnippet.kt",
             """
             import androidx.compose.runtime.Composable
+            import org.jetbrains.compose.swing.components.Label
+            import org.jetbrains.compose.swing.components.button.*
+            import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
             import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
             import org.jetbrains.compose.swing.modifier.SwingModifier
             import org.jetbrains.compose.swing.node.SwingNode
             import org.jetbrains.compose.swing.style.*
+            import org.jetbrains.compose.swing.components.style.*
             import javax.swing.JComponent
             import javax.swing.JPanel
-
-            interface WidgetScope : ComponentStyleScope
-            interface LabelScope : WidgetScope
-            interface ButtonScope : WidgetScope
-            interface PanelScope : WidgetScope, NestedStyleProviderScope
-
-            val AllWidgets: NestedStyleKey<ComponentStyleScope> = NestedStyleKey("AllWidgets")
-            val Labels: NestedStyleKey<LabelScope> = NestedStyleKey("Labels")
-            val Buttons: NestedStyleKey<ButtonScope> = NestedStyleKey("Buttons")
-
-            private val PanelKind =
-                SwingStyleKind<PanelScope, Unit>({ base, _ -> object : PanelScope, NestedStyleProviderScope by base {} })
-
-            @Composable
-            fun Panel(style: SwingStyle<PanelScope> = SwingStyle, content: @Composable () -> Unit) =
-                SwingNode(factory = ::JPanel, modifier = SwingModifier.styleable(style, PanelKind), content = content)
 
             class RatingComponent(var stars: Int = 0) : JComponent()
 
             private val StarsProperty =
                 stylePropertyOf(ComponentPropertyDescriptor<RatingComponent, Int>("stars", { it.stars }, { c, v -> c.stars = v }))
 
-            interface RatingStyleScope : WidgetScope
+            interface RatingStyleScope : ComponentStyleScope
 
             fun RatingStyleScope.stars(count: Int) = StarsProperty.provide(count)
 
@@ -141,7 +189,7 @@ class StyleCompilationTest {
 
             private val RatingKind =
                 SwingStyleKind<RatingStyleScope, Unit>({ base, _ -> object : RatingStyleScope, ComponentStyleScope by base {} }) {
-                    applyNestedStyle(AllWidgets)
+                    applyNestedStyle(AllComponents)
                     applyNestedStyle(Ratings)
                 }
 

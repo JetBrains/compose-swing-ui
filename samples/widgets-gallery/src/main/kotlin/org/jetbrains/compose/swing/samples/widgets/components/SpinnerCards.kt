@@ -12,9 +12,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Dimension
 import java.util.Calendar
 import java.util.Locale
@@ -42,7 +41,7 @@ internal fun ColumnScope.DoubleSpinnerCard() {
                 onValueChange = { rate = it.toDouble() },
                 // The default editor is sized for short integers and would clip "1.5" to "1."; a wider
                 // preferred width lets the whole fractional value show.
-                modifier = SwingModifier.preferredSize(Dimension(80, 28)),
+                style = { preferredSize(Dimension(80, 28)) },
                 min = 0.0,
                 max = 5.0,
                 step = 0.5,

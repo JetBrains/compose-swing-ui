@@ -10,8 +10,7 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.ScrollState
 import org.jetbrains.compose.swing.components.layout.rememberScrollState
 import org.jetbrains.compose.swing.core.MotionDurationScale
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -391,8 +390,8 @@ private fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
         val declared = rememberScrollState()
         state = declared
         scope = rememberCoroutineScope()
-        ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = declared) {
-            Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+        ScrollPane(style = { preferredSize(100, 50) }, state = declared) {
+            Viewport { Label("body", style = { preferredSize(300, 400) }) }
         }
     }
     mainClock.advanceTimeByFrame()

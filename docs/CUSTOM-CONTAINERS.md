@@ -147,16 +147,18 @@ other, in declaration order. A modifier declares either a host slot or other par
 one declaring both is refused, unless each of the other declarations is inheritable and folds no parent
 data.
 
-**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
+**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be set by a
+[style property](STYLES.md#a-property-written-by-an-element); the style's declaration counts as the last one in
+the modifier. A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
 [component default](ARCHITECTURE.md#component-defaults). Under a parent its protocol refuses, it is also
-left out of the declaration instead of refused, whether a default provides it or the component declares
+left out of the declaration instead of refused, whether a default provides it, a style writes it, or the component declares
 it directly: that parent never receives it, and a conventional manager is never registered again because
 of it. A left-out declaration taking another value does not have a measuring parent declared to again,
 in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is
 not additive: one that is both is refused.
 `inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier`
-cannot be a component default, folds, and fails under a parent its protocol refuses. A `ParentLayoutNode`
-declares the same `parentProtocol` and `inheritable` as its element.
+cannot be a component default, cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and
+`inheritable` of a `ParentLayoutNodeElement` apply to the `ParentLayoutNode` it creates.
 
 **What the parent receives.** A declaration reaches the component's immediate parent and travels no
 further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data
@@ -172,7 +174,7 @@ runs `update(node)` when a later declaration is unequal to it, as a `NodeElement
 the node in the element's place in `elements`. Every node among `elements` is attached: the parent is
 handed the elements again as a node detaches, before another node of the modifier runs. Stateful
 declarations are paired by position among themselves, as
-[additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering
+[additive elements](MODIFIERS.md#keyed-and-additive-elements) are, so an element of another kind entering
 or leaving shifts none of them. A layout node has the
 [lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
 of any other node, and it stays attached through a `key` change. It reads the component whose modifier
@@ -472,8 +474,8 @@ Four things make a composite of this shape behave:
   any component.
 - **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`,
   as above. A `Border` or `Icon` built in the composable body is a different instance on every
-  recomposition, and neither overrides `equals`, so the chain element sees a changed value on every
-  pass and re-applies: `JComponent.setBorder` repaints for any instance that is not the one it already
+  recomposition, and neither overrides `equals`, so every
+  pass counts as a changed value and the write is applied again: `JComponent.setBorder` repaints for any instance that is not the one it already
   holds, and relayouts when the insets differ. Handing the same instance back makes the re-applied write
   a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
   equal instance already compares equal to the chain element applied last time and the write is skipped.

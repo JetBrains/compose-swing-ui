@@ -4,8 +4,15 @@
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.style.LayeredPanes
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JLayeredPane
 
 /**
@@ -15,12 +22,12 @@ import javax.swing.JLayeredPane
  * A child declares the depth it sits on with `layer`, through [LayeredPaneScope]; a child declaring none
  * stands on `JLayeredPane.DEFAULT_LAYER`. Within one layer, the children stack in the order the
  * composition declares them, the first of them on top. A layered pane lays no child out, so each child
- * positions itself with `SwingModifier.bounds(...)`:
+ * positions itself with `bounds(...)` in its style:
  *
  * ```
  * LayeredPane {
- *     Background(modifier = SwingModifier.bounds(0, 0, 400, 300))
- *     FloatingToolbar(modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER).bounds(8, 8, 120, 32))
+ *     Background(style = { bounds(0, 0, 400, 300) })
+ *     FloatingToolbar(modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER), style = { bounds(8, 8, 120, 32) })
  * }
  * ```
  *
@@ -28,17 +35,27 @@ import javax.swing.JLayeredPane
  * the layer it declares on recomposition.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JLayeredPane`
+ * @param style the [SwingStyle] applied to the underlying `JLayeredPane`
  * @param content the composable content of the pane; see [LayeredPaneScope]
  * @see javax.swing.JLayeredPane
  */
 @Composable
 public fun LayeredPane(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable LayeredPaneScope.() -> Unit,
 ) {
     SwingNode(
         factory = { JLayeredPane() },
-        modifier = modifier,
+        modifier = modifier.styleable(style, LayeredPaneKind),
         content = { LayeredPaneScopeImpl.content() },
     )
 }
+
+private val LayeredPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(LayeredPanes)
+    }

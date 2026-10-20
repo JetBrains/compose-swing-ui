@@ -31,7 +31,8 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -69,7 +70,7 @@ class AnimationUpstreamParityTest {
                                 scaleOut(animationSpec = tween(200, easing = LinearEasing)) +
                                     shrinkHorizontally(animationSpec = tween(200, easing = LinearEasing)),
                         ) {
-                            Box(SwingModifier.preferredSize(width = 200, height = 200))
+                            Box(modifier = SwingModifier.styleable { preferredSize(width = 200, height = 200) })
                         }
                 }
             }

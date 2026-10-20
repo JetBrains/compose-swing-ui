@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.CalendarField
+import org.jetbrains.compose.swing.components.style.Spinners
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -18,6 +19,12 @@ import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.BorderLayout
 import java.util.Calendar
 import java.util.Date
@@ -84,6 +91,7 @@ private fun rememberSpinnerValueChannel(
  *   scroll, or a committed edit - and with the value the spinner is left on where it cannot hold
  *   [value]; applying a [value] the spinner can hold is not itself reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param style the [SwingStyle] applied to the underlying component.
  * @param min the smallest selectable value, held in [value]'s class, or `null` for none.
  * @param max the largest selectable value, held in [value]'s class, or `null` for none.
  * @param step the amount a step changes the value by; `1` by default. A step is taken in the class of
@@ -106,6 +114,7 @@ public fun Spinner(
     value: Number,
     onValueChange: (Number) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     min: Number? = null,
     max: Number? = null,
     step: Number = 1,
@@ -124,6 +133,7 @@ public fun Spinner(
     SpinnerNode(
         model = model,
         modifier = modifier.changeListener(channel.listener),
+        style = style,
         format = format,
         editor = editor,
         valueClass = value.javaClass,
@@ -148,6 +158,7 @@ public fun Spinner(
  *   scroll, or a committed edit - and with the value the spinner is left on where it cannot hold
  *   [value]; applying a [value] the spinner can hold is not itself reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param style the [SwingStyle] applied to the underlying component.
  * @param start the earliest selectable date, or `null` for none.
  * @param end the latest selectable date, or `null` for none.
  * @param calendarField the `Calendar` field a step moves the value by; `DAY_OF_MONTH` by default, so a
@@ -169,6 +180,7 @@ public fun Spinner(
     value: Date,
     onValueChange: (Date) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     start: Date? = null,
     end: Date? = null,
     @CalendarField calendarField: Int = Calendar.DAY_OF_MONTH,
@@ -182,6 +194,7 @@ public fun Spinner(
     SpinnerNode(
         model = model,
         modifier = modifier.changeListener(channel.listener),
+        style = style,
         format = format,
         editor = editor,
     ) {
@@ -211,6 +224,7 @@ public fun Spinner(
  *   hold [value]; applying a [value] the spinner can hold is not itself
  *   reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param style the [SwingStyle] applied to the underlying component.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
  *   a composition of its own joined to the caller's, so it reads the same state and locals the caller
  *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
@@ -224,6 +238,7 @@ public fun <T : Any> Spinner(
     value: T?,
     onValueChange: (T) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     editor: (@Composable () -> Unit)? = null,
 ) {
     val mirror = rememberMirrorState<Any?>(value)
@@ -239,6 +254,7 @@ public fun <T : Any> Spinner(
     SpinnerNode(
         model = model,
         modifier = modifier.changeListener(channel.listener),
+        style = style,
         format = null,
         editor = editor,
     ) {
@@ -261,6 +277,7 @@ public fun <T : Any> Spinner(
  * @param model the model the spinner renders.
  * @param changeListener the listener notified when the spinner's value changes.
  * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param style the [SwingStyle] applied to the underlying component.
  * @param format the pattern the spinner formats and parses its values with - a `DecimalFormat` pattern
  *   over a number model, a `SimpleDateFormat` pattern over a date model; `null` formats them the way the
  *   locale does. A new pattern rebuilds the spinner's own editor around it.
@@ -278,6 +295,7 @@ public fun Spinner(
     model: SpinnerModel,
     changeListener: ChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     format: String? = null,
     editor: (
         @Composable
@@ -287,6 +305,7 @@ public fun Spinner(
     SpinnerNode(
         model = model,
         modifier = modifier.changeListener(changeListener),
+        style = style,
         format = format,
         editor = editor,
     )
@@ -302,6 +321,7 @@ public fun Spinner(
 private inline fun SpinnerNode(
     model: SpinnerModel,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     format: String?,
     noinline editor: (
         @Composable
@@ -328,9 +348,10 @@ private inline fun SpinnerNode(
     // the modifier below, which installs it as the spinner's editor, and to the editor composition beside
     // the node, which fills it.
     val editorPanel = if (editor != null) remember { JPanel(BorderLayout()).apply { isOpaque = false } } else null
+    val editorModifier = if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier
     SwingNode<JSpinner>(
         factory = { SpinnerComponent(model) },
-        modifier = if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier,
+        modifier = editorModifier.styleable(style, SpinnerKind),
         update = {
             set(model) { this.model = it }
             this.updateBlock()
@@ -664,3 +685,11 @@ private class SpinnerComponent(
                 ownEditorModel = model
             }
 }
+
+private val SpinnerKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(Spinners)
+    }

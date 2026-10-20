@@ -12,7 +12,8 @@ import javax.swing.JComponent
 import javax.swing.JMenuItem
 
 /**
- * Sets `isOpaque` - required for [background] to actually paint. Requires a `JComponent` target.
+ * Sets `isOpaque` - required for a [background][org.jetbrains.compose.swing.style.background] to paint. Requires a
+ * `JComponent` target.
  *
  * A look and feel writes this flag from [contentAreaFilled] on every change to that property, so a
  * button holds no flag of its own while the two agree: removing the declaration restores that rule

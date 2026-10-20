@@ -15,12 +15,13 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -987,7 +988,7 @@ class PlacementHitTestInputTest {
             setWindowContent {
                 Box {
                     Layout(
-                        modifier = SwingModifier.testTag(STAGE_TAG).preferredSize(300, 300),
+                        modifier = SwingModifier.testTag(STAGE_TAG).styleable { preferredSize(300, 300) },
                         content = {
                             Canvas(
                                 modifier =
@@ -1312,7 +1313,7 @@ private inline fun BoxScope.Stage(
     crossinline content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
-        modifier = modifier.testTag(STAGE_TAG).preferredSize(300, 300),
+        modifier = modifier.testTag(STAGE_TAG).styleable { preferredSize(300, 300) },
         contentAlignment = Alignment.Center,
     ) { content() }
 }

@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -33,7 +34,7 @@ class EnterExitRepaintWithinOutsetsTest {
     ) = runComposeSwingTest {
         var visible by mutableStateOf(false)
         setContent {
-            Box(modifier = SwingModifier.preferredSize(260, 120).testTag("host")) {
+            Box(modifier = SwingModifier.styleable { preferredSize(260, 120) }.testTag("host")) {
                 if (scoped) {
                     AnimatedVisibility(visible = visible, enter = enter, exit = ExitTransition.None) { ShadowedLeaf() }
                 } else {
@@ -81,9 +82,19 @@ private fun UnscopedAnimatedVisibility(
 
 @Composable
 private fun ShadowedLeaf() {
-    Box(modifier = SwingModifier.preferredSize(240, 100)) {
-        Box(modifier = SwingModifier.preferredSize(200, 60).testTag("card").shadow(0, Color.BLACK, offsetX = 1)) {
-            Canvas(modifier = SwingModifier.preferredSize(200, 60).testTag("leaf")) {
+    Box(modifier = SwingModifier.styleable { preferredSize(240, 100) }) {
+        Box(
+            modifier =
+                SwingModifier
+                    .styleable {
+                        preferredSize(
+                            200,
+                            60,
+                        )
+                    }.testTag("card")
+                    .shadow(0, Color.BLACK, offsetX = 1),
+        ) {
+            Canvas(modifier = SwingModifier.styleable { preferredSize(200, 60) }.testTag("leaf")) {
                 drawRect(Color.RED, x = 10f, y = 20f, width = 1f, height = 1f)
             }
         }

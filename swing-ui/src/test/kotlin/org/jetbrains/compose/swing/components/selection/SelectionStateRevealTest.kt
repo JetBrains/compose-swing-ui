@@ -6,8 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -35,7 +34,7 @@ class SelectionStateRevealTest {
     fun revealingARowScrollsAListToIt() = runComposeSwingTest {
         val state = ListState()
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
+            ScrollPane(style = { preferredSize(160, 80) }) {
                 Viewport { ListBox(items = rows, state = state) }
             }
         }
@@ -53,7 +52,7 @@ class SelectionStateRevealTest {
     fun revealingANodeScrollsATreeToIt() = runComposeSwingTest {
         val state = TreeState(initialExpandedPaths = setOf(emptyList()))
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
+            ScrollPane(style = { preferredSize(160, 80) }) {
                 Viewport {
                     Tree(
                         root = "root",
@@ -106,7 +105,7 @@ class SelectionStateRevealTest {
         val state = ListState()
         setContent {
             LaunchedEffect(items) { reachedFromEffect += state.revealIndex(items.lastIndex) }
-            ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
+            ScrollPane(style = { preferredSize(160, 80) }) {
                 Viewport { ListBox(items = items, state = state) }
             }
         }

@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
@@ -25,13 +25,13 @@ class DrawBehindRenderingHintsTest {
                     modifier =
                         SwingModifier
                             .testTag("box")
-                            .preferredSize(Dimension(32, 32))
                             .drawBehind {
                                 antialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                                 strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL)
                             }.drawWithContent {
                                 contentAntialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                             },
+                    style = { preferredSize(Dimension(32, 32)) },
                 )
             }
 
@@ -55,14 +55,13 @@ class DrawBehindRenderingHintsTest {
                         modifier =
                             SwingModifier
                                 .testTag("default")
-                                .preferredSize(Dimension(32, 32))
                                 .drawBehind { drawCircle(Color.BLACK) },
+                        style = { preferredSize(Dimension(32, 32)) },
                     )
                     DecoratedBox(
                         modifier =
                             SwingModifier
                                 .testTag("off")
-                                .preferredSize(Dimension(32, 32))
                                 .drawBehind {
                                     graphics.setRenderingHint(
                                         RenderingHints.KEY_ANTIALIASING,
@@ -70,6 +69,7 @@ class DrawBehindRenderingHintsTest {
                                     )
                                     drawCircle(Color.BLACK)
                                 },
+                        style = { preferredSize(Dimension(32, 32)) },
                     )
                 }
             }

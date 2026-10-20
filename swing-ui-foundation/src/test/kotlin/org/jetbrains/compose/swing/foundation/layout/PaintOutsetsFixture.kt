@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
@@ -8,6 +9,10 @@ import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.SwingStyleKind
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
@@ -27,14 +32,20 @@ internal const val LINE = 3
 internal fun LinedField(
     tag: String,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
 ) {
     TextField(
         tag,
         {},
         modifier = SwingModifier.testTag(tag).border(LineBorder(Color.RED, LINE)).then(modifier),
         columns = 8,
+        style = style,
     )
 }
+
+/** The kind of a raw node's component that takes the styles provided for every component. */
+internal val RawKind: SwingStyleKind<ComponentStyleScope, Unit> =
+    SwingStyleKind({ base, _ -> base }) { applyNestedStyle(AllComponents) }
 
 /** The width of the focus ring a test's border or outsets leave outside the line. */
 internal const val RING = 2

@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -45,7 +45,7 @@ class InternalFrameMaximizedTest {
         state: InternalFrameState,
         toolTip: String = "Edits the document",
     ) = setContent {
-        DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
+        DesktopPane(style = { preferredSize(desktopSize) }) {
             InternalFrame(
                 title = "Editor",
                 state = state,
@@ -179,7 +179,7 @@ class InternalFrameMaximizedTest {
         val state = InternalFrameState(Rectangle(10, 20, 100, 80), maximized = true)
         var tip by mutableStateOf("Edits the document")
         setContent {
-            DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
+            DesktopPane(style = { preferredSize(desktopSize) }) {
                 InternalFrame(
                     title = "Editor",
                     state = state,
@@ -348,7 +348,7 @@ class InternalFrameMaximizedTest {
         val second = InternalFrameState(Rectangle(0, 0, 100, 100))
         var useSecond by mutableStateOf(false)
         setContent {
-            DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
+            DesktopPane(style = { preferredSize(desktopSize) }) {
                 InternalFrame(
                     title = "Editor",
                     state = if (useSecond) second else first,
@@ -371,7 +371,7 @@ class InternalFrameMaximizedTest {
     fun anUndeclaredMaximizeStandsAcrossARecomposition() = runComposeSwingTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
-            DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
+            DesktopPane(style = { preferredSize(desktopSize) }) {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 100, 80),

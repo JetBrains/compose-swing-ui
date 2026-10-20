@@ -76,8 +76,8 @@ import java.util.EnumSet
  * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
  * fails with a clear error naming the element and the required vs. actual type.
  *
- * Conditional composition works the way it does in Compose: `if (selected) it.background(blue)
- * else it` adds the background when selected and removes it (restoring the value the component had
+ * Conditional composition works the way it does in Compose: `if (selected) it.testTag(tag)
+ * else it` adds the tag when selected and removes it (restoring the value the component had
  * before the modifier first touched that property) when not.
  *
  * The modifier is immutable; build it in place in the composable body. It needs no `remember`: a modifier
@@ -367,7 +367,7 @@ public interface SwingModifier {
      * event fires.
      *
      * An element is one of two kinds, selected by [additive]: a **property** element (the default),
-     * right for a value like `background` or `border`, or a **subscription** element, right for a
+     * right for a value like `testTag`, or a **subscription** element, right for a
      * listener like `onHover`. See [additive] and [key] for how each kind is matched across
      * recompositions.
      *
@@ -1367,7 +1367,7 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * [detached][SwingModifier.ComponentNode.onDetach] (restoring the value the component had before the modifier
  * first touched that property).
  *
- * Runs after the component's own `set`s, so a modifier can override component defaults. A modifier
+ * Runs after the component's own `set`s, so a modifier can override what they wrote. A modifier
  * declaring what the one applied last declares is skipped whole - a listener callback the pass rebuilt
  * reaches the node that reads it without counting as a change - and in a modifier that did change, every
  * element ahead of the first write is skipped with it.

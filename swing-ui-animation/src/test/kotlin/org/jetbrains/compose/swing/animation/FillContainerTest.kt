@@ -13,9 +13,12 @@ import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -78,14 +81,17 @@ class FillContainerTest {
     fun `a filled width takes the container's width and leaves the other axis preferring its own`() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, FILLED_EXTENT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, FILLED_EXTENT) }) {
                     AnimatedVisibility(
                         visible = true,
                         modifier = SwingModifier.center(),
                         enter = expandHorizontally(),
                         exit = shrinkHorizontally(),
                     ) {
-                        RedCanvas(SwingModifier.fillMaxWidth().preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                        RedCanvas(
+                            SwingModifier.fillMaxWidth(),
+                            style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) },
+                        )
                     }
                 }
             }
@@ -143,7 +149,7 @@ class FillContainerTest {
         FilledHeight(
             content = { shown ->
                 Region(shown) {
-                    RedCanvas(SwingModifier.fillMaxHeight().preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                    RedCanvas(SwingModifier.fillMaxHeight(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) })
                 }
             },
             filled = { onNodeWithTag(CANVAS).fetch<Component>() },
@@ -163,14 +169,17 @@ class FillContainerTest {
         ),
         FilledWidthOfNorthRegion(
             content = { shown ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(FILLED_EXTENT, 400)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(FILLED_EXTENT, 400) }) {
                     AnimatedVisibility(
                         visible = shown,
                         modifier = SwingModifier.north(),
                         enter = expandVertically(),
                         exit = shrinkVertically(),
                     ) {
-                        RedCanvas(SwingModifier.fillMaxWidth().preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                        RedCanvas(
+                            SwingModifier.fillMaxWidth(),
+                            style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) },
+                        )
                     }
                 }
             },
@@ -181,17 +190,18 @@ class FillContainerTest {
         ),
         AnimatedContentFillingHeight(
             content = { shown ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, FILLED_EXTENT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, FILLED_EXTENT) }) {
                     AnimatedContent(
                         targetState = shown,
                         modifier = SwingModifier.west(),
                         transitionSpec = { fadeIn() togetherWith shrinkHorizontally() },
                     ) { target ->
                         RedCanvas(
-                            SwingModifier
-                                .accessibleName(target.toString())
-                                .fillMaxHeight()
-                                .preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT),
+                            SwingModifier.fillMaxHeight(),
+                            style = {
+                                accessibleName(target.toString())
+                                preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)
+                            },
                         )
                     }
                 }
@@ -213,7 +223,7 @@ private fun Region(
     shown: Boolean,
     content: @Composable ConstrainedScope.() -> Unit,
 ) {
-    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, FILLED_EXTENT)) {
+    Panel(PanelLayout.Border(), style = { preferredSize(400, FILLED_EXTENT) }) {
         AnimatedVisibility(
             visible = shown,
             modifier = SwingModifier.west(),
@@ -229,14 +239,17 @@ private fun Region(
 @Composable
 private fun ConstrainedScope.TallScrollPane() {
     ScrollPane(modifier = SwingModifier.fillMaxHeight()) {
-        Viewport { RedCanvas(SwingModifier.preferredSize(CONTENT_WIDTH, 2 * FILLED_EXTENT)) }
+        Viewport { RedCanvas(style = { preferredSize(CONTENT_WIDTH, 2 * FILLED_EXTENT) }) }
     }
 }
 
 /** A canvas painting itself over whatever bounds it is laid out at, so its extent is visible on screen. */
 @Composable
-private fun RedCanvas(modifier: SwingModifier) {
-    Canvas(modifier = modifier.testTag(CANVAS)) {
+private fun RedCanvas(
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
+) {
+    Canvas(modifier = modifier.testTag(CANVAS).styleable(style)) {
         drawRect(Color.RED)
     }
 }

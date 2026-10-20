@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -31,7 +32,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     if (present) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {}
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {}
                     }
                 }
             }
@@ -66,7 +67,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     if (present) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             lastDrawn = value.intValue
                         }
                     }
@@ -112,7 +113,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     ReusableContentHost(active = active) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             lastDrawn = value.intValue
                         }
                     }
@@ -153,7 +154,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     if (present) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             value.intValue
                             drawCount++
                         }
@@ -201,7 +202,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     ReusableContentHost(active = active) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             lastDrawn = value.intValue
                             drawCount++
                         }
@@ -257,7 +258,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     ReusableContentHost(active = active) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             drawCount++
                         }
                     }
@@ -299,7 +300,7 @@ class CanvasLifecycleTest {
                 Panel(PanelLayout.Box()) {
                     Label(text = "anchor")
                     ReusableContentHost(active = active) {
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             lastDrawn = value.intValue
                         }
                     }
@@ -350,7 +351,7 @@ class CanvasLifecycleTest {
                     Label(text = "anchor")
                     ReusableContent(reuseKey) {
                         val observed = if (reuseKey == 0) readByOldContent else readByNewContent
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                             observed.intValue
                         }
                     }
@@ -408,11 +409,11 @@ class CanvasLifecycleTest {
             setContent {
                 Panel(PanelLayout.Box()) {
                     if (firstPresent) {
-                        Canvas(modifier = SwingModifier.testTag("first").preferredSize(64, 48)) {
+                        Canvas(modifier = SwingModifier.testTag("first").styleable { preferredSize(64, 48) }) {
                             value.intValue
                         }
                     }
-                    Canvas(modifier = SwingModifier.testTag("second").preferredSize(64, 48)) {
+                    Canvas(modifier = SwingModifier.testTag("second").styleable { preferredSize(64, 48) }) {
                         value.intValue
                     }
                 }

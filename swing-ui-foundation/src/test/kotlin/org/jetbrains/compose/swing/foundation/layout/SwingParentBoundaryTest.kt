@@ -24,8 +24,9 @@ import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -70,14 +71,17 @@ class SwingParentBoundaryTest {
             setContent {
                 SwingNode(
                     factory = { stockPanel() },
-                    modifier = SwingModifier.testTag("stock").preferredSize(Dimension(160, 120)),
+                    modifier =
+                        SwingModifier
+                            .testTag("stock")
+                            .styleable({ preferredSize(Dimension(160, 120)) }, RawKind),
                 ) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(64, 64)
-                                .shadow(4, Color.BLACK),
+                                .shadow(4, Color.BLACK)
+                                .styleable { preferredSize(64, 64) },
                     ) {
                         Box(
                             modifier =
@@ -155,8 +159,8 @@ class SwingParentBoundaryTest {
                                 modifier =
                                     SwingModifier
                                         .testTag("child")
-                                        .preferredSize(64, 64)
-                                        .shadow(4, Color.BLACK),
+                                        .shadow(4, Color.BLACK)
+                                        .styleable { preferredSize(64, 64) },
                             ) {
                                 Box(
                                     modifier =
@@ -173,7 +177,7 @@ class SwingParentBoundaryTest {
                     }
                     SwingNode(
                         factory = { stockPanel() },
-                        modifier = SwingModifier.preferredSize(Dimension(160, 120)),
+                        modifier = SwingModifier.styleable({ preferredSize(Dimension(160, 120)) }, RawKind),
                     ) {
                         if (!inFoundation) moving()
                     }
@@ -221,7 +225,10 @@ class SwingParentBoundaryTest {
                             ) {
                                 SwingNode(
                                     factory = { JPanel() },
-                                    modifier = SwingModifier.testTag("child").preferredSize(40, 30),
+                                    modifier =
+                                        SwingModifier
+                                            .testTag("child")
+                                            .styleable({ preferredSize(40, 30) }, RawKind),
                                 )
                             }
                         }
@@ -267,7 +274,7 @@ class SwingParentBoundaryTest {
                         ) {
                             SwingNode(
                                 factory = { JPanel() },
-                                modifier = SwingModifier.testTag("child").preferredSize(40, 30),
+                                modifier = SwingModifier.testTag("child").styleable({ preferredSize(40, 30) }, RawKind),
                             )
                         }
                     }
@@ -388,7 +395,7 @@ class SwingParentBoundaryTest {
     fun aContainerAStockParentLaysOutTakesItsIntrinsicHeightAtTheWidthItIsGranted() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                     Box(modifier = SwingModifier.north().testTag("box").emptyBorder(3)) {
                         Box(modifier = SwingModifier.fillMaxWidth().aspectRatio(2f).shadow(6, Color.BLACK))
                     }
@@ -482,7 +489,7 @@ class SwingParentBoundaryTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(BorderLayout()) },
-                    modifier = SwingModifier.preferredSize(width, 240),
+                    modifier = SwingModifier.styleable({ preferredSize(width, 240) }, RawKind),
                 ) {
                     SwingNode(
                         factory = { JPanel().apply { this.layout = layout(this) } },
@@ -516,7 +523,7 @@ class SwingParentBoundaryTest {
     fun aContainerAStockParentMakesZeroWideComputesItsPreferredHeightAtItsPreferredWidth() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                     Box(modifier = SwingModifier.testTag("box").north()) {
                         Column { Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(2f)) }
                     }
@@ -539,7 +546,7 @@ class SwingParentBoundaryTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(320)
             setContent {
-                Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Panel(PanelLayout.Grid(), style = { preferredSize(width, 600) }) {
                     SwingNode(factory = { JPanel(InvalidatingHeightForWidthLayout()) }) {
                         Box(modifier = SwingModifier.testTag("box")) {
                             TextArea(

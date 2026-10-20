@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -168,7 +168,7 @@ internal object Stretch {
                 "GridBagLayout fill BOTH",
                 { child ->
                     Panel(PanelLayout.Flow()) {
-                        Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(NARROW, WIDE)) {
+                        Panel(PanelLayout.GridBag, style = { preferredSize(NARROW, WIDE) }) {
                             child(SwingModifier.item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.BOTH))
                         }
                     }
@@ -181,7 +181,7 @@ internal object Stretch {
     private fun boxParent(axis: Int): StockParent =
         { child ->
             Panel(PanelLayout.Flow()) {
-                Panel(PanelLayout.Box(axis), modifier = SwingModifier.preferredSize(NARROW, WIDE)) {
+                Panel(PanelLayout.Box(axis), style = { preferredSize(NARROW, WIDE) }) {
                     child(SwingModifier)
                 }
             }
@@ -212,7 +212,7 @@ internal object Stretch {
             "BorderLayout NORTH",
             { child ->
                 Panel(PanelLayout.Flow()) {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(NARROW, WIDE)) {
+                    Panel(PanelLayout.Border(), style = { preferredSize(NARROW, WIDE) }) {
                         child(SwingModifier.north())
                     }
                 }
@@ -232,7 +232,7 @@ internal object Stretch {
 
     /** Prefers [WIDE] by 20, and keeps a 16:9 aspect ratio at the width it is offered. */
     val WideContent: TaggedContent = { modifier ->
-        Label("", modifier = modifier.aspectRatio(RATIO).preferredSize(WIDE, 20))
+        Label("", modifier = modifier.aspectRatio(RATIO), style = { preferredSize(WIDE, 20) })
     }
 
     fun atAspect(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
@@ -270,7 +270,7 @@ internal object Stretch {
         val width = mutableIntStateOf(resize.from)
         val entering =
             container { modifier ->
-                Label("", modifier = modifier.aspectRatio(RATIO).preferredSize(width.intValue, 20))
+                Label("", modifier = modifier.aspectRatio(RATIO), style = { preferredSize(width.intValue, 20) })
             }
         val framesBeforeResize = TRANSITION_MILLIS / FRAME_MILLIS / 4
         val all =

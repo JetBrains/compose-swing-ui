@@ -3,8 +3,9 @@ package org.jetbrains.compose.swing.modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.ComponentOrientation
@@ -19,8 +20,8 @@ import kotlin.test.assertTrue
  * [componentOrientation] must request a relayout, or its orientation-aware `LINE_START`/`LINE_END`
  * children keep the edges they were last laid out on and the change is invisible.
  *
- * The change is driven through the public API ([SwingNode] plus the modifier, re-applied across the
- * recomposition the orientation state provokes), and two things are observed off-screen: that the
+ * The change is driven through the public API ([SwingNode] plus a style, applied again when the
+ * orientation state it reads changes), and the following is observed off-screen: that the
  * container's `revalidate()` was called - counted by a [JPanel] subclass, since Swing's own relayout
  * plumbing is inert without a peer - and that the children then swapped horizontal edges.
  */
@@ -53,9 +54,11 @@ class LayoutOrientationTest {
                     }
                 },
                 modifier =
-                    SwingModifier.componentOrientation(
-                        if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
-                    ),
+                    SwingModifier.styleable {
+                        componentOrientation(
+                            if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                        )
+                    },
             )
         }
 
@@ -66,7 +69,7 @@ class LayoutOrientationTest {
             "Under LTR, LINE_START (x=$leadingLtr) should sit left of LINE_END (x=$trailingLtr).",
         )
 
-        // Flip orientation through state; the modifier element is re-applied with the new value.
+        // Flip orientation through state; the style is applied again with the new value.
         val countBeforeToggle = revalidateCount.get()
         rtl = true
         awaitIdle()

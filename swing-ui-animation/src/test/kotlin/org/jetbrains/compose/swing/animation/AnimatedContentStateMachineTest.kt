@@ -13,8 +13,9 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
@@ -205,7 +206,7 @@ class AnimatedContentStateMachineTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Box(SwingModifier.preferredSize(ROOM_WIDTH, BODY_HEIGHT)) {
+                Box(SwingModifier.styleable { preferredSize(ROOM_WIDTH, BODY_HEIGHT) }) {
                     org.jetbrains.compose.swing.animation.AnimatedContent(
                         targetState = state,
                         transitionSpec = { fadeIn(tween(1600)) togetherWith fadeOut(tween(1600)) },
@@ -298,7 +299,7 @@ class AnimatedContentStateMachineTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Box(SwingModifier.preferredSize(ROOM_WIDTH, BODY_HEIGHT)) {
+                Box(SwingModifier.styleable { preferredSize(ROOM_WIDTH, BODY_HEIGHT) }) {
                     UnscopedFade(state, millis = 160) {
                         if (it == "a") Body(text = it) else SwingNode(factory = { GrowingLeaf() })
                     }
@@ -585,13 +586,15 @@ class AnimatedContentStateMachineTest {
 @Composable
 private fun Body(text: String) {
     val width = if (text == "a") NARROW_WIDTH else WIDE_WIDTH
-    Label(text = text, modifier = SwingModifier.preferredSize(width = width, height = BODY_HEIGHT).opaque(true))
+    Label(text = text, modifier = SwingModifier.opaque(true), style = {
+        preferredSize(width = width, height = BODY_HEIGHT)
+    })
 }
 
 /** A content wide enough for a slide off its own width to be told apart from one that has come home. */
 @Composable
 private fun SlidingBody(text: String) =
-    Label(text = text, modifier = SwingModifier.preferredSize(width = SLIDING_WIDTH, height = BODY_HEIGHT))
+    Label(text = text, style = { preferredSize(width = SLIDING_WIDTH, height = BODY_HEIGHT) })
 
 // No ConstrainedScope receiver, so the call resolves to the unscoped AnimatedContent overload.
 @Composable

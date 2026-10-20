@@ -24,6 +24,7 @@ import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.appearance.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Color
 import java.awt.Dimension
@@ -134,11 +135,12 @@ The same tree fills a context menu through `ContextMenu(anchor) { ... }` and a t
 through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }`
 takes it too.
 
-## Styling & interaction with `SwingModifier`
+## Styling with `SwingStyle`, interaction with `SwingModifier`
 
-Components take an optional `modifier: SwingModifier = SwingModifier` parameter for visual and
-interaction concerns - colors, fonts, borders, tooltips, focus, hover. Build a chain with the
-extension builders:
+Components take optional style and modifier parameters. A `style: SwingStyle<S>` sets the properties of the component -
+colors, fonts, sizes, whether it is enabled. A `modifier: SwingModifier` keeps everything else:
+borders, tooltips, hover and other listeners, parent data and decoration. Write the style as a lambda and
+chain the modifier with the extension builders:
 
 ```kotlin
 @Composable
@@ -149,29 +151,27 @@ fun SaveButton(onSave: () -> Unit) {
         onClick = onSave,
         modifier =
             SwingModifier
-                .foreground(Color.WHITE)
                 .lineBorder(if (hovered) Color.BLUE else Color.GRAY)
                 .onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
+        style = { foreground(Color.WHITE) },
     )
 }
 ```
 
 <!--- KNIT example-readme-04.kt -->
 
-`lineBorder` and `emptyBorder` declare a border by its values and rebuild it only when they change.
+`lineBorder` and `emptyBorder` declare a border by its values; a border whose values are unchanged is not applied again.
 Use `remember` for value objects such as `Font` and `Icon` used in a style or modifier.
 
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
-styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
-appearance, layout, interaction, listener, keyboard, data transfer, and accessibility. See
+interaction flows through `modifier`. Builders cover appearance, layout, interaction, listeners, keyboard, data transfer, and accessibility. See
 [`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for why a modifier built in place needs no
-`remember`.
+`remember`, and [`docs/STYLES.md`](docs/STYLES.md) for what a style is.
 
 ## Bring your own Swing component
 
 Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, supported way to bring
-custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same
-way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
+custom Swing components into a composition. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
 
 See [Component state](docs/COMPONENT-STATE.md) for editable properties, [Modifiers](docs/MODIFIERS.md) for modifiers, [Styles](docs/STYLES.md) for styling, [Foundation](docs/FOUNDATION.md) for layout and drawing, and [Custom containers](docs/CUSTOM-CONTAINERS.md) for child placement.

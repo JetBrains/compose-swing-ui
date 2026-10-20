@@ -28,12 +28,16 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.foundation.layout.swingParentSlots
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -150,7 +154,10 @@ class AnimatedVisibilityContainerTest {
                             enter = expandVertically(expandFrom = Alignment.Top),
                             exit = ExitTransition.None,
                         ) {
-                            SwingNode(factory = { child }, modifier = SwingModifier.preferredSize(80, 40))
+                            SwingNode(
+                                factory = { child },
+                                modifier = SwingModifier.styleable({ preferredSize(80, 40) }, ClipChildKind),
+                            )
                         }
                         Filled(SwingModifier.testTag(BELOW), width = 80, height = 20)
                     }
@@ -223,7 +230,7 @@ class AnimatedVisibilityContainerTest {
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(200, 200)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(200, 200) }) {
                     AnimatedVisibility(
                         visible = visible,
                         modifier = SwingModifier.north().testTag(CONTAINER),
@@ -257,7 +264,7 @@ class AnimatedVisibilityContainerTest {
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(40, 40)) {
+                ScrollPane(style = { preferredSize(40, 40) }) {
                     Viewport {
                         AnimatedVisibility(
                             visible = visible,
@@ -301,7 +308,7 @@ class AnimatedVisibilityContainerTest {
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(200, 40)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(200, 40) }) {
                     // Declared first, so it paints over the sibling where its slide is not clipped.
                     AnimatedVisibility(
                         visible = visible,
@@ -340,13 +347,13 @@ class AnimatedVisibilityContainerTest {
             var visible by mutableStateOf(false)
             setContent {
                 val slide = slideInHorizontally(tween(1600)) { it }
-                Box(SwingModifier.preferredSize(200, 60)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(200, 60) }) {
                     AnimatedVisibility(visible, SwingModifier.testTag("box"), slide, ExitTransition.None) { Filled() }
                 }
-                Row(SwingModifier.preferredSize(200, 60)) {
+                Row(modifier = SwingModifier.styleable { preferredSize(200, 60) }) {
                     AnimatedVisibility(visible, SwingModifier.testTag("row"), slide, ExitTransition.None) { Filled() }
                 }
-                Column(SwingModifier.preferredSize(200, 60)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(200, 60) }) {
                     AnimatedVisibility(visible, SwingModifier.testTag("column"), slide, ExitTransition.None) {
                         Filled()
                     }
@@ -507,7 +514,7 @@ class AnimatedVisibilityContainerTest {
         var parentWidth by mutableStateOf(320)
         setContent {
             Panel(PanelLayout.Flow()) {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(parentWidth, 320)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(parentWidth, 320) }) {
                     AnimatedVisibility(
                         visible = visible,
                         modifier = SwingModifier.north().testTag(CONTAINER),
@@ -519,8 +526,8 @@ class AnimatedVisibilityContainerTest {
                             modifier =
                                 SwingModifier
                                     .testTag(CONTENT)
-                                    .aspectRatio(RATIO)
-                                    .minimumSize(320, (320 / RATIO).roundToInt()),
+                                    .aspectRatio(RATIO),
+                            style = { minimumSize(320, (320 / RATIO).roundToInt()) },
                         )
                     }
                 }
@@ -542,7 +549,7 @@ class AnimatedVisibilityContainerTest {
         var visible by mutableStateOf(false)
         setContent {
             Panel(PanelLayout.Flow()) {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(160, 320)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(160, 320) }) {
                     AnimatedVisibility(
                         visible = visible,
                         modifier = SwingModifier.north().testTag(CONTAINER),
@@ -614,6 +621,11 @@ private class ClipRecordingComponent : JComponent() {
     }
 }
 
+private val ClipChildKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    )
+
 /** A content that fills itself with [color]. */
 @Composable
 private fun Filled(
@@ -621,7 +633,14 @@ private fun Filled(
     color: Color = Color.BLUE,
     width: Int = 40,
     height: Int = 20,
-) = Label(text = "", modifier = modifier.preferredSize(width, height).opaque(true).background(color))
+) = Label(
+    text = "",
+    modifier = modifier.opaque(true),
+    style = {
+        preferredSize(width, height)
+        background(color)
+    },
+)
 
 /** The contents an exit is run over, by name: one whose height follows a ratio, one whose height follows wrapping. */
 private val StretchedExitContents: Map<String, @Composable AnimatedVisibilityScope.() -> Unit> =

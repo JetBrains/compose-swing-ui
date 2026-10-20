@@ -25,11 +25,11 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 
 // A single SnapshotStateList of tasks drives the whole screen: the summary, the progress bar, and
 // the rows.
@@ -96,13 +96,14 @@ private fun ColumnScope.AddTaskRow(onAdd: (String) -> Unit) {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
-                modifier = SwingModifier.accessibleName("New task").onAccept { commit() },
+                modifier = SwingModifier.onAccept { commit() },
+                style = { accessibleName("New task") },
                 columns = 28,
             )
             Button(
                 text = "Add",
                 onClick = { commit() },
-                modifier = SwingModifier.enabled(canAdd),
+                style = { enabled(canAdd) },
             )
         }
     }
@@ -117,7 +118,7 @@ private fun TaskRows(
     onRemove: (Int) -> Unit,
 ) {
     // Rows are added to and removed from the Swing tree as the list changes, not merely shown or hidden.
-    ScrollPane(modifier = modifier.preferredSize(0, 320)) {
+    ScrollPane(modifier = modifier, style = { preferredSize(0, 320) }) {
         Viewport {
             Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
                 if (tasks.isEmpty()) {
@@ -161,22 +162,21 @@ private fun ColumnScope.TaskRow(
             text = "",
             checked = task.done,
             onCheckedChange = onToggle,
-            modifier = SwingModifier.accessibleName("Complete task: ${task.title}").testTag(taskToggleTag(task.id)),
+            modifier = SwingModifier.testTag(taskToggleTag(task.id)),
+            style = { accessibleName("Complete task: ${task.title}") },
         )
         TextField(
             value = task.title,
             onValueChange = onRename,
-            modifier =
-                SwingModifier
-                    .weight(1f)
-                    .accessibleName("Task title")
-                    .testTag(taskTitleTag(task.id)),
+            modifier = SwingModifier.weight(1f).testTag(taskTitleTag(task.id)),
+            style = { accessibleName("Task title") },
             columns = 28,
         )
         Button(
             text = "Remove",
             onClick = onRemove,
-            modifier = SwingModifier.accessibleName("Remove task: ${task.title}").testTag(taskRemoveTag(task.id)),
+            modifier = SwingModifier.testTag(taskRemoveTag(task.id)),
+            style = { accessibleName("Remove task: ${task.title}") },
         )
     }
 }

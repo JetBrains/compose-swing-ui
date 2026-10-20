@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -42,9 +43,9 @@ class UnplacedChildReportTest {
                             text = "child",
                             modifier =
                                 SwingModifier
-                                    .preferredSize(10, 10)
                                     .onPlaced { placements += it }
                                     .onSizeChanged { sizes += it },
+                            style = { preferredSize(10, 10) },
                         )
                     },
                     measurePolicy = { measurables, _ ->
@@ -93,9 +94,9 @@ class UnplacedChildReportTest {
                                     text = "leaf",
                                     modifier =
                                         SwingModifier
-                                            .preferredSize(leafSize, leafSize)
                                             .onPlaced { placements += it }
                                             .onSizeChanged { sizes += it },
+                                    style = { preferredSize(leafSize, leafSize) },
                                 )
                             },
                             measurePolicy = { measurables, _ ->
@@ -159,9 +160,9 @@ class UnplacedChildReportTest {
                                             text = "leaf",
                                             modifier =
                                                 SwingModifier
-                                                    .preferredSize(leafSize, leafSize)
                                                     .onPlaced { placements += it }
                                                     .onSizeChanged { sizes += it },
+                                            style = { preferredSize(leafSize, leafSize) },
                                         )
                                     },
                                     measurePolicy = { measurables, _ ->
@@ -223,19 +224,20 @@ class UnplacedChildReportTest {
                                         text = "joined",
                                         modifier =
                                             SwingModifier
-                                                .preferredSize(10, 10)
                                                 .onPlaced { joinedPlacements += it }
                                                 .onSizeChanged { joinedSizes += it },
+                                        style = { preferredSize(10, 10) },
                                     )
                                 }
                                 Label(
                                     text = "existing",
                                     modifier =
                                         if (joined) {
-                                            SwingModifier.preferredSize(10, 10).onPlaced { declaredPlacements += it }
+                                            SwingModifier.onPlaced { declaredPlacements += it }
                                         } else {
-                                            SwingModifier.preferredSize(10, 10)
+                                            SwingModifier
                                         },
+                                    style = { preferredSize(10, 10) },
                                 )
                             },
                             measurePolicy = { measurables, _ ->
@@ -291,9 +293,9 @@ class UnplacedChildReportTest {
                                         text = "leaf",
                                         modifier =
                                             SwingModifier
-                                                .preferredSize(10, 10)
                                                 .onPlaced { reported += it }
                                                 .onSizeChanged { reported += it },
+                                        style = { preferredSize(10, 10) },
                                     )
                                 }
                             },
@@ -340,9 +342,9 @@ class UnplacedChildReportTest {
                                     text = "leaf",
                                     modifier =
                                         SwingModifier
-                                            .preferredSize(10, 10)
                                             .onPlaced { placements += it }
                                             .onSizeChanged { sizes += it },
+                                    style = { preferredSize(10, 10) },
                                 )
                             }
                         }
@@ -386,7 +388,8 @@ class UnplacedChildReportTest {
                         Box {
                             Label(
                                 text = "leaf",
-                                modifier = SwingModifier.preferredSize(10, 10).onPlaced { placements += it },
+                                modifier = SwingModifier.onPlaced { placements += it },
+                                style = { preferredSize(10, 10) },
                             )
                         }
                     },
@@ -426,21 +429,19 @@ class UnplacedChildReportTest {
                                 text = "never placed",
                                 modifier =
                                     SwingModifier
-                                        .preferredSize(10, 10)
                                         .onPlaced { reported += it }
                                         .onSizeChanged { reported += it },
+                                style = { preferredSize(10, 10) },
                             )
                             Label(
                                 text = "no longer placed",
-                                modifier = SwingModifier.preferredSize(10, 10).onPlaced { reported += it },
+                                modifier = SwingModifier.onPlaced { reported += it },
+                                style = { preferredSize(10, 10) },
                             )
                             Box(
                                 modifier =
-                                    if (shadowed) {
-                                        SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK)
-                                    } else {
-                                        SwingModifier.preferredSize(10, 10)
-                                    },
+                                    (if (shadowed) SwingModifier.shadow(4, Color.BLACK) else SwingModifier)
+                                        .styleable { preferredSize(10, 10) },
                             )
                         },
                         measurePolicy = { measurables, _ ->
@@ -483,20 +484,17 @@ class UnplacedChildReportTest {
                                 modifier =
                                     if (declared) {
                                         SwingModifier
-                                            .preferredSize(10, 10)
                                             .onPlaced { reported += it }
                                             .onSizeChanged { reported += it }
                                     } else {
-                                        SwingModifier.preferredSize(10, 10)
+                                        SwingModifier
                                     },
+                                style = { preferredSize(10, 10) },
                             )
                             Box(
                                 modifier =
-                                    if (shadowed) {
-                                        SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK)
-                                    } else {
-                                        SwingModifier.preferredSize(10, 10)
-                                    },
+                                    (if (shadowed) SwingModifier.shadow(4, Color.BLACK) else SwingModifier)
+                                        .styleable { preferredSize(10, 10) },
                             )
                         },
                         measurePolicy = { measurables, _ ->
@@ -532,7 +530,8 @@ class UnplacedChildReportTest {
                             content = {
                                 Label(
                                     text = "leaf",
-                                    modifier = SwingModifier.preferredSize(10, 10).onPlaced { placements += it },
+                                    modifier = SwingModifier.onPlaced { placements += it },
+                                    style = { preferredSize(10, 10) },
                                 )
                             },
                             measurePolicy = { measurables, _ ->
@@ -575,7 +574,7 @@ class UnplacedChildReportTest {
                         Layout(
                             content = {
                                 Layout(
-                                    content = { Label(text = "leaf", modifier = SwingModifier.preferredSize(10, 10)) },
+                                    content = { Label(text = "leaf", style = { preferredSize(10, 10) }) },
                                     measurePolicy = { measurables, _ ->
                                         innerRuns++
                                         val placeable = measurables.single().measure(Constraints())
@@ -634,7 +633,8 @@ class UnplacedChildReportTest {
                                         Label(
                                             text = "leaf",
                                             modifier =
-                                                SwingModifier.preferredSize(10, 10).onPlaced { placements += it },
+                                                SwingModifier.onPlaced { placements += it },
+                                            style = { preferredSize(10, 10) },
                                         )
                                     },
                                     measurePolicy = { measurables, _ ->
@@ -680,9 +680,9 @@ class UnplacedChildReportTest {
                                 text = "leaf",
                                 modifier =
                                     SwingModifier
-                                        .preferredSize(10, 10)
                                         .onPlaced { reported += it }
                                         .onSizeChanged { reported += it },
+                                style = { preferredSize(10, 10) },
                             )
                         }
                     }
@@ -690,7 +690,7 @@ class UnplacedChildReportTest {
                     content = {
                         Box {
                             if (inPlacedChild) leaf()
-                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                            Box(modifier = SwingModifier.shadow(4, Color.BLACK).styleable { preferredSize(10, 10) })
                         }
                         Box { if (!inPlacedChild) leaf() }
                     },

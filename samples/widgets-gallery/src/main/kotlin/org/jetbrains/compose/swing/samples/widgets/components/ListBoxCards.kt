@@ -18,9 +18,9 @@ import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Dimension
 import java.awt.FlowLayout
 import javax.swing.BoxLayout
@@ -62,7 +62,7 @@ internal fun ColumnScope.ListBoxCard() {
             visibleRows = visibleRows,
             onVisibleRowsChange = { visibleRows = it },
         )
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
+        ScrollPane(style = { preferredSize(Dimension(220, 120)) }) {
             // itemContent renders each row as a composable cell: a bullet glyph plus the row text,
             // with the glyph reflecting whether that row is selected.
             Viewport {
@@ -145,7 +145,7 @@ internal fun ColumnScope.ListBoxSizingCard() {
         ) {
             sizingModes.forEach { option(it) }
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
+        ScrollPane(style = { preferredSize(Dimension(220, 120)) }) {
             Viewport {
                 ListBox(
                     items = rows,
@@ -176,7 +176,7 @@ internal fun ColumnScope.ListBoxModelCard() {
                 },
             )
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
+        ScrollPane(style = { preferredSize(Dimension(220, 120)) }) {
             Viewport { ListBox(model = model, state = state) }
         }
         Label("Entries: $entryCount, selected: ${state.selectedIndices.size}")

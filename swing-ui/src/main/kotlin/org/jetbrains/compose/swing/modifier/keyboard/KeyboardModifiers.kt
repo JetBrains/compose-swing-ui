@@ -31,7 +31,7 @@ import javax.swing.SwingUtilities
  * [onKeyEvent] receives each [KeyEvent] (`KEY_PRESSED` / `KEY_RELEASED` / `KEY_TYPED`, read from
  * `event.id`) and returns `true` if it consumed the event - in which case the event stops further
  * processing, mirroring AndroidX's `onKeyEvent`. The component must be focusable and focused to
- * receive these (see [focusable][org.jetbrains.compose.swing.modifier.interaction.focusable]); for
+ * receive these (see [focusable][org.jetbrains.compose.swing.style.focusable]); for
  * shortcuts that should work regardless of which component holds focus, prefer [onKeyStroke].
  *
  * Multiple `onKeyEvent` applications all fire. [onKeyEvent] is read live, so passing a fresh lambda

@@ -4,8 +4,9 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Component
 import java.awt.Container
@@ -110,7 +111,7 @@ internal fun ComposeSwingTest.setStockContent(
     setContent {
         SwingNode(
             factory = { parent },
-            modifier = SwingModifier.testTag("host").preferredSize(width, height),
+            modifier = SwingModifier.testTag("host").styleable({ preferredSize(width, height) }, RawKind),
             content = content,
         )
     }

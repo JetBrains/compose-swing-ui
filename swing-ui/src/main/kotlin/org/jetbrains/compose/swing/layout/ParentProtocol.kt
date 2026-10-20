@@ -27,15 +27,16 @@ public interface ParentElement :
 /** A parent declaration interpreted by the immediate parent's layout protocol. */
 public interface ParentLayoutElement : ParentElement {
     /**
-     * Whether this declaration may be a component default. `false` by default.
+     * Whether this declaration may be left out where the parent's protocol refuses it. `false` by default.
      *
-     * An inheritable declaration is also left out, instead of refused, under a parent whose protocol refuses it,
-     * whether a component default provides it or a component declares it directly.
+     * Under a parent its protocol refuses, an inheritable declaration is left out of what the parent receives
+     * instead of refused, whether a style writes it or the component's modifier declares it. A style provided to a
+     * whole subtree can write it on every descendant, and only the parents that accept it receive it.
      *
      * An inheritable declaration is not [additive]: one that is both is refused.
      *
-     * `inheritable` has no effect on parent data: whether or not it is inheritable, a [ParentDataModifier] cannot be
-     * a component default, folds, and fails under a parent its protocol refuses.
+     * `inheritable` has no effect on parent data: a [ParentDataModifier] is refused under a parent
+     * whose protocol refuses it, inheritable or not.
      */
     public val inheritable: Boolean get() = false
 }

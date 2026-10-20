@@ -16,7 +16,10 @@ import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -49,10 +52,10 @@ internal class LayoutBoxInParentTest {
             val reading = BoxReading()
             setContent {
                 Stage(reading) {
-                    if (case.shadow > 0) {
-                        Box(SwingModifier.child(case, reading.reader()))
+                    if (case.shadow > 0 || case.readerAfterOutsets) {
+                        Box(SwingModifier.child(case, reading.reader(), SwingModifier.styleable(case.childStyle())))
                     } else {
-                        Label("child", SwingModifier.child(case, reading.reader()))
+                        Label("child", SwingModifier.child(case, reading.reader()), case.childStyle())
                     }
                 }
             }
@@ -71,9 +74,18 @@ internal class LayoutBoxInParentTest {
             setContent {
                 Layout(
                     content = {
-                        Label("child", SwingModifier.testTag(CHILD).preferredSize(30, 20).then(reading.reader()))
+                        Label(
+                            "child",
+                            SwingModifier.testTag(CHILD).then(reading.reader()),
+                            style = { preferredSize(30, 20) },
+                        )
                     },
-                    modifier = SwingModifier.testTag(STAGE).preferredSize(60, 40).decoration(reading.element),
+                    modifier =
+                        SwingModifier
+                            .testTag(
+                                STAGE,
+                            ).styleable { preferredSize(60, 40) }
+                            .decoration(reading.element),
                     measurePolicy = { measurables, _ ->
                         val placeable = measurables.single().measure(Constraints())
                         layout(60, 40) { if (placed) placeable.place(10, 5) }
@@ -107,7 +119,11 @@ internal class LayoutBoxInParentTest {
             val reading = BoxReading()
             setContent {
                 Stage(reading) {
-                    Label("child", SwingModifier.testTag(CHILD).preferredSize(30, 20).then(reading.reader()))
+                    Label(
+                        "child",
+                        SwingModifier.testTag(CHILD).then(reading.reader()),
+                        style = { preferredSize(30, 20) },
+                    )
                 }
             }
             val child = onNodeWithTag(CHILD).fetch<JComponent>()
@@ -129,12 +145,11 @@ internal class LayoutBoxInParentTest {
                 Box(SwingModifier.testTag(STAGE).decoration(reading.element)) {
                     Label(
                         "child",
-                        SwingModifier
-                            .testTag(CHILD)
-                            .preferredSize(40, 30)
-                            .emptyBorder(8)
-                            .paintOutsets(PaintOutsets.FullInsets)
-                            .then(reading.reader()),
+                        SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                        style = {
+                            preferredSize(40, 30)
+                            paintOutsets(PaintOutsets.FullInsets)
+                        },
                     )
                 }
             }
@@ -164,12 +179,11 @@ internal class LayoutBoxInParentTest {
                             content = {
                                 Label(
                                     "child",
-                                    SwingModifier
-                                        .testTag(CHILD)
-                                        .preferredSize(40, 30)
-                                        .emptyBorder(8)
-                                        .paintOutsets(PaintOutsets.FullInsets)
-                                        .then(reading.reader()),
+                                    SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                                    style = {
+                                        preferredSize(40, 30)
+                                        paintOutsets(PaintOutsets.FullInsets)
+                                    },
                                 )
                             },
                             modifier = SwingModifier.testTag(STAGE).decoration(reading.element),
@@ -217,17 +231,16 @@ internal class LayoutBoxInParentTest {
         var value by mutableStateOf(PaintOutsets(from))
         setContent {
             Stage(reading, shadowed = false) {
-                val child =
-                    SwingModifier
-                        .testTag(CHILD)
-                        .preferredSize(40, 30)
-                        .emptyBorder(8)
-                        .paintOutsets(value)
-                        .then(reading.reader())
+                val child = SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader())
+                val childStyle =
+                    SwingStyle<ComponentStyleScope> {
+                        preferredSize(40, 30)
+                        paintOutsets(value)
+                    }
                 if (decorated) {
-                    Box(child.background(Color.WHITE, RectangleShape)) { Label("child") }
+                    Box(child.styleable(childStyle).background(Color.WHITE, RectangleShape)) { Label("child") }
                 } else {
-                    Label("child", child)
+                    Label("child", child, childStyle)
                 }
             }
         }
@@ -265,14 +278,16 @@ internal class LayoutBoxInParentTest {
                     content = {
                         Label(
                             "child",
-                            SwingModifier
-                                .testTag(CHILD)
-                                .emptyBorder(8)
-                                .paintOutsets(PaintOutsets.FullInsets)
-                                .then(reading.reader()),
+                            SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                            style = { paintOutsets(PaintOutsets.FullInsets) },
                         )
                     },
-                    modifier = SwingModifier.testTag(STAGE).preferredSize(120, 80).decoration(reading.element),
+                    modifier =
+                        SwingModifier
+                            .testTag(
+                                STAGE,
+                            ).styleable { preferredSize(120, 80) }
+                            .decoration(reading.element),
                     measurePolicy = { measurables, _ ->
                         val placeable = measurables.single().measure(Constraints())
                         layout(120, 80) {
@@ -306,22 +321,19 @@ internal class LayoutBoxInParentTest {
             val reading = BoxReading()
             var radius by mutableIntStateOf(4)
             setContent {
-                Box(SwingModifier.preferredSize(160, 100)) {
+                Box(SwingModifier.styleable { preferredSize(160, 100) }) {
                     Layout(
                         content = {
                             Label(
                                 "child",
-                                SwingModifier
-                                    .testTag(CHILD)
-                                    .emptyBorder(8)
-                                    .paintOutsets(PaintOutsets.FullInsets)
-                                    .then(reading.reader()),
+                                SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                                style = { paintOutsets(PaintOutsets.FullInsets) },
                             )
                         },
                         modifier =
                             SwingModifier
                                 .testTag(STAGE)
-                                .preferredSize(120, 80)
+                                .styleable { preferredSize(120, 80) }
                                 .shadow(radius, Color.BLACK)
                                 .decoration(reading.element),
                         measurePolicy = { measurables, _ ->
@@ -364,10 +376,8 @@ internal class LayoutBoxInParentTest {
                 Stage(reading) {
                     Label(
                         "child",
-                        SwingModifier
-                            .testTag(CHILD)
-                            .preferredSize(30, 20)
-                            .then(if (declared) reading.reader() else SwingModifier),
+                        SwingModifier.testTag(CHILD).then(if (declared) reading.reader() else SwingModifier),
+                        style = { preferredSize(30, 20) },
                     )
                 }
             }
@@ -388,10 +398,8 @@ internal class LayoutBoxInParentTest {
                 Stage(reading) {
                     Label(
                         "child",
-                        SwingModifier
-                            .testTag(CHILD)
-                            .preferredSize(30, 20)
-                            .then(reading.reader(readsWhilePlacing = true)),
+                        SwingModifier.testTag(CHILD).then(reading.reader(readsWhilePlacing = true)),
+                        style = { preferredSize(30, 20) },
                     )
                 }
             }
@@ -487,23 +495,30 @@ internal data class BoxCase(
     val readerAfterOutsets: Boolean = false,
 )
 
+/** A Foundation child, which takes no style parameter, passes its [styleable] here; a Label's style comes last. */
 context(_: ConstrainedScope)
 private fun SwingModifier.child(
     case: BoxCase,
     reader: SwingModifier,
+    styleable: SwingModifier = SwingModifier,
 ): SwingModifier {
     val beforeShadow = if (case.readerAfterOutsets) SwingModifier else reader
     val afterOutsets = if (case.readerAfterOutsets) reader else SwingModifier
     return this
         .testTag(CHILD)
-        .then(case.size?.let { SwingModifier.preferredSize(it.width, it.height) } ?: SwingModifier)
         .then(if (case.border > 0) SwingModifier.emptyBorder(case.border) else SwingModifier)
         .then(if (case.offsetX != 0) SwingModifier.offset(case.offsetX, 0) else SwingModifier)
         .then(beforeShadow)
         .then(if (case.shadow > 0) SwingModifier.shadow(case.shadow, Color.BLACK) else SwingModifier)
-        .then(case.outsets?.let { SwingModifier.paintOutsets(it) } ?: SwingModifier)
+        .then(styleable)
         .then(afterOutsets)
 }
+
+private fun BoxCase.childStyle() =
+    SwingStyle<ComponentStyleScope> {
+        size?.let { preferredSize(it.width, it.height) }
+        outsets?.let { paintOutsets(it) }
+    }
 
 private fun RecordedRepaints.repaintsWhole(child: JComponent): Boolean =
     dirtyRegionsOf(child).any { it.contains(Rectangle(child.size)) }
@@ -518,11 +533,11 @@ private fun Stage(
     shadowed: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(SwingModifier.preferredSize(160, 100)) {
+    Box(SwingModifier.styleable { preferredSize(160, 100) }) {
         Box(
             SwingModifier
                 .testTag(STAGE)
-                .preferredSize(120, 80)
+                .styleable { preferredSize(120, 80) }
                 .then(if (shadowed) SwingModifier.shadow(4, Color.BLACK) else SwingModifier)
                 .decoration(reading.element),
             contentAlignment = Alignment.Center,

@@ -11,15 +11,15 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
-import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.focusable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -248,8 +248,8 @@ class FocusTraversalModifierTest {
                 PanelLayout.Flow(),
                 modifier =
                     SwingModifier
-                        .orderedFocusTraversal()
-                        .componentOrientation(ComponentOrientation.RIGHT_TO_LEFT),
+                        .orderedFocusTraversal(),
+                style = { componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) },
             ) {
                 TextField("right", onValueChange = {})
                 TextField("middle", onValueChange = {})
@@ -292,8 +292,18 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("off", onValueChange = {}, modifier = SwingModifier.enabled(false).focusTraversalIndex(10))
-                TextField("hidden", onValueChange = {}, modifier = SwingModifier.visible(false).focusTraversalIndex(20))
+                TextField(
+                    "off",
+                    onValueChange = {},
+                    modifier = SwingModifier.focusTraversalIndex(10),
+                    style = { enabled(false) },
+                )
+                TextField(
+                    "hidden",
+                    onValueChange = {},
+                    modifier = SwingModifier.focusTraversalIndex(20),
+                    style = { visible(false) },
+                )
                 TextField("live", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
             }
         }
@@ -416,7 +426,7 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Label("caption", modifier = SwingModifier.focusable(false))
+                Label("caption", style = { focusable(false) })
             }
         }
         val form = onWindowWithTitle(FORM_TITLE)
@@ -435,7 +445,7 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Button("A", onClick = { }, modifier = SwingModifier.focusable(true).focusTraversalIndex(1))
+                Button("A", onClick = { }, modifier = SwingModifier.focusTraversalIndex(1), style = { focusable(true) })
             }
         }
         val form = onWindowWithTitle(FORM_TITLE)
@@ -478,8 +488,8 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Label("Legend", modifier = SwingModifier.focusable(true))
-                Button("Skipped", onClick = { }, modifier = SwingModifier.focusable(false))
+                Label("Legend", style = { focusable(true) })
+                Button("Skipped", onClick = { }, style = { focusable(false) })
                 Button("OK", onClick = { })
             }
         }
@@ -499,7 +509,10 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Label("Legend", modifier = SwingModifier.focusable(true).enabled(false))
+                Label("Legend", style = {
+                    focusable(true)
+                    enabled(false)
+                })
                 Button("OK", onClick = { })
             }
         }
@@ -520,8 +533,8 @@ class FocusTraversalModifierTest {
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Button("A", onClick = { })
-                Button("B", onClick = { }, modifier = SwingModifier.enabled(false))
-                Button("C", onClick = { }, modifier = SwingModifier.visible(false))
+                Button("B", onClick = { }, style = { enabled(false) })
+                Button("C", onClick = { }, style = { visible(false) })
                 Button("D", onClick = { })
             }
         }

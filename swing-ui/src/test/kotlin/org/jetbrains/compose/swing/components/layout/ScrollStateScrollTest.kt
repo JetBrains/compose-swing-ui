@@ -14,8 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -490,11 +489,11 @@ class ScrollStateScrollTest {
         setContent {
             pane.state = rememberScrollState()
             pane.scope = rememberCoroutineScope()
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = pane.state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = pane.state) {
                 Viewport {
                     Label(
                         "body",
-                        modifier = SwingModifier.preferredSize(pane.contentWidth, pane.contentHeight),
+                        style = { preferredSize(pane.contentWidth, pane.contentHeight) },
                     )
                 }
             }

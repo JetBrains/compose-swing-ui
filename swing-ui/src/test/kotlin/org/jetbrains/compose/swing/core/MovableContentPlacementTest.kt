@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.onAncestors
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -215,10 +215,10 @@ class MovableContentPlacementTest : TracedTest() {
         setContent {
             val content = remember { movableContentOf { Label("body") } }
             Panel {
-                Panel(PanelLayout.Flow(), SwingModifier.testTag("first").preferredSize(120, 40)) {
+                Panel(PanelLayout.Flow(), SwingModifier.testTag("first"), style = { preferredSize(120, 40) }) {
                     if (inFirst) content()
                 }
-                Panel(PanelLayout.Flow(), SwingModifier.testTag("second").preferredSize(120, 40)) {
+                Panel(PanelLayout.Flow(), SwingModifier.testTag("second"), style = { preferredSize(120, 40) }) {
                     if (!inFirst) content()
                 }
             }

@@ -4,14 +4,27 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.BoxAxis
-import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.style.RadioButtons
+import org.jetbrains.compose.swing.components.style.RadioGroups
+import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.BoxLayout
+import javax.swing.JPanel
 import javax.swing.JRadioButton
 
 /**
@@ -39,6 +52,7 @@ import javax.swing.JRadioButton
  *   `-1`, leaves every option unselected
  * @param onSelectionChange callback invoked with the option's index when the user selects it
  * @param modifier the [SwingModifier] applied to the group's panel
+ * @param style the [SwingStyle] applied to the group's panel; it wins over what a style provided for [RadioGroups] sets
  * @param axis the axis along which the options are arranged (a [BoxAxis] `BoxLayout` value);
  *   `Y_AXIS` - the default - stacks them in a column
  * @param content declares the options; see [RadioGroupScope]
@@ -49,6 +63,7 @@ public fun RadioGroup(
     selectedIndex: Int,
     onSelectionChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @BoxAxis axis: Int = BoxLayout.Y_AXIS,
     content: RadioGroupScope.() -> Unit,
 ) {
@@ -56,22 +71,38 @@ public fun RadioGroup(
     val scope = RadioGroupScopeImpl().apply(content)
     val group = rememberButtonGroup()
 
-    Panel(PanelLayout.Box(axis = axis), modifier = modifier) {
-        scope.options.forEachIndexed { index, option ->
-            val selected = index == selectedIndex
-            ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
-                SwingNode(
-                    factory = { JRadioButton() },
-                    modifier = optionModifier,
-                    update = {
-                        set(option.text) { this.text = it }
-                        init { addItemListener { mirror.observed(isSelected) } }
-                        declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
-                    },
-                )
+    val layout = PanelLayout.Box(axis = axis)
+
+    SwingNode<JPanel>(
+        factory = { JPanel() },
+        modifier = modifier.styleable(style, RadioGroupKind),
+        update = { layout.installOn(this) },
+        content = {
+            key(layout.javaClass) {
+                scope.options.forEachIndexed { index, option ->
+                    val selected = index == selectedIndex
+                    ButtonGroupOption(
+                        group,
+                        index,
+                        option.modifier,
+                        selected,
+                        onSelectionChange,
+                    ) { optionModifier, mirror ->
+                        val selectedState = rememberUpdatedState(selected)
+                        SwingNode(
+                            factory = { JRadioButton() },
+                            modifier = optionModifier.styleable(option.style, RadioOptionKind, selectedState),
+                            update = {
+                                set(option.text) { this.text = it }
+                                init { addItemListener { mirror.observed(isSelected) } }
+                                declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
+                            },
+                        )
+                    }
+                }
             }
-        }
-    }
+        },
+    )
 }
 
 /**
@@ -87,18 +118,21 @@ public sealed interface RadioGroupScope {
      *
      * @param text the label shown next to the radio button
      * @param modifier the [SwingModifier] applied to this option's radio button
+     * @param style the [SwingStyle] applied to this option's radio button
      * @see javax.swing.JRadioButton
      */
     public fun option(
         text: @Nls String,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<SelectableStyleScope> = SwingStyle,
     )
 }
 
-/** One declared choice: its label and the [SwingModifier] for its button. */
+/** One declared choice: its label, the [SwingModifier] and the [SwingStyle] for its button. */
 private class RadioOption(
     val text: @Nls String,
     val modifier: SwingModifier,
+    val style: SwingStyle<SelectableStyleScope>,
 )
 
 private class RadioGroupScopeImpl : RadioGroupScope {
@@ -107,7 +141,26 @@ private class RadioGroupScopeImpl : RadioGroupScope {
     override fun option(
         text: @Nls String,
         modifier: SwingModifier,
+        style: SwingStyle<SelectableStyleScope>,
     ) {
-        options.add(RadioOption(text, modifier))
+        options.add(RadioOption(text, modifier, style))
     }
 }
+
+private val RadioGroupKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(RadioGroups)
+    }
+
+private val RadioOptionKind =
+    nestingStyleKind<SelectableStyleScope, State<Boolean>>({ base, selected ->
+        object : SelectableStyleScope, ComponentStyleScope by base {
+            override val isSelected: Boolean get() = selected.value
+        }
+    }) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(RadioButtons)
+    }

@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import kotlin.test.Test
@@ -31,7 +31,8 @@ class UnplacedChildInitialZeroReportTest {
                             content = {
                                 Label(
                                     text = "leaf",
-                                    modifier = SwingModifier.preferredSize(0, 0).onSizeChanged { leafSizes += it },
+                                    modifier = SwingModifier.onSizeChanged { leafSizes += it },
+                                    style = { preferredSize(0, 0) },
                                 )
                             },
                             measurePolicy = { measurables, _ ->
@@ -77,7 +78,8 @@ class UnplacedChildInitialZeroReportTest {
                             content = {
                                 Label(
                                     text = "leaf",
-                                    modifier = SwingModifier.preferredSize(0, 0).onSizeChanged { leafSizes += it },
+                                    modifier = SwingModifier.onSizeChanged { leafSizes += it },
+                                    style = { preferredSize(0, 0) },
                                 )
                             },
                             measurePolicy = { measurables, _ ->

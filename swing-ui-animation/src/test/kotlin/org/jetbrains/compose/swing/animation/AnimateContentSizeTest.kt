@@ -24,10 +24,14 @@ import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -124,8 +128,9 @@ class AnimateContentSizeTest {
                         Box(
                             modifier =
                                 SwingModifier
-                                    .preferredSize(if (expanded) EXPANDED else COLLAPSED)
-                                    .background(Brush.of(Color.RED)),
+                                    .background(
+                                        Brush.of(Color.RED),
+                                    ).styleable { preferredSize(if (expanded) EXPANDED else COLLAPSED) },
                         )
                     }
                     Sibling()
@@ -242,7 +247,7 @@ class AnimateContentSizeTest {
     private fun ComposeSwingTest.shrinkingSlots(orientation: ComponentOrientation): List<Slot> {
         var expanded by mutableStateOf(true)
         setContent {
-            Row(modifier = SwingModifier.testTag(ROW).componentOrientation(orientation)) {
+            Row(modifier = SwingModifier.testTag(ROW).styleable { componentOrientation(orientation) }) {
                 Box(modifier = SwingModifier.testTag(CONTAINER).animateContentSize(alignment = Alignment.BottomEnd)) {
                     Body(size = if (expanded) EXPANDED else COLLAPSED)
                 }
@@ -783,12 +788,17 @@ private fun RowScope.OffsettingBaselineChild(
     factory = { ControlledBaselinePanel(baseline) },
     modifier =
         SwingModifier
-            .preferredSize(OFFSETTING_WIDTH, height)
-            .minimumSize(OFFSETTING_WIDTH, height)
             // moves the content without changing what it measures at
             .offset(y = 6)
             .alignByBaseline()
-            .then(PassThroughElement),
+            .then(PassThroughElement)
+            .styleable(
+                {
+                    preferredSize(OFFSETTING_WIDTH, height)
+                    minimumSize(OFFSETTING_WIDTH, height)
+                },
+                BaselineChildKind,
+            ),
 )
 
 /** A row child on the shared baseline whose chain carries no layout-modifier node. */
@@ -800,10 +810,20 @@ private fun RowScope.PlainBaselineChild(
     factory = { ControlledBaselinePanel(baseline) },
     modifier =
         SwingModifier
-            .preferredSize(PLAIN_WIDTH, height)
-            .minimumSize(PLAIN_WIDTH, height)
-            .alignByBaseline(),
+            .alignByBaseline()
+            .styleable(
+                {
+                    preferredSize(PLAIN_WIDTH, height)
+                    minimumSize(PLAIN_WIDTH, height)
+                },
+                BaselineChildKind,
+            ),
 )
+
+private val BaselineChildKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    )
 
 private const val ROW = "row"
 private const val COLUMN = "column"
@@ -822,7 +842,7 @@ private const val PLAIN_HEIGHT = 40
 private fun Body(
     size: Dimension,
     modifier: SwingModifier = SwingModifier,
-) = Label(text = "", modifier = modifier.preferredSize(size))
+) = Label(text = "", modifier = modifier, style = { preferredSize(size) })
 
 /**
  * A fixed-size sibling placed after the animated container, so a `Row` places it at that container's
@@ -830,7 +850,10 @@ private fun Body(
  * stay at its content's real, un-animated size and rely on `clipToBounds` to hide the difference.
  */
 @Composable
-private fun Sibling() = Label(text = "", modifier = SwingModifier.testTag(SIBLING).preferredSize(Dimension(1, 1)))
+private fun Sibling() =
+    Label(text = "", modifier = SwingModifier.testTag(SIBLING), style = {
+        preferredSize(Dimension(1, 1))
+    })
 
 private val ComposeSwingTest.row: JComponent
     get() = onNodeWithTag(ROW).fetch<JComponent>()

@@ -7,12 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.defaults.DefaultForeground
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.failureOf
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -254,7 +251,7 @@ class OwnedPartDeclarationReplacementTest {
     }
 
     @Test
-    fun movedDeclarationsReadTheirNewCompositionLocalsAndDefaults() = runComposeSwingTest {
+    fun movedDeclarationsReadTheirNewCompositionLocals() = runComposeSwingTest {
         var detailed by mutableStateOf(true)
         setContent {
             ScrollPane {
@@ -262,15 +259,17 @@ class OwnedPartDeclarationReplacementTest {
                     CompositionLocalProvider(
                         LocalPartBackground provides Color.RED,
                         LocalPartText provides "Detailed",
+                        LocalPartForeground provides Color.GREEN,
                     ) {
-                        ProvideComponentDefaults(DefaultForeground provides Color.GREEN) { InheritedParts() }
+                        InheritedParts()
                     }
                 } else {
                     CompositionLocalProvider(
                         LocalPartBackground provides Color.BLUE,
                         LocalPartText provides "Summary",
+                        LocalPartForeground provides Color.YELLOW,
                     ) {
-                        ProvideComponentDefaults(DefaultForeground provides Color.YELLOW) { InheritedParts() }
+                        InheritedParts()
                     }
                 }
             }
@@ -298,13 +297,13 @@ class OwnedPartDeclarationReplacementTest {
                 assertEquals(
                     if (choice) Color.GREEN else Color.YELLOW,
                     component.foreground,
-                    "the node should inherit current defaults",
+                    "the style should read its current local",
                 )
             }
             assertEquals(
                 if (choice) Color.GREEN else Color.YELLOW,
                 view.foreground,
-                "content should inherit current defaults",
+                "content should inherit the viewport's current foreground",
             )
         }
     }
@@ -401,11 +400,12 @@ private fun JScrollPane.bar(part: String): JScrollBar = if (part ==
 
 private val LocalPartBackground = compositionLocalOf { Color.BLACK }
 private val LocalPartText = compositionLocalOf { "default" }
+private val LocalPartForeground = compositionLocalOf { Color.BLACK }
 
 @Composable
 private fun ScrollPaneScope.DetailedViewport() {
     Viewport(
-        modifier = SwingModifier.background(Color.RED),
+        style = { background(Color.RED) },
         unitIncrement = 17,
         blockIncrement = 130,
     ) { Label("Detailed") }
@@ -417,7 +417,7 @@ private fun ScrollPaneScope.SummaryViewport(
     blockIncrement: Int? = 70,
 ) {
     Viewport(
-        modifier = SwingModifier.background(Color.BLUE),
+        style = { background(Color.BLUE) },
         unitIncrement = unitIncrement,
         blockIncrement = blockIncrement,
     ) {
@@ -427,23 +427,40 @@ private fun ScrollPaneScope.SummaryViewport(
 
 @Composable
 private fun ScrollPaneScope.DetailedScrollbars() {
-    VerticalScrollbar(modifier = SwingModifier.background(Color.RED))
-    HorizontalScrollbar(modifier = SwingModifier.background(Color.RED))
+    VerticalScrollbar(style = { background(Color.RED) })
+    HorizontalScrollbar(style = { background(Color.RED) })
 }
 
 @Composable
 private fun ScrollPaneScope.SummaryScrollbars() {
-    VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-    HorizontalScrollbar(modifier = SwingModifier.background(Color.BLUE))
+    VerticalScrollbar(style = { background(Color.BLUE) })
+    HorizontalScrollbar(style = { background(Color.BLUE) })
 }
 
 @Composable
 private fun ScrollPaneScope.InheritedParts() {
+    val partBackground = LocalPartBackground.current
+    val partForeground = LocalPartForeground.current
     Viewport(
-        modifier = SwingModifier.background(LocalPartBackground.current),
-    ) { Label(LocalPartText.current) }
-    VerticalScrollbar(modifier = SwingModifier.background(LocalPartBackground.current))
-    HorizontalScrollbar(modifier = SwingModifier.background(LocalPartBackground.current))
+        style = {
+            background(partBackground)
+            foreground(partForeground)
+        },
+    ) {
+        Label(LocalPartText.current)
+    }
+    VerticalScrollbar(
+        style = {
+            background(partBackground)
+            foreground(partForeground)
+        },
+    )
+    HorizontalScrollbar(
+        style = {
+            background(partBackground)
+            foreground(partForeground)
+        },
+    )
 }
 
 @Composable
@@ -459,8 +476,8 @@ private fun ScrollPaneScope.DeclarePart(part: String) {
 private fun ScrollPaneScope.DetailedPart(part: String) {
     when (part) {
         "viewport" -> DetailedViewport()
-        "vertical" -> VerticalScrollbar(modifier = SwingModifier.background(Color.RED))
-        "horizontal" -> HorizontalScrollbar(modifier = SwingModifier.background(Color.RED))
+        "vertical" -> VerticalScrollbar(style = { background(Color.RED) })
+        "horizontal" -> HorizontalScrollbar(style = { background(Color.RED) })
     }
 }
 
@@ -468,7 +485,7 @@ private fun ScrollPaneScope.DetailedPart(part: String) {
 private fun ScrollPaneScope.SummaryPart(part: String) {
     when (part) {
         "viewport" -> SummaryViewport()
-        "vertical" -> VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-        "horizontal" -> HorizontalScrollbar(modifier = SwingModifier.background(Color.BLUE))
+        "vertical" -> VerticalScrollbar(style = { background(Color.BLUE) })
+        "horizontal" -> HorizontalScrollbar(style = { background(Color.BLUE) })
     }
 }

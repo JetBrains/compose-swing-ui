@@ -29,10 +29,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -96,7 +95,10 @@ private fun Body(
     text: String,
     width: Int,
     height: Int = LEAVING_HEIGHT,
-) = Label(text = text, modifier = SwingModifier.preferredSize(width, height).opaque(true).background(Color.BLUE))
+) = Label(text = text, modifier = SwingModifier.opaque(true), style = {
+    preferredSize(width, height)
+    background(Color.BLUE)
+})
 
 /**
  * A content of a container that animates between states, declared against that container's own scope
@@ -300,7 +302,7 @@ class AnimatedContentTest {
             setContent {
                 AnimatedContent(
                     targetState = "a",
-                    modifier = SwingModifier.preferredSize(width = 200, height = 20),
+                    modifier = SwingModifier.containerPreferredSize(width = 200, height = 20),
                     contentAlignment = alignment + Alignment.Top,
                 ) {
                     Body(text = it, width = 40)
@@ -320,7 +322,7 @@ class AnimatedContentTest {
             setContent {
                 AnimatedContent(
                     targetState = "a",
-                    modifier = SwingModifier.preferredSize(width = 40, height = 100),
+                    modifier = SwingModifier.containerPreferredSize(width = 40, height = 100),
                     contentAlignment = Alignment.Start + alignment,
                 ) {
                     Body(text = it, width = 40)
@@ -674,7 +676,7 @@ class AnimatedContentTest {
         setContent {
             AnimatedContent(
                 targetState = state,
-                modifier = SwingModifier.componentOrientation(orientation),
+                modifier = SwingModifier.containerOrientation(orientation),
                 transitionSpec = {
                     slideIntoContainer(
                         AnimatedContentTransitionScope.SlideDirection.Start,
@@ -729,7 +731,7 @@ class AnimatedContentTest {
         setContent {
             AnimatedContent(
                 targetState = state,
-                modifier = SwingModifier.componentOrientation(orientation),
+                modifier = SwingModifier.containerOrientation(orientation),
                 contentAlignment = contentAlignment,
                 transitionSpec = {
                     fadeIn(tween(ENTER_MILLIS)) togetherWith

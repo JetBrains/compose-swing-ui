@@ -13,8 +13,11 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
@@ -37,7 +40,7 @@ class ExistingSwingNodeRegionTest {
     fun aClaimNamingARegionFillsIt() = runComposeSwingTest {
         setContent {
             Framed {
-                FramedHeader(SwingModifier.background(Color.RED))
+                FramedHeader(style = { background(Color.RED) })
                 Label("body", SwingModifier.slot(FramedProtocol, BODY_REGION, BodyAttachment))
             }
         }
@@ -45,7 +48,7 @@ class ExistingSwingNodeRegionTest {
         val parent = onNodeOfType<FramedPanel>().fetch()
         val layout = parent.layout as BorderLayout
         assertSame(parent.header, layout.getLayoutComponent(BorderLayout.NORTH), "the header should stay where it was")
-        assertEquals(Color.RED, parent.header.background, "the modifier should reach the claimed header")
+        assertEquals(Color.RED, parent.header.background, "the style should reach the claimed header")
         assertEquals("body", (layout.getLayoutComponent(BorderLayout.CENTER) as JLabel).text)
     }
 
@@ -273,6 +276,12 @@ internal inline fun Framed(crossinline content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun FramedHeader(modifier: SwingModifier = SwingModifier) {
-    ExistingSwingNode(claim = FramedPanel::header, modifier = modifier.slot(FramedProtocol, HEADER_REGION))
+internal fun FramedHeader(
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+) {
+    ExistingSwingNode(
+        claim = FramedPanel::header,
+        modifier = modifier.slot(FramedProtocol, HEADER_REGION).styleable(style),
+    )
 }

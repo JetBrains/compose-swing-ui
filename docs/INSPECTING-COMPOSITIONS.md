@@ -127,7 +127,7 @@ last, whether or not that pass had anything to write, so it never lags the compo
 what a caller passed followed by what the widget's own composable declared, in that order.
 
 An element the library does not ship reports whatever it overrides `name` and `declaredValues` with;
-see [`MODIFIERS.md`](MODIFIERS.md#naming-the-element-for-a-message-and-for-a-tool).
+see [`STYLES.md`](STYLES.md#a-property-written-by-an-element).
 
 ## Attaching a composition stack trace to a throwable
 

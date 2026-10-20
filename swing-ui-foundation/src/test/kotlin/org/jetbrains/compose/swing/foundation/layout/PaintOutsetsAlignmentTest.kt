@@ -13,11 +13,11 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -47,10 +47,8 @@ class PaintOutsetsAlignmentTest {
                     Label("label", modifier = SwingModifier.testTag("label"))
                     LinedField(
                         "field",
-                        SwingModifier
-                            .paintOutsets(
-                                PaintOutsets.FullInsets,
-                            ).let { if (filled) it.fillMaxWidth() else it },
+                        if (filled) SwingModifier.fillMaxWidth() else SwingModifier,
+                        style = { paintOutsets(PaintOutsets.FullInsets) },
                     )
                 }
             }
@@ -72,11 +70,15 @@ class PaintOutsetsAlignmentTest {
             setContent {
                 Column {
                     Row(modifier = SwingModifier.testTag("row")) {
-                        LinedField("first", SwingModifier.paintOutsets(PaintOutsets.FullInsets))
-                        LinedField("second", SwingModifier.paintOutsets(PaintOutsets.FullInsets))
+                        LinedField("first", style = { paintOutsets(PaintOutsets.FullInsets) })
+                        LinedField("second", style = { paintOutsets(PaintOutsets.FullInsets) })
                     }
                     Row(modifier = SwingModifier.height(40)) {
-                        LinedField("filling", SwingModifier.paintOutsets(PaintOutsets.FullInsets).fillMaxHeight())
+                        LinedField(
+                            "filling",
+                            SwingModifier.fillMaxHeight(),
+                            style = { paintOutsets(PaintOutsets.FullInsets) },
+                        )
                     }
                 }
             }
@@ -95,7 +97,7 @@ class PaintOutsetsAlignmentTest {
             setContent {
                 Box(modifier = SwingModifier.testTag("box")) {
                     Column(modifier = SwingModifier.testTag("column").padding(10)) {
-                        LinedField("field", SwingModifier.paintOutsets(PaintOutsets.FullInsets))
+                        LinedField("field", style = { paintOutsets(PaintOutsets.FullInsets) })
                     }
                 }
             }
@@ -110,9 +112,13 @@ class PaintOutsetsAlignmentTest {
     fun theRootClipsWhatReachesPastIt() =
         runComposeSwingTest {
             setContent {
-                Panel(modifier = SwingModifier.testTag("panel").background(Color.WHITE).opaque(true)) {
+                Panel(modifier = SwingModifier.testTag("panel").opaque(true), style = { background(Color.WHITE) }) {
                     Column(modifier = SwingModifier.testTag("column")) {
-                        LinedField("field", SwingModifier.paintOutsets(PaintOutsets.FullInsets).fillMaxWidth())
+                        LinedField(
+                            "field",
+                            SwingModifier.fillMaxWidth(),
+                            style = { paintOutsets(PaintOutsets.FullInsets) },
+                        )
                     }
                 }
             }
@@ -145,7 +151,11 @@ class PaintOutsetsAlignmentTest {
                 Column {
                     Row(modifier = SwingModifier.testTag("row")) {
                         Label("label", modifier = SwingModifier.testTag("label").alignByBaseline())
-                        LinedField("field", SwingModifier.paintOutsets(PaintOutsets.FullInsets).alignByBaseline())
+                        LinedField(
+                            "field",
+                            SwingModifier.alignByBaseline(),
+                            style = { paintOutsets(PaintOutsets.FullInsets) },
+                        )
                         TextArea(
                             "area",
                             {},
@@ -153,8 +163,8 @@ class PaintOutsetsAlignmentTest {
                                 SwingModifier
                                     .testTag("area")
                                     .border(LineBorder(Color.RED, LINE))
-                                    .paintOutsets(PaintOutsets.FullInsets)
                                     .alignByBaseline(),
+                            style = { paintOutsets(PaintOutsets.FullInsets) },
                         )
                     }
                 }
@@ -191,8 +201,8 @@ class PaintOutsetsAlignmentTest {
                             SwingModifier
                                 .testTag("field")
                                 .border(LineBorder(Color.RED, thickness))
-                                .paintOutsets(PaintOutsets.FullInsets)
                                 .countingMeasures { measures++ },
+                        style = { paintOutsets(PaintOutsets.FullInsets) },
                     )
                 }
             }
@@ -212,8 +222,8 @@ class PaintOutsetsAlignmentTest {
             setContent {
                 Column {
                     Label("label", modifier = SwingModifier.testTag("label"))
-                    LinedField("field", SwingModifier.paintOutsets(TwoPixels))
-                    Label("bare", modifier = SwingModifier.testTag("bare").paintOutsets(TwoPixels))
+                    LinedField("field", style = { paintOutsets(TwoPixels) })
+                    Label("bare", modifier = SwingModifier.testTag("bare"), style = { paintOutsets(TwoPixels) })
                 }
             }
             onNodeWithTag("label").assertProperty(0) { x }
@@ -227,14 +237,14 @@ class PaintOutsetsAlignmentTest {
             setContent {
                 Column {
                     Label("label", modifier = SwingModifier.testTag("label"))
-                    LinedField("field", SwingModifier.paintOutsets(FieldRing))
+                    LinedField("field", style = { paintOutsets(FieldRing) })
                     Label(
                         "lined",
                         modifier =
                             SwingModifier
                                 .testTag("lined")
-                                .border(LineBorder(Color.RED, LINE))
-                                .paintOutsets(FieldRing),
+                                .border(LineBorder(Color.RED, LINE)),
+                        style = { paintOutsets(FieldRing) },
                     )
                 }
             }
@@ -259,10 +269,9 @@ class PaintOutsetsAlignmentTest {
                         "tight",
                         modifier =
                             SwingModifier
-                                .testTag(
-                                    "tight",
-                                ).emptyBorder(-2, 3, -2, 3)
-                                .paintOutsets(PaintOutsets.FullInsets),
+                                .testTag("tight")
+                                .emptyBorder(-2, 3, -2, 3),
+                        style = { paintOutsets(PaintOutsets.FullInsets) },
                     )
                 }
             }
@@ -274,16 +283,14 @@ class PaintOutsetsAlignmentTest {
         }
 
     @Test
-    fun aSizeActsBeforeOrAfterTheDeclarationByOrder() =
+    fun aSizeInTheModifierSetsTheBoxTheBorderReachesPast() =
         runComposeSwingTest {
             setContent {
                 Column {
-                    LinedField("outer", SwingModifier.width(100).paintOutsets(PaintOutsets.FullInsets))
-                    LinedField("inner", SwingModifier.paintOutsets(PaintOutsets.FullInsets).width(100))
+                    LinedField("field", SwingModifier.width(100), style = { paintOutsets(PaintOutsets.FullInsets) })
                 }
             }
-            onNodeWithTag("outer").assertProperty(100 + 2 * LINE, "a 100 px box, the border past it") { width }
-            onNodeWithTag("inner").assertProperty(100, "a 100 px field") { width }
+            onNodeWithTag("field").assertProperty(100 + 2 * LINE, "a 100 px box, the border past it") { width }
         }
 
     @Test
@@ -293,8 +300,8 @@ class PaintOutsetsAlignmentTest {
             var measures = 0
             setContent {
                 Column(modifier = SwingModifier.testTag("column")) {
-                    LinedField("first", SwingModifier.paintOutsets(value).countingMeasures { measures++ })
-                    LinedField("second", SwingModifier.paintOutsets(value))
+                    LinedField("first", SwingModifier.countingMeasures { measures++ }, style = { paintOutsets(value) })
+                    LinedField("second", style = { paintOutsets(value) })
                 }
             }
             val column = onNodeWithTag("column").fetch()
@@ -317,7 +324,7 @@ class PaintOutsetsAlignmentTest {
             val placements = mutableListOf<Rectangle>()
             setContent {
                 Column {
-                    LinedField("field", SwingModifier.paintOutsets(value).onPlaced { placements += it })
+                    LinedField("field", SwingModifier.onPlaced { placements += it }, style = { paintOutsets(value) })
                 }
             }
             assertEquals(Point(-LINE, -LINE), placements.last().location)
@@ -334,7 +341,8 @@ class PaintOutsetsAlignmentTest {
                 Column {
                     Label(
                         "padded",
-                        modifier = SwingModifier.testTag("padded").emptyBorder(8).paintOutsets(PaintOutsets.FullInsets),
+                        modifier = SwingModifier.testTag("padded").emptyBorder(8),
+                        style = { paintOutsets(PaintOutsets.FullInsets) },
                     )
                     Label("plain", modifier = SwingModifier.testTag("plain"))
                 }

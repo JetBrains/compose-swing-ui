@@ -8,6 +8,8 @@ import org.jetbrains.compose.swing.components.layout.PanelScope
 import org.jetbrains.compose.swing.components.ownedGlassPaneDeclaration
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
 import javax.swing.JInternalFrame
 
 /**
@@ -33,12 +35,14 @@ public sealed interface InternalFrameScope {
      * [PanelLayout.Flow] with its defaults.
      *
      * @param modifier the [SwingModifier] applied to the glass pane
+     * @param style the [SwingStyle] applied to the glass pane
      * @param content the composable content the glass pane shows over the frame
      * @see javax.swing.JInternalFrame.getGlassPane
      */
     @Composable
     public fun GlassPane(
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable PanelScope.() -> Unit,
     )
 
@@ -47,14 +51,15 @@ public sealed interface InternalFrameScope {
      *
      * The pane covers the frame below its title bar and is transparent where [content] paints nothing. A
      * click over part of [content] that listens goes there, and a click anywhere else goes on to the
-     * frame's content underneath. [modifier] reaches the pane itself: a mouse listener there keeps the
-     * frame's content out of reach, a cursor there shows over the frame below its title bar.
+     * frame's content underneath. [modifier] and [style] apply to the pane itself: a mouse listener in [modifier]
+     * keeps the frame's content out of reach, and a cursor in [style] shows over the frame below its title bar.
      *
      * The pane is shown, hidden and refused as [LayerScope.GlassPane] describes, with a frame in place of
      * a layer.
      *
      * @param layout the layout the pane's children are laid out under; see [PanelLayout]
      * @param modifier the [SwingModifier] applied to the glass pane
+     * @param style the [SwingStyle] applied to the glass pane
      * @param content the composable content the glass pane shows over the frame, with [layout]'s scope as
      *   its receiver
      * @see javax.swing.JInternalFrame.getGlassPane
@@ -63,6 +68,7 @@ public sealed interface InternalFrameScope {
     public fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable S.() -> Unit,
     )
 }
@@ -74,13 +80,15 @@ internal class InternalFrameScopeImpl : InternalFrameScope {
     @Composable
     override fun GlassPane(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable PanelScope.() -> Unit,
-    ) = glassPane.GlassPane(modifier, content)
+    ) = glassPane.GlassPane(modifier, style, content)
 
     @Composable
     override fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable S.() -> Unit,
-    ) = glassPane.GlassPane(layout, modifier, content)
+    ) = glassPane.GlassPane(layout, modifier, style, content)
 }

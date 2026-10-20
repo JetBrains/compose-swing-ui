@@ -48,7 +48,7 @@ public val DefaultCanvasRenderingHints: Map<RenderingHints.Key, Any> =
  *
  * ```
  * var radius by remember { mutableFloatStateOf(10f) }
- * Canvas(modifier = SwingModifier.preferredSize(Dimension(200, 200))) {
+ * Canvas(modifier = SwingModifier.styleable { preferredSize(200, 200) }) {
  *     drawCircle(Color.RED, radius = radius)
  * }
  * ```
@@ -56,9 +56,8 @@ public val DefaultCanvasRenderingHints: Map<RenderingHints.Key, Any> =
  * The drawing is a draw node appended to [modifier], so it runs inside every decoration [modifier]
  * declares. The surface is non-opaque and paints no background of its own: only what [onDraw] renders
  * appears.
- * Size it with the preferred-size modifier (see
- * [org.jetbrains.compose.swing.modifier.layout.preferredSize]); without one it asks only for the paint outsets its
- * decoration needs.
+ * To size it, put `SwingModifier.styleable { preferredSize(200, 200) }` in [modifier]. Without a preferred size it
+ * asks only for the paint outsets its decoration needs.
  *
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param renderingHints optional [RenderingHints] configured on the surface's [Graphics2D], defaulting

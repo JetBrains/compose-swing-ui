@@ -16,8 +16,8 @@ import org.jetbrains.compose.swing.modifier.appearance.caretColor
 import org.jetbrains.compose.swing.modifier.appearance.disabledTextColor
 import org.jetbrains.compose.swing.modifier.appearance.selectedTextColor
 import org.jetbrains.compose.swing.modifier.appearance.selectionColor
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.enabled
 import java.awt.Color
 import javax.swing.BoxLayout
 
@@ -60,8 +60,8 @@ internal fun ColumnScope.TextColorsCard() {
                     .caretColor(caret.color)
                     .selectionColor(selection.color)
                     .selectedTextColor(selectedText.color)
-                    .disabledTextColor(disabledText.color)
-                    .enabled(enabled),
+                    .disabledTextColor(disabledText.color),
+            style = { enabled(enabled) },
             columns = 40,
         )
     }

@@ -4,13 +4,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Color
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -100,9 +99,9 @@ class KeyTest {
     fun anUnchangedTokenLeavesEverySlotStanding() = runComposeSwingTest {
         val counts = ProbeCounts()
         var tick by mutableStateOf(0)
-        var color by mutableStateOf(Color.BLUE)
+        var declaredName by mutableStateOf("first")
         setContent {
-            Label("tick $tick", modifier = SwingModifier.key(THEME).background(color).then(ProbeElement(counts)))
+            Label("tick $tick", modifier = SwingModifier.key(THEME).name(declaredName).then(ProbeElement(counts)))
         }
         val label = onNodeOfType<JLabel>()
 
@@ -120,9 +119,9 @@ class KeyTest {
 
         // A modifier that did change is diffed, and the token standing still is what leaves its slots where
         // they are.
-        color = Color.GREEN
+        declaredName = "second"
         awaitIdle()
-        label.assertProperty(Color.GREEN, "the changed declaration must reach the component") { background }
+        label.assertProperty("second", "the changed declaration must reach the component") { name }
         assertEquals(1, counts.attaches.get(), "an unchanged token attaches nothing afresh")
         assertEquals(0, counts.detaches.get(), "and takes nothing apart")
     }

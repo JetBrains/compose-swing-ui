@@ -3,8 +3,9 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import java.awt.Color
@@ -117,12 +118,11 @@ class BlurDecoratorStabilityTest {
                             modifier =
                                 SwingModifier
                                     .testTag("canvas $index")
-                                    .preferredSize(SIZE, SIZE)
                                     .blur(blur.first)
                                     .drawWithContent {
                                         hints[index] = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                                         drawContent()
-                                    },
+                                    }.styleable { preferredSize(SIZE, SIZE) },
                         )
                     }
                 }

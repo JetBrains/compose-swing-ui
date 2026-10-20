@@ -6,8 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.text.TextArea
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -32,13 +31,11 @@ class ScrollPaneIncrementsTest {
     fun declaredIncrementsAreTheOnesBothScrollBarsScrollBy() = runComposeSwingTest {
         var unitIncrement by mutableStateOf(17)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = unitIncrement, blockIncrement = 130) {
                     Label(
                         text = "Body",
-                        modifier =
-                            SwingModifier
-                                .preferredSize(400, 400),
+                        style = { preferredSize(400, 400) },
                     )
                 }
             }
@@ -63,7 +60,7 @@ class ScrollPaneIncrementsTest {
     fun aChangedIncrementIsSetOnTheBarsThePaneHolds() = runComposeSwingTest {
         var unitIncrement by mutableStateOf(10)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
             }
         }
@@ -83,7 +80,7 @@ class ScrollPaneIncrementsTest {
     fun anIncrementDeclaredLaterAsksForNoLayout() = runComposeSwingTest {
         var unitIncrement by mutableStateOf(17)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
             }
         }
@@ -106,7 +103,7 @@ class ScrollPaneIncrementsTest {
     @Test
     fun anUndeclaredIncrementIsTheContentsOwn() = runComposeSwingTest {
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(blockIncrement = 130) {
                     TextArea(
                         value = "line\n".repeat(40),
@@ -129,11 +126,11 @@ class ScrollPaneIncrementsTest {
     @Test
     fun contentDeclaringNoIncrementScrollsAsInAPlainScrollPane() = runComposeSwingTest {
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport {
                     Label(
                         text = "Body",
-                        modifier = SwingModifier.preferredSize(400, 400),
+                        style = { preferredSize(400, 400) },
                     )
                 }
             }
@@ -153,7 +150,7 @@ class ScrollPaneIncrementsTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         val scroll = ScrollState(0, 0)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100), state = scroll) {
+            ScrollPane(style = { preferredSize(200, 100) }, state = scroll) {
                 Viewport(unitIncrement = unitIncrement) {
                     TextArea(
                         value = "line\n".repeat(40),
@@ -184,7 +181,7 @@ class ScrollPaneIncrementsTest {
     fun withdrawingTheUnitIncrementKeepsTheDeclaredBlockIncrement() = runComposeSwingTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = unitIncrement, blockIncrement = 130) {
                     TextArea(
                         value = "line\n".repeat(40),
@@ -213,7 +210,7 @@ class ScrollPaneIncrementsTest {
     fun withdrawingTheBlockIncrementKeepsTheDeclaredUnitIncrement() = runComposeSwingTest {
         var blockIncrement by mutableStateOf<Int?>(130)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = 17, blockIncrement = blockIncrement) {
                     TextArea(
                         value = "line\n".repeat(40),
@@ -243,11 +240,11 @@ class ScrollPaneIncrementsTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         val scroll = ScrollState(0, 0)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100), state = scroll) {
+            ScrollPane(style = { preferredSize(200, 100) }, state = scroll) {
                 Viewport(unitIncrement = unitIncrement) {
                     Label(
                         text = "Body",
-                        modifier = SwingModifier.preferredSize(400, 400),
+                        style = { preferredSize(400, 400) },
                     )
                 }
             }
@@ -268,11 +265,11 @@ class ScrollPaneIncrementsTest {
     fun aWithdrawnIncrementKeepsBothScrollBarsInThePanesOrientation() = runComposeSwingTest {
         var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = unitIncrement) {
                     Label(
                         text = "Body",
-                        modifier = SwingModifier.preferredSize(400, 400),
+                        style = { preferredSize(400, 400) },
                     )
                 }
             }
@@ -314,7 +311,7 @@ class ScrollPaneIncrementsTest {
     @Test
     fun aTableDeclaringAnIncrementKeepsItsHeaderAndItsHeight() = runComposeSwingTest {
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport(unitIncrement = 17) {
                     Table(
                         model = DefaultTableModel(arrayOf(arrayOf<Any>("a", "b")), arrayOf<Any>("one", "two")),

@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -90,14 +91,18 @@ class IconModifierTest {
         var decorated by mutableStateOf(false)
         var fontDeclared by mutableStateOf(false)
         setContent {
-            val chain = if (decorated) SwingModifier.icon(icon) else SwingModifier
-            Button("Save", onClick = { }, modifier = if (fontDeclared) chain.font(declaredFont) else chain)
+            Button(
+                "Save",
+                onClick = { },
+                modifier = if (decorated) SwingModifier.icon(icon) else SwingModifier,
+                style = { if (fontDeclared) font(declaredFont) },
+            )
         }
         val button = onNodeOfType<JButton>().fetch()
         val original = button.font
         val derived = original.deriveFont(original.size2D - 2f)
         // A look and feel that styles the component for carrying an icon at all, which is what the font
-        // the modifier leaves standing has to answer to.
+        // the style leaves standing has to answer to.
         button.addPropertyChangeListener("icon") { button.font = derived }
 
         decorated = true
@@ -113,7 +118,7 @@ class IconModifierTest {
         assertEquals(
             derived,
             button.font,
-            "dropping the font should leave the font the standing icon derives, not the one the modifier found",
+            "dropping the font should leave the font the standing icon derives, not the one the style found",
         )
     }
 

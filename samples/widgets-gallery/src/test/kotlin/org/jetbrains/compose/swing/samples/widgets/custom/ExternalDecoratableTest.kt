@@ -27,8 +27,13 @@ import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -65,7 +70,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
-import org.jetbrains.compose.swing.modifier.appearance.background as componentBackground
 
 /**
  * Makes components of its own decoratable from outside the library, through public API alone: a `Card` and a
@@ -122,7 +126,7 @@ internal class ExternalDecoratableTest {
                     ) {
                         SwingNode(
                             factory = { JPanel() },
-                            modifier = SwingModifier.testTag("child").preferredSize(40, 30),
+                            modifier = SwingModifier.testTag("child").styleable({ preferredSize(40, 30) }, RawNodeKind),
                         )
                     }
                 }
@@ -157,18 +161,23 @@ internal class ExternalDecoratableTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } },
-                    modifier = SwingModifier.testTag("stock").preferredSize(100, 80),
+                    modifier = SwingModifier.testTag("stock").styleable({ preferredSize(100, 80) }, RawNodeKind),
                 ) {
                     SwingNode(
                         factory = { Card() },
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .preferredSize(60, 40)
                                 .emptyBorder(2)
                                 .opaque(true)
-                                .componentBackground(Color.BLUE)
-                                .shadow(8, Color.BLACK),
+                                .shadow(8, Color.BLACK)
+                                .styleable(
+                                    {
+                                        preferredSize(60, 40)
+                                        background(Color.BLUE)
+                                    },
+                                    RawNodeKind,
+                                ),
                     )
                 }
             }
@@ -228,13 +237,16 @@ internal class ExternalDecoratableTest {
                     SwingNode(
                         factory = { Card() },
                         modifier =
-                            SwingModifier.testTag("card").opaque(true).componentBackground(Color.BLUE).let {
-                                when (step) {
-                                    "alpha" -> it.alpha(0.5f)
-                                    "shadow" -> it.shadow(8, Color.BLACK)
-                                    else -> it
-                                }
-                            },
+                            SwingModifier
+                                .testTag("card")
+                                .opaque(true)
+                                .let {
+                                    when (step) {
+                                        "alpha" -> it.alpha(0.5f)
+                                        "shadow" -> it.shadow(8, Color.BLACK)
+                                        else -> it
+                                    }
+                                }.styleable({ background(Color.BLUE) }, RawNodeKind),
                     )
                 }
             }
@@ -328,7 +340,7 @@ internal class ExternalDecoratableTest {
                     node(
                         SwingModifier
                             .testTag("component")
-                            .preferredSize(120, 80)
+                            .styleable({ preferredSize(120, 80) }, RawNodeKind)
                             .opaque(false)
                             .shadow(8, Color.BLACK)
                             .drawBehind(draw),
@@ -539,7 +551,7 @@ internal class ExternalDecoratableTest {
             SwingNode(factory = { DecoratedPanel(BorderLayout()) }, modifier = modifier) {
                 SwingNode(
                     factory = { JPanel().apply { isOpaque = false } },
-                    modifier = SwingModifier.testTag("child").preferredSize(120, 80),
+                    modifier = SwingModifier.testTag("child").styleable({ preferredSize(120, 80) }, RawNodeKind),
                 )
             }
     }
@@ -786,6 +798,11 @@ private data class DecorationCase(
             Repaint.AtOnce -> atOnce
         }
 }
+
+private val RawNodeKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    )
 
 private const val BLUR_RADIUS = 6
 private val BlurredBehindAClip: (SwingModifier) -> SwingModifier = { it.clip(RectangleShape).blur(BLUR_RADIUS) }

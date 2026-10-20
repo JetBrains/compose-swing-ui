@@ -23,10 +23,11 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -584,7 +585,7 @@ class ModifierNodeTest {
             composeInNestedComposition {
                 SwingNode(
                     factory = { panel },
-                    modifier = if (declared) SwingModifier.background(Color.RED) else SwingModifier,
+                    modifier = if (declared) SwingModifier.styleable { background(Color.RED) } else SwingModifier,
                 )
             }
 

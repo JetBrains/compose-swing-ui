@@ -9,50 +9,46 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** A stateful kind: the state a component feeds its style scope with, as its style and nested blocks read it. */
 class StyleStateTest {
-    @Test
-    fun aFedStateTheStyleReadsResolvesItAgainWithoutRecomposingTheCaller() = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun onlyReadStateResolvesStyles(readState: Boolean) = runComposeSwingTest {
         val probe = StyleProbe("probe")
         val checked = mutableStateOf(false)
         var resolves = 0
         var compositions = 0
         val kind = checkableKind { resolves++ }
-        val style = SwingStyle<CheckableScope> { ProbeFirst.provide(if (isChecked) "checked" else "unchecked") }
+        val style =
+            SwingStyle<CheckableScope> {
+                ProbeFirst.provide(
+                    if (!readState) {
+                        "fixed"
+                    } else if (isChecked) {
+                        "checked"
+                    } else {
+                        "unchecked"
+                    },
+                )
+            }
         setContent {
             SideEffect { compositions++ }
             CheckableFrom({ checked.value }, probe, style, kind)
         }
-        onProbe("probe").assertProperty("unchecked") { first }
+        onProbe("probe").assertProperty(if (readState) "unchecked" else "fixed") { first }
         val composed = compositions
         val resolved = resolves
         probe.writes.clear()
-
         checked.value = true
         awaitIdle()
-        assertEquals(listOf("first=checked"), probe.writes)
-        assertEquals(resolved + 1, resolves, "the flip resolves the style once")
-        assertEquals(composed, compositions, "the caller does not recompose")
-    }
-
-    @Test
-    fun aFedStateNoStyleReadsResolvesNothing() = runComposeSwingTest {
-        val probe = StyleProbe()
-        val checked = mutableStateOf(false)
-        var resolves = 0
-        val kind = checkableKind { resolves++ }
-        val style = SwingStyle<CheckableScope> { ProbeFirst.provide("fixed") }
-        setContent { CheckableFrom({ checked.value }, probe, style, kind) }
-        val resolved = resolves
-        probe.writes.clear()
-
-        checked.value = true
-        awaitIdle()
-        assertEquals(resolved, resolves)
-        assertEquals(emptyList(), probe.writes)
+        assertEquals(if (readState) listOf("first=checked") else emptyList(), probe.writes)
+        assertEquals(resolved + if (readState) 1 else 0, resolves)
+        assertEquals(composed, compositions)
+        onProbe("probe").assertProperty(if (readState) "checked" else "fixed") { first }
     }
 
     @Test
@@ -74,7 +70,7 @@ class StyleStateTest {
                 modifier = SwingModifier.styleable(container, CheckableContainerKind, providerState),
             ) {
                 CheckableFrom({ firstChecked.value }, unchecked, SwingStyle, kind)
-                Checkable(true, checked, SwingStyle, kind)
+                CheckableFrom({ true }, checked, SwingStyle, kind)
             }
         }
         onProbe("unchecked").assertProperty("unchecked", "the block reads the consumer's state, not the provider's") {
@@ -118,19 +114,6 @@ private val CheckableContainerKind =
         }
     })
 
-/** A stateful component: it feeds [checked] to its style scope through [rememberUpdatedState]. */
-@Composable
-private fun Checkable(
-    checked: Boolean,
-    probe: StyleProbe,
-    style: SwingStyle<CheckableScope>,
-    kind: SwingStyleKind<CheckableScope, State<Boolean>>,
-) {
-    val state = rememberUpdatedState(checked)
-    SwingNode(factory = { probe }, modifier = SwingModifier.styleable(style, kind, state))
-}
-
-/** [Checkable] reading [checked] in its own scope, so a flip recomposes nothing above it. */
 @Composable
 private fun CheckableFrom(
     checked: () -> Boolean,
@@ -138,5 +121,6 @@ private fun CheckableFrom(
     style: SwingStyle<CheckableScope>,
     kind: SwingStyleKind<CheckableScope, State<Boolean>>,
 ) {
-    Checkable(checked(), probe, style, kind)
+    val state = rememberUpdatedState(checked())
+    SwingNode(factory = { probe }, modifier = SwingModifier.styleable(style, kind, state))
 }

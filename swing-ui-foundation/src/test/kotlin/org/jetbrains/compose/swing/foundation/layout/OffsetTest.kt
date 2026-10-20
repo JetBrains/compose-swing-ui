@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -53,7 +54,10 @@ class OffsetTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
                 ) {
                     SizedChild(0, SwingModifier.offset(OFFSET_X, OFFSET_Y))
                 }
@@ -72,7 +76,10 @@ class OffsetTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
                 ) {
                     SizedChild(0, SwingModifier.offset(Int.MIN_VALUE, 0))
                 }
@@ -172,7 +179,10 @@ class OffsetTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
                 ) {
                     SizedChild(0, SwingModifier.absoluteOffset(OFFSET_X, OFFSET_Y))
                 }
@@ -190,7 +200,7 @@ class OffsetTest {
     fun anOffsetLeavesTheChildTheWholeSpaceItWouldOtherwiseBeMeasuredIn() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0, SwingModifier.offset(OFFSET_X, OFFSET_Y).fillMaxWidth().fillMaxHeight())
                 }
             }

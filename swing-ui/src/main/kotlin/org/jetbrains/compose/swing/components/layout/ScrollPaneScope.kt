@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.annotations.ScrollPaneCorner
+import org.jetbrains.compose.swing.components.style.ScrollBars
+import org.jetbrains.compose.swing.components.style.Viewports
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -17,6 +19,14 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.ExistingSwingNode
 import org.jetbrains.compose.swing.node.wrongSlotHost
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JScrollBar
@@ -35,7 +45,7 @@ import javax.swing.JViewport
  * ```
  * ScrollPane {
  *     Viewport(unitIncrement = 16) { Column { Rows() } }
- *     VerticalScrollbar(modifier = SwingModifier.background(surface))
+ *     VerticalScrollbar(style = { background(surface) })
  *     Label(text = "Rows", modifier = SwingModifier.rowHeader())
  *     Label(text = "*", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
  * }
@@ -64,6 +74,7 @@ public sealed interface ScrollPaneScope {
      * a tree, a text area), and anything else scrolls by 1 per unit and a full viewport per page.
      *
      * @param modifier the [SwingModifier] applied to the pane's `JViewport`
+     * @param style the [SwingStyle] applied to the pane's `JViewport`
      * @param unitIncrement how far one arrow-button click, one keyboard line or one wheel unit
      *   scrolls; `null` leaves it to the content
      * @param blockIncrement how far one page - a click in the scroll bar's track, `Page Up`/`Page
@@ -76,6 +87,7 @@ public sealed interface ScrollPaneScope {
     @Composable
     public fun Viewport(
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         unitIncrement: Int? = null,
         blockIncrement: Int? = null,
         content: @Composable () -> Unit,
@@ -86,20 +98,28 @@ public sealed interface ScrollPaneScope {
      * policy says.
      *
      * @param modifier the [SwingModifier] applied to the pane's vertical `JScrollBar`
+     * @param style the [SwingStyle] applied to the pane's vertical `JScrollBar`
      * @see javax.swing.JScrollPane.getVerticalScrollBar
      */
     @Composable
-    public fun VerticalScrollbar(modifier: SwingModifier = SwingModifier)
+    public fun VerticalScrollbar(
+        modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    )
 
     /**
      * Configures the pane's own horizontal scroll bar. The bar is shown as the pane's
      * `horizontalScrollbar` policy says.
      *
      * @param modifier the [SwingModifier] applied to the pane's horizontal `JScrollBar`
+     * @param style the [SwingStyle] applied to the pane's horizontal `JScrollBar`
      * @see javax.swing.JScrollPane.getHorizontalScrollBar
      */
     @Composable
-    public fun HorizontalScrollbar(modifier: SwingModifier = SwingModifier)
+    public fun HorizontalScrollbar(
+        modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    )
 
     /**
      * Installs the child as the row header, shown in a viewport pinned to the leading edge and scrolled
@@ -174,14 +194,15 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
 
     // A part keeps one declaration when callers select different composable helpers in the same pass.
     private val viewport =
-        movableContentOf<SwingModifier, ScrollIncrements, @Composable () -> Unit> {
+        movableContentOf<SwingModifier, SwingStyle<ContainerStyleScope>, ScrollIncrements, @Composable () -> Unit> {
             modifier,
+            style,
             increments,
             content,
             ->
             ExistingSwingNode<JScrollPane, _, JViewport>(
                 claim = JScrollPane::getViewport,
-                modifier = modifier.slot(ScrollPaneParentProtocol, VIEWPORT_REGION),
+                modifier = modifier.slot(ScrollPaneParentProtocol, VIEWPORT_REGION).styleable(style, ViewportKind),
                 update = { set(increments) { declare(it) } },
                 content = content,
             )
@@ -206,14 +227,14 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         installed: () -> JScrollBar?,
         paneBar: JScrollPane.() -> JScrollBar,
         region: String,
-    ) = movableContentOf<SwingModifier> { modifier ->
+    ) = movableContentOf<SwingModifier, SwingStyle<SwingComponentStyleScope>> { modifier, style ->
         val bar = installed()
         key(bar) {
             // A pane not built yet has installed no bar, so its own bar is the one the node finds.
             val composedBar = bar ?: pane?.paneBar()
             ExistingSwingNode<JScrollPane, _, JScrollBar>(
                 claim = { composedBar ?: paneBar() },
-                modifier = modifier.slot(ScrollPaneParentProtocol, region),
+                modifier = modifier.slot(ScrollPaneParentProtocol, region).styleable(style, ScrollBarKind),
             )
         }
     }
@@ -251,21 +272,28 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
     @Composable
     override fun Viewport(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         unitIncrement: Int?,
         blockIncrement: Int?,
         content: @Composable () -> Unit,
     ) {
-        viewport(modifier, ScrollIncrements.of(unitIncrement, blockIncrement), content)
+        viewport(modifier, style, ScrollIncrements.of(unitIncrement, blockIncrement), content)
     }
 
     @Composable
-    override fun VerticalScrollbar(modifier: SwingModifier) {
-        verticalScrollbar(modifier)
+    override fun VerticalScrollbar(
+        modifier: SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope>,
+    ) {
+        verticalScrollbar(modifier, style)
     }
 
     @Composable
-    override fun HorizontalScrollbar(modifier: SwingModifier) {
-        horizontalScrollbar(modifier)
+    override fun HorizontalScrollbar(
+        modifier: SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope>,
+    ) {
+        horizontalScrollbar(modifier, style)
     }
 
     override fun SwingModifier.rowHeader(): SwingModifier =
@@ -416,3 +444,19 @@ private const val COLUMN_HEADER_REGION: String = "SwingModifier.columnHeader()"
 private fun cornerRegion(
     @ScrollPaneCorner corner: String,
 ): String = "SwingModifier.corner($corner)"
+
+private val ViewportKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(Viewports)
+    }
+
+private val ScrollBarKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(ScrollBars)
+    }

@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -69,7 +70,7 @@ class InvalidationDuringValidationTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
-                    modifier = SwingModifier.preferredSize(200, 200),
+                    modifier = SwingModifier.styleable({ preferredSize(200, 200) }, RawKind),
                 ) {
                     Layout(measurePolicy = policy, modifier = SwingModifier.testTag("layout"))
                 }
@@ -351,7 +352,7 @@ class InvalidationDuringValidationTest {
                             override fun isValidateRoot() = true
                         }
                     },
-                    modifier = SwingModifier.preferredSize(200, 200),
+                    modifier = SwingModifier.styleable({ preferredSize(200, 200) }, RawKind),
                 ) {
                     Layout(
                         content = { Box(modifier = SwingModifier.size(10, 10)) },
@@ -424,7 +425,7 @@ class InvalidationDuringValidationTest {
                             measurables.single().measure(Constraints()).place(0, 0)
                         }
                     },
-                    modifier = containerModifier(200, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 100)),
                 )
             }
             assertEquals(20, asked)
@@ -467,7 +468,7 @@ class InvalidationDuringValidationTest {
                             next.place(first.width, 0)
                         }
                     },
-                    modifier = containerModifier(200, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 100)),
                 )
             }
             onNodeWithTag("next").assertProperty(20) { layoutBounds.x }
@@ -491,7 +492,7 @@ class InvalidationDuringValidationTest {
                             measurables.single().measure(Constraints()).place(0, 0)
                         }
                     },
-                    modifier = containerModifier(200, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 100)),
                 )
             }
             val measures = requests.measures
@@ -605,7 +606,7 @@ class InvalidationDuringValidationTest {
                         val placeable = measurables.single().measure(Constraints())
                         layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(200, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 100)),
                 )
             }
             onNodeWithTag("box").assertProperty(0) { layoutBounds.x }
@@ -724,7 +725,7 @@ class InvalidationDuringValidationTest {
                             placeable.place(0, 0)
                         }
                     },
-                    modifier = containerModifier(200, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 100)),
                 )
             }
             val row = onNodeWithTag("row").fetch<JComponent>()
@@ -773,7 +774,7 @@ private const val WRITTEN = 60
  */
 @Composable
 private fun RowOfOneRequesting(requests: Requests) {
-    Row(modifier = SwingModifier.testTag("row").preferredSize(200, 100)) {
+    Row(modifier = SwingModifier.testTag("row").styleable { preferredSize(200, 100) }) {
         Box(modifier = SwingModifier.testTag("box").then(RequestingElement(requests)).size(20, 20))
     }
 }
@@ -783,7 +784,7 @@ private fun RowOfOneRequesting(requests: Requests) {
 private fun RowUnderFlowLayout(requesting: LayoutModifierNodeElement<*>) {
     SwingNode(
         factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
-        modifier = SwingModifier.preferredSize(200, 200),
+        modifier = SwingModifier.styleable({ preferredSize(200, 200) }, RawKind),
     ) {
         Row(modifier = SwingModifier.testTag("row")) {
             Box(modifier = SwingModifier.testTag("box").then(requesting).size(20, 20))

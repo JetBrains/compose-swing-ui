@@ -25,7 +25,7 @@ import kotlin.math.floor
 internal class DecorationSteps private constructor(
     internal val decorators: List<Decorator>,
     /**
-     * The value the modifier's `paintOutsets` declaration holds, or null where it declares none or
+     * The `paintOutsets` value the component's style sets, or null where it sets none or
      * [PaintOutsets.Decoration].
      */
     val paintOutsets: PaintOutsets?,

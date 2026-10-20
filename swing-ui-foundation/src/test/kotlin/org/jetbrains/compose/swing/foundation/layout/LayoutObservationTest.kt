@@ -31,8 +31,9 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -74,7 +75,7 @@ class LayoutObservationTest {
                         SizedChild(1)
                     },
                     measurePolicy = stackedRows { gap },
-                    modifier = containerModifier(200, 300),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -108,7 +109,7 @@ class LayoutObservationTest {
                         SizedChild(1)
                     },
                     measurePolicy = stackedRowsReportingHeight(reportedHeight),
-                    modifier = containerModifier(200, 300),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -137,7 +138,7 @@ class LayoutObservationTest {
                 Layout(
                     content = { SizedChild(0) },
                     measurePolicy = stackedRowsPlacingAtOffset { offset },
-                    modifier = containerModifier(200, 300),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -243,7 +244,7 @@ class LayoutObservationTest {
                             placeable.place(0, offset.intValue)
                         }
                     },
-                    modifier = containerModifier(CHILD_WIDTH, 2 * CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 2 * CHILD_HEIGHT)),
                 )
             }
 
@@ -278,7 +279,7 @@ class LayoutObservationTest {
                             placeable.place(0, offset.intValue)
                         }
                     },
-                    modifier = containerModifier(CHILD_WIDTH, 2 * CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 2 * CHILD_HEIGHT)),
                 )
             }
 
@@ -348,11 +349,15 @@ class LayoutObservationTest {
                         content = {
                             SwingNode(
                                 factory = { LayoutReadingChild { inset } },
-                                modifier = SwingModifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                                modifier =
+                                    SwingModifier.styleable(
+                                        { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
+                                        RawKind,
+                                    ),
                             )
                         },
                         measurePolicy = stackedRows(),
-                        modifier = containerModifier(200, 300),
+                        modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                     )
                 }
             }
@@ -382,7 +387,7 @@ class LayoutObservationTest {
             var gap by mutableIntStateOf(0)
             val snapshots = Collections.newSetFromMap(IdentityHashMap<Snapshot, Boolean>())
             setContent {
-                Column(modifier = SwingModifier.preferredSize(200, 300)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(200, 300) }) {
                     repeat(CHILD_COUNT) { index ->
                         Layout(
                             content = { SizedChild(index) },
@@ -425,7 +430,7 @@ class LayoutObservationTest {
                         SizedChild(1)
                     },
                     measurePolicy = stackedRows { gap },
-                    modifier = containerModifier(200, 300),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                 )
             }
             val container = windowContainer()
@@ -507,7 +512,7 @@ class LayoutObservationTest {
             var offset by mutableIntStateOf(0)
             var measures = 0
             setContent {
-                Box(modifier = SwingModifier.preferredSize(200, 300)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(200, 300) }) {
                     Layout(
                         content = { SizedChild(0) },
                         measurePolicy = shareOfTheOffer({ measures++ }, { divisor }) { offset },
@@ -546,7 +551,10 @@ class LayoutObservationTest {
                     Layout(
                         content = { SizedChild(0) },
                         measurePolicy = stackedRows(),
-                        modifier = containerModifier(200, 300).background(brush = { _, _ -> color }),
+                        modifier =
+                            ContainerModifier
+                                .background(brush = { _, _ -> color })
+                                .styleable(containerStyle(200, 300)),
                     )
                 }
             }
@@ -583,11 +591,11 @@ class LayoutObservationTest {
                     content = {
                         SwingNode(
                             factory = { PaintReadingChild { color } },
-                            modifier = SwingModifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                            modifier = SwingModifier.styleable({ preferredSize(CHILD_WIDTH, CHILD_HEIGHT) }, RawKind),
                         )
                     },
                     measurePolicy = stackedRows(),
-                    modifier = containerModifier(200, 300),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 300)),
                 )
             }
             val container = windowContainer()
@@ -613,6 +621,7 @@ class LayoutObservationTest {
             var nestedColor by mutableStateOf(Color.RED)
             var canvasColor by mutableStateOf(Color.RED)
             val unrelated = mutableIntStateOf(0)
+            val canvasModifier = SwingModifier.testTag("canvas").styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) }
             setWindowContent {
                 DecoratedBox {
                     Layout(
@@ -623,16 +632,16 @@ class LayoutObservationTest {
                                 modifier =
                                     SwingModifier.testTag("nested").background(brush = { _, _ -> nestedColor }),
                             )
-                            Canvas(
-                                modifier = SwingModifier.testTag("canvas").preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
-                            ) {
+                            Canvas(modifier = canvasModifier) {
                                 graphics.color = canvasColor
                                 graphics.fillRect(0, 0, width, height)
                             }
                         },
                         measurePolicy = stackedRows(),
                         modifier =
-                            containerModifier(200, 300).background(brush = { _, _ -> containerColor }),
+                            ContainerModifier
+                                .background(brush = { _, _ -> containerColor })
+                                .styleable(containerStyle(200, 300)),
                     )
                 }
             }

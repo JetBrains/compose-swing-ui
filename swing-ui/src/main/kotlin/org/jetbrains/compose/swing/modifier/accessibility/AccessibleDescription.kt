@@ -4,11 +4,10 @@
 package org.jetbrains.compose.swing.modifier.accessibility
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.AccessibleDescriptionDescriptor
 
 /**
  * Sets the component's accessible description - a longer localized explanation assistive technologies
@@ -24,12 +23,6 @@ import java.awt.Component
  * @return this modifier with the accessible description declared on it.
  * @see javax.accessibility.AccessibleContext.setAccessibleDescription
  */
+@Deprecated("Set it in the component's style: style = { accessibleDescription(description) }")
 public fun SwingModifier.accessibleDescription(description: @Nls String?): SwingModifier =
-    property(AccessibleDescriptionProperty, description, restores = RestorePolicy.None)
-
-private val AccessibleDescriptionProperty =
-    ComponentPropertyDescriptor<Component, String?>(
-        name = "accessibleDescription",
-        read = { it.accessibleContext?.declaredAccessibleDescription() },
-        write = { component, value -> component.accessibleContext?.accessibleDescription = value },
-    )
+    property(AccessibleDescriptionDescriptor, description, restores = RestorePolicy.None)

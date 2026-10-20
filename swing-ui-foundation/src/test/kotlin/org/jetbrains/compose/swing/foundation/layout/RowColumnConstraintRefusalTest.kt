@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.JLabel
@@ -26,7 +27,7 @@ class RowColumnConstraintRefusalTest {
     fun aWeightedChildAlignedAcrossTheRowStretchesAlongItAndSitsAtTheAlignment() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(ALONG_EXTENT, ACROSS_EXTENT))) {
                     SizedChild(0, SwingModifier.weight(1f).align(Alignment.Bottom))
                 }
             }

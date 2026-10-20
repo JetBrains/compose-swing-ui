@@ -21,11 +21,11 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.util.regex.Pattern
@@ -120,7 +120,7 @@ private fun ColumnScope.SelectableTableCard() {
             onSelectedIndexChange = { selectionModeIndex = it },
         )
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 140)) }) {
             Viewport {
                 Table(
                     rows = people,
@@ -199,7 +199,7 @@ private fun ColumnScope.SortingFilteringTableCard() {
         )
         TableLayoutControls(layout)
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 160))) {
+        ScrollPane(style = { preferredSize(Dimension(440, 160)) }) {
             Viewport {
                 Table(
                     rows = sampleBooks,
@@ -324,7 +324,7 @@ private fun ColumnScope.ModelBackedTableCard() {
                 },
             )
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(280, 140))) {
+        ScrollPane(style = { preferredSize(Dimension(280, 140)) }) {
             Viewport {
                 Table(
                     model = model,

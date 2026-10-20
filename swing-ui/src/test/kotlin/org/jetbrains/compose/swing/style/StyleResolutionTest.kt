@@ -8,27 +8,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.containerListener
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.reflect.KProperty1
+import java.awt.Color
+import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * What a style resolve collects and when it runs: nested styles farthest to nearest, then the kind's default, then
- * the caller's style; again on a snapshot state the style read, and only for the components that read it; again
- * when the styled ancestors above a component change.
- */
 internal class StyleResolutionTest {
     /** Provider context and nested blocks must both reflect the same component application. */
     @Test
@@ -115,7 +113,7 @@ internal class StyleResolutionTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = ["direct state", "nested style", "inherited style local"])
-    fun aStyleInputStillUpdatesTheComponentAfterAnEarlierModifierPropertyChanges(input: String) = runComposeSwingTest {
+    fun styleInputSurvivesEarlierModifierChange(input: String) = runComposeSwingTest {
         val value = mutableStateOf("first")
         val earlier = mutableStateOf("before")
         val provider =
@@ -150,8 +148,8 @@ internal class StyleResolutionTest {
     }
 
     @Test
-    fun nestedStylesRunFarthestToNearestThenTheDefaultThenTheCallerStyle() = runComposeSwingTest {
-        val leaf = StyleProbe()
+    fun nestedStylePrecedence() = runComposeSwingTest {
+        val leaf = StyleProbe("leaf")
         val kind =
             probeKind {
                 applyNestedStyle(Probes)
@@ -159,27 +157,21 @@ internal class StyleResolutionTest {
                 ProbeFourth.provide("default")
             }
         setContent {
-            ProbeContainer(
-                StyleProbe(),
-                {
+            ProbeContainer(StyleProbe(), {
+                provideNestedStyle(Probes) {
+                    ProbeFirst.provide("farther")
+                    ProbeSecond.provide("farther")
+                    ProbeThird.provide("farther")
+                    ProbeFourth.provide("farther")
+                }
+            }) {
+                ProbeContainer(StyleProbe(), {
                     provideNestedStyle(Probes) {
-                        ProbeFirst.provide("farther")
-                        ProbeSecond.provide("farther")
-                        ProbeThird.provide("farther")
-                        ProbeFourth.provide("farther")
+                        ProbeSecond.provide("nearer")
+                        ProbeThird.provide("nearer")
+                        ProbeFourth.provide("nearer")
                     }
-                },
-            ) {
-                ProbeContainer(
-                    StyleProbe(),
-                    {
-                        provideNestedStyle(Probes) {
-                            ProbeSecond.provide("nearer")
-                            ProbeThird.provide("nearer")
-                            ProbeFourth.provide("nearer")
-                        }
-                    },
-                ) {
+                }) {
                     ProbeLeaf(leaf, { ProbeFourth.provide("caller") }, kind)
                 }
             }
@@ -192,7 +184,36 @@ internal class StyleResolutionTest {
     }
 
     @Test
-    fun aStateReadInsideTheStyleResolvesAgainWithoutRecomposition() = runComposeSwingTest {
+    fun nearerProviderFallsBackPerProperty() = runComposeSwingTest {
+        val leaf = StyleProbe("leaf")
+        var nearerProvides by mutableStateOf(true)
+        val farther =
+            SwingStyle<ProbeContainerScope> {
+                provideNestedStyle(Probes) {
+                    ProbeFirst.provide("farther")
+                    ProbeSecond.provide("farther")
+                }
+            }
+        val nearer =
+            SwingStyle<ProbeContainerScope> {
+                if (nearerProvides) provideNestedStyle(Probes) { ProbeSecond.provide("nearer") }
+            }
+        setContent {
+            ProbeContainer(StyleProbe(), farther) {
+                ProbeContainer(StyleProbe(), nearer) {
+                    ProbeLeaf(leaf, SwingStyle, NestedProbe)
+                }
+            }
+        }
+        onProbe("leaf").assertProperty("farther") { first }.assertProperty("nearer") { second }
+        leaf.writes.clear()
+        nearerProvides = false
+        awaitIdle()
+        assertEquals(listOf("second=farther"), leaf.writes, "only the nearer value is replaced")
+    }
+
+    @Test
+    fun styleStateUpdatesWithoutRecomposition() = runComposeSwingTest {
         val probe = StyleProbe()
         var tint by mutableStateOf("light")
         var resolves = 0
@@ -214,53 +235,13 @@ internal class StyleResolutionTest {
 
         tint = "dark"
         awaitIdle()
-        assertEquals(
-            listOf("second=dark"),
-            probe.writes,
-            "only the changed property is written, as nothing declared before it changed",
-        )
+        assertEquals(listOf("second=dark"), probe.writes, "only the changed property is written")
         assertEquals(resolved + 1, resolves, "the state change resolves the style once")
         assertEquals(composed, compositions, "the state change recomposes nothing")
     }
 
     @Test
-    fun forOneKeyTheNearerProviderWinsPerPropertyAndTheFartherOneStandsWhereItLeavesIt() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
-        var nearerProvides by mutableStateOf(true)
-        val farther =
-            SwingStyle<ProbeContainerScope> {
-                provideNestedStyle(Probes) {
-                    ProbeFirst.provide("farther")
-                    ProbeSecond.provide("farther")
-                }
-            }
-        val nearer =
-            SwingStyle<ProbeContainerScope> {
-                if (nearerProvides) provideNestedStyle(Probes) { ProbeSecond.provide("nearer") }
-            }
-        setContent {
-            ProbeContainer(StyleProbe(), farther) {
-                ProbeContainer(StyleProbe(), nearer) {
-                    ProbeLeaf(leaf, SwingStyle, NestedProbe)
-                }
-            }
-        }
-        onProbe("leaf")
-            .assertProperty("farther", "the nearer provider does not mask what the farther one sets") { first }
-            .assertProperty("nearer") { second }
-
-        leaf.writes.clear()
-        nearerProvides = false
-        awaitIdle()
-        assertEquals(
-            listOf("second=farther"),
-            leaf.writes,
-            "once the nearer provider stops providing the key, the farther one's value takes its place",
-        )
-    }
-
-    @Test
-    fun aProviderDoesNotReceiveTheStyleItProvides() = runComposeSwingTest {
+    fun providerDoesNotStyleItself() = runComposeSwingTest {
         val provider = StyleProbe()
         val everything = NestedStyleKey<ComponentStyleScope>("Everything")
         val kind = probeContainerKind { applyNestedStyle(everything) }
@@ -274,12 +255,8 @@ internal class StyleResolutionTest {
         onProbe("inner").assertProperty("nested", "a descendant applying the key receives it") { first }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("movedLeafProperties")
-    fun aSubtreeMovedToAnotherParentFollowsItsNewAncestors(
-        property: KProperty1<StyleProbe, String?>,
-        expected: String,
-    ) = runComposeSwingTest {
+    @Test
+    fun movedSubtreeFollowsNewAncestors() = runComposeSwingTest {
         var underFirst by mutableStateOf(true)
         setContent {
             val moved =
@@ -292,19 +269,13 @@ internal class StyleResolutionTest {
                     }
                 }
             ProbeContainer(StyleProbe(), SwingStyle) {
-                ProbeContainer(
-                    StyleProbe(),
-                    {
-                        provideNestedStyle(Probes) {
-                            ProbeFirst.provide("first parent")
-                            ProbeSecond.provide("first parent")
-                        }
-                    },
-                ) { if (underFirst) moved() }
-                ProbeContainer(
-                    StyleProbe(),
-                    { provideNestedStyle(Probes) { ProbeFirst.provide("second parent") } },
-                ) {
+                ProbeContainer(StyleProbe(), {
+                    provideNestedStyle(Probes) {
+                        ProbeFirst.provide("first parent")
+                        ProbeSecond.provide("first parent")
+                    }
+                }) { if (underFirst) moved() }
+                ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second parent") } }) {
                     if (!underFirst) moved()
                 }
             }
@@ -316,25 +287,21 @@ internal class StyleResolutionTest {
         underFirst = false
         awaitIdle()
 
-        onProbe("leaf").assertProperty(expected) { property.get(this) }
+        onProbe("leaf")
+            .assertProperty("second parent") { first }
+            .assertProperty(PROBE_OWN_VALUE) { second }
     }
 
     @Test
-    fun aLeafRemovedFromAProviderRestoresItsOriginalValue() = runComposeSwingTest {
+    fun removedLeafRestoresBeforeReuse() = runComposeSwingTest {
         val leaf = StyleProbe("leaf")
         var present by mutableStateOf(true)
         var underSecond by mutableStateOf(false)
         setContent {
-            ProbeContainer(
-                StyleProbe(),
-                { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } },
-            ) {
+            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } }) {
                 if (present) ProbeLeaf(leaf, SwingStyle, NestedProbe)
             }
-            ProbeContainer(
-                StyleProbe(),
-                { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } },
-            ) {
+            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } }) {
                 if (underSecond) ProbeLeaf(leaf, SwingStyle, NestedProbe)
             }
         }
@@ -351,9 +318,9 @@ internal class StyleResolutionTest {
         onProbe("leaf").assertProperty("second provider") { first }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("lateProviders")
-    fun aProviderAppearingAfterItsChildrenResolvedReachesThem(styleAppearsLate: Boolean) = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun lateProviderReachesExistingChildren(styleAppearsLate: Boolean) = runComposeSwingTest {
         var provides by mutableStateOf(false)
         setContent {
             val style =
@@ -381,9 +348,14 @@ internal class StyleResolutionTest {
         }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("nestedCycles")
-    fun nestedBlocksApplyingTheirOwnKeyAreRefused(provider: SwingStyle<ProbeContainerScope>) {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun nestedCyclesAreRejected(indirect: Boolean) {
+        val provider =
+            SwingStyle<ProbeContainerScope> {
+                provideNestedStyle(Probes) { applyNestedStyle(if (indirect) OtherProbes else Probes) }
+                if (indirect) provideNestedStyle(OtherProbes) { applyNestedStyle(Probes) }
+            }
         val failure =
             assertFailsWith<IllegalStateException> {
                 runComposeSwingTest {
@@ -398,19 +370,16 @@ internal class StyleResolutionTest {
     }
 
     @Test
-    fun aNestedBlockAppliesTheStylesProvidedForAnotherKey() = runComposeSwingTest {
+    fun nestedBlockAppliesAnotherKey() = runComposeSwingTest {
         val leaf = StyleProbe()
         setContent {
-            ProbeContainer(
-                StyleProbe(),
-                {
-                    provideNestedStyle(Probes) {
-                        applyNestedStyle(OtherProbes)
-                        ProbeSecond.provide("probes")
-                    }
-                    provideNestedStyle(OtherProbes) { ProbeFirst.provide("other") }
-                },
-            ) {
+            ProbeContainer(StyleProbe(), {
+                provideNestedStyle(Probes) {
+                    applyNestedStyle(OtherProbes)
+                    ProbeSecond.provide("probes")
+                }
+                provideNestedStyle(OtherProbes) { ProbeFirst.provide("other") }
+            }) {
                 ProbeLeaf(leaf, SwingStyle, NestedProbe)
             }
         }
@@ -418,16 +387,14 @@ internal class StyleResolutionTest {
     }
 
     @Test
-    fun aChangedProviderStyleResolvesOnlyTheComponentsApplyingItsKeys() = runComposeSwingTest {
+    fun changedProviderResolvesOnlyItsConsumers() = runComposeSwingTest {
         val consumer = StyleProbe()
         val bystander = StyleProbe()
         var dark by mutableStateOf(false)
         var consumerResolves = 0
         var bystanderResolves = 0
-        val light =
-            SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("light") } }
-        val darkStyle =
-            SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("dark") } }
+        val light = SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("light") } }
+        val darkStyle = SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("dark") } }
         val consumerKind =
             probeKind {
                 consumerResolves++
@@ -459,12 +426,9 @@ internal class StyleResolutionTest {
         assertEquals(bystanderResolved, bystanderResolves, "a component applying another key does not resolve")
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("firstFrameProviders")
-    fun onTheFirstFrameADescendantResolvesOnceAgainstItsContainersStyle(
-        container: SwingStyle<ProbeContainerScope>,
-        expected: String,
-    ) = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun firstFrameResolvesOnce(inherited: Boolean) = runComposeSwingTest {
         val leaf = StyleProbe()
         var resolves = 0
         val kind =
@@ -473,16 +437,20 @@ internal class StyleResolutionTest {
                 applyNestedStyle(Probes)
             }
         setContent {
-            ProbeContainer(StyleProbe(), container) {
-                ProbeLeaf(leaf, SwingStyle, kind)
-            }
+            ProbeContainer(StyleProbe(), {
+                if (inherited) {
+                    InheritedFirst.provide("inherited")
+                } else {
+                    provideNestedStyle(Probes) { ProbeFirst.provide("nested") }
+                }
+            }) { ProbeLeaf(leaf, SwingStyle, kind) }
         }
-        assertEquals(listOf(expected), leaf.writes)
+        assertEquals(listOf(if (inherited) "first=inherited" else "first=nested"), leaf.writes)
         assertEquals(1, resolves, "the container's first publish does not resolve the descendant again")
     }
 
     @Test
-    fun aReplacedLocalMapResolvesAgainOnlyTheStylesThatReadALocal() = runComposeSwingTest {
+    fun localMapChangeResolvesOnlyReaders() = runComposeSwingTest {
         var tone by mutableStateOf("light")
         var readerResolves = 0
         var bystanderResolves = 0
@@ -513,58 +481,29 @@ internal class StyleResolutionTest {
         assertEquals(bystanderResolved, bystanderResolves, "a style that read no local does not resolve")
     }
 
-    companion object {
-        @JvmStatic
-        fun movedLeafProperties(): List<Arguments> = listOf(
-            Arguments.of(
-                Named.of("the moved leaf applies its new ancestor's nested style", StyleProbe::first),
-                "second parent",
-            ),
-            Arguments.of(
-                Named.of("the moved leaf gets back what only its old ancestor wrote", StyleProbe::second),
-                PROBE_OWN_VALUE,
-            ),
-        )
-
-        @JvmStatic
-        fun lateProviders(): List<Arguments> = listOf(
-            Arguments.of(Named.of("a style added to the parent", true)),
-            Arguments.of(Named.of("a key the parent's style starts providing", false)),
-        )
-
-        @JvmStatic
-        fun nestedCycles(): List<Arguments> = listOf(
-            Arguments.of(
-                Named.of(
-                    "a block applying the key it runs for",
-                    SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { applyNestedStyle(Probes) } },
-                ),
-            ),
-            Arguments.of(
-                Named.of(
-                    "blocks applying each other's keys",
-                    SwingStyle<ProbeContainerScope> {
-                        provideNestedStyle(Probes) { applyNestedStyle(OtherProbes) }
-                        provideNestedStyle(OtherProbes) { applyNestedStyle(Probes) }
+    @Test
+    fun labelIsStyledBeforeFirstFrame() = runComposeSwingTest {
+        mainClock.autoAdvance = false
+        val shown = mutableListOf<Color?>()
+        setContent {
+            Panel(
+                modifier =
+                    SwingModifier.containerListener { event ->
+                        val label = event.child as? JLabel ?: return@containerListener
+                        if (shown.isEmpty()) {
+                            shown += label.foreground
+                            label.addPropertyChangeListener("foreground") { shown += label.foreground }
+                        }
                     },
-                ),
-            ),
-        )
+                style = { provideNestedStyle(Labels) { foreground(Color.RED) } },
+            ) {
+                Label("label")
+            }
+        }
 
-        @JvmStatic
-        fun firstFrameProviders(): List<Arguments> = listOf(
-            Arguments.of(
-                Named.of(
-                    "a nested style",
-                    SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("nested") } },
-                ),
-                "first=nested",
-            ),
-            Arguments.of(
-                Named.of("a local", SwingStyle<ProbeContainerScope> { InheritedFirst.provide("inherited") }),
-                "first=inherited",
-            ),
-        )
+        onNodeOfType<JLabel>().assertProperty(Color.RED) { foreground }
+        val own = JLabel().foreground
+        assertEquals(listOf<Color?>(Color.RED), shown.filter { it != own }, "one provided color write: $shown")
     }
 }
 

@@ -9,9 +9,10 @@ import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -146,7 +147,11 @@ class LayoutModifierNodeTest {
                 Row(modifier = SwingModifier.testTag("row")) {
                     SwingNode(
                         factory = { JPanel() },
-                        modifier = SwingModifier.maximumSize(40, 20).countingMeasures { measures++ },
+                        modifier =
+                            SwingModifier.countingMeasures { measures++ }.styleable(
+                                { maximumSize(40, 20) },
+                                RawKind,
+                            ),
                     )
                 }
             }
@@ -174,11 +179,15 @@ class LayoutModifierNodeTest {
                             SwingModifier
                                 .alignByBaseline()
                                 .countingMeasures { measures++ }
-                                .preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                                .styleable({ preferredSize(CHILD_WIDTH, CHILD_HEIGHT) }, RawKind),
                     )
                     SwingNode(
                         factory = { FixedBaselinePanel(10) },
-                        modifier = SwingModifier.alignByBaseline().preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                        modifier =
+                            SwingModifier.alignByBaseline().styleable(
+                                { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
+                                RawKind,
+                            ),
                     )
                 }
             }

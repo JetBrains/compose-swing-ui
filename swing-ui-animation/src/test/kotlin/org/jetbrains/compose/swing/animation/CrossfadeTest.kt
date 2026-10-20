@@ -29,7 +29,7 @@ import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -66,7 +66,7 @@ private fun Component.paintedAlpha(): Float = Color(captureToImage().getRGB(2, 2
 private fun Body(
     text: String,
     width: Int = 40,
-) = Label(text = text, modifier = SwingModifier.preferredSize(width, height = 20).opaque(true))
+) = Label(text = text, modifier = SwingModifier.opaque(true), style = { preferredSize(width, height = 20) })
 
 class CrossfadeTest {
     @Test
@@ -327,7 +327,7 @@ class CrossfadeTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Crossfade(targetState = state, modifier = SwingModifier.preferredSize(200, 100)) {
+                Crossfade(targetState = state, modifier = SwingModifier.containerPreferredSize(200, 100)) {
                     Body(text = it, width = if (it == "a") 40 else 320)
                 }
             }

@@ -8,8 +8,9 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -250,20 +251,25 @@ class PlacementLayerShiftedBoundsTest {
         outerLayer: CapturingOffsetLayerElement? = null,
         middleSize: Int? = null,
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = SwingModifier.testTag("root").preferredSize(240, 80)) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = SwingModifier.testTag("root").styleable { preferredSize(240, 80) },
+        ) {
             val rowModifier = SwingModifier.testTag("row").let { if (rowClip) it.clipToBounds() else it }
             Row(modifier = rowModifier) {
                 val layeredModifier =
                     SwingModifier
                         .testTag("layered")
-                        .preferredSize(40, 40)
                         .let { if (hostClip) it.clipToBounds() else it }
                         .then(outerLayer ?: SwingModifier)
-                        .then(middleSize?.let { SwingModifier.preferredSize(it, it) } ?: SwingModifier)
                         .then(layer)
                 Box(
                     contentAlignment = Alignment.TopStart,
-                    modifier = layeredModifier,
+                    modifier =
+                        layeredModifier.styleable {
+                            val side = middleSize ?: 40
+                            preferredSize(side, side)
+                        },
                 ) {
                     Box(
                         modifier =

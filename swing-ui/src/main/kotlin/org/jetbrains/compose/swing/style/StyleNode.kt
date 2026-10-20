@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.style
 
 import androidx.collection.ObjectList
+import androidx.collection.emptyObjectList
 import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +67,7 @@ internal class StyleElement<S : ComponentStyleScope, T>(
 
     override val declaredValues: Map<String, Any?> get() = mapOf("style" to style, "kind" to kind, "state" to state)
 
-    override fun create(): StyleNode = StyleNode()
+    override fun create(): StyleNode = StyleNode(kind)
 
     override fun update(node: StyleNode) {
         node.resolve(this)
@@ -79,17 +80,26 @@ internal class StyleElement<S : ComponentStyleScope, T>(
 
     /**
      * Runs [kind]'s default style and then [style], and returns the scope they ran against: [reusable], the scope of
-     * a run with this kind and state, or `null` where one is built over what [base] returns.
+     * a run with this kind and state, or `null` where one is built over what [base] returns. [setOnlyNests] sets
+     * the collector's nesting-default check and returns its previous value: it holds [kind]'s setting only while
+     * the default runs, so the style runs unchecked, and the previous value returns afterwards.
      */
     inline fun execute(
         reusable: ComponentStyleScope?,
+        setOnlyNests: (Boolean) -> Boolean,
         base: () -> NestedStyleProviderScope,
     ): ComponentStyleScope {
         // A reusable scope was built by a kind that builds only an S.
         @Suppress("UNCHECKED_CAST")
         val scope = (reusable as S?) ?: kind.scope(base(), state)
-        with(kind.default) { scope.applyStyle() }
-        with(style) { scope.applyStyle() }
+        val outer = setOnlyNests(kind.defaultOnlyNests)
+        try {
+            with(kind.default) { scope.applyStyle() }
+            setOnlyNests(false)
+            with(style) { scope.applyStyle() }
+        } finally {
+            setOnlyNests(outer)
+        }
         return scope
     }
 
@@ -115,12 +125,15 @@ internal class StyleElement<S : ComponentStyleScope, T>(
  * the style restored. A parent-layout element the style sets is declared to the parent after the modifier's own,
  * a node-backed one through a layout slot of its own.
  *
- * The resolve runs inside the node's observed reads, so a snapshot state the style reads, including what a styled
- * ancestor publishes, resolves it again.
+ * A resolve with a style to run or a providing ancestor to read runs inside the node's observed reads, so a
+ * snapshot state the style reads, including what a providing ancestor provides, resolves it again. A resolve that
+ * can collect nothing builds and observes nothing.
  *
  * The node holds the nested blocks and style locals its last resolve provided to its descendants.
  */
-internal class StyleNode : SwingModifier.ComponentNode<Component>() {
+internal class StyleNode(
+    private var kind: SwingStyleKind<*, *>,
+) : SwingModifier.ComponentNode<Component>() {
     private val properties = StyleableProperties()
 
     override fun diagnosticsFor(given: SwingCompositionDiagnostics?): SwingCompositionDiagnostics? = null
@@ -151,6 +164,9 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
     fun readLocal() {
         readsLocal = true
     }
+
+    /** Whether the last resolve ran under observed reads, so a resolve that reads nothing clears them once. */
+    private var observed = false
 
     /** Whether the last resolve provided a nested style key or set a style local. Read without observation. */
     internal val providesStyles: Boolean get() = provided !== ProvidedStyles.Empty
@@ -246,6 +262,7 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
 
     override fun onAttach() {
         val holder = checkNotNull(holder)
+        requireKindTarget(kind, holder.component)
         // A style added to a node that has children already reaches them.
         if (holder.children.isNotEmpty()) {
             ensureProvidedStyles()
@@ -264,6 +281,9 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         mode: WriteMode = WriteMode.AdoptEqual,
     ): Boolean {
         val holder = checkNotNull(holder) { "Node is not attached" }
+        // The node is reused across kinds, so the requirement is that of the element last applied, not of the first.
+        kind = element.kind
+        requireKindTarget(kind, holder.component)
         val owner = checkNotNull(holder.owner) { "Node is not attached to a composition" }
         if (!stale && !readsLocal && element == ownStyle) {
             properties.refresh(mode)
@@ -275,7 +295,16 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         }
         val collector = owner.styleCollector
         readsLocal = false
-        val collected = collectObserved(collector, element, holder)
+        val collected =
+            if (element.collectsNothingUnder(holder)) {
+                // Nothing is collected, so no scope or observer is built and an earlier observer is dropped.
+                if (observed) owner.snapshotObserver.clear(this)
+                observed = false
+                null
+            } else {
+                observed = true
+                collectObserved(collector, element, holder)
+            }
         // A collection that threw left the node stale, so the next resolve collects again.
         stale = false
         // Attached slots can adopt equal declarations when no earlier slot wrote.
@@ -288,7 +317,7 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
                 applyCollected(element, collected, updating, provided, properties)
             }
         } finally {
-            collected.release()
+            collected?.release()
         }
     }
 
@@ -362,6 +391,7 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         }
         declaredLayout = emptyList()
         records?.clear(ParentLayoutNodeType, this)
+        observed = false
         // Clears what this node provided, so every descendant that read it resolves again.
         failure =
             collectFailure(failure) {
@@ -465,6 +495,7 @@ internal fun StyleNode.rewriteSlotsFrom(
     return rewritten
 }
 
+/** Collects [element] with [collector], recording the reads so a change of one resolves it again. */
 private fun StyleNode.collectObserved(
     collector: StyleCollector,
     element: StyleElement<*, *>,
@@ -476,6 +507,11 @@ private fun StyleNode.collectObserved(
     return checkNotNull(collected) { "The observed collect did not run" }
 }
 
+/** Whether resolving this element yields nothing: no style to run, a default that only nests, no key to apply. */
+private fun StyleElement<*, *>.collectsNothingUnder(holder: SwingNodeHolder<*>): Boolean =
+    style === SwingStyle && kind.readsNothingByDefault && holder.publisherAbove == null
+
+/** The one callback every observed style resolve shares, so the observer keeps a single scope map for them. */
 private val OnStyleReadChanged: (StyleNode) -> Unit = StyleNode::restyle
 
 /** Runs [step], and returns [failure], or what [step] threw where [failure] is `null`; a later throw is suppressed. */
@@ -536,27 +572,35 @@ internal class ProvidedStyles private constructor(
 /** Applies collected property and layout declarations before publishing styles to descendants. */
 private fun StyleNode.applyCollected(
     element: StyleElement<*, *>,
-    collected: StyleCollection,
+    collected: StyleCollection?,
     mode: WriteMode,
     previous: ProvidedStyles,
-    properties: StyleableProperties,
+    table: StyleableProperties,
 ): Boolean {
     val holder = checkNotNull(holder)
-    val propertyMode = if (properties.resolve(collected.declarations, mode, this)) WriteMode.RewriteEqual else mode
+    val declarations = collected?.declarations ?: emptyObjectList()
+    val propertyMode = if (table.resolve(declarations, mode, this)) WriteMode.RewriteEqual else mode
     val state = checkNotNull(holder.modifierState)
+    val properties = collected?.properties ?: emptyObjectList()
+    val layoutElements = collected?.layoutElements ?: emptyObjectList()
     var detached = false
     state.records?.forEach(ComponentNodeType, this) { if (!it.node.isAttached) detached = true }
     var invalidates =
         if (detached) {
-            attachNodes(holder, collected.properties, holder.owner?.diagnostics)
+            attachNodes(holder, properties, holder.owner?.diagnostics)
         } else {
-            holder.diffKeyedElements(collected.properties, propertyMode, this, properties.rewriteReleased)
+            holder.diffKeyedElements(properties, propertyMode, this, table.rewriteReleased)
         }
-    var declaresLayout = declaredLayout.isNotEmpty() || collected.layoutElements.isNotEmpty()
+    var declaresLayout = declaredLayout.isNotEmpty() || layoutElements.isNotEmpty()
     state.records?.forEach(ParentLayoutNodeType, this) { declaresLayout = true }
-    if (declaresLayout && declareLayout(holder, collected.layoutElements, mode)) invalidates = true
-    val provides = ProvidedStyles.of(collected.nested, collected.locals, previous)
-    updateProvidedStyles(element, collected.scope, provides)
+    if (declaresLayout && declareLayout(holder, layoutElements, mode)) invalidates = true
+    val provides =
+        if (collected == null) {
+            ProvidedStyles.Empty
+        } else {
+            ProvidedStyles.of(collected.nested, collected.locals, previous)
+        }
+    updateProvidedStyles(element, collected?.scope, provides)
     return invalidates
 }
 

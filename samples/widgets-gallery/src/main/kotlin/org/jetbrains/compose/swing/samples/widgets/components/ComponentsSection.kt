@@ -30,12 +30,12 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -126,7 +126,7 @@ private fun ColumnScope.TextAreaOptionsCard() {
             Label("Tab size:")
             Spinner(tabSize, onValueChange = { tabSize = it.toInt() }, min = 1, max = 16, step = 1)
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 100)) }) {
             Viewport {
                 TextArea(
                     value = notes,
@@ -169,7 +169,7 @@ private fun ColumnScope.PasswordStateCard() {
         Panel {
             Label("Password:")
             PasswordField(state = state, columns = 20)
-            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
+            Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
         }
         Label("Length: ${state.text.length}")
     }
@@ -282,8 +282,8 @@ private fun ColumnScope.ChoiceCard() {
                             SwingModifier
                                 .west()
                                 .icon(swatch)
-                                .preferredSize(GLYPH_SLOT, GLYPH_SLOT)
                                 .horizontalAlignment(SwingConstants.CENTER),
+                        style = { preferredSize(GLYPH_SLOT, GLYPH_SLOT) },
                     )
                     Label(language.name, SwingModifier.center())
                 }

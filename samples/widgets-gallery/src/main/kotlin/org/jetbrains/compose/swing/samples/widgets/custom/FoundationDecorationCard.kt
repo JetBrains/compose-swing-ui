@@ -34,19 +34,20 @@ import org.jetbrains.compose.swing.foundation.layout.height
 import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.appearance.cursor
-import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.keyListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.focusable
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.window.Dialog
 import java.awt.Color
 import java.awt.Component
@@ -386,9 +387,7 @@ private fun ColumnScope.BrushTiles(
                                 if (selected) it.border(2, Color(0x26, 0x32, 0x38), RoundedCornerShape(11f)) else it
                             }.padding(3)
                             .background(StyledBrush(style, values.stops, values.middlePosition), RoundedCornerShape(8f))
-                            .cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
                             .mouseListener(onMouseClicked = { onSelect(style) })
-                            .focusable(true)
                             .keyListener(
                                 onKeyPressed = {
                                     if (it.keyCode == KeyEvent.VK_SPACE || it.keyCode == KeyEvent.VK_ENTER) {
@@ -396,10 +395,14 @@ private fun ColumnScope.BrushTiles(
                                     }
                                 },
                             ).toolTip("Fill the surface with the $name brush")
-                            .accessibleName("$name brush")
-                            .testTag(BRUSH_TILE_TAG_PREFIX + name),
+                            .testTag(BRUSH_TILE_TAG_PREFIX + name)
+                            .styleable {
+                                cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
+                                focusable(true)
+                                accessibleName("$name brush")
+                            },
                 ) {}
-                Label(name, modifier = SwingModifier.font(Font(Font.SANS_SERIF, Font.PLAIN, 10)))
+                Label(name, style = { font(Font(Font.SANS_SERIF, Font.PLAIN, 10)) })
             }
         }
     }
@@ -420,7 +423,8 @@ private fun ColumnScope.DecorationControls(
                 val shape = DecorationShape.entries.firstOrNull { it.name == selected }
                 if (shape != null) onValuesChange { copy(selectedShape = shape) }
             },
-            modifier = SwingModifier.testTag(DECORATION_SHAPE_TAG).accessibleName("Shape"),
+            modifier = SwingModifier.testTag(DECORATION_SHAPE_TAG),
+            style = { accessibleName("Shape") },
         )
         Label("Colors:")
         ComboBox(
@@ -430,7 +434,8 @@ private fun ColumnScope.DecorationControls(
                 val preset = GRADIENT_PRESETS.firstOrNull { it.first == selected }?.second
                 if (preset != null) onValuesChange { copy(stops = preset) }
             },
-            modifier = SwingModifier.testTag(GRADIENT_PRESET_TAG).accessibleName("Gradient colors"),
+            modifier = SwingModifier.testTag(GRADIENT_PRESET_TAG),
+            style = { accessibleName("Gradient colors") },
         )
     }
     GradientControls(values.stops, values.middlePosition, onEditStop) { onValuesChange { copy(middlePosition = it) } }
@@ -481,8 +486,8 @@ private fun ColumnScope.GradientControls(
                     SwingModifier
                         .icon(SwatchIcon(color))
                         .toolTip("Pick the ${stop.name.lowercase()} color")
-                        .accessibleName("${stop.name} color")
                         .testTag(GRADIENT_SWATCH_TAG_PREFIX + stop.ordinal),
+                style = { accessibleName("${stop.name} color") },
             )
         }
         GraphicsSlider(

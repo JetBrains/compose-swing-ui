@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.layout.*
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 
 @Composable
@@ -25,6 +26,9 @@ fun FoundationLayoutContentExample() {
 ----- SUFFIX .*foundation-layout-content.*
 }
 -->
+
+To style a composable that does not take a `style` parameter, put `SwingModifier.styleable { ... }` in its modifier; see
+[What a style is](STYLES.md#what-a-style-is).
 
 ## Layout
 
@@ -180,6 +184,7 @@ preferred and minimum sizes, which the panel reports as described in [Where cons
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.BorderLayout
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -354,8 +359,9 @@ container offers these scopes:
 `weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope`
 and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their
 component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component;
-[`paintOutsets`](#paint-outsets-taken-from-the-insets) needs no scope, and under a parent that is not a Foundation
-container changes only what a `Decoratable` component reports and clips.
+[`paintOutsets`](#paint-outsets-taken-from-the-insets) is set in a style, not a modifier, and needs no scope, and under
+a Swing parent changes what a `Decoratable` component answers for its insets and sizes, and what it clips; see
+[Under a Swing parent](#under-a-swing-parent).
 
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
 cannot declare the row's `weight`. The content of `JComponent.setContent` and of a Swing container, such as a `Panel`, a
@@ -373,6 +379,7 @@ modifiers do. It builds on those modifiers, or on the scope's one member: `layou
 import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.style.styleable
 
 -->
 
@@ -425,7 +432,8 @@ kotlin {
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Dimension
 
@@ -446,7 +454,7 @@ positioned ones also take a `Point2D`, and the sized ones a `Dimension2D`.
 ```kotlin
 @Composable
 fun CanvasExample() {
-    Canvas(modifier = SwingModifier.preferredSize(Dimension(120, 120))) {
+    Canvas(modifier = SwingModifier.styleable { preferredSize(Dimension(120, 120)) }) {
         drawCircle(
             Color.BLUE,
             radius = minOf(width, height) / 4f,
@@ -510,22 +518,22 @@ component's layout bounds when none follows. A layout modifier's own box is the 
 
 | Chain | Component | Background |
 |---|---|---|
-| `padding(8).background(red)` | 8 in from the slot | fills the component |
-| `background(red).padding(8)` | 8 in from the slot | fills the slot: the component and the padding around it |
-| `background(red).padding(8).size(100)` | 100 square, in a 116 slot | fills the 116 slot |
+| `padding(8).background(red, RectangleShape)` | 8 in from the slot | fills the component |
+| `background(red, RectangleShape).padding(8)` | 8 in from the slot | fills the slot: the component and the padding around it |
+| `background(red, RectangleShape).padding(8).size(100)` | 100 square, in a 116 slot | fills the 116 slot |
 
 A `padding` declared after a decoration takes layout space between it and the content. `shadow` and `blur` paint
 into [paint outsets](#bounds) outside the layout bounds: in a `Row`, `Column` or `Box` they move no sibling. Under a
 Swing parent there are no paint outsets by default, and the decoration is clipped at the bounds; see
-[Under a Swing parent](#under-a-swing-parent). `paintOutsets(PaintOutsets.None)` gives them layout space under any
-parent; see [Paint outsets taken from the insets](#paint-outsets-taken-from-the-insets).
+[Under a Swing parent](#under-a-swing-parent). Setting `paintOutsets(PaintOutsets.None)` in the component's style gives the decoration's outsets layout space under any parent; see
+[Paint outsets taken from the insets](#paint-outsets-taken-from-the-insets).
 
-- `background(color)` without a shape is the Swing property; pass a `Shape` or a `Brush` for the decoration.
+- `background(color)` without a shape is the style's `background`, which sets the Swing property; pass a `Shape` or a `Brush` for the decoration.
 - A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to
   follow it.
 - A clip outside a blur can cut its halo.
 
-A card with a shadow, given space for it inside a Swing container with padding, and with `PaintOutsets.None`:
+A card with a shadow, given space for it inside a Swing container with padding, and with `PaintOutsets.None` set in its style:
 
 <!--- INCLUDE .*foundation-card.*
 import androidx.compose.runtime.*
@@ -534,6 +542,7 @@ import org.jetbrains.compose.swing.components.layout.*
 import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 
 -->
@@ -557,7 +566,7 @@ fun PaddedCard() {
 fun SpacedCard() {
     Panel(PanelLayout.Flow()) {
         Box {
-            Box(modifier = SwingModifier.paintOutsets(PaintOutsets.None).card()) {
+            Box(modifier = SwingModifier.card().styleable { paintOutsets(PaintOutsets.None) }) {
                 Label("Spaced")
             }
         }
@@ -591,6 +600,7 @@ content, and declare it with `decoration`:
 <!--- INCLUDE .*foundation-outlined.*
 import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.style.styleable
 
 -->
 
@@ -688,10 +698,16 @@ that does not implement `Decoratable`, unless its `paintOutsets` value leaves pa
 
 A stock widget paints its border and focus ring inside its bounds, so in a Foundation layout its border line sits
 inside the box its parent places, off the edge of a label beside it. `paintOutsets(value)` declares which part of a
-component's `getInsets()` is paint outsets, taken from the outside of the insets inward; `DefaultPaintOutsets`
-provides a value to a subtree. The part it names paints past the box the parent places:
+component's `getInsets()` is paint outsets, taken from the outside of the insets inward. Set it in a component's
+`style`, or through `SwingModifier.styleable { ... }` on a composable that takes no `style` parameter. To give it to
+all the components inside a container, put `provideNestedStyle(AllComponents) { paintOutsets(value) }` in the
+container's style, or in `SwingModifier.styleable { ... }` for a composable without a `style` parameter. The provided
+style reaches the descendants whose kind applies `AllComponents`, as the library's components do. It does
+not style a composable that is styled only with `styleable { }` and has no kind, but it still reaches the components
+inside it. A `SwingNode` without a style never receives it. The part it names paints past
+the box the parent places:
 
-| Value | Foundation parent | Swing parent |
+| Value | In a Foundation layout | Under a Swing parent |
 |---|---|---|
 | `PaintOutsets.None` | A decoration's outsets take layout space: the box the parent places grows by them | A decoration's outsets take layout space: `getInsets()` and the sizes carry them |
 | `PaintOutsets.Decoration`, what nothing declared gives | A decoration's outsets are past the layout bounds | A decoration is clipped; `getInsets()` answers the border |
@@ -709,22 +725,22 @@ margin, a label's `EmptyBorder` or a `TitledBorder`'s title, so it lines up text
 declare `None` rather than a `padding`. Under a Swing parent a stock widget is unchanged. A component that is not a
 `JComponent` keeps its layout box under every value.
 
-The declaration acts where it is declared, as a layout modifier does. Its excess is the paint outsets it names less
-the outsets of the decoration steps, on both sides of an axis:
+The value does not depend on where the component's modifiers are declared: the parent places the box the modifiers
+ask for, and the component is larger than that box by the excess. The excess
+is the paint outsets it names less the outsets of the decoration steps, on both sides of an axis:
 
-| Declaration | Box the parent places | Component |
+| Modifier | Box the parent places | Component |
 |---|---|---|
-| `width(100).paintOutsets(value)` | 100 | 100 + excess |
-| `paintOutsets(value).width(100)` | 100 - excess | 100 |
-| `paintOutsets(value).fillMaxWidth()` | the offered width | the offered width + excess |
+| `width(100)` | 100 | 100 + excess |
+| `fillMaxWidth()` | the offered width | the offered width + excess |
 
 The excess is negative where the value names less than the outsets of the decoration steps, as `PaintOutsets.None`
 does for a component with a shadow: the box the parent places is then larger than the component's layout bounds.
 
-A provided value comes first in the modifier; a declaration on the component replaces it at its own position. The
-parent aligns the box it places, baselines included; `onPlaced` and `onSizeChanged` report the component's layout
-bounds, which reach the excess past that box, as past a `padding`. `LayoutModifierNode.layoutBoxInParent()` returns
-that box.
+A value the component's own style sets replaces a provided one, and the nearest provider wins; a nearer provider of
+`PaintOutsets.Decoration` withdraws a value. The parent aligns the box it places, baselines included; `onPlaced` and
+`onSizeChanged` report the component's layout bounds, which reach the excess past that box, as past a `padding`.
+A custom `LayoutModifierNode` reads that box with `layoutBoxInParent()`.
 
 Siblings closer than their facing paint outsets overlap, and the later one is on top for input and paint: space them
 by at least the sum of the facing outsets. A Foundation container paints and hits a child past its layout bounds,
@@ -738,9 +754,9 @@ ring past the decoration's outsets:
 import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.text.*
-import org.jetbrains.compose.swing.defaults.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.style.*
 import java.awt.Insets
 import javax.swing.JComponent
 
@@ -749,11 +765,9 @@ import javax.swing.JComponent
 ```kotlin
 @Composable
 fun AlignedForm() {
-    ProvideComponentDefaults(DefaultPaintOutsets provides PaintOutsets.FullInsets) {
-        Column {
-            Label("Name")
-            TextField("", onValueChange = {})
-        }
+    Column(modifier = SwingModifier.styleable { provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.FullInsets) } }) {
+        Label("Name")
+        TextField("", onValueChange = {})
     }
 }
 
@@ -767,7 +781,7 @@ object FocusRing : PaintOutsets {
 @Composable
 fun RingedField() {
     Column {
-        TextField("", onValueChange = {}, modifier = SwingModifier.paintOutsets(FocusRing))
+        TextField("", onValueChange = {}, style = { paintOutsets(FocusRing) })
     }
 }
 ```
@@ -786,7 +800,7 @@ object FlatFocusRing : PaintOutsets {
     }
 }
 
-ProvideComponentDefaults(DefaultPaintOutsets provides FlatFocusRing) { App() }
+Column(modifier = SwingModifier.styleable { provideNestedStyle(AllComponents) { paintOutsets(FlatFocusRing) } }) { App() }
 ```
 
 <!--- CLEAR -->
@@ -803,7 +817,7 @@ ProvideComponentDefaults(DefaultPaintOutsets provides FlatFocusRing) { App() }
 
 ### Under a Swing parent
 
-A parent that is not a Foundation container, such as a stock Swing container, a `Panel`, a window, or a
+A parent that is not a Foundation layout (`Row`, `Column`, `Box`, `Layout`), such as a stock Swing container, a `Panel`, a window, or a
 custom `Decoratable` with a layout manager of its own, gives a decorated component only the paint outsets its
 `paintOutsets` value leaves in layout, none by default:
 
@@ -823,8 +837,8 @@ paints over that space, as `Modifier.background(color).padding(16)` does in andr
 measured, placed and baseline-aligned by them, so space its look and feel reserves inside them, such as for a focus
 ring, counts as part of the widget.
 
-To keep a descendant's shadow visible under a Swing parent, give it space inside a `Box` with padding, or declare
-`paintOutsets(PaintOutsets.None)` on it, as the [card example](#decorations) does.
+To keep a descendant's shadow visible under a Swing parent, give it space inside a `Box` with padding, or set
+`paintOutsets(PaintOutsets.None)` in its style, as the [card example](#decorations) does.
 
 ## Relationship to Compose UI/Foundation
 

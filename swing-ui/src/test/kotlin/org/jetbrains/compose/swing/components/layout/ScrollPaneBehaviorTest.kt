@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -226,9 +226,9 @@ class ScrollPaneBehaviorTest {
         setContent {
             ReusableContentHost(active = active) {
                 ScrollPane {
-                    Viewport(modifier = SwingModifier.background(Color.RED), unitIncrement = 13) { Label("Body") }
-                    VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-                    HorizontalScrollbar(modifier = SwingModifier.background(Color.GREEN))
+                    Viewport(style = { background(Color.RED) }, unitIncrement = 13) { Label("Body") }
+                    VerticalScrollbar(style = { background(Color.BLUE) })
+                    HorizontalScrollbar(style = { background(Color.GREEN) })
                 }
             }
         }

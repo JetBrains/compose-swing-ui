@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -36,8 +37,8 @@ class PlacementLayerFadeTest {
                             modifier =
                                 SwingModifier
                                     .testTag("faded")
-                                    .preferredSize(40, 40)
-                                    .placementLayer { alpha = 0.5f },
+                                    .placementLayer { alpha = 0.5f }
+                                    .styleable { preferredSize(40, 40) },
                         ) { fixture.paintVersion(graphics, width, height) }
                     }
                 }
@@ -89,9 +90,9 @@ class PlacementLayerFadeTest {
                             modifier =
                                 SwingModifier
                                     .testTag(tag)
-                                    .preferredSize(20, 20)
                                     .then(fade)
-                                    .then(inner()),
+                                    .then(inner())
+                                    .styleable { preferredSize(20, 20) },
                         ) {
                             drawRect(Color.RED)
                         }

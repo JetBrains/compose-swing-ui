@@ -21,13 +21,13 @@ import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.interaction.actionCommand
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
-import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.rememberFocusRequester
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.focusable
 import java.awt.event.ActionListener
 import javax.swing.ButtonGroup
 
@@ -43,7 +43,7 @@ internal fun ColumnScope.EnabledCard() {
         TextField(
             value = text,
             onValueChange = { text = it },
-            modifier = SwingModifier.enabled(editable),
+            style = { enabled(editable) },
             columns = 28,
         )
     }
@@ -55,7 +55,7 @@ internal fun ColumnScope.FocusableCard() {
         var canFocus by remember { mutableStateOf(true) }
         CheckBox(text = "Button is focusable", checked = canFocus, onCheckedChange = { canFocus = it })
         Panel {
-            Button("Tab reaches me only when focusable", onClick = { }, modifier = SwingModifier.focusable(canFocus))
+            Button("Tab reaches me only when focusable", onClick = { }, style = { focusable(canFocus) })
         }
     }
 }

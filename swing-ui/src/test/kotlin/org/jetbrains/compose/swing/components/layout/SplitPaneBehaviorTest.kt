@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -303,7 +303,7 @@ class SplitPaneBehaviorTest {
         var firstLabel by mutableStateOf("A")
         setContent {
             SplitPane(
-                modifier = SwingModifier.preferredSize(400, 300),
+                style = { preferredSize(400, 300) },
                 onDividerLocationChange = { reported += it },
             ) {
                 Label(text = firstLabel, modifier = SwingModifier.first())
@@ -363,7 +363,7 @@ class SplitPaneBehaviorTest {
         val reported = mutableListOf<Int>()
         setContent {
             SplitPane(
-                modifier = SwingModifier.preferredSize(400, 300),
+                style = { preferredSize(400, 300) },
                 onDividerLocationChange = { reported += it },
             ) {
                 Label(text = "A", modifier = SwingModifier.first())

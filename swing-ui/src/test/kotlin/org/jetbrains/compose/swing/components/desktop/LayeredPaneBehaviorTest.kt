@@ -9,8 +9,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.bounds
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.style.bounds
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -179,8 +179,8 @@ class LayeredPaneBehaviorTest {
                     modifier =
                         SwingModifier
                             .actionListener(listener)
-                            .layer(JLayeredPane.PALETTE_LAYER)
-                            .bounds(0, 0, 80, 24),
+                            .layer(JLayeredPane.PALETTE_LAYER),
+                    style = { bounds(0, 0, 80, 24) },
                 )
             }
         }
@@ -199,7 +199,8 @@ class LayeredPaneBehaviorTest {
             LayeredPane {
                 Label(
                     text = "fixed",
-                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).bounds(15, 25, 120, 40),
+                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER),
+                    style = { bounds(15, 25, 120, 40) },
                 )
             }
         }

@@ -4,8 +4,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -24,7 +23,7 @@ class NodePropertyAssertionTest {
     @Test
     fun aMatchingPropertyPassesAndReturnsTheSameInteraction() = runComposeSwingTest {
         setContent {
-            Label(text = "sized", modifier = SwingModifier.preferredSize(Dimension(120, 40)))
+            Label(text = "sized", style = { preferredSize(Dimension(120, 40)) })
         }
 
         // The returned interaction is the one that was asserted on, so assertions chain off it.

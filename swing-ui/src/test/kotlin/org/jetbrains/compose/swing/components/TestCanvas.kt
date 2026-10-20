@@ -3,6 +3,9 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Graphics
 import java.awt.Graphics2D
 import javax.swing.JComponent
@@ -11,6 +14,7 @@ import javax.swing.JComponent
 @Composable
 internal fun Canvas(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     onDraw: (Graphics2D, Int, Int) -> Unit,
 ) {
     SwingNode(
@@ -29,6 +33,6 @@ internal fun Canvas(
                 }
             }
         },
-        modifier = modifier,
+        modifier = modifier.styleable(style),
     )
 }

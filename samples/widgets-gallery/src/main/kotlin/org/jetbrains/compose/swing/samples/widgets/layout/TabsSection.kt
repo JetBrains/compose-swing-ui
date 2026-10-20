@@ -16,10 +16,10 @@ import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -61,7 +61,7 @@ internal fun TabsSection() {
             TabbedPane(
                 selectedIndex = selected,
                 onSelectedIndexChange = { selected = it },
-                modifier = SwingModifier.preferredSize(Dimension(420, 160)),
+                style = { preferredSize(Dimension(420, 160)) },
                 tabPlacement = JTabbedPane.TOP,
             ) {
                 Panel(PanelLayout.Flow(), SwingModifier.tab("General")) {
@@ -144,7 +144,7 @@ private inline fun TabPlacementTabbedPane(
     TabbedPane(
         selectedIndex = selected,
         onSelectedIndexChange = onSelectedIndexChange,
-        modifier = SwingModifier.preferredSize(Dimension(320, 160)),
+        style = { preferredSize(Dimension(320, 160)) },
         tabPlacement = placements[placementIndex].second,
         tabLayoutPolicy = if (scrollLayout) JTabbedPane.SCROLL_TAB_LAYOUT else JTabbedPane.WRAP_TAB_LAYOUT,
     ) {

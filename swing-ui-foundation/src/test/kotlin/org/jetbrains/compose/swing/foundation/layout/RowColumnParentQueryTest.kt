@@ -10,8 +10,9 @@ import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -50,7 +51,7 @@ class RowColumnParentQueryTest {
                 verticalArrangement = arrangement,
             ) {
                 for ((index, child) in children.withIndex()) {
-                    SizedChild(index, child.second(this).minimumSize(18, child.first))
+                    SizedChild(index, child.second(this), style = { minimumSize(18, child.first) })
                 }
             }
         }
@@ -89,7 +90,7 @@ class RowColumnParentQueryTest {
                 for ((index, child) in children.withIndex()) {
                     val (x, y, hidden) = child
                     val modifier = SwingModifier.alignmentX(x).alignmentY(y)
-                    SizedChild(index, if (hidden) modifier.visible(false) else modifier)
+                    SizedChild(index, modifier, style = if (hidden) SwingStyle { visible(false) } else SwingStyle)
                 }
             }
         }
@@ -180,7 +181,7 @@ class RowColumnParentQueryTest {
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG).border(EmptyBorder(5, 10, 15, 20))) {
-                    SizedChild(0, SwingModifier.minimumSize(18, 12))
+                    SizedChild(0, style = { minimumSize(18, 12) })
                 }
             }
 

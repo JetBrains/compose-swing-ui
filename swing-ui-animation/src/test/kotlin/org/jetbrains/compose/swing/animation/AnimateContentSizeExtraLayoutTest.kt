@@ -12,7 +12,7 @@ import org.jetbrains.compose.swing.foundation.layout.Layout
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -89,10 +89,11 @@ private fun finishedListenerFixture(): LayoutFixture<List<Pair<Dimension, Dimens
                     ) {
                         Label(
                             "",
-                            modifier = SwingModifier.testTag("body").preferredSize(if (changed) 160 else 80, 40),
+                            modifier = SwingModifier.testTag("body"),
+                            style = { preferredSize(if (changed) 160 else 80, 40) },
                         )
                     }
-                    Label("", modifier = SwingModifier.testTag("sibling").preferredSize(1, 1))
+                    Label("", modifier = SwingModifier.testTag("sibling"), style = { preferredSize(1, 1) })
                 },
             )
         },
@@ -117,9 +118,9 @@ private fun ComposeSwingTest.setUpResizableBox(
                         .animateContentSize(spec()) { start, end -> finished += start to end }
                         .testTag("animation"),
             ) {
-                Label("", modifier = SwingModifier.testTag("body").preferredSize(initialWidth, 40))
+                Label("", modifier = SwingModifier.testTag("body"), style = { preferredSize(initialWidth, 40) })
             }
-            Label("", modifier = SwingModifier.testTag("sibling").preferredSize(1, 1))
+            Label("", modifier = SwingModifier.testTag("sibling"), style = { preferredSize(1, 1) })
         }
     }
 }

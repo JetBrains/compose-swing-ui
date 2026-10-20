@@ -12,7 +12,9 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTabClick
@@ -49,7 +51,7 @@ class TabbedPaneBehaviorTest {
      * A pane wide enough for its whole tab strip. A click is aimed at a tab's position on the strip, so
      * a pane laid out too narrow for a tab leaves that click nothing to land on.
      */
-    private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
+    private val roomForTheStrip = SwingStyle<ContainerStyleScope> { preferredSize(600, 400) }
 
     private fun titles(pane: JTabbedPane): List<String> = (0 until pane.tabCount).map { pane.getTitleAt(it) }
 
@@ -137,7 +139,7 @@ class TabbedPaneBehaviorTest {
         val events = mutableListOf<Int>()
         var selected by mutableIntStateOf(0)
         setContent {
-            TabbedPane(selectedIndex = selected, onSelectedIndexChange = { events += it }, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = selected, onSelectedIndexChange = { events += it }, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))

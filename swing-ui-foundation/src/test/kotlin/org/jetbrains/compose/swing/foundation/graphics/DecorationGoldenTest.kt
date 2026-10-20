@@ -5,7 +5,8 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageAgainstGoldenPixelPerfect
 import java.awt.Color
@@ -82,11 +83,12 @@ class DecorationGoldenTest {
             modifier =
                 SwingModifier
                     .testTag(FIXTURE)
-                    .preferredSize(96, 96)
-                    .background(Color.WHITE, RectangleShape),
+                    .background(Color.WHITE, RectangleShape)
+                    .styleable { preferredSize(96, 96) },
         ) {
             Canvas(
-                modifier = SwingModifier.preferredSize(48, 48).decorate(),
+                modifier = SwingModifier.decorate(),
+                style = { preferredSize(48, 48) },
                 onDraw = figure,
             )
         }

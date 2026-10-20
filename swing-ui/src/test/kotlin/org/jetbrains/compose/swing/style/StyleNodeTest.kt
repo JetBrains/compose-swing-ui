@@ -10,26 +10,153 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
+import org.jetbrains.compose.swing.modifier.resetModifierState
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.awt.Color
+import java.awt.Component
 import java.awt.FlowLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /** A style declared through `styleable` on a custom component, and what it keeps observing as it changes. */
 class StyleNodeTest {
+    @Test
+    fun theKindlessStyleProvidesNestedStyles() = runComposeSwingTest {
+        setContent {
+            SwingNode(
+                factory = { JPanel() },
+                modifier =
+                    SwingModifier.testTag("container").styleable {
+                        provideNestedStyle(Probes) { LabelToolTip.provide("nested") }
+                    },
+            ) {
+                SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(SwingStyle, NestedProbe))
+            }
+        }
+        onNodeOfType<JLabel>().assertProperty("nested") { toolTipText }
+    }
+
+    @Test
+    fun theKindlessStyleRejectsANonJComponentBeforeWritingProperties() = runComposeSwingTest {
+        val target = object : Component() {}.apply { background = Color.BLUE }
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                setContent {
+                    SwingNode(factory = { target }, modifier = SwingModifier.styleable { background(Color.RED) })
+                }
+            }
+        assertEquals(Color.BLUE, target.background)
+        assertContains(failure.message.orEmpty(), "needs a javax.swing.JComponent")
+        assertContains(failure.message.orEmpty(), target.javaClass.name)
+        assertContains(failure.message.orEmpty(), "use the styleable overload taking a SwingStyleKind")
+    }
+
+    @Test
+    fun aRejectedKindlessStyleProvidesNothingToAnExistingChild() = runComposeSwingTest {
+        val owner = TestCompositionOwner()
+        val target = object : Component() {}.apply { background = Color.BLUE }
+        val parent = CreatedNodeHolder(target).attachedTo(owner)
+        val child = CreatedNodeHolder(JLabel()).attachedTo(owner)
+        val resolutions = ArrayList<Unit>()
+        child.parentTo(parent)
+        parent.children += child
+        try {
+            child.applyDeclaredModifier(
+                SwingModifier.styleable({
+                    resolutions += Unit
+                }, NestedProbe),
+            )
+            val before = resolutions.toList()
+            val childTip = child.component.toolTipText
+            val failure =
+                assertFailsWith<RuntimeException> {
+                    parent.applyDeclaredModifier(
+                        SwingModifier.styleable {
+                            background(Color.RED)
+                            provideNestedStyle(Probes) { LabelToolTip.provide("rejected") }
+                        },
+                    )
+                }
+            assertEquals(Color.BLUE, target.background)
+            assertEquals(childTip, child.component.toolTipText, "the child receives no rejected nested style")
+            assertEquals(before, resolutions, "a rejected provider must not provide or restyle its child")
+            assertIs<IllegalArgumentException>(failure)
+        } finally {
+            child.resetModifierState()
+            parent.resetModifierState()
+            owner.dispose()
+        }
+    }
+
+    @Test
+    fun anExplicitKindStylesANonJComponent() = runComposeSwingTest {
+        var target: Component? = null
+        setContent {
+            SwingNode(
+                factory = { object : Component() {}.also { target = it } },
+                modifier = SwingModifier.styleable({ background(Color.RED) }, PlainProbe),
+            )
+        }
+        assertEquals(Color.RED, target?.background)
+    }
+
+    @Test
+    fun switchingANonJComponentFromAKindToTheKindlessStyleFails() {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                runComposeSwingTest {
+                    val target = object : Component() {}
+                    var custom by mutableStateOf(true)
+                    setContent {
+                        SwingNode(
+                            factory = { target },
+                            modifier =
+                                if (custom) {
+                                    SwingModifier.styleable({ background(Color.RED) }, PlainProbe)
+                                } else {
+                                    SwingModifier.styleable { background(Color.BLUE) }
+                                },
+                        )
+                    }
+                    custom = false
+                    awaitIdle()
+                }
+            }
+        assertContains(failure.message.orEmpty(), "needs a javax.swing.JComponent")
+    }
+
+    @Test
+    fun aButtonRejectsAStyleableInItsModifier() = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                setContent {
+                    Button("button", onClick = {}, modifier = SwingModifier.styleable { background(Color.RED) })
+                }
+            }
+        assertContains(failure.message.orEmpty(), "style parameter")
+        assertContains(failure.message.orEmpty(), "merge them into one style")
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("secondStyleables")
     fun aSecondStyleableOnOneComponentIsRefused(addedByRecomposition: Boolean) {
@@ -163,6 +290,22 @@ class StyleNodeTest {
         awaitIdle()
 
         assertEquals(listOf(1, 1), listOf(propertyObserved, layoutObserved), "both keep observing in their new place")
+    }
+
+    @Test
+    fun anUnstyledComponentOfAThirdPartyNestingKindRunsNoDefault() = runComposeSwingTest {
+        var defaultRuns = 0
+        val kind =
+            nestingStyleKind<ProbeScope, Unit>(
+                { base, _ -> object : ProbeScope, ComponentStyleScope by base {} },
+            ) {
+                defaultRuns++
+                applyNestedStyle(Probes)
+            }
+        setContent {
+            SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(SwingStyle, kind))
+        }
+        assertEquals(0, defaultRuns, "nothing above provides, so the default is not run")
     }
 
     companion object {

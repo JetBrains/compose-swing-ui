@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Color
 import java.awt.Component
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -57,7 +56,7 @@ class ModifierReapplicationTest {
                 onClick = { },
                 modifier =
                     SwingModifier
-                        .background(Color.GREEN)
+                        .name("green")
                         .then(CountingToolTipElement("hello", writes)),
             )
         }
@@ -70,7 +69,7 @@ class ModifierReapplicationTest {
         tick++
         awaitIdle()
 
-        button.assertProperty(Color.GREEN, "the applied background should still hold") { background }
+        button.assertProperty("green", "the applied name should still hold") { name }
         button.assertProperty("hello", "the applied value should still hold") { toolTipText }
         assertEquals(1, writes.get(), "a declaration that did not change is written once, not once per recomposition")
     }
@@ -95,7 +94,7 @@ class ModifierReapplicationTest {
 
     @Test
     fun anUnchangedElementDeclaredBeforeAChangedOneIsNotWrittenAgain() = runComposeSwingTest {
-        var accent by mutableStateOf(Color.GREEN)
+        var accent by mutableStateOf("green")
         val writes = AtomicInteger()
         setContent {
             Button(
@@ -104,27 +103,27 @@ class ModifierReapplicationTest {
                 modifier =
                     SwingModifier
                         .then(CountingToolTipElement("hello", writes))
-                        .background(accent),
+                        .name(accent),
             )
         }
         val button = onNodeOfType<JButton>()
-        button.assertProperty(Color.GREEN, "the background element should apply its initial value") { background }
+        button.assertProperty("green", "the name element should apply its initial value") { name }
         assertEquals(1, writes.get(), "the tooltip element should write once on first composition")
 
-        accent = Color.BLUE
+        accent = "blue"
         awaitIdle()
 
-        // The modifier as a whole changed, so it is diffed element by element: the background slot takes
-        // the new color while the tooltip slot, declared ahead of it and untouched, is left alone.
+        // The modifier as a whole changed, so it is diffed element by element: the name slot takes the
+        // new value while the tooltip slot, declared ahead of it and untouched, is left alone.
         // Nothing has written when that slot is reached.
-        button.assertProperty(Color.BLUE, "the changed element must take its new value") { background }
+        button.assertProperty("blue", "the changed element must take its new value") { name }
         button.assertProperty("hello", "the unchanged element's value must still hold") { toolTipText }
         assertEquals(1, writes.get(), "an unchanged element declared before a changed one is not written again")
     }
 
     @Test
     fun aSubscriptionAfterAChangedPropertyIsNotWrittenAgain() = runComposeSwingTest {
-        var accent by mutableStateOf(Color.GREEN)
+        var accent by mutableStateOf("green")
         val writes = AtomicInteger()
         var enters = 0
         val hover = mouseEnterListener { enters++ }
@@ -132,20 +131,20 @@ class ModifierReapplicationTest {
             Button(
                 "X",
                 onClick = { },
-                modifier = SwingModifier.background(accent).then(CountingHoverElement(writes, hover)),
+                modifier = SwingModifier.name(accent).then(CountingHoverElement(writes, hover)),
             )
         }
         val button = onNodeOfType<JButton>().fetch()
         assertEquals(1, writes.get(), "the subscription element should write once on first composition")
 
-        accent = Color.BLUE
+        accent = "blue"
         awaitIdle()
 
         // A property slot that writes has every property slot after it written again, so the modifier's
         // own order decides which declaration stands where two of them land on one property. A
         // subscription writes a registration instead, which overlaps nothing another slot writes, so
         // there is no order to settle: its slot keeps the element it holds whatever wrote before it.
-        assertEquals(Color.BLUE, button.background, "the changed property must take its new value")
+        assertEquals("blue", button.name, "the changed property must take its new value")
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, enters, "the subscription installed once still stands")
         assertEquals(1, writes.get(), "a subscription declared after a changed property is not written again")
@@ -162,7 +161,7 @@ class ModifierReapplicationTest {
         // declaration having changed, because this declaration provably never does.
         val chain =
             SwingModifier
-                .background(Color.GREEN)
+                .name("green")
                 .then(CountingToolTipElement("hello", writes))
                 .listener(hover, MOUSE_EVENTS)
         setContent {
@@ -172,7 +171,7 @@ class ModifierReapplicationTest {
             }
         }
         val beforePark = onNodeOfType<JButton>().fetch()
-        assertEquals(Color.GREEN, beforePark.background, "the property elements should apply before parking")
+        assertEquals("green", beforePark.name, "the property elements should apply before parking")
         assertEquals("hello", beforePark.toolTipText, "the custom element should apply before parking")
         beforePark.dispatchEvent(mouseEntered(beforePark))
         assertEquals(1, enterCount, "the listener should fire once before parking")
@@ -201,8 +200,8 @@ class ModifierReapplicationTest {
         )
         assertEquals("hello", afterReactivation.toolTipText, "the custom element must apply to the fresh component")
         assertEquals(
-            Color.GREEN,
-            afterReactivation.background,
+            "green",
+            afterReactivation.name,
             "the property element must apply to the fresh component",
         )
         afterReactivation.dispatchEvent(mouseEntered(afterReactivation))
@@ -611,22 +610,22 @@ class ModifierReapplicationTest {
         // rather than against the order the failed pass left behind.
         val writes = AtomicInteger()
         val holder = CreatedNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
-        holder.applyModifierDiff(SwingModifier.background(Color.BLUE))
+        holder.applyModifierDiff(SwingModifier.name("blue"))
 
         assertFailsWith<IllegalStateException> {
             holder.applyModifierDiff(
                 SwingModifier
-                    .background(Color.BLUE)
+                    .name("blue")
                     .then(CountingToolTipElement("hello", writes))
                     .focusAccelerator('x'),
             )
         }
         assertEquals(1, writes.get(), "the slot the failed pass reached is written once")
 
-        holder.applyModifierDiff(SwingModifier.background(Color.BLUE).then(CountingToolTipElement("hello", writes)))
+        holder.applyModifierDiff(SwingModifier.name("blue").then(CountingToolTipElement("hello", writes)))
 
         val button = holder.component
-        assertEquals(Color.BLUE, button.background, "the modifier the pass after the failure declares is applied")
+        assertEquals("blue", button.name, "the modifier the pass after the failure declares is applied")
         assertEquals("hello", button.toolTipText, "including the slot the failed pass had already installed")
         assertEquals(2, writes.get(), "that slot is written against what it holds, not adopted against a lost order")
     }

@@ -28,16 +28,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
+import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.location
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.location
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.size
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -103,9 +107,7 @@ import kotlin.test.assertTrue
  *   `testParentPlacingWithNotRoundedTranslation`, whose subpixel translation a Swing component has
  *   nowhere to hold.
  *
- * The four cases after the ported ones have no counterpart in that test. The first three pin what tells this
- * library's two reports apart, which androidx states as one `LayoutCoordinates` carrying both; the last pins that
- * a report names the layout bounds, not the paint outsets a decorated parent takes.
+ * The additional cases pin layout bounds under decorated parents and independent placement and size reports.
  */
 class OnPlacedTest {
     @Test
@@ -117,7 +119,7 @@ class OnPlacedTest {
             setContent {
                 SwingNode(
                     factory = { InitialZeroBoundsPanel().also { panel = it } },
-                    modifier = SwingModifier.preferredSize(0, 0).onPlaced { reported += it },
+                    modifier = SwingModifier.onPlaced { reported += it }.styleable({ preferredSize(0, 0) }, RawKind),
                 )
             }
             awaitIdle()
@@ -142,9 +144,11 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(10, 10)
-                                .location(offset, 0)
                                 .onPlaced { callbackThreads += EventQueue.isDispatchThread() },
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
                     )
                 }
             }
@@ -173,13 +177,16 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(100, 100)
-                                .location(offset, offset)
-                                .onPlaced { parentPlacements += it },
+                                .onPlaced { parentPlacements += it }
+                                .styleable {
+                                    size(100, 100)
+                                    location(offset, offset)
+                                },
                     ) {
                         Label(
                             text = "child",
-                            modifier = SwingModifier.preferredSize(10, 10).onPlaced { reported += it },
+                            modifier = SwingModifier.onPlaced { reported += it },
+                            style = { preferredSize(10, 10) },
                         )
                     }
                 }
@@ -217,14 +224,17 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(100, 100)
-                                .location(offset, offset)
-                                .onPlaced { grandParentPlacements += it },
+                                .onPlaced { grandParentPlacements += it }
+                                .styleable {
+                                    size(100, 100)
+                                    location(offset, offset)
+                                },
                     ) {
                         Box {
                             Label(
                                 text = "child",
-                                modifier = SwingModifier.preferredSize(10, 10).onPlaced { reported += it },
+                                modifier = SwingModifier.onPlaced { reported += it },
+                                style = { preferredSize(10, 10) },
                             )
                         }
                     }
@@ -257,8 +267,15 @@ class OnPlacedTest {
 
             setContent {
                 LayeredPane {
-                    val placed = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(10, 10).location(offset, 0)
-                    Label(text = "child", modifier = if (declareReport) placed.onPlaced(report) else placed)
+                    val placed = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                    Label(
+                        text = "child",
+                        modifier = if (declareReport) placed.onPlaced(report) else placed,
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
+                    )
                 }
             }
             awaitIdle()
@@ -290,8 +307,15 @@ class OnPlacedTest {
 
             setContent {
                 LayeredPane {
-                    val placed = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(10, 10).location(offset, 0)
-                    Label(text = "child", modifier = if (declareReport) placed.onPlaced(report) else placed)
+                    val placed = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                    Label(
+                        text = "child",
+                        modifier = if (declareReport) placed.onPlaced(report) else placed,
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
+                    )
                 }
             }
             awaitIdle()
@@ -328,19 +352,29 @@ class OnPlacedTest {
             setContent {
                 val moving =
                     remember {
-                        movableContentOf<SwingModifier> { modifier ->
-                            Label(text = "child", modifier = modifier.onPlaced(report))
+                        movableContentOf<SwingStyle<LabelStyleScope>> { style ->
+                            Label(text = "child", modifier = SwingModifier.onPlaced(report), style = style)
                         }
                     }
                 LayeredPane {
-                    Box(modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(50, 50).location(0, 0)) {
-                        if (showInOne) moving(SwingModifier.preferredSize(10, 10))
+                    Box(
+                        modifier =
+                            SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).styleable {
+                                size(50, 50)
+                                location(0, 0)
+                            },
+                    ) {
+                        if (showInOne) moving(SwingStyle { preferredSize(10, 10) })
                     }
                     Box(
-                        modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(50, 50).location(100, 0),
+                        modifier =
+                            SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).styleable {
+                                size(50, 50)
+                                location(100, 0)
+                            },
                         contentAlignment = Alignment.BottomEnd,
                     ) {
-                        if (!showInOne) moving(SwingModifier.preferredSize(10, 10))
+                        if (!showInOne) moving(SwingStyle { preferredSize(10, 10) })
                     }
                 }
             }
@@ -363,129 +397,6 @@ class OnPlacedTest {
             )
         }
 
-    /**
-     * A component moved out of a shadowed box to a parent that keeps its Swing bounds still reports: the box placed
-     * it off its Swing origin by the shadow's outsets, and the new parent does not.
-     */
-    @Test
-    fun movedContentKeepingItsSwingBoundsReportsItsNewPlacement() =
-        runComposeSwingTest {
-            val reported = mutableListOf<Rectangle>()
-            val report: (Rectangle) -> Unit = { reported += it }
-            var outside by mutableStateOf<Rectangle?>(null)
-
-            setContent {
-                val moving =
-                    remember {
-                        movableContentOf<SwingModifier> { modifier ->
-                            Label(text = "child", modifier = modifier.onPlaced(report))
-                        }
-                    }
-                LayeredPane {
-                    Box(modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(50, 50).location(0, 0)) {
-                        Box(modifier = SwingModifier.shadow(4, Color.BLACK)) {
-                            if (outside == null) moving(SwingModifier.preferredSize(10, 10))
-                        }
-                    }
-                    outside?.let {
-                        moving(
-                            SwingModifier
-                                .layer(JLayeredPane.DEFAULT_LAYER)
-                                .location(it.x, it.y)
-                                .size(it.width, it.height),
-                        )
-                    }
-                }
-            }
-            awaitIdle()
-            assertEquals(Rectangle(0, 0, 10, 10), reported.last(), "where the box's policy placed it")
-            val bounds = onNodeOfType<JLabel>().fetch().bounds
-            assertTrue(bounds.x > 0 && bounds.y > 0, "the shadow's outsets move it off the box's Swing origin: $bounds")
-            reported.clear()
-
-            outside = bounds
-            awaitIdle()
-
-            assertEquals(bounds, onNodeOfType<JLabel>().fetch().bounds, "the component keeps its Swing bounds")
-            assertEquals(
-                listOf(bounds),
-                reported,
-                "a component moved to a parent that does not place it by paint outsets",
-            )
-        }
-
-    @Test
-    fun aChildOfADecoratedBorderLayoutPanelReportsWhereBorderLayoutPlacedIt() =
-        runComposeSwingTest {
-            val reported = mutableListOf<Rectangle>()
-            setContent {
-                Box {
-                    SwingNode(
-                        factory = { DecoratedPanel(BorderLayout()) },
-                        modifier = SwingModifier.shadow(8, Color.BLACK),
-                    ) {
-                        Label(
-                            text = "child",
-                            modifier = SwingModifier.preferredSize(40, 30).onPlaced { reported += it },
-                        )
-                    }
-                }
-            }
-            awaitIdle()
-
-            val outsets = blurOutsets(8)
-            assertEquals(
-                Rectangle(outsets, outsets, 40, 30),
-                reported.last(),
-                "where BorderLayout placed it, inside the panel's insets, and not shifted by its paint outsets again",
-            )
-        }
-
-    @Test
-    fun aDecoratedPanelLeavingABoxForTheSameSwingBoundsReportsItsNewLayoutBounds() =
-        runComposeSwingTest {
-            val reported = mutableListOf<Rectangle>()
-            var outside by mutableStateOf<Rectangle?>(null)
-            setContent {
-                val moving =
-                    remember {
-                        movableContentOf<SwingModifier> { modifier ->
-                            SwingNode(
-                                factory = { DecoratedPanel(BorderLayout()) },
-                                modifier =
-                                    modifier
-                                        .preferredSize(40, 30)
-                                        .shadow(8, Color.BLACK)
-                                        .onPlaced { reported += it },
-                            )
-                        }
-                    }
-                SwingNode(factory = { JLayeredPane() }) {
-                    Box(modifier = SwingModifier.size(100, 100).location(0, 0)) {
-                        if (outside == null) moving(SwingModifier.testTag("panel"))
-                    }
-                    outside?.let {
-                        moving(SwingModifier.testTag("panel").location(it.x, it.y).size(it.width, it.height))
-                    }
-                }
-            }
-            awaitIdle()
-            val panel = onNodeWithTag("panel").fetch<JComponent>()
-            val bounds = panel.bounds
-            assertEquals(
-                Rectangle(bounds.x + blurOutsets(8), bounds.y + blurOutsets(8), 40, 30),
-                reported.last(),
-                "onPlaced reports the layout bounds, inside the shadow's outsets",
-            )
-            reported.clear()
-
-            outside = bounds
-            awaitIdle()
-
-            assertEquals(bounds, panel.bounds, "the panel keeps its Swing bounds")
-            assertEquals(listOf(bounds), reported, "its layout bounds are now its bounds, reported once")
-        }
-
     @Test
     fun ancestorLayerChangesCausesPlacement() =
         runComposeSwingTest {
@@ -493,7 +404,7 @@ class OnPlacedTest {
             var scale by mutableFloatStateOf(1f)
 
             setContent {
-                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
                     Box(
                         modifier =
                             SwingModifier.placementLayer {
@@ -503,7 +414,8 @@ class OnPlacedTest {
                     ) {
                         Label(
                             text = "child",
-                            modifier = SwingModifier.testTag("child").preferredSize(10, 10).onPlaced { reported += it },
+                            modifier = SwingModifier.testTag("child").onPlaced { reported += it },
+                            style = { preferredSize(10, 10) },
                         )
                     }
                 }
@@ -540,9 +452,11 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(10, 10)
-                                .location(offset, 0)
                                 .onPlaced { reported += it },
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
                     )
                 }
             }
@@ -583,9 +497,11 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(10, 10)
-                                .location(offset, 0)
                                 .onPlaced { reported += it },
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
                     )
                 }
             }
@@ -611,21 +527,23 @@ class OnPlacedTest {
             val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ scaleX = 2f })
 
             setContent {
-                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
                     Box(
                         modifier =
                             SwingModifier
-                                .preferredSize(10, 10)
-                                .then(PlacementReadLayerElement(layer, relative = false)),
+                                .then(
+                                    PlacementReadLayerElement(layer, relative = false),
+                                ).styleable { preferredSize(10, 10) },
                     ) {
                         Box {
                             Label(
                                 text = "child",
                                 modifier =
-                                    SwingModifier.preferredSize(10, 10).onPlaced {
+                                    SwingModifier.onPlaced {
                                         reported +=
                                             it
                                     },
+                                style = { preferredSize(10, 10) },
                             )
                         }
                     }
@@ -646,6 +564,157 @@ class OnPlacedTest {
                 "a grandparent placed without its layer leaves the grandchild's bounds alone",
             )
         }
+}
+
+class OnPlacedBoundsTest {
+    /**
+     * A component moved out of a shadowed box to a parent that keeps its Swing bounds still reports: the box placed
+     * it off its Swing origin by the shadow's outsets, and the new parent does not.
+     */
+    @Test
+    fun movedContentKeepingItsSwingBoundsReportsItsNewPlacement() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            val report: (Rectangle) -> Unit = { reported += it }
+            var outside by mutableStateOf<Rectangle?>(null)
+
+            setContent {
+                val moving =
+                    remember {
+                        movableContentOf<SwingModifier, SwingStyle<LabelStyleScope>> { modifier, style ->
+                            Label(text = "child", modifier = modifier.onPlaced(report), style = style)
+                        }
+                    }
+                LayeredPane {
+                    Box(
+                        modifier =
+                            SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).styleable {
+                                size(50, 50)
+                                location(0, 0)
+                            },
+                    ) {
+                        Box(modifier = SwingModifier.shadow(4, Color.BLACK)) {
+                            if (outside == null) moving(SwingModifier, SwingStyle { preferredSize(10, 10) })
+                        }
+                    }
+                    outside?.let {
+                        moving(
+                            SwingModifier.layer(JLayeredPane.DEFAULT_LAYER),
+                            SwingStyle {
+                                location(it.x, it.y)
+                                size(it.width, it.height)
+                            },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            assertEquals(Rectangle(0, 0, 10, 10), reported.last(), "where the box's policy placed it")
+            val bounds = onNodeOfType<JLabel>().fetch().bounds
+            assertTrue(bounds.x > 0 && bounds.y > 0, "the shadow's outsets move it off the box's Swing origin: $bounds")
+            reported.clear()
+
+            outside = bounds
+            awaitIdle()
+
+            onNodeOfType<JLabel>().assertProperty(bounds, "the component keeps its Swing bounds") { this.bounds }
+            assertEquals(
+                listOf(bounds),
+                reported,
+                "a component moved to a parent that does not place it by paint outsets",
+            )
+        }
+
+    @Test
+    fun aChildOfADecoratedBorderLayoutPanelReportsWhereBorderLayoutPlacedIt() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { DecoratedPanel(BorderLayout()) },
+                        modifier = SwingModifier.shadow(8, Color.BLACK),
+                    ) {
+                        Label(
+                            text = "child",
+                            modifier = SwingModifier.onPlaced { reported += it },
+                            style = { preferredSize(40, 30) },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+
+            val outsets = blurOutsets(8)
+            assertEquals(
+                Rectangle(outsets, outsets, 40, 30),
+                reported.last(),
+                "where BorderLayout placed it, inside the panel's insets, and not shifted by its paint outsets again",
+            )
+        }
+
+    @Test
+    fun aDecoratedPanelLeavingABoxForTheSameSwingBoundsReportsItsNewLayoutBounds() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            var outside by mutableStateOf<Rectangle?>(null)
+            setContent {
+                val moving =
+                    remember {
+                        movableContentOf<SwingStyle<ComponentStyleScope>> { style ->
+                            SwingNode(
+                                factory = { DecoratedPanel(BorderLayout()) },
+                                modifier =
+                                    SwingModifier
+                                        .testTag("panel")
+                                        .shadow(8, Color.BLACK)
+                                        .onPlaced { reported += it }
+                                        .styleable(
+                                            {
+                                                preferredSize(40, 30)
+                                                with(style) { applyStyle() }
+                                            },
+                                            RawKind,
+                                        ),
+                            )
+                        }
+                    }
+                SwingNode(factory = { JLayeredPane() }) {
+                    Box(
+                        modifier =
+                            SwingModifier.styleable {
+                                size(100, 100)
+                                location(0, 0)
+                            },
+                    ) {
+                        if (outside == null) moving(SwingStyle)
+                    }
+                    outside?.let {
+                        moving(
+                            SwingStyle {
+                                location(it.x, it.y)
+                                size(it.width, it.height)
+                            },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+            val bounds = panel.bounds
+            assertEquals(
+                Rectangle(bounds.x + blurOutsets(8), bounds.y + blurOutsets(8), 40, 30),
+                reported.last(),
+                "onPlaced reports the layout bounds, inside the shadow's outsets",
+            )
+            reported.clear()
+
+            outside = bounds
+            awaitIdle()
+
+            assertEquals(bounds, panel.bounds, "the panel keeps its Swing bounds")
+            assertEquals(listOf(bounds), reported, "its layout bounds are now its bounds, reported once")
+        }
 
     @Test
     fun aMoveIsReportedAsAPlacementAndNotAsAnExtent() =
@@ -661,10 +730,12 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(10, 10)
-                                .location(offset, 0)
                                 .onPlaced { placements += it }
                                 .onSizeChanged { extents += it },
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
                     )
                 }
             }
@@ -696,9 +767,11 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(if (wide) 100 else 40, 10)
-                                .location(0, 0)
                                 .onPlaced { reported += it },
+                        style = {
+                            size(if (wide) 100 else 40, 10)
+                            location(0, 0)
+                        },
                     )
                 }
             }
@@ -729,10 +802,12 @@ class OnPlacedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .size(10, 10)
-                                .location(offset, 0)
                                 .onPlaced { first += it }
                                 .onPlaced { second += it },
+                        style = {
+                            size(10, 10)
+                            location(offset, 0)
+                        },
                     )
                 }
             }
@@ -766,11 +841,22 @@ class ShadowedParentOnPlacedTest {
         parent: ShadowedParent,
     ) = runComposeSwingTest {
         val reported = mutableListOf<Rectangle>()
-        val reporting = SwingModifier.preferredSize(40, 20).onPlaced { reported += it }
+        val reporting = SwingModifier.onPlaced { reported += it }
         val reportingChild: @Composable (SwingModifier) -> Unit = { placed ->
             when (child) {
-                ReportedChild.StockLabel -> Label(text = "child", modifier = placed.then(reporting))
-                ReportedChild.ShadowedBox -> Box(modifier = placed.then(reporting).shadow(3, Color.BLACK)) {}
+                ReportedChild.StockLabel -> {
+                    Label(text = "child", modifier = placed.then(reporting), style = { preferredSize(40, 20) })
+                }
+
+                ReportedChild.ShadowedBox -> {
+                    Box(
+                        modifier =
+                            placed
+                                .styleable { preferredSize(40, 20) }
+                                .then(reporting)
+                                .shadow(3, Color.BLACK),
+                    ) {}
+                }
             }
         }
 

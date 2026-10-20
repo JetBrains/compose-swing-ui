@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
@@ -17,7 +18,7 @@ class RowColumnCrossAxisOverflowTest {
     fun aRowOfferedLessThanItsChildrensSharedBaselineExtentReportsTheRawExtentAndIsCenteredInTheOffer() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.preferredSize(200, 40)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(200, 40) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         DecoratedBaselineChild(30, SwingModifier.alignByBaseline())
                         DecoratedBaselineChild(10, SwingModifier.alignByBaseline())

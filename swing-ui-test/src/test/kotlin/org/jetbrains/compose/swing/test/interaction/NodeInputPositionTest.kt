@@ -3,10 +3,10 @@ package org.jetbrains.compose.swing.test.interaction
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -95,9 +95,9 @@ private fun PositionReportingButton(onPoint: (Point) -> Unit) {
         onClick = { },
         modifier =
             SwingModifier
-                .preferredSize(width = 120, height = 30)
                 .mouseListener { onPoint(Point(it.x, it.y)) }
                 .mouseMotionListener { onPoint(Point(it.x, it.y)) }
                 .mouseWheelListener { onPoint(Point(it.x, it.y)) },
+        style = { preferredSize(width = 120, height = 30) },
     )
 }

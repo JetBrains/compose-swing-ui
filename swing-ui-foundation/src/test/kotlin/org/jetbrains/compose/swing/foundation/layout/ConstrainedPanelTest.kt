@@ -13,12 +13,13 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.SharedInsetsBorder
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -51,7 +52,9 @@ class ConstrainedPanelTest {
     fun aPanelIsAnAccessiblePanelCarryingTheNameSetOnIt() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.testTag("container-under-test").accessibleName("Toolbar")) {}
+                Box(
+                    modifier = SwingModifier.testTag("container-under-test").styleable { accessibleName("Toolbar") },
+                ) {}
             }
 
             onNodeWithTag("container-under-test")
@@ -84,9 +87,11 @@ class ConstrainedPanelTest {
                     Box(
                         modifier =
                             SwingModifier
-                                .accessibleName("child")
-                                .preferredSize(20, 20)
-                                .placementLayer { scaleX = 2f },
+                                .placementLayer { scaleX = 2f }
+                                .styleable {
+                                    accessibleName("child")
+                                    preferredSize(20, 20)
+                                },
                     )
                 }
             }
@@ -101,8 +106,8 @@ class ConstrainedPanelTest {
     fun aGlassPaneCoversThePanelWhenAttachedAndResized() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.testTag("container-under-test").preferredSize(40, 50)) {
-                    Box(modifier = SwingModifier.preferredSize(20, 20).placementLayer { scaleX = 2f })
+                Box(modifier = SwingModifier.testTag("container-under-test").styleable { preferredSize(40, 50) }) {
+                    Box(modifier = SwingModifier.placementLayer { scaleX = 2f }.styleable { preferredSize(20, 20) })
                 }
             }
 
@@ -128,7 +133,7 @@ class ConstrainedPanelTest {
             var scale by mutableFloatStateOf(case.scale)
             setContent {
                 if (case.stockParent) {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                         Box(modifier = SwingModifier.testTag("host").north()) {
                             Box(modifier = SwingModifier.fillMaxWidth().placementLayer { scaleX = scale }) {
                                 Label("Scaled")
@@ -139,7 +144,7 @@ class ConstrainedPanelTest {
                     Box(modifier = SwingModifier.testTag("host")) {
                         Box {
                             Box(modifier = SwingModifier.placementLayer { scaleX = scale }) {
-                                Box(modifier = SwingModifier.preferredSize(width, 20))
+                                Box(modifier = SwingModifier.styleable { preferredSize(width, 20) })
                             }
                         }
                     }
@@ -199,7 +204,7 @@ class ConstrainedPanelTest {
         runComposeSwingTest {
             var enabled by mutableStateOf(true)
             setContent {
-                Box(modifier = SwingModifier.testTag("container-under-test").enabled(enabled)) {}
+                Box(modifier = SwingModifier.testTag("container-under-test").styleable { enabled(enabled) }) {}
             }
             val lost = mutableListOf<Any?>()
             onNodeWithTag("container-under-test").fetch().accessibleContext.addPropertyChangeListener {
@@ -222,9 +227,14 @@ class ConstrainedPanelTest {
     fun aPanelHoldingNoScrollableScrollsByLinesAndPagesOfItsViewport() =
         runComposeSwingTest {
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(60, 50)) {
+                ScrollPane(style = { preferredSize(60, 50) }) {
                     Viewport {
-                        Box(modifier = SwingModifier.testTag("container-under-test").preferredSize(100, 80)) {}
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("container-under-test")
+                                    .styleable { preferredSize(100, 80) },
+                        ) {}
                     }
                 }
             }
@@ -259,7 +269,7 @@ class ConstrainedPanelTest {
     fun aPanelHoldingOneScrollableServesAPaneOnItsBehalf() =
         runComposeSwingTest {
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 80)) {
+                ScrollPane(style = { preferredSize(100, 80) }) {
                     Viewport {
                         Box {
                             TextArea(value = "word ".repeat(200), onValueChange = {}, lineWrap = true)
@@ -310,7 +320,7 @@ class ConstrainedPanelTest {
                     override fun getScrollableTracksViewportHeight() = true
                 }
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 80)) {
+                ScrollPane(style = { preferredSize(100, 80) }) {
                     Viewport {
                         Box {
                             SwingNode(factory = { content })
@@ -339,11 +349,11 @@ class ConstrainedPanelTest {
     fun aPanelHoldingSeveralChildrenServesAPaneAsAPanelOfItsOwn() =
         runComposeSwingTest {
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(400, 80)) {
+                ScrollPane(style = { preferredSize(400, 80) }) {
                     Viewport {
                         Column {
-                            Box(modifier = SwingModifier.preferredSize(100, 80)) {}
-                            Box(modifier = SwingModifier.preferredSize(200, 240)) {}
+                            Box(modifier = SwingModifier.styleable { preferredSize(100, 80) }) {}
+                            Box(modifier = SwingModifier.styleable { preferredSize(200, 240) }) {}
                         }
                     }
                 }
@@ -368,9 +378,9 @@ class ConstrainedPanelTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(Dimension(64, 48))
                                 .border(border)
-                                .spill(Insets(8, 8, 8, 8)),
+                                .spill(Insets(8, 8, 8, 8))
+                                .styleable { preferredSize(Dimension(64, 48)) },
                     )
                 }
             }

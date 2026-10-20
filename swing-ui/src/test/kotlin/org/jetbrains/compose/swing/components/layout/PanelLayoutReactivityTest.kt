@@ -7,8 +7,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -92,7 +92,7 @@ class PanelLayoutReactivityTest {
     fun aFlowPanelsNewAlignmentMovesItsChildrenWithoutInvalidatingAnything() = runComposeSwingTest {
         var alignment by mutableIntStateOf(FlowLayout.LEADING)
         setContent {
-            Panel(PanelLayout.Flow(alignment = alignment), SwingModifier.preferredSize(200, 40)) {
+            Panel(PanelLayout.Flow(alignment = alignment), style = { preferredSize(200, 40) }) {
                 Label("child")
             }
         }
@@ -382,9 +382,10 @@ private const val BOX_CHILD_HEIGHT = 20
 private fun BoxChild(index: Int) {
     Label(
         "child $index",
-        SwingModifier
-            .preferredSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT)
-            .maximumSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT),
+        style = {
+            preferredSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT)
+            maximumSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT)
+        },
     )
 }
 

@@ -7,8 +7,9 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -165,7 +166,12 @@ class LayoutNodeLifecycleTest {
             val child = PaintCountingChild()
             setWindowContent {
                 Layout(
-                    content = { SwingNode(factory = { child }, modifier = SwingModifier.preferredSize(10, 10)) },
+                    content = {
+                        SwingNode(
+                            factory = { child },
+                            modifier = SwingModifier.styleable({ preferredSize(10, 10) }, RawKind),
+                        )
+                    },
                     measurePolicy = stackedRows(),
                     modifier = SwingModifier.testTag(CONTAINER_TAG).key(generation),
                 )

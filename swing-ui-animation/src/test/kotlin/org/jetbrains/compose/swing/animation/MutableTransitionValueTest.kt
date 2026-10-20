@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildAt
@@ -48,11 +48,11 @@ class MutableTransitionValueTest {
                         enter = expandIn(tween(1600)) { Dimension(it.width / 2, it.height) },
                         exit = ExitTransition.None,
                     ) {
-                        Label("copy", SwingModifier.preferredSize(80, 40).opaque(true))
+                        Label("copy", SwingModifier.opaque(true), style = { preferredSize(80, 40) })
                     }
                 }
                 AnimatedVisibility(visible, SwingModifier.testTag(CONTAINER), enter = enter, exit = exit) {
-                    Label("", SwingModifier.testTag("content").preferredSize(80, 40).opaque(true))
+                    Label("", SwingModifier.testTag("content").opaque(true), style = { preferredSize(80, 40) })
                 }
             }
             awaitIdle()
@@ -102,7 +102,7 @@ class MutableTransitionValueTest {
                             enter = enter,
                             exit = exit { Dimension(40, 20) },
                         ) {
-                            Label("", SwingModifier.preferredSize(80, 40).opaque(true))
+                            Label("", SwingModifier.opaque(true), style = { preferredSize(80, 40) })
                         }
                     }
                     Box {
@@ -117,7 +117,7 @@ class MutableTransitionValueTest {
                                     Dimension(40, 20)
                                 },
                         ) {
-                            Label("", SwingModifier.preferredSize(80, 40).opaque(true))
+                            Label("", SwingModifier.opaque(true), style = { preferredSize(80, 40) })
                         }
                     }
                 }

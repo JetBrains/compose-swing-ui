@@ -18,7 +18,6 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.margin
@@ -26,16 +25,17 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.verticalAlignment
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
-import org.jetbrains.compose.swing.modifier.layout.height
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.visible
-import org.jetbrains.compose.swing.modifier.layout.width
-import org.jetbrains.compose.swing.modifier.layout.x
-import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.height
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.visible
+import org.jetbrains.compose.swing.style.width
+import org.jetbrains.compose.swing.style.x
+import org.jetbrains.compose.swing.style.y
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
@@ -56,16 +56,16 @@ internal fun ColumnScope.SizeAndVisibilityCard() {
             Button(
                 "Wide button",
                 onClick = { },
-                modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)),
+                style = { preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)) },
             )
             // The slot's footprint is reserved by the wrapping panel's preferredSize, so visible(false)
             // hides the button but keeps it attached and the row does not collapse - unlike conditional
             // composition (if (shown) Button(...)), which drops the child and lets the layout reflow.
             Panel(
                 PanelLayout.Flow(hgap = 0, vgap = 0),
-                modifier = SwingModifier.preferredSize(Dimension(120, BUTTON_HEIGHT)),
+                style = { preferredSize(Dimension(120, BUTTON_HEIGHT)) },
             ) {
-                Button("Toggle me", onClick = { }, modifier = SwingModifier.visible(shown))
+                Button("Toggle me", onClick = { }, style = { visible(shown) })
             }
         }
     }
@@ -84,9 +84,11 @@ internal fun ColumnScope.SizeConstraintsCard() {
                 onClick = { },
                 modifier =
                     SwingModifier
-                        .minimumSize(Dimension(120, BUTTON_HEIGHT))
-                        .maximumSize(Dimension(240, BUTTON_HEIGHT))
                         .weight(1f),
+                style = {
+                    minimumSize(Dimension(120, BUTTON_HEIGHT))
+                    maximumSize(Dimension(240, BUTTON_HEIGHT))
+                },
             )
         }
     }
@@ -128,19 +130,21 @@ private fun GeometryPreview(
     frameWidth: Int,
     frameHeight: Int,
 ) {
-    LayeredPane(modifier = SwingModifier.preferredSize(Dimension(280, 180))) {
+    LayeredPane(style = { preferredSize(Dimension(280, 180)) }) {
         Label(
             "Adjust the spinners",
             modifier =
                 SwingModifier
                     .layer(JLayeredPane.DEFAULT_LAYER)
                     .opaque(true)
-                    .background(Color(0xC8, 0xE6, 0xC9))
-                    .horizontalAlignment(SwingConstants.CENTER)
-                    .x(frameX)
-                    .y(frameY)
-                    .width(frameWidth)
-                    .height(frameHeight),
+                    .horizontalAlignment(SwingConstants.CENTER),
+            style = {
+                background(Color(0xC8, 0xE6, 0xC9))
+                x(frameX)
+                y(frameY)
+                width(frameWidth)
+                height(frameHeight)
+            },
         )
     }
 }
@@ -158,7 +162,7 @@ private fun GeometrySpinner(
     Spinner(
         value,
         onValueChange = { onValueChange(it.toInt()) },
-        modifier = SwingModifier.preferredSize(Dimension(64, 24)),
+        style = { preferredSize(Dimension(64, 24)) },
         min = min,
         max = max,
         step = GEOMETRY_STEP,
@@ -176,7 +180,7 @@ internal fun ColumnScope.AlignmentCard() {
             Button(
                 "Wide row button",
                 onClick = { },
-                modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)),
+                style = { preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)) },
             )
             Button(
                 "Narrow",
@@ -188,7 +192,7 @@ internal fun ColumnScope.AlignmentCard() {
             )
         }
         Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
-            Label("Tall ↕", modifier = SwingModifier.preferredSize(Dimension(60, 40)))
+            Label("Tall ↕", style = { preferredSize(Dimension(60, 40)) })
             Label("top", modifier = SwingModifier.alignmentY(0.0f))
             Label("bottom", modifier = SwingModifier.alignmentY(1.0f))
         }
@@ -213,10 +217,12 @@ internal fun ColumnScope.VerticalAlignmentCard() {
                 "Tall content ↕",
                 modifier =
                     SwingModifier
-                        .preferredSize(Dimension(160, 70))
                         .opaque(true)
-                        .background(Color(0xE3, 0xF2, 0xFD))
                         .verticalAlignment(alignment),
+                style = {
+                    preferredSize(Dimension(160, 70))
+                    background(Color(0xE3, 0xF2, 0xFD))
+                },
             )
         }
     }
@@ -231,7 +237,7 @@ internal fun ColumnScope.MarginCard() {
             Spinner(
                 inset,
                 onValueChange = { inset = it.toInt() },
-                modifier = SwingModifier.preferredSize(Dimension(64, 24)),
+                style = { preferredSize(Dimension(64, 24)) },
                 min = 0,
                 max = 24,
                 step = 1,

@@ -13,8 +13,8 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -73,7 +73,7 @@ class StockChildResizeTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(WIDTH + 80)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                     Column(modifier = SwingModifier.center().testTag("column")) {
                         Box(modifier = heightModifier().fillMaxWidth()) {
                             SwingNode(
@@ -115,7 +115,7 @@ class StockChildResizeTest {
         runComposeSwingTest {
             var side by mutableStateOf("Side")
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                     Column(modifier = SwingModifier.center()) {
                         Row(modifier = SwingModifier.testTag("row").height(IntrinsicSize.Max)) {
                             Box(modifier = SwingModifier.testTag("box")) {
@@ -173,7 +173,7 @@ class StockChildResizeTest {
                 }
             var height by mutableIntStateOf(WIDTH)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                     Column(modifier = SwingModifier.center()) {
                         Row(modifier = SwingModifier.testTag("row").height(height)) {
                             Layout(
@@ -211,7 +211,7 @@ class StockChildResizeTest {
             var width by mutableIntStateOf(WIDTH)
             val area = ResizeCountingTextArea()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                     Box(modifier = SwingModifier.north()) {
                         Column(modifier = SwingModifier.testTag("column")) {
                             SwingNode(
@@ -239,7 +239,7 @@ class StockChildResizeTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(WIDTH)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                     Panel(PanelLayout.GridBag, modifier = SwingModifier.north()) {
                         Box(
                             modifier =
@@ -304,7 +304,7 @@ class StockChildResizeTest {
         var width by mutableIntStateOf(800)
         val records = List(3) { ResizeRecord() }
         setContent {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                 Column(modifier = SwingModifier.center()) {
                     for (record in records) {
                         SwingNode(
@@ -343,7 +343,7 @@ class StockChildResizeTest {
             var width by mutableIntStateOf(WIDTH)
             val record = ResizeRecord()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
                     Column(modifier = SwingModifier.center()) {
                         SwingNode(
                             factory = { recordingChild("wrapping text area", WRAPPING_TEXT, record) },
@@ -408,7 +408,7 @@ class StockChildResizeTest {
         val child = borderedTextChild(kind, inset)
         var offer by mutableStateOf(Dimension(500, 600))
         setContent {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(800, 800)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(800, 800) }) {
                 val offered = offer
                 Layout(
                     content = { SwingNode(factory = { child }) },

@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
-import org.jetbrains.compose.swing.modifier.appearance.font
+import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Font
@@ -26,7 +26,7 @@ class DerivedPropertyOrderingTest {
         val styleKey = "JComponent.sizeVariant"
         var style by mutableStateOf("small")
         setContent {
-            Label("x", modifier = SwingModifier.clientProperty(styleKey, style).font(DECLARED))
+            Label("x", modifier = SwingModifier.clientProperty(styleKey, style), style = { font(DECLARED) })
         }
         val label = onNodeOfType<JLabel>().fetch()
         assertEquals(DECLARED, label.font, "the declared font reaches the label")

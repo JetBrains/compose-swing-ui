@@ -25,10 +25,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -75,8 +76,8 @@ class BoxTest {
                         height = 160,
                         modifier =
                             SwingModifier
-                                .matchParentSize()
-                                .maximumSize(30, 20),
+                                .matchParentSize(),
+                        style = { maximumSize(30, 20) },
                     )
                 }
             }
@@ -127,9 +128,9 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, 200, 160)
-                    Child(1, 200, 160, matchingUpTo(190, 160))
-                    Child(2, 200, 160, matchingUpTo(200, 150))
-                    Child(3, 200, 160, matchingUpTo(190, 150))
+                    Child(1, 200, 160, SwingModifier.matchParentSize(), style = { maximumSize(190, 160) })
+                    Child(2, 200, 160, SwingModifier.matchParentSize(), style = { maximumSize(200, 150) })
+                    Child(3, 200, 160, SwingModifier.matchParentSize(), style = { maximumSize(190, 150) })
                 }
             }
 
@@ -149,7 +150,12 @@ class BoxTest {
     fun eachAlignmentPutsAChildInItsOwnCornerOfTheBox() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(STACKED * CHILD_WIDTH, STACKED * CHILD_HEIGHT)) {
+                Box(
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(STACKED * CHILD_WIDTH, STACKED * CHILD_HEIGHT),
+                        ),
+                ) {
                     ALIGNMENT_GRID.forEachIndexed { index, alignment ->
                         SizedChild(index, SwingModifier.align(alignment))
                     }
@@ -179,10 +185,12 @@ class BoxTest {
             setContent {
                 Box(
                     modifier =
-                        containerModifier(
-                            STACKED * CHILD_WIDTH,
-                            STACKED * CHILD_HEIGHT,
-                            ComponentOrientation.RIGHT_TO_LEFT,
+                        ContainerModifier.styleable(
+                            containerStyle(
+                                STACKED * CHILD_WIDTH,
+                                STACKED * CHILD_HEIGHT,
+                                ComponentOrientation.RIGHT_TO_LEFT,
+                            ),
                         ),
                 ) {
                     ALIGNMENT_GRID.forEachIndexed { index, alignment ->
@@ -212,7 +220,7 @@ class BoxTest {
     fun testBox_expanded() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(200, 160)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(200, 160))) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.matchParentSize())
                     Child(
                         index = 1,
@@ -237,7 +245,7 @@ class BoxTest {
     fun aBoxDoesNotPassItsMinimumExtentToContentByDefault() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(200, 160)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(200, 160))) {
                     SizedChild(0)
                 }
             }
@@ -254,7 +262,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 160)),
                     propagateMinConstraints = true,
                 ) {
                     SizedChild(0)
@@ -287,7 +295,7 @@ class BoxTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.TopStart)
             setContent {
-                Box(modifier = containerModifier(200, 160), contentAlignment = alignment) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(200, 160)), contentAlignment = alignment) {
                     SizedChild(0)
                 }
             }
@@ -321,7 +329,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 160)),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0)
@@ -371,13 +379,14 @@ class BoxTest {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     // Each minimum is below the fixture child's own on one axis, so the largest minimum along
                     // an axis is one child's and neither axis sums to it.
-                    Child(0, CHILD_WIDTH, 160, SwingModifier.minimumSize(20, CHILD_HEIGHT))
-                    Child(1, 200, CHILD_HEIGHT, SwingModifier.minimumSize(CHILD_WIDTH, 15))
+                    Child(0, CHILD_WIDTH, 160, style = { minimumSize(20, CHILD_HEIGHT) })
+                    Child(1, 200, CHILD_HEIGHT, style = { minimumSize(CHILD_WIDTH, 15) })
                     Child(
                         index = 2,
                         width = 400,
                         height = 320,
-                        modifier = SwingModifier.matchParentSize().minimumSize(400, 320),
+                        modifier = SwingModifier.matchParentSize(),
+                        style = { minimumSize(400, 320) },
                     )
                 }
             }
@@ -425,7 +434,9 @@ class BoxTest {
     fun aMatchingChildTakesTheBoxInsideItsInsets() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(200, 160).border(EmptyBorder(5, 10, 15, 20))) {
+                Box(
+                    modifier = ContainerModifier.border(EmptyBorder(5, 10, 15, 20)).styleable(containerStyle(200, 160)),
+                ) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.matchParentSize())
                 }
             }
@@ -442,7 +453,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160).border(EmptyBorder(5, 10, 15, 20)),
+                    modifier = ContainerModifier.border(EmptyBorder(5, 10, 15, 20)).styleable(containerStyle(200, 160)),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0)
@@ -468,7 +479,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(201, 161),
+                    modifier = ContainerModifier.styleable(containerStyle(201, 161)),
                     contentAlignment = Alignment.Center,
                 ) {
                     SizedChild(0)
@@ -487,15 +498,22 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 160)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Child(0, 200, 160, matchingUpTo(CHILD_WIDTH, CHILD_HEIGHT))
+                    Child(
+                        0,
+                        200,
+                        160,
+                        SwingModifier.matchParentSize(),
+                        style = { maximumSize(CHILD_WIDTH, CHILD_HEIGHT) },
+                    )
                     Child(
                         index = 1,
                         width = 200,
                         height = 160,
-                        modifier = matchingUpTo(CHILD_WIDTH, CHILD_HEIGHT).align(Alignment.BottomEnd),
+                        modifier = SwingModifier.matchParentSize().align(Alignment.BottomEnd),
+                        style = { maximumSize(CHILD_WIDTH, CHILD_HEIGHT) },
                     )
                 }
             }
@@ -519,7 +537,7 @@ class BoxTest {
     fun aMatchingChildDoesNotDragTheBoxToTheExtentItsParentOffers() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.preferredSize(200, 160)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(200, 160) }) {
                     Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         Child(0, CHILD_WIDTH, CHILD_HEIGHT)
                         Child(1, 200, 160, SwingModifier.matchParentSize())
@@ -548,7 +566,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 160)),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0, SwingModifier.align(Alignment.TopCenter))
@@ -566,7 +584,7 @@ class BoxTest {
     fun aChildKeepsTheLastAlignmentItDeclares() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(200, 160)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(200, 160))) {
                     SizedChild(0, SwingModifier.align(Alignment.BottomEnd).align(Alignment.TopStart))
                 }
             }
@@ -583,7 +601,7 @@ class BoxTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.TopStart)
             setContent {
-                Box(modifier = containerModifier(200, 160), contentAlignment = alignment) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(200, 160)), contentAlignment = alignment) {
                     SizedChild(0)
                 }
             }
@@ -610,7 +628,7 @@ class BoxTest {
             var alignment by mutableStateOf<Alignment?>(Alignment.TopEnd)
             setContent {
                 Box(
-                    modifier = containerModifier(200, 160),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 160)),
                     contentAlignment = Alignment.TopStart,
                 ) {
                     SizedChild(0, alignment?.let { SwingModifier.align(it) } ?: SwingModifier)
@@ -689,7 +707,7 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT)
-                    Child(1, 200, 160, SwingModifier.visible(false))
+                    Child(1, 200, 160, style = { visible(false) })
                 }
             }
 
@@ -864,9 +882,3 @@ private val ALIGNMENT_GRID =
         Alignment.BottomCenter,
         Alignment.BottomEnd,
     )
-
-/** A child taking the box's extent, held to [width] by [height] of it by a maximum size of its own. */
-private fun BoxScope.matchingUpTo(
-    width: Int,
-    height: Int,
-): SwingModifier = SwingModifier.matchParentSize().maximumSize(width, height)

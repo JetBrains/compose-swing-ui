@@ -40,6 +40,12 @@ internal class StyleCollector : NestedStyleProviderScope {
     /** The provider whose composition locals the running nested style reads; otherwise `null`. */
     private var localProvider: StyleNode? = null
 
+    /** Whether the default of a nesting kind is running, which may write only inside a nested block. */
+    private var onlyNests = false
+
+    /** Sets [onlyNests] and returns what it was, for the element to bracket its default style with. */
+    private val setOnlyNests: (Boolean) -> Boolean = { value -> onlyNests.also { onlyNests = value } }
+
     /**
      * Collects [node]'s [element] with the publishers from [publisher] up, and returns what it wrote. The caller
      * [releases][StyleCollection.release] the result once it has read it, which may run other collects.
@@ -59,7 +65,7 @@ internal class StyleCollector : NestedStyleProviderScope {
         this.publisher = publisher
         collected = result
         try {
-            val scope = element.execute(node.reusableScope(element)) { scopeFor(node) }
+            val scope = element.execute(node.reusableScope(element), setOnlyNests) { scopeFor(node) }
             inheritLocals(checkNotNull(node.holder).component.javaClass)
             result.scope = scope
             return result
@@ -113,7 +119,13 @@ internal class StyleCollector : NestedStyleProviderScope {
         }
     }
 
-    override fun <V> SwingStyleProperty<V>.provide(value: V) = provideTo(this@StyleCollector, value)
+    override fun <V> SwingStyleProperty<V>.provide(value: V) {
+        check(!onlyNests || blockKeys.isNotEmpty()) {
+            "The default of a nesting kind may only apply nested styles, but it provides a property outside one. " +
+                "Build the kind with the SwingStyleKind constructor instead of nestingStyleKind."
+        }
+        provideTo(this@StyleCollector, value)
+    }
 
     fun writeElement(element: SwingModifier.Element) = checkNotNull(collected).write(element)
 

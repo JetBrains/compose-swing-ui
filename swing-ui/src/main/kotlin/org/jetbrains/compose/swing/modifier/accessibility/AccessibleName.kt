@@ -4,11 +4,10 @@
 package org.jetbrains.compose.swing.modifier.accessibility
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.AccessibleNameDescriptor
 
 /**
  * Sets the component's accessible name - the short localized string assistive technologies announce
@@ -25,12 +24,6 @@ import java.awt.Component
  * @return this modifier with the accessible name declared on it.
  * @see javax.accessibility.AccessibleContext.setAccessibleName
  */
+@Deprecated("Set it in the component's style: style = { accessibleName(name) }")
 public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =
-    property(AccessibleNameProperty, name, restores = RestorePolicy.None)
-
-private val AccessibleNameProperty =
-    ComponentPropertyDescriptor<Component, String?>(
-        name = "accessibleName",
-        read = { it.accessibleContext?.declaredAccessibleName() },
-        write = { component, value -> component.accessibleContext?.accessibleName = value },
-    )
+    property(AccessibleNameDescriptor, name, restores = RestorePolicy.None)

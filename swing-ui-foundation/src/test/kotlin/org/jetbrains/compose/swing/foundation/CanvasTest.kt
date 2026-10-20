@@ -16,7 +16,8 @@ import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -48,7 +49,7 @@ class CanvasTest {
             var observedAntialiasing: Any? = null
             var observedStrokeControl: Any? = null
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                     observedAntialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                     observedStrokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL)
                 }
@@ -73,7 +74,7 @@ class CanvasTest {
             val customHints = mapOf(RenderingHints.KEY_TEXT_ANTIALIASING to RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
             setContent {
                 Canvas(
-                    modifier = SwingModifier.testTag("canvas").preferredSize(64, 48),
+                    modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) },
                     renderingHints = customHints,
                 ) {
                     observedTextAntialiasing = graphics.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING)
@@ -92,7 +93,10 @@ class CanvasTest {
         runComposeSwingTest {
             var observedAntialiasing: Any? = null
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48), renderingHints = null) {
+                Canvas(
+                    modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) },
+                    renderingHints = null,
+                ) {
                     observedAntialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                 }
             }
@@ -108,7 +112,7 @@ class CanvasTest {
     fun canvasDeclaredOpaqueStillLetsWhatIsBehindShowThrough() =
         runComposeSwingTest {
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48).opaque(true)) {}
+                Canvas(modifier = SwingModifier.testTag("canvas").opaque(true).styleable { preferredSize(64, 48) }) {}
             }
             onNodeWithTag("canvas").assertProperty(
                 false,
@@ -124,7 +128,7 @@ class CanvasTest {
             var observedTextAntialiasing: Any? = null
             setContent {
                 Canvas(
-                    modifier = SwingModifier.testTag("canvas").preferredSize(64, 48),
+                    modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) },
                     renderingHints = hints,
                 ) {
                     drawCount++
@@ -162,7 +166,7 @@ class CanvasTest {
                 // `value` is read HERE, in the composition, and captured into onDraw. Changing it
                 // recomposes Canvas -> new onDraw lambda -> repaint() -> onDraw re-runs.
                 val captured = value
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                     lastDrawn = captured
                     drawCount++
                 }
@@ -188,7 +192,9 @@ class CanvasTest {
             setContent {
                 // Read in the composition, so a change hands the surface a new onDraw and nothing else.
                 val captured = color
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) { drawRect(captured) }
+                Canvas(
+                    modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) },
+                ) { drawRect(captured) }
             }
             val canvas = onNodeWithTag("canvas").fetch<JComponent>()
             onNodeWithTag(
@@ -222,7 +228,7 @@ class CanvasTest {
             val keyed = KeyReadingElement()
             setContent {
                 val captured = color
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48).then(keyed)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").then(keyed).styleable { preferredSize(64, 48) }) {
                     drawRect(captured)
                 }
             }
@@ -246,7 +252,7 @@ class CanvasTest {
             val value = mutableIntStateOf(7)
             var lastDrawn = Int.MIN_VALUE
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) {
                     lastDrawn = value.intValue
                 }
             }
@@ -285,7 +291,9 @@ class CanvasTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var color by mutableStateOf(Color.RED)
             setWindowContent {
-                Canvas(modifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(64, 48)) { drawRect(color) }
+                Canvas(
+                    modifier = SwingModifier.testTag(CONTAINER_TAG).styleable { preferredSize(64, 48) },
+                ) { drawRect(color) }
             }
             val canvas = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
@@ -311,7 +319,7 @@ class CanvasTest {
         runComposeSwingTest {
             var kept: DrawScope? = null
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48)) { kept = this }
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(64, 48) }) { kept = this }
             }
             onNodeWithTag("canvas").captureToImage()
 

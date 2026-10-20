@@ -8,13 +8,15 @@ import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.RawKind
 import org.jetbrains.compose.swing.foundation.layout.lastElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -53,9 +55,9 @@ class DecorationModifiersTest {
                             SwingModifier
                                 .testTag("decorated-panel")
                                 .opaque(false)
-                                .preferredSize(Dimension(64, 64))
                                 .clip(CircleShape)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) {
                         Label(text = "child")
                     }
@@ -75,7 +77,11 @@ class DecorationModifiersTest {
                 Box {
                     SwingNode(
                         factory = { DecoratedPanel() },
-                        modifier = SwingModifier.testTag("decorated-panel").background(Color.RED),
+                        modifier =
+                            SwingModifier
+                                .testTag(
+                                    "decorated-panel",
+                                ).styleable({ background(Color.RED) }, RawKind),
                     )
                 }
             }
@@ -85,10 +91,9 @@ class DecorationModifiersTest {
             assertEquals(
                 Color.RED,
                 panel.background,
-                "background(Color) writes the Swing property a look and feel honors; a Color is a Paint but " +
-                    "not a Brush, so the call is not the decoration overload.",
+                "A style's background(Color) writes the Swing property a look and feel honors.",
             )
-            assertFalse(panel.isPaintingOrigin(), "background(Color) declares no decoration.")
+            assertFalse(panel.isPaintingOrigin(), "A style's background(Color) declares no decoration.")
         }
 
     @Test
@@ -100,9 +105,9 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .alpha(0.5f)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) {
                         Label(text = "child")
                     }
@@ -110,9 +115,9 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("reversed-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .opaque(true)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) {
                         Label(text = "child")
                     }
@@ -141,9 +146,9 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .opaque(false)
                                 .border(4, Color.RED),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) {
                         Label(text = "child", modifier = SwingModifier.testTag("decorated-child"))
                     }
@@ -170,10 +175,10 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .opaque(false)
                                 .shadow(4, Color.BLACK)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) {
                         Label(text = "child", modifier = SwingModifier.testTag("decorated-child"))
                     }
@@ -216,17 +221,17 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(width, 64))
                                 .opaque(false)
                                 .border(line, Color.RED, countingShape),
+                        style = { preferredSize(Dimension(width, 64)) },
                     )
                     DecoratedBox(
                         modifier =
                             SwingModifier
                                 .testTag("fresh-panel")
-                                .preferredSize(Dimension(128, 64))
                                 .opaque(false)
                                 .border(2, Color.RED, freshShape),
+                        style = { preferredSize(Dimension(128, 64)) },
                     )
                 }
             }
@@ -262,9 +267,9 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .opaque(false)
                                 .border(4, Brush.of(Color.RED)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     )
                 }
             }
@@ -285,9 +290,9 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(width, 64))
                                 .opaque(false)
                                 .background(Brush.horizontalGradient(*arrayOf(0f to Color.BLACK, 1f to Color.WHITE))),
+                        style = { preferredSize(Dimension(width, 64)) },
                     )
                 }
             }
@@ -320,10 +325,10 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(width, 64))
                                 .opaque(false)
                                 .clip(CircleShape, antialias = true)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(width, 64)) },
                     )
                 }
             }
@@ -418,8 +423,8 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .shadow(4, Color.BLACK),
+                        style = { preferredSize(Dimension(64, 64)) },
                     ) { _, width, height -> drawn = Dimension(width, height) }
                 }
             }
@@ -479,7 +484,6 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(128, 128))
                                 .opaque(false)
                                 // The blur reduces its recording to a quarter scale, which puts the indented
                                 // content's edges a quarter of a reduced pixel off its grid on the left and top,
@@ -488,6 +492,7 @@ class DecorationModifiersTest {
                                 .indent(1)
                                 .clip(CircleShape, antialias = true)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(128, 128)) },
                     )
                 }
             }
@@ -519,12 +524,12 @@ class DecorationModifiersTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(48, 48))
                                 .opaque(false)
                                 // Off the grid the blur reduces its recording onto, for every radius it reduces at.
                                 .blur(radius)
                                 .indent(1)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(48, 48)) },
                     )
                 }
             }

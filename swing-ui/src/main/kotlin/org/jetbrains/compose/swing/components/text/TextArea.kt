@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.TextAreas
+import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
@@ -12,6 +14,11 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTextArea
 import javax.swing.event.DocumentListener
 
@@ -31,6 +38,7 @@ import javax.swing.event.DocumentListener
  * @param onValueChange callback invoked with the area's new text when the area is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
  *   takes the height from the text it holds
  * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
@@ -49,6 +57,7 @@ public fun TextArea(
     value: @Nls String,
     onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     rows: Int = 0,
     columns: Int = 0,
     editable: Boolean = true,
@@ -61,6 +70,7 @@ public fun TextArea(
         value = value,
         mirror = mirror,
         modifier = modifier.onTextEdit(mirror, onValueChange),
+        style = style,
         rows = rows,
         columns = columns,
         editable = editable,
@@ -86,6 +96,7 @@ public fun TextArea(
  * @param value the current text value
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
  *   takes the height from the text it holds
  * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
@@ -104,6 +115,7 @@ public fun TextArea(
     value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     rows: Int = 0,
     columns: Int = 0,
     editable: Boolean = true,
@@ -116,6 +128,7 @@ public fun TextArea(
         value = value,
         mirror = mirror,
         modifier = modifier.documentListener(documentListener).textMirror(mirror),
+        style = style,
         rows = rows,
         columns = columns,
         editable = editable,
@@ -136,6 +149,7 @@ private inline fun TextAreaNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,
+    style: SwingStyle<TextStyleScope>,
     rows: Int,
     columns: Int,
     editable: Boolean,
@@ -145,7 +159,7 @@ private inline fun TextAreaNode(
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
-        modifier = modifier,
+        modifier = modifier.styleable(style, TextAreaKind),
         update = {
             update(rows) {
                 this.rows = it
@@ -172,6 +186,7 @@ private inline fun TextAreaNode(
  *
  * @param state the hoistable text state the area renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
  *   takes the height from the text it holds
  * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
@@ -188,6 +203,7 @@ private inline fun TextAreaNode(
 public fun TextArea(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     rows: Int = 0,
     columns: Int = 0,
     editable: Boolean = true,
@@ -197,7 +213,7 @@ public fun TextArea(
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
-        modifier = modifier.documentStateBinding(state).tabSize(state, tabSize),
+        modifier = modifier.documentStateBinding(state).tabSize(state, tabSize).styleable(style, TextAreaKind),
         update = {
             update(rows) {
                 this.rows = it
@@ -250,3 +266,9 @@ private val TabSizeProperty =
         read = { TabSizeValue(state = null, size = it.tabSize) },
         write = { area, value -> area.tabSize = value.size },
     )
+
+private val TextAreaKind =
+    nestingStyleKind<TextStyleScope, Unit>({ base, _ -> object : TextStyleScope, ComponentStyleScope by base {} }) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(TextAreas)
+    }

@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.Insets
@@ -34,7 +34,11 @@ internal fun ColumnScope.GridLayoutCard() {
         Label("$rows rows x $cols columns")
         Panel(
             PanelLayout.Grid(rows = rows, cols = cols, hgap = 6, vgap = 6),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(320, 120)),
+            modifier = SwingModifier.layoutPanelTrack(),
+            style = {
+                layoutPanelTrack()
+                preferredSize(Dimension(320, 120))
+            },
         ) {
             repeat(6) { index -> LayoutRegionSwatch("Cell ${index + 1}", GRID_COLORS[index]) }
         }
@@ -55,51 +59,63 @@ internal fun ColumnScope.GridBagLayoutCard() {
             "Button: ${buttonWidth}px; fill = ${if (fillsRemainingWidth) "HORIZONTAL" else "NONE"}; " +
                 "weightx = ${if (fillsRemainingWidth) "1.0" else "0.0"}",
         )
-        Panel(
-            PanelLayout.GridBag,
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(360, 128)),
-        ) {
-            LayoutRegionSwatch(
-                "Name",
-                LayoutSampleColors.Blue,
-                SwingModifier.item(
-                    gridx = 0,
-                    gridy = 0,
-                    anchor = GridBagConstraints.LINE_END,
-                    insets = Insets(4, 4, 4, 4),
-                ),
-                width = 64,
-            )
-            Button(
-                "Pick a name",
-                onClick = { },
-                modifier =
-                    SwingModifier
-                        .item(
-                            gridx = 1,
-                            gridy = 0,
-                            weightx = if (fillsRemainingWidth) 1.0 else 0.0,
-                            fill =
-                                if (fillsRemainingWidth) {
-                                    GridBagConstraints.HORIZONTAL
-                                } else {
-                                    GridBagConstraints.NONE
-                                },
-                            insets = Insets(4, 4, 4, 4),
-                        ).componentListener(onComponentResized = { buttonWidth = it.component.width }),
-            )
-            LayoutRegionSwatch(
-                "A row spanning the remaining columns",
-                LayoutSampleColors.Orange,
-                SwingModifier.item(
-                    gridx = 0,
-                    gridy = 1,
-                    gridwidth = GridBagConstraints.REMAINDER,
-                    weightx = 1.0,
-                    fill = GridBagConstraints.HORIZONTAL,
-                ),
-            )
-        }
+        GridBagLayoutExample(fillsRemainingWidth) { buttonWidth = it }
+    }
+}
+
+@Composable
+private fun GridBagLayoutExample(
+    fillsRemainingWidth: Boolean,
+    onButtonResize: (Int) -> Unit,
+) {
+    Panel(
+        PanelLayout.GridBag,
+        modifier = SwingModifier.layoutPanelTrack(),
+        style = {
+            layoutPanelTrack()
+            preferredSize(Dimension(360, 128))
+        },
+    ) {
+        LayoutRegionSwatch(
+            "Name",
+            LayoutSampleColors.Blue,
+            SwingModifier.item(
+                gridx = 0,
+                gridy = 0,
+                anchor = GridBagConstraints.LINE_END,
+                insets = Insets(4, 4, 4, 4),
+            ),
+            width = 64,
+        )
+        Button(
+            "Pick a name",
+            onClick = { },
+            modifier =
+                SwingModifier
+                    .item(
+                        gridx = 1,
+                        gridy = 0,
+                        weightx = if (fillsRemainingWidth) 1.0 else 0.0,
+                        fill =
+                            if (fillsRemainingWidth) {
+                                GridBagConstraints.HORIZONTAL
+                            } else {
+                                GridBagConstraints.NONE
+                            },
+                        insets = Insets(4, 4, 4, 4),
+                    ).componentListener(onComponentResized = { onButtonResize(it.component.width) }),
+        )
+        LayoutRegionSwatch(
+            "A row spanning the remaining columns",
+            LayoutSampleColors.Orange,
+            SwingModifier.item(
+                gridx = 0,
+                gridy = 1,
+                gridwidth = GridBagConstraints.REMAINDER,
+                weightx = 1.0,
+                fill = GridBagConstraints.HORIZONTAL,
+            ),
+        )
     }
 }
 
@@ -114,7 +130,11 @@ internal fun ColumnScope.CardDeckCard() {
         }
         Panel(
             PanelLayout.Card(selectedCard = shown),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(320, 60)),
+            modifier = SwingModifier.layoutPanelTrack(),
+            style = {
+                layoutPanelTrack()
+                preferredSize(Dimension(320, 60))
+            },
         ) {
             LayoutRegionSwatch("Card A", LayoutSampleColors.Blue, SwingModifier.card("A"))
             LayoutRegionSwatch("Card B", LayoutSampleColors.Green, SwingModifier.card("B"))

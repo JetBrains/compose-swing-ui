@@ -15,9 +15,9 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -122,7 +122,12 @@ class InitialFocusTest {
                 Panel {
                     moveToFirst = rememberFocusRequester()
                     TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
-                    TextField("second", onValueChange = {}, modifier = SwingModifier.visible(shown).initialFocus())
+                    TextField(
+                        "second",
+                        onValueChange = {},
+                        modifier = SwingModifier.initialFocus(),
+                        style = { visible(shown) },
+                    )
                 }
             }
         }
@@ -215,8 +220,8 @@ class InitialFocusTest {
                     TextField(
                         "second",
                         onValueChange = {},
-                        modifier =
-                            SwingModifier.visible(shown).let { if (declared) it.initialFocus() else it },
+                        modifier = if (declared) SwingModifier.initialFocus() else SwingModifier,
+                        style = { visible(shown) },
                     )
                 }
             }
@@ -288,7 +293,12 @@ class InitialFocusTest {
                     // Declared while hidden, so the declaration is still waiting for the component when
                     // the window opens: the focus it takes is taken on the component's own first showing
                     // rather than on the window's.
-                    TextField("second", onValueChange = {}, modifier = SwingModifier.visible(shown).initialFocus())
+                    TextField(
+                        "second",
+                        onValueChange = {},
+                        modifier = SwingModifier.initialFocus(),
+                        style = { visible(shown) },
+                    )
                 }
             }
         }

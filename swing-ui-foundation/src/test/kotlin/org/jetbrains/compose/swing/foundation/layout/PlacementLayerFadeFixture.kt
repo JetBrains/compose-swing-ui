@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Named
@@ -179,7 +180,7 @@ internal fun FadeContent(
             val modifier =
                 SwingModifier
                     .testTag("content")
-                    .preferredSize(side, side)
+                    .styleable { preferredSize(side, side) }
                     .then(tap ?: SwingModifier)
                     .then(effect.outer)
                     .then(fixture.contentModifier)

@@ -8,6 +8,8 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.components.style.ToolBarStyleScope
+import org.jetbrains.compose.swing.components.style.ToolBars
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
@@ -18,6 +20,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declaredName
 import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.BorderLayout
 import java.awt.event.HierarchyEvent
 import javax.swing.JToolBar
@@ -63,6 +70,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * composition while floating takes its window with it.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JToolBar`
+ * @param style the [SwingStyle] applied to the underlying `JToolBar`
  * @param orientation the axis along which items are laid out (an [Orientation] `SwingConstants` value);
  *   the default `HORIZONTAL` lays them out along the bar's reading order
  * @param floatable whether the user can drag the tool bar out into a window of its own, and, while it
@@ -86,6 +94,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
 @Composable
 public fun ToolBar(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ToolBarStyleScope> = SwingStyle,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
     floatable: Boolean? = null,
     floating: Boolean = false,
@@ -143,7 +152,8 @@ public fun ToolBar(
                         reportedFloating[0] = standing
                         onFloatingChange(standing)
                     }
-                }.declaredFloatable(floatable),
+                }.declaredFloatable(floatable)
+                .styleable(style, ToolBarKind),
         update = {
             set(orientation) { this.orientation = it }
             update(rollover) { isRollover = it ?: LookAndFeelDefaults.toolBarRollover }
@@ -303,3 +313,11 @@ private fun JToolBar.applyFloating(floating: Boolean) {
     if (floating && SwingUtilities.getWindowAncestor(this) == null) return
     toolBarUi.setFloating(floating, null)
 }
+
+private val ToolBarKind =
+    nestingStyleKind<ToolBarStyleScope, Unit>(
+        { base, _ -> object : ToolBarStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(ToolBars)
+    }

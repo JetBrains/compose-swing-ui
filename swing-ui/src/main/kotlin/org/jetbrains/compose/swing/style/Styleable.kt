@@ -4,6 +4,40 @@
 package org.jetbrains.compose.swing.style
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import java.awt.Component
+import javax.swing.JComponent
+
+/**
+ * Declares [style] as the component's style. The style can set every java.awt.Component and JComponent property
+ * and provide nested styles to the components below. Put it last in the modifier.
+ *
+ * Throws IllegalArgumentException when applied to a component that is not a JComponent; use the overload taking
+ * a SwingStyleKind there.
+ *
+ * A component takes one styleable: a second one in the same modifier throws IllegalArgumentException.
+ */
+public fun SwingModifier.styleable(style: SwingStyle<ContainerStyleScope>): SwingModifier =
+    styleable(style, ContainerKind)
+
+internal val ContainerKind =
+    SwingStyleKind<ContainerStyleScope, Unit>(
+        scope = { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+        default = SwingStyle,
+        defaultOnlyNests = false,
+        requiredType = JComponent::class.java,
+    )
+
+/** Fails when [kind] requires a component type that [component] is not. */
+internal fun requireKindTarget(
+    kind: SwingStyleKind<*, *>,
+    component: Component,
+) {
+    val required = kind.requiredType
+    require(required.isInstance(component)) {
+        "styleable(style) needs a ${required.name}, but the component is a ${component.javaClass.name}; " +
+            "use the styleable overload taking a SwingStyleKind."
+    }
+}
 
 /**
  * Applies [kind]'s default style followed by [style] to this component.

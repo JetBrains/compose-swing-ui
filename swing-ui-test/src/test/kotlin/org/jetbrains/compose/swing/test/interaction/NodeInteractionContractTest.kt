@@ -7,8 +7,8 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -150,7 +150,7 @@ class NodeInteractionContractTest {
 
     @Test
     fun assertIsVisibleFailsForANodeHiddenByItsOwnFlag() = runComposeSwingTest {
-        setContent { Label(text = "hidden", modifier = SwingModifier.visible(false)) }
+        setContent { Label(text = "hidden", style = { visible(false) }) }
 
         val failure = assertFailsWith<AssertionError> { onNodeWithText("hidden").assertIsVisible() }
         val message = failure.message.orEmpty()
@@ -161,7 +161,7 @@ class NodeInteractionContractTest {
     @Test
     fun assertIsVisibleFailsForANodeHiddenByAnAncestorAndNamesIt() = runComposeSwingTest {
         setContent {
-            Panel(PanelLayout.Flow(), modifier = SwingModifier.visible(false)) {
+            Panel(PanelLayout.Flow(), style = { visible(false) }) {
                 Label(text = "child")
             }
         }
