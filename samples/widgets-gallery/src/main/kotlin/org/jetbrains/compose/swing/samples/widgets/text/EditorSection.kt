@@ -13,13 +13,13 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.caretUpdatePolicy
+import org.jetbrains.compose.swing.components.style.highlights
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.highlights
-import org.jetbrains.compose.swing.modifier.interaction.caretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.listener.caretListener
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -164,7 +164,7 @@ private fun ColumnScope.HighlightCard() {
         TextArea(
             value = source,
             onValueChange = { source = it },
-            modifier = SwingModifier.highlights(matches, painter),
+            style = { highlights(matches, painter) },
             rows = 4,
             columns = 50,
             lineWrap = true,
@@ -219,8 +219,8 @@ private fun ColumnScope.CaretCard() {
                     modifier =
                         SwingModifier
                             .caretListener(caretMoveListener)
-                            .documentListener(documentEditListener)
-                            .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
+                            .documentListener(documentEditListener),
+                    style = { caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second) },
                     rows = 6,
                     columns = 40,
                 )

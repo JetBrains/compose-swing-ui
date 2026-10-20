@@ -288,7 +288,7 @@ A `SwingModifier` differs from `androidx.compose.ui.Modifier` in these ways:
   modifier (see [Rebuilding with `key`](#rebuilding-with-key)).
 - **Matched by kind.** An AndroidX `Modifier` chain is diffed as one list. Here a property element is
   matched by its key, and additive and parent-layout elements each by position among their own kind, so
-  an element inserted before others of its kind moves each of them one slot along: a slot's node is
+  an element inserted before others of its kind moves each of them one place along: its node is
   updated with the element it now gets, or replaced where that element's class differs.
 - **No head-to-tail attach order.** The nodes of a modifier attach together, so during `onAttach()` and
   `onDetach()` every node of the modifier is attached, whatever its place in the modifier (see

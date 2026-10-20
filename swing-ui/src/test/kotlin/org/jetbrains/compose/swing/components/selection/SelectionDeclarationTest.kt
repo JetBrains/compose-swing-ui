@@ -472,10 +472,11 @@ class SelectionDeclarationTest {
         ) { selectedLabels() }
     }
 
+    // Tests the deprecated renderer modifier forwarding.
+    @Suppress("DEPRECATION")
     @Test
     fun everySelectionBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { listItemRenderer(DefaultListCellRenderer()) }
-        assertDeclaredChainCarriedOnce { declaredListItemRenderer(DefaultListCellRenderer()) }
         assertDeclaredChainCarriedOnce { listCellSizing(null, 1, 1) }
         assertDeclaredChainCarriedOnce { listStateBinding(ListState()) }
         assertDeclaredChainCarriedOnce { tableStateBinding(TableState()) }

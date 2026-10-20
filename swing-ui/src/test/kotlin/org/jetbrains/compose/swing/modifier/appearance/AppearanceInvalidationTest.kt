@@ -26,7 +26,6 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
-import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -312,11 +311,6 @@ class AppearanceInvalidationTest {
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
-        assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { disabledTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { highlights(emptyList(), DefaultHighlightPainter(Color.RED)) }
         assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
         assertDeclaredChainCarriedOnce { iconTextGap(4) }

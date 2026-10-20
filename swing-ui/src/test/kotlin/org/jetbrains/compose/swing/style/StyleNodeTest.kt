@@ -1,23 +1,17 @@
 package org.jetbrains.compose.swing.style
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.RememberObserver
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
@@ -26,7 +20,6 @@ import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -75,6 +68,22 @@ internal class StyleNodeTest {
         verify(exactly = 0) { state.onRemembered() }
         verify(exactly = 0) { state.onForgotten() }
         verify(exactly = 0) { state.onAbandoned() }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rejectedElements")
+    fun stylePropertyRejectsUnsupportedElements(element: SwingModifier.Element) {
+        val property = stylePropertyOf<Unit> { element }
+        assertFailsWith<IllegalArgumentException> {
+            runComposeSwingTest {
+                setContent {
+                    SwingNode(
+                        factory = { JLabel() },
+                        modifier = SwingModifier.styleable(PlainProbe) { property.provide(Unit) },
+                    )
+                }
+            }
+        }
     }
 
     @Test
@@ -177,126 +186,6 @@ internal class StyleNodeTest {
             }
         }
         assertEquals(Color.RED, target.background)
-    }
-
-    @Test
-    fun aChangingStyleAndARepeatedOtherKeyRemainValidAcrossRecompositions() = runComposeSwingTest {
-        var tip by mutableStateOf("first")
-        setContent {
-            val current = tip
-            SwingNode(
-                factory = { JLabel() },
-                modifier =
-                    SwingModifier
-                        .testTag("first")
-                        .testTag("last")
-                        .styleable(PlainProbe) { LabelToolTip.provide(current) },
-            )
-        }
-        onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("first") { toolTipText }
-        tip = "second"
-        awaitIdle()
-        onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("second") { toolTipText }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun aNodeObservingStateStopsWhenItsStyleStopsSettingIt(inParentLayout: Boolean) = runComposeSwingTest {
-        var present by mutableStateOf(true)
-        val watched = mutableIntStateOf(0)
-        var changes = 0
-        var detaches = 0
-        val observing =
-            stylePropertyOf<Unit> {
-                if (inParentLayout) {
-                    ObservingLayoutElement(watched::intValue, { detaches++ }) { changes++ }
-                } else {
-                    ObservingElement(watched::intValue, { detaches++ }) { changes++ }
-                }
-            }
-        setContent {
-            SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = SwingModifier.styleable(PlainProbe) { if (present) observing.provide(Unit) },
-                )
-            }
-        }
-        watched.intValue = 1
-        awaitIdle()
-        assertEquals(1, changes, "the node hears a change while the style sets it")
-
-        present = false
-        awaitIdle()
-        assertEquals(1, detaches, "the node leaves with the value")
-
-        watched.intValue = 2
-        awaitIdle()
-        assertEquals(1, changes, "a node that left hears no change")
-
-        present = true
-        awaitIdle()
-        watched.intValue = 3
-        awaitIdle()
-        assertEquals(2, changes, "a value set again observes again")
-    }
-
-    @Test
-    fun aStyledComponentMovedToAnotherCompositionKeepsObservingThroughBothKindsOfDeclaration() = runComposeSwingTest {
-        var inOuter by mutableStateOf(false)
-        val watched = mutableIntStateOf(0)
-        var propertyObserved = -1
-        var layoutObserved = -1
-        val property =
-            stylePropertyOf<Unit> { ObservingElement({ watched.intValue.also { propertyObserved = it } }, {}, {}) }
-        val layoutProperty =
-            stylePropertyOf<Unit> { ObservingLayoutElement({ watched.intValue.also { layoutObserved = it } }, {}, {}) }
-        val modifier =
-            SwingModifier.styleable(PlainProbe) {
-                property.provide(Unit)
-                layoutProperty.provide(Unit)
-            }
-        val host = JPanel(RecordingMeasurementLayout(FlowLayout()))
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
-        setContent {
-            context = rememberCompositionContext()
-            content =
-                remember {
-                    movableContentOf {
-                        SwingNode(factory = { JLabel("moved") }, modifier = modifier)
-                    }
-                }
-            SwingNode(factory = { host })
-            SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
-                if (inOuter) content()
-            }
-        }
-        val handle = host.setContent(parent = context) { if (!inOuter) content() }
-        awaitIdle()
-        inOuter = true
-        awaitIdle()
-        handle.dispose()
-        watched.intValue++
-        awaitIdle()
-
-        assertEquals(listOf(1, 1), listOf(propertyObserved, layoutObserved), "both keep observing in their new place")
-    }
-
-    @Test
-    fun anUnstyledComponentOfAThirdPartyNestingKindRunsNoDefault() = runComposeSwingTest {
-        var defaultRuns = 0
-        val kind =
-            nestingStyleKind<ProbeScope, Unit>(
-                { base, _ -> object : ProbeScope, ComponentStyleScope by base {} },
-            ) {
-                defaultRuns++
-                applyNestedStyle(Probes)
-            }
-        setContent {
-            SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(kind, SwingStyle))
-        }
-        assertEquals(0, defaultRuns, "nothing above provides, so the default is not run")
     }
 
     @Test
@@ -480,80 +369,81 @@ internal class StyleNodeTest {
     }
 
     @Test
-    fun aProvidedStyleStillAppliesWhereADescendantOverridesALocalTheProviderReads() = runComposeSwingTest {
-        setContent {
-            SwingNode(
-                factory = { JPanel() },
-                modifier =
-                    SwingModifier.styleable(PlainProbeContainer) {
-                        if (LocalFlag.currentValue) {
-                            provideNestedStyle(Probes) { LabelToolTip.provide("provided") }
-                        }
-                    },
-            ) {
-                CompositionLocalProvider(LocalFlag provides false) {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = SwingModifier.styleable(NestedProbe, SwingStyle),
-                    )
-                }
-            }
-        }
-
-        onNodeOfType<JLabel>().assertProperty("provided") { toolTipText }
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("localKinds")
-    fun aLocalTheProviderReadsReachesADescendantThatOverridesIt(
-        localTip: ProvidableCompositionLocal<String>,
-        readInsideBlock: Boolean,
-    ) = runComposeSwingTest {
+    fun aChangingStyleAndARepeatedOtherKeyRemainValidAcrossRecompositions() = runComposeSwingTest {
         var tip by mutableStateOf("first")
         setContent {
-            CompositionLocalProvider(localTip provides tip) {
-                SwingNode(
-                    factory = { JPanel() },
-                    modifier =
-                        SwingModifier.styleable(PlainProbeContainer) {
-                            if (readInsideBlock) {
-                                provideNestedStyle(Probes) { LabelToolTip.provide(localTip.currentValue) }
-                            } else {
-                                val read = localTip.currentValue
-                                provideNestedStyle(Probes) { LabelToolTip.provide(read) }
-                            }
-                        },
-                ) {
-                    CompositionLocalProvider(localTip provides "override") {
-                        SwingNode(
-                            factory = { JLabel() },
-                            modifier = SwingModifier.styleable(NestedProbe, SwingStyle),
-                        )
-                    }
-                }
-            }
+            val current = tip
+            SwingNode(
+                factory = { JLabel() },
+                modifier =
+                    SwingModifier
+                        .testTag("first")
+                        .testTag("last")
+                        .styleable(PlainProbe) { LabelToolTip.provide(current) },
+            )
         }
-        onNodeOfType<JLabel>().assertProperty("first") { toolTipText }
-
+        onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("first") { toolTipText }
         tip = "second"
         awaitIdle()
+        onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("second") { toolTipText }
+    }
 
-        onNodeOfType<JLabel>().assertProperty("second") { toolTipText }
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun aNodeObservingStateStopsWhenItsStyleStopsSettingIt(inParentLayout: Boolean) = runComposeSwingTest {
+        var present by mutableStateOf(true)
+        val watched = mutableIntStateOf(0)
+        var changes = 0
+        var detaches = 0
+        val observing =
+            stylePropertyOf<Unit> {
+                if (inParentLayout) {
+                    ObservingLayoutElement(watched::intValue, { detaches++ }) { changes++ }
+                } else {
+                    ObservingElement(watched::intValue, { detaches++ }) { changes++ }
+                }
+            }
+        setContent {
+            SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
+                SwingNode(
+                    factory = { JLabel() },
+                    modifier = SwingModifier.styleable(PlainProbe) { if (present) observing.provide(Unit) },
+                )
+            }
+        }
+        watched.intValue = 1
+        awaitIdle()
+        assertEquals(1, changes, "the node hears a change while the style sets it")
+
+        present = false
+        awaitIdle()
+        assertEquals(1, detaches, "the node leaves with the value")
+
+        watched.intValue = 2
+        awaitIdle()
+        assertEquals(1, changes, "a node that left hears no change")
+
+        present = true
+        awaitIdle()
+        watched.intValue = 3
+        awaitIdle()
+        assertEquals(2, changes, "a value set again observes again")
     }
 
     @Test
-    fun anAdditiveElementInAStyleIsRefused() {
-        val additive = stylePropertyOf<Unit> { AdditiveElement }
-        assertFailsWith<IllegalArgumentException> {
-            runComposeSwingTest {
-                setContent {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = SwingModifier.styleable(PlainProbe) { additive.provide(Unit) },
-                    )
-                }
+    fun anUnstyledComponentOfAThirdPartyNestingKindRunsNoDefault() = runComposeSwingTest {
+        var defaultRuns = 0
+        val kind =
+            nestingStyleKind<ProbeScope, Unit>(
+                { base, _ -> object : ProbeScope, ComponentStyleScope by base {} },
+            ) {
+                defaultRuns++
+                applyNestedStyle(Probes)
             }
+        setContent {
+            SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(kind, SwingStyle))
         }
+        assertEquals(0, defaultRuns, "nothing above provides, so the default is not run")
     }
 
     /** A way to combine two styles, and the first property it leaves for the second style's [String] value. */
@@ -601,15 +491,10 @@ internal class StyleNodeTest {
         )
 
         @JvmStatic
-        fun localKinds(): List<Arguments> = listOf(
-            "static" to staticCompositionLocalOf { "unset" },
-            "dynamic" to compositionLocalOf { "unset" },
-        ).flatMap { (kind, local) ->
-            listOf(false, true).map { inside ->
-                val position = if (inside) "inside" else "outside"
-                Arguments.of(Named.of("$kind local read $position the block", local), inside)
-            }
-        }
+        fun rejectedElements(): List<Arguments> = listOf(
+            Arguments.of(Named.of("additive element", AdditiveElement)),
+            Arguments.of(Named.of("component and parent layout element", DualRoleElement)),
+        )
     }
 }
 
@@ -627,4 +512,24 @@ private object AdditiveElement : SwingModifier.NodeElement<Component, SwingModif
     override fun hashCode(): Int = 1
 }
 
-private val LocalFlag = staticCompositionLocalOf { true }
+private object DualRoleElement :
+    SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>(),
+    ParentLayoutElement {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override val parentProtocol: ParentProtocol = parentProtocolOf("dual role") { true }
+
+    override val key: Any get() = javaClass
+
+    override val additive: Boolean get() = false
+
+    override val inheritable: Boolean get() = false
+
+    override fun create(): SwingModifier.ComponentNode<Component> = object : SwingModifier.ComponentNode<Component>() {}
+
+    override fun update(node: SwingModifier.ComponentNode<Component>) = Unit
+
+    override fun equals(other: Any?): Boolean = other === this
+
+    override fun hashCode(): Int = 1
+}

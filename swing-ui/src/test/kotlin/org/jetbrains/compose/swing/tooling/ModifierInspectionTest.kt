@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.tooling
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -26,9 +27,13 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.core.awaitUntil
 import org.jetbrains.compose.swing.defaults.DefaultBackground
 import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
 import org.jetbrains.compose.swing.defaults.provides
+import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.highlights
@@ -52,6 +57,8 @@ import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.styleNode
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -65,6 +72,7 @@ import java.awt.Component
 import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.KeyStroke
 import javax.swing.SpinnerNumberModel
 import javax.swing.SwingUtilities
@@ -77,10 +85,12 @@ import javax.swing.text.DefaultHighlighter
 import javax.swing.text.DocumentFilter
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
 private const val CHAIN_LABEL_TAG = "chain-label"
@@ -329,6 +339,8 @@ class ModifierInspectionTest {
         )
     }
 
+    // Tests the deprecated modifier forwarding and its declared elements.
+    @Suppress("DEPRECATION")
     @Test
     fun anAppearanceElementNamesThePropertyItWritesAndDeclaresItsArgument() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
@@ -336,6 +348,7 @@ class ModifierInspectionTest {
         val ranges = listOf(TextRange(0, 2))
         setContent {
             Panel {
+                Label("hello", modifier = SwingModifier.testTag("hinted").toolTip("What this does"))
                 TextArea(
                     state = rememberDocumentState("hello"),
                     modifier = SwingModifier.testTag("marked").highlights(ranges, painter),
@@ -344,12 +357,19 @@ class ModifierInspectionTest {
         }
 
         assertEquals(
+            mapOf("text" to "What this does"),
+            declaredBy("hinted", "toolTip"),
+            "a tooltip declares the text it was given",
+        )
+        assertEquals(
             mapOf("ranges" to ranges, "painter" to painter),
             declaredBy("marked", "highlights"),
             "a highlight declares both the spans it marks and the painter that draws them",
         )
     }
 
+    // Tests the deprecated modifier forwarding and its declared elements.
+    @Suppress("DEPRECATION")
     @Test
     fun aTextEditingElementNamesWhatItInstallsOnTheField() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
@@ -563,14 +583,12 @@ class ModifierInspectionTest {
                 onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode<*>,
                 "no composition declared the label",
             )
-        val chain =
+        assertEquals(
+            listOf("testTag" to mapOf("testTag" to CHAIN_LABEL_TAG), "name" to mapOf("name" to "x")),
             node.modifier.foldIn(listOf<Pair<String, Map<String, Any?>>>()) { acc, element ->
                 val inspectable = assertIs<SwingModifier.InspectableElement>(element, "a chain entry: $element")
                 acc + (inspectable.name to inspectable.declaredValues)
-            }
-        assertEquals(
-            listOf("testTag" to mapOf("testTag" to CHAIN_LABEL_TAG), "name" to mapOf("name" to "x")),
-            chain,
+            },
             "the chain should hold the factory's entries in place of the composed one",
         )
     }
@@ -623,14 +641,95 @@ class ModifierInspectionTest {
         val style = SwingStyle<LabelStyleScope> { background(Color.RED) }
         setContent { Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG), style = style) }
 
-        val chain = onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain()
-        assertEquals(
-            listOf("testTag", "styleable"),
-            chain.map { it.first },
-            "the style stands after the modifier as one element; the properties it sets are not elements",
-        )
-        assertSame(style, chain.last().second["style"], "the style element reports the style the caller passed")
+        onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain().let { chain ->
+            assertEquals(
+                listOf("testTag", "styleable"),
+                chain.map { it.first },
+                "the style stands after the modifier as one element; the properties it sets are not elements",
+            )
+            assertSame(style, chain.last().second["style"], "the style element reports the style the caller passed")
+        }
         onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(Color.RED) { background }
+    }
+
+    @Test
+    fun oneInstalledDeclarationIsReportedUnderOneIdentityAcrossItsWritesAndItsRestore() = runSwingTest {
+        val diagnostics = RecordingDiagnostics()
+        var propertyValue by mutableStateOf<String?>("first")
+        mounted(diagnostics, { Label("target", modifier = testProperty(propertyValue)) }) {
+            propertyValue = "second"
+            awaitUntil("the rebound value is written") { diagnostics.declared.size == 2 }
+            propertyValue = "third"
+            awaitUntil("the third value is written") { diagnostics.declared.size == 3 }
+            propertyValue = null
+            awaitUntil("the declaration is restored") { diagnostics.restored.isNotEmpty() }
+
+            val identity = diagnostics.declared.first()
+            diagnostics.declared.forEach { assertSame(identity, it, "every write reports the installed declaration") }
+            assertSame(identity, diagnostics.restored.single(), "its restore reports the same declaration")
+        }
+    }
+
+    @Test
+    fun aReboundModifierElementKeepsTheIdentityAndReportsTheElementCurrentAtEachWrite() = runSwingTest {
+        val diagnostics = RecordingDiagnostics()
+        var propertyValue by mutableStateOf<String?>("first")
+        mounted(diagnostics, { Label("target", modifier = testProperty(propertyValue)) }) {
+            propertyValue = "second"
+            awaitUntil("the rebound value is written") { diagnostics.declared.size == 2 }
+
+            assertSame(diagnostics.declared[0], diagnostics.declared[1])
+            assertNotSame(
+                diagnostics.modifiers[0],
+                diagnostics.modifiers[1],
+                "the rebound declaration reports its replacement element, not the first one",
+            )
+        }
+    }
+
+    @Test
+    fun eachDeclarationOfAComponentIsReportedUnderAnIdentityOfItsOwn() = runSwingTest {
+        val diagnostics = RecordingDiagnostics()
+        var declared by mutableStateOf(true)
+        val both = SwingModifier.clientProperty("testKey", "first").name("declared")
+        mounted(diagnostics, { Label("target", modifier = if (declared) both else SwingModifier) }) {
+            declared = false
+            awaitUntil("both declarations are restored") { diagnostics.restored.size == 2 }
+
+            assertEquals(2, diagnostics.declared.size)
+            assertNotSame(diagnostics.declared[0], diagnostics.declared[1])
+            assertEquals(
+                diagnostics.declared.toSet(),
+                diagnostics.restored.toSet(),
+                "each restore reports the identity its declaration was written under",
+            )
+        }
+    }
+
+    @Test
+    fun aStyleBearingChainAttachedWholeReportsEachDeclarationUnderAnIdentityOfItsOwn() = runSwingTest {
+        val diagnostics = RecordingDiagnostics()
+        var declared by mutableStateOf(true)
+        mounted(
+            diagnostics,
+            {
+                Label(
+                    "target",
+                    modifier = if (declared) SwingModifier.name("declared") else SwingModifier,
+                    style = { if (declared) background(Color.RED) },
+                )
+            },
+        ) {
+            assertEquals(2, diagnostics.declared.size, "the modifier and the style property are each declared once")
+            assertNotSame(diagnostics.declared[0], diagnostics.declared[1])
+            val components = diagnostics.declared.mapTo(HashSet()) { it.component }
+            assertEquals(1, components.size)
+            assertContains(diagnostics.modifiers.map { it.name }, "name")
+
+            declared = false
+            awaitUntil("both declarations are restored") { diagnostics.restored.size == 2 }
+            assertEquals(diagnostics.declared.toSet(), diagnostics.restored.toSet())
+        }
     }
 }
 
@@ -674,4 +773,47 @@ private class UnnamedElement : SwingModifier.NodeElement<Component, SwingModifie
     override fun equals(other: Any?): Boolean = other is UnnamedElement
 
     override fun hashCode(): Int = javaClass.hashCode()
+}
+
+/** Mounts [content] over a recomposer that reports to [diagnostics], runs [body], and disposes both. */
+private suspend fun mounted(
+    diagnostics: SwingCompositionDiagnostics,
+    content: @Composable () -> Unit,
+    body: suspend () -> Unit,
+) {
+    val recomposer = SwingRecomposer.create(JPanel(), effectContext = diagnostics)
+    val handle = JPanel().setContent(parent = recomposer.compositionContext, content = content)
+    try {
+        body()
+    } finally {
+        handle.dispose()
+        recomposer.dispose()
+    }
+}
+
+private fun testProperty(value: String?): SwingModifier =
+    if (value == null) SwingModifier else SwingModifier.clientProperty("testKey", value)
+
+/** Records every declaration the composition reports, with the element each write was made for. */
+private class RecordingDiagnostics : SwingCompositionDiagnostics {
+    val declared = mutableListOf<ModifierInfo>()
+    val modifiers = mutableListOf<SwingModifier.NodeElement<*, *>>()
+    val restored = mutableListOf<ModifierInfo>()
+
+    override fun declaring(
+        info: ModifierInfo,
+        write: () -> Unit,
+    ) {
+        declared += info
+        modifiers += info.modifier
+        write()
+    }
+
+    override fun restoring(
+        info: ModifierInfo,
+        restore: () -> Unit,
+    ) {
+        restored += info
+        restore()
+    }
 }

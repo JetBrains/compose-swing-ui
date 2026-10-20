@@ -4,11 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.style.Labels
@@ -29,6 +31,8 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
+import java.awt.FlowLayout
+import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JMenu
@@ -41,6 +45,78 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 internal class StyleCompositionMoveTest {
+    @Test
+    fun movedComponentRestoresCapturedValues() = runComposeSwingTest {
+        val original = BorderFactory.createLineBorder(Color.RED)
+        val label =
+            JLabel("X").apply {
+                toolTipText = "built-in"
+                border = original
+            }
+        var styled by mutableStateOf(true)
+        var inOuter by mutableStateOf(false)
+        val moved =
+            movableContentOf {
+                SwingNode(
+                    factory = { label },
+                    modifier =
+                        if (styled) {
+                            SwingModifier.styleable(TestNodeKind) {
+                                toolTip("hint")
+                                emptyBorder(8)
+                            }
+                        } else {
+                            SwingModifier
+                        },
+                )
+            }
+        val nested = nestedContent({ inOuter }, moved)
+        try {
+            awaitIdle()
+            inOuter = true
+            awaitIdle()
+            onNodeOfType<JLabel>().assertProperty("hint", "the style should apply after the move") { toolTipText }
+
+            styled = false
+            awaitIdle()
+            onNodeOfType<JLabel>()
+                .assertProperty("built-in", "removing the style should restore the tooltip it carried") { toolTipText }
+                .assertProperty(true, "removing the style should restore the border it carried") { border === original }
+        } finally {
+            nested.dispose()
+        }
+    }
+
+    @Test
+    fun aStyledComponentMovedToAnotherCompositionKeepsObservingThroughBothKindsOfDeclaration() = runComposeSwingTest {
+        var inOuter by mutableStateOf(false)
+        val watched = mutableIntStateOf(0)
+        var propertyObserved = -1
+        var layoutObserved = -1
+        val property =
+            stylePropertyOf<Unit> { ObservingElement({ watched.intValue.also { propertyObserved = it } }, {}, {}) }
+        val layoutProperty =
+            stylePropertyOf<Unit> { ObservingLayoutElement({ watched.intValue.also { layoutObserved = it } }, {}, {}) }
+        val modifier =
+            SwingModifier.styleable(PlainProbe) {
+                property.provide(Unit)
+                layoutProperty.provide(Unit)
+            }
+        val moved = movableContentOf { SwingNode(factory = { JLabel("moved") }, modifier = modifier) }
+        val handle = nestedContent({ inOuter }, moved)
+        try {
+            awaitIdle()
+            inOuter = true
+            awaitIdle()
+        } finally {
+            handle.dispose()
+        }
+        watched.intValue++
+        awaitIdle()
+
+        assertEquals(listOf(1, 1), listOf(propertyObserved, layoutObserved), "both keep observing in their new place")
+    }
+
     @Test
     fun aStyleChangeAfterAnAttachFailedOnMoveSurfacesTheFailingPropertyAndKeepsEarlierValues() = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
@@ -88,12 +164,14 @@ internal class StyleCompositionMoveTest {
         inOuter: () -> Boolean,
         moved: @Composable () -> Unit,
     ): DisposableHandle {
-        val host = JPanel()
+        val host = JPanel(RecordingMeasurementLayout(FlowLayout()))
         lateinit var context: CompositionContext
         setContent {
             context = rememberCompositionContext()
             SwingNode(factory = { host })
-            if (inOuter()) moved()
+            SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
+                if (inOuter()) moved()
+            }
         }
         return host.setContent(parent = context) { if (!inOuter()) moved() }
     }

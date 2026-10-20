@@ -4,16 +4,23 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.firstLabel
+import org.jetbrains.compose.swing.components.selection.listItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
-import java.awt.image.BufferedImage
+import javax.swing.JLabel
 import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,60 +28,75 @@ import kotlin.test.assertNotNull
 
 /** Whether a change of style asks the list that hosts a cell to repaint, since the list paints from the cell. */
 class StyleHostRepaintTest {
-    @Test
-    fun aCellStyleProvidedByRowThroughANestedProviderAsksNoRepaint() = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun aCellStyleReadingTheRowItRendersDoesNotRepaintTheList(nested: Boolean) = runComposeSwingTest {
         setContent {
+            val renderer =
+                rememberListItemRenderer<String> { item ->
+                    val row = this
+                    if (nested) {
+                        Panel(style = { provideNestedStyle(Labels) { if (row.isSelected) background(Color.RED) } }) {
+                            Panel { Label(item) }
+                        }
+                    } else {
+                        Label(item, style = { if (row.isSelected) background(Color.RED) })
+                    }
+                }
             ListBox(
                 items = listOf("first", "second"),
                 selectedIndices = setOf(0),
                 fixedCellWidth = 120,
                 fixedCellHeight = 40,
-                itemContent = { item ->
-                    val row = this
-                    Panel(
-                        style = {
-                            provideNestedStyle(Labels) { if (row.isSelected) background(Color.RED) }
-                        },
-                    ) {
-                        Panel { Label(item) }
-                    }
-                },
+                modifier = SwingModifier.listItemRenderer(renderer),
             )
         }
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.paintOnce()
-
-        withRecordedRepaints {
-            list.paintOnce()
-            assertEquals(0, it.repaintsOf(list))
+        onNodeOfType<JList<*>>().captureToImage()
+        withRecordedRepaints { recorded ->
+            onNodeOfType<JList<*>>().apply {
+                assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
+                assertProperty("second") { assertNotNull(renderCell(1).firstLabel()).text }
+                assertProperty(false) { assertNotNull(renderCell(1).firstLabel()).background == Color.RED }
+                assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
+                awaitIdle()
+                assertProperty(
+                    0,
+                    "rendering rows the list paints asks for no further paint",
+                ) { recorded.repaintsOf(this) }
+                captureToImage()
+                assertProperty(0) { recorded.repaintsOf(this) }
+            }
         }
     }
 
     @Test
-    fun aCellStyleProvidedByRowThroughANestedProviderIsAppliedBeforeTheRowIsPainted() = runComposeSwingTest {
+    @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun nestedRendererMeasuresPrototype() = runComposeSwingTest {
         setContent {
             ListBox(
-                items = listOf("first", "second"),
-                itemContent = { item ->
-                    val row = this
-                    Panel(
-                        style = {
-                            provideNestedStyle(Labels) { if (row.isSelected) background(Color.RED) }
-                        },
-                    ) {
-                        Panel { Label(item) }
-                    }
+                items = listOf("outer"),
+                modifier = SwingModifier.testTag("outer"),
+                fixedCellWidth = 120,
+                fixedCellHeight = 40,
+                itemContent = {
+                    val renderer = rememberListItemRenderer<String> { item -> Label(item) }
+                    ListBox(
+                        items = listOf("inner"),
+                        modifier = SwingModifier.listItemRenderer(renderer),
+                        prototypeCellValue = "prototype",
+                    )
                 },
             )
         }
-        onNodeOfType<JList<*>>()
-            .assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
-            .assertProperty(false) { assertNotNull(renderCell(1).firstLabel()).background == Color.RED }
-            .assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
+
+        onNodeWithTag("outer")
+            .assertIsOfType<JList<*>>()
+            .assertProperty("prototype") { (renderCell(0) as JList<*>).prototypeCellValue }
+            .assertProperty("inner") { ((renderCell(0) as JList<*>).renderCell(0) as JLabel).text }
     }
 
     @Test
-    fun paintingANestedListWithARowDependentCellStyleAsksNeitherListToRepaint() = runComposeSwingTest {
+    fun nestedRowPaintingDoesNotRepaintHosts() = runComposeSwingTest {
         setContent {
             ListBox(
                 items = listOf("first", "second"),
@@ -95,16 +117,15 @@ class StyleHostRepaintTest {
                 },
             )
         }
-        val outer = onNodeWithTag("outer").fetch() as JList<*>
-        outer.paintOnce()
-        val inner = outer.renderCell(0) as JList<*>
+        onNodeWithTag("outer").assertIsOfType<JList<*>>().captureToImage()
 
-        withRecordedRepaints {
-            outer.paintOnce()
-            assertEquals(0, it.repaintsOf(inner))
-            assertEquals(0, it.repaintsOf(outer))
+        withRecordedRepaints { repaints ->
+            onNodeWithTag("outer").assertIsOfType<JList<*>>().assertProperty(0) {
+                val inner = renderCell(0) as JList<*>
+                onNodeWithTag("outer").captureToImage()
+                assertEquals(0, repaints.repaintsOf(inner))
+                repaints.repaintsOf(this)
+            }
         }
     }
-
-    private fun JList<*>.paintOnce() = paint(BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB).graphics)
 }

@@ -2,10 +2,8 @@ package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
@@ -18,9 +16,6 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.PopupMenu
 import org.jetbrains.compose.swing.components.menu.popupAnchor
 import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
-import org.jetbrains.compose.swing.components.selection.listItemRenderer
-import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
-import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.components.style.MenuItems
 import org.jetbrains.compose.swing.composeMenu
@@ -38,11 +33,13 @@ import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
+import java.awt.Font
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JLabel
-import javax.swing.JList
 import javax.swing.JMenu
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
@@ -50,7 +47,6 @@ import javax.swing.UIManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 /**
  * A nested style reaches what is composed inside the component that provides it. A style that reads a state reaches
@@ -60,21 +56,138 @@ import kotlin.test.assertTrue
  * The window cases compose their peers `visible = false` and need a display, so they report SKIPPED headless.
  */
 class StylePropagationTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun providerChangesReachAttachedThirdPartyLabels(replaceStyle: Boolean) = runComposeSwingTest {
+        var providing by mutableStateOf(false)
+        val provider = SwingStyle<ContainerStyleScope> { provideNestedStyle(Labels) { background(Color.RED) } }
+        val conditional =
+            SwingStyle<ContainerStyleScope> {
+                if (providing) provideNestedStyle(Labels) { background(Color.RED) }
+            }
+        setContent {
+            val style =
+                if (replaceStyle) {
+                    if (providing) provider else SwingStyle
+                } else {
+                    conditional
+                }
+            Panel(style = style) {
+                SwingNode(
+                    factory = { JLabel("second").apply { background = Color.BLUE } },
+                    modifier = SwingModifier.styleable(TestLabelKind) { applyNestedStyle(Labels) },
+                )
+            }
+        }
+        providing = true
+        awaitIdle()
+        onNodeWithText("second").assertProperty(Color.RED) { background }
+
+        providing = false
+        awaitIdle()
+        onNodeWithText("second").assertProperty(Color.BLUE) { background }
+
+        providing = true
+        awaitIdle()
+        onNodeWithText("second").assertProperty(Color.RED) { background }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun inheritedAppearanceUpdatesAndRestores(replaceStyle: Boolean) = runComposeSwingTest {
+        val serif = Font(Font.SERIF, Font.BOLD, 20)
+        val mono = Font(Font.MONOSPACED, Font.PLAIN, 9)
+        var color: Color? by mutableStateOf(null)
+        var face: Font? by mutableStateOf(null)
+        val style =
+            SwingStyle<ContainerStyleScope> {
+                color?.let { foreground(it) }
+                face?.let { font(it) }
+            }
+        setContent { Panel(style = if (replaceStyle && color == null) SwingStyle else style) { Label("inherits") } }
+        color = Color.ORANGE
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(Color.ORANGE) { foreground }
+
+        color = Color.RED
+        face = serif
+        awaitIdle()
+        onNodeOfType<JLabel>().apply {
+            assertProperty(Color.RED) { foreground }
+            assertProperty(serif) { font }
+        }
+
+        color = Color.BLUE
+        face = mono
+        awaitIdle()
+        onNodeOfType<JLabel>().apply {
+            assertProperty(Color.BLUE) { foreground }
+            assertProperty(mono) { font }
+        }
+
+        color = null
+        face = null
+        awaitIdle()
+        val own = JLabel()
+        onNodeOfType<JLabel>().apply {
+            assertProperty(UIManager.getColor("Label.foreground")) { foreground }
+            assertProperty(own.foreground) { foreground }
+            assertProperty(own.font) { font }
+        }
+    }
+
+    @Test
+    fun providerChangesReachDescendantsThroughARawSwingNode() = runComposeSwingTest {
+        var providing by mutableStateOf(false)
+        setContent {
+            Panel(style = { if (providing) provideNestedStyle(Labels) { background(Color.RED) } }) {
+                SwingNode(factory = { JPanel() }) {
+                    Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) { Label("label") }
+                }
+            }
+        }
+        val original = UIManager.getColor("Label.background")
+        onNodeOfType<JLabel>().apply {
+            assertProperty(original) { background }
+            assertProperty(Color.GREEN) { foreground }
+        }
+
+        providing = true
+        awaitIdle()
+        onNodeOfType<JLabel>().apply {
+            assertProperty(Color.RED) { background }
+            assertProperty(Color.GREEN) { foreground }
+        }
+
+        providing = false
+        awaitIdle()
+        onNodeOfType<JLabel>().apply {
+            assertProperty(original) { background }
+            assertProperty(Color.GREEN) { foreground }
+        }
+    }
+
     @Test
     fun aPanelThatStartsToProvideAKeyReachesALabelAlreadyAttachedAndRestoresItWhenItStops() = runComposeSwingTest {
         var providing by mutableStateOf(false)
         val provider = SwingStyle<ContainerStyleScope> { provideNestedStyle(Labels) { background(Color.RED) } }
         setContent { Panel(style = if (providing) provider else SwingStyle) { Label("label") } }
-        val label = onNodeOfType<JLabel>()
         val original = UIManager.getColor("Label.background")
 
         providing = true
         awaitIdle()
-        label.assertProperty(Color.RED, "the key the panel now provides reaches the attached label") { background }
+        onNodeOfType<JLabel>().assertProperty(
+            Color.RED,
+            "the key the panel now provides reaches the attached label",
+        ) { background }
 
         providing = false
         awaitIdle()
-        label.assertProperty(original, "the label's own background returns") { background }
+        onNodeOfType<JLabel>().assertProperty(original, "the label's own background returns") { background }
+
+        providing = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(Color.RED, "the key reaches the label again") { background }
     }
 
     @Test
@@ -118,18 +231,24 @@ class StylePropagationTest {
                     },
                 ) { Label("label") }
             }
-            val label = onNodeOfType<JLabel>()
             val original = UIManager.getColor("Label.background")
 
             providing = true
             awaitIdle()
-            label.assertProperty(Color.RED, "the key the state now makes the panel provide reaches the label") {
+            onNodeOfType<JLabel>().assertProperty(
+                Color.RED,
+                "the key the state now makes the panel provide reaches the label",
+            ) {
                 background
             }
 
             providing = false
             awaitIdle()
-            label.assertProperty(original, "the label's own background returns") { background }
+            onNodeOfType<JLabel>().assertProperty(original, "the label's own background returns") { background }
+
+            providing = true
+            awaitIdle()
+            onNodeOfType<JLabel>().assertProperty(Color.RED, "the key reaches the label again") { background }
         }
 
     @Test
@@ -168,45 +287,6 @@ class StylePropagationTest {
                 "the state the block reads resolves the label again",
             ) { background }
         }
-
-    @Test
-    fun aCellStyleReadingTheRowItRendersDoesNotRepaintTheList() = runComposeSwingTest {
-        val list = RepaintCountingList("first", "second")
-        setContent {
-            val renderer =
-                rememberListItemRenderer<String> { item ->
-                    val row = this
-                    Label(item, style = { if (row.isSelected) background(Color.RED) })
-                }
-            SwingNode(factory = { list }, modifier = SwingModifier.listItemRenderer(renderer))
-        }
-        val repaintsBefore = list.repaints
-
-        assertEquals(Color.RED, (list.renderCell(0, isSelected = true) as JLabel).background)
-        list.renderCell(1)
-        awaitIdle()
-
-        assertEquals(repaintsBefore, list.repaints, "rendering rows the list paints asks for no further paint")
-    }
-
-    @Test
-    fun aRendererReplacedLaterInTheChainIsNoLongerHosted() = runComposeSwingTest {
-        val one = JList(arrayOf("x"))
-        val two = JList(arrayOf("y"))
-        setContent {
-            val a = rememberListItemRenderer<String> { item -> Label(item) }
-            val b = rememberListItemRenderer<String> { item -> Label(item) }
-            SwingNode(factory = { one }, modifier = SwingModifier.listItemRenderer(a).listItemRenderer(b))
-            SwingNode(factory = { two }, modifier = SwingModifier.listItemRenderer(a))
-        }
-
-        assertEquals("x", (one.renderCell(0) as JLabel).text)
-        assertEquals(
-            "y",
-            (two.renderCell(0) as JLabel).text,
-            "a renderer replaced on the first list serves only the second",
-        )
-    }
 
     @Test
     fun aStyleAMenuProvidesReachesItsItems() = runComposeSwingTest {
@@ -318,125 +398,15 @@ class StylePropagationTest {
                 }
             }
         }
-        val label = onWindowWithTitle("glass-pane-style").onNodeWithText("overlay")
-        label.assertProperty(Color.MAGENTA) { background }
+        onWindowWithTitle("glass-pane-style").onNodeWithText("overlay").assertProperty(Color.MAGENTA) { background }
 
         color = Color.RED
         awaitIdle()
 
-        label.assertProperty(Color.RED, "a changed style reaches the content of a glass pane") { background }
-    }
-
-    @Test
-    fun aProviderAddedLaterStylesUnstyledLabels() = runComposeSwingTest {
-        var providing by mutableStateOf(false)
-        setContent {
-            Panel(style = { if (providing) provideNestedStyle(Labels) { background(Color.RED) } }) {
-                Label("first")
-                Label("second")
-            }
-        }
-
-        providing = true
-        awaitIdle()
-
-        onNodeWithText("first").assertProperty(Color.RED) { background }
-        onNodeWithText("second").assertProperty(Color.RED) { background }
-    }
-
-    @Test
-    fun removingTheProviderRestoresEachLabelToItsOwnBackground() = runComposeSwingTest {
-        var providing by mutableStateOf(false)
-        setContent {
-            Panel(style = { if (providing) provideNestedStyle(Labels) { background(Color.RED) } }) {
-                Label("first")
-                Label("second")
-            }
-        }
-        val original = UIManager.getColor("Label.background")
-        onNodeWithText("second").fetch().background = Color.BLUE
-
-        providing = true
-        awaitIdle()
-        onNodeWithText("first").assertProperty(Color.RED) { background }
-        onNodeWithText("second").assertProperty(Color.RED) { background }
-
-        providing = false
-        awaitIdle()
-
-        onNodeWithText("first").assertProperty(original) { background }
-        onNodeWithText("second").assertProperty(Color.BLUE) { background }
-
-        providing = true
-        awaitIdle()
-
-        onNodeWithText("first").assertProperty(Color.RED) { background }
-        onNodeWithText("second").assertProperty(Color.RED) { background }
-    }
-
-    @Test
-    fun aSubtreeMovedUnderAProviderAndAwayTakesItsStylesWithIt() = runComposeSwingTest {
-        var underProvider by mutableStateOf(false)
-        setContent {
-            val content = remember { movableContentOf { Label("label") } }
-            Panel(style = { provideNestedStyle(Labels) { background(Color.RED) } }) { if (underProvider) content() }
-            Panel { if (!underProvider) content() }
-        }
-        val label = onNodeOfType<JLabel>()
-        val original = UIManager.getColor("Label.background")
-        label.assertProperty(original, "a label outside the provider keeps its own background") { background }
-
-        underProvider = true
-        awaitIdle()
-        label.assertProperty(Color.RED, "the moved label takes the provider's style") { background }
-
-        underProvider = false
-        awaitIdle()
-        label.assertProperty(original, "the label that moved away returns to its own background") { background }
-    }
-
-    @Test
-    fun aProviderThatStartsAndStopsAboveASwingNodeHoleReachesTheLabelBelowIt() = runComposeSwingTest {
-        var providing by mutableStateOf(false)
-        val provider = SwingStyle<ContainerStyleScope> { provideNestedStyle(Labels) { background(Color.RED) } }
-        setContent {
-            Panel(style = if (providing) provider else SwingStyle) {
-                SwingNode(factory = { JPanel() }) { Label("label") }
-            }
-        }
-        val label = onNodeOfType<JLabel>()
-        val original = UIManager.getColor("Label.background")
-
-        providing = true
-        awaitIdle()
-        label.assertProperty(Color.RED, "the provider reaches the label across the hole") { background }
-
-        providing = false
-        awaitIdle()
-        label.assertProperty(original, "the label's own background returns") { background }
-    }
-
-    @Test
-    fun aLabelUnderNestedProvidersKeepsTheInnerOnesStyleWhenTheOuterStops() = runComposeSwingTest {
-        var outerProviding by mutableStateOf(true)
-        setContent {
-            Panel(
-                style = {
-                    if (outerProviding) provideNestedStyle(Labels) { background(Color.RED) }
-                },
-            ) {
-                Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) { Label("label") }
-            }
-        }
-        val label = onNodeOfType<JLabel>()
-        val original = UIManager.getColor("Label.background")
-        label.assertProperty(Color.RED, "the outer provider styles the label") { background }
-        label.assertProperty(Color.GREEN, "the inner provider styles the label") { foreground }
-
-        outerProviding = false
-        awaitIdle()
-        label.assertProperty(original, "the label loses what the outer provider stopped providing") { background }
-        label.assertProperty(Color.GREEN, "the inner provider still styles the label") { foreground }
+        onWindowWithTitle("glass-pane-style").onNodeWithText("overlay").assertProperty(
+            Color.RED,
+            "a changed style reaches the content of a glass pane",
+        ) { background }
     }
 }
 
@@ -468,27 +438,8 @@ class PopupMenuStylePropagationTest {
         frame.focusableWindowState = false
         shown = true
         awaitIdle()
-        assertTrue(frame.isShowing, "the popup anchor must be on screen")
+        onWindowWithTitle("popup-menu-style").assertProperty(true, "the popup anchor must be on screen") { isShowing }
         val item = (captured ?: error("the menu did not open")).getComponent(0)
         assertNotEquals(Color.MAGENTA, item.background, "the items of a popup menu take no style from above it")
-    }
-}
-
-/** A list that counts the repaint requests made on it; every `repaint` overload of a component reaches this one. */
-private class RepaintCountingList(
-    vararg items: String,
-) : JList<String>(items) {
-    var repaints: Int = 0
-        private set
-
-    override fun repaint(
-        tm: Long,
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int,
-    ) {
-        repaints++
-        super.repaint(tm, x, y, width, height)
     }
 }

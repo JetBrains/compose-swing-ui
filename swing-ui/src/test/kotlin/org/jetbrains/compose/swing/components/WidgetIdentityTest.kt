@@ -29,6 +29,10 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberTableState
+import org.jetbrains.compose.swing.components.style.caret
+import org.jetbrains.compose.swing.components.style.caretBlinkRate
+import org.jetbrains.compose.swing.components.style.caretColor
+import org.jetbrains.compose.swing.components.style.highlights
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -42,9 +46,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.appearance.borderPainted
-import org.jetbrains.compose.swing.modifier.appearance.caretColor
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.margin
@@ -53,8 +55,6 @@ import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
 import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
 import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
-import org.jetbrains.compose.swing.modifier.interaction.caret
-import org.jetbrains.compose.swing.modifier.interaction.caretBlinkRate
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.key
@@ -1055,14 +1055,16 @@ class WidgetIdentityTest {
                     }
                 },
             ) {
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
                 TextArea(
                     "hello world",
                     onValueChange = {},
-                    modifier =
-                        SwingModifier.highlights(
+                    style = {
+                        highlights(
                             listOf(if (it) TextRange(6, 11) else TextRange(0, 5)),
-                            remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) },
-                        ),
+                            painter,
+                        )
+                    },
                 )
             },
             case<JTextComponent>(
@@ -1074,14 +1076,11 @@ class WidgetIdentityTest {
                 },
             ) { changed ->
                 val ranges = remember { mutableStateListOf(TextRange(0, 5)) }
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
                 TextArea(
                     "hello world",
                     onValueChange = {},
-                    modifier =
-                        SwingModifier.highlights(
-                            ranges,
-                            remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) },
-                        ),
+                    style = { highlights(ranges, painter) },
                 )
                 LaunchedEffect(changed) {
                     if (changed) ranges.add(TextRange(6, 11))
@@ -1103,8 +1102,7 @@ class WidgetIdentityTest {
                 TextArea(
                     "hello world",
                     onValueChange = {},
-                    modifier =
-                        if (changed) SwingModifier else SwingModifier.highlights(listOf(TextRange(0, 5)), painter),
+                    style = { if (!changed) highlights(listOf(TextRange(0, 5)), painter) },
                 )
             },
             case<JTextComponent>(
@@ -1113,14 +1111,11 @@ class WidgetIdentityTest {
                     assertProperty(0) { this.highlighter.highlights.size }
                 },
             ) {
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
                 TextArea(
                     "hello world",
                     onValueChange = {},
-                    modifier =
-                        SwingModifier.highlights(
-                            if (it) emptyList() else listOf(TextRange(0, 5)),
-                            remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) },
-                        ),
+                    style = { highlights(if (it) emptyList() else listOf(TextRange(0, 5)), painter) },
                 )
             },
             case<JTextComponent>(
@@ -1143,7 +1138,7 @@ class WidgetIdentityTest {
                 TextArea(
                     "hello world",
                     onValueChange = {},
-                    modifier = SwingModifier.highlights(listOf(TextRange(0, 5)), painter),
+                    style = { highlights(listOf(TextRange(0, 5)), painter) },
                 )
             },
         )
@@ -1155,14 +1150,11 @@ class WidgetIdentityTest {
                     assertProperty("hello there") { this.text }
                 },
             ) {
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
                 TextArea(
                     if (it) "hello there" else "hello world",
                     onValueChange = {},
-                    modifier =
-                        SwingModifier.highlights(
-                            listOf(TextRange(6, 11)),
-                            remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) },
-                        ),
+                    style = { highlights(listOf(TextRange(6, 11)), painter) },
                 )
             },
             case<JTextComponent>(
@@ -1171,14 +1163,11 @@ class WidgetIdentityTest {
                     assertProperty("xhello world") { this.text }
                 },
             ) {
+                val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) }
                 TextArea(
                     if (it) "xhello world" else "hello world",
                     onValueChange = {},
-                    modifier =
-                        SwingModifier.highlights(
-                            listOf(TextRange(6, 11)),
-                            remember { DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW) },
-                        ),
+                    style = { highlights(listOf(TextRange(6, 11)), painter) },
                 )
             },
             case<AbstractButton>(
@@ -1240,7 +1229,7 @@ class WidgetIdentityTest {
                 TextField(
                     "a",
                     onValueChange = {},
-                    modifier = SwingModifier.caretColor(if (it) Color.BLUE else Color.RED),
+                    style = { caretColor(if (it) Color.BLUE else Color.RED) },
                 )
             },
             case<AbstractButton>(
@@ -1376,6 +1365,7 @@ class WidgetIdentityTest {
             sizeUnderStandingWidthCases(),
             geometryAndColorDeclarationReorderCases(),
             verifyInputWhenFocusTargetRemovalCases(),
+            caretUnderStandingBlinkRateCases(),
             caretAndBlinkRateRemovalCases(),
         ).flatten()
 
@@ -1554,6 +1544,9 @@ class WidgetIdentityTest {
                     style = { if (!it) verifyInputWhenFocusTarget(false) },
                 )
             },
+        )
+
+        private fun caretUnderStandingBlinkRateCases(): List<Case> = listOf(
             run {
                 val caret = DefaultCaret()
                 case<JTextComponent>(
@@ -1572,7 +1565,10 @@ class WidgetIdentityTest {
                     TextField(
                         "a",
                         onValueChange = {},
-                        modifier = (if (changed) SwingModifier else SwingModifier.caret(caret)).caretBlinkRate(0),
+                        style = {
+                            if (!changed) caret(caret)
+                            caretBlinkRate(0)
+                        },
                     )
                 }
             },
@@ -1590,7 +1586,10 @@ class WidgetIdentityTest {
                     TextField(
                         "a",
                         onValueChange = {},
-                        modifier = (if (changed) SwingModifier.caret(caret) else SwingModifier).caretBlinkRate(0),
+                        style = {
+                            if (changed) caret(caret)
+                            caretBlinkRate(0)
+                        },
                     )
                 }
             },
@@ -1618,7 +1617,12 @@ class WidgetIdentityTest {
                     TextField(
                         "a",
                         onValueChange = {},
-                        modifier = if (changed) SwingModifier else SwingModifier.caret(caret).caretBlinkRate(0),
+                        style = {
+                            if (!changed) {
+                                caret(caret)
+                                caretBlinkRate(0)
+                            }
+                        },
                     )
                 }
             },
