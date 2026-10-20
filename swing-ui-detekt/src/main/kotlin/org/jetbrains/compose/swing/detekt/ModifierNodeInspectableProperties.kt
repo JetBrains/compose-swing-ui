@@ -108,7 +108,7 @@ public class ModifierNodeInspectableProperties(
     }
 
     private fun KtUserType.isDirectlyQualifiedBySwingModifier(): Boolean =
-        qualifier?.declaresLibrarySwingModifier() == true
+        qualifier?.declaresLibraryType(SWING_MODIFIER_FQN) == true
 
     /**
      * Whether [this] carries state a reader declared: a primary constructor parameter that is not a callback.

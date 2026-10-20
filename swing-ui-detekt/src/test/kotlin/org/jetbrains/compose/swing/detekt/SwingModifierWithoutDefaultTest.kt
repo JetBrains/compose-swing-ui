@@ -72,6 +72,21 @@ class SwingModifierWithoutDefaultTest {
     }
 
     @Test
+    fun `does not report an explicit companion default`() {
+        assertEquals(
+            0,
+            lint(
+                """
+                package sample
+
+                @Composable
+                fun Widget(modifier: SwingModifier = SwingModifier.Companion) = Unit
+                """.trimIndent(),
+            ).size,
+        )
+    }
+
+    @Test
     fun `does not report a private helper, which is always handed a chain`() {
         assertEquals(
             0,

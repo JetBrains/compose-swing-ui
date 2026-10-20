@@ -53,7 +53,7 @@ public class SwingModifierWithoutDefault(
             )
             return
         }
-        if (default.isTheEmptyChain()) return
+        if (default.isLibraryCompanionDefault(SWING_MODIFIER_FQN)) return
         report(
             Finding(
                 entity = Entity.from(default),
@@ -63,23 +63,6 @@ public class SwingModifierWithoutDefault(
                         "it did not ask for.",
             ),
         )
-    }
-}
-
-private fun KtExpression.isTheEmptyChain(): Boolean {
-    val expression = KtPsiUtil.deparenthesize(this)
-    return when (expression) {
-        is KtDotQualifiedExpression -> {
-            expression.text == SWING_MODIFIER_FQN
-        }
-
-        is KtNameReferenceExpression -> {
-            expression.isLibrarySwingModifierValue()
-        }
-
-        else -> {
-            false
-        }
     }
 }
 
@@ -124,3 +107,19 @@ internal fun KtModifierListOwner.isImplementingSomething(): Boolean =
         hasModifier(KtTokens.ABSTRACT_KEYWORD)
 
 internal fun KtParameter.declaresSwingModifier(): Boolean = typeReference.declaresSwingModifier()
+
+/** Whether [this] names the companion of the type [fullyQualifiedName], bare or qualified with `.Companion`. */
+internal fun KtExpression.isLibraryCompanionDefault(fullyQualifiedName: String): Boolean {
+    val expression = KtPsiUtil.deparenthesize(this)
+    val companionName =
+        if (expression is KtDotQualifiedExpression && expression.selectorExpression?.text == "Companion") {
+            KtPsiUtil.deparenthesize(expression.receiverExpression)
+        } else {
+            expression
+        }
+    return when (companionName) {
+        is KtDotQualifiedExpression -> companionName.text == fullyQualifiedName
+        is KtNameReferenceExpression -> companionName.isLibraryCompanionValue(fullyQualifiedName)
+        else -> false
+    }
+}
