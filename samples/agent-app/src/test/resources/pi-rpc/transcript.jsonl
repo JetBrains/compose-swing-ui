@@ -1,0 +1,15 @@
+{"id":"m","type":"response","command":"get_available_models","success":true,"data":{"models":[{"id":"m","name":"m","provider":"p","contextWindow":262144}]}}
+{"type":"agent_start"}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":"\nThe"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":" user wants me to create a file hi.txt with the content \"hi\" using the write"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":" tool.\n"}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"\n\n"}}
+{"type":"tool_execution_start","toolCallId":"call_cab9b846","toolName":"write","args":{"content":"hi","path":"/work/hi.txt"}}
+{"type":"extension_ui_request","id":"15adf2e961167516","method":"select","title":"Allow tool: write\nPath: /work/hi.txt\nContent:\nhi","options":["Approve","Deny"]}
+{"type":"tool_execution_end","toolCallId":"call_cab9b846","toolName":"write","result":{"content":[{"type":"text","text":"[hi.txt#A564]\nSuccessfully wrote 2 bytes to hi.txt"}]},"isError":false}
+{"type":"turn_end","message":{"role":"assistant","usage":{"input":7735,"output":123,"cacheRead":0},"stopReason":"toolUse"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":"\nFile"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":" created successfully. User said \"say done\".\n"}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"\n\ndone"}}
+{"type":"turn_end","message":{"role":"assistant","usage":{"input":162,"output":14,"cacheRead":7730},"stopReason":"stop"}}
+{"type":"prompt_result","id":"p","agentInvoked":true,"status":"completed","sessionSettled":true}

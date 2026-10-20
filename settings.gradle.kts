@@ -4,6 +4,7 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        google()
     }
 }
 
@@ -14,6 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
+include(":samples:agent-app")
 include(":samples:docs")
 include(":samples:todo-app")
 include(":samples:widgets-gallery")

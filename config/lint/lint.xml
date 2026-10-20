@@ -15,4 +15,8 @@
     -->
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
+    <!-- Sources a code generator writes (Room, through KSP) are not ours to edit, so no check reads them. -->
+    <issue id="all">
+        <ignore path="**/build/generated/ksp/**" />
+    </issue>
 </lint>

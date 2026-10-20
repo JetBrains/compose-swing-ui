@@ -1,0 +1,9 @@
+{"type":"tool_execution_start","toolCallId":"w1","toolName":"write","args":{"path":"/work/hi.txt","content":"new\nkeep"}}
+{"type":"tool_execution_end","toolCallId":"w1","toolName":"write","result":{"content":[{"type":"text","text":"Successfully wrote"}]},"isError":false}
+{"type":"tool_execution_start","toolCallId":"e1","toolName":"edit","args":{"path":"/work/a.txt","edits":[{"oldText":"x","newText":"y"}]}}
+{"type":"tool_execution_end","toolCallId":"e1","toolName":"edit","result":{"content":[{"type":"text","text":"Applied"}],"details":{"diff":"-1 x\n+1 y","patch":"--- a.txt\n+++ a.txt\n@@ -1,1 +1,1 @@\n-x\n+y\n"}},"isError":false}
+{"type":"tool_execution_start","toolCallId":"e2","toolName":"edit","args":{"path":"/work/b.txt","edits":[{"oldText":"a\nb","newText":"a\nc"}]}}
+{"type":"tool_execution_end","toolCallId":"e2","toolName":"edit","result":{"content":[{"type":"text","text":"Applied"}]},"isError":false}
+{"type":"tool_execution_start","toolCallId":"e3","toolName":"edit","args":{"path":"/work/c.txt","edits":[{"oldText":"x","newText":"y"}]}}
+{"type":"tool_execution_end","toolCallId":"e3","toolName":"edit","result":{"content":[{"type":"text","text":"Error: no match"}]},"isError":true}
+{"type":"agent_settled"}

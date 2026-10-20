@@ -13,4 +13,5 @@ frames or look-and-feels.
 ## Related
 
 - [`../../README.md`](../../README.md) — project overview and quick start.
+- [`../agent-app/README.md`](../agent-app/README.md) — a chat front end with animated panes and a live look-and-feel switch.
 - [`../widgets-gallery/README.md`](../widgets-gallery/README.md) — the broader widget showcase.

@@ -26,6 +26,7 @@ the quality gates every change must pass, and the code style.
 ./gradlew :swing-ui:exclusiveWindowSystemTest :swing-ui-foundation:exclusiveWindowSystemTest
 
 # Run a sample application
+./gradlew :samples:agent-app:run
 ./gradlew :samples:todo-app:run
 ./gradlew :samples:widgets-gallery:run
 
@@ -53,7 +54,7 @@ follows a test run depends on.
 
 Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other:
 `:swing-ui-test` publishes the harness that `:swing-ui`'s own tests are written against, so a harness
-change is exercised far more by the library's suite than by the harness's own, and both samples' tests
+change is exercised far more by the library's suite than by the harness's own, and all samples' tests
 sit downstream of the two. A scoped run belongs to the edit loop; the gate below is what a change is
 judged by.
 

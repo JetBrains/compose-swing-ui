@@ -208,6 +208,7 @@ and screenshot comparison the harness offers.
 
 ```bash
 ./gradlew build                          # compile + all quality gates + tests
+./gradlew :samples:agent-app:run         # run the agent chat sample
 ./gradlew :samples:todo-app:run          # run the to-do sample
 ./gradlew :samples:widgets-gallery:run   # run the widgets gallery
 ./gradlew test                           # tests only

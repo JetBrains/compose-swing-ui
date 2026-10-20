@@ -1,0 +1,3 @@
+{"type":"tool_execution_start","toolCallId":"w1","toolName":"write","args":{"path":"new.txt","content":"a\nb\n"}}
+{"type":"tool_execution_end","toolCallId":"w1","toolName":"write","isError":false,"result":{"content":[{"type":"text","text":"Written"}]}}
+{"type":"agent_settled"}

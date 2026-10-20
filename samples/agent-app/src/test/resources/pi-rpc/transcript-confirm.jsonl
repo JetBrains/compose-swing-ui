@@ -1,0 +1,4 @@
+{"type":"tool_execution_start","toolCallId":"c1","toolName":"bash","args":{"command":"ls /work/"}}
+{"type":"extension_ui_request","id":"u1","method":"confirm","title":"Allow tool: bash","message":"ls /work/"}
+{"type":"tool_execution_end","toolCallId":"c1","toolName":"bash","result":{"content":[{"type":"text","text":"a.txt"}]},"isError":false}
+{"type":"agent_settled"}
