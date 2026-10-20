@@ -121,21 +121,26 @@ public class SwingModifierFactoryExtensionFunction(
  */
 internal fun KtTypeReference?.declaresSwingModifier(): Boolean =
     (this?.typeElement?.unwrapNullability() as? KtUserType)?.let { type ->
-        type.declaresLibrarySwingModifier()
+        type.declaresLibraryType()
     } == true
 
 internal const val SWING_MODIFIER_PACKAGE: String = "org.jetbrains.compose.swing.modifier"
 
 internal const val SWING_MODIFIER_FQN: String = "$SWING_MODIFIER_PACKAGE.$SWING_MODIFIER"
 
-internal fun KtUserType.declaresLibrarySwingModifier(): Boolean =
-    qualifier?.let { it.text == SWING_MODIFIER_PACKAGE && referencedName == SWING_MODIFIER }
+/** Whether [this] names the type [fullyQualifiedName] by its simple name, an import of it, or the name in full. */
+internal fun KtUserType.declaresLibraryType(fullyQualifiedName: String = SWING_MODIFIER_FQN): Boolean {
+    val simpleName = fullyQualifiedName.substringAfterLast('.')
+    return qualifier?.let {
+        it.text == fullyQualifiedName.substringBeforeLast('.') && referencedName == simpleName
+    }
         ?: (containingFile as? KtFile)?.let { file ->
             !isShadowedLexically(referencedName) &&
                 !file.declaresTypeName(referencedName) &&
-                file.resolvesImportedName(referencedName, SWING_MODIFIER_FQN)
+                file.resolvesImportedName(referencedName, fullyQualifiedName)
         }
         ?: false
+}
 
 private fun KtUserType.isShadowedLexically(name: String?): Boolean =
     parents.filterIsInstance<KtClassOrObject>().any { owner ->
@@ -187,8 +192,10 @@ internal fun KtFile.resolvesImportedName(
 
 internal fun KtImportDirective.importedName(): String? = aliasName ?: importPath?.pathStr?.substringAfterLast('.')
 
-internal fun KtNameReferenceExpression.isLibrarySwingModifierValue(): Boolean =
-    !isShadowedByValue() && containingKtFile.resolvesImportedName(getReferencedName(), SWING_MODIFIER_FQN)
+/** Whether [this] is the simple name of the companion of the type [fullyQualifiedName], imported or in its package. */
+internal fun KtNameReferenceExpression.isLibraryCompanionValue(
+    fullyQualifiedName: String = SWING_MODIFIER_FQN,
+): Boolean = !isShadowedByValue() && containingKtFile.resolvesImportedName(getReferencedName(), fullyQualifiedName)
 
 private fun KtNameReferenceExpression.isShadowedByValue(): Boolean {
     val name = getReferencedName()

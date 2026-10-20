@@ -8,8 +8,9 @@ adds one line rather than two.
 
 | Rule | Reports |
 | --- | --- |
-| `SwingModifierWithoutDefault` | a composable a caller outside the module can reach whose chain parameter has no default, or defaults to something other than the empty chain |
-| `ComposableSwingModifierFactory` | a chain factory marked `@Composable`, which ties the value it builds to the composition that called it |
+| `SwingModifierWithoutDefault` | a composable a caller outside the module can reach whose `SwingModifier` parameter has no default, or defaults to something other than the empty `SwingModifier` |
+| `SwingStyleWithoutDefault` | a composable a caller outside the module can reach whose `SwingStyle` parameter has no default, or defaults to something other than `SwingStyle`, the empty style |
+| `ComposableSwingModifierFactory` | a `SwingModifier` factory marked `@Composable`; write it as a plain function and pass any state it needs in as arguments |
 | `SwingModifierFactoryReturnType` | a factory answering with an element type instead of `SwingModifier` |
 | `ModifierNodeInspectableProperties` | a modifier element that overrides neither `name` nor `declaredValues`, so it describes itself to a tool as a bare class name |
 | `SwingModifierFactoryExtensionFunction` | a factory that is not an extension on `SwingModifier` |

@@ -74,7 +74,7 @@ private fun KtExpression.isTheEmptyChain(): Boolean {
         }
 
         is KtNameReferenceExpression -> {
-            expression.isLibrarySwingModifierValue()
+            expression.isLibraryCompanionValue()
         }
 
         else -> {
