@@ -152,6 +152,16 @@ private class CanvasComponent :
     Decoratable {
     override var decoration: Decoration = Decoration.None
 
+    // Stored once, so a repaint or paintImmediately allocates nothing per call.
+    private val superRepaint: (Long, Int, Int, Int, Int) -> Unit = { tm, x, y, width, height ->
+        super.repaint(tm, x, y, width, height)
+    }
+
+    // Not the Rectangle overload, which calls back here.
+    private val superPaintImmediately: (Int, Int, Int, Int) -> Unit = { x, y, width, height ->
+        super.paintImmediately(x, y, width, height)
+    }
+
     private val paintContent: (Graphics) -> Unit = { graphics ->
         val decoration = decoration
         val outsets = decoration.heldPaintOutsets
@@ -194,17 +204,14 @@ private class CanvasComponent :
         y: Int,
         width: Int,
         height: Int,
-    ) = decoration.repaint(this, tm, x, y, width, height)
+    ) = decoration.repaint(this, tm, x, y, width, height, superRepaint)
 
     override fun paintImmediately(
         x: Int,
         y: Int,
         w: Int,
         h: Int,
-    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
-        // Not the Rectangle overload, which calls back here.
-        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
-    }
+    ) = decoration.paintImmediately(this, x, y, w, h, superPaintImmediately)
 
     /** A decoration that fades or cuts away part of the area leaves what is behind it showing through. */
     override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)

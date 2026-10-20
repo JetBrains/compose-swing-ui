@@ -82,6 +82,16 @@ public open class ConstrainedPanel internal constructor(
 
     override var decoration: Decoration = Decoration.None
 
+    // Stored once, so a repaint or paintImmediately allocates nothing per call.
+    private val superRepaint: (Long, Int, Int, Int, Int) -> Unit = { tm, x, y, width, height ->
+        super.repaint(tm, x, y, width, height)
+    }
+
+    // Not the Rectangle overload, which calls back here.
+    private val superPaintImmediately: (Int, Int, Int, Int) -> Unit = { x, y, width, height ->
+        super.paintImmediately(x, y, width, height)
+    }
+
     init {
         layout = policyLayout
         policyLayout.measurables.panel = this
@@ -150,7 +160,7 @@ public open class ConstrainedPanel internal constructor(
         y: Int,
         width: Int,
         height: Int,
-    ): Unit = decoration.repaint(this, tm, x, y, width, height)
+    ): Unit = decoration.repaint(this, tm, x, y, width, height, superRepaint)
 
     // A repaint a stock descendant records on itself and Swing merges into a dirty Swing ancestor is painted from that
     // ancestor alone, so no container between them that spreads or moves what it paints grows it, as for a JLayer.
@@ -159,11 +169,7 @@ public open class ConstrainedPanel internal constructor(
         y: Int,
         w: Int,
         h: Int,
-    ): Unit =
-        decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
-            // Not the Rectangle overload, which calls back here.
-            super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
-        }
+    ): Unit = decoration.paintImmediately(this, x, y, w, h, superPaintImmediately)
 
     /**
      * Stands first among the children while one of them rotates or scales; see [updateGlassPane]. Every removal of

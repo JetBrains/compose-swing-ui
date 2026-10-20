@@ -11,14 +11,16 @@ import org.jetbrains.compose.swing.node.invalidateLayout
  *
  * The library writes [decoration]; the component stores it and applies it, as it applies its `Border`:
  * - `paint` answers `decoration.paint(this, g) { super.paint(it) }`;
- * - `paintBorder` paints the border at [Decoration.localLayoutBounds];
+ * - `paintBorder` paints the border at `decoration.localLayoutBounds(this)`;
  * - both `getInsets` overloads answer through [Decoration.insets];
- * - `contains` answers [Decoration.contains];
+ * - `contains` returns `decoration.contains(this, x, y)`;
  * - `isOpaque` answers `super.isOpaque() && decoration.isOpaque(this)`, and the component paints its background
- *   inside [Decoration.localLayoutBounds] where `super.isOpaque()`;
- * - `repaint(long, int, int, int, int)` answers `decoration.repaint(this, tm, x, y, width, height)`;
+ *   inside `decoration.localLayoutBounds(this)` where `super.isOpaque()`;
+ * - `repaint(long, int, int, int, int)` calls
+ *   `decoration.repaint(this, tm, x, y, width, height, repaint)`, where `repaint` hands its area to `super.repaint`;
  * - `paintImmediately(int, int, int, int)` answers
- *   `decoration.paintImmediately(this, x, y, w, h) { x, y, w, h -> super.paintImmediately(x, y, w, h) }`;
+ *   `decoration.paintImmediately(this, x, y, w, h, paint)`, where `paint` hands its area to the
+ *   `super.paintImmediately` overload taking four `int`s;
  * - a component with children also answers `isPaintingOrigin` with [Decoration.isDecorated], as `JLayer` does, so a
  *   repaint a child records is painted through its decoration.
  *

@@ -64,13 +64,21 @@ public abstract class DecorationModifierNode<T : Component> :
     internal open val paintsNothing: Boolean get() = false
 
     /**
+     * The component as a [Decoratable]; reading it before the node is attached, or after it has been detached, fails,
+     * as [component] does.
+     */
+    protected val decoratable: Decoratable
+        // onAttach refuses any other target.
+        get() = component as Decoratable
+
+    /**
      * Gathers the component's decoration again, after this step's [outsets] or [isOpaque] changed between modifier
      * passes, and repaints it. An element's `update` needs no call. Does nothing while the node is not attached.
      */
     public fun invalidateDecoration() {
         if (!isAttached) return
         if (!publishDecoration(
-                component as Decoratable,
+                decoratable,
                 declaredNodes(),
                 this,
                 SwingModifier.ComponentNode<*>::revalidateComponentAfterValidation,
@@ -136,6 +144,11 @@ internal fun <R : Any> publishSteps(
     component.repaint()
     return true
 }
+
+internal fun Decoratable.requireComponent(): Component =
+    requireNotNull(this as? Component) {
+        "A ${Decoratable::class.java.name} paints as a component, and ${javaClass.name} is not one"
+    }
 
 /** One instance, so repeated requests for a node coalesce. */
 private val RevalidateNodeComponent: (SwingModifier.ComponentNode<*>) -> Unit = { it.component.revalidate() }

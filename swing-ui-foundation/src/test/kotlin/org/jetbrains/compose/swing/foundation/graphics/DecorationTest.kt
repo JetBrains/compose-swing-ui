@@ -9,13 +9,16 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
+import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 /**
  * Behavioral tests for a decoration: what the [Decorator] steps a component declares paint through
@@ -25,6 +28,64 @@ import kotlin.test.assertEquals
  * would show.
  */
 class DecorationTest {
+    @Test
+    fun componentMembersRejectADecoratableThatIsNotAComponent() {
+        val decoratable =
+            object : Decoratable {
+                override var decoration: Decoration = Decoration.None
+            }
+        val graphics = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics()
+        try {
+            val operations: List<() -> Unit> =
+                listOf(
+                    { Decoration.None.isOpaque(decoratable) },
+                    { Decoration.None.localLayoutBounds(decoratable) },
+                    { Decoration.None.paint(decoratable, graphics) { error("Invalid target painted") } },
+                    { Decoration.None.contains(decoratable, 0, 0) },
+                    {
+                        Decoration.None.repaint(decoratable, 0, 0, 0, 1, 1) { _, _, _, _, _ ->
+                            error("Invalid target repainted")
+                        }
+                    },
+                    {
+                        Decoration.None.paintImmediately(decoratable, 0, 0, 1, 1) { _, _, _, _ ->
+                            error("Invalid target painted")
+                        }
+                    },
+                )
+            operations.forEach { operation ->
+                val failure = assertFailsWith<IllegalArgumentException> { operation() }
+                assertEquals(
+                    "A ${Decoratable::class.java.name} paints as a component, and " +
+                        "${decoratable.javaClass.name} is not one",
+                    failure.message,
+                )
+            }
+        } finally {
+            graphics.dispose()
+        }
+    }
+
+    @Test
+    fun repaintMembersTakeADecoratableThatIsAComponent() =
+        runComposeSwingTest {
+            val target =
+                object : Component(), Decoratable {
+                    override var decoration: Decoration = Decoration.None
+                }
+            target.setSize(10, 10)
+            val handed = mutableListOf<Rectangle>()
+
+            Decoration.None.repaint(target, 0, 1, 2, 3, 4) { _, x, y, width, height ->
+                handed += Rectangle(x, y, width, height)
+            }
+            Decoration.None.paintImmediately(target, 1, 2, 3, 4) { x, y, width, height ->
+                handed += Rectangle(x, y, width, height)
+            }
+
+            assertEquals(listOf(Rectangle(1, 2, 3, 4), Rectangle(1, 2, 3, 4)), handed)
+        }
+
     @Test
     fun noStepsPaintTheContentUnchanged() =
         runComposeSwingTest {

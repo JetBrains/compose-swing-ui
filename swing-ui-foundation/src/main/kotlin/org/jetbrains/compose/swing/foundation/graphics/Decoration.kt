@@ -12,8 +12,6 @@ import java.awt.Rectangle
 import java.awt.Shape
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
-import javax.swing.JComponent
-import javax.swing.RepaintManager
 import kotlin.math.floor
 
 /**
@@ -52,14 +50,18 @@ public class Decoration internal constructor(
     public val isDecorated: Boolean get() = !steps.isEmpty
 
     /**
-     * Whether [component], painted through this decoration, still covers every pixel of its bounds: `false` where it
+     * Whether [decoratable], painted through this decoration, still covers every pixel of its bounds: `false` where it
      * has paint outsets, or where a step paints translucently, cuts the content ([Decorator.isOpaque]) or paints at a
      * box smaller than the layout bounds. The steps' own opacity is the one the library last gathered; the boxes are
      * read at each call.
+     *
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
-    public fun isOpaque(component: Component): Boolean =
-        heldPaintOutsets == NoPaintOutsets && hasOpaqueSteps &&
+    public fun isOpaque(decoratable: Decoratable): Boolean {
+        val component = decoratable.requireComponent()
+        return heldPaintOutsets == NoPaintOutsets && hasOpaqueSteps &&
             steps.paintsAtLayoutBox(component.width, component.height)
+    }
 
     /**
      * How far the component paints past its layout bounds on each side; a new [Insets] the caller owns. Under a parent
@@ -70,11 +72,15 @@ public class Decoration internal constructor(
         Insets(heldPaintOutsets.top, heldPaintOutsets.left, heldPaintOutsets.bottom, heldPaintOutsets.right)
 
     /**
-     * [component]'s layout bounds in its own coordinates: its bounds less the paint outsets; a new [Rectangle]. Named
+     * [decoratable]'s layout bounds in its own coordinates: its bounds less the paint outsets; a new [Rectangle]. Named
      * as `SwingUtilities.getLocalBounds` is.
+     *
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
-    public fun localLayoutBounds(component: Component): Rectangle =
-        Rectangle(heldPaintOutsets.left, heldPaintOutsets.top, layoutWidth(component), layoutHeight(component))
+    public fun localLayoutBounds(decoratable: Decoratable): Rectangle {
+        val component = decoratable.requireComponent()
+        return Rectangle(heldPaintOutsets.left, heldPaintOutsets.top, layoutWidth(component), layoutHeight(component))
+    }
 
     /** [base] plus the paint outsets: [base] itself where there are none, otherwise a new [Insets]. */
     public fun insets(base: Insets): Insets =
@@ -104,12 +110,14 @@ public class Decoration internal constructor(
      * capture or a print, the whole component is painted.
      *
      * @throws IllegalArgumentException where a decorated component is handed a graphics that is not a Graphics2D.
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
     public fun paint(
-        component: Component,
+        decoratable: Decoratable,
         graphics: Graphics,
         content: (Graphics) -> Unit,
     ) {
+        val component = decoratable.requireComponent()
         val steps = steps
         if (steps.isEmpty) return content(graphics)
         require(graphics is Graphics2D) {
@@ -138,16 +146,19 @@ public class Decoration internal constructor(
     }
 
     /**
-     * Whether ([x], [y]), in [component]'s coordinates, hits it: inside the layout bounds, as its placement layers
+     * Whether ([x], [y]), in [decoratable]'s coordinates, hits it: inside the layout bounds, as its placement layers
      * rotate, scale and clip them, or, inside its bounds, where a visible child's own `contains` takes the point, as
      * for a child placed or painting past the layout bounds. A step that cuts its children to its box, such as a clip
      * or a fade, cuts the point too. Other paint outsets, such as a shadow's, are not hit.
+     *
+     * @throws IllegalArgumentException if [decoratable] is not a `java.awt.Component`.
      */
     public fun contains(
-        component: Component,
+        decoratable: Decoratable,
         x: Int,
         y: Int,
     ): Boolean {
+        val component = decoratable.requireComponent()
         if (inLayoutBounds(component, x, y)) return true
         val children = childMeasurables?.layoutPass
         val inBounds = !children.isNullOrEmpty() && x in 0 until component.width && y in 0 until component.height
@@ -162,27 +173,30 @@ public class Decoration internal constructor(
     }
 
     /**
-     * Records a repaint of the area at ([x], [y]) of [width] by [height], in [component]'s coordinates, grown to all a
-     * change in it repaints: by how far the steps spread a change, such as a blur's or a shadow's reach, held inside
-     * the bounds, or to the whole bounds while the steps move what [component] paints, as a rotating layer does. The
-     * grown area is recorded on [component] with the `RepaintManager`, as `JComponent.repaint` records it, without
-     * calling [component]'s `repaint` again. Where Swing paints [component] as the dirty component, its
-     * `paintImmediately` grows the area again, which paints more pixels and changes none; where Swing merges the area
-     * into the repaint of a dirty ancestor, the ancestor paints it as recorded. [tm] is ignored, as
-     * `JComponent.repaint` ignores it. What `repaint(long, int, int, int, int)` of a `Decoratable` answers.
+     * Records a repaint of the area at ([x], [y]) of [width] by [height], in [decoratable]'s coordinates,
+     * grown to all a change in it repaints: by how far the steps spread a change, such as a blur's or a shadow's reach,
+     * held inside the bounds, or to the whole bounds while the steps move what [decoratable] paints, as a rotating
+     * layer does. The grown area goes to [repaint], the caller's superclass repaint, as [paintImmediately] takes the
+     * caller's paint. Where Swing paints [decoratable] as the dirty component, its `paintImmediately` grows the area
+     * again, which paints more pixels and changes none; where Swing merges the area into the repaint of a dirty
+     * ancestor, the ancestor paints it as recorded. [tm] is ignored, as `JComponent.repaint` ignores it. What
+     * `repaint(long, int, int, int, int)` of a `Decoratable` does.
+     *
+     * @throws IllegalStateException if [decoratable] is not a `java.awt.Component`.
      */
-    @Suppress("LongParameterList", "UnusedParameter") // JComponent.repaint's parameters, as forwarded; it skips tm too.
+    @Suppress("LongParameterList") // JComponent.repaint's parameters, as forwarded.
     public fun repaint(
-        component: JComponent,
+        decoratable: Decoratable,
         tm: Long,
         x: Int,
         y: Int,
         width: Int,
         height: Int,
+        repaint: (Long, Int, Int, Int, Int) -> Unit,
     ) {
-        val manager = RepaintManager.currentManager(component)
+        val component = decoratable.requireComponent()
         if (stepsMoveContent(component)) {
-            manager.addDirtyRegion(component, 0, 0, component.width, component.height)
+            repaint(tm, 0, 0, component.width, component.height)
             return
         }
         val reach = steps.outsets
@@ -190,13 +204,13 @@ public class Decoration internal constructor(
         val top = grownStart(y, reach.top)
         val right = grownEnd(x, width, reach.right, component.width)
         val bottom = grownEnd(y, height, reach.bottom, component.height)
-        manager.addDirtyRegion(component, left, top, right - left, bottom - top)
+        repaint(tm, left, top, right - left, bottom - top)
     }
 
     // This expansion preserves coverage of every required pixel; direct and descendant requests still need it.
 
     /**
-     * Hands [paint] the area at ([x], [y]) of [width] by [height], in [component]'s coordinates, grown as [repaint]
+     * Hands [paint] the area at ([x], [y]) of [width] by [height], in [decoratable]'s coordinates, grown as [repaint]
      * grows it; [paint] is `super.paintImmediately`. In a Foundation container, the area is grown first by what each
      * visible child it touches spreads its part of the area into, if the child has a transform, paint outsets or
      * Foundation descendants whose repaints may need to grow. The area grows by the steps' reach, held inside the
@@ -206,16 +220,19 @@ public class Decoration internal constructor(
      * Swing calls `paintImmediately` on a decorated component as the painting origin of its descendants' repaints
      * and to paint a repaint it recorded itself.
      * Application code may call it too. What `paintImmediately(int, int, int, int)` of a `Decoratable` answers.
+     *
+     * @throws IllegalStateException if [decoratable] is not a `java.awt.Component`.
      */
     @Suppress("ForbiddenComment", "LongParameterList")
     public fun paintImmediately(
-        component: JComponent,
+        decoratable: Decoratable,
         x: Int,
         y: Int,
         width: Int,
         height: Int,
         paint: (x: Int, y: Int, width: Int, height: Int) -> Unit,
     ) {
+        val component = decoratable.requireComponent()
         if (stepsMoveContent(component)) return paint(0, 0, component.width, component.height)
         val area = Rectangle(x, y, width, height)
         val children = childMeasurables

@@ -296,8 +296,7 @@ private class AlignmentGuidesNode(
     override fun ContentDrawScope.draw() {
         drawContent()
         val children = declared.guides.children.mapNotNull { it.boxes() }
-        // A draw node's component always paints through a decoration, which no type of its own says.
-        val layoutBounds = (component as Decoratable).decoration.localLayoutBounds(component)
+        val layoutBounds = decoratable.decoration.localLayoutBounds(decoratable)
         // The drawing starts at the container's layout bounds, and the children's boxes start at its bounds.
         translate(-layoutBounds.x.toFloat(), -layoutBounds.y.toFloat()) {
             val marks = declared.marks

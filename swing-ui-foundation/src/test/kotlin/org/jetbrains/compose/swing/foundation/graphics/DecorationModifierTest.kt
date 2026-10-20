@@ -15,6 +15,9 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.SwingComponentNodeListener
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -291,6 +294,35 @@ class DecorationModifierTest {
                 sibling.attached,
                 "The whole chain is narrowed before any of it is created, so a sibling declared before the " +
                     "decoration never attaches either.",
+            )
+        }
+
+    @Test
+    fun declaredNodesRequireADecoratableThatIsAComponent() =
+        runComposeSwingTest {
+            val decoratable =
+                object : Decoratable {
+                    override var decoration: Decoration = Decoration.None
+                }
+            lateinit var componentNode: SwingComponentNode<*>
+            val component =
+                object : JComponent(), SwingComponentNodeListener {
+                    override fun onAttached(node: SwingComponentNode<*>) {
+                        componentNode = node
+                    }
+
+                    override fun onDetached(node: SwingComponentNode<*>) = Unit
+                }
+            setContent { SwingNode(factory = { component }) }
+
+            val failure =
+                assertFailsWith<IllegalStateException> {
+                    decoratable.onDeclaredNodesChanged(componentNode, emptyList())
+                }
+
+            assertEquals(
+                "A ${Decoratable::class.java.name} paints as a component, and ${decoratable.javaClass.name} is not one",
+                failure.message,
             )
         }
 

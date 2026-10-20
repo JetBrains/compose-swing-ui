@@ -37,6 +37,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Behavioral tests for [DecorationModifierNode]: where a step paints, and how its changes reach the component. */
@@ -502,6 +503,28 @@ class DecorationModifierNodeTest {
         }
 
     @Test
+    fun aStepReadsItsComponentAsADecoratableWhileAttachedAndFailsOnceDetached() =
+        runComposeSwingTest {
+            var declared by mutableStateOf(true)
+            val step = DecoratableReadingStep()
+            setContent {
+                SwingNode(
+                    factory = { DecoratedPanel() },
+                    modifier = SwingModifier.testTag("panel").let { if (declared) it.then(step) else it },
+                )
+            }
+            val node = step.created.single()
+            val panel = onNodeWithTag("panel").fetch<DecoratedPanel>()
+
+            assertSame(panel, node.readDecoratable(), "an attached step reads its component")
+
+            declared = false
+            awaitIdle()
+
+            assertFailsWith<IllegalStateException> { node.readDecoratable() }
+        }
+
+    @Test
     fun aStepIsToldItLeavesTheDecorationWhenRemovedReplacedOrItsComponentLeaves() =
         runComposeSwingTest {
             val counter = RemovalCounter()
@@ -600,6 +623,35 @@ private class CountingStepNode(
         counter.removedCount++
         counter.attachedAtEveryRemoval += isAttached
     }
+
+    override fun paint(
+        graphics: Graphics2D,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) {
+        content(graphics, width, height)
+    }
+}
+
+private class DecoratableReadingStep : SwingModifier.NodeElement<Component, DecoratableReadingNode>() {
+    val created = ArrayList<DecoratableReadingNode>()
+
+    override val additive: Boolean get() = true
+
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): DecoratableReadingNode = DecoratableReadingNode().also { created += it }
+
+    override fun update(node: DecoratableReadingNode) = Unit
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class DecoratableReadingNode : DecorationModifierNode<Component>() {
+    fun readDecoratable(): Decoratable = decoratable
 
     override fun paint(
         graphics: Graphics2D,

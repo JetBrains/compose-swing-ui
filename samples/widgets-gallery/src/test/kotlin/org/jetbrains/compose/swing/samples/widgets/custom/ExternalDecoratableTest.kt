@@ -536,14 +536,18 @@ class Card :
         y: Int,
         width: Int,
         height: Int,
-    ) = decoration.repaint(this, tm, x, y, width, height)
+    ) = decoration.repaint(this, tm, x, y, width, height) { maxDelay, grownX, grownY, grownWidth, grownHeight ->
+        super.repaint(maxDelay, grownX, grownY, grownWidth, grownHeight)
+    }
 
     override fun paintImmediately(
         x: Int,
         y: Int,
         w: Int,
         h: Int,
-    ) = decoration.paintImmediately(this, x, y, w, h) { px, py, pw, ph -> super.paintImmediately(px, py, pw, ph) }
+    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
+        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
+    }
 
     /** 120 by 80 inside the insets, which carry the border and the paint outsets, as any Swing size does. */
     override fun getPreferredSize(): Dimension {
@@ -607,14 +611,18 @@ class DecoratedPanel(
         y: Int,
         width: Int,
         height: Int,
-    ) = decoration.repaint(this, tm, x, y, width, height)
+    ) = decoration.repaint(this, tm, x, y, width, height) { maxDelay, grownX, grownY, grownWidth, grownHeight ->
+        super.repaint(maxDelay, grownX, grownY, grownWidth, grownHeight)
+    }
 
     override fun paintImmediately(
         x: Int,
         y: Int,
         w: Int,
         h: Int,
-    ) = decoration.paintImmediately(this, x, y, w, h) { px, py, pw, ph -> super.paintImmediately(px, py, pw, ph) }
+    ) = decoration.paintImmediately(this, x, y, w, h) { grownX, grownY, grownWidth, grownHeight ->
+        super.paintImmediately(grownX, grownY, grownWidth, grownHeight)
+    }
 }
 
 /**
