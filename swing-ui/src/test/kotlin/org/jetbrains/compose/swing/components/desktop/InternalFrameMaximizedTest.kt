@@ -4,9 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -50,7 +49,7 @@ class InternalFrameMaximizedTest {
                 title = "Editor",
                 state = state,
                 onClose = { },
-                modifier = SwingModifier.toolTip(toolTip),
+                style = { toolTip(toolTip) },
                 controls = InternalFrameControls(maximizable = true, iconifiable = true),
             ) { Label(text = "body") }
         }
@@ -184,7 +183,7 @@ class InternalFrameMaximizedTest {
                     title = "Editor",
                     state = state,
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                     controls = InternalFrameControls(maximizable = true),
                 ) { Label(text = "body") }
             }
@@ -376,7 +375,7 @@ class InternalFrameMaximizedTest {
                     title = "Editor",
                     bounds = Rectangle(10, 20, 100, 80),
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                     controls = InternalFrameControls(maximizable = true),
                 ) { Label(text = "body") }
             }

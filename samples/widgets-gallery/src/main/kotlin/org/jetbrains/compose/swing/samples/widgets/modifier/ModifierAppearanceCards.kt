@@ -26,15 +26,12 @@ import org.jetbrains.compose.swing.modifier.appearance.focusPainted
 import org.jetbrains.compose.swing.modifier.appearance.horizontalTextPosition
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.iconTextGap
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.pressedIcon
 import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
 import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
 import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.appearance.verticalTextPosition
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
@@ -44,8 +41,11 @@ import org.jetbrains.compose.swing.style.cursor
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -61,19 +61,12 @@ internal fun ColumnScope.AppearanceCard() {
     ExampleCard("background / foreground / font / lineBorder") {
         var fancy by remember { mutableStateOf(true) }
         CheckBox(text = "Fancy styling", checked = fancy, onCheckedChange = { fancy = it })
-        val styled =
-            if (fancy) {
-                SwingModifier
-                    .opaque(true)
-                    .lineBorder(Color(0xBF, 0x36, 0x0C), 2)
-            } else {
-                SwingModifier
-            }
         Label(
             "Styled when the box is checked",
-            modifier = styled,
             style = {
                 if (fancy) {
+                    opaque(true)
+                    lineBorder(Color(0xBF, 0x36, 0x0C), 2)
                     background(Color(0xFF, 0xF3, 0xE0))
                     foreground(Color(0xBF, 0x36, 0x0C))
                     font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
@@ -204,14 +197,12 @@ internal fun ColumnScope.CursorAndToolTipCard() {
         CheckBox(text = "Hand cursor", checked = hand, onCheckedChange = { hand = it })
         Label(
             "Hover me: cursor + tooltip",
-            modifier =
-                SwingModifier
-                    .opaque(true)
-                    .toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer"),
             style = {
                 background(Color(0xE8, 0xF5, 0xE9))
                 preferredSize(Dimension(260, 32))
                 cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
+                opaque(true)
+                toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer")
             },
         )
     }
@@ -228,12 +219,14 @@ internal fun ColumnScope.PerLocationToolTipCard() {
             )
         Canvas(
             modifier =
-                SwingModifier
-                    .lineBorder(Color.GRAY)
-                    .toolTip { event ->
+                SwingModifier.styleable {
+                    preferredSize(Dimension(300, 56))
+                    lineBorder(Color.GRAY)
+                    toolTip { event ->
                         val width = event.component.width.coerceAtLeast(1)
                         bands.getOrNull(event.x * bands.size / width)?.first
-                    }.styleable { preferredSize(Dimension(300, 56)) },
+                    }
+                },
         ) {
             val band = width / bands.size
             bands.forEachIndexed { index, (_, color) ->

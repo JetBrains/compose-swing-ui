@@ -13,13 +13,15 @@ import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.components.style.Panels
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -29,68 +31,27 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFailsWith
 
-/**
- * Which nested style wins on a library component: own over provided, nearer over farther, kind over all. A provided
- * style reaches every descendant that applies its key, however the descendant arrives.
- */
 class NestedStyleTest {
-    @Test
-    fun aNestedBlockCannotProvideItsOwnKey() = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun nestedBlocksCannotProvideStyles(sameKey: Boolean) = runComposeSwingTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    Panel(
-                        style = {
-                            provideNestedStyle(Panels) {
+                    Panel(style = {
+                        provideNestedStyle(Panels) {
+                            if (sameKey) {
                                 provideNestedStyle(Panels) { background(Color.RED) }
-                            }
-                        },
-                    ) {
-                        Panel {}
-                    }
-                }
-            }
-
-        assertContains(failure.message.orEmpty(), "provideNestedStyle($Panels)")
-        assertContains(failure.message.orEmpty(), "component's own style instead")
-    }
-
-    @Test
-    fun aNestedBlockCannotProvideAnotherNestedStyle() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    Panel(
-                        style = {
-                            provideNestedStyle(Panels) {
+                            } else {
                                 provideNestedStyle(Labels) { foreground(Color.RED) }
                             }
-                        },
-                    ) {
-                        Panel { Label("nested") }
-                    }
+                        }
+                    }) { Panel { Label("nested") } }
                 }
             }
-
-        assertContains(failure.message.orEmpty(), "provideNestedStyle($Labels)")
+        val key = if (sameKey) Panels else Labels
+        assertContains(failure.message.orEmpty(), "provideNestedStyle($key)")
         assertContains(failure.message.orEmpty(), "component's own style instead")
-    }
-
-    @Test
-    fun aComponentsOwnStyleCanProvideANestedStyleWhileApplyingOne() = runComposeSwingTest {
-        setContent {
-            Panel(style = { provideNestedStyle(Panels) { background(Color.BLUE) } }) {
-                Panel(
-                    modifier = SwingModifier.testTag("nested"),
-                    style = { provideNestedStyle(Labels) { foreground(Color.RED) } },
-                ) {
-                    Label("nested")
-                }
-            }
-        }
-
-        onNodeWithTag("nested").assertProperty(Color.BLUE) { background }
-        onNodeWithText("nested").assertProperty(Color.RED) { foreground }
     }
 
     @Test
@@ -98,32 +59,29 @@ class NestedStyleTest {
         setContent {
             Panel(
                 modifier = SwingModifier.testTag("provider"),
-                style = { provideNestedStyle(AllComponents) { enabled(false) } },
+                style = {
+                    provideNestedStyle(AllComponents) { enabled(false) }
+                    provideNestedStyle(Panels) { background(Color.BLUE) }
+                },
             ) {
                 Label("label")
+                Label("own", style = { enabled(true) })
                 Button("button", onClick = {})
-                Panel(SwingModifier.testTag("nested")) { Label("deep") }
+                Panel(
+                    SwingModifier.testTag("nested"),
+                    style = { provideNestedStyle(Labels) { foreground(Color.RED) } },
+                ) { Label("deep") }
             }
         }
 
         onNodeWithText("label").assertProperty(false, "a Label applies AllComponents") { isEnabled }
+        onNodeWithText("own").assertProperty(true) { isEnabled }
+        onNodeWithTag("nested").assertProperty(Color.BLUE) { background }
+        onNodeWithText("deep").assertProperty(Color.RED) { foreground }
         onNodeWithText("button").assertProperty(false, "and so does a Button") { isEnabled }
         onNodeWithTag("nested").assertProperty(false, "and a Panel below the provider") { isEnabled }
         onNodeWithText("deep").assertProperty(false, "the style reaches every depth") { isEnabled }
         onNodeWithTag("provider").assertProperty(true, "the provider does not apply its own nested style") { isEnabled }
-    }
-
-    @Test
-    fun aComponentsOwnStyleWinsOverAProvidedOne() = runComposeSwingTest {
-        setContent {
-            Panel(style = { provideNestedStyle(AllComponents) { enabled(false) } }) {
-                Label("provided")
-                Label("own", style = { enabled(true) })
-            }
-        }
-
-        onNodeWithText("provided").assertProperty(false) { isEnabled }
-        onNodeWithText("own").assertProperty(true, "the caller's style runs after the provided ones") { isEnabled }
     }
 
     @Test
@@ -312,7 +270,7 @@ class NestedStyleTest {
                 Button(
                     "button",
                     onClick = {},
-                    modifier = SwingModifier.toolTip("tip"),
+                    modifier = SwingModifier.name("tip"),
                     style = { foreground(Color.RED) },
                 )
             }
@@ -323,7 +281,7 @@ class NestedStyleTest {
         val button = onNodeOfType<JButton>()
         button.assertProperty(Color.BLUE, "the style the provider now provides reaches the button") { background }
         button.assertProperty(Color.RED, "the button's own style stands") { foreground }
-        button.assertProperty("tip", "the button's modifier stands") { toolTipText }
+        button.assertProperty("tip", "the button's modifier stands") { name }
     }
 
     @Test
@@ -343,27 +301,16 @@ class NestedStyleTest {
     }
 
     @Test
-    fun aThirdPartyNestingKindAppliesTheNestedStyleOfItsPublishingAncestor() = runComposeSwingTest {
-        setContent {
-            Panel(style = { provideNestedStyle(AllComponents) { background(Color.BLUE) } }) {
-                SwingNode(
-                    factory = { JLabel("third party") },
-                    modifier = SwingModifier.styleable(SwingStyle, ThirdPartyNestingKind),
-                )
-            }
-        }
-
-        onNodeWithText("third party").assertProperty(Color.BLUE) { background }
-    }
-
-    @Test
     fun aProvidersOwnWriteIsNotCheckedAsPartOfAConsumersNestingDefault() = runComposeSwingTest {
         setContent {
             Panel(
                 modifier = SwingModifier.testTag("provider"),
                 style = {
                     background(Color.RED)
-                    provideNestedStyle(AllComponents) { foreground(Color.BLUE) }
+                    provideNestedStyle(AllComponents) {
+                        foreground(Color.BLUE)
+                        background(Color.BLUE)
+                    }
                 },
             ) {
                 SwingNode(
@@ -373,7 +320,9 @@ class NestedStyleTest {
             }
         }
 
-        onNodeWithText("third party").assertProperty(Color.BLUE) { foreground }
+        onNodeWithText("third party")
+            .assertProperty(Color.BLUE) { foreground }
+            .assertProperty(Color.BLUE) { background }
         onNodeWithTag("provider").assertProperty(Color.RED) { background }
     }
 

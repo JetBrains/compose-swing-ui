@@ -16,10 +16,9 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -76,7 +75,7 @@ internal fun ColumnScope.ListBoxCard() {
                 ) { row ->
                     Panel(
                         PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
-                        modifier = SwingModifier.opaque(false),
+                        style = { opaque(false) },
                     ) {
                         Label(if (this@ListBox.isSelected) "●" else "○")
                         Label(row)

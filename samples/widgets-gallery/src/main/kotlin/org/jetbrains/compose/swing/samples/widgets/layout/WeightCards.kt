@@ -57,10 +57,13 @@ internal fun ColumnScope.WeightSharesCard() {
         Label("Shares granted: $lightWidth px and $heavyWidth px of the row's $rowWidth px")
         Row(
             modifier =
-                SwingModifier.layoutTrack().componentListener(onComponentResized = {
-                    rowWidth =
-                        it.component.width
-                }),
+                SwingModifier
+                    .layoutTrack()
+                    .componentListener(onComponentResized = {
+                        rowWidth =
+                            it.component.width
+                    })
+                    .styleable { layoutTrack() },
         ) {
             LayoutSwatch(
                 "1f",
@@ -97,7 +100,13 @@ internal fun ColumnScope.CrossAxisFillCard() {
             max = 10,
         )
         Label("Row cross axis: fillMaxHeight($fillFractionText)")
-        Row(modifier = SwingModifier.layoutTrack().styleable { preferredSize(260, 52) }) {
+        Row(
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(260, 52)
+                },
+        ) {
             LayoutSwatch(
                 "fills $fillFractionText of available height",
                 LayoutSampleColors.Blue,
@@ -106,7 +115,13 @@ internal fun ColumnScope.CrossAxisFillCard() {
             )
         }
         Label("Column cross axis: fillMaxWidth($fillFractionText)")
-        Column(modifier = SwingModifier.layoutTrack().styleable { preferredSize(260, 52) }) {
+        Column(
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(260, 52)
+                },
+        ) {
             LayoutSwatch(
                 "fills $fillFractionText of available width",
                 LayoutSampleColors.Green,
@@ -115,7 +130,13 @@ internal fun ColumnScope.CrossAxisFillCard() {
             )
         }
         Label("Box axes: fillMaxSize($fillFractionText)")
-        Box(modifier = SwingModifier.layoutTrack().styleable { preferredSize(260, 52) }) {
+        Box(
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(260, 52)
+                },
+        ) {
             LayoutSwatch(
                 "fills $fillFractionText of the box",
                 LayoutSampleColors.Orange,
@@ -142,10 +163,11 @@ internal fun ColumnScope.WeightFillCard() {
             modifier =
                 SwingModifier
                     .layoutTrack()
-                    .componentListener(onComponentResized = {
-                        rowWidth = it.component.width
-                    })
-                    .styleable { preferredSize(Dimension(300, 32)) },
+                    .componentListener(onComponentResized = { rowWidth = it.component.width })
+                    .styleable {
+                        layoutTrack()
+                        preferredSize(Dimension(300, 32))
+                    },
         ) {
             LayoutSwatch(
                 if (fill) "fill" else "no fill",
@@ -182,10 +204,11 @@ internal fun ColumnScope.WeightMaximumSizeCard() {
             modifier =
                 SwingModifier
                     .layoutTrack()
-                    .componentListener(onComponentResized = {
-                        rowWidth = it.component.width
-                    })
-                    .styleable { preferredSize(Dimension(300, 32)) },
+                    .componentListener(onComponentResized = { rowWidth = it.component.width })
+                    .styleable {
+                        layoutTrack()
+                        preferredSize(Dimension(300, 32))
+                    },
         ) {
             LayoutSwatch(
                 if (capped) "capped" else "uncapped",

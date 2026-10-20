@@ -28,12 +28,12 @@ import org.jetbrains.compose.swing.components.menu.RadioButtonMenuGroup
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.samples.widgets.layout.LocalAlignmentGuidesShown
 import org.jetbrains.compose.swing.samples.widgets.text.setEditorText
 import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.window.LocalWindow
@@ -134,7 +134,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
                 },
         )
     val current = backStack.last().title
-    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(12)) {
+    Panel(PanelLayout.Border(), style = { emptyBorder(12) }) {
         AnimatedVisibility(
             visible = sidebarShown,
             modifier = SwingModifier.west(),

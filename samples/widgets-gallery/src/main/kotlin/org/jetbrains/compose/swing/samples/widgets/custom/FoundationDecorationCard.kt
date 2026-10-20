@@ -36,7 +36,6 @@ import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.keyListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
@@ -48,6 +47,7 @@ import org.jetbrains.compose.swing.style.cursor
 import org.jetbrains.compose.swing.style.focusable
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.window.Dialog
 import java.awt.Color
 import java.awt.Component
@@ -394,12 +394,12 @@ private fun ColumnScope.BrushTiles(
                                         onSelect(style)
                                     }
                                 },
-                            ).toolTip("Fill the surface with the $name brush")
-                            .testTag(BRUSH_TILE_TAG_PREFIX + name)
+                            ).testTag(BRUSH_TILE_TAG_PREFIX + name)
                             .styleable {
                                 cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
                                 focusable(true)
                                 accessibleName("$name brush")
+                                toolTip("Fill the surface with the $name brush")
                             },
                 ) {}
                 Label(name, style = { font(Font(Font.SANS_SERIF, Font.PLAIN, 10)) })
@@ -485,9 +485,11 @@ private fun ColumnScope.GradientControls(
                 modifier =
                     SwingModifier
                         .icon(SwatchIcon(color))
-                        .toolTip("Pick the ${stop.name.lowercase()} color")
                         .testTag(GRADIENT_SWATCH_TAG_PREFIX + stop.ordinal),
-                style = { accessibleName("${stop.name} color") },
+                style = {
+                    accessibleName("${stop.name} color")
+                    toolTip("Pick the ${stop.name.lowercase()} color")
+                },
             )
         }
         GraphicsSlider(

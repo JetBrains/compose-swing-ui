@@ -16,7 +16,6 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
@@ -24,6 +23,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Cursor
 import java.awt.Dimension
@@ -76,37 +76,59 @@ private fun ColumnScope.BoxContentAlignmentCard() {
                 listOf(GuideLine.Top, GuideLine.CenterVertically, GuideLine.Bottom)[selected / 3],
                 listOf(GuideLine.Left, GuideLine.CenterHorizontally, GuideLine.Right)[selected % 3],
             )
-        Box(
+        BoxContentAlignmentExample(
+            alignment = alignments[selected].second,
+            guides = guides,
+            marks = marks,
+            lines = lines,
+            onFrontMove = { x, y ->
+                frontX = x
+                frontY = y
+            },
+        )
+        AlignmentGuideLegend(marks, lines)
+    }
+}
+
+@Composable
+private fun BoxContentAlignmentExample(
+    alignment: Alignment,
+    guides: GuidedChildren,
+    marks: Set<GuideMark>,
+    lines: Set<GuideLine>,
+    onFrontMove: (Int, Int) -> Unit,
+) {
+    Box(
+        modifier =
+            SwingModifier
+                .layoutTrack()
+                .testTag(BOX_CONTENT_ALIGNMENT_TAG)
+                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines)
+                .styleable {
+                    layoutTrack()
+                    preferredSize(260, 140)
+                },
+        contentAlignment = alignment,
+    ) {
+        LayoutSwatch(
+            "behind",
+            LayoutSampleColors.Blue,
+            SwingModifier.alignmentGuide(guides),
+            style = { preferredSize(140, 80) },
+        )
+        LayoutSwatch(
+            "front",
+            LayoutSampleColors.Orange,
             modifier =
                 SwingModifier
-                    .layoutTrack()
-                    .testTag(BOX_CONTENT_ALIGNMENT_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines)
-                    .styleable { preferredSize(260, 140) },
-            contentAlignment = alignments[selected].second,
-        ) {
-            LayoutSwatch(
-                "behind",
-                LayoutSampleColors.Blue,
-                SwingModifier.alignmentGuide(guides),
-                style = { preferredSize(140, 80) },
-            )
-            LayoutSwatch(
-                "front",
-                LayoutSampleColors.Orange,
-                modifier =
-                    SwingModifier
-                        .alignmentGuide(guides)
-                        .componentListener(
-                            onComponentMoved = {
-                                frontX = it.component.x
-                                frontY = it.component.y
-                            },
-                        ),
-                style = { preferredSize(70, 32) },
-            )
-        }
-        AlignmentGuideLegend(marks, lines)
+                    .alignmentGuide(guides)
+                    .componentListener(
+                        onComponentMoved = {
+                            onFrontMove(it.component.x, it.component.y)
+                        },
+                    ),
+            style = { preferredSize(70, 32) },
+        )
     }
 }
 
@@ -126,7 +148,11 @@ private fun ColumnScope.BoxChildAlignCard() {
         )
         Label("Unaligned child sits at ${if (bottomCenter) "BottomCenter" else "Center"}: ($plainX, $plainY) px")
         Box(
-            modifier = SwingModifier.layoutTrack().styleable { preferredSize(260, 140) },
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(260, 140)
+                },
             contentAlignment = if (bottomCenter) Alignment.BottomCenter else Alignment.Center,
         ) {
             LayoutSwatch(
@@ -190,6 +216,7 @@ private fun ColumnScope.BoxMatchParentSizeCard() {
                 SwingModifier
                     .layoutTrack()
                     .styleable {
+                        layoutTrack()
                         preferredSize(260, 120)
                         accessibleName("matchParentSize box")
                     },
@@ -198,7 +225,6 @@ private fun ColumnScope.BoxMatchParentSizeCard() {
             Panel(
                 modifier =
                     SwingModifier
-                        .layoutSampleSurface()
                         .componentListener(
                             onComponentResized = {
                                 backdropWidth = it.component.width
@@ -225,29 +251,33 @@ private fun ColumnScope.BoxZIndexCard() {
         Label("Front child: $front")
         Label("Hover identifies a layer; click its exposed area to raise it.")
         Box(
-            modifier = SwingModifier.layoutTrack().styleable { preferredSize(200, 140) },
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(200, 140)
+                },
             contentAlignment = Alignment.Center,
         ) {
             InteractiveLayoutSwatch(
                 "B - crosshair",
                 LayoutSampleColors.Green,
                 onClick = { front = 'B' },
-                modifier =
-                    SwingModifier
-                        .toolTip("Layer B: click to raise")
-                        .zIndex(if (front == 'B') 1f else 0f),
-                style = { preferredSize(90, 140) },
+                modifier = SwingModifier.zIndex(if (front == 'B') 1f else 0f),
+                style = {
+                    preferredSize(90, 140)
+                    toolTip("Layer B: click to raise")
+                },
                 cursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR),
             )
             InteractiveLayoutSwatch(
                 "A - hand",
                 LayoutSampleColors.Orange,
                 onClick = { front = 'A' },
-                modifier =
-                    SwingModifier
-                        .toolTip("Layer A: click to raise")
-                        .zIndex(if (front == 'A') 1f else 0f),
-                style = { preferredSize(140, 90) },
+                modifier = SwingModifier.zIndex(if (front == 'A') 1f else 0f),
+                style = {
+                    preferredSize(140, 90)
+                    toolTip("Layer A: click to raise")
+                },
             )
         }
     }
@@ -270,7 +300,11 @@ internal fun ColumnScope.BiasAlignmentCard() {
             max = 100,
         )
         Box(
-            modifier = SwingModifier.layoutTrack().styleable { preferredSize(300, 40) },
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(300, 40)
+                },
             contentAlignment = BiasAlignment(bias / 100f, 0f),
         ) {
             LayoutSwatch(

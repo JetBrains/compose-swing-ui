@@ -65,7 +65,11 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         val orientation = if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT
         Label("End: leading child at x = $endX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().styleable { componentOrientation(orientation) },
+            modifier =
+                SwingModifier.layoutTrack().fillMaxWidth().styleable {
+                    layoutTrack()
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.End,
         ) {
             LayoutSwatch(
@@ -79,7 +83,11 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         }
         Label("Absolute.Right: leading child at x = $absoluteX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().styleable { componentOrientation(orientation) },
+            modifier =
+                SwingModifier.layoutTrack().fillMaxWidth().styleable {
+                    layoutTrack()
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.Absolute.Right,
         ) {
             LayoutSwatch(
@@ -114,6 +122,7 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
                 SwingModifier
                     .layoutTrack()
                     .styleable {
+                        layoutTrack()
                         preferredSize(Dimension(220, 28))
                         componentOrientation(orientation)
                     },
@@ -133,6 +142,7 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
                 SwingModifier
                     .layoutTrack()
                     .styleable {
+                        layoutTrack()
                         preferredSize(Dimension(220, 28))
                         componentOrientation(orientation)
                     },
@@ -179,7 +189,12 @@ internal fun ColumnScope.AlignByBaselineCard() {
                     .layoutTrack()
                     .fillMaxWidth()
                     .testTag(BASELINE_ROW_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines),
+                    .alignmentGuides(
+                        guides,
+                        LocalAlignmentGuidesShown.current,
+                        marks,
+                        lines,
+                    ).styleable { layoutTrack() },
             horizontalArrangement = Arrangement.spacedBy(16),
             verticalAlignment = Alignment.Bottom,
         ) {

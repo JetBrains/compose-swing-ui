@@ -19,10 +19,10 @@ import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -59,12 +59,17 @@ class DecorationModifierNodeTest {
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
-                                .opaque(false)
                                 .padding(4)
                                 .then(Step())
                                 .padding(4)
                                 .fill(Color.BLUE)
-                                .styleable({ preferredSize(Dimension(32, 32)) }, RawKind),
+                                .styleable(
+                                    {
+                                        opaque(false)
+                                        preferredSize(Dimension(32, 32))
+                                    },
+                                    RawKind,
+                                ),
                     )
                 }
             }
@@ -129,9 +134,14 @@ class DecorationModifierNodeTest {
                     modifier =
                         SwingModifier
                             .testTag("panel")
-                            .opaque(false)
                             .then(step)
-                            .styleable({ preferredSize(Dimension(32, 32)) }, RawKind),
+                            .styleable(
+                                {
+                                    opaque(false)
+                                    preferredSize(Dimension(32, 32))
+                                },
+                                RawKind,
+                            ),
                 )
             }
             val node = step.created.single()
@@ -245,13 +255,18 @@ class DecorationModifierNodeTest {
                     val modifier =
                         SwingModifier
                             .testTag("panel")
-                            .opaque(false)
                             .fill(Color.BLUE)
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             (if (declared) modifier.then(Step()) else modifier)
-                                .styleable({ preferredSize(Dimension(32, 32)) }, RawKind),
+                                .styleable(
+                                    {
+                                        opaque(false)
+                                        preferredSize(Dimension(32, 32))
+                                    },
+                                    RawKind,
+                                ),
                     )
                 }
             }

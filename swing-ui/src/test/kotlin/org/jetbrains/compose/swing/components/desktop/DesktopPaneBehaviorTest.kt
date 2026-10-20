@@ -7,7 +7,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -418,21 +418,21 @@ class DesktopPaneBehaviorTest {
                     title = "Editor",
                     bounds = Rectangle(0, 0, 100, 100),
                     onClose = { },
-                    modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                    modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
                 ) { Label(text = "body") }
             }
         }
 
         val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Edits the document", frame.toolTipText, "the modifier applies to the frame")
+        assertEquals("Edits the document", frame.name, "the modifier applies to the frame")
 
         tip = "Holds the open document"
         awaitIdle()
-        assertEquals("Holds the open document", frame.toolTipText, "the modifier follows the state driving it")
+        assertEquals("Holds the open document", frame.name, "the modifier follows the state driving it")
 
         tip = null
         awaitIdle()
-        assertNull(frame.toolTipText, "dropping the element restores the tooltip the frame had without it")
+        assertNull(frame.name, "dropping the element restores the name the frame had without it")
     }
 
     @Test
@@ -445,17 +445,17 @@ class DesktopPaneBehaviorTest {
                     title = "Listened",
                     bounds = Rectangle(0, 0, 100, 100),
                     internalFrameListener = listener,
-                    modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                    modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
                 ) { Label(text = "body") }
             }
         }
 
         val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Edits the document", frame.toolTipText, "the modifier applies to the frame")
+        assertEquals("Edits the document", frame.name, "the modifier applies to the frame")
 
         tip = null
         awaitIdle()
-        assertNull(frame.toolTipText, "dropping the element restores the tooltip the frame had without it")
+        assertNull(frame.name, "dropping the element restores the name the frame had without it")
 
         frame.doDefaultCloseAction()
         awaitIdle()
@@ -593,7 +593,7 @@ class DesktopPaneBehaviorTest {
     fun theDesktopPanesOwnModifierFollowsTheStateDrivingIt() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Workspace")
         setContent {
-            DesktopPane(modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier) {
+            DesktopPane(modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier) {
                 InternalFrame(
                     title = "Frame",
                     bounds = Rectangle(0, 0, 100, 100),
@@ -603,15 +603,15 @@ class DesktopPaneBehaviorTest {
         }
 
         val pane = onNodeOfType<JDesktopPane>().fetch()
-        assertEquals("Workspace", pane.toolTipText, "the modifier applies to the desktop pane itself")
+        assertEquals("Workspace", pane.name, "the modifier applies to the desktop pane itself")
 
         tip = "Open documents"
         awaitIdle()
-        assertEquals("Open documents", pane.toolTipText, "the modifier follows the state driving it")
+        assertEquals("Open documents", pane.name, "the modifier follows the state driving it")
 
         tip = null
         awaitIdle()
-        assertNull(pane.toolTipText, "dropping the element restores the tooltip the pane had without it")
+        assertNull(pane.name, "dropping the element restores the name the pane had without it")
     }
 
     @Test

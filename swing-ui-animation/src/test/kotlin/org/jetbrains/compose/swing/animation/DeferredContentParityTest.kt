@@ -27,8 +27,7 @@ import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.rememberTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Container
@@ -503,7 +502,10 @@ class DeferredContentParityTest {
 private fun Body(
     text: String,
     width: Int,
-) = Label(text = text, modifier = SwingModifier.opaque(true), style = { preferredSize(width, 20) })
+) = Label(text = text, style = {
+    preferredSize(width, 20)
+    opaque(true)
+})
 
 private fun Container.contentTexts(): List<String> =
     (0 until componentCount).mapNotNull { index ->

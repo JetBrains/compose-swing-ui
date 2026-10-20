@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -85,22 +85,20 @@ class ToggleButtonBehaviorTest {
                 text = "Bold",
                 selected = false,
                 onSelectedChange = {},
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
         val button = onNodeOfType<JToggleButton>()
-        button.assertProperty("Bold text", "the modifier applies to the button") { toolTipText }
+        button.assertProperty("Bold text", "the modifier applies to the button") { name }
 
         tip = "Heavier weight"
         awaitIdle()
-        button.assertProperty("Heavier weight", "the modifier follows the state driving it") { toolTipText }
+        button.assertProperty("Heavier weight", "the modifier follows the state driving it") { name }
 
         tip = null
         awaitIdle()
-        button.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
-            toolTipText
-        }
+        button.assertProperty(null, "dropping the element restores the name the button had without it") { name }
     }
 
     @Test
@@ -173,7 +171,7 @@ class ToggleButtonBehaviorTest {
                 text = text,
                 selected = selected,
                 actionListener = listener,
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
@@ -187,9 +185,7 @@ class ToggleButtonBehaviorTest {
         awaitIdle()
         toggle.assertTextEquals("Strong")
         toggle.assert(SwingMatcher.isSelected())
-        toggle.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
-            toolTipText
-        }
+        toggle.assertProperty(null, "dropping the element restores the name the button had without it") { name }
         toggle.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         selected = false

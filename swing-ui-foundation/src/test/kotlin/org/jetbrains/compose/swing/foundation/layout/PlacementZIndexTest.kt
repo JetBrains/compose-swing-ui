@@ -15,9 +15,9 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -251,8 +251,9 @@ private fun FilledPanel(
 ) {
     Panel(
         PanelLayout.Flow(),
-        modifier = SwingModifier.opaque(true).then(modifier),
+        modifier = modifier,
         style = {
+            opaque(true)
             background(color)
             preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
         },

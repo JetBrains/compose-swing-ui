@@ -4,8 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -120,7 +119,7 @@ class InternalFrameIconifiedTest {
                     title = "Editor",
                     state = state,
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -145,7 +144,7 @@ class InternalFrameIconifiedTest {
                     title = "Editor",
                     bounds = Rectangle(10, 20, 300, 200),
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }

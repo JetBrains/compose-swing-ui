@@ -28,7 +28,6 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.foundation.layout.swingParentSlots
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ComponentStyleScope
@@ -36,6 +35,7 @@ import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyleKind
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -635,8 +635,9 @@ private fun Filled(
     height: Int = 20,
 ) = Label(
     text = "",
-    modifier = modifier.opaque(true),
+    modifier = modifier,
     style = {
+        opaque(true)
         preferredSize(width, height)
         background(color)
     },

@@ -76,5 +76,7 @@ public val DefaultComponentOrientation: ComponentDefaultKey<ComponentOrientation
 /**
  * Key for the default opaque flag applied to compatible descendants via [opaque].
  */
+@Deprecated("Set it in each component's style: style = { opaque(opaque) }")
+@Suppress("DEPRECATION")
 public val DefaultOpaque: ComponentDefaultKey<Boolean> =
     componentDefaultKeyOf("opaque") { opaque(it) }

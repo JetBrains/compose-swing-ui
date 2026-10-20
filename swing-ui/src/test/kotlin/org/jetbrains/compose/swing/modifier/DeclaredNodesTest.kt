@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNode
@@ -18,6 +17,7 @@ import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.TestMeasurementParentProtocol
 import org.jetbrains.compose.swing.node.attachedChild
 import org.jetbrains.compose.swing.node.currentValueOf
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,7 +44,7 @@ class DeclaredNodesTest {
             SwingModifier
                 .then(Layout("l1"))
                 .then(Additive("a1"))
-                .opaque(false)
+                .property(OpaqueDescriptor, false)
                 .then(Layout("l2"))
                 .then(Layout("l3"))
                 .then(Additive("a2")),
@@ -186,9 +186,9 @@ class DeclaredNodesTest {
     fun aPassThatLeavesTheNodesInPlaceHandsNothingOver() {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
-        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).opaque(false))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).property(OpaqueDescriptor, false))
 
-        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).opaque(true))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).property(OpaqueDescriptor, true))
 
         assertEquals(1, child.component.received.size, "only the attaching pass hands the nodes over")
         owner.dispose()
@@ -200,7 +200,7 @@ class DeclaredNodesTest {
         val child = attachedChild(owner, ListeningPanel())
         child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")))
 
-        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).opaque(false))
+        child.applyModifierDiff(SwingModifier.then(Additive("a")).then(Layout("l")).property(OpaqueDescriptor, false))
 
         assertEquals(listOf(listOf("a", "l")), child.component.received, "only the attaching pass hands the nodes over")
         owner.dispose()
@@ -299,11 +299,11 @@ class DeclaredNodesTest {
         val child = attachedChild(owner, ListeningPanel())
         val writes = AtomicInteger()
         child.applyDeclaredModifier(
-            SwingModifier.then(CountingElement("kept", writes)).then(Additive("a")).opaque(false),
+            SwingModifier.then(CountingElement("kept", writes)).then(Additive("a")).property(OpaqueDescriptor, false),
         )
 
         child.applyDeclaredModifier(
-            SwingModifier.then(CountingElement("kept", writes)).then(Additive("b")).opaque(true),
+            SwingModifier.then(CountingElement("kept", writes)).then(Additive("b")).property(OpaqueDescriptor, true),
         )
 
         assertTrue(child.component.isOpaque, "the keyed slot must be written with its new value")
@@ -321,9 +321,9 @@ class DeclaredNodesTest {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         val keyed = KeyReadingElement()
-        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).opaque(false))
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).property(OpaqueDescriptor, false))
 
-        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).opaque(true))
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).property(OpaqueDescriptor, true))
 
         assertTrue(child.component.isOpaque, "the keyed slot must be written with its new value")
         owner.dispose()

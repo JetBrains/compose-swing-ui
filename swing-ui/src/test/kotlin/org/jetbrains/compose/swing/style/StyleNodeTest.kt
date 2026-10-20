@@ -23,10 +23,8 @@ import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.FlowLayout
@@ -38,21 +36,22 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
-/** A style declared through `styleable` on a custom component, and what it keeps observing as it changes. */
 class StyleNodeTest {
     @Test
-    fun theKindlessStyleProvidesNestedStyles() = runComposeSwingTest {
+    fun theKindlessStyleOffersJComponentPropertiesAndProvidesNestedStyles() = runComposeSwingTest {
         setContent {
             SwingNode(
                 factory = { JPanel() },
                 modifier =
                     SwingModifier.testTag("container").styleable {
+                        toolTip("container")
                         provideNestedStyle(Probes) { LabelToolTip.provide("nested") }
                     },
             ) {
                 SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(SwingStyle, NestedProbe))
             }
         }
+        onNodeWithTag("container").assertIsOfType<JPanel>().assertProperty("container") { toolTipText }
         onNodeOfType<JLabel>().assertProperty("nested") { toolTipText }
     }
 
@@ -157,8 +156,8 @@ class StyleNodeTest {
         assertContains(failure.message.orEmpty(), "merge them into one style")
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("secondStyleables")
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     fun aSecondStyleableOnOneComponentIsRefused(addedByRecomposition: Boolean) {
         assertFailsWith<IllegalArgumentException> {
             runComposeSwingTest {
@@ -208,8 +207,8 @@ class StyleNodeTest {
         onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("second") { toolTipText }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("observingDeclarations")
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     fun aNodeObservingStateStopsWhenItsStyleStopsSettingIt(inParentLayout: Boolean) = runComposeSwingTest {
         var present by mutableStateOf(true)
         val watched = mutableIntStateOf(0)
@@ -306,19 +305,5 @@ class StyleNodeTest {
             SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(SwingStyle, kind))
         }
         assertEquals(0, defaultRuns, "nothing above provides, so the default is not run")
-    }
-
-    companion object {
-        @JvmStatic
-        fun secondStyleables(): List<Arguments> = listOf(
-            Arguments.of(Named.of("declared together", false)),
-            Arguments.of(Named.of("added by a recomposition", true)),
-        )
-
-        @JvmStatic
-        fun observingDeclarations(): List<Arguments> = listOf(
-            Arguments.of(Named.of("a property", false)),
-            Arguments.of(Named.of("a parent-layout declaration", true)),
-        )
     }
 }

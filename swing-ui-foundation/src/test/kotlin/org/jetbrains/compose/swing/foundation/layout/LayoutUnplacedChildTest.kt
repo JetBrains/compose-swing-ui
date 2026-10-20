@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
@@ -14,10 +15,10 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
@@ -33,6 +34,9 @@ import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
@@ -51,67 +55,64 @@ import kotlin.time.Duration.Companion.seconds
  */
 @ExclusiveWindowSystem
 class LayoutUnplacedChildTest {
-    /**
-     * A child the policy stops placing is not drawn and takes no press, as androidx draws no node its parent leaves
-     * unplaced, whether or not it is decorated; placed again, it paints and takes the press as before.
-     */
-    @Test
-    fun aChildThePolicyStopsPlacingNoLongerPaintsOrTakesThePress() =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun unplacedChildrenNeitherPaintNorTakeHits(showWhileUnplaced: Boolean) =
         runComposeSwingTest {
-            var placesChildren by mutableStateOf(true)
+            var placed by mutableStateOf(true)
+            var shown by mutableStateOf(!showWhileUnplaced)
+            val columns = if (showWhileUnplaced) 1 else 2
             setContent {
-                Layout(
-                    content = {
-                        Panel(
-                            PanelLayout.Flow(),
-                            modifier = SwingModifier.opaque(true),
-                            style = { background(Color.RED) },
-                        ) {}
-                        Box(modifier = SwingModifier.background(brush = { _, _ -> Color.BLUE }))
-                    },
-                    measurePolicy = { measurables, _ ->
-                        val placeables = measurables.map { it.measure(Constraints.fixed(CHILD_WIDTH, CHILD_HEIGHT)) }
-                        layout(2 * CHILD_WIDTH, CHILD_HEIGHT) {
-                            if (placesChildren) {
-                                placeables.forEachIndexed { column, placeable ->
-                                    placeable.place(column * CHILD_WIDTH, 0)
-                                }
-                            }
-                        }
-                    },
-                    modifier = ContainerModifier.styleable(containerStyle(2 * CHILD_WIDTH, CHILD_HEIGHT)),
-                )
+                UnplacedChildrenLayout(columns, showWhileUnplaced, placed = { placed }, shown = { shown })
             }
             val container = onNodeWithTag(CONTAINER_TAG).assertIsOfType<JComponent>()
-            val placed = container.captureToImage()
-
-            placesChildren = false
+            val child = container.onChildAt(0).fetch()
+            val image = container.captureToImage()
+            placed = false
             awaitIdle()
-
-            assertImagesPixelPerfect(renderImage(2 * CHILD_WIDTH, CHILD_HEIGHT) {}, container.captureToImage())
-            container.assertProperty(true, "a press where an unplaced child stood reaches the container") {
-                (0..1).all {
-                    SwingUtilities.getDeepestComponentAt(this, it * CHILD_WIDTH + CHILD_WIDTH / 2, CHILD_HEIGHT / 2) ===
-                        this
+            if (showWhileUnplaced) {
+                shown = true
+                awaitIdle()
+            }
+            container.onChildAt(0).assertProperty(false) { isVisible }
+            assertImagesPixelPerfect(renderImage(columns * CHILD_WIDTH, CHILD_HEIGHT) {}, container.captureToImage())
+            container.assertProperty(true) {
+                (0 until columns).all {
+                    SwingUtilities.getDeepestComponentAt(
+                        this,
+                        it * CHILD_WIDTH + CHILD_WIDTH / 2,
+                        CHILD_HEIGHT / 2,
+                    ) === this
                 }
             }
-
-            placesChildren = true
+            placed = true
             awaitIdle()
 
-            assertImagesPixelPerfect(placed, container.captureToImage())
-            container.assertProperty(true, "a child placed again takes the press again") {
-                val component = this
-                val children = component.childrenInDeclarationOrder()
-                children.size == 2 &&
-                    (0..1).all {
+            val expected =
+                if (showWhileUnplaced) {
+                    renderImage(CHILD_WIDTH, CHILD_HEIGHT) {
+                        it.color = Color.RED
+                        it.fillRect(0, 0, CHILD_WIDTH, CHILD_HEIGHT)
+                    }
+                } else {
+                    image
+                }
+            assertImagesPixelPerfect(expected, container.captureToImage())
+            container.assertProperty(true) {
+                val children = childrenInDeclarationOrder()
+                children.size == columns &&
+                    (0 until columns).all {
                         SwingUtilities.getDeepestComponentAt(
-                            component,
+                            this,
                             it * CHILD_WIDTH + CHILD_WIDTH / 2,
                             CHILD_HEIGHT / 2,
-                        ) ===
-                            children[it]
+                        ) === children[it]
                     }
+            }
+            if (showWhileUnplaced) {
+                container.assertProperty(true) {
+                    SwingUtilities.getDeepestComponentAt(this, CHILD_WIDTH / 2, CHILD_HEIGHT / 2) === child
+                }
             }
         }
 
@@ -238,177 +239,50 @@ class LayoutUnplacedChildTest {
             container.assertProperty(Dimension(10, 10), "the container must shrink back to its own bounds") { size }
         }
 
-    /** A child its own declaration hides stays hidden when the policy places it again. */
-    @Test
-    fun aChildHiddenByItsDeclarationStaysHiddenWhenPlacedAgain() =
-        runComposeSwingTest {
-            var placed by mutableStateOf(true)
-            setContent {
-                Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child"), style = { visible(false) }) },
-                    measurePolicy = { measurables, constraints ->
-                        val placeable = measurables.single().measure(constraints)
-                        layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
-                    },
-                )
-            }
-
-            placed = false
-            awaitIdle()
-            placed = true
-            awaitIdle()
-
-            onNodeWithTag("child").assertProperty(false, "the child must stay hidden") { isVisible }
+    @ParameterizedTest
+    @CsvSource("unset, false, true", "false, false, false", "true, true, true")
+    fun placementRestoresVisibility(
+        initial: String,
+        hideWhileUnplaced: Boolean,
+        expectedVisible: Boolean,
+    ) = runComposeSwingTest {
+        var placed by mutableStateOf(true)
+        var shown by mutableStateOf(initial != "false")
+        setContent {
+            Layout(
+                content = {
+                    SizedChild(
+                        0,
+                        SwingModifier.testTag("child").name("declared"),
+                        style = {
+                            enabled(false)
+                            if (initial != "unset") visible(shown)
+                        },
+                    )
+                },
+                measurePolicy = { measurables, constraints ->
+                    val placeable = measurables.single().measure(constraints)
+                    layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
+                },
+            )
         }
-
-    /** A child that declares visible(false) only while the policy leaves it unplaced is shown once placed again. */
-    @Test
-    fun aChildHiddenByADeclarationMadeWhileUnplacedIsShownWhenPlacedAgain() =
-        runComposeSwingTest {
-            var placed by mutableStateOf(true)
-            var shown by mutableStateOf(true)
-            setContent {
-                Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child"), style = { visible(shown) }) },
-                    measurePolicy = { measurables, constraints ->
-                        val placeable = measurables.single().measure(constraints)
-                        layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
-                    },
-                )
-            }
-
-            placed = false
-            awaitIdle()
+        val child = onNodeWithTag("child")
+        placed = false
+        awaitIdle()
+        child.assertProperty(false) { isVisible }
+        if (initial == "unset") child.assertProperty(Dimension(0, 0)) { size }
+        if (hideWhileUnplaced) {
             shown = false
             awaitIdle()
-            placed = true
-            awaitIdle()
-
-            onNodeWithTag("child").assertProperty(
-                true,
-                "placing the child again shows it over the declaration made while unplaced",
-            ) { isVisible }
         }
+        placed = true
+        awaitIdle()
 
-    /**
-     * A child shown by a declaration made while the policy leaves it unplaced paints nothing and takes no press until
-     * the policy places it again.
-     */
-    @Test
-    fun aChildShownWhileUnplacedStaysOutOfSightUntilPlacedAgain() =
-        runComposeSwingTest {
-            var placed by mutableStateOf(true)
-            var visible by mutableStateOf(false)
-            setContent {
-                Layout(
-                    content = {
-                        Panel(
-                            PanelLayout.Flow(),
-                            modifier = SwingModifier.opaque(true),
-                            style = {
-                                background(Color.RED)
-                                visible(visible)
-                            },
-                        ) {}
-                    },
-                    measurePolicy = { measurables, _ ->
-                        val placeable = measurables.single().measure(Constraints.fixed(CHILD_WIDTH, CHILD_HEIGHT))
-                        layout(CHILD_WIDTH, CHILD_HEIGHT) { if (placed) placeable.place(0, 0) }
-                    },
-                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
-                )
-            }
-            val container = onNodeWithTag(CONTAINER_TAG)
-            val child = container.onChildAt(0).fetch()
-
-            placed = false
-            awaitIdle()
-            visible = true
-            awaitIdle()
-
-            container.onChildAt(0).assertProperty(
-                false,
-                "the policy must hide again a child it leaves unplaced",
-            ) { isVisible }
-            assertImagesPixelPerfect(renderImage(CHILD_WIDTH, CHILD_HEIGHT) {}, container.captureToImage())
-            container.assertIsOfType<JComponent>().assertProperty(true, "a press reaches the container") {
-                SwingUtilities.getDeepestComponentAt(this, CHILD_WIDTH / 2, CHILD_HEIGHT / 2) === this
-            }
-
-            placed = true
-            awaitIdle()
-
-            assertImagesPixelPerfect(
-                renderImage(CHILD_WIDTH, CHILD_HEIGHT) {
-                    it.color = Color.RED
-                    it.fillRect(0, 0, CHILD_WIDTH, CHILD_HEIGHT)
-                },
-                container.captureToImage(),
-            )
-            container.assertIsOfType<JComponent>().assertProperty(true, "a press reaches the placed child") {
-                SwingUtilities.getDeepestComponentAt(this, CHILD_WIDTH / 2, CHILD_HEIGHT / 2) === child
-            }
-        }
-
-    /** A child the policy stops placing is hidden at a zero size, and shown at its placed size once placed again. */
-    @Test
-    fun aChildPlacedAgainIsShownAtItsPlacedSize() =
-        runComposeSwingTest {
-            var placed by mutableStateOf(true)
-            setContent {
-                Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child")) },
-                    measurePolicy = { measurables, constraints ->
-                        val placeable = measurables.single().measure(constraints)
-                        layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
-                    },
-                )
-            }
-            val child = onNodeWithTag("child")
-
-            placed = false
-            awaitIdle()
-
-            child.assertProperty(false, "an unplaced child must be hidden") { isVisible }
-            child.assertProperty(Dimension(0, 0), "an unplaced child must be left at a zero size") { size }
-
-            placed = true
-            awaitIdle()
-
-            child.assertProperty(true, "a child declaring no visibility must be shown when placed again") { isVisible }
-            child.assertProperty(Dimension(CHILD_WIDTH, CHILD_HEIGHT), "and take its placed size") { size }
-        }
-
-    /** What else a child declares stands as declared once the policy places it again. */
-    @Test
-    fun aChildPlacedAgainKeepsWhatElseItDeclares() =
-        runComposeSwingTest {
-            var placed by mutableStateOf(true)
-            setContent {
-                Layout(
-                    content = {
-                        SizedChild(
-                            0,
-                            SwingModifier.testTag("child").name("declared"),
-                            style = { enabled(false) },
-                        )
-                    },
-                    measurePolicy = { measurables, constraints ->
-                        val placeable = measurables.single().measure(constraints)
-                        layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
-                    },
-                )
-            }
-
-            placed = false
-            awaitIdle()
-            placed = true
-            awaitIdle()
-
-            val child = onNodeWithTag("child")
-            child.assertProperty("declared", "the declared name must stand") { name }
-            child.assertProperty(false, "the declared enabled(false) must stand") { isEnabled }
-        }
+        child.assertProperty(expectedVisible) { isVisible }
+        if (initial == "unset") child.assertProperty(Dimension(CHILD_WIDTH, CHILD_HEIGHT)) { size }
+        child.assertProperty("declared") { name }
+        child.assertProperty(false) { isEnabled }
+    }
 
     /** A child left unplaced stays at a zero size and paints nothing, even where a component inside it has a shadow. */
     @Test
@@ -475,4 +349,35 @@ class LayoutUnplacedChildTest {
             ) { size }
             moved.assertProperty(true, "the moved child must be visible in its new container") { isVisible }
         }
+}
+
+@Composable
+private fun UnplacedChildrenLayout(
+    columns: Int,
+    showWhileUnplaced: Boolean,
+    placed: () -> Boolean,
+    shown: () -> Boolean,
+) {
+    Layout(
+        content = {
+            Panel(
+                PanelLayout.Flow(),
+                style = {
+                    background(Color.RED)
+                    opaque(true)
+                    if (showWhileUnplaced) visible(shown())
+                },
+            ) {}
+            if (!showWhileUnplaced) Box(modifier = SwingModifier.background(brush = { _, _ -> Color.BLUE }))
+        },
+        measurePolicy = { measurables, _ ->
+            val placeables = measurables.map { it.measure(Constraints.fixed(CHILD_WIDTH, CHILD_HEIGHT)) }
+            layout(columns * CHILD_WIDTH, CHILD_HEIGHT) {
+                if (placed()) {
+                    placeables.forEachIndexed { column, child -> child.place(column * CHILD_WIDTH, 0) }
+                }
+            }
+        },
+        modifier = ContainerModifier.styleable(containerStyle(columns * CHILD_WIDTH, CHILD_HEIGHT)),
+    )
 }

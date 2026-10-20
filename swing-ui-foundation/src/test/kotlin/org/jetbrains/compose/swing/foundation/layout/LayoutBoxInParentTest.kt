@@ -14,10 +14,10 @@ import org.jetbrains.compose.swing.foundation.graphics.decoration
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -145,10 +145,11 @@ internal class LayoutBoxInParentTest {
                 Box(SwingModifier.testTag(STAGE).decoration(reading.element)) {
                     Label(
                         "child",
-                        SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                        SwingModifier.testTag(CHILD).then(reading.reader()),
                         style = {
                             preferredSize(40, 30)
                             paintOutsets(PaintOutsets.FullInsets)
+                            emptyBorder(8)
                         },
                     )
                 }
@@ -179,10 +180,11 @@ internal class LayoutBoxInParentTest {
                             content = {
                                 Label(
                                     "child",
-                                    SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
+                                    SwingModifier.testTag(CHILD).then(reading.reader()),
                                     style = {
                                         preferredSize(40, 30)
                                         paintOutsets(PaintOutsets.FullInsets)
+                                        emptyBorder(8)
                                     },
                                 )
                             },
@@ -231,11 +233,12 @@ internal class LayoutBoxInParentTest {
         var value by mutableStateOf(PaintOutsets(from))
         setContent {
             Stage(reading, shadowed = false) {
-                val child = SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader())
+                val child = SwingModifier.testTag(CHILD).then(reading.reader())
                 val childStyle =
-                    SwingStyle<ComponentStyleScope> {
+                    SwingStyle<SwingComponentStyleScope> {
                         preferredSize(40, 30)
                         paintOutsets(value)
+                        emptyBorder(8)
                     }
                 if (decorated) {
                     Box(child.styleable(childStyle).background(Color.WHITE, RectangleShape)) { Label("child") }
@@ -278,8 +281,11 @@ internal class LayoutBoxInParentTest {
                     content = {
                         Label(
                             "child",
-                            SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
-                            style = { paintOutsets(PaintOutsets.FullInsets) },
+                            SwingModifier.testTag(CHILD).then(reading.reader()),
+                            style = {
+                                emptyBorder(8)
+                                paintOutsets(PaintOutsets.FullInsets)
+                            },
                         )
                     },
                     modifier =
@@ -326,8 +332,11 @@ internal class LayoutBoxInParentTest {
                         content = {
                             Label(
                                 "child",
-                                SwingModifier.testTag(CHILD).emptyBorder(8).then(reading.reader()),
-                                style = { paintOutsets(PaintOutsets.FullInsets) },
+                                SwingModifier.testTag(CHILD).then(reading.reader()),
+                                style = {
+                                    emptyBorder(8)
+                                    paintOutsets(PaintOutsets.FullInsets)
+                                },
                             )
                         },
                         modifier =
@@ -506,7 +515,6 @@ private fun SwingModifier.child(
     val afterOutsets = if (case.readerAfterOutsets) reader else SwingModifier
     return this
         .testTag(CHILD)
-        .then(if (case.border > 0) SwingModifier.emptyBorder(case.border) else SwingModifier)
         .then(if (case.offsetX != 0) SwingModifier.offset(case.offsetX, 0) else SwingModifier)
         .then(beforeShadow)
         .then(if (case.shadow > 0) SwingModifier.shadow(case.shadow, Color.BLACK) else SwingModifier)
@@ -515,7 +523,8 @@ private fun SwingModifier.child(
 }
 
 private fun BoxCase.childStyle() =
-    SwingStyle<ComponentStyleScope> {
+    SwingStyle<SwingComponentStyleScope> {
+        if (border > 0) emptyBorder(border)
         size?.let { preferredSize(it.width, it.height) }
         outsets?.let { paintOutsets(it) }
     }

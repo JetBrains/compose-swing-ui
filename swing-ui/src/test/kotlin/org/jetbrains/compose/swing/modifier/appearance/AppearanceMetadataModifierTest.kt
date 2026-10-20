@@ -2,16 +2,22 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.composeInNestedComposition
+import org.jetbrains.compose.swing.style.TestNodeKind
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.focusable
 import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -54,7 +60,15 @@ class AppearanceMetadataModifierTest {
             composeInNestedComposition {
                 SwingNode(
                     factory = { panel },
-                    modifier = if (declared) SwingModifier.border(declaredBorder) else SwingModifier,
+                    modifier =
+                        if (declared) {
+                            SwingModifier.styleable(
+                                { border(declaredBorder) },
+                                TestNodeKind,
+                            )
+                        } else {
+                            SwingModifier
+                        },
                 )
             }
 
@@ -82,7 +96,15 @@ class AppearanceMetadataModifierTest {
             composeInNestedComposition {
                 SwingNode(
                     factory = { panel },
-                    modifier = if (declared) SwingModifier.border(declaredBorder) else SwingModifier,
+                    modifier =
+                        if (declared) {
+                            SwingModifier.styleable(
+                                { border(declaredBorder) },
+                                TestNodeKind,
+                            )
+                        } else {
+                            SwingModifier
+                        },
                 )
             }
         var throwOnRestore = true
@@ -126,12 +148,12 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
-    fun borderModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun borderStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         val custom: Border = BorderFactory.createLineBorder(Color.RED, 3)
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.border(custom) else SwingModifier)
+            Label("styled", style = { if (styled) border(custom) })
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().border
@@ -142,18 +164,18 @@ class AppearanceMetadataModifierTest {
         assertSame(
             default,
             styledLabel.fetch<JLabel>().border,
-            "removing the modifier should restore the default border",
+            "a style that stops setting the border should restore the default one",
         )
     }
 
     @Test
     fun borderTakesADeclaredBorderThatComparesEqualToTheOneInPlace() = runComposeSwingTest {
-        var caption by mutableStateOf("first")
-        setContent { Label(caption, modifier = SwingModifier.border(ValueBorder(2))) }
+        var declared by mutableStateOf(ValueBorder(2), referentialEqualityPolicy())
+        setContent { Label("label", style = { border(declared) }) }
         val label = onNodeOfType<JLabel>()
         val first = label.fetch<JLabel>().border
 
-        caption = "second"
+        declared = ValueBorder(2)
         awaitIdle()
         val second = label.fetch<JLabel>().border
         // The declaration carries the caller's own object, so what the caller's equals says about the
@@ -164,7 +186,7 @@ class AppearanceMetadataModifierTest {
 
     @Test
     fun lineBorderAppliesTheColorAndThickness() = runComposeSwingTest {
-        setContent { Label("X", modifier = SwingModifier.lineBorder(Color.RED, 3)) }
+        setContent { Label("X", style = { lineBorder(Color.RED, 3) }) }
         onNodeOfType<JLabel>()
             .assertProperty(Color.RED, "the declared color should reach the border") {
                 assertIs<LineBorder>(border, "the builder should install a line border").lineColor
@@ -175,7 +197,7 @@ class AppearanceMetadataModifierTest {
 
     @Test
     fun lineBorderDefaultsToASingleThickness() = runComposeSwingTest {
-        setContent { Label("X", modifier = SwingModifier.lineBorder(Color.BLUE)) }
+        setContent { Label("X", style = { lineBorder(Color.BLUE) }) }
         onNodeOfType<JLabel>().assertProperty(1, "the default thickness should match the line Swing itself draws") {
             assertIs<LineBorder>(border, "the builder should install a line border").thickness
         }
@@ -183,7 +205,7 @@ class AppearanceMetadataModifierTest {
 
     @Test
     fun emptyBorderAppliesTheInsets() = runComposeSwingTest {
-        setContent { Label("X", modifier = SwingModifier.emptyBorder(1, 2, 3, 4)) }
+        setContent { Label("X", style = { emptyBorder(1, 2, 3, 4) }) }
         onNodeOfType<JLabel>().assertProperty(
             Insets(1, 2, 3, 4),
             "the sides should be taken in top, left, bottom, right order",
@@ -192,7 +214,7 @@ class AppearanceMetadataModifierTest {
 
     @Test
     fun emptyBorderInsetsFormAppliesTheInsets() = runComposeSwingTest {
-        setContent { Label("X", modifier = SwingModifier.emptyBorder(Insets(1, 2, 3, 4))) }
+        setContent { Label("X", style = { emptyBorder(Insets(1, 2, 3, 4)) }) }
         onNodeOfType<JLabel>().assertProperty(Insets(1, 2, 3, 4), "the insets should reach the border") {
             border.getBorderInsets(this)
         }
@@ -200,7 +222,7 @@ class AppearanceMetadataModifierTest {
 
     @Test
     fun emptyBorderUniformFormAppliesEverySide() = runComposeSwingTest {
-        setContent { Label("X", modifier = SwingModifier.emptyBorder(5)) }
+        setContent { Label("X", style = { emptyBorder(5) }) }
         onNodeOfType<JLabel>().assertProperty(Insets(5, 5, 5, 5), "one count should cover every side") {
             border.getBorderInsets(this)
         }
@@ -209,7 +231,7 @@ class AppearanceMetadataModifierTest {
     @Test
     fun lineBorderKeepsTheSameBorderWhileItsValuesAreUnchanged() = runComposeSwingTest {
         var caption by mutableStateOf("first")
-        setContent { Label(caption, modifier = SwingModifier.lineBorder(Color.RED, 2)) }
+        setContent { Label(caption, style = { lineBorder(Color.RED, 2) }) }
         val label = onNodeOfType<JLabel>()
         val first = label.fetch<JLabel>().border
 
@@ -223,7 +245,7 @@ class AppearanceMetadataModifierTest {
     @Test
     fun lineBorderReplacesTheBorderWhenItsColorChanges() = runComposeSwingTest {
         var color by mutableStateOf(Color.RED)
-        setContent { Label("X", modifier = SwingModifier.lineBorder(color)) }
+        setContent { Label("X", style = { lineBorder(color) }) }
         val label = onNodeOfType<JLabel>()
         val first = label.fetch<JLabel>().border
 
@@ -240,7 +262,7 @@ class AppearanceMetadataModifierTest {
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.lineBorder(Color.RED) else SwingModifier)
+            Label("styled", style = { if (styled) lineBorder(Color.RED) })
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().border
@@ -251,18 +273,23 @@ class AppearanceMetadataModifierTest {
         assertSame(
             default,
             styledLabel.fetch<JLabel>().border,
-            "removing the modifier should restore the default border",
+            "a style that stops setting the border should restore the default one",
         )
     }
 
     @Test
-    fun theLastBorderDeclarationInTheChainWins() = runComposeSwingTest {
+    fun theLastBorderTheStyleSetsWins() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
             Label(
                 "styled",
-                modifier = if (styled) SwingModifier.lineBorder(Color.RED).emptyBorder(4) else SwingModifier,
+                style = {
+                    if (styled) {
+                        lineBorder(Color.RED)
+                        emptyBorder(4)
+                    }
+                },
             )
         }
         val styledLabel = onNodeWithText("styled")

@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
@@ -380,8 +380,11 @@ class AlignmentGuidesTest {
                 ) {
                     Label(
                         "Label",
-                        SwingModifier.emptyBorder(8).alignmentGuide(guides),
-                        style = { paintOutsets(value) },
+                        SwingModifier.alignmentGuide(guides),
+                        style = {
+                            paintOutsets(value)
+                            emptyBorder(8)
+                        },
                     )
                 }
             }

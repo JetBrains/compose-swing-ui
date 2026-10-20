@@ -18,7 +18,6 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
@@ -26,6 +25,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.accessibleDescription
 import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.focusTraversalIndex
 import org.jetbrains.compose.swing.tooling.Preview
 
 // The accessibility modifiers: assistive-technology metadata (accessibleName/Description), label
@@ -122,19 +122,19 @@ private fun ColumnScope.FocusTraversalCard() {
             TextField(
                 value = third,
                 onValueChange = { third = it },
-                modifier = SwingModifier.focusTraversalIndex(3),
+                style = { focusTraversalIndex(3) },
                 columns = 20,
             )
             TextField(
                 value = second,
                 onValueChange = { second = it },
-                modifier = SwingModifier.focusTraversalIndex(2),
+                style = { focusTraversalIndex(2) },
                 columns = 20,
             )
             TextField(
                 value = first,
                 onValueChange = { first = it },
-                modifier = SwingModifier.focusTraversalIndex(1),
+                style = { focusTraversalIndex(1) },
                 columns = 20,
             )
         }

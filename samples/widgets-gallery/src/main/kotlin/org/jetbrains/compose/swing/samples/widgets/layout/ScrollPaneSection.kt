@@ -22,7 +22,6 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.listener.adjustmentListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -33,6 +32,7 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyleKind
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
@@ -267,11 +267,9 @@ private fun Cell(
 ) {
     Label(
         text = text,
-        modifier =
-            modifier
-                .opaque(true)
-                .horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier.horizontalAlignment(SwingConstants.CENTER),
         style = {
+            opaque(true)
             background(color)
             preferredSize(Dimension(60, 24))
         },

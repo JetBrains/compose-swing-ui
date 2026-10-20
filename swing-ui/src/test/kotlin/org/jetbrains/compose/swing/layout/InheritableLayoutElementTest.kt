@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.ExistingSwingNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.recordAddsAndRemovesOf
@@ -31,6 +31,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -49,13 +50,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * An inheritable parent-layout declaration, provided by a style or declared in a modifier: it reaches the parent
- * whose protocol accepts it, and is left out under every other parent without the parent being told.
- */
 class InheritableLayoutElementTest {
     @Test
-    fun aClaimedComponentIgnoresAProvidedValueItsParentDoesNotAccept() = runComposeSwingTest {
+    fun claimedChildIgnoresRefusedDefaults() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)
         setContent {
             Panel(style = providedInset(provided)) {
@@ -83,7 +80,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun aProvidedLayoutElementReachesTheChildrenOfAParentThatAcceptsIt() = runComposeSwingTest {
+    fun acceptedDefaultsUpdateAndDetach() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)
         val layout = InsetLayout()
         setContent {
@@ -116,7 +113,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun anOwnValueReplacesTheProvidedOneByKey() = runComposeSwingTest {
+    fun ownValueOverridesDefault() = runComposeSwingTest {
         val layout = InsetLayout()
         setContent {
             Panel(style = providedInset(1)) {
@@ -131,7 +128,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun aParentWhoseProtocolRefusesTheProvidedElementIsNeverHandedIt() = runComposeSwingTest {
+    fun refusedDefaultsPreserveParentSlots() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)
         val other = OtherMeasuringLayout()
         setContent {
@@ -178,7 +175,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun aMeasuringParentThatRefusesTheProvidedElementIsLeftAloneWhenItsValueChanges() = runComposeSwingTest {
+    fun refusedDefaultsDoNotNotifyParent() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)
         val other = OtherMeasuringLayout()
         setContent {
@@ -188,6 +185,9 @@ class InheritableLayoutElementTest {
                     Label("beside", SwingModifier then MeasuredAnywhere)
                 }
             }
+        }
+        onNodeWithText("beside").assertProperty(listOf<ParentLayoutElement>(MeasuredAnywhere)) {
+            other.elementsOf(this)
         }
         val declarations = other.declarations.size
         val invalidations = other.invalidations.size
@@ -201,54 +201,52 @@ class InheritableLayoutElementTest {
         }
     }
 
-    @Test
-    fun aParentReceivingALayoutNodeIsLeftAloneWhenALeftOutOneJoinsOrLeaves() = runComposeSwingTest {
-        var inset by mutableStateOf<Int?>(null)
-        val other = OtherMeasuringLayout()
-        setContent {
-            SwingNode(factory = { JPanel(other) }) {
-                Label("beside", SwingModifier then Weight(1) then (inset?.let { Inset(it) } ?: SwingModifier))
-            }
-        }
-        val declarations = other.declarations.size
-        val invalidations = other.invalidations.size
-
-        for (next in listOf(1, null)) {
-            inset = next
-            awaitIdle()
-
-            assertEquals(declarations, other.declarations.size, "$next: the parent is not declared to again")
-            assertEquals(invalidations, other.invalidations.size, "$next: the parent's layout is not invalidated")
-        }
-    }
-
-    @Test
-    fun aLayoutNodeWrittenWhileALeftOutOneJoinsHasItsParentDeclaredToAgain() = runComposeSwingTest {
+    @ParameterizedTest
+    @CsvSource("false, false", "false, true", "true, false", "true, true")
+    fun onlyAcceptedLayoutChangesNotifyParent(
+        joining: Boolean,
+        changeWeight: Boolean,
+    ) = runComposeSwingTest {
         var amount by mutableStateOf(1)
         val other = OtherMeasuringLayout()
         setContent {
             SwingNode(factory = { JPanel(other) }) {
-                Label("beside", SwingModifier then Weight(amount) then (if (amount > 1) Inset(1) else SwingModifier))
+                val marker = if (joining) SwingModifier else SwingModifier.name("$amount")
+                val inset = if (!joining || amount > 1) Inset(amount) else SwingModifier
+                Label("beside", marker then Weight(if (changeWeight) amount else 1) then inset)
             }
         }
         val declarations = other.declarations.size
         val invalidations = other.invalidations.size
-
         amount = 2
         awaitIdle()
-
-        assertEquals(declarations + 1, other.declarations.size, "the parent is declared to again")
-        val declaredNode =
-            other.declarations
-                .last()
-                .elements
-                .single() as WeightNode
-        assertEquals(2, declaredNode.amount, "the parent holds the node written")
-        assertTrue(other.invalidations.size > invalidations, "the parent's layout is invalidated")
+        if (!joining) onNodeWithText("beside").assertProperty("2") { name }
+        if (changeWeight) {
+            assertEquals(declarations + 1, other.declarations.size, "one accepted change declares once")
+            assertEquals(
+                2,
+                (
+                    other.declarations
+                        .last()
+                        .elements
+                        .single() as WeightNode
+                ).amount,
+            )
+            assertTrue(other.invalidations.size > invalidations)
+        } else {
+            assertEquals(declarations, other.declarations.size)
+            assertEquals(invalidations, other.invalidations.size)
+            if (joining) {
+                amount = 1
+                awaitIdle()
+                assertEquals(declarations, other.declarations.size, "removing a refused node leaves the parent alone")
+                assertEquals(invalidations, other.invalidations.size)
+            }
+        }
     }
 
     @Test
-    fun aComponentMovedUnderAParentThatRefusesTheProvidedElementKeepsItsNode() = runComposeSwingTest {
+    fun movingToRefusingParentKeepsNode() = runComposeSwingTest {
         var accepted by mutableStateOf(true)
         val layout = InsetLayout()
         val label = movableContentOf { Label("moved") }
@@ -279,67 +277,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun aLeftOutLayoutNodeWrittenBesideAnotherChangeToTheModifierLeavesItsParentAlone() = runComposeSwingTest {
-        var amount by mutableStateOf(1)
-        val other = OtherMeasuringLayout()
-        setContent {
-            SwingNode(factory = { JPanel(other) }) {
-                // The property declared first changes with the inset, so the pass diffs the modifier.
-                Label("beside", SwingModifier.opaque(amount > 1) then Weight(1) then Inset(amount))
-            }
-        }
-        val declarations = other.declarations.size
-        val invalidations = other.invalidations.size
-
-        amount = 2
-        awaitIdle()
-
-        onNodeWithText("beside").assertProperty(true, "the pass applies the modifier") { isOpaque }
-        assertEquals(declarations, other.declarations.size, "the parent is not declared to again")
-        assertEquals(invalidations, other.invalidations.size, "the parent's layout is not invalidated")
-    }
-
-    @Test
-    fun aLayoutNodeWrittenAheadOfALeftOutOneInOnePassHasItsParentDeclaredToOnce() = runComposeSwingTest {
-        var amount by mutableStateOf(1)
-        val other = OtherMeasuringLayout()
-        setContent {
-            SwingNode(factory = { JPanel(other) }) {
-                // The property declared first changes with both layout elements, so the pass diffs the modifier.
-                Label("beside", SwingModifier.opaque(amount > 1) then Weight(amount) then Inset(amount))
-            }
-        }
-        val declarations = other.declarations.size
-        val invalidations = other.invalidations.size
-
-        amount = 2
-        awaitIdle()
-
-        assertEquals(declarations + 1, other.declarations.size, "the parent is declared to once")
-        val declaredNode =
-            other.declarations
-                .last()
-                .elements
-                .single() as WeightNode
-        assertEquals(2, declaredNode.amount, "the parent holds the node written")
-        assertTrue(other.invalidations.size > invalidations, "the parent's layout is invalidated")
-    }
-
-    @Test
-    fun aParentRefusingTheProvidedElementReceivesTheElementsDeclaredBesideIt() = runComposeSwingTest {
-        val other = OtherMeasuringLayout()
-        setContent {
-            Panel(style = providedInset(1)) {
-                SwingNode(factory = { JPanel(other) }) {
-                    Label("beside", SwingModifier then MeasuredAnywhere)
-                }
-            }
-        }
-        assertEquals(listOf<ParentLayoutElement>(MeasuredAnywhere), other.declarations.last().elements)
-    }
-
-    @Test
-    fun anInheritableElementAcceptedByAParentThatCannotMeasureIsRefused() {
+    fun nonMeasuringParentRejectsAcceptedLayout() {
         val failure =
             assertFailsWith<IllegalStateException> {
                 runComposeSwingTest {
@@ -358,7 +296,7 @@ class InheritableLayoutElementTest {
     }
 
     @Test
-    fun aCardDeckKeepsItsShownCardAndCardOrderWhenTheProvidedValueChanges() = runComposeSwingTest {
+    fun refusedDefaultsPreserveCardOrder() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)
         setContent {
             Panel(style = providedInset(provided)) {
@@ -404,35 +342,23 @@ class InheritableLayoutElementTest {
         assertEquals(listOf("third", "first", "second"), order, "the deck keeps its card order")
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("refusedStyleElements")
-    fun aStyleRefusesParentDataAndAnAdditiveLayoutElement(
+    @ParameterizedTest(name = "{0}, style={2}")
+    @MethodSource("refusedElements")
+    fun rejectParentDataAndAdditiveLayout(
         kind: String,
         element: ParentLayoutElement,
+        styled: Boolean,
     ) {
         val property = stylePropertyOf<Unit> { element }
-        assertFailsWith<IllegalArgumentException>("A $kind must be refused in a style") {
+        assertFailsWith<IllegalArgumentException>("$kind must be refused, style=$styled") {
             runComposeSwingTest {
                 setContent {
                     SwingNode(factory = { JPanel(InsetLayout()) }) {
-                        Label("refused", style = { property.provide(Unit) })
-                    }
-                }
-            }
-        }
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("refusedAdditiveElements")
-    fun anInheritableAdditiveElementIsRefusedDeclaredOnAComponent(
-        name: String,
-        element: ParentLayoutElement,
-    ) {
-        assertFailsWith<IllegalArgumentException>("$name must be refused") {
-            runComposeSwingTest {
-                setContent {
-                    SwingNode(factory = { JPanel(InsetLayout()) }) {
-                        Label("refused", SwingModifier then element)
+                        Label(
+                            "refused",
+                            modifier = if (styled) SwingModifier else SwingModifier then element,
+                            style = { if (styled) property.provide(Unit) },
+                        )
                     }
                 }
             }
@@ -468,7 +394,7 @@ class InheritableLayoutElementTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("nodeFactMismatches")
-    fun aLayoutNodeDeclaringOtherFactsThanItsElementIsRefused(
+    fun nodeFactsMustMatchElement(
         fact: String,
         element: ParentLayoutNodeElement<*>,
     ) {
@@ -485,16 +411,12 @@ class InheritableLayoutElementTest {
 
     companion object {
         @JvmStatic
-        fun refusedStyleElements(): List<Arguments> = listOf(
-            Arguments.of("parent data", InheritableParentData),
-            Arguments.of("node inset", AdditiveNodeInset),
-            Arguments.of("inheritable layout", AdditiveInheritableLayout),
-        )
-
-        @JvmStatic
-        fun refusedAdditiveElements(): List<Arguments> = listOf(
-            Arguments.of("node inset", AdditiveNodeInset),
-            Arguments.of("inheritable layout", AdditiveInheritableLayout),
+        fun refusedElements(): List<Arguments> = listOf(
+            Arguments.of("parent data", InheritableParentData, true),
+            Arguments.of("node inset", AdditiveNodeInset, true),
+            Arguments.of("inheritable layout", AdditiveInheritableLayout, true),
+            Arguments.of("node inset", AdditiveNodeInset, false),
+            Arguments.of("inheritable layout", AdditiveInheritableLayout, false),
         )
 
         @JvmStatic
@@ -507,11 +429,9 @@ class InheritableLayoutElementTest {
 
 private val InsetProperty = stylePropertyOf<Int> { Inset(it) }
 
-/** A container style providing [amount], when there is one, as an [Inset] to every descendant. */
 private fun providedInset(amount: Int?): SwingStyle<ContainerStyleScope> =
     SwingStyle { amount?.let { provideNestedStyle(AllComponents) { InsetProperty.provide(it) } } }
 
-/** A raw node's kind that applies the styles provided for every component. */
 private val ProvidedLeafKind =
     SwingStyleKind<SwingComponentStyleScope, Unit>(
         { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
@@ -519,10 +439,8 @@ private val ProvidedLeafKind =
         applyNestedStyle(AllComponents)
     }
 
-/** Accepts only an [InsetLayout] parent. */
 private val InsetProtocol: ParentProtocol = parentProtocolOf("inset parent") { it.layout is InsetLayout }
 
-/** An inheritable node-backed declaration, keyed by its class. */
 private data class Inset(
     val amount: Int,
 ) : ParentLayoutNodeElement<InsetNode>() {
@@ -545,7 +463,6 @@ private class InsetNode(
     override val inheritable: Boolean get() = true
 }
 
-/** Declares the node inheritable, which [InsetNode] is, but is not itself. */
 private data object NotInheritableNodeInset : ParentLayoutNodeElement<InsetNode>() {
     override val parentProtocol: ParentProtocol get() = InsetProtocol
 
@@ -554,7 +471,6 @@ private data object NotInheritableNodeInset : ParentLayoutNodeElement<InsetNode>
     override fun update(node: InsetNode) = Unit
 }
 
-/** Creates an [InsetNode] under a protocol other than the node's. */
 private data object OtherProtocolNodeInset : ParentLayoutNodeElement<InsetNode>() {
     override val parentProtocol: ParentProtocol get() = OtherProtocol
 
@@ -565,7 +481,6 @@ private data object OtherProtocolNodeInset : ParentLayoutNodeElement<InsetNode>(
     override fun update(node: InsetNode) = Unit
 }
 
-/** Creates an [InsetNode], inheritable as the node is, and stands beside every other declaration. */
 private data object AdditiveNodeInset : ParentLayoutNodeElement<InsetNode>() {
     override val parentProtocol: ParentProtocol get() = InsetProtocol
 
@@ -578,7 +493,6 @@ private data object AdditiveNodeInset : ParentLayoutNodeElement<InsetNode>() {
     override fun update(node: InsetNode) = Unit
 }
 
-/** Accepts the parents [InsetProtocol] accepts, as a protocol of its own. */
 private val OtherProtocol: ParentProtocol = parentProtocolOf("other inset parent") { it.layout is InsetLayout }
 
 private data object AdditiveInheritableLayout : ParentLayoutElement {
@@ -597,7 +511,6 @@ private data object InheritableParentData : ParentDataModifier {
     override fun modifyParentData(parentData: Any?): Any? = parentData
 }
 
-/** Parent data both inheritable and additive, folding to the list of every [amount] declared. */
 private data class AdditiveParentData(
     val amount: Int,
 ) : ParentDataModifier {
@@ -610,15 +523,12 @@ private data class AdditiveParentData(
     override fun modifyParentData(parentData: Any?): Any = (parentData as? List<*>).orEmpty() + amount
 }
 
-/** Accepts every measuring parent. */
 private val MeasuringProtocol: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring parent")
 
-/** A declaration every measuring parent interprets. */
 private data object MeasuredAnywhere : ParentLayoutElement {
     override val parentProtocol: ParentProtocol get() = MeasuringProtocol
 }
 
-/** A node-backed declaration every measuring parent interprets. */
 private data class Weight(
     val amount: Int,
 ) : ParentLayoutNodeElement<WeightNode>() {
@@ -637,18 +547,14 @@ private class WeightNode(
     override val parentProtocol: ParentProtocol get() = MeasuringProtocol
 }
 
-/** Accepts every parent. */
 private val AnyParentProtocol: ParentProtocol = parentProtocolOf("any parent") { true }
 
-/** An inheritable declaration no parent's protocol refuses. */
 private data object InheritableAnywhere : ParentLayoutElement {
     override val parentProtocol: ParentProtocol get() = AnyParentProtocol
 
     override val inheritable: Boolean get() = true
 }
 
-/** The measuring manager [InsetProtocol] accepts. */
 private class InsetLayout : RecordingMeasurementLayout(FlowLayout())
 
-/** A measuring manager [InsetProtocol] refuses. */
 private class OtherMeasuringLayout : RecordingMeasurementLayout(FlowLayout())

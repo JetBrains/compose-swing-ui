@@ -11,8 +11,8 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.BoxScope
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
+import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.Layout
 import org.jetbrains.compose.swing.foundation.layout.Measurable
@@ -33,7 +33,6 @@ import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.foundation.layout.onPlaced
 import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -41,6 +40,7 @@ import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -91,28 +91,28 @@ private fun ColumnScope.MeasurePolicyCard() {
                     text = "<html><center>placeRelative(0,y)<br>gap=$gap · click</center></html>",
                     color = LayoutSampleColors.Blue,
                     onClick = { gap = CUSTOM_GAPS[(CUSTOM_GAPS.indexOf(gap) + 1) % CUSTOM_GAPS.size] },
-                    modifier =
-                        SwingModifier
-                            .toolTip("Follows reading order; click to cycle the gap")
-                            .onPlaced { relativeBounds = it },
+                    modifier = SwingModifier.onPlaced { relativeBounds = it },
                     style = {
                         preferredSize(CUSTOM_SWATCH_SIZE)
                         accessibleName("placeRelative, gap $gap; activate to cycle")
+                        toolTip("Follows reading order; click to cycle the gap")
                     },
                 )
                 LayoutSwatch(
                     "<html><center>place(width -<br>child.width,y)</center></html>",
                     LayoutSampleColors.Green,
-                    SwingModifier
-                        .toolTip("Uses physical coordinates and stays on the right")
-                        .onPlaced { physicalBounds = it },
-                    style = { preferredSize(CUSTOM_SWATCH_SIZE) },
+                    SwingModifier.onPlaced { physicalBounds = it },
+                    style = {
+                        preferredSize(CUSTOM_SWATCH_SIZE)
+                        toolTip("Uses physical coordinates and stays on the right")
+                    },
                 )
             },
             modifier =
                 SwingModifier
                     .layoutTrack()
                     .styleable {
+                        layoutTrack()
                         preferredSize(CUSTOM_LAYOUT_SIZE)
                         componentOrientation(
                             if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
@@ -134,7 +134,7 @@ private fun ColumnScope.DirectionAwareModifierCard() {
         Button(
             text = "Orientation: ${if (rightToLeft) "RTL" else "LTR"}",
             onClick = { rightToLeft = !rightToLeft },
-            modifier = SwingModifier.toolTip("Logical declarations mirror; absolute declarations stay physical"),
+            style = { toolTip("Logical declarations mirror; absolute declarations stay physical") },
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8)) {
             DirectionalSample(rightToLeft, DirectionalModifier.Padding, paddingBounds) { paddingBounds = it }
@@ -161,55 +161,101 @@ private fun ColumnScope.ConstraintSizingCard() {
         val parentSize = if (compactParent) COMPACT_PARENT_SIZE else ROOMY_PARENT_SIZE
         val aspectRatio = ASPECT_RATIOS[aspectRatioIndex]
         val aspectRatioText = aspectRatio.toString().removeSuffix(".0")
+        ConstraintSizingControls(
+            parentSize = parentSize,
+            compactParent = compactParent,
+            onToggleParentSize = { compactParent = !compactParent },
+            aspectRatioText = aspectRatioText,
+            aspectBounds = aspectBounds,
+            minimumBounds = minimumBounds,
+        )
+        ConstraintSizingExamples(
+            parentSize = parentSize,
+            aspectRatio = aspectRatio,
+            aspectRatioText = aspectRatioText,
+            onAspectRatioClick = { aspectRatioIndex = (aspectRatioIndex + 1) % ASPECT_RATIOS.size },
+            onAspectPlace = { aspectBounds = it },
+            onMinimumPlace = { minimumBounds = it },
+        )
+    }
+}
 
-        Row(
-            modifier = SwingModifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12),
-            verticalAlignment = Alignment.CenterVertically,
+@Composable
+context(scope: ConstrainedScope)
+private fun ConstraintSizingControls(
+    parentSize: Dimension,
+    compactParent: Boolean,
+    onToggleParentSize: () -> Unit,
+    aspectRatioText: String,
+    aspectBounds: Rectangle?,
+    minimumBounds: Rectangle?,
+) {
+    Row(
+        modifier = SwingModifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(
+            text = "Parent: ${parentSize.width} × ${parentSize.height}",
+            onClick = onToggleParentSize,
+            style = {
+                preferredSize(SIZE_CONTROL_SIZE)
+                toolTip(if (compactParent) "Expand both parents" else "Tighten both parents")
+            },
+        )
+        Label(
+            "aspectRatio($aspectRatioText): ${boundsText(aspectBounds)} · " +
+                "defaultMinSize: ${boundsText(minimumBounds)}",
+            modifier = SwingModifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+context(scope: ConstrainedScope)
+private fun ConstraintSizingExamples(
+    parentSize: Dimension,
+    aspectRatio: Float,
+    aspectRatioText: String,
+    onAspectRatioClick: () -> Unit,
+    onAspectPlace: (Rectangle) -> Unit,
+    onMinimumPlace: (Rectangle) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8)) {
+        Box(
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(parentSize)
+                },
+            contentAlignment = Alignment.TopCenter,
         ) {
-            Button(
-                text = "Parent: ${parentSize.width} × ${parentSize.height}",
-                onClick = { compactParent = !compactParent },
-                modifier =
-                    SwingModifier
-                        .toolTip(if (compactParent) "Expand both parents" else "Tighten both parents"),
-                style = { preferredSize(SIZE_CONTROL_SIZE) },
-            )
-            Label(
-                "aspectRatio($aspectRatioText): ${boundsText(aspectBounds)} · " +
-                    "defaultMinSize: ${boundsText(minimumBounds)}",
-                modifier = SwingModifier.weight(1f),
+            InteractiveLayoutSwatch(
+                text = aspectRatioText,
+                color = LayoutSampleColors.Pink,
+                onClick = onAspectRatioClick,
+                modifier = SwingModifier.aspectRatio(aspectRatio).onPlaced(onAspectPlace),
+                style = {
+                    accessibleName("aspectRatio ${aspectRatioText}f")
+                    toolTip("aspectRatio(${aspectRatioText}f): click to cycle")
+                },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8)) {
-            Box(
-                modifier = SwingModifier.layoutTrack().styleable { preferredSize(parentSize) },
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                InteractiveLayoutSwatch(
-                    text = aspectRatioText,
-                    color = LayoutSampleColors.Pink,
-                    onClick = { aspectRatioIndex = (aspectRatioIndex + 1) % ASPECT_RATIOS.size },
-                    modifier =
-                        SwingModifier
-                            .aspectRatio(aspectRatio)
-                            .toolTip("aspectRatio(${aspectRatioText}f): click to cycle")
-                            .onPlaced { aspectBounds = it },
-                    style = { accessibleName("aspectRatio ${aspectRatioText}f") },
-                )
-            }
-            Box(
-                modifier = SwingModifier.layoutTrack().styleable { preferredSize(parentSize) },
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                LayoutSwatch(
-                    "<html><center>defaultMinSize<br>(120, 64)</center></html>",
-                    LayoutSampleColors.Yellow,
-                    SwingModifier
-                        .defaultMinSize(MINIMUM_SIZE.width, MINIMUM_SIZE.height)
-                        .onPlaced { minimumBounds = it },
-                )
-            }
+        Box(
+            modifier =
+                SwingModifier.layoutTrack().styleable {
+                    layoutTrack()
+                    preferredSize(parentSize)
+                },
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            LayoutSwatch(
+                "<html><center>defaultMinSize<br>(120, 64)</center></html>",
+                LayoutSampleColors.Yellow,
+                SwingModifier
+                    .defaultMinSize(MINIMUM_SIZE.width, MINIMUM_SIZE.height)
+                    .onPlaced(onMinimumPlace),
+            )
         }
     }
 }
@@ -225,47 +271,41 @@ private fun RowScope.DirectionalSample(
     Box(
         modifier =
             SwingModifier.layoutTrack().styleable {
+                layoutTrack()
                 preferredSize(DIRECTION_SAMPLE_SIZE)
                 componentOrientation(orientation)
             },
         contentAlignment = Alignment.TopCenter,
     ) {
-        DirectionalSwatch(kind, bounds, onPlace)
+        val modifier =
+            when (kind) {
+                DirectionalModifier.Padding -> {
+                    SwingModifier.padding(start = DIRECTION_SHIFT, end = DIRECTION_GUTTER)
+                }
+
+                DirectionalModifier.AbsolutePadding -> {
+                    SwingModifier.absolutePadding(left = DIRECTION_SHIFT, right = DIRECTION_GUTTER)
+                }
+
+                DirectionalModifier.Offset -> {
+                    SwingModifier.offset(x = DIRECTION_SHIFT)
+                }
+
+                DirectionalModifier.AbsoluteOffset -> {
+                    SwingModifier.absoluteOffset(x = DIRECTION_SHIFT)
+                }
+            }.onPlaced(onPlace)
+        val x = bounds?.x?.toString() ?: "-"
+        LayoutSwatch(
+            "<html><center>${kind.title}<br>${kind.arguments}<br>x=$x</center></html>",
+            if (kind.relative) LayoutSampleColors.Teal else LayoutSampleColors.Orange,
+            modifier,
+            style = {
+                preferredSize(DIRECTION_SWATCH_SIZE)
+                toolTip(if (kind.relative) "Mirrors under RTL" else "Stays in the physical direction")
+            },
+        )
     }
-}
-
-@Composable
-private fun BoxScope.DirectionalSwatch(
-    kind: DirectionalModifier,
-    bounds: Rectangle?,
-    onPlaced: (Rectangle) -> Unit,
-) {
-    val modifier =
-        when (kind) {
-            DirectionalModifier.Padding -> {
-                SwingModifier.padding(start = DIRECTION_SHIFT, end = DIRECTION_GUTTER)
-            }
-
-            DirectionalModifier.AbsolutePadding -> {
-                SwingModifier.absolutePadding(left = DIRECTION_SHIFT, right = DIRECTION_GUTTER)
-            }
-
-            DirectionalModifier.Offset -> {
-                SwingModifier.offset(x = DIRECTION_SHIFT)
-            }
-
-            DirectionalModifier.AbsoluteOffset -> {
-                SwingModifier.absoluteOffset(x = DIRECTION_SHIFT)
-            }
-        }.toolTip(if (kind.relative) "Mirrors under RTL" else "Stays in the physical direction")
-            .onPlaced(onPlaced)
-    val x = bounds?.x?.toString() ?: "-"
-    LayoutSwatch(
-        "<html><center>${kind.title}<br>${kind.arguments}<br>x=$x</center></html>",
-        if (kind.relative) LayoutSampleColors.Teal else LayoutSampleColors.Orange,
-        modifier,
-        style = { preferredSize(DIRECTION_SWATCH_SIZE) },
-    )
 }
 
 private fun stackedPlacementPolicy(gap: Int): MeasurePolicy =

@@ -4,8 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSpinner
@@ -89,7 +88,7 @@ class SpinnerStateListItemsTest {
         val items = mutableStateListOf("Ada", "Alan")
         var tip by mutableStateOf("Pick a name")
         setContent {
-            Spinner(items = items, value = "Ada", onValueChange = {}, modifier = SwingModifier.toolTip(tip))
+            Spinner(items = items, value = "Ada", onValueChange = {}, style = { toolTip(tip) })
         }
 
         val spinner = onNodeOfType<JSpinner>().fetch()

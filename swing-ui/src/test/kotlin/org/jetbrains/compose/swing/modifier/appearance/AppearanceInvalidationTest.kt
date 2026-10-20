@@ -298,11 +298,6 @@ class AppearanceInvalidationTest {
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { border(null) }
-        assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1, 1, 1, 1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(Insets(1, 1, 1, 1)) }
         assertDeclaredChainCarriedOnce { borderPainted(true) }
         assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
         assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
@@ -318,7 +313,6 @@ class AppearanceInvalidationTest {
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
-        assertDeclaredChainCarriedOnce { opaque(true) }
         assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
         assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
         assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
@@ -327,7 +321,5 @@ class AppearanceInvalidationTest {
         assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
         assertDeclaredChainCarriedOnce { iconTextGap(4) }
-        assertDeclaredChainCarriedOnce { toolTip("tip") }
-        assertDeclaredChainCarriedOnce { toolTip { null } }
     }
 }

@@ -10,12 +10,12 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.repaintsDuring
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -513,8 +513,9 @@ private fun FilledChild(
 ) {
     Panel(
         PanelLayout.Flow(),
-        modifier = modifier.opaque(true),
+        modifier = modifier,
         style = {
+            opaque(true)
             background(color)
             preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
         },

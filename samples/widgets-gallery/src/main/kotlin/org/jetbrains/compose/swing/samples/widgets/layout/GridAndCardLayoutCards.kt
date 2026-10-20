@@ -34,7 +34,6 @@ internal fun ColumnScope.GridLayoutCard() {
         Label("$rows rows x $cols columns")
         Panel(
             PanelLayout.Grid(rows = rows, cols = cols, hgap = 6, vgap = 6),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(Dimension(320, 120))
@@ -70,7 +69,6 @@ private fun GridBagLayoutExample(
 ) {
     Panel(
         PanelLayout.GridBag,
-        modifier = SwingModifier.layoutPanelTrack(),
         style = {
             layoutPanelTrack()
             preferredSize(Dimension(360, 128))
@@ -130,7 +128,6 @@ internal fun ColumnScope.CardDeckCard() {
         }
         Panel(
             PanelLayout.Card(selectedCard = shown),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(Dimension(320, 60))

@@ -27,12 +27,10 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
@@ -102,14 +100,14 @@ class ModifierInspectionTest {
         setContent {
             Label(
                 text = "hello",
-                modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).toolTip("tip"),
+                modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).name("greeting"),
             )
         }
 
         onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             listOf(
                 "testTag" to mapOf("testTag" to CHAIN_LABEL_TAG),
-                "toolTip" to mapOf("text" to "tip"),
+                "name" to mapOf("name" to "greeting"),
             ),
             "the chain should report every element it declares, in declaration order",
         ) { callerChain() }
@@ -118,22 +116,22 @@ class ModifierInspectionTest {
     @Test
     fun aChainAnswersWithWhatTheCompositionDeclaredLast() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        var tip by mutableStateOf("first")
+        var declared by mutableStateOf("first")
         setContent {
-            Label(text = "hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).toolTip(tip))
+            Label(text = "hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).name(declared))
         }
         onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
-            mapOf("text" to "first"),
+            mapOf("name" to "first"),
             "the chain starts on what the first pass declared",
-        ) { valuesOf("toolTip") }
+        ) { valuesOf("name") }
 
-        tip = "second"
+        declared = "second"
         awaitIdle()
 
         onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
-            mapOf("text" to "second"),
+            mapOf("name" to "second"),
             "and follows the composition onto what a later pass declares",
-        ) { valuesOf("toolTip") }
+        ) { valuesOf("name") }
     }
 
     @Test
@@ -192,18 +190,18 @@ class ModifierInspectionTest {
     @Test
     fun aMenuItemAnswersForItsChainAsAComponentDoes() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        val popup = composeMenu { MenuItem("Cut", onClick = { }, modifier = SwingModifier.toolTip("tip")) }
+        val popup = composeMenu { MenuItem("Cut", onClick = { }, modifier = SwingModifier.name("cut")) }
 
         val item = popup.getComponent(0)
         assertEquals(
-            listOf("toolTip", "actionListener", "styleable"),
+            listOf("name", "actionListener", "styleable"),
             item.declaredChain().map { it.first },
             "a menu node holds its chain the way a component node does, and what the widget's own " +
                 "composable declares, its listener and then its style slot, stands in it after what the caller passed",
         )
         assertEquals(
-            mapOf("text" to "tip"),
-            item.valuesOf("toolTip"),
+            mapOf("name" to "cut"),
+            item.valuesOf("name"),
             "and reports what the caller declared",
         )
     }
@@ -272,7 +270,6 @@ class ModifierInspectionTest {
         val ranges = listOf(TextRange(0, 2))
         setContent {
             Panel {
-                Label("hello", modifier = SwingModifier.testTag("hinted").toolTip("What this does"))
                 TextArea(
                     state = rememberDocumentState("hello"),
                     modifier = SwingModifier.testTag("marked").highlights(ranges, painter),
@@ -280,11 +277,6 @@ class ModifierInspectionTest {
             }
         }
 
-        assertEquals(
-            mapOf("text" to "What this does"),
-            declaredBy("hinted", "toolTip"),
-            "a tooltip declares the text it was given",
-        )
         assertEquals(
             mapOf("ranges" to ranges, "painter" to painter),
             declaredBy("marked", "highlights"),
@@ -456,11 +448,12 @@ class ModifierInspectionTest {
         isDebugInspectorInfoEnabled = true
         val border = LineBorder(Color.RED)
         val otherBorder = LineBorder(Color.BLUE)
+        val borderKey = "border"
         setContent {
             Panel {
-                Label("a", modifier = SwingModifier.testTag("border-one").border(border))
-                Label("b", modifier = SwingModifier.testTag("border-two").border(border))
-                Label("c", modifier = SwingModifier.testTag("border-other").border(otherBorder))
+                Label("a", modifier = SwingModifier.testTag("border-one").clientProperty(borderKey, border))
+                Label("b", modifier = SwingModifier.testTag("border-two").clientProperty(borderKey, border))
+                Label("c", modifier = SwingModifier.testTag("border-other").clientProperty(borderKey, otherBorder))
                 TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                     Label("p", modifier = SwingModifier.testTag("tab-one").tab("One"))
                     Label("q", modifier = SwingModifier.testTag("tab-two").tab("One"))
@@ -473,7 +466,7 @@ class ModifierInspectionTest {
         }
 
         listOf(
-            "border" to "border",
+            "border" to "clientProperty",
             "tab" to "tab",
             "cells" to "listCellSizing",
         ).forEach { (tag, element) ->
@@ -537,14 +530,14 @@ class ModifierInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent {
             Panel(style = { provideNestedStyle(Labels) { background(Color.RED) } }) {
-                Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).toolTip("tip"))
+                Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).name("greeting"))
             }
         }
 
         val label = onNodeWithTag(CHAIN_LABEL_TAG)
         label.assertProperty(Color.RED, "the provided style reaches the label") { background }
         label.assertProperty(
-            listOf("testTag", "toolTip", "styleable"),
+            listOf("testTag", "name", "styleable"),
             "the chain is the caller's modifier and the style slot; a provided style adds nothing to it",
         ) { declaredChain().map { it.first } }
     }

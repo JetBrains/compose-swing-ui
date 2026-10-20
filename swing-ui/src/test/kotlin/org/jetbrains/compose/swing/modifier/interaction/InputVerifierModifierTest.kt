@@ -98,39 +98,4 @@ class InputVerifierModifierTest {
             "a text field gates nothing of its own, so nothing must be left behind",
         ) { inputVerifier }
     }
-
-    @Test
-    fun theFocusTargetCanRefuseToConsultTheGate() = runComposeSwingTest {
-        var declared by mutableStateOf(false)
-        setContent {
-            TextField("cancel", onValueChange = {}, modifier = SwingModifier.verifyInputWhenFocusTarget(declared))
-        }
-        val field = onNodeOfType<JTextField>()
-        field.assertProperty(false, "the declared value must be written through") { verifyInputWhenFocusTarget }
-
-        declared = true
-        awaitIdle()
-        field.assertProperty(true, "the changed declaration must be written through") { verifyInputWhenFocusTarget }
-    }
-
-    @Test
-    fun removingTheFocusTargetDeclarationRestoresSwingsOwnValue() = runComposeSwingTest {
-        var declared by mutableStateOf(true)
-        setContent {
-            TextField(
-                "cancel",
-                onValueChange = {},
-                modifier = if (declared) SwingModifier.verifyInputWhenFocusTarget(false) else SwingModifier,
-            )
-        }
-        val field = onNodeOfType<JTextField>()
-        field.assertProperty(false, "the declaration must be in force while it is made") { verifyInputWhenFocusTarget }
-
-        declared = false
-        awaitIdle()
-        field.assertProperty(
-            true,
-            "a component consults the focused field's gate unless told otherwise, so removal must restore that",
-        ) { verifyInputWhenFocusTarget }
-    }
 }

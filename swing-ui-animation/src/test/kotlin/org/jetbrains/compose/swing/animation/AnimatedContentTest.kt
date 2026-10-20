@@ -29,8 +29,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -95,9 +95,10 @@ private fun Body(
     text: String,
     width: Int,
     height: Int = LEAVING_HEIGHT,
-) = Label(text = text, modifier = SwingModifier.opaque(true), style = {
+) = Label(text = text, style = {
     preferredSize(width, height)
     background(Color.BLUE)
+    opaque(true)
 })
 
 /**

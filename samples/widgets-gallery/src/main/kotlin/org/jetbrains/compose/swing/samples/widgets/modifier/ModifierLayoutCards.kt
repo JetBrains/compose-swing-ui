@@ -19,18 +19,18 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.margin
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.verticalAlignment
-import org.jetbrains.compose.swing.modifier.layout.alignmentX
-import org.jetbrains.compose.swing.modifier.layout.alignmentY
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.alignmentX
+import org.jetbrains.compose.swing.style.alignmentY
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.height
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.style.width
@@ -136,7 +136,6 @@ private fun GeometryPreview(
             modifier =
                 SwingModifier
                     .layer(JLayeredPane.DEFAULT_LAYER)
-                    .opaque(true)
                     .horizontalAlignment(SwingConstants.CENTER),
             style = {
                 background(Color(0xC8, 0xE6, 0xC9))
@@ -144,6 +143,7 @@ private fun GeometryPreview(
                 y(frameY)
                 width(frameWidth)
                 height(frameHeight)
+                opaque(true)
             },
         )
     }
@@ -185,16 +185,17 @@ internal fun ColumnScope.AlignmentCard() {
             Button(
                 "Narrow",
                 onClick = { },
-                modifier =
-                    SwingModifier.alignmentX(
+                style = {
+                    alignmentX(
                         if (aligned) Component.LEFT_ALIGNMENT else Component.CENTER_ALIGNMENT,
-                    ),
+                    )
+                },
             )
         }
         Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
             Label("Tall ↕", style = { preferredSize(Dimension(60, 40)) })
-            Label("top", modifier = SwingModifier.alignmentY(0.0f))
-            Label("bottom", modifier = SwingModifier.alignmentY(1.0f))
+            Label("top", style = { alignmentY(0.0f) })
+            Label("bottom", style = { alignmentY(1.0f) })
         }
     }
 }
@@ -217,11 +218,11 @@ internal fun ColumnScope.VerticalAlignmentCard() {
                 "Tall content ↕",
                 modifier =
                     SwingModifier
-                        .opaque(true)
                         .verticalAlignment(alignment),
                 style = {
                     preferredSize(Dimension(160, 70))
                     background(Color(0xE3, 0xF2, 0xFD))
+                    opaque(true)
                 },
             )
         }
@@ -244,7 +245,7 @@ internal fun ColumnScope.MarginCard() {
             )
         }
         val padding = inset
-        Panel(PanelLayout.Flow(), modifier = SwingModifier.lineBorder(Color.GRAY, 1)) {
+        Panel(PanelLayout.Flow(), style = { lineBorder(Color.GRAY, 1) }) {
             Button(
                 "Padded button",
                 onClick = { },

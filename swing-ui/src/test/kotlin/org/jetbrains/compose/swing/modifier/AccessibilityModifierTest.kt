@@ -14,11 +14,11 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.accessibleDescription
 import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -176,8 +176,10 @@ class AccessibilityModifierTest {
             TextField(
                 "",
                 onValueChange = {},
-                modifier = SwingModifier.toolTip(tip),
-                style = { if (described) accessibleDescription("The address to deliver to") },
+                style = {
+                    toolTip(tip)
+                    if (described) accessibleDescription("The address to deliver to")
+                },
             )
         }
         val field = onNodeOfType<JTextField>()

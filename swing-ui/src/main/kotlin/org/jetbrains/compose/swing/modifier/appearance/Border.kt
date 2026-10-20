@@ -4,10 +4,10 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.BorderElement
+import org.jetbrains.compose.swing.style.BorderSpec
 import java.awt.Color
 import java.awt.Insets
-import javax.swing.BorderFactory
-import javax.swing.JComponent
 import javax.swing.border.Border
 
 /**
@@ -30,6 +30,7 @@ import javax.swing.border.Border
  * @return this chain with the border declared on it.
  * @see javax.swing.JComponent.setBorder
  */
+@Deprecated("Set it in the component's style: style = { border(border) }")
 public fun SwingModifier.border(border: Border?): SwingModifier = this then BorderElement(BorderSpec.Instance(border))
 
 /**
@@ -42,6 +43,7 @@ public fun SwingModifier.border(border: Border?): SwingModifier = this then Bord
  * @return this chain with the line border declared on it.
  * @see javax.swing.BorderFactory.createLineBorder
  */
+@Deprecated("Set it in the component's style: style = { lineBorder(color, thickness) }")
 public fun SwingModifier.lineBorder(
     color: Color,
     thickness: Int = 1,
@@ -55,7 +57,9 @@ public fun SwingModifier.lineBorder(
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
-public fun SwingModifier.emptyBorder(all: Int): SwingModifier = emptyBorder(all, all, all, all)
+@Deprecated("Set it in the component's style: style = { emptyBorder(all) }")
+public fun SwingModifier.emptyBorder(all: Int): SwingModifier =
+    this then BorderElement(BorderSpec.Empty(all, all, all, all))
 
 /**
  * Sets an invisible border of [top], [left], [bottom] and [right] - the space a component
@@ -70,6 +74,7 @@ public fun SwingModifier.emptyBorder(all: Int): SwingModifier = emptyBorder(all,
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
+@Deprecated("Set it in the component's style: style = { emptyBorder(top, left, bottom, right) }")
 public fun SwingModifier.emptyBorder(
     top: Int,
     left: Int,
@@ -84,89 +89,6 @@ public fun SwingModifier.emptyBorder(
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
+@Deprecated("Set it in the component's style: style = { emptyBorder(insets) }")
 public fun SwingModifier.emptyBorder(insets: Insets): SwingModifier =
-    emptyBorder(insets.top, insets.left, insets.bottom, insets.right)
-
-/**
- * What a chain declared the border to be. Equality decides whether the border is built and written at
- * all, so a declaration made of values - a color, a thickness - survives a recomposition without
- * exchanging the component's border for an equal one.
- */
-private sealed interface BorderSpec {
-    fun resolve(): Border?
-
-    /**
-     * A border the caller built. Two are equal only when they are the same object: an `equals` the
-     * caller wrote could call two distinct borders equal and leave the component holding the wrong one.
-     */
-    class Instance(
-        private val border: Border?,
-    ) : BorderSpec {
-        override fun resolve(): Border? = border
-
-        override fun equals(other: Any?): Boolean = other is Instance && border === other.border
-
-        override fun hashCode(): Int = System.identityHashCode(border)
-    }
-
-    data class Line(
-        val color: Color,
-        val thickness: Int,
-    ) : BorderSpec {
-        override fun resolve(): Border = BorderFactory.createLineBorder(color, thickness)
-    }
-
-    data class Empty(
-        val top: Int,
-        val left: Int,
-        val bottom: Int,
-        val right: Int,
-    ) : BorderSpec {
-        override fun resolve(): Border = BorderFactory.createEmptyBorder(top, left, bottom, right)
-    }
-}
-
-/**
- * Backs every border declaration with one slot: each builder produces this same element, so they share
- * the slot [border] describes.
- *
- * Two elements declaring the same [BorderSpec] are equal, so a chain rebuilt from unchanged values is
- * the same declaration and the slot is left as it stands.
- */
-private data class BorderElement(
-    private val spec: BorderSpec,
-) : SwingModifier.NodeElement<JComponent, BorderElement.Node>() {
-    override val name: String get() = "border"
-
-    override val declaredValues: Map<String, Any?> get() = mapOf("border" to spec)
-    override val targetType: Class<JComponent> get() = JComponent::class.java
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.apply(spec)
-    }
-
-    class Node : SwingModifier.ComponentNode<JComponent>() {
-        private var original: Border? = null
-
-        // The spec of the border this node wrote, or null while the component holds the original.
-        private var applied: BorderSpec? = null
-
-        override fun onAttach() {
-            original = component.border
-        }
-
-        /** Writes the border [spec] describes, unless the one already written came from an equal spec. */
-        fun apply(spec: BorderSpec) {
-            if (spec == applied) return
-            applied = spec
-            component.border = spec.resolve()
-        }
-
-        override fun onDetach() {
-            applied = null
-            component.border = original
-        }
-    }
-}
+    this then BorderElement(BorderSpec.Empty(insets.top, insets.left, insets.bottom, insets.right))

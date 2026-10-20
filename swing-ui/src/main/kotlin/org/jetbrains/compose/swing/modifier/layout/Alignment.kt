@@ -3,13 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
-import java.awt.LayoutManager2
-import javax.swing.JComponent
+import org.jetbrains.compose.swing.style.AlignmentXDescriptor
+import org.jetbrains.compose.swing.style.AlignmentYDescriptor
 
 /**
  * Sets the horizontal alignment along the x axis, where `0.0` aligns to the left, `0.5` centers, and
@@ -28,8 +26,9 @@ import javax.swing.JComponent
  * @return this modifier with the horizontal alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentX
  */
+@Deprecated("Set it in the component's style: style = { alignmentX(value) }")
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
-    property(AlignmentXProperty, value, restores = RestorePolicy.None)
+    property(AlignmentXDescriptor, value, restores = RestorePolicy.None)
 
 /**
  * Sets the vertical alignment along the y axis, where `0.0` aligns to the top, `0.5` centers, and
@@ -43,37 +42,6 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
  * @return this modifier with the vertical alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentY
  */
+@Deprecated("Set it in the component's style: style = { alignmentY(value) }")
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =
-    property(AlignmentYProperty, value, restores = RestorePolicy.None)
-
-/**
- * The horizontal alignment the component's own layout manager derives - only a `LayoutManager2` derives
- * one, and a component under any other manager is centered. This is the value `Container.getAlignmentX`
- * falls through to for a component holding no alignment of its own.
- */
-private val JComponent.layoutAlignmentX: Float
-    get() = (layout as? LayoutManager2)?.getLayoutAlignmentX(this) ?: Component.CENTER_ALIGNMENT
-
-/** The vertical alignment [layoutAlignmentX] describes, on the y axis. */
-private val JComponent.layoutAlignmentY: Float
-    get() = (layout as? LayoutManager2)?.getLayoutAlignmentY(this) ?: Component.CENTER_ALIGNMENT
-
-private val AlignmentXProperty =
-    ComponentPropertyDescriptor<JComponent, Float?>(
-        name = "alignmentX",
-        read = { if (it.alignmentX == it.layoutAlignmentX) null else it.alignmentX },
-        write = { component, alignment ->
-            component.alignmentX = alignment ?: component.layoutAlignmentX
-            component.revalidate()
-        },
-    )
-
-private val AlignmentYProperty =
-    ComponentPropertyDescriptor<JComponent, Float?>(
-        name = "alignmentY",
-        read = { if (it.alignmentY == it.layoutAlignmentY) null else it.alignmentY },
-        write = { component, alignment ->
-            component.alignmentY = alignment ?: component.layoutAlignmentY
-            component.revalidate()
-        },
-    )
+    property(AlignmentYDescriptor, value, restores = RestorePolicy.None)

@@ -10,9 +10,9 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -177,7 +177,11 @@ class PaintOutsetsStepOutsetsTest {
                     Row(modifier = SwingModifier.testTag(FIRST).styleable { paintOutsets(PaintOutsets.None) }) {
                         SwingNode(
                             factory = { Card() },
-                            modifier = SwingModifier.testTag("card").emptyBorder(3).shadow(8, Color.BLACK),
+                            modifier =
+                                SwingModifier
+                                    .testTag("card")
+                                    .shadow(8, Color.BLACK)
+                                    .styleable({ emptyBorder(3) }, RawKind),
                         )
                     }
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
@@ -202,10 +206,12 @@ class PaintOutsetsStepOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag(FIRST)
-                                .emptyBorder(3)
                                 .background(Red)
                                 .padding(8)
-                                .styleable { paintOutsets(PaintOutsets(4)) },
+                                .styleable {
+                                    paintOutsets(PaintOutsets(4))
+                                    emptyBorder(3)
+                                },
                     ) {
                         Box(modifier = SwingModifier.size(40, 40))
                     }
@@ -278,8 +284,10 @@ class PaintOutsetsStepOutsetsTest {
         }
 
     /**
-     * The border is applied first, so the container awaits validation as the shadow's new reach is written. The
-     * panel validates in the event after the one that invalidates it, ahead of anything queued later.
+     * The border and the shadow's new reach are written in one apply, so the change joins the validation the
+     * container awaits. The panel validates in the event after the one that invalidates it, ahead of anything queued
+     * later. The border width is read in composition: a style that read the state itself would write the border in
+     * a later step and lay the container out a second time.
      */
     @Test
     fun outsetsChangedInAContainerAwaitingValidationLayItOutOnce() =
@@ -297,13 +305,16 @@ class PaintOutsetsStepOutsetsTest {
             setContent {
                 SwingNode(factory = { SelfValidatingPanel() }) {
                     Layout(measurePolicy = counting) {
+                        val borderWidth = radius
                         Box(
                             modifier =
                                 SwingModifier
                                     .testTag(FIRST)
-                                    .emptyBorder(radius)
                                     .shadow(radius, Color.BLACK)
-                                    .styleable { paintOutsets(PaintOutsets.None) },
+                                    .styleable {
+                                        paintOutsets(PaintOutsets.None)
+                                        emptyBorder(borderWidth)
+                                    },
                         ) {
                             Box(modifier = SwingModifier.size(40, 40))
                         }

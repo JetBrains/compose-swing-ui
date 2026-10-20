@@ -10,8 +10,8 @@ import org.jetbrains.compose.swing.foundation.graphics.drawscope.clipRect
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.record
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.translate
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -42,17 +42,21 @@ class DrawModifierNodeTest {
                         modifier =
                             SwingModifier
                                 .testTag("outer")
-                                .opaque(false)
                                 .drawBehind { drawRect(Color.YELLOW) },
-                        style = { preferredSize(Dimension(32, 32)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(32, 32))
+                        },
                     ) {
                         DecoratedBox(
                             modifier =
                                 SwingModifier
                                     .testTag("inner")
-                                    .opaque(false)
                                     .drawBehind { drawRect(Color.RED) },
-                            style = { preferredSize(Dimension(16, 16)) },
+                            style = {
+                                opaque(false)
+                                preferredSize(Dimension(16, 16))
+                            },
                         )
                     }
                 }
@@ -74,17 +78,21 @@ class DrawModifierNodeTest {
                         modifier =
                             SwingModifier
                                 .testTag("outer")
-                                .opaque(false)
                                 .drawBehind { drawRect(outerColor) },
-                        style = { preferredSize(Dimension(32, 32)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(32, 32))
+                        },
                     ) {
                         DecoratedBox(
                             modifier =
                                 SwingModifier
                                     .testTag("inner")
-                                    .opaque(false)
                                     .drawBehind { drawRect(innerColor) },
-                            style = { preferredSize(Dimension(16, 16)) },
+                            style = {
+                                opaque(false)
+                                preferredSize(Dimension(16, 16))
+                            },
                         )
                     }
                 }
@@ -147,7 +155,6 @@ class DrawModifierNodeTest {
                         modifier =
                             SwingModifier
                                 .testTag("outer")
-                                .opaque(false)
                                 .then(
                                     SwingModifier.drawWithContent {
                                         drawRect(Color.GREEN)
@@ -166,7 +173,10 @@ class DrawModifierNodeTest {
                                 ).drawBehind {
                                     drawRect(Color.WHITE, height = size.height / 2f)
                                 },
-                        style = { preferredSize(Dimension(32, 32)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(32, 32))
+                        },
                     )
                 }
             }
@@ -187,22 +197,26 @@ class DrawModifierNodeTest {
                         modifier =
                             SwingModifier
                                 .testTag("outer")
-                                .opaque(false)
                                 .then(
                                     SwingModifier.drawWithContent {
                                         drawRect(Color.BLUE)
                                         translate(8f, 8f) { this@drawWithContent.drawContent() }
                                     },
                                 ),
-                        style = { preferredSize(Dimension(32, 32)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(32, 32))
+                        },
                     ) {
                         DecoratedBox(
                             modifier =
                                 SwingModifier
                                     .testTag("inner")
-                                    .opaque(false)
                                     .background(Brush.of(Color.WHITE)),
-                            style = { preferredSize(Dimension(16, 16)) },
+                            style = {
+                                opaque(false)
+                                preferredSize(Dimension(16, 16))
+                            },
                         )
                     }
                 }
@@ -301,18 +315,23 @@ class DrawModifierNodeTest {
                                 }
                             SwingModifier
                                 .testTag("outer")
-                                .opaque(false)
                                 .then(drawStep)
                         },
-                    style = { preferredSize(Dimension(32, 32)) },
+                    style = {
+                        opaque(false)
+                        preferredSize(Dimension(32, 32))
+                    },
                 ) {
                     DecoratedFlowPanel(
                         modifier =
-                            SwingModifier.testTag("inner").opaque(false).drawBehind {
+                            SwingModifier.testTag("inner").drawBehind {
                                 contentPaints++
                                 drawRect(Color.GREEN)
                             },
-                        style = { preferredSize(Dimension(16, 16)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(16, 16))
+                        },
                     )
                 }
             }

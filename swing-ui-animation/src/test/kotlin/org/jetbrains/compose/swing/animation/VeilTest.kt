@@ -8,8 +8,8 @@ import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -226,12 +226,10 @@ private fun assertEqualsSorted(readings: List<Int>) =
 private fun Block() =
     Label(
         text = "",
-        modifier =
-            SwingModifier
-                .opaque(true),
         style = {
             preferredSize(width = BLOCK_WIDTH, height = BLOCK_HEIGHT)
             background(Content)
+            opaque(true)
         },
     )
 

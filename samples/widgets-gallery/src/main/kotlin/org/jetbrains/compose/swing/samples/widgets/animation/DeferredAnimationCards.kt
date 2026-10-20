@@ -27,12 +27,12 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Color
 import java.awt.Dimension
@@ -148,12 +148,12 @@ private fun Block(text: String) {
         text = text,
         modifier =
             SwingModifier
-                .opaque(true)
-                .lineBorder(Color.GRAY)
                 .horizontalAlignment(SwingConstants.CENTER),
         style = {
             preferredSize(Dimension(260, 56))
             background(themePanelColor())
+            opaque(true)
+            lineBorder(Color.GRAY)
         },
     )
 }

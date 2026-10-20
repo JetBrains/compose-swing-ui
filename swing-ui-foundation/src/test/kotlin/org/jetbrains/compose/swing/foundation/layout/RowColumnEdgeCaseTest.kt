@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -285,8 +285,9 @@ class RowColumnEdgeCaseTest {
                 Row(
                     modifier =
                         SwingModifier
-                            .testTag(CONTAINER_TAG)
-                            .border(EmptyBorder(3, 7, 11, 13)),
+                            .testTag(
+                                CONTAINER_TAG,
+                            ).styleable { border(EmptyBorder(3, 7, 11, 13)) },
                 ) {
                     SizedChild(0, SwingModifier.weight(Float.MAX_VALUE))
                     SizedChild(1, SwingModifier.weight(1f))

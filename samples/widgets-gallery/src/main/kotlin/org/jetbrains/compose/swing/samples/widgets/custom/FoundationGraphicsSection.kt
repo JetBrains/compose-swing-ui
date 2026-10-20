@@ -24,7 +24,6 @@ import org.jetbrains.compose.swing.foundation.graphics.rememberImageLayer
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
@@ -33,6 +32,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
@@ -75,8 +75,10 @@ private fun ColumnScope.CanvasCard() {
                 SwingModifier
                     .testTag(CANVAS_TAG)
                     .fillMaxWidth()
-                    .lineBorder(Color(0x42, 0x85, 0xF4))
-                    .styleable { preferredSize(Dimension(320, 240)) },
+                    .styleable {
+                        preferredSize(Dimension(320, 240))
+                        lineBorder(Color(0x42, 0x85, 0xF4))
+                    },
         ) {
             drawRect(
                 GradientPaint(

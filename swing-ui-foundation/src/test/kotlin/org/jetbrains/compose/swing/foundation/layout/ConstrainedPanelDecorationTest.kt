@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -47,10 +47,10 @@ class ConstrainedPanelDecorationTest {
                     modifier =
                         SwingModifier
                             .testTag("box")
-                            .opaque(true)
                             .styleable {
                                 preferredSize(Dimension(64, 48))
                                 background(Color.RED)
+                                opaque(true)
                             },
                 )
             }
@@ -75,11 +75,11 @@ class ConstrainedPanelDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .opaque(true)
                                 .clipToBounds()
                                 .styleable {
                                     preferredSize(Dimension(64, 48))
                                     background(Color.RED)
+                                    opaque(true)
                                 },
                     )
                 }

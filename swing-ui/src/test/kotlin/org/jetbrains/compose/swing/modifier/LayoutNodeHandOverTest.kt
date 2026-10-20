@@ -7,8 +7,8 @@ import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import javax.swing.JPanel
@@ -52,13 +52,17 @@ class LayoutNodeHandOverTest {
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 // The property declared first changes with the layout elements, so the pass diffs the modifier.
-                val modifier = SwingModifier.opaque(value == "a").then(Layout("${value}1")).then(Layout("${value}2"))
+                val modifier =
+                    SwingModifier
+                        .property(OpaqueDescriptor, value == "a")
+                        .then(Layout("${value}1"))
+                        .then(Layout("${value}2"))
                 SwingNode(factory = { ListeningPanel().also { taking = it } }, modifier = modifier)
                 SwingNode(
                     factory = { ListeningPanel().also { declining = it } },
                     modifier =
                         SwingModifier
-                            .opaque(value == "a")
+                            .property(OpaqueDescriptor, value == "a")
                             .then(Layout("${value}1", autoInvalidates = false))
                             .then(Layout("${value}2", autoInvalidates = false)),
                 )
@@ -81,7 +85,7 @@ class LayoutNodeHandOverTest {
                 // The property declared first changes with the layout elements, so the pass diffs the modifier.
                 val modifier =
                     SwingModifier
-                        .opaque(value == "a")
+                        .property(OpaqueDescriptor, value == "a")
                         .then(Layout("${value}1", autoInvalidates = value == "b"))
                         .then(Layout("${value}2", autoInvalidates = false))
                 SwingNode(factory = { panel }, modifier = modifier)
@@ -101,7 +105,10 @@ class LayoutNodeHandOverTest {
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 // The property declared first changes on the last pass only, which therefore diffs the modifier.
-                val modifier = SwingModifier.opaque(value != "c").then(Layout(value, autoInvalidates = false))
+                val modifier =
+                    SwingModifier
+                        .property(OpaqueDescriptor, value != "c")
+                        .then(Layout(value, autoInvalidates = false))
                 SwingNode(factory = { taking }, modifier = modifier)
             }
         }
@@ -142,7 +149,7 @@ class LayoutNodeHandOverTest {
                     factory = {
                         ListeningPanel().also { panel = it }
                     },
-                    modifier = SwingModifier.opaque(pass > 1).then(Layout("l")).then(Additive("a")),
+                    modifier = SwingModifier.property(OpaqueDescriptor, pass > 1).then(Layout("l")).then(Additive("a")),
                 )
             }
         }

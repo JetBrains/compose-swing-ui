@@ -9,8 +9,8 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -38,10 +38,12 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .opaque(false)
                                 .shadow(radius, color, offsetX = offset, offsetY = offset)
                                 .background(Brush.of(Color.BLUE)),
-                        style = { preferredSize(Dimension(64, 64)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }
@@ -162,10 +164,12 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .opaque(false)
                                 .clip(shape, antialias)
                                 .background(Brush.of(Color.BLUE)),
-                        style = { preferredSize(Dimension(64, 64)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }
@@ -195,21 +199,25 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("recomposed")
-                                .opaque(false)
                                 .shadow(radius, color, offsetX = offset, offsetY = offset)
                                 .clip(CircleShape)
                                 .background(Brush.of(Color.BLUE)),
-                        style = { preferredSize(Dimension(64, 64)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                     DecoratedBox(
                         modifier =
                             SwingModifier
                                 .testTag("declared")
-                                .opaque(false)
                                 .shadow(6, Color.GREEN, offsetX = 3, offsetY = 3)
                                 .clip(CircleShape)
                                 .background(Brush.of(Color.BLUE)),
-                        style = { preferredSize(Dimension(64, 64)) },
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }

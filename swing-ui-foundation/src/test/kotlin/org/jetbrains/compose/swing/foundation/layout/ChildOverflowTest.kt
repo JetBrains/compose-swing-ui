@@ -18,10 +18,10 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOnto
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
@@ -92,10 +92,12 @@ class ChildOverflowTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .opaque(true)
                                 .let {
                                     if (shadowed) it.shadow(8, Color.BLACK) else it
-                                }.styleable { preferredSize(40, 40) },
+                                }.styleable {
+                                    opaque(true)
+                                    preferredSize(40, 40)
+                                },
                     ) {
                         Box(modifier = SwingModifier.requiredSize(56, 56).background(Brush.of(Color.BLUE)))
                     }
@@ -128,7 +130,13 @@ class ChildOverflowTest {
             var visible by mutableStateOf(true)
             setContent {
                 Box(modifier = SwingModifier.testTag("root")) {
-                    Row(modifier = SwingModifier.testTag("row").padding(20).opaque(true)) {
+                    Row(
+                        modifier =
+                            SwingModifier
+                                .testTag("row")
+                                .padding(20)
+                                .styleable { opaque(true) },
+                    ) {
                         SwingNode(
                             factory = { JPanel().apply { background = Color.BLUE } },
                             modifier =

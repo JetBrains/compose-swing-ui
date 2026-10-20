@@ -138,9 +138,9 @@ takes it too.
 ## Styling with `SwingStyle`, interaction with `SwingModifier`
 
 Components take optional style and modifier parameters. A `style: SwingStyle<S>` sets the properties of the component -
-colors, fonts, sizes, whether it is enabled. A `modifier: SwingModifier` keeps everything else:
-borders, tooltips, hover and other listeners, parent data and decoration. Write the style as a lambda and
-chain the modifier with the extension builders:
+colors, fonts, sizes, borders, tooltips, whether it is enabled. A `modifier: SwingModifier` keeps everything
+else: hover and other listeners, parent data and decoration. Write the style as a lambda and chain the
+modifier with the extension builders:
 
 ```kotlin
 @Composable
@@ -149,11 +149,11 @@ fun SaveButton(onSave: () -> Unit) {
     Button(
         text = "Save",
         onClick = onSave,
-        modifier =
-            SwingModifier
-                .lineBorder(if (hovered) Color.BLUE else Color.GRAY)
-                .onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
-        style = { foreground(Color.WHITE) },
+        modifier = SwingModifier.onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
+        style = {
+            foreground(Color.WHITE)
+            lineBorder(if (hovered) Color.BLUE else Color.GRAY)
+        },
     )
 }
 ```

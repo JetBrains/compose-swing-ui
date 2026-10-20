@@ -15,16 +15,16 @@ import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Color
 import java.awt.Cursor
@@ -32,34 +32,32 @@ import java.awt.Dimension
 import javax.swing.SwingConstants
 
 // Row, Column and Box paint nothing of their own, so their track is declared as a decoration.
-internal fun SwingModifier.layoutTrack(): SwingModifier =
-    this
-        .lineBorder(LayoutSampleColors.Border)
-        .background(LayoutSampleColors.Track, RectangleShape)
+internal fun SwingModifier.layoutTrack(): SwingModifier = this.background(LayoutSampleColors.Track, RectangleShape)
+
+internal fun SwingComponentStyleScope.layoutTrack() {
+    lineBorder(LayoutSampleColors.Border)
+}
 
 // A track as large as its content and the 32 px its border keeps around it. The border is part of the track, so its
 // content box starts inside it and a child may paint into it without leaving the track.
 internal fun SwingModifier.layoutStage(): SwingModifier =
     this
-        .emptyBorder(all = 32)
         .background(LayoutSampleColors.Track, RectangleShape)
         .border(1, LayoutSampleColors.Border)
 
-internal fun SwingModifier.layoutPanelTrack(): SwingModifier =
-    this
-        .lineBorder(LayoutSampleColors.Border)
-        .opaque(true)
+internal fun SwingComponentStyleScope.layoutStage() {
+    emptyBorder(all = 32)
+}
 
-internal fun ComponentStyleScope.layoutPanelTrack() {
+internal fun SwingComponentStyleScope.layoutPanelTrack() {
+    lineBorder(LayoutSampleColors.Border)
+    opaque(true)
     background(LayoutSampleColors.Track)
 }
 
-internal fun SwingModifier.layoutSampleSurface(): SwingModifier =
-    this
-        .lineBorder(LayoutSampleColors.Border)
-        .opaque(true)
-
-internal fun ComponentStyleScope.layoutSampleSurface(color: Color) {
+internal fun SwingComponentStyleScope.layoutSampleSurface(color: Color) {
+    lineBorder(LayoutSampleColors.Border)
+    opaque(true)
     background(color)
     foreground(LayoutSampleColors.Text)
 }
@@ -73,7 +71,7 @@ internal fun LayoutSwatch(
 ) {
     Label(
         text = text,
-        modifier = modifier.layoutSampleSurface().horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier.horizontalAlignment(SwingConstants.CENTER),
         style = {
             layoutSampleSurface(color)
             with(style) { applyStyle() }
@@ -96,7 +94,6 @@ internal fun InteractiveLayoutSwatch(
         modifier =
             modifier
                 .contentAreaFilled(false)
-                .layoutSampleSurface()
                 .horizontalAlignment(SwingConstants.CENTER),
         style = {
             layoutSampleSurface(color)

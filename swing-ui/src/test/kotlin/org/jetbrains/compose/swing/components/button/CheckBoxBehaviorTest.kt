@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
@@ -176,20 +176,20 @@ class CheckBoxBehaviorTest {
                 text = "Word wrap",
                 checked = false,
                 onCheckedChange = {},
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
         val box = onNodeOfType<JCheckBox>()
-        box.assertProperty("Wraps long lines", "the modifier applies to the box") { toolTipText }
+        box.assertProperty("Wraps long lines", "the modifier applies to the box") { name }
 
         tip = "Wraps text at the viewport edge"
         awaitIdle()
-        box.assertProperty("Wraps text at the viewport edge", "the modifier follows its state") { toolTipText }
+        box.assertProperty("Wraps text at the viewport edge", "the modifier follows its state") { name }
 
         tip = null
         awaitIdle()
-        box.assertProperty(null, "dropping the element restores the tooltip the box had without it") { toolTipText }
+        box.assertProperty(null, "dropping the element restores the name the box had without it") { name }
     }
 
     @Test
@@ -204,7 +204,7 @@ class CheckBoxBehaviorTest {
                 text = text,
                 checked = checked,
                 actionListener = listener,
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
@@ -218,9 +218,7 @@ class CheckBoxBehaviorTest {
         awaitIdle()
         checkBox.assert(SwingMatcher.isSelected())
         checkBox.assertTextEquals("Wrap lines")
-        checkBox.assertProperty(null, "dropping the element restores the tooltip the box had without it") {
-            toolTipText
-        }
+        checkBox.assertProperty(null, "dropping the element restores the name the box had without it") { name }
         checkBox.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         checked = false

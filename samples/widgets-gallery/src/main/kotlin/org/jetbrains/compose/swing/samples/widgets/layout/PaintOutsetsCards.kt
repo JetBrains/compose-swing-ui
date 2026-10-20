@@ -28,7 +28,6 @@ import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.foundation.layout.width
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -37,6 +36,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.AllComponents
 import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.style.styleable
@@ -130,6 +130,7 @@ private fun ColumnScope.FormEdgesCard(value: PaintOutsets?) {
                     .testTag(PAINT_OUTSETS_FORM_TAG)
                     .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
                     .styleable {
+                        layoutStage()
                         font(STAGE_FONT)
                         value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
                     },
@@ -176,6 +177,7 @@ private fun ColumnScope.BaselineRowCard(value: PaintOutsets?) {
                     .layoutStage()
                     .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
                     .styleable {
+                        layoutStage()
                         font(STAGE_FONT)
                         value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
                     },
@@ -231,6 +233,7 @@ private fun ColumnScope.DecoratedBesideStockCard(value: PaintOutsets?) {
                     .testTag(PAINT_OUTSETS_DECORATED_TAG)
                     .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
                     .styleable {
+                        layoutStage()
                         font(STAGE_FONT)
                         value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
                     },
@@ -265,6 +268,7 @@ private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
                     .layoutStage()
                     .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
                     .styleable {
+                        layoutStage()
                         font(STAGE_FONT)
                         value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
                     },
@@ -309,12 +313,11 @@ private fun ColumnScope.DeclarationOrderCard(value: PaintOutsets?) {
             modifier =
                 SwingModifier
                     .layoutStage()
-                    .alignmentGuides(
-                        guides,
-                        LocalAlignmentGuidesShown.current,
-                        BOX_MARKS,
-                        lines,
-                    ).styleable { font(STAGE_FONT) },
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
+                    .styleable {
+                        layoutStage()
+                        font(STAGE_FONT)
+                    },
             horizontalArrangement = Arrangement.spacedBy(16),
         ) {
             MeasuredField(
@@ -374,7 +377,6 @@ private fun ColumnScope.SwingParentCard(value: PaintOutsets?) {
         Label("Shadowed box: size = ${shadowed.width} × ${shadowed.height} px")
         Panel(
             PanelLayout.Flow(alignment = FlowLayout.LEADING, hgap = 16, vgap = 16),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 font(STAGE_FONT)
@@ -439,6 +441,7 @@ private fun ColumnScope.ChildPastContainerCard(value: PaintOutsets?) {
                         .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS)
                         .then(if (clip) SwingModifier.clipToBounds() else SwingModifier)
                         .styleable {
+                            layoutTrack()
                             font(STAGE_FONT)
                             value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
                         },
@@ -474,9 +477,9 @@ private fun ShadowedBox(modifier: SwingModifier) {
             modifier
                 .shadow(4, Color(0, 0, 0, 160))
                 .background(Color.WHITE, RectangleShape)
-                .border(border)
                 .styleable {
                     applyNestedStyle(AllComponents)
+                    border(border)
                 },
     ) {
         Label("Shadowed", style = { foreground(LayoutSampleColors.Text) })

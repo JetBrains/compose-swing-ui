@@ -5,9 +5,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -84,9 +84,11 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .opaque(false)
                                 .blur(radius)
-                                .styleable { preferredSize(CONTENT_SIZE) },
+                                .styleable {
+                                    preferredSize(CONTENT_SIZE)
+                                    opaque(false)
+                                },
                     ) {
                         DecoratedCanvas(
                             modifier = SwingModifier.testTag("blurred-child"),

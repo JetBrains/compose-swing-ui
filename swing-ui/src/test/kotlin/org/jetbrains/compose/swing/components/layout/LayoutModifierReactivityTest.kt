@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -26,31 +26,31 @@ import kotlin.test.assertNull
  * reaches the container on the composition that declares it, follows a later value, and is handed
  * back to what the container held on its own once the element is dropped.
  *
- * Each test drives one container through those three steps with a tool-tip element, reading the tip
+ * Each test drives one container through those steps with a name element, reading the name
  * off the live component.
  */
 class LayoutModifierReactivityTest {
     /**
-     * Declares [container] with a tool-tip element, then asserts the component [target] resolves
-     * reports the declared tip, follows a second one, and reports none once the element is dropped.
+     * Declares [container] with a name element, then asserts the component [target] resolves
+     * reports the declared name, follows a second one, and reports none once the element is dropped.
      */
     private suspend fun ComposeSwingTest.assertTheModifierIsFollowed(
         subject: String,
         target: ComposeSwingTest.() -> JComponent = { onRoot().onChild().fetch<JComponent>() },
         container: @Composable (SwingModifier) -> Unit,
     ) {
-        var tip by mutableStateOf<String?>(FIRST_TIP)
-        setContent { container(tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier) }
+        var declared by mutableStateOf<String?>(FIRST_NAME)
+        setContent { container(declared?.let { SwingModifier.name(it) } ?: SwingModifier) }
 
-        assertEquals(FIRST_TIP, target().toolTipText, "$subject: the declared tool tip")
+        assertEquals(FIRST_NAME, target().name, "$subject: the declared name")
 
-        tip = SECOND_TIP
+        declared = SECOND_NAME
         awaitIdle()
-        assertEquals(SECOND_TIP, target().toolTipText, "$subject: the tool tip after the element changed")
+        assertEquals(SECOND_NAME, target().name, "$subject: the name after the element changed")
 
-        tip = null
+        declared = null
         awaitIdle()
-        assertNull(target().toolTipText, "$subject: the tool tip after the element was dropped")
+        assertNull(target().name, "$subject: the name after the element was dropped")
     }
 
     @TestFactory
@@ -114,7 +114,7 @@ class LayoutModifierReactivityTest {
     }
 
     private companion object {
-        const val FIRST_TIP = "first"
-        const val SECOND_TIP = "second"
+        const val FIRST_NAME = "first"
+        const val SECOND_NAME = "second"
     }
 }

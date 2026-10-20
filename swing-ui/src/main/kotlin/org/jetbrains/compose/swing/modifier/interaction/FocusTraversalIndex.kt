@@ -3,12 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.style.FOCUS_TRAVERSAL_INDEX_KEY
+import org.jetbrains.compose.swing.style.FocusTraversalIndexDescriptor
 import org.jetbrains.compose.swing.util.get
-import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.FocusTraversalPolicy
@@ -24,28 +23,24 @@ import javax.swing.LayoutFocusTraversalPolicy
  * @param index the traversal position.
  * @return this modifier with the traversal position declared on it.
  */
-public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier = property(FocusTraversalIndexProperty, index)
+@Deprecated("Set it in the component's style: style = { focusTraversalIndex(index) }")
+public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier = property(FocusTraversalIndexDescriptor, index)
 
 /**
  * Makes this container a focus-cycle root whose Tab order follows its children's
- * [focusTraversalIndex] values (ascending), rather than their on-screen geometry. Children without an
- * index are visited after the indexed ones, in the on-screen order Swing's default traversal gives them.
+ * [focusTraversalIndex][org.jetbrains.compose.swing.style.focusTraversalIndex] values (ascending), rather than their
+ * on-screen geometry. Children without an index are visited after the indexed ones, in the on-screen order Swing's
+ * default traversal gives them.
  * Requires a `JComponent` target.
  *
  * Only the order changes: which components Tab stops on stays Swing's own judgement. A control is a
  * stop exactly where it would be in a hand-written form, so captions, layout containers and anything
- * that cannot take the keyboard are stepped over. [focusable] declares that judgement for the
- * component it is applied to.
+ * that cannot take the keyboard are stepped over. [focusable][org.jetbrains.compose.swing.style.focusable]
+ * declares that judgement for the component it is applied to.
  *
  * @see java.awt.Container.setFocusTraversalPolicy
  */
 public fun SwingModifier.orderedFocusTraversal(): SwingModifier = this then OrderedFocusTraversalElement
-
-/**
- * The `JComponent` client-property key under which [focusTraversalIndex] stores a component's traversal
- * position. Read by the [orderedFocusTraversal] policy to order children.
- */
-private val FOCUS_TRAVERSAL_INDEX_KEY: Key<Int> = Key("org.jetbrains.compose.swing.focusTraversalIndex")
 
 private object OrderedFocusTraversalElement :
     SwingModifier.NodeElement<JComponent, OrderedFocusTraversalElement.Node>() {
@@ -99,7 +94,8 @@ private class SavedFocusTraversal(
 
 /**
  * The policy [orderedFocusTraversal] installs, one instance per container, sorting the focus cycle by
- * [focusTraversalIndex] first and by the on-screen order `LayoutFocusTraversalPolicy` reads after.
+ * [focusTraversalIndex][org.jetbrains.compose.swing.style.focusTraversalIndex] first and by the on-screen order
+ * `LayoutFocusTraversalPolicy` reads after.
  */
 private class IndexOrderFocusTraversalPolicy : LayoutFocusTraversalPolicy() {
     private val layoutOrder: Comparator<in Component> = super.getComparator()
@@ -117,9 +113,10 @@ private class IndexOrderFocusTraversalPolicy : LayoutFocusTraversalPolicy() {
 }
 
 /**
- * The position this component sorts at: its own [focusTraversalIndex], or the earliest one declared
- * anywhere inside it where that is earlier. A container therefore never sorts after its own contents,
- * and a component with no index anywhere sorts after every indexed one.
+ * The position this component sorts at: its own
+ * [focusTraversalIndex][org.jetbrains.compose.swing.style.focusTraversalIndex], or the earliest one declared anywhere
+ * inside it where that is earlier. A container therefore never sorts after its own contents, and a component
+ * with no index anywhere sorts after every indexed one.
  */
 private fun Component.effectiveTraversalIndex(): Int {
     var earliest = (this as? JComponent)?.get(FOCUS_TRAVERSAL_INDEX_KEY) ?: Int.MAX_VALUE
@@ -128,10 +125,3 @@ private fun Component.effectiveTraversalIndex(): Int {
     }
     return earliest
 }
-
-private val FocusTraversalIndexProperty =
-    ComponentPropertyDescriptor<JComponent, Int?>(
-        name = "focusTraversalIndex",
-        read = { it[FOCUS_TRAVERSAL_INDEX_KEY] },
-        write = { component, value -> component[FOCUS_TRAVERSAL_INDEX_KEY] = value },
-    )

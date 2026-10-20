@@ -12,9 +12,9 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -64,8 +64,8 @@ class FirstBaselineTest {
                         measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT, mapOf(FirstBaseline to 13)) {} },
                         modifier =
                             SwingModifier
-                                .border(EmptyBorder(5, 0, 0, 0))
-                                .padding(top = 7),
+                                .padding(top = 7)
+                                .styleable { border(EmptyBorder(5, 0, 0, 0)) },
                     )
                 }
 
@@ -86,8 +86,8 @@ class FirstBaselineTest {
                         measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT, mapOf(line to 13)) {} },
                         modifier =
                             SwingModifier
-                                .border(EmptyBorder(0, 5, 0, 0))
-                                .padding(start = 7),
+                                .padding(start = 7)
+                                .styleable { border(EmptyBorder(0, 5, 0, 0)) },
                     )
                 }
 

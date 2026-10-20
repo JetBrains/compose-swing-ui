@@ -53,7 +53,6 @@ internal fun ColumnScope.FlowLayoutCard() {
                 hgap = gap,
                 vgap = gap,
             ),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(300, 104)
@@ -81,7 +80,6 @@ internal fun ColumnScope.BorderCompassCard() {
         )
         Panel(
             PanelLayout.Border(hgap = gap, vgap = gap),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(Dimension(360, 140))
@@ -109,9 +107,6 @@ internal fun ColumnScope.BorderOrientationCard() {
         )
         Panel(
             PanelLayout.Border(hgap = 4, vgap = 4),
-            modifier =
-                SwingModifier
-                    .layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(Dimension(360, 120))
@@ -151,7 +146,6 @@ internal fun ColumnScope.LinearLayoutCard() {
         Label("axis = ${if (horizontal) "X_AXIS" else "Y_AXIS"}")
         Panel(
             PanelLayout.Box(axis = if (horizontal) BoxLayout.X_AXIS else BoxLayout.Y_AXIS),
-            modifier = SwingModifier.layoutPanelTrack(),
             style = {
                 layoutPanelTrack()
                 preferredSize(320, 128)
@@ -201,7 +195,6 @@ internal fun ColumnScope.BoxFillersCard() {
 private fun BoxFillersExample(includeGlue: Boolean) {
     Panel(
         PanelLayout.Box(axis = BoxLayout.X_AXIS),
-        modifier = SwingModifier.layoutPanelTrack(),
         style = {
             layoutPanelTrack()
             preferredSize(460, 52)
@@ -218,7 +211,6 @@ private fun BoxFillersExample(includeGlue: Boolean) {
         RigidArea(
             width = 24,
             height = 32,
-            modifier = SwingModifier.layoutSampleSurface(),
             style = { layoutSampleSurface(LayoutSampleColors.Purple) },
         )
         LayoutSwatch(
@@ -231,18 +223,15 @@ private fun BoxFillersExample(includeGlue: Boolean) {
         )
         Spacer(
             size = 16,
-            modifier = SwingModifier.layoutSampleSurface(),
             style = { layoutSampleSurface(LayoutSampleColors.Gray) },
         )
         Strut(
             orientation = SwingConstants.HORIZONTAL,
             size = 32,
-            modifier = SwingModifier.layoutSampleSurface(),
             style = { layoutSampleSurface(LayoutSampleColors.Pink) },
         )
         if (includeGlue) {
             Glue(
-                modifier = SwingModifier.layoutSampleSurface(),
                 style = { layoutSampleSurface(LayoutSampleColors.Green) },
             )
         }

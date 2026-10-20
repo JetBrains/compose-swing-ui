@@ -14,8 +14,8 @@ import org.jetbrains.compose.swing.foundation.layout.dirtyRegion
 import org.jetbrains.compose.swing.foundation.layout.isValidUpToTheValidateRoot
 import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -112,7 +112,13 @@ class CanvasTest {
     fun canvasDeclaredOpaqueStillLetsWhatIsBehindShowThrough() =
         runComposeSwingTest {
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").opaque(true).styleable { preferredSize(64, 48) }) {}
+                Canvas(
+                    modifier =
+                        SwingModifier.testTag("canvas").styleable {
+                            preferredSize(64, 48)
+                            opaque(true)
+                        },
+                ) {}
             }
             onNodeWithTag("canvas").assertProperty(
                 false,

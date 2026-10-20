@@ -65,7 +65,7 @@ import java.util.EnumSet
  * attached in its parent.
  *
  * Build a modifier by calling the builder extensions off the [companion][SwingModifier.Companion]
- * (`SwingModifier.foreground(c).border(b)`, see the sibling `*Modifiers.kt` files) and pass it to a
+ * (`SwingModifier.testTag(t).mouseListener(l)`, see the sibling `*Modifiers.kt` files) and pass it to a
  * component's `modifier` parameter. The empty modifier ([SwingModifier] itself, the companion)
  * applies nothing and is the parameter default.
  *
@@ -73,7 +73,7 @@ import java.util.EnumSet
  * for. See `docs/MODIFIERS.md`.
  *
  * An [NodeElement] declares the component type it targets via [NodeElement.targetType]. A modifier targeting
- * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
+ * a type the node is not (e.g. `contentAreaFilled`, an `AbstractButton` property, on a bare `java.awt.Component`)
  * fails with a clear error naming the element and the required vs. actual type.
  *
  * Conditional composition works the way it does in Compose: `if (selected) it.testTag(tag)
