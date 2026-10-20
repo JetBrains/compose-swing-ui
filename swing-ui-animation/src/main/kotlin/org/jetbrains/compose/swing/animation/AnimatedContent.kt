@@ -96,15 +96,18 @@ import kotlin.math.max
  * This overload works under any parent, including a panel with a standard Swing layout manager and a
  * scroll pane. The container runs the size animation over its own contents and reports the animated size
  * as its preferred size. A parent that assigns fixed bounds, such as a border layout's center or a
- * filling grid-bag cell, shows no size change; the contents' enter and exit still run. Inside a `Box`,
- * `Row`, `Column` or other Foundation layout, the scoped overload applies instead, and the parent lays
- * the container out through the size animation.
+ * filling grid-bag cell, shows no size change; the contents' enter and exit still run. In the content lambda of
+ * a `Box`, `Row`, `Column` or other Foundation layout, the scoped overload applies instead, and the parent lays
+ * the container out through the size animation. Called from a composable of its own under a Foundation parent,
+ * this overload measures each content within the parent's constraints. Where a stock parent sizes that
+ * Foundation parent from its preferred size, those constraints are the container's current size: a larger
+ * target content keeps the container at that size until the transition ends, and a smaller one animates it down.
  *
  * Content is clipped to the container by default; set [SizeTransform.clip] to `false` to let it extend
  * past the animated size under a Foundation parent. A stock Swing ancestor still clips at its own bounds.
- * Mouse input follows the content's scale. The size animation targets each content's preferred size,
- * which content whose height depends on its width, such as a wrapping text area or an HTML label, reports
- * without knowing its final width.
+ * Mouse input follows the content's scale. Under a stock parent, the size animation targets each content's
+ * preferred size, which content whose height depends on its width, such as a wrapping text area or an HTML
+ * label, reports without knowing its final width.
  *
  * Text loses LCD subpixel antialiasing while a fade runs: a fade paints through a translucent buffer, and
  * the JDK renders subpixel text only onto an opaque surface. A heavyweight child paints outside the
@@ -811,22 +814,19 @@ private class AnimatedContentMeasurePolicy(
         constraints: Constraints,
         assigned: Dimension?,
     ): MeasureResult {
-        val animating = rootScope.transition.currentState != rootScope.transition.targetState
         // An assigned pass reads the natural sizes before the contents are measured, which can change them.
         val natural = assigned?.let { naturalSizesOf(measurables) }
         val placeables = arrayOfNulls<Placeable>(measurables.size)
         // Measure the target content first, but place it on top unless a zIndex is specified.
         measurables.forEachIndexed { index, measurable ->
             if ((measurable.parentData as? AnimatedContentChildData)?.isTarget == true) {
-                placeables[index] =
-                    measurable.measure(childConstraints(measurable, constraints, animating, assigned))
+                placeables[index] = measurable.measure(constraints)
             }
         }
         // The other contents are measured after the target, since they have no impact on the size animation.
         measurables.forEachIndexed { index, measurable ->
             if (placeables[index] == null) {
-                placeables[index] =
-                    measurable.measure(childConstraints(measurable, constraints, animating, assigned))
+                placeables[index] = measurable.measure(constraints)
             }
         }
         var maxW = 0
@@ -881,33 +881,6 @@ private class AnimatedContentMeasurePolicy(
         }
         return Dimension(width, height)
     }
-
-    /**
-     * The constraints each content is measured under. Contents assigned bounds by a Swing parent are measured within
-     * them, with no minimum: content smaller than the container keeps its size and is placed by the alignment. A
-     * parent that offers constraints is passed through, except that while the transition runs each content is offered
-     * at least its preferred extent, since the size animation is not an offer of available space.
-     */
-    private fun childConstraints(
-        measurable: Measurable,
-        constraints: Constraints,
-        animating: Boolean,
-        assigned: Dimension?,
-    ): Constraints =
-        when {
-            assigned != null || sizeAnimation == null || !animating -> {
-                constraints
-            }
-
-            else -> {
-                Constraints(
-                    minWidth = constraints.minWidth,
-                    minHeight = constraints.minHeight,
-                    maxWidth = max(constraints.maxWidth, measurable.maxIntrinsicWidth(Constraints.Infinity)),
-                    maxHeight = max(constraints.maxHeight, measurable.maxIntrinsicHeight(Constraints.Infinity)),
-                )
-            }
-        }
 
     // Content a deferred phase announced ahead of the transition is left out, as it is out of the measured size: a
     // Swing parent sizes the container from these answers.

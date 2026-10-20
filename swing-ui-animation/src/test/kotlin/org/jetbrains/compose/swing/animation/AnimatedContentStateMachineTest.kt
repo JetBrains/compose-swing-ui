@@ -12,8 +12,18 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onChildren
+import org.jetbrains.compose.swing.test.onAllNodesOfType
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -21,6 +31,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -44,7 +55,7 @@ class AnimatedContentStateMachineTest {
                     Body(text = it)
                 }
             }
-            val leaving = animatedContainer.contentPanel(0)
+            val leaving = animatedContainer().onChildAt(0).fetch<Container>()
 
             mainClock.autoAdvance = false
             state = "b"
@@ -58,7 +69,11 @@ class AnimatedContentStateMachineTest {
                     driveOneFrame()
                     leaving.paintedAlpha()
                 }
-            assertSame(animatedContainer, leaving.parent, "the content interrupted on its way out was rebuilt")
+            assertSame(
+                animatedContainer().fetch(),
+                leaving.parent,
+                "the content interrupted on its way out was rebuilt",
+            )
             assertTrue(
                 alphas.min() > 0.3f,
                 "the content coming back restarted its enter from nothing instead of picking the exit up at " +
@@ -68,8 +83,8 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(1, animatedContainer.componentCount, "the content that finished exiting was left behind")
-            assertSame(leaving, animatedContainer.contentPanel(0), "the container settled on a rebuilt content")
+            animatedContainer().onChildren().assertCountEquals(1)
+            assertSame(leaving, animatedContainer().onChildAt(0).fetch(), "the container settled on a rebuilt content")
             assertEquals(1f, leaving.paintedAlpha(), "the content coming back did not reach full opacity")
         }
 
@@ -103,11 +118,10 @@ class AnimatedContentStateMachineTest {
                 Dimension(NARROW_WIDTH, BODY_HEIGHT) to Dimension(WIDE_WIDTH, BODY_HEIGHT) in asked,
                 "the transform was not asked how to travel between the sizes of the two contents: $asked",
             )
-            assertEquals(
+            animatedContainer().assertProperty(
                 NARROW_WIDTH,
-                animatedContainer.preferredSize.width,
                 "the container's size traveled under a spec other than the one the transform gave",
-            )
+            ) { preferredSize.width }
         }
 
     @Test
@@ -130,18 +144,17 @@ class AnimatedContentStateMachineTest {
             val widths =
                 List(8) {
                     driveOneFrame()
-                    animatedContainer.preferredSize.width
+                    animatedContainer().fetch().preferredSize.width
                 }
 
             assertTrue(
                 widths.none { it in (NARROW_WIDTH + 1) until WIDE_WIDTH },
                 "the container animated a size after being given no size transform: $widths",
             )
-            assertEquals(
+            animatedContainer().assertProperty(
                 WIDE_WIDTH,
-                animatedContainer.preferredSize.width,
                 "the container did not take the room the roomiest of the two contents needs",
-            )
+            ) { preferredSize.width }
         }
 
     @Test
@@ -161,28 +174,25 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { driveOneFrame() }
-            val box = animatedContainer.size
-            assertTrue(
-                box.width in (NARROW_WIDTH + 1) until WIDE_WIDTH,
-                "precondition: the container's size was mid-travel: $box",
+            assertEquals(
+                Dimension(57, BODY_HEIGHT),
+                animatedContainer().fetch().size,
+                "precondition: the container's size was mid-travel",
             )
 
-            assertEquals(
-                Point(box.width - NARROW_WIDTH, box.height - BODY_HEIGHT),
-                panelShowing("a").location,
+            panelShowing("a").assertProperty(
+                Point(17, 0),
                 "the content being left was placed by something other than the container's alignment",
-            )
+            ) { location }
             val arriving = panelShowing("b")
-            assertEquals(
-                box.width,
-                arriving.width,
+            arriving.assertProperty(
+                57,
                 "the arriving content was not measured within the room the container was assigned",
-            )
-            assertEquals(
-                Point(box.width - arriving.width, box.height - BODY_HEIGHT),
-                arriving.location,
+            ) { width }
+            arriving.assertProperty(
+                Point(0, 0),
                 "the arriving content was placed by something other than the container's alignment",
-            )
+            ) { location }
         }
 
     @Test
@@ -190,7 +200,7 @@ class AnimatedContentStateMachineTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Box {
+                Box(SwingModifier.preferredSize(ROOM_WIDTH, BODY_HEIGHT)) {
                     org.jetbrains.compose.swing.animation.AnimatedContent(
                         targetState = state,
                         transitionSpec = { fadeIn(tween(1600)) togetherWith fadeOut(tween(1600)) },
@@ -204,30 +214,101 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { driveOneFrame() }
-            val container = (root.getComponent(0) as Container).getComponent(0) as Container
-            val box = container.size
-            assertTrue(
-                box.width in (NARROW_WIDTH + 1) until WIDE_WIDTH,
-                "precondition: the container's size was mid-travel: $box",
+            val container = animatedContainer().onChild()
+            assertEquals(
+                Dimension(57, BODY_HEIGHT),
+                container.fetch().size,
+                "precondition: the container's size was mid-travel",
             )
 
-            fun panelShowing(state: String): Container =
-                container.contentPanel(
-                    assertNotNull(
-                        (0 until container.componentCount).firstOrNull { container.contentText(it) == state },
-                        "no content on screen is showing $state",
-                    ),
-                )
-            assertEquals(
-                Point(box.width - NARROW_WIDTH, box.height - BODY_HEIGHT),
-                panelShowing("a").location,
+            container.panelShowing("a").assertProperty(
+                Point(17, 0),
                 "the content being left was placed by something other than the container's alignment",
-            )
-            assertEquals(
-                Point(box.width - WIDE_WIDTH, box.height - BODY_HEIGHT),
-                panelShowing("b").location,
+            ) { location }
+            container.panelShowing("b").assertProperty(
+                Point(-103, 0),
                 "the arriving content was placed by something other than the container's alignment",
+            ) { location }
+        }
+
+    @Test
+    fun `a larger target holds the container's size under an unsized Foundation parent and is measured within it`() =
+        runComposeSwingTest {
+            val held = Dimension(NARROW_WIDTH, BODY_HEIGHT)
+
+            val sizes =
+                changeUnderUnsizedParent(from = "a", to = "b") {
+                    onNodeWithTag("container").panelShowing("b").assertProperty(
+                        held,
+                        "the arriving content is measured within the held size",
+                    ) { size }
+                }
+
+            assertEquals(List(sizes.size) { held }, sizes, "the container holds its starting size while transitioning")
+        }
+
+    @Test
+    fun `a smaller target animates the container down to its size under an unsized Foundation parent`() =
+        runComposeSwingTest {
+            val sizes = changeUnderUnsizedParent(from = "b", to = "a")
+
+            assertTrue(
+                sizes.any { it.width in (NARROW_WIDTH + 1) until WIDE_WIDTH },
+                "the container's width never passed between the two contents while shrinking: $sizes",
             )
+        }
+
+    private suspend fun ComposeSwingTest.changeUnderUnsizedParent(
+        from: String,
+        to: String,
+        eachFrame: () -> Unit = {},
+    ): List<Dimension> {
+        var state by mutableStateOf(from)
+        setContent {
+            Box { UnscopedFade(state, millis = 1600, SwingModifier.testTag("container")) { Body(text = it) } }
+        }
+        val container = onAllNodesOfType<Container>().filterToOne(SwingMatcher.hasTestTag("container"))
+        container.assertProperty(Dimension(widthOf(from), BODY_HEIGHT), "the initial content sets the size") { size }
+
+        mainClock.autoAdvance = false
+        state = to
+        val sizes =
+            List(8) {
+                driveOneFrame()
+                eachFrame()
+                Dimension(container.fetch().size)
+            }
+
+        mainClock.autoAdvance = true
+        awaitIdle()
+        container
+            .assertProperty(Dimension(widthOf(to), BODY_HEIGHT), "the container takes the target's size") { size }
+            .assertProperty(1, "the outgoing content is removed after the transition ends") { componentCount }
+        return sizes
+    }
+
+    private fun widthOf(state: String) = if (state == "a") NARROW_WIDTH else WIDE_WIDTH
+
+    @Test
+    fun `a content whose preferred width follows its held width settles under a Foundation parent`() =
+        runComposeSwingTest {
+            var state by mutableStateOf("a")
+            setContent {
+                Box(SwingModifier.preferredSize(ROOM_WIDTH, BODY_HEIGHT)) {
+                    UnscopedFade(state, millis = 160) {
+                        if (it == "a") Body(text = it) else SwingNode(factory = { GrowingLeaf() })
+                    }
+                }
+            }
+
+            mainClock.autoAdvance = false
+            state = "b"
+            repeat(30) { driveOneFrame() }
+            val leaf = onNodeOfType<GrowingLeaf>()
+            leaf.assertProperty(ROOM_WIDTH, "the content grows to the room its parent offers and no further") { width }
+            repeat(5) { driveOneFrame() }
+
+            leaf.assertProperty(ROOM_WIDTH, "the content holds still once the transition ended") { width }
         }
 
     @Test
@@ -237,16 +318,16 @@ class AnimatedContentStateMachineTest {
             setContent {
                 AnimatedContent(targetState = state, contentKey = { it.length }) { Body(text = it) }
             }
-            val panel = animatedContainer.contentPanel(0)
+            val panel = animatedContainer().onChildAt(0).fetch<Container>()
             val label = panel.getComponent(0)
 
             state = "b"
             awaitIdle()
 
-            assertEquals(1, animatedContainer.componentCount, "two states with one content key were composed twice")
-            assertSame(panel, animatedContainer.contentPanel(0), "the shared key rebuilt the content it matched")
+            animatedContainer().onChildren().assertCountEquals(1)
+            assertSame(panel, animatedContainer().onChildAt(0).fetch(), "the shared key rebuilt the content it matched")
             assertSame(label, panel.getComponent(0), "the shared key rebuilt the label the two states share")
-            assertEquals("b", animatedContainer.contentText(0), "the content did not follow the state")
+            animatedContainer().onChildAt(0).onChild().assertTextEquals("b")
         }
 
     @Test
@@ -256,35 +337,29 @@ class AnimatedContentStateMachineTest {
             setContent {
                 AnimatedContent(targetState = state) { if (it == "a") Body(text = it) }
             }
-            assertEquals(Dimension(NARROW_WIDTH, BODY_HEIGHT), animatedContainer.preferredSize)
+            animatedContainer().assertProperty(Dimension(NARROW_WIDTH, BODY_HEIGHT)) { preferredSize }
 
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { driveOneFrame() }
             // The default enter's scale is mid-travel, so a hit-test overlay stands alongside both contents.
-            assertEquals(3, animatedContainer.componentCount, "the state composing nothing was not composed")
-            val box = animatedContainer.preferredSize
-            assertTrue(
-                box.width < NARROW_WIDTH,
-                "the container's size did not travel towards the nothing the arriving state measures: $box",
-            )
+            animatedContainer().onChildren().assertCountEquals(3)
+            animatedContainer().assertProperty(
+                true,
+                "the container's size did not travel towards the nothing the arriving state measures",
+            ) { preferredSize.width < NARROW_WIDTH }
 
             mainClock.autoAdvance = true
             // A content that emits nothing is measured at nothing, and a transition towards it has to run
             // out of frames like any other, so a container that waited on it would never let this return.
             awaitIdle()
 
-            assertEquals(1, animatedContainer.componentCount, "the content that finished exiting was left behind")
-            assertEquals(
-                0,
-                animatedContainer.contentPanel(0).componentCount,
-                "the state whose content composes nothing put a component in the tree",
-            )
-            assertEquals(
+            animatedContainer().onChildren().assertCountEquals(1)
+            animatedContainer().onChildAt(0).onChildren().assertCountEquals(0)
+            animatedContainer().assertProperty(
                 Dimension(0, 0),
-                animatedContainer.preferredSize,
                 "the container did not settle at the size of the content it holds",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -319,15 +394,11 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(10) { driveOneFrame() }
-            assertEquals(
-                1,
-                animatedContainer.componentCount,
-                "precondition: the content being left was disposed once its own exit had finished",
-            )
+            animatedContainer().onChildren().assertCountEquals(1)
 
             state = "a"
             repeat(3) { driveOneFrame() }
-            val returning = panelShowing("a")
+            val returning = panelShowing("a").fetch()
             val offsets =
                 List(4) {
                     driveOneFrame()
@@ -372,7 +443,7 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             driveOneFrame()
-            val fixed = panelShowing("b")
+            val fixed = panelShowing("b").fetch<Container>()
             val placed = fixed.getComponent(0).location
             assertFixedWhileSliding(fixed, placed)
 
@@ -396,18 +467,17 @@ class AnimatedContentStateMachineTest {
 
             generation = 1
             awaitIdle()
-            assertEquals(
+            animatedContainer().assertProperty(
                 NARROW_WIDTH,
-                animatedContainer.preferredSize.width,
                 "the container collapsed when it was handed a transition it had not seen before",
-            )
+            ) { preferredSize.width }
 
             mainClock.autoAdvance = false
             state = "b"
             val widths =
                 List(8) {
                     driveOneFrame()
-                    animatedContainer.preferredSize.width
+                    animatedContainer().fetch().preferredSize.width
                 }
 
             assertTrue(
@@ -475,25 +545,26 @@ class AnimatedContentStateMachineTest {
         val sliding = mutableListOf<Int>()
         repeat(6) {
             driveOneFrame()
-            sliding += panelShowing("a").x
-            assertSame(fixed, panelShowing("b"), "the content the interruption left in place was rebuilt")
-            assertEquals(Point(0, 0), fixed.location, "the content that moves nowhere was given a slide")
-            assertEquals(placed, fixed.getComponent(0).location, "the content that moves nowhere was moved")
+            sliding += panelShowing("a").fetch().x
+            assertSame(fixed, panelShowing("b").fetch(), "the content the interruption left in place was rebuilt")
+            panelShowing("b").assertProperty(
+                Point(0, 0),
+                "the content that moves nowhere was given a slide",
+            ) { location }
+            panelShowing("b")
+                .onChildAt(0)
+                .assertProperty(placed, "the content that moves nowhere was moved") { location }
         }
         assertTrue(sliding.distinct().size > 1, "precondition: the sliding content traveled: $sliding")
     }
 
     /** The panel holding the content of [state], whichever of the container's children that is. */
-    private fun ComposeSwingTest.panelShowing(state: String): Container {
-        val index =
-            (0 until animatedContainer.componentCount).firstOrNull { animatedContainer.contentText(it) == state }
-        return animatedContainer.contentPanel(assertNotNull(index, "no content on screen is showing $state"))
-    }
-}
+    private fun ComposeSwingTest.panelShowing(state: String): SwingNodeInteraction<Component> =
+        animatedContainer().panelShowing(state)
 
-/** The container an [AnimatedContent] stands on, which the harness mounts as the root's one child. */
-private val ComposeSwingTest.animatedContainer: Container
-    get() = root.getComponent(0) as Container
+    private fun SwingNodeInteraction<*>.panelShowing(state: String): SwingNodeInteraction<Component> =
+        onChildren().filterToOne(SwingMatcher.hasAnyChild(SwingMatcher.hasText(state)))
+}
 
 /** How opaque this content paints its opaque label at a pixel inside it, from `0f` to `1f`. */
 private fun Component.paintedAlpha(): Float = Color(captureToImage().getRGB(2, 2), true).alpha / 255f
@@ -510,7 +581,25 @@ private fun Body(text: String) {
 private fun SlidingBody(text: String) =
     Label(text = text, modifier = SwingModifier.preferredSize(width = SLIDING_WIDTH, height = BODY_HEIGHT))
 
+// No ConstrainedScope receiver, so the call resolves to the unscoped AnimatedContent overload.
+@Composable
+private fun UnscopedFade(
+    state: String,
+    millis: Int,
+    modifier: SwingModifier = SwingModifier,
+    content: @Composable (String) -> Unit,
+) = AnimatedContent(
+    targetState = state,
+    modifier = modifier,
+    transitionSpec = { fadeIn(tween(millis)) togetherWith fadeOut(tween(millis)) },
+) { content(it) }
+
+private class GrowingLeaf : JComponent() {
+    override fun getPreferredSize(): Dimension = Dimension(width + 10, BODY_HEIGHT)
+}
+
 private const val NARROW_WIDTH = 40
 private const val WIDE_WIDTH = 160
 private const val BODY_HEIGHT = 20
 private const val SLIDING_WIDTH = 200
+private const val ROOM_WIDTH = 200
