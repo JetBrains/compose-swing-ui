@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
@@ -19,6 +21,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.RecordingLayoutNodeElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
@@ -34,6 +37,7 @@ import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.Component
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.coroutines.EmptyCoroutineContext
@@ -366,6 +370,62 @@ class ModifierChainFailureTest {
     }
 
     @Test
+    fun aDeclarationKeepsOneIdentityThroughItsRebindsAndRestore() = runSwingTest {
+        val declared = mutableListOf<ModifierInfo>()
+        val modifiers = mutableListOf<SwingModifier>()
+        val components = mutableListOf<Component>()
+        val restored = mutableListOf<ModifierInfo>()
+        val diagnostics = mockk<SwingCompositionDiagnostics>()
+        every { diagnostics.key } returns SwingCompositionDiagnostics.Key
+        every { diagnostics.fold<Any?>(any(), any()) } answers { callOriginal() }
+        every { diagnostics.get<SwingCompositionDiagnostics>(any()) } answers { callOriginal() }
+        every { diagnostics.minusKey(any()) } answers { callOriginal() }
+        every { diagnostics.declaring(any(), any()) } answers {
+            val info = firstArg<ModifierInfo>()
+            declared += info
+            modifiers += info.modifier
+            components += info.component
+            secondArg<() -> Unit>().invoke()
+        }
+        every { diagnostics.restoring(any(), any()) } answers {
+            restored += firstArg<ModifierInfo>()
+            secondArg<() -> Unit>().invoke()
+        }
+        val recomposer = SwingRecomposer.create(JPanel(), effectContext = diagnostics)
+        var capturedLabel: JLabel? = null
+        var name by mutableStateOf("first")
+        var present by mutableStateOf(true)
+        val content =
+            JPanel().setContent(parent = recomposer.compositionContext) {
+                if (present) {
+                    SwingNode(
+                        factory = { JLabel().also { capturedLabel = it } },
+                        modifier = SwingModifier.name(name),
+                    )
+                }
+            }
+        try {
+            val label = checkNotNull(capturedLabel)
+            assertEquals("first", label.name)
+            name = "second"
+            awaitUntil("the replacement element has been written") { label.name == "second" }
+            present = false
+            awaitUntil("the declaration has been restored") { restored.isNotEmpty() }
+
+            val identity = declared.first()
+            assertTrue(declared.size >= 2, "the first write and the update both reach the diagnostics")
+            assertTrue(declared.all { it === identity }, "every write receives the same instance")
+            assertSame(identity, restored.single())
+            assertEquals(SwingModifier.name("first"), modifiers.first())
+            assertEquals(SwingModifier.name("second"), modifiers.last())
+            assertTrue(components.all { it === label }, "the identity names the widget")
+        } finally {
+            content.dispose()
+            recomposer.dispose()
+        }
+    }
+
+    @Test
     fun aNodeRefusedOnAttachThrowsTheRefusalWithTheRollbacksRepeatOfItSuppressed() = runComposeSwingTest {
         val failure =
             assertFailsWith<IllegalStateException> {
@@ -406,15 +466,12 @@ class ModifierChainFailureTest {
         private var refusals: Int = Int.MAX_VALUE,
     ) : SwingCompositionDiagnostics {
         override fun declaring(
-            component: Component,
-            node: SwingModifier.ComponentNode<*>,
-            element: SwingModifier.NodeElement<*, *>,
+            info: ModifierInfo,
             write: () -> Unit,
         ) = write()
 
         override fun restoring(
-            component: Component,
-            node: SwingModifier.ComponentNode<*>,
+            info: ModifierInfo,
             restore: () -> Unit,
         ) {
             if (refusals-- > 0) throw refusal

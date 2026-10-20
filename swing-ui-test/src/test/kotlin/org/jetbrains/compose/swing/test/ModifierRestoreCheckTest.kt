@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.test
 
+import io.mockk.every
+import io.mockk.mockk
+import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Color
@@ -26,9 +29,9 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun aPropertyLeftWhereADeclarationWroteItIsReported() {
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.name = "written" }
-        check.restoring(label, slot) { }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.name = "written" }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "one departing slot leaving one property wrong")
         assertContains(failure.message.orEmpty(), "name: found <null>, left <written>")
@@ -36,24 +39,24 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun aPropertyPutBackWhereTheChainFoundItIsNotReported() {
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.name = "written" }
-        check.restoring(label, slot) { label.name = null }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.name = "written" }
+        check.restoring(slot) { label.name = null }
 
         assertTrue(reported.isEmpty(), "a restore that put the property back owes nothing: $reported")
     }
 
     @Test
     fun aLeftoverIsReportedByTheLastSlotToLeave() {
-        val first = slot()
-        val second = slot()
-        check.declaring(label, first, element()) { label.name = "first" }
-        check.declaring(label, second, element()) { label.name = "second" }
+        val first = declaration(label, element())
+        check.declaring(first) { label.name = "first" }
+        val second = declaration(label, element())
+        check.declaring(second) { label.name = "second" }
 
-        check.restoring(label, first) { }
+        check.restoring(first) { }
         assertTrue(reported.isEmpty(), "the property is still another slot's to declare: $reported")
 
-        check.restoring(label, second) { }
+        check.restoring(second) { }
         assertNotNull(reported.singleOrNull(), "only the last slot writing it reports the leftover")
         assertEquals("second", label.name)
     }
@@ -62,18 +65,18 @@ class ModifierRestoreCheckTest {
     fun aNewDeclarationIsComparedWithTheValueFoundAfterThePreviousOneLeft() {
         // Another property remains declared, so the component stays watched while the name's
         // record is dropped and recreated by the second declaration.
-        check.declaring(label, slot(), element()) { label.isEnabled = false }
+        check.declaring(declaration(label, element())) { label.isEnabled = false }
 
-        val first = slot()
-        check.declaring(label, first, element()) { label.name = "first" }
-        check.restoring(label, first) { label.name = null }
+        val first = declaration(label, element())
+        check.declaring(first) { label.name = "first" }
+        check.restoring(first) { label.name = null }
         // An external write after the first declaration leaves becomes the second declaration's
         // initial value.
         label.name = "elsewhere"
 
-        val second = slot()
-        check.declaring(label, second, element()) { label.name = "second" }
-        check.restoring(label, second) { }
+        val second = declaration(label, element())
+        check.declaring(second) { label.name = "second" }
+        check.restoring(second) { }
 
         assertNotNull(reported.singleOrNull(), "the second declaration takes a record of its own")
         assertEquals("second", label.name)
@@ -81,12 +84,12 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun everyPropertyLeftByOneWriteIsReported() {
-        val slot = slot()
-        check.declaring(label, slot, element()) {
+        val slot = declaration(label, element())
+        check.declaring(slot) {
             label.name = "written"
             label.isEnabled = false
         }
-        check.restoring(label, slot) { }
+        check.restoring(slot) { }
 
         assertNotNull(reported.singleOrNull(), "one departing slot, one failure naming all it left")
         assertFalse(label.isEnabled)
@@ -95,9 +98,9 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun anAccessibleNameLeftWhereADeclarationWroteItIsReported() {
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.accessibleContext.accessibleName = "written" }
-        check.restoring(label, slot) { }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.accessibleContext.accessibleName = "written" }
+        check.restoring(slot) { }
 
         assertNotNull(reported.singleOrNull(), "an accessible-context property is watched too")
         assertEquals("written", label.accessibleContext.accessibleName)
@@ -105,14 +108,14 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun aSlotDeclaresThePropertyItNamesEvenWhereItsWriteMovedNothing() {
-        val leaving = slot()
-        val standing = slot()
-        check.declaring(label, leaving, element()) { label.name = "shared" }
+        val leaving = declaration(label, element())
+        check.declaring(leaving) { label.name = "shared" }
         // The second declaration names the property even though the reads before and after its
         // write see the same value.
-        check.declaring(label, standing, element(name = "name")) { label.name = "shared" }
+        val standing = declaration(label, element(name = "name"))
+        check.declaring(standing) { label.name = "shared" }
 
-        check.restoring(label, leaving) { }
+        check.restoring(leaving) { }
 
         assertTrue(
             reported.isEmpty(),
@@ -123,17 +126,17 @@ class ModifierRestoreCheckTest {
     @Test
     fun aPropertyASlotHoldsWithoutMovingIsNotOwedByASlotLeavingBesideIt() {
         label.name = "found"
-        val holding = slot()
         // The coarse declaration names the property even though its write leaves the value unchanged.
-        check.declaring(label, holding, element(heldProperties = setOf("name"))) { label.name = "found" }
+        val holding = declaration(label, element(heldProperties = setOf("name")))
+        check.declaring(holding) { label.name = "found" }
         // Something outside the modifier moves the name after the modifier has taken its record of it.
         label.name = "elsewhere"
 
-        val moving = slot()
-        check.declaring(label, moving, element(name = "name")) { label.name = "moved" }
+        val moving = declaration(label, element(name = "name"))
+        check.declaring(moving) { label.name = "moved" }
         // Restoration uses the value found by the first declaration, including when that
         // declaration did not change it.
-        check.restoring(label, moving) { label.name = "found" }
+        check.restoring(moving) { label.name = "found" }
 
         assertTrue(
             reported.isEmpty(),
@@ -143,27 +146,27 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun aPropertyASlotThatPutsNothingBackStillDeclaresIsNotYetOwed() {
-        val leaving = slot()
-        val standing = slot()
-        check.declaring(label, leaving, element()) { label.name = "leaving" }
-        check.declaring(label, standing, element(restores = RestorePolicy.None)) { label.name = "standing" }
+        val leaving = declaration(label, element())
+        check.declaring(leaving) { label.name = "leaving" }
+        val standing = declaration(label, element(restores = RestorePolicy.None))
+        check.declaring(standing) { label.name = "standing" }
 
         // The remaining declaration is reapplied after restoration, so its value remains until
         // that declaration leaves too.
-        check.restoring(label, leaving) { label.name = "standing" }
+        check.restoring(leaving) { label.name = "standing" }
 
         assertTrue(reported.isEmpty(), "a property another slot still declares is not yet owed: $reported")
     }
 
     @Test
     fun anElementThatPutsBackNoDerivedPropertyIsHeldToTheOneItNames() {
-        val slot = slot()
-        check.declaring(label, slot, element(name = "name", restores = RestorePolicy.DeclaredPropertyOnly)) {
+        val slot = declaration(label, element(name = "name", restores = RestorePolicy.DeclaredPropertyOnly))
+        check.declaring(slot) {
             label.name = "written"
             // DeclaredPropertyOnly excludes changes to properties other than the declared name.
             label.isEnabled = false
         }
-        check.restoring(label, slot) { }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "the property the element names is still owed")
         assertEquals("written", label.name)
@@ -175,7 +178,7 @@ class ModifierRestoreCheckTest {
         val throwing = ThrowingLabel()
         throwing.throwing = true
 
-        check.declaring(throwing, slot(), element()) { }
+        check.declaring(declaration(throwing, element())) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "one declaration, one report: $reported")
         assertContains(failure.message.orEmpty(), "threw")
@@ -183,9 +186,9 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun anElementThatPutsNothingBackIsNotHeldToIt() {
-        val slot = slot()
-        check.declaring(label, slot, element(restores = RestorePolicy.None)) { label.name = "installed" }
-        check.restoring(label, slot) { }
+        val slot = declaration(label, element(restores = RestorePolicy.None))
+        check.declaring(slot) { label.name = "installed" }
+        check.restoring(slot) { }
 
         assertTrue(reported.isEmpty(), "an element that says it restores nothing is not held to it: $reported")
     }
@@ -193,11 +196,11 @@ class ModifierRestoreCheckTest {
     @Test
     fun aSlotOwesNothingForAPropertyItsWriteLeftAsItFoundIt() {
         label.name = "standing"
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.name = "standing" }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.name = "standing" }
         // Something outside the modifier moves the name the slot never wrote; its removal owes nothing for it.
         label.name = "elsewhere"
-        check.restoring(label, slot) { }
+        check.restoring(slot) { }
 
         assertEquals(emptyList(), reported, "a write that changed nothing takes no record")
     }
@@ -205,10 +208,10 @@ class ModifierRestoreCheckTest {
     @Test
     fun aPropertyTheComponentsOwnStateMovedIsNotOwedByTheDepartingSlot() {
         val panel = OutsetPanel()
-        val slot = slot()
-        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        val slot = declaration(panel, element())
+        check.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
         panel.outset = 3
-        check.restoring(panel, slot) { panel.border = null }
+        check.restoring(slot) { panel.border = null }
 
         assertTrue(reported.isEmpty(), "the insets the panel's own state moved are not the slot's: $reported")
     }
@@ -216,12 +219,12 @@ class ModifierRestoreCheckTest {
     @Test
     fun aPropertyMovedElsewhereBeforeAnotherSlotWritesIsNotOwedByTheDepartingSlot() {
         val panel = OutsetPanel()
-        val slot = slot()
-        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        val slot = declaration(panel, element())
+        check.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
         panel.outset = 3
         // The move is seen ahead of this write, not ahead of the restore that follows it.
-        check.declaring(panel, slot(), element()) { panel.isEnabled = false }
-        check.restoring(panel, slot) { panel.border = null }
+        check.declaring(declaration(panel, element())) { panel.isEnabled = false }
+        check.restoring(slot) { panel.border = null }
 
         assertTrue(reported.isEmpty(), "the insets the panel's own state moved are not the slot's: $reported")
     }
@@ -229,9 +232,9 @@ class ModifierRestoreCheckTest {
     @Test
     fun aPropertyNothingElseMovedIsStillOwedByTheDepartingSlot() {
         val panel = OutsetPanel()
-        val slot = slot()
-        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
-        check.restoring(panel, slot) { }
+        val slot = declaration(panel, element())
+        check.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "a slot that never restores is still caught")
         assertContains(failure.message.orEmpty(), "insets: found <${Insets(0, 0, 0, 0)}>")
@@ -240,10 +243,10 @@ class ModifierRestoreCheckTest {
     @Test
     fun aMissedRestoreOfAPropertyMovedElsewhereGoesUnreported() {
         val panel = OutsetPanel()
-        val slot = slot()
-        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        val slot = declaration(panel, element())
+        check.declaring(slot) { panel.border = EmptyBorder(2, 2, 2, 2) }
         panel.outset = 3
-        check.restoring(panel, slot) { }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "the border the slot left is still reported")
         assertFalse("insets" in failure.message.orEmpty(), "the moved insets are no slot's: ${failure.message}")
@@ -253,15 +256,15 @@ class ModifierRestoreCheckTest {
     fun aPropertyMovedElsewhereIsOwedAgainOnceItsRecordIsDropped() {
         val panel = OutsetPanel()
         // Another property remains declared, so the panel stays watched between the two declarations.
-        check.declaring(panel, slot(), element()) { panel.isEnabled = false }
-        val first = slot()
-        check.declaring(panel, first, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        check.declaring(declaration(panel, element())) { panel.isEnabled = false }
+        val first = declaration(panel, element())
+        check.declaring(first) { panel.border = EmptyBorder(2, 2, 2, 2) }
         panel.outset = 3
-        check.restoring(panel, first) { panel.border = null }
+        check.restoring(first) { panel.border = null }
 
-        val second = slot()
-        check.declaring(panel, second, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
-        check.restoring(panel, second) { }
+        val second = declaration(panel, element())
+        check.declaring(second) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        check.restoring(second) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "a later declaration takes a record of its own")
         assertContains(failure.message.orEmpty(), "insets: found <${Insets(3, 3, 3, 3)}>")
@@ -269,10 +272,10 @@ class ModifierRestoreCheckTest {
 
     @Test
     fun aPlacementAxisMovedElsewhereIsStillOwedByTheDepartingSlot() {
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.setSize(10, 10) }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.setSize(10, 10) }
         label.setSize(20, 10)
-        check.restoring(label, slot) { }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "a layout pass moves the axes, so they stay owed")
         assertContains(failure.message.orEmpty(), "width: found <0>, left <20>")
@@ -281,22 +284,34 @@ class ModifierRestoreCheckTest {
     @Test
     fun aPropertyOtherThanTheInsetsMovedElsewhereIsStillOwedByTheDepartingSlot() {
         val original = label.background
-        val slot = slot()
-        check.declaring(label, slot, element()) { label.background = Color.RED }
+        val slot = declaration(label, element())
+        check.declaring(slot) { label.background = Color.RED }
         label.background = Color.BLUE
-        check.restoring(label, slot) { }
+        check.restoring(slot) { }
 
         val failure = assertNotNull(reported.singleOrNull(), "only the insets are exempted when moved elsewhere")
         assertContains(failure.message.orEmpty(), "background: found <$original>, left <${Color.BLUE}>")
     }
-
-    private fun slot() = SwingModifier.ComponentNode<Component>()
 
     private fun element(
         restores: RestorePolicy = RestorePolicy.EverythingWritten,
         name: String = "standIn",
         heldProperties: Set<String> = setOf(name),
     ) = StandInElement(restores, name, heldProperties)
+}
+
+/**
+ * The installed declaration a case drives the check with: a mock whose identity is its own, over a replaceable
+ * element.
+ */
+private fun declaration(
+    component: Component,
+    modifier: SwingModifier.NodeElement<*, *>,
+): ModifierInfo {
+    val info = mockk<ModifierInfo>()
+    every { info.component } returns component
+    every { info.modifier } returns modifier
+    return info
 }
 
 /** A panel whose insets follow its own [outset] as well as its border, with no modifier writing them. */

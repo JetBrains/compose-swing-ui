@@ -15,7 +15,7 @@ public interface DeclaredNodesListener {
      * Receives [componentNode] and the nodes [SwingModifier.Node.visitDeclaredNodes] visits on the event
      * dispatch thread, after a modifier pass in which one of them attached, detached, changed place, or was
      * written with a new element whose node [automatically invalidates][SwingModifier.Node.shouldAutoInvalidate],
-     * or after a composition-local refresh that rewrote such a node; an empty list once none stands. Every node
+     * or after a composition-local refresh that rewrote such a node; an empty list once there are none. Every node
      * handed over is attached.
      *
      * A throw is reported to the thread's uncaught-exception handler, as if this had returned.
@@ -26,27 +26,29 @@ public interface DeclaredNodesListener {
     )
 }
 
-/** Visits the nodes [SwingModifier.Node.visitDeclaredNodes] visits, for this holder's modifier. */
+/**
+ * Visits the nodes [SwingModifier.Node.visitDeclaredNodes] visits, for this holder's modifier.
+ *
+ * @param block receives each visited node.
+ */
 internal fun SwingNodeHolder<*>.visitDeclaredNodes(block: (SwingModifier.Node) -> Unit) {
-    val state = modifierState ?: return
-    val chain = state.chain
+    val records = modifierState?.records ?: return
     val batch = owner?.updateBatch
-    val declaring = if (batch != null && batch.diffingState === state) batch.diffingDeclaration else null
+    val declaring = if (batch != null && batch.diffingState === modifierState) batch.diffingDeclaration else null
     if (declaring == null) {
-        chain.fastForEach { block(it.node) }
+        records.fastForEach { if (it.isStandingFor(null, null) && it.key == null) block(it.node) }
         return
     }
-    // Mid-pass, each family's slots stand in declared order: walk the declaration, taking each element's slot
-    // from its own family's cursor. An element whose slot has yet to attach has none.
-    var layoutIndex = -1
-    var componentIndex = -1
+    // Mid-pass, each family's records are standing in declared order: walk the declaration, taking each element's
+    // record from its own family's cursor. An element whose record has yet to attach has none.
+    var layoutIndex = 0
+    var componentIndex = 0
     declaring.fastForEach { element ->
         val layout = element is ParentLayoutNodeElement<*>
-        var index = if (layout) layoutIndex else componentIndex
-        do index++ while (index < chain.size && (chain[index] is LayoutNodeRecord) != layout)
-        if (layout) layoutIndex = index else componentIndex = index
-        val node = chain.getOrNull(index)?.node
-        if (node != null && node.isAttached) block(node)
+        val family = if (layout) ParentLayoutNodeType else ComponentNodeType
+        val index = records.nextPositionalIndex(if (layout) layoutIndex else componentIndex, family)
+        if (layout) layoutIndex = index + 1 else componentIndex = index + 1
+        if (index < records.size && records[index].isAttached) block(records[index].node)
     }
 }
 
@@ -58,10 +60,11 @@ internal fun SwingNodeHolder<*>.notifyDeclaredNodes(
     chainChanged: Boolean,
     handedNodes: Boolean,
 ) {
-    val chain = modifierState?.chain ?: return
-    if (!chainChanged || (chain.isEmpty() && !handedNodes)) return
-    (component as? DeclaredNodesListener)?.let { listener ->
-        val nodes = chain.map { it.node }
+    if (modifierState == null || !chainChanged) return
+    val listener = component as? DeclaredNodesListener ?: return
+    val nodes = ArrayList<SwingModifier.Node>()
+    visitDeclaredNodes { nodes += it }
+    if (nodes.isNotEmpty() || handedNodes) {
         runReportingUncaught { listener.onDeclaredNodesChanged(this, nodes) }
     }
 }

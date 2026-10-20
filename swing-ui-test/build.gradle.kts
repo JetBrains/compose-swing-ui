@@ -45,6 +45,7 @@ dependencies {
     // Test-only: the published harness does not depend on the animation module.
     testImplementation(project(":swing-ui-animation"))
     testImplementation(libs.junitJupiterParams)
+    testImplementation(libs.mockk)
     testImplementation(testFixtures(project(":swing-ui")))
 }
 

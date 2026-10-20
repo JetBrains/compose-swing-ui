@@ -8,11 +8,12 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.mayBeLeftOut
-import org.jetbrains.compose.swing.modifier.LayoutNodeRecord
-import org.jetbrains.compose.swing.modifier.ModifierChange
-import org.jetbrains.compose.swing.modifier.NodeRecord
+import org.jetbrains.compose.swing.modifier.ModifierChanges
+import org.jetbrains.compose.swing.modifier.NodeRecords
+import org.jetbrains.compose.swing.modifier.ParentLayoutNodeType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
+import org.jetbrains.compose.swing.modifier.nextPositionalIndex
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -31,9 +32,6 @@ internal class ParentDeclaration(
 ) {
     private val component: Component get() = node.component
 
-    /** The slots of the node's modifier, among which the layout nodes stand. */
-    private val chain: List<NodeRecord<*, *>> get() = node.modifierState?.chain.orEmpty()
-
     /**
      * The container the applier attached the component to, or `null` before it has attached it.
      *
@@ -46,7 +44,7 @@ internal class ParentDeclaration(
     var parentData: Any? = null
         private set
 
-    /** The family that produced [parentData], or `null` where no parent-data declaration stands. */
+    /** The family that produced [parentData], or `null` where no parent-data declaration is retained. */
     var parentProtocol: ParentProtocol? = null
         private set
 
@@ -62,42 +60,40 @@ internal class ParentDeclaration(
      * Publishes parent data and resolved layout nodes together when the declaration changes or a node read by the
      * measuring parent is updated. After a failed node update, only the remaining attached nodes are included.
      * Conventional Swing parents receive parent data through `LayoutManager2` when that data changes.
+     *
+     * @param parentData the data the parent-data declarations fold to, or `null` for indexed placement.
+     * @param parentProtocol the family that produced [parentData], or `null` where there is none.
+     * @param parentLayoutElements the declarations a measuring parent interprets, in declaration order.
+     * @param layoutChange the changes the modifier pass made to the nodes the parent reads.
      */
     fun applyComponentLayout(
         parentData: Any?,
         parentProtocol: ParentProtocol?,
         parentLayoutElements: List<ParentLayoutElement>,
-        layoutChange: Set<ModifierChange> = emptySet(),
+        layoutChange: ModifierChanges = ModifierChanges.None,
     ) {
         val unchanged =
-            ModifierChange.NodesAddedOrRemoved !in layoutChange && ModifierChange.ParentLayoutUpdated !in layoutChange
-        if (unchanged && isApplied(parentData, parentProtocol, parentLayoutElements)) return
+            !layoutChange.nodesAddedOrRemoved && !layoutChange.parentLayoutUpdated
+        // Where the layout nodes did not change, this node holds the declaration given if each element is
+        // the one applied at its place.
+        val parentDataApplied = parentData == this.parentData && parentProtocol === this.parentProtocol
+        if (unchanged && parentDataApplied && parentLayoutElements.standsAs(this.parentLayoutElements)) return
         checkParentAccepts(parentProtocol, parentLayoutElements)
-        val parentDataChanged = parentData != this.parentData || parentProtocol !== this.parentProtocol
         val parent = measuringParent
         val received = parent?.let { layoutElementsUnder(it) }
         this.parentData = parentData
         this.parentProtocol = parentProtocol
-        this.parentLayoutElements = chain.withLayoutNodes(parentLayoutElements, this.parentLayoutElements)
+        this.parentLayoutElements =
+            node.modifierState?.records.withLayoutNodes(parentLayoutElements, this.parentLayoutElements)
         // Adding or removing a node changes the list; updating a node preserves its identity.
-        if (parentDataChanged) {
+        if (!parentDataApplied) {
             reapply()
         } else if (parent != null &&
-            (ModifierChange.ParentLayoutUpdated in layoutChange || layoutElementsUnder(parent) != received)
+            (layoutChange.parentLayoutUpdated || layoutElementsUnder(parent) != received)
         ) {
             reapply()
         }
     }
-
-    /** Whether this node holds the declaration given, taking the layout nodes applied as the ones standing. */
-    private fun isApplied(
-        parentData: Any?,
-        parentProtocol: ParentProtocol?,
-        parentLayoutElements: List<ParentLayoutElement>,
-    ): Boolean =
-        parentData == this.parentData &&
-            parentProtocol === this.parentProtocol &&
-            parentLayoutElements.standsAs(this.parentLayoutElements)
 
     /**
      * Drops the layout nodes that have detached from [parentLayoutElements], and declares the elements left to a
@@ -107,11 +103,10 @@ internal class ParentDeclaration(
      * another node of the modifier runs.
      */
     fun dropLayoutNodes(layOut: Boolean = true) {
-        val elements = parentLayoutElements
-        if (elements.fastFirstOrNull { it.isDetachedNode } == null) return
+        if (parentLayoutElements.fastFirstOrNull { it.isDetachedNode } == null) return
         val parent = measuringParent
         val received = parent?.let { layoutElementsUnder(it) }
-        parentLayoutElements = elements.filterNot { it.isDetachedNode }
+        parentLayoutElements = parentLayoutElements.filterNot { it.isDetachedNode }
         if (parent != null && layoutElementsUnder(parent) != received) {
             if (layOut) reapply() else declareComponentLayout()
         }
@@ -257,7 +252,7 @@ private fun List<ParentLayoutElement>.standsAs(applied: List<ParentLayoutElement
  * [declared], with the k-th [ParentLayoutNodeElement] replaced by the k-th layout node this chain holds - or
  * [applied] itself where every element already resolves to it.
  */
-private fun List<NodeRecord<*, *>>.withLayoutNodes(
+private fun NodeRecords?.withLayoutNodes(
     declared: List<ParentLayoutElement>,
     applied: List<ParentLayoutElement>,
 ): List<ParentLayoutElement> {
@@ -277,8 +272,9 @@ private fun List<NodeRecord<*, *>>.withLayoutNodes(
             var next = 0
             declared.mapNotNullTo(ArrayList(declared.size)) { element ->
                 if (element !is ParentLayoutNodeElement<*>) return@mapNotNullTo element
-                while (next < size && this[next] !is LayoutNodeRecord) next++
-                getOrNull(next++)?.node as ParentLayoutNode?
+                val records = this ?: return@mapNotNullTo null
+                next = records.nextPositionalIndex(next, ParentLayoutNodeType)
+                if (next < records.size) ParentLayoutNodeType.typed(records[next++]).node else null
             }
         }
     return if (resolved == applied) applied else resolved

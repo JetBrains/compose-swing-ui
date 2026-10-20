@@ -80,7 +80,7 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and removing a detached
         // component is a no-op.
-        parent.removeChildRun(index, count) {
+        parent.removeChildren(index, count) {
             val area = it.component.bounds
             container.removeMenuChild(it.component)
             batch.markChanged(container, area)
@@ -97,7 +97,7 @@ internal class MenuApplier(
         val container = parent.menuContainer("move menu children")
         batch.holdForChildSettle(parent)
 
-        parent.moveChildRun(
+        parent.moveChildren(
             from,
             to,
             count,

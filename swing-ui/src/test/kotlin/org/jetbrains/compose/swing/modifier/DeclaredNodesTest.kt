@@ -334,11 +334,11 @@ class DeclaredNodesTest {
         val owner = TestCompositionOwner()
         val child = attachedChild(owner, ListeningPanel())
         child.applyDeclaredModifier(SwingModifier.then(KeyableAdditive("p", additive = true)))
-        assertEquals(1, child.modifierState?.chain?.size, "the additive element must hold a chain slot")
+        assertEquals(listOf("p"), child.component.received.last(), "the additive element must hold a chain record")
 
         child.applyDeclaredModifier(SwingModifier.then(KeyableAdditive("p", additive = false)))
 
-        assertEquals(0, child.modifierState?.chain?.size, "a keyed element of the same class holds no chain slot")
+        assertEquals(emptyList(), child.component.received.last(), "a keyed element of the class holds no chain record")
         owner.dispose()
     }
 

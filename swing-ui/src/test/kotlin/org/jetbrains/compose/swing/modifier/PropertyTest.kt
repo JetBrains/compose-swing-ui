@@ -93,6 +93,56 @@ class PropertyTest {
             "an external overwrite of a rewriteOn property is reasserted",
         )
     }
+
+    @Test
+    fun aRewriteOnDeclarationDoesNotReapplyOverALaterDeclarationThatOverwroteIt() = runComposeSwingTest {
+        val earlier =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                name = "earlier",
+                read = { it.name },
+                write = { label, value -> label.name = value },
+            )
+        val later =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                name = "later",
+                read = { it.name },
+                write = { label, value -> label.name = value },
+            )
+        setContent {
+            SwingNode(
+                factory = { JLabel("target") },
+                modifier =
+                    SwingModifier
+                        .property(earlier, "A", rewriteOn = "name")
+                        .property(later, "B", rewriteOn = "name"),
+            )
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        assertEquals("B", label.name, "the later declaration's write stands over the earlier one")
+
+        label.name = "elsewhere"
+        awaitIdle()
+        assertEquals("B", label.name, "an outside overwrite is answered in declaration order, the later one last")
+    }
+
+    @Test
+    fun aRewriteOnDeclarationWhoseWriteAnnouncesItsOwnChangeDoesNotReapplyItself() = runComposeSwingTest {
+        val appending =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                name = "appending",
+                read = { it.name },
+                write = { label, value -> label.name = value?.let { label.name.orEmpty() + it } },
+            )
+        setContent {
+            SwingNode(
+                factory = { JLabel("target") },
+                modifier = SwingModifier.property(appending, "x", rewriteOn = "name"),
+            )
+        }
+
+        onNodeOfType<JLabel>()
+            .assertProperty("x", "the declaration's own change event does not write it again") { name }
+    }
 }
 
 /** The property [rewriteOnReassertsTheDeclaredValueWhenTheNamedPropertyAnnouncesAChange] declares and listens on. */

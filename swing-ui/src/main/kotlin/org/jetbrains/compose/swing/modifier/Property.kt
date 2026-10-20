@@ -27,7 +27,7 @@ import java.awt.Component
  * Declare only a property this library ships no modifier of its own for. Two declarations of one
  * [ComponentPropertyDescriptor.name] - even through two different handles - share one slot: the last one declared
  * wins, and they take one record of what the property stood at before either wrote it, put back from
- * whichever of them leaves last.
+ * whichever of them leaves last. Every handle of one name has to read and write the property alike.
  *
  * @param descriptor the property being written.
  * @param value the value to write while this declaration stands.
@@ -44,7 +44,10 @@ import java.awt.Component
  *   so the node listens for it and writes [value] again. Name the property itself where the component
  *   announces every change of it, its own write included. Reassertion happens only after a matching
  *   `PropertyChangeEvent`; a component or look and feel that mutates it silently cannot be observed or
- *   reasserted.
+ *   reasserted. Outside writes by declarations with [rewriteOn], all matching declarations reapply their
+ *   values. During such a write and any nested writes, only declarations applied after the
+ *   latest [rewriteOn] declaration that wrote may reapply their values. The writing declaration and earlier
+ *   declarations ignore these events, so synchronous notifications cannot repeat the same write.
  * @param alsoOverwrites properties [descriptor]'s own write lands on besides the one it declares - a
  *   coarse geometry naming each axis it covers, a button's fill keeping its opaque flag in step with it.
  *   Each is held beside the declared one and given back after it, so a removal puts back every property
@@ -74,8 +77,9 @@ public fun <T : Component, V> SwingModifier.property(
  *
  * Two elements are equal when they declare the *same* [descriptor] - identity, so a pair allocated once,
  * beside the builder or on the property object, compares equal across passes - and carry an equal
- * [value]. [restores], [inheritable], [rewriteOn] and [alsoOverwrites] are fixed per property, so they
- * take no part in equality.
+ * [value]. [restores], [inheritable], [rewriteOn] and [alsoOverwrites] take no part in equality.
+ * Adopting an equal declaration keeps the existing node without updating it, including the [rewriteOn]
+ * and [alsoOverwrites] supplied when that node was created.
  *
  * Internal rather than file-private so [org.jetbrains.compose.swing.defaults.ComponentDefaults] can tell
  * a property declaration apart from a plain [SwingModifier.NodeElement] and ask [handles] which classes

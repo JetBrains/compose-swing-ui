@@ -1,8 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import java.awt.Component
+import org.jetbrains.compose.swing.modifier.ModifierInfo
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -24,26 +23,30 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
     override val key: CoroutineContext.Key<*> get() = Key
 
     /**
-     * Runs [write] - what one element writes onto [component] for the slot [node] holds, whether that is
-     * the slot's first write or a later one.
+     * Reads [info], then invokes [write] exactly once before returning.
      *
-     * [node] identifies the slot for as long as it holds one, which the element does not: a pass hands
-     * the slot a fresh element carrying the same declaration. [element] is that declaration, and is what
-     * a report about the write names it by.
+     * [info] is the same instance for every write of one installed declaration, and for its [restoring]. Read
+     * its properties before invoking [write]. An exception from [write] propagates.
+     *
+     * @param info the identity scoped to one installed declaration; read its properties before invoking [write].
+     * @param write the declaration action to invoke exactly once before returning.
      */
     public fun declaring(
-        component: Component,
-        node: SwingModifier.ComponentNode<*>,
-        element: SwingModifier.NodeElement<*, *>,
+        info: ModifierInfo,
         write: () -> Unit,
     )
 
     /**
-     * Runs [restore] - the departing slot [node] holds putting [component] back where the modifier found it.
+     * Reads [info], then invokes [restore] exactly once before returning, putting the component back where the
+     * departing declaration found it.
+     *
+     * Read [info]'s properties before invoking [restore]. An exception from [restore] propagates.
+     *
+     * @param info the same identity supplied for the installed declaration.
+     * @param restore the restoration action to invoke exactly once before returning.
      */
     public fun restoring(
-        component: Component,
-        node: SwingModifier.ComponentNode<*>,
+        info: ModifierInfo,
         restore: () -> Unit,
     )
 
@@ -53,26 +56,31 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
 }
 
 /**
- * Runs [write] - what one modifier element writes onto [component] - under the checks the composition is
- * held to, or plainly where it is held to none.
+ * Runs [write] - what the declaration behind [info] writes onto its component - under the checks the
+ * composition is held to, or plainly where it is held to none.
  *
  * A composition outside a test names no diagnostics, and takes the `null` branch, which inlines the write
- * where it stands and builds no lambda for it.
+ * in place and builds no lambda for it.
+ *
+ * @param info the identity of the installed declaration.
+ * @param write what the declaration writes onto its component.
  */
 internal inline fun SwingCompositionDiagnostics?.watchWrite(
-    component: Component,
-    node: SwingModifier.ComponentNode<*>,
-    element: SwingModifier.NodeElement<*, *>,
+    info: ModifierInfo,
     crossinline write: () -> Unit,
 ) {
-    if (this == null) write() else declaring(component, node, element) { write() }
+    if (this == null) write() else declaring(info) { write() }
 }
 
-/** [watchWrite], for the departing slot putting [component] back where the modifier found it. */
+/**
+ * [watchWrite], for the departing declaration behind [info] putting its component back where it found it.
+ *
+ * @param info the identity of the installed declaration.
+ * @param restore what the declaration does to put its component back.
+ */
 internal inline fun SwingCompositionDiagnostics?.watchRestore(
-    component: Component,
-    node: SwingModifier.ComponentNode<*>,
+    info: ModifierInfo,
     crossinline restore: () -> Unit,
 ) {
-    if (this == null) restore() else restoring(component, node) { restore() }
+    if (this == null) restore() else restoring(info) { restore() }
 }

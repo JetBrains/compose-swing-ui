@@ -22,13 +22,11 @@ import org.jetbrains.compose.swing.tooling.NODE_KEY
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
-import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.Rectangle
-import java.util.Collections
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
@@ -421,39 +419,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
     internal var childSettle: (() -> Unit)? = null
 
     /**
-     * Puts the node back to the state a new node starts from.
-     *
-     * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
-     * restores the properties the modifier changed, drops the settle held against this node's children,
-     * and, once the modifier has torn down, drops this node's tracked reads and pending requests in its owner, so
-     * what the teardown records through this node goes with them. A settle left standing would be
-     * run against a declaration the composition no longer makes; an update that still declares one hands
-     * it over again on the pass that follows. The detach covers every modifier-installed listener,
-     * including the built-in domain listener of the component.
-     *
-     * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
-     * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
-     * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
-     * stops observing through the node before the modifier tears down.
-     *
-     * The published node is removed and the modifier torn down even when removing the published node throws; the
-     * first failure propagates, with the later one suppressed on it.
-     */
-    private fun reset(
-        resetNodes: Boolean,
-        detaching: Boolean,
-    ) {
-        if (detaching) tellComponentDetached()
-        try {
-            runEveryStep(::clearPublishedNode, { resetModifierState(resetNodes) })
-        } finally {
-            owner?.snapshotObserver?.clear(this)
-            owner?.cancelAfterValidation(this)
-            childSettle = null
-        }
-    }
-
-    /**
      * The node is leaving the composition for good. The region it fills is released and its teardown runs
      * whether or not the reset throws. A listener is told the node detached only while it is attached: a
      * deactivation has told it already.
@@ -533,6 +498,39 @@ internal sealed class SwingNodeHolder<out T : Component> :
             releaseBlock = null
             if (clearOwner) owner = null
         }
+    }
+}
+
+/**
+ * Puts the node back to the state a new node starts from.
+ *
+ * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
+ * restores the properties the modifier changed, drops the settle held against this node's children,
+ * and, once the modifier has torn down, drops this node's tracked reads and pending requests in its owner, so
+ * what the teardown records through this node goes with them. A settle left held would be
+ * run against a declaration the composition no longer makes; an update that still declares one hands
+ * it over again on the pass that follows. The detach covers every modifier-installed listener,
+ * including the built-in domain listener of the component.
+ *
+ * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
+ * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
+ * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
+ * stops observing through the node before the modifier tears down.
+ *
+ * The published node is removed and the modifier torn down even when removing the published node throws; the
+ * first failure propagates, with the later one suppressed on it.
+ */
+private fun SwingNodeHolder<*>.reset(
+    resetNodes: Boolean,
+    detaching: Boolean,
+) {
+    if (detaching) tellComponentDetached()
+    try {
+        runEveryStep(::clearPublishedNode, { resetModifierState(resetNodes) })
+    } finally {
+        owner?.snapshotObserver?.clear(this)
+        owner?.cancelAfterValidation(this)
+        childSettle = null
     }
 }
 
@@ -715,9 +713,13 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
 /**
  * [element] as the modifier call that declared it. A layout node stands in its element's place, so the call
  * named is the element's.
+ *
+ * @param element the layout element whose declaring call is named.
  */
 internal fun SwingNodeHolder<*>.declaredCall(element: ParentElement): String {
-    val declared = modifierState?.chain?.fastFirstOrNull { it.node === element }?.element as? ParentElement ?: element
+    val declared =
+        modifierState?.records?.fastFirstOrNull { it.key == null && it.node === element }?.element as? ParentElement
+            ?: element
     return "SwingModifier.${declared.name}()"
 }
 
@@ -813,75 +815,4 @@ internal inline fun List<SwingNodeHolder<*>>.removeComposedFrom(
             removed(area)
         }
     }
-}
-
-/**
- * The place among this host's attached children that the child composed at [index] takes: the siblings
- * ahead of it that are attached already. A host mid-pass holds every child the composition put here,
- * including any it has yet to attach or has parked, so the position handed to a host is counted rather
- * than composed.
- */
-internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int {
-    var attached = 0
-    children.fastForEachIn(0 until index) { if (it.attachedToHost) attached++ }
-    return attached
-}
-
-/**
- * Takes the run of [count] children at [index] out of this host's composition-order child list, handing
- * each of them to [release] before the list loses it.
- */
-internal inline fun SwingNodeHolder<*>.removeChildRun(
-    index: Int,
-    count: Int,
-    crossinline release: (SwingNodeHolder<*>) -> Unit,
-) {
-    children.fastForEachIn(index until index + count) { release(it) }
-    children.subList(index, index + count).clear()
-}
-
-/**
- * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, hands
- * each moved child to [detach], and then hands back the ones attached to this host with the index each
- * of them stands at, for the caller to turn into the place its host reads.
- *
- * A child the pass has yet to attach is not handed to [place]: it stands nowhere to be placed, and takes
- * the position the list gives it once the pass has settled.
- */
-internal inline fun SwingNodeHolder<*>.moveChildRun(
-    from: Int,
-    to: Int,
-    count: Int,
-    crossinline detach: (child: SwingNodeHolder<*>) -> Unit,
-    crossinline place: (child: SwingNodeHolder<*>, index: Int) -> Unit,
-) {
-    val target = moveChildRun(from, to, count)
-    // The whole run leaves its host before any of it goes back: a place addresses the position among the
-    // children that stay, and a run still standing where it was would push each of them one along.
-    children.fastForEachIn(target until target + count) { detach(it) }
-    for (index in target until target + count) {
-        val child = children[index]
-        if (child.attachedToHost) place(child, index)
-    }
-}
-
-/**
- * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, and
- * returns the index the run stands at once it has moved: taking a run out at [from] shifts the positions
- * above it down by [count], which is the index space [to] is given in.
- *
- * The run and the children it travels past swap places, so the move is a rotation of the span between
- * the two positions, and no child leaves the list.
- */
-internal fun SwingNodeHolder<*>.moveChildRun(
-    from: Int,
-    to: Int,
-    count: Int,
-): Int {
-    val target = if (from > to) to else to - count
-    Collections.rotate(
-        children.subList(minOf(from, target), maxOf(from + count, to)),
-        if (from > to) count else -count,
-    )
-    return target
 }

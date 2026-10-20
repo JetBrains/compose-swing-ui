@@ -56,10 +56,11 @@ internal class ComponentUpdateBatch {
     var diffingState: SwingModifierState? = null
 
     /**
-     * The [ModifierPartition.chain] the pass diffing [diffingState] is applying, from the point the standing slots
-     * are matched to it until [SwingModifierState.orderChain] puts them in its order. Meanwhile each family of
-     * [SwingModifierState.chain] holds the slots this declares in its order, followed by any it no longer declares
-     * until they leave, and the two families are not yet interleaved as this declares them.
+     * The [ModifierPartition.positional] the pass diffing [diffingState] is applying, from the point the standing
+     * records are matched to it until the [order][org.jetbrains.compose.swing.modifier.NodeRecords.DeclarationOrder]
+     * commits them. Meanwhile each family of [SwingModifierState.records] holds the records this declares in
+     * its order, followed by any it does not declare until they leave, and the two families are not interleaved
+     * as this declares them.
      */
     var diffingDeclaration: List<SwingModifier.Element>? = null
 

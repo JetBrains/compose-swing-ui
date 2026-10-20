@@ -17,25 +17,47 @@ import org.jetbrains.compose.swing.util.fastForEach
  * Built by the walk and dropped after it, so nothing of one pass outlives the pass that made it.
  *
  * @param keyedCapacity how many keyed elements the modifier is expected to declare, which [keyed] is sized for.
- * @param chainCapacity how many elements the modifier is expected to hold slots for, which [chain] is sized for.
+ * @param positionalCapacity how many elements the modifier is expected to hold records for, which [positional] is
+ *   sized for.
  */
 internal class ModifierPartition(
     keyedCapacity: Int = 0,
-    chainCapacity: Int = 0,
+    positionalCapacity: Int = 0,
 ) {
     /** The keyed (last-wins) elements of the modifier being applied, by [SwingModifier.NodeElement.key]. */
-    val keyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> =
-        // Holds keyedCapacity entries under the default load factor of 0.75 without growing.
-        LinkedHashMap(keyedCapacity + keyedCapacity / 3 + 1)
+    val keyed: List<SwingModifier.NodeElement<*, *>> get() = keyedElements
+
+    /** Keyed declarations mutated only while this partition takes elements. */
+    private val keyedElements = ArrayList<SwingModifier.NodeElement<*, *>>(keyedCapacity)
 
     /**
      * The elements whose nodes hold a place in the modifier, in declaration order: every additive (subscription)
      * [SwingModifier.NodeElement], and every [ParentLayoutNodeElement] among [parentLayoutElements]; see
-     * [isChainElement].
+     * [isPositionalElement].
      */
-    val chain: ArrayList<SwingModifier.Element> = ArrayList(chainCapacity)
+    val positional: List<SwingModifier.Element> get() = positionalElements
 
-    private val pendingParentDeclarations: ArrayList<ParentElement> = ArrayList()
+    /** Positional declarations mutated only while this partition takes elements. */
+    private val positionalElements = ArrayList<SwingModifier.Element>(positionalCapacity)
+
+    /** The family of each of [positional], at the same index, stated where the element entered this partition. */
+    val positionalFamilies: List<ModifierNodeType<*>> get() = positionalFamilyList
+
+    /** Families mutated only while this partition takes elements. */
+    private val positionalFamilyList = ArrayList<ModifierNodeType<*>>(positionalCapacity)
+
+    /**
+     * How many of [positional] are declared in [family].
+     *
+     * @param family the family counted.
+     */
+    fun positionalCount(family: ModifierNodeType<*>): Int {
+        var count = 0
+        positionalFamilyList.fastForEach { if (it === family) count++ }
+        return count
+    }
+
+    private val pendingParentDeclarations = ArrayList<ParentElement>()
 
     private var resolvedParentDeclarations: ResolvedParentDeclarations? = null
 
@@ -69,7 +91,11 @@ internal class ModifierPartition(
     /** The key declarations the walk has taken, so one declared twice is not counted twice. */
     private var keyElements: List<KeyElement> = emptyList()
 
-    /** Routes one entry of the modifier being applied to whatever reads it. */
+    /**
+     * Routes one entry of the modifier being applied to whatever reads it.
+     *
+     * @param element the entry to route.
+     */
     fun take(element: SwingModifier.Element) {
         when (element) {
             is SwingModifier.NodeElement<*, *> -> {
@@ -101,32 +127,47 @@ internal class ModifierPartition(
     }
 
     private fun takeElement(element: SwingModifier.NodeElement<*, *>) {
-        if (element.isChainElement) {
-            chain.add(element)
+        if (element.isPositionalElement) {
+            positionalElements.add(element)
+            positionalFamilyList.add(ComponentNodeType)
             return
         }
         // Last wins the place as well as the value: the modifier settles two writes of one property by its
-        // own order, so a key declared again later stands where it was declared last. The key is asked for
-        // once, which is what the walk over a modifier costs.
+        // own order, so a key declared again later stands where it was declared last.
         val key = element.key
-        keyed.remove(key)
-        keyed[key] = element
+        val previous = keyedElements.indexOfFirst { it.key == key }
+        element.checkPreviousDeclaration(if (previous >= 0) keyedElements[previous] else null)
+        if (previous >= 0) {
+            keyedElements.removeAt(previous)
+        }
+        keyedElements.add(element)
     }
 
     /**
      * Records every parent declaration so keyed and additive declarations share one order. A node-backed layout
-     * declaration also takes its place in [chain], which it gives up to a later declaration of its key, as
+     * declaration also takes its place in [positional], which it gives up to a later declaration of its key, as
      * [retainedParentDeclarations] does. A layout declaration is
      * [refused where inheritable and additive][requireInheritableIsNotAdditive].
      */
     private fun takeParentElement(element: ParentElement) {
         if (element is ParentLayoutElement) element.requireInheritableIsNotAdditive()
         resolvedParentDeclarations = null
-        pendingParentDeclarations += element
+        pendingParentDeclarations.add(element)
         if (!element.additive) {
-            chain.removeAll { it is ParentLayoutNodeElement<*> && !it.additive && it.key == element.key }
+            // A non-additive layout node declaration of one key is never held twice, so at most one is stale.
+            val stale =
+                positionalElements.indexOfLast { previous ->
+                    previous is ParentLayoutNodeElement<*> && !previous.additive && previous.key == element.key
+                }
+            if (stale >= 0) {
+                positionalElements.removeAt(stale)
+                positionalFamilyList.removeAt(stale)
+            }
         }
-        if (element.isChainElement) chain += element
+        if (element.isPositionalElement) {
+            positionalElements.add(element)
+            positionalFamilyList.add(ParentLayoutNodeType)
+        }
     }
 
     /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
@@ -135,23 +176,25 @@ internal class ModifierPartition(
 
     private fun buildResolvedParentDeclarations(): ResolvedParentDeclarations {
         if (pendingParentDeclarations.isEmpty()) return NoParentDeclarations
-        val declarations = retainedParentDeclarations()
-        val parentDataModifiers = declarations.filterIsInstance<ParentDataModifier>()
-        val parentProtocol = parentDataModifiers.firstOrNull()?.parentProtocol
-        require(parentDataModifiers.all { it.parentProtocol === parentProtocol }) {
-            val types = parentDataModifiers.map { it.parentProtocol.description }.distinct().joinToString()
-            "A child declares parent data for incompatible layout families: $types. Apply declarations " +
-                "only from the scope of its immediate parent."
-        }
-        val parentData =
-            parentDataModifiers.fold(null as Any?) { carried, modifier ->
-                modifier.modifyParentData(carried)
+        val declarations = retainedParentDeclarations(pendingParentDeclarations)
+        val parentProtocol = parentProtocol(declarations)
+        var parentData: Any? = null
+        var slot: ParentSlotElement? = null
+        var slotCount = 0
+        val elements = ArrayList<ParentLayoutElement>()
+        declarations.fastForEach { element ->
+            if (element is ParentDataModifier) parentData = element.modifyParentData(parentData)
+            if (element is ParentSlotElement) {
+                slot = element
+                slotCount++
             }
-        val slots = declarations.filterIsInstance<ParentSlotElement>()
-        require(slots.size <= 1) {
+            if (element is ParentLayoutElement && element !is ParentDataModifier) {
+                elements.add(element)
+            }
+        }
+        require(slotCount <= 1) {
             "A modifier can retain at most one parent slot declaration."
         }
-        val slot = slots.singleOrNull()
         require(slot == null || slot is SlotElement) {
             "Parent slot declarations must be created with SwingModifier.slot()."
         }
@@ -159,18 +202,41 @@ internal class ModifierPartition(
             declarations = declarations,
             parentData = parentData,
             parentProtocol = parentProtocol,
-            elements =
-                declarations.filterIsInstance<ParentLayoutElement>().filter { it !is ParentDataModifier },
+            elements = elements,
             slot = slot as? SlotElement,
         )
     }
 
+    /** Validates the entire parent-data family before any declaration folds its data. */
+    private fun parentProtocol(declarations: List<ParentElement>): ParentProtocol? {
+        var parentProtocol: ParentProtocol? = null
+        var compatible = true
+        declarations.fastForEach { element ->
+            if (compatible && element is ParentDataModifier) {
+                if (parentProtocol == null) parentProtocol = element.parentProtocol
+                if (element.parentProtocol !== parentProtocol) compatible = false
+            }
+        }
+        require(compatible) {
+            val types = ArrayList<String>()
+            declarations.fastForEach { element ->
+                if (element is ParentDataModifier) {
+                    val description = element.parentProtocol.description
+                    if (description !in types) types.add(description)
+                }
+            }
+            "A child declares parent data for incompatible layout families: ${types.joinToString()}. " +
+                "Apply declarations only from the scope of its immediate parent."
+        }
+        return parentProtocol
+    }
+
     /** Keeps each non-additive key's final declaration without moving it across additive declarations. */
-    private fun retainedParentDeclarations(): List<ParentElement> {
-        val retained = ArrayList<ParentElement>(pendingParentDeclarations.size)
+    private fun retainedParentDeclarations(pending: List<ParentElement>): List<ParentElement> {
+        val retained = ArrayList<ParentElement>(pending.size)
         val seenKeys = HashSet<Any>()
-        pendingParentDeclarations.asReversed().fastForEach { element ->
-            if (element.additive || seenKeys.add(element.key)) retained += element
+        pending.asReversed().fastForEach { element ->
+            if (element.additive || seenKeys.add(element.key)) retained.add(element)
         }
         retained.reverse()
         return retained
@@ -208,10 +274,10 @@ internal class ModifierPartition(
 }
 
 /**
- * Whether this element's node holds a place in the modifier's chain, matched by position: an additive
- * [SwingModifier.NodeElement], or a [ParentLayoutNodeElement] that folds no parent data.
+ * Whether this element is positional, its node matched by position: an additive [SwingModifier.NodeElement], or a
+ * [ParentLayoutNodeElement] that folds no parent data.
  */
-internal val SwingModifier.Element.isChainElement: Boolean
+internal val SwingModifier.Element.isPositionalElement: Boolean
     get() =
         if (this is SwingModifier.NodeElement<*, *>) {
             additive

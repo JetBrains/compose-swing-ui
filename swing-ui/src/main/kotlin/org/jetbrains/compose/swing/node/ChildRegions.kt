@@ -259,11 +259,11 @@ internal class ChildRegions(
         count: Int,
     ) {
         if (childPlacement !is ChildPlacement.OrderedSlots) {
-            moveChildRun(from, to, count)
+            moveChildren(from, to, count)
             return
         }
         val host = this
-        moveChildRun(
+        moveChildren(
             from,
             to,
             count,

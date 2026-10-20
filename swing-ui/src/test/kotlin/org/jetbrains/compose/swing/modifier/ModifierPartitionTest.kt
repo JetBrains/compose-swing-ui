@@ -136,7 +136,7 @@ class ModifierPartitionTest {
         assertEquals(listOf<ParentLayoutElement>(node), partition.parentLayoutElements)
         assertEquals(
             listOf<SwingModifier.Element>(AdditiveComponentElement("first"), node, AdditiveComponentElement("second")),
-            partition.chain,
+            partition.positional,
         )
     }
 
@@ -159,7 +159,7 @@ class ModifierPartitionTest {
         assertEquals(listOf<ParentLayoutElement>(additive, other, last), partition.parentLayoutElements)
         assertEquals(
             listOf<SwingModifier.Element>(additive, AdditiveComponentElement("between"), last),
-            partition.chain,
+            partition.positional,
             "an additive node-backed element, and one of another key, keep their places",
         )
     }

@@ -151,7 +151,7 @@ internal class SwingApplier internal constructor(
             // setter, and a `JLayeredPane` sorts its index space by the depth each child declares. The
             // composition-order child list is what says which children the pass drops, and each of them leaves
             // through the installation that put it where it stands.
-            parent.removeChildRun(index, count) { it.leaveHost(container, batch) }
+            parent.removeChildren(index, count) { it.leaveHost(container, batch) }
         }
     }
 
@@ -176,7 +176,7 @@ internal class SwingApplier internal constructor(
             // is composed at now. A child's pixels change only where it overlaps a sibling it now stands above or
             // below, which lies inside its own area, so its bounds before it leaves and after it is attached again
             // are what the pass repaints.
-            parent.moveChildRun(
+            parent.moveChildren(
                 from,
                 to,
                 count,

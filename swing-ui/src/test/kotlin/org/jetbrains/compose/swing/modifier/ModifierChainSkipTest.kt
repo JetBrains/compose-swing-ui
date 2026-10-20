@@ -73,8 +73,8 @@ private val DeclaredNameProperty =
  *
  * A modifier is skipped whole when it declares what the one applied last declares; where it does not, the
  * diff walks it and skips each element declaring what its slot already holds. The two skips are counted
- * apart here: the walk through the element's `key`, which the diff asks each element for once when it
- * partitions the modifier chain into slots, and the re-apply through its `update`.
+ * apart here: key reads after the initial application reveal another partition or diff, and calls to
+ * `update` reveal another write. The initial application may read a key more than once.
  *
  * A listener callback is read when its event fires rather than written onto its node, so it is not part
  * of what its element declares: a component rebuilding one on every pass - as one built by a helper
@@ -167,13 +167,15 @@ class ModifierChainSkipTest {
             ProbePanel(tick, counts, SwingModifier.then(ChainProbeElement(counts)))
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
         assertEquals(passes + 1, counts.passes.get(), "every tick must re-execute the component")
-        assertEquals(1, counts.walks.get(), "an unchanged modifier is never walked again")
         assertEquals(1, counts.updates.get(), "an unchanged element is written once")
     }
 
@@ -204,12 +206,14 @@ class ModifierChainSkipTest {
             Label("tick $tick", modifier = SwingModifier.declaredName("small").then(ChainProbeElement(counts)))
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
-        assertEquals(1, counts.walks.get(), "a property declaring what it declared last leaves the modifier equal")
         assertEquals(1, counts.updates.get(), "a property declaring what it declared last writes nothing again")
     }
 
@@ -233,9 +237,12 @@ class ModifierChainSkipTest {
             )
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
         // How many passes drive the content is the harness's to say - a tick reaches it at least once -
@@ -249,7 +256,6 @@ class ModifierChainSkipTest {
             counts.passes.get(),
             "a callback of a new identity is a parameter the caller changed, so the component is never skipped",
         )
-        assertEquals(1, counts.walks.get(), "a callback of a new identity leaves the modifier declaring the same thing")
         assertEquals(1, counts.updates.get(), "an unchanged element is written once")
     }
 
@@ -356,16 +362,18 @@ class ModifierChainSkipTest {
             Label("tick $tick", modifier = SwingModifier.then(ChainProbeElement(counts)))
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
         onNodeOfType<JLabel>().assertProperty(
             "tick $passes",
             "the label must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
         ) { text }
-        assertEquals(1, counts.walks.get(), "a component declaring no callback of its own leaves the modifier equal")
         assertEquals(1, counts.updates.get(), "an unchanged element is written once")
     }
 
@@ -384,16 +392,18 @@ class ModifierChainSkipTest {
             )
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
         onNodeOfType<JList<*>>().assertProperty(
             passes,
             "the list must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
         ) { visibleRowCount }
-        assertEquals(1, counts.walks.get(), "the list's own selection callback leaves its modifier declaring the same")
         assertEquals(1, counts.updates.get(), "the caller's element is written once all the same")
     }
 
@@ -412,16 +422,18 @@ class ModifierChainSkipTest {
             )
         }
 
+        val initialKeyReads = counts.keyReads.get()
+        assertTrue(initialKeyReads > 0, "the initial application must read the element key")
         repeat(passes) {
             tick++
             awaitIdle()
+            assertEquals(initialKeyReads, counts.keyReads.get(), "an unchanged modifier must not read keys again")
         }
 
         onNodeOfType<JTextField>().assertProperty(
             passes,
             "the field must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
         ) { columns }
-        assertEquals(1, counts.walks.get(), "the field's own edit callback leaves its modifier declaring the same")
         assertEquals(1, counts.updates.get(), "the caller's element is written once all the same")
     }
 
@@ -590,7 +602,7 @@ class ModifierChainSkipTest {
     /** What one run asks of the component under test and of the one element of its modifier chain. */
     private class ChainCounts {
         val passes: AtomicInteger = AtomicInteger()
-        val walks: AtomicInteger = AtomicInteger()
+        val keyReads: AtomicInteger = AtomicInteger()
         val updates: AtomicInteger = AtomicInteger()
     }
 
@@ -609,7 +621,7 @@ class ModifierChainSkipTest {
 
         override val key: Any
             get() {
-                counts.walks.incrementAndGet()
+                counts.keyReads.incrementAndGet()
                 return javaClass
             }
 
