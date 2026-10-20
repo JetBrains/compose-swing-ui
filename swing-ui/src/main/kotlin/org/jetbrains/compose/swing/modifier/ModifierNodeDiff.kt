@@ -295,8 +295,8 @@ private inline fun detachDeparted(
     }
     released?.let { names ->
         val modifier = declaringNode?.holder?.modifierState
-        modifier?.rewritePropertySlotsFrom(declaringNode.component, diagnostics, except = declaringNode) { record ->
-            record.element.heldProperties.any { it in names }
+        modifier?.reassertPropertySlotsFrom(declaringNode.component, diagnostics, except = declaringNode) { record ->
+            record.element.affectsProperties(names)
         }
         rewriteReleased(names)
     }
@@ -440,7 +440,7 @@ internal fun rewriteRecordsFrom(
     from: (ComponentNodeRecord<*, *>) -> Boolean,
 ): Boolean {
     var writing = false
-    records?.fastForEach { standing ->
+    records?.standing(ComponentNodeType, declaringNode)?.fastForEach { standing ->
         if (standing.isStandingFor(ComponentNodeType, declaringNode)) {
             val record = ComponentNodeType.typed(standing)
             if (record.key != null && record.node !== except) {

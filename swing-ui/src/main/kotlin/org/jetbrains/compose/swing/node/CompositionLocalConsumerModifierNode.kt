@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.WriteMode
 import org.jetbrains.compose.swing.modifier.notifyDeclaredNodes
+import org.jetbrains.compose.swing.style.rewriteSlotsFrom
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -64,7 +65,14 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
         diagnostics,
         onInvalidates = { handsOver = true },
     ) { it.node.refreshesOnLocalMap }
+    // A slot node of the style reads locals the modifier's own refresh does not reach.
     var laidOut = false
+    state.forEachStyle(this) { style ->
+        if (style.holdsLocalConsumers) {
+            style.rewriteSlotsFrom(onInvalidates = { handsOver = true }) { it.node.refreshesOnLocalMap }
+            if (style.layoutRefreshesOnLocalMap) laidOut = true
+        }
+    }
     state.records?.fastForEach { record ->
         if (record.isStandingFor(null, null) && record.key == null && record.node.refreshesOnLocalMap) {
             if (record is ComponentNodeRecord<*, *>) {
@@ -74,7 +82,7 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
             }
         }
     }
-    state.restore(held)
+    state.adopt(held)
     if (laidOut) {
         component.revalidate()
         (component.parent ?: component).repaint()

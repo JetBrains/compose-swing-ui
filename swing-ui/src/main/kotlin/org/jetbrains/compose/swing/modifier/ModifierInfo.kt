@@ -4,7 +4,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Component
 
 /**
- * Identifies one installed modifier declaration.
+ * Identifies one installed modifier or style property declaration.
  *
  * Compare instances by reference: the same instance identifies the declaration from its first write to its
  * restore.

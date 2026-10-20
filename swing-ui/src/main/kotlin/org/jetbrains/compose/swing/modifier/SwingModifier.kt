@@ -46,10 +46,14 @@ import org.jetbrains.compose.swing.node.DeclaredSlot
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.finishStyleReconciliation
+import org.jetbrains.compose.swing.node.forEachStyle
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.observesLocals
 import org.jetbrains.compose.swing.node.requireOwner
 import org.jetbrains.compose.swing.node.runReportingUncaught
+import org.jetbrains.compose.swing.style.StyleNode
+import org.jetbrains.compose.swing.style.rewriteSlotsFrom
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIn
@@ -247,8 +251,11 @@ public interface SwingModifier {
         /**
          * Visits the nodes of the modifier this node is attached in that hold a place in it, in the order the
          * modifier declares them: every [ComponentNode] of an [additive][NodeElement.additive] element, and
-         * every [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode]. This node is among
-         * them if it is one of those. Visits nothing while this node is not attached.
+         * every [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode], including the ones the
+         * component's style declares, which come last. This node is among them if it is one of those. Visits
+         * nothing while this node is not attached.
+         *
+         * @param block called with each node, in declaration order.
          */
         public fun visitDeclaredNodes(block: (Node) -> Unit) {
             holder?.visitDeclaredNodes(block)
@@ -445,6 +452,9 @@ public interface SwingModifier {
          * during an apply, so an element assembles it when asked rather than holding it.
          */
         override val declaredValues: Map<String, Any?> get() = emptyMap()
+
+        /** Whether this declaration can write any of the named properties. */
+        internal open fun affectsProperties(names: Set<String>): Boolean = heldProperties.any { it in names }
 
         /** Creates the stateful node. Called once per slot, when the element first enters the modifier. */
         public abstract fun create(): N
@@ -1002,6 +1012,22 @@ internal class NodeRecords : AbstractList<NodeRecord<*, *>>() {
     override fun get(index: Int): NodeRecord<*, *> = records[index]
 
     /**
+     * The standing records of [nodeType] that [declaringNode] declares, copied so that a caller can remove them
+     * while it visits them.
+     *
+     * @param nodeType the family of the records.
+     * @param declaringNode the node declaring the records.
+     */
+    fun standing(
+        nodeType: ModifierNodeType<*>,
+        declaringNode: SwingModifier.Node?,
+    ): List<NodeRecord<*, *>> {
+        val standing = ArrayList<NodeRecord<*, *>>()
+        fastForEach { if (it.isStandingFor(nodeType, declaringNode)) standing.add(it) }
+        return standing
+    }
+
+    /**
      * Finds a standing keyed record, or the positional one at [index] when [key] is null, among the records of
      * [nodeType].
      *
@@ -1249,6 +1275,9 @@ private val OnLocalReadChanged: (SwingModifier.ComponentNode<*>) -> Unit = { nod
  */
 @InternalSwingUiApi
 public class SwingModifierState internal constructor() {
+    /** The linked style declarations, kept separately from their descriptor entries. */
+    internal var firstStyle: StyleNode? = null
+
     /** The shared store, allocated by the first node installation and absent while this modifier has no records. */
     internal var records: NodeRecords? = null
         private set
@@ -1277,6 +1306,7 @@ public class SwingModifierState internal constructor() {
      */
     internal fun adopt(modifier: SwingModifier) {
         applied = modifier
+        hasApplied = true
     }
 
     /**
@@ -1287,6 +1317,12 @@ public class SwingModifierState internal constructor() {
     internal fun restore(held: SwingModifier) {
         applied = held
     }
+
+    /** Whether a declaration has been applied: a state created only to hold a style has not. */
+    private var hasApplied = false
+
+    /** Whether a chain entering this state attaches whole: no node is installed and no declaration has applied. */
+    internal val attachesWholeChain: Boolean get() = records == null && !hasApplied
 
     /**
      * Records application keys before diffing and reports whether they changed.
@@ -1322,13 +1358,19 @@ public class SwingModifierState internal constructor() {
 
     /**
      * Whether the nodes last handed to a [DeclaredNodesListener] were any. Every pass that finishes hands over the
-     * [records] it changed, so outside a pass that threw the nodes in effect
+     * [records] it changed and the layout nodes the style declares, so outside a pass that threw the nodes in effect
      * are the ones last handed.
      */
     internal val handedNodes: Boolean get() = (applied as? UnfinishedPass)?.handedNodes ?: hasPositionalRecords
 
-    /** Whether the modifier declares positional records. */
-    private val hasPositionalRecords: Boolean get() = positionalCount != 0
+    /** Whether the modifier declares positional records or its style has attached layout nodes. */
+    private val hasPositionalRecords: Boolean
+        get() {
+            if (positionalCount != 0) return true
+            var holds = false
+            forEachStyle { if (it.holdsLayoutNodes) holds = true }
+            return holds
+        }
 
     /**
      * Marks the records as holding no declaration until [applied] is written again, and returns what [applied] held.
@@ -1439,6 +1481,15 @@ public class SwingModifierState internal constructor() {
                 if (rewritten.refresh(node.component, diagnostics, mode = WriteMode.AdoptEqual)) {
                     handsOver = true
                 }
+            } else {
+                // A node a style's slot holds is stored in the modifier's records with that style as its declaring
+                // node, so when no record above holds it, the lookup below rewrites each style's slots and only the
+                // style holding it matches.
+                forEachStyle(holder) { style ->
+                    style.rewriteSlotsFrom(onInvalidates = { handsOver = true }) { record ->
+                        record.node === node
+                    }
+                }
             }
         }
         applied = held
@@ -1527,7 +1578,8 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * where neither changed allocates nothing, and a change of an unrelated local re-diffs nothing.
  *
  * @param localMap the composition locals in scope where the node declaring [modifier] was composed.
- * @param modifier the caller modifier to declare; [SwingModifier] clears the caller chain.
+ * @param modifier the caller modifier to declare before the component-tier style; [SwingModifier]
+ *   clears the caller chain.
  */
 @PublishedApi
 internal fun SwingNodeUpdater<out Component>.applyModifier(
@@ -1555,35 +1607,58 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     handsOver: Boolean = false,
 ) {
     // A holder with no installed chain marks it whole before any attachment callback runs.
-    var attachesWholeChain = modifierState == null
+    val attachesWholeChain = modifierState?.attachesWholeChain != false
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
     // A holder whose last write threw has records holding no declaration: every record is written again, and the
     // nodes it attached are handed over.
     val mode = if (state.startWrite() !is UnfinishedPass) WriteMode.AdoptEqual else WriteMode.RewriteEqual
     val handedNodes = state.handedNodes
-    var chainChanged = (mode === WriteMode.RewriteEqual) or handsOver
+    val initialChange = (mode === WriteMode.RewriteEqual) or handsOver
     // Read off the owner rather than held: the node is attached to its composition before its update
     // block runs, so the owner answers for every write this pass makes.
     val diagnostics = owner?.diagnostics
 
     val incoming = partitionModifier(modifier, state)
+    val multipleStyles = state.firstStyle?.nextStyle != null || incoming.styleCount > 1
+    val previousStyleLayout = if (multipleStyles) declaration.parentLayoutElements else null
 
-    // A modifier tied to other keys than the ones applied last has its component nodes applied from
-    // scratch rather than diffed: every component record comes apart, putting back what it captured, and the
-    // chain below attaches them afresh. The layout nodes stay installed and are diffed. See [key] for what that is
-    // worth.
-    if (state.takeKeys(incoming.keys)) {
-        if (state.unwindComponentNodes(diagnostics)) chainChanged = true
-        attachesWholeChain = true
-    }
+    val chainChanged = reconcileModifierChain(state, incoming, mode, diagnostics, attachesWholeChain) || initialChange
+
+    state.adopt(modifier)
+    if (previousStyleLayout != null && previousStyleLayout != declaration.parentLayoutElements) declaration.reapply()
+    notifyDeclaredNodes(chainChanged, handedNodes)
+}
+
+private fun SwingNodeHolder<Component>.reconcileModifierChain(
+    state: SwingModifierState,
+    incoming: ModifierPartition,
+    mode: WriteMode,
+    diagnostics: SwingCompositionDiagnostics?,
+    wholeChain: Boolean,
+): Boolean {
+    val reconcilesStyles = state.firstStyle != null || incoming.styleCount != 0
     // A holder with no owner has no batch to publish the declaration on; a visit mid-pass walks its stored chain.
     val batch = owner?.updateBatch
     val outerState = batch?.diffingState
     val outerDeclaration = batch?.diffingDeclaration
     batch?.diffingState = state
-    batch?.diffingDeclaration = incoming.positional
+    batch?.diffingDeclaration = null
     var marked: MarkedChain? = null
+    var chainChanged = false
+    var attachesWholeChain = wholeChain
     try {
+        // A modifier tied to other keys than the ones applied last has its component nodes applied from
+        // scratch rather than diffed: every component record comes apart, putting back what it captured, and the
+        // chain below attaches them afresh. The layout nodes stay installed and are diffed. See [key] for what that is
+        // worth.
+        if (state.takeKeys(incoming.keys)) {
+            var heldStyleLayout = false
+            state.forEachStyle(this) { if (it.holdsLayoutNodes) heldStyleLayout = true }
+            if (state.unwindComponentNodes(diagnostics) || heldStyleLayout) chainChanged = true
+            attachesWholeChain = true
+        }
+        // Published only now, so a node the unwind above detaches visits the order last applied.
+        batch?.diffingDeclaration = incoming.positional
         // Every node attaching whole is marked before the first onAttach runs; a node entering an installed chain
         // is marked and run on its own, by the diffs, which find the nodes a whole attach ran installed on their
         // own elements. The layout nodes go first, so the declaration the parent reads is published before any
@@ -1597,13 +1672,16 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
         // A node this whole attach marked but whose own onAttach never ran - because an earlier node's did and
         // threw - is attached with no record holding it, the same leak an onAttach that itself throws would leave;
         // see [MarkedChain.detachOrphaned].
-        marked?.detachOrphaned(state)
-        batch?.diffingState = outerState
-        batch?.diffingDeclaration = outerDeclaration
+        try {
+            marked?.detachOrphaned(state)
+        } finally {
+            if (reconcilesStyles) state.finishStyleReconciliation()
+            batch?.diffingState = outerState
+            batch?.diffingDeclaration = outerDeclaration
+        }
     }
 
-    state.adopt(modifier)
-    notifyDeclaredNodes(chainChanged, handedNodes)
+    return chainChanged
 }
 
 /**

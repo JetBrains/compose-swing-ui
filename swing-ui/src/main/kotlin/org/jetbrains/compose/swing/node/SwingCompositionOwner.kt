@@ -1,7 +1,9 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.StyleCollector
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -26,6 +28,12 @@ internal interface SwingCompositionOwner {
      * node, or a [SwingComponentNode].
      */
     val snapshotObserver: OwnerSnapshotObserver
+
+    /**
+     * The collector every style node of this composition collects its style with, one collect at a time. Created on
+     * first access.
+     */
+    val styleCollector: StyleCollector
 
     /**
      * Runs [action] immediately on the Event Dispatch Thread, or after the component tree lock is released.
@@ -96,3 +104,11 @@ internal interface SwingCompositionOwner {
  */
 internal fun SwingComponentNode<*>.requireOwner(): SwingCompositionOwner =
     checkNotNull(owner) { "The node holding $component has not been attached to a composition" }
+
+/** Delivers snapshot changes and settles styles after the outermost delivery. */
+internal fun SwingCompositionOwner.deliverSnapshotChanges(onChanged: () -> Unit) {
+    runEveryStep(
+        { snapshotObserver.deliver(onChanged) },
+        { if (!snapshotObserver.isDelivering && !updateBatch.isRunning) updateBatch.drainRestyles() },
+    )
+}

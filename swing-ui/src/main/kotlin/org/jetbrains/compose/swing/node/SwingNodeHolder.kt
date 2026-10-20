@@ -225,9 +225,15 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * reads it after attach.
      */
     internal var compositionLocalMap: CompositionLocalMap = CompositionLocalMap.Empty
+        set(value) {
+            field = value
+            modifierState?.forEachStyle(this) { it.localMap = value }
+        }
 
     override val modifier: SwingModifier
-        get() = modifierState?.declared ?: SwingModifier
+        get() {
+            return modifierState?.declared ?: SwingModifier
+        }
 
     /**
      * Refuses a placement this kind of node cannot declare, before the modifier writes it onto the node.
@@ -288,6 +294,26 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * before its component is attached - see [awaitingAttachment].
      */
     internal val children: MutableList<SwingNodeHolder<*>> = ArrayList()
+
+    /** The node this holder is inserted under, or `null` after removal and on a root. */
+    internal var parent: SwingNodeHolder<*>? = null
+        private set
+
+    /** The nearest ancestor whose style provides a key or a local, or `null` if none does. */
+    internal val publisherAbove: SwingNodeHolder<*>?
+        get() {
+            var ancestor = parent
+            while (ancestor != null) {
+                if (ancestor.providesStyles) return ancestor
+                ancestor = ancestor.parent
+            }
+            return null
+        }
+
+    /** Records the node this holder is inserted under, or `null` when the applier removes it. */
+    internal fun parentTo(parent: SwingNodeHolder<*>?) {
+        this.parent = parent
+    }
 
     /**
      * Whether the host holding this node in its [children] has yet to attach the component.

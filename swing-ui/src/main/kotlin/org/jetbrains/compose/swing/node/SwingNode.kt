@@ -37,9 +37,8 @@ import java.awt.Component
  * is driving.
  *
  * @param factory builds the backing Swing component.
- * @param modifier the [SwingModifier] applied to the component, after [update] has run, so a chain can
- *   override what the component's own state declared. Forward the chain the enclosing composable took;
- *   defaults to [SwingModifier], the empty chain.
+ * @param modifier the [SwingModifier] applied after component property updates. Forward the chain the
+ *   enclosing composable took; defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
  * @param onRelease optional teardown run when the node leaves the composition for good. A throw from it is reported
@@ -101,9 +100,8 @@ public inline fun <reified T : Component> SwingNode(
  * the structure this composition declared and derive from all of it at measure or layout time.
  *
  * @param factory builds the backing Swing container.
- * @param modifier the [SwingModifier] applied to the container, after [update] has run, so a chain can
- *   override what the component's own state declared. Forward the chain the enclosing composable took;
- *   defaults to [SwingModifier], the empty chain.
+ * @param modifier the [SwingModifier] applied after component property updates. Forward the chain the
+ *   enclosing composable took; defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
  * @param onRelease optional teardown run when the node leaves the composition for good. A throw from it is reported

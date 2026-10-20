@@ -110,7 +110,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
             fun caseFor(component: Component): ComponentPropertyAccessor<*, V> =
                 accessors.firstOrNull { it.handles(component) }
                     ?: error(
-                        "Modifier element $name requires a ${accessors.joinToString(" or ") { it.typeName }} " +
+                        "Property $name requires a ${accessors.joinToString(" or ") { it.typeName }} " +
                             "target, but the component is a ${component.javaClass.name}",
                     )
             return ComponentPropertyDescriptor(

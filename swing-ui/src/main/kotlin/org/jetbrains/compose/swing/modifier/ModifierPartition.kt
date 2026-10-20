@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
+import org.jetbrains.compose.swing.style.StyleElement
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -126,7 +127,15 @@ internal class ModifierPartition(
         }
     }
 
-    private fun takeElement(element: SwingModifier.NodeElement<*, *>) {
+    var styleCount: Int = 0
+        private set
+
+    fun skipStyle() {
+        styleCount++
+    }
+
+    private fun takeElement(given: SwingModifier.NodeElement<*, *>) {
+        val element = if (given is StyleElement<*, *>) given.atOrdinal(styleCount++) else given
         if (element.isPositionalElement) {
             positionalElements.add(element)
             positionalFamilyList.add(ComponentNodeType)

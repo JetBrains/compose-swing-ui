@@ -104,8 +104,7 @@ internal class SwingApplier internal constructor(
             if (!instance.awaitingAttachment) instance.insertedUnder(current)
             // Attach the node to the composition its parent stands in. This MUST happen on the top-down
             // pass - see SwingCompositionOwner.
-            instance.attachedTo(current.owner)
-            instance.publishForInspection()
+            instance.insertInto(current)
             changes.announceInsert(instance)
         }
     }
@@ -186,11 +185,15 @@ internal class SwingApplier internal constructor(
         }
     }
 
+    /** Removes the composed children and their parent links while preserving the caller's root. */
     override fun onClear() {
         // The root is user-supplied. Each root child leaves through what installed it; claimed components and
         // children the composition did not add stay.
         val container = root.component as? Container ?: return
-        root.children.fastForEach { it.leaveHost(container, batch) }
+        root.children.fastForEach {
+            it.leaveHost(container, batch)
+            it.parentTo(null)
+        }
         root.children.clear()
         changes.forget()
     }

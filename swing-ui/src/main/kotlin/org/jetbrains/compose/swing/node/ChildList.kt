@@ -56,7 +56,10 @@ internal inline fun SwingNodeHolder<*>.removeChildren(
     count: Int,
     crossinline release: (SwingNodeHolder<*>) -> Unit,
 ) {
-    children.fastForEachIn(index until index + count) { release(it) }
+    children.fastForEachIn(index until index + count) {
+        release(it)
+        it.parentTo(null)
+    }
     children.subList(index, index + count).clear()
 }
 
@@ -88,4 +91,16 @@ internal inline fun SwingNodeHolder<*>.moveChildren(
     children.subList(target, target + count).fastForEachIndexed { offset, child ->
         if (child.attachedToHost) place(child, target + offset)
     }
+}
+
+/**
+ * Inserts this subtree into [parent]'s composition on the top-down pass. A moved subtree resolves its
+ * styles against its new ancestors before its nodes are published for inspection.
+ */
+internal fun SwingNodeHolder<*>.insertInto(parent: SwingNodeHolder<*>) {
+    val moved = owner != null
+    parentTo(parent)
+    attachedTo(parent.owner)
+    if (moved) restyleSubtree(parent.owner?.updateBatch)
+    publishForInspection()
 }

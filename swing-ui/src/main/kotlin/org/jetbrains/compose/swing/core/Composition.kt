@@ -13,7 +13,9 @@ import org.jetbrains.compose.swing.node.OwnerSnapshotObserver
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.deliverSnapshotChanges
 import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
+import org.jetbrains.compose.swing.style.StyleCollector
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
 import org.jetbrains.compose.swing.util.Key
@@ -140,8 +142,14 @@ internal class SwingContentComposition private constructor(
      */
     override val snapshotObserver: OwnerSnapshotObserver =
         OwnerSnapshotObserver { onChanged ->
-            if (SwingUtilities.isEventDispatchThread()) onChanged() else SwingUtilities.invokeLater(onChanged)
+            if (SwingUtilities.isEventDispatchThread()) {
+                deliverSnapshotChanges(onChanged)
+            } else {
+                SwingUtilities.invokeLater { deliverSnapshotChanges(onChanged) }
+            }
         }
+
+    override val styleCollector: StyleCollector by lazy(LazyThreadSafetyMode.NONE) { StyleCollector() }
 
     private val afterValidationActions = AfterValidationActions(this, sharedAfterValidationCoordinator)
 

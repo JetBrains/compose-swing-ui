@@ -90,7 +90,7 @@ internal class PropertyElement<T : Component, V>(
     private val value: V,
     override val restores: RestorePolicy,
     override val inheritable: Boolean,
-    private val rewriteOn: String?,
+    internal val rewriteOn: String?,
     private val alsoOverwrites: List<ComponentPropertyDescriptor<T, *>>,
 ) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {
     @Suppress("UNCHECKED_CAST")
@@ -107,6 +107,49 @@ internal class PropertyElement<T : Component, V>(
 
     override val heldProperties: Set<String>
         get() = if (alsoOverwrites.isEmpty()) setOf(name) else alsoOverwrites.mapTo(mutableSetOf(name)) { it.name }
+
+    /** The number of additional properties captured by this declaration. */
+    internal val overwrittenCount: Int get() = alsoOverwrites.size
+
+    /**
+     * Additional captures share ownership by property name.
+     *
+     * @param index which additional property to name.
+     */
+    internal fun overwrittenName(index: Int): String = alsoOverwrites[index].name
+
+    /**
+     * Captures the declared property on [component].
+     *
+     * @param component the component whose property is captured.
+     * @param captures the captures of the modifier the property belongs to.
+     */
+    internal fun capture(
+        component: Component,
+        captures: PropertyCaptures,
+    ): PropertyCaptures.Capture<*, *> = descriptor.capture(captures, checkedTarget(this, component))
+
+    /**
+     * Captures the additional property at [index] on [component].
+     *
+     * @param index which additional property to capture.
+     * @param component the component whose property is captured.
+     * @param captures the captures of the modifier the property belongs to.
+     */
+    internal fun captureOverwritten(
+        index: Int,
+        component: Component,
+        captures: PropertyCaptures,
+    ): PropertyCaptures.Capture<*, *> = alsoOverwrites[index].capture(captures, checkedTarget(this, component))
+
+    /**
+     * Writes this declaration to [component].
+     *
+     * @param component the component the declaration writes to.
+     */
+    internal fun writeTo(component: Component) {
+        descriptor.write(checkedTarget(this, component), value)
+    }
 
     override fun create(): PropertyNode<T, V> =
         PropertyNode(descriptor.name, descriptor.read, descriptor.write, rewriteOn, alsoOverwrites)

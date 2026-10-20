@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Container
 import java.awt.Rectangle
+import java.util.ArrayDeque
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -41,6 +42,11 @@ internal class ComponentUpdateBatch {
 
     /** The nodes whose composition locals map was replaced after an observed pass read it, run again at the end. */
     private val heldForLocalsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
+
+    /** The nodes whose style ancestors changed, resolved again at the end, each after the ancestors held before it. */
+    private val heldForRestyle = ArrayDeque<SwingNodeHolder<*>>()
+
+    private var drainingRestyles = false
 
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
@@ -78,6 +84,7 @@ internal class ComponentUpdateBatch {
         changedContainers.clear()
         heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
+        heldForRestyle.clear()
         heldForChildSettle.clear()
         declaredForChildSettle.clear()
         section?.close()
@@ -120,6 +127,33 @@ internal class ComponentUpdateBatch {
         heldForLocalsRefresh += node
     }
 
+    /** Whether a batch is running: between [begin] and the end of [end]. */
+    val isRunning: Boolean get() = section != null
+
+    /**
+     * Holds [node] to resolve its style again once this batch has run every node's update block and modifier diff,
+     * so every ancestor has published what it resolved this pass. A pending node is queued once; a node held
+     * again after it runs is queued again.
+     */
+    fun holdForRestyle(node: SwingNodeHolder<*>) {
+        if (heldForRestyle.none { it === node }) heldForRestyle.addLast(node)
+    }
+
+    /** Resolves queued styles once their triggering changes have been delivered. */
+    fun drainRestyles() {
+        if (drainingRestyles) return
+        drainingRestyles = true
+        try {
+            while (heldForRestyle.isNotEmpty()) {
+                val node = heldForRestyle.removeFirst()
+                if (node.owner?.updateBatch === this) node.refreshStyle()
+            }
+        } finally {
+            heldForRestyle.clear()
+            drainingRestyles = false
+        }
+    }
+
     /**
      * Holds [node] to be settled against its children once this batch has brought them into place.
      * Holding a node twice settles it once, and a node that declares no such settle is not held at all.
@@ -157,9 +191,9 @@ internal class ComponentUpdateBatch {
 
     /**
      * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
-     * nodes that read a composition locals map this batch replaced, brings the containers this batch changed
-     * up to date, then runs every settle this batch held, and closes the section whichever way that goes - a
-     * batch that ends by throwing still leaves no section open.
+     * nodes that read a composition locals map this batch replaced, resolves again the styles whose ancestors
+     * changed, brings the containers this batch changed up to date, then runs every settle this batch held, and
+     * closes the section whichever way that goes - a batch that ends by throwing still leaves no section open.
      *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
@@ -168,11 +202,14 @@ internal class ComponentUpdateBatch {
             bringWidgetsUpToDate()
             heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
             heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
+            drainRestyles()
             refreshChangedContainers()
-            runHeldChildSettles()
+            // A settle writes a widget property and cannot re-enter the applier, so nothing it runs adds to the list.
+            heldForChildSettle.fastForEach { it.childSettle?.invoke() }
         } finally {
             heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()
+            heldForRestyle.clear()
             heldForChildSettle.clear()
             declaredForChildSettle.clear()
             changedContainers.clear()
@@ -194,18 +231,5 @@ internal class ComponentUpdateBatch {
             container.revalidate()
             if (!area.isEmpty) container.repaint(area.x, area.y, area.width, area.height)
         }
-    }
-
-    /**
-     * Settles every node this batch held, after its last child is attached.
-     *
-     * A settle writes a widget property, and a Swing setter invalidates and repaints what it changed, so
-     * it needs no place in the revalidate walk a batch ends with. The walk here is safe to make directly:
-     * a settle writes a widget property and cannot re-enter the applier, so nothing it runs adds to the
-     * list being walked.
-     */
-    private fun runHeldChildSettles() {
-        if (heldForChildSettle.isEmpty()) return
-        for (node in heldForChildSettle) node.childSettle?.invoke()
     }
 }

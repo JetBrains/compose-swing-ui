@@ -1252,6 +1252,59 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 }
 
+public abstract interface class org/jetbrains/compose/swing/style/ComponentStyleScope : org/jetbrains/compose/swing/style/SwingStyleScope {
+	public abstract fun applyNestedStyle (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Lorg/jetbrains/compose/swing/style/NestedStyleKey;)V
+	public abstract fun getCurrentValue (Landroidx/compose/runtime/CompositionLocal;)Ljava/lang/Object;
+	public abstract fun provide (Lorg/jetbrains/compose/swing/style/SwingStyleProperty;Ljava/lang/Object;)V
+}
+
+public final class org/jetbrains/compose/swing/style/NestedStyleKey {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class org/jetbrains/compose/swing/style/NestedStyleProviderScope : org/jetbrains/compose/swing/style/ComponentStyleScope {
+	public abstract fun provideNestedStyle (Lorg/jetbrains/compose/swing/style/NestedStyleKey;Lorg/jetbrains/compose/swing/style/SwingStyle;)V
+}
+
+public final class org/jetbrains/compose/swing/style/StyleKt {
+	public static final fun styleLocalOf-iq95FLc (Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;ILjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/style/SwingStyleProperty;
+	public static synthetic fun styleLocalOf-iq95FLc$default (Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;ILjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/style/SwingStyleProperty;
+	public static final fun stylePropertyOf (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/style/SwingStyleProperty;
+	public static final fun stylePropertyOf-iq95FLc (Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;ILjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/style/SwingStyleProperty;
+	public static synthetic fun stylePropertyOf-iq95FLc$default (Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;ILjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/style/SwingStyleProperty;
+	public static final fun styleable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/style/SwingStyleKind;Ljava/lang/Object;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun styleable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/style/SwingStyleKind;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
+public abstract interface class org/jetbrains/compose/swing/style/SwingStyle {
+	public static final field Companion Lorg/jetbrains/compose/swing/style/SwingStyle$Companion;
+	public abstract fun applyStyle (Lorg/jetbrains/compose/swing/style/SwingStyleScope;)V
+}
+
+public final class org/jetbrains/compose/swing/style/SwingStyle$Companion : org/jetbrains/compose/swing/style/SwingStyle {
+	public fun applyStyle (Lorg/jetbrains/compose/swing/style/SwingStyleScope;)V
+}
+
+public final class org/jetbrains/compose/swing/style/SwingStyleKind {
+	public static final field $stable I
+	public fun <init> (Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/style/SwingStyle;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/style/SwingStyle;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDefault ()Lorg/jetbrains/compose/swing/style/SwingStyle;
+	public final fun getScope ()Lkotlin/jvm/functions/Function2;
+}
+
+public abstract interface annotation class org/jetbrains/compose/swing/style/SwingStyleMarker : java/lang/annotation/Annotation {
+}
+
+public final class org/jetbrains/compose/swing/style/SwingStyleProperty {
+	public static final field $stable I
+}
+
+public abstract interface class org/jetbrains/compose/swing/style/SwingStyleScope {
+}
+
 public final class org/jetbrains/compose/swing/text/TextRange {
 	public static final synthetic fun box-impl (J)Lorg/jetbrains/compose/swing/text/TextRange;
 	public static fun constructor-impl (II)J

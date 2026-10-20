@@ -10,7 +10,12 @@ import java.util.IdentityHashMap
  * scope of its own: a modifier node, or a component node. Created and started on first use, so a
  * composition that never observes holds none.
  *
- * @param onChangedExecutor runs the observer's change notifications.
+ * A node's change callback can detach another node. Clearing that node's reads while [SnapshotStateObserver]
+ * delivers changes can remove the group of reads it is iterating. Further callbacks for the detached node are
+ * skipped immediately, and its reads are cleared when delivery ends. A node that observes again during delivery
+ * records its reads under a new scope.
+ *
+ * @param onChangedExecutor runs the observer's change notifications, each through [deliver].
  */
 internal class OwnerSnapshotObserver(
     onChangedExecutor: (callback: () -> Unit) -> Unit,
@@ -38,6 +43,13 @@ internal class OwnerSnapshotObserver(
 
     /** The forwarders of component nodes, kept apart since one `onChanged` may serve both kinds. */
     private val componentForwarders = IdentityHashMap<(Nothing) -> Unit, Forwarder<*>>()
+
+    /** Whether the observer is delivering changes, during which a cleared scope waits in [deferredClears]. */
+    internal var isDelivering = false
+        private set
+
+    /** The scopes cleared during a delivery, cleared from the observer when that delivery ends. */
+    private val deferredClears: MutableSet<ReadScope> = Collections.newSetFromMap(IdentityHashMap())
 
     /** Runs [block], recording its reads under the modifier [node] and [onChanged]. */
     fun <T : SwingModifier.Node> observeReads(
@@ -78,10 +90,36 @@ internal class OwnerSnapshotObserver(
         node: Any,
     ) {
         val scope = readScopes.remove(node) ?: return
+        if (isDelivering) {
+            // A forwarder left empty stays, so a node observing again before the delivery ends reuses its group.
+            forwarders.values.forEach { it.scopes.remove(scope) }
+            deferredClears += scope
+            return
+        }
         observer.clear(scope)
         forwarders.values.removeIf { forwarder ->
             forwarder.scopes.remove(scope)
             forwarder.scopes.isEmpty()
+        }
+    }
+
+    /**
+     * Runs [callback], deferring read removal until the outermost delivery ends, even if a callback throws.
+     * Empty forwarders are retained during delivery so a node observing again can reuse its callback group.
+     */
+    fun deliver(callback: () -> Unit) {
+        val outer = isDelivering
+        isDelivering = true
+        try {
+            callback()
+        } finally {
+            isDelivering = outer
+            if (!outer && deferredClears.isNotEmpty()) {
+                observer.clearIf { it in deferredClears }
+                deferredClears.clear()
+                modifierForwarders.values.removeIf { it.scopes.isEmpty() }
+                componentForwarders.values.removeIf { it.scopes.isEmpty() }
+            }
         }
     }
 
@@ -93,6 +131,7 @@ internal class OwnerSnapshotObserver(
             modifierForwarders.clear()
             componentForwarders.clear()
             readScopes.clear()
+            deferredClears.clear()
         }
     }
 }

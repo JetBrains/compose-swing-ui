@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -14,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.ParentLayoutNodeType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.nextPositionalIndex
+import org.jetbrains.compose.swing.style.StyleNode
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -49,12 +51,16 @@ internal class ParentDeclaration(
         private set
 
     /**
-     * The declarations that a measuring parent interprets after parent-data declarations have folded, in
-     * modifier declaration order, with each [ParentLayoutNodeElement] among them replaced by its node. Empty where
-     * the modifier declares none. Kept whole under any parent; [layoutElementsUnder] leaves out what a parent refuses.
+     * The declarations that a measuring parent interprets after parent-data declarations have folded: the
+     * modifier's, in declaration order, then the style's, with each [ParentLayoutNodeElement] among them replaced by
+     * its node. A style declaration replaces a modifier declaration of its key. Empty where neither declares any.
+     * Kept whole under any parent; [layoutElementsUnder] leaves out what a parent refuses.
      */
-    var parentLayoutElements: List<ParentLayoutElement> = emptyList()
-        private set
+    val parentLayoutElements: List<ParentLayoutElement>
+        get() = withStyleOverrides(modifierElements, node)
+
+    /** The modifier's part of [parentLayoutElements], including the declarations the style replaces. */
+    private var modifierElements: List<ParentLayoutElement> = emptyList()
 
     /**
      * Publishes parent data and resolved layout nodes together when the declaration changes or a node read by the
@@ -77,14 +83,14 @@ internal class ParentDeclaration(
         // Where the layout nodes did not change, this node holds the declaration given if each element is
         // the one applied at its place.
         val parentDataApplied = parentData == this.parentData && parentProtocol === this.parentProtocol
-        if (unchanged && parentDataApplied && parentLayoutElements.standsAs(this.parentLayoutElements)) return
+        if (unchanged && parentDataApplied && parentLayoutElements.standsAs(modifierElements)) return
         checkParentAccepts(parentProtocol, parentLayoutElements)
         val parent = measuringParent
         val received = parent?.let { layoutElementsUnder(it) }
         this.parentData = parentData
         this.parentProtocol = parentProtocol
-        this.parentLayoutElements =
-            node.modifierState?.records.withLayoutNodes(parentLayoutElements, this.parentLayoutElements)
+        modifierElements =
+            node.modifierState?.records.withLayoutNodes(parentLayoutElements, modifierElements)
         // Adding or removing a node changes the list; updating a node preserves its identity.
         if (!parentDataApplied) {
             reapply()
@@ -103,13 +109,44 @@ internal class ParentDeclaration(
      * another node of the modifier runs.
      */
     fun dropLayoutNodes(layOut: Boolean = true) {
-        if (parentLayoutElements.fastFirstOrNull { it.isDetachedNode } == null) return
+        if (modifierElements.fastFirstOrNull { it.isDetachedNode } == null) return
         val parent = measuringParent
         val received = parent?.let { layoutElementsUnder(it) }
-        parentLayoutElements = parentLayoutElements.filterNot { it.isDetachedNode }
+        modifierElements = modifierElements.filterNot { it.isDetachedNode }
         if (parent != null && layoutElementsUnder(parent) != received) {
             if (layOut) reapply() else declareComponentLayout()
         }
+    }
+
+    /**
+     * Runs [restate], which changes the layout elements [style] declares, and returns whether it wrote a node the
+     * parent receives. Declares the component again to a measuring parent whose list changes, or where [restate]
+     * says a node the parent receives was written. A failed restate still publishes the remaining attached nodes.
+     *
+     * @param style the style whose layout declaration changes.
+     * @param restate updates the declaration and returns whether a node received by the parent was written.
+     */
+    fun restateStyleLayout(
+        style: StyleNode,
+        restate: () -> Boolean,
+    ) {
+        val parent = measuringParent
+        var standing = false
+        node.modifierState?.forEachStyle(node) { if (it === style) standing = true }
+        val departingLayout = !standing && style.declaredLayout.isNotEmpty()
+        val received =
+            parent?.let {
+                layoutElementsUnder(it, withStyleOverrides(modifierElements, node))
+            }
+        // A failed restate can leave a retained node mutated before it reports what was written.
+        var written = true
+        runEveryStep(
+            { written = restate() },
+            {
+                val changed = departingLayout || written || parent?.let { layoutElementsUnder(it) != received } == true
+                if (parent != null && changed) reapply()
+            },
+        )
     }
 
     /**
@@ -220,11 +257,60 @@ internal class ParentDeclaration(
  * The [parentLayoutElements][ParentDeclaration.parentLayoutElements] [host] receives: all but each
  * [inheritable][ParentLayoutElement.inheritable] one whose protocol refuses [host]. The stored list itself where
  * none is left out.
+ *
+ * @param host the container the elements are filtered for.
+ * @param elements the layout declaration to filter for [host], defaulting to the retained declaration.
  */
-internal fun ParentDeclaration.layoutElementsUnder(host: Container): List<ParentLayoutElement> {
-    val elements = parentLayoutElements
+internal fun ParentDeclaration.layoutElementsUnder(
+    host: Container,
+    elements: List<ParentLayoutElement> = parentLayoutElements,
+): List<ParentLayoutElement> {
     if (elements.fastFirstOrNull { it.isLeftOutUnder(host) } == null) return elements
     return elements.filterNot { it.isLeftOutUnder(host) }.ifEmpty { emptyList() }
+}
+
+private fun withStyleOverrides(
+    modifier: List<ParentLayoutElement>,
+    node: SwingNodeHolder<*>,
+): List<ParentLayoutElement> {
+    var result = modifier
+    node.modifierState?.forEachStyle(node) { style ->
+        result = withStyleOverrides(result, style) { node.modifierState?.records }
+    }
+    return result
+}
+
+/**
+ * [modifier] without each declaration of a key [style] declares, then the layout elements [style] declares, with
+ * its nodes. Neither a declaration nor the style element replacing it is additive.
+ *
+ * @param modifier the modifier's layout elements before style overrides.
+ * @param style the style supplying replacement layout declarations, or `null` for no overrides.
+ * @param records reads the modifier records associating layout nodes with their declared keys; read only
+ *   where [style] declares layout elements.
+ */
+private inline fun withStyleOverrides(
+    modifier: List<ParentLayoutElement>,
+    style: StyleNode?,
+    records: () -> NodeRecords?,
+): List<ParentLayoutElement> {
+    val declared = style?.declaredLayout
+    val own = if (declared.isNullOrEmpty()) emptyList() else style.layoutElements
+    if (own.isEmpty()) return modifier
+    val installed = records()
+    val kept =
+        modifier.filterNot { element ->
+            // A node represents the element of its slot, which carries the declared key.
+            val declaredElement =
+                if (element is ParentLayoutNode) {
+                    installed?.fastFirstOrNull { it.node === element }?.element
+                } else {
+                    element
+                }
+            declaredElement is ParentLayoutElement && !declaredElement.additive &&
+                declared?.fastFirstOrNull { it.key == declaredElement.key } != null
+        }
+    return if (kept.isEmpty()) own else kept + own
 }
 
 /** Whether this element is a layout node that is not attached. */

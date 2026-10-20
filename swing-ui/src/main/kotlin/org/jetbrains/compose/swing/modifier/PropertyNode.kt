@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier
 
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -248,3 +249,13 @@ internal class PropertyRewrites {
         if (--depth == 0) latest = 0L
     }
 }
+
+internal fun SwingModifierState.reassertPropertySlotsFrom(
+    target: Component,
+    diagnostics: SwingCompositionDiagnostics?,
+    except: SwingModifier.Node?,
+    from: (ComponentNodeRecord<*, *>) -> Boolean,
+): Boolean =
+    rewriteRecordsFrom(records, null, except, { record, _ ->
+        record.refresh(target, diagnostics, WriteMode.RewriteEqual)
+    }, from)
