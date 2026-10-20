@@ -3,11 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.components.style.NavigationFilterDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import javax.swing.JFormattedTextField
-import javax.swing.text.JTextComponent
 import javax.swing.text.NavigationFilter
 
 /**
@@ -32,21 +30,6 @@ import javax.swing.text.NavigationFilter
  * @return this modifier with the navigation filter declared on it.
  * @see javax.swing.text.JTextComponent.setNavigationFilter
  */
+@Deprecated("Set it in the component's style: style = { navigationFilter(filter) }")
 public fun SwingModifier.navigationFilter(filter: NavigationFilter?): SwingModifier =
-    property(NavigationFilterProperty, filter)
-
-private val NavigationFilterProperty =
-    ComponentPropertyDescriptor<JTextComponent, NavigationFilter?>(
-        name = "navigationFilter",
-        // The check sits in `read`, which the node calls once on attach: a component the declaration
-        // cannot hold on to is rejected before the node captures a restore action for it.
-        read = { component ->
-            require(component !is JFormattedTextField) {
-                "navigationFilter cannot be declared on a ${component.javaClass.name}: the field puts back " +
-                    "the filter its formatter returns from AbstractFormatter.getNavigationFilter every time " +
-                    "it reformats, so a declared filter would stop steering the caret without saying so"
-            }
-            component.navigationFilter
-        },
-        write = { component, value -> component.navigationFilter = value },
-    )
+    property(NavigationFilterDescriptor, filter)

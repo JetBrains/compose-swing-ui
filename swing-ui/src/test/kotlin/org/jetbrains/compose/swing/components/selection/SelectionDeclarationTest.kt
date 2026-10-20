@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComboBox
 import javax.swing.JList
@@ -474,8 +473,6 @@ class SelectionDeclarationTest {
 
     @Test
     fun everySelectionBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { listItemRenderer(DefaultListCellRenderer()) }
-        assertDeclaredChainCarriedOnce { declaredListItemRenderer(DefaultListCellRenderer()) }
         assertDeclaredChainCarriedOnce { listCellSizing(null, 1, 1) }
         assertDeclaredChainCarriedOnce { listStateBinding(ListState()) }
         assertDeclaredChainCarriedOnce { tableStateBinding(TableState()) }

@@ -9,13 +9,12 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.caretColor
+import org.jetbrains.compose.swing.components.style.disabledTextColor
+import org.jetbrains.compose.swing.components.style.selectedTextColor
+import org.jetbrains.compose.swing.components.style.selectionColor
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.caretColor
-import org.jetbrains.compose.swing.modifier.appearance.disabledTextColor
-import org.jetbrains.compose.swing.modifier.appearance.selectedTextColor
-import org.jetbrains.compose.swing.modifier.appearance.selectionColor
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.style.enabled
 import java.awt.Color
@@ -55,13 +54,13 @@ internal fun ColumnScope.TextColorsCard() {
         TextField(
             value = text,
             onValueChange = { text = it },
-            modifier =
-                SwingModifier
-                    .caretColor(caret.color)
-                    .selectionColor(selection.color)
-                    .selectedTextColor(selectedText.color)
-                    .disabledTextColor(disabledText.color),
-            style = { enabled(enabled) },
+            style = {
+                enabled(enabled)
+                caretColor(caret.color)
+                selectionColor(selection.color)
+                selectedTextColor(selectedText.color)
+                disabledTextColor(disabledText.color)
+            },
             columns = 40,
         )
     }

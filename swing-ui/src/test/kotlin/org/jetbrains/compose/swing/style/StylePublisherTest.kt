@@ -12,76 +12,49 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.UIManager
-import kotlin.test.Test
 
-/** The tests cover how a node finds the nearest ancestor that provides styles as the tree changes. */
 class StylePublisherTest {
-    @Test
-    fun aSubtreeMovedUnderAProviderAndAwayTakesItsStylesWithIt() = runComposeSwingTest {
-        var underProvider by mutableStateOf(false)
-        setContent {
-            val content = remember { movableContentOf { Label("label") } }
-            Panel(style = { provideNestedStyle(Labels) { background(Color.RED) } }) { if (underProvider) content() }
-            Panel { if (!underProvider) content() }
-        }
-        val label = onNodeOfType<JLabel>()
-        val original = UIManager.getColor("Label.background")
-        label.assertProperty(original, "a label outside the provider keeps its own background") { background }
-
-        underProvider = true
-        awaitIdle()
-        label.assertProperty(Color.RED, "the moved label takes the provider's style") { background }
-
-        underProvider = false
-        awaitIdle()
-        label.assertProperty(original, "the label that moved away returns to its own background") { background }
-    }
-
-    @Test
-    fun aProviderThatStartsAndStopsAboveASwingNodeHoleReachesTheLabelBelowIt() = runComposeSwingTest {
+    @ParameterizedTest
+    @ValueSource(strings = ["move", "remove outer style", "raw SwingNode"])
+    fun providerChangesReachDescendants(change: String) = runComposeSwingTest {
         var providing by mutableStateOf(false)
-        val provider = SwingStyle<ContainerStyleScope> { provideNestedStyle(Labels) { background(Color.RED) } }
         setContent {
-            Panel(style = if (providing) provider else SwingStyle) {
-                SwingNode(factory = { JPanel() }) { Label("label") }
+            val content =
+                remember {
+                    movableContentOf {
+                        Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) { Label("label") }
+                    }
+                }
+            Panel(style = {
+                if (providing || change == "move") provideNestedStyle(Labels) { background(Color.RED) }
+            }) {
+                when (change) {
+                    "move" -> if (providing) content()
+                    "raw SwingNode" -> SwingNode(factory = { JPanel() }) { content() }
+                    else -> content()
+                }
             }
+            if (change == "move") Panel { if (!providing) content() }
         }
         val label = onNodeOfType<JLabel>()
         val original = UIManager.getColor("Label.background")
+        label.assertProperty(original) { background }
+        label.assertProperty(Color.GREEN) { foreground }
 
         providing = true
         awaitIdle()
-        label.assertProperty(Color.RED, "the provider reaches the label across the hole") { background }
+        label.assertProperty(Color.RED) { background }
+        label.assertProperty(Color.GREEN) { foreground }
 
         providing = false
         awaitIdle()
-        label.assertProperty(original, "the label's own background returns") { background }
-    }
-
-    @Test
-    fun aLabelUnderNestedProvidersKeepsTheInnerOnesStyleWhenTheOuterStops() = runComposeSwingTest {
-        var outerProviding by mutableStateOf(true)
-        setContent {
-            Panel(
-                style = {
-                    if (outerProviding) provideNestedStyle(Labels) { background(Color.RED) }
-                },
-            ) {
-                Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) { Label("label") }
-            }
-        }
-        val label = onNodeOfType<JLabel>()
-        val original = UIManager.getColor("Label.background")
-        label.assertProperty(Color.RED, "the outer provider styles the label") { background }
-        label.assertProperty(Color.GREEN, "the inner provider styles the label") { foreground }
-
-        outerProviding = false
-        awaitIdle()
-        label.assertProperty(original, "the label loses what the outer provider stopped providing") { background }
-        label.assertProperty(Color.GREEN, "the inner provider still styles the label") { foreground }
+        label.assertProperty(original) { background }
+        label.assertProperty(Color.GREEN) { foreground }
     }
 }

@@ -8,10 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
-import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
-import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberItemContentKind
 import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ComboBoxes
+import org.jetbrains.compose.swing.components.style.listItemRenderer
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -59,7 +59,8 @@ import javax.swing.JComboBox
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for one of [items]: text
  *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
  *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
@@ -109,7 +110,8 @@ public fun <T> ComboBox(
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for one of [items]: text
  *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
  *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
@@ -170,7 +172,8 @@ public fun <T> ComboBox(
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for a value the [model]
  *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
  *   [editable] editor
  * @see javax.swing.JComboBox
@@ -217,7 +220,8 @@ public fun <T> ComboBox(
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for a value the [model]
  *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
  *   [editable] editor
  * @see javax.swing.JComboBox
@@ -260,14 +264,13 @@ private inline fun <T> ComboBoxNode(
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
 ) {
-    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
+    val content = rememberItemContentKind(ComboBoxKind, itemContent) { listItemRenderer(it) }
     SwingNode(
         factory = { JComboBox<T>() },
         modifier =
             modifier
-                .declaredListItemRenderer(cells)
                 .declaredMaximumRowCount(maximumRowCount)
-                .styleable(style, ComboBoxKind),
+                .styleable(style, content),
         update = {
             set(editable) { this.isEditable = it }
             installContent()

@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
@@ -617,7 +616,7 @@ class ModifierReapplicationTest {
                 SwingModifier
                     .name("blue")
                     .then(CountingToolTipElement("hello", writes))
-                    .focusAccelerator('x'),
+                    .then(TextFieldOnlyPropertyElement("accelerator")),
             )
         }
         assertEquals(1, writes.get(), "the slot the failed pass reached is written once")
@@ -646,7 +645,7 @@ class ModifierReapplicationTest {
                     .then(DetachOrderElement("first", order))
                     .then(DetachOrderElement("second", order))
                     .then(DetachOrderElement("third", order))
-                    .focusAccelerator('x'),
+                    .then(TextFieldOnlyPropertyElement("accelerator")),
             )
         }
         assertEquals(emptyList(), order, "the failed pass takes no slot apart")
@@ -664,7 +663,9 @@ class ModifierReapplicationTest {
 
         // The pass takes "first" apart, then throws before it records what it declares, so the order it
         // leaves behind still names a slot that no longer stands.
-        assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.focusAccelerator('x')) }
+        assertFailsWith<IllegalStateException> {
+            holder.applyModifierDiff(SwingModifier.then(TextFieldOnlyPropertyElement("accelerator")))
+        }
         holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("first", order)))
         order.clear()
 

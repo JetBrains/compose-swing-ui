@@ -586,17 +586,25 @@ Construct, recompose, and dispose an `OnDemandComposition` on the Event Dispatch
 
 A component that shows a list of items asks a `ListCellRenderer` for one row at a time.
 `rememberListItemRenderer` builds a renderer that renders a composable there and
-`SwingModifier.listItemRenderer` installs it: one reused composition renders every row, and the
+the `listItemRenderer` style property installs it: one reused composition renders every row, and the
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
 <!--- INCLUDE .*custom-container-04.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.selection.ListItemScope
-import org.jetbrains.compose.swing.components.selection.listItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
+import org.jetbrains.compose.swing.components.style.ComboBoxes
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.components.style.listItemRenderer
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Dimension
 import java.util.Vector
 import javax.swing.DefaultComboBoxModel
@@ -615,13 +623,25 @@ fun <T : Any> CustomComboBox(
     items: List<T>,
     itemType: KClass<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     itemContent: @Composable ListItemScope.(item: T) -> Unit,
 ) {
     val cells = rememberListItemRenderer(itemType, itemContent)
+    // The renderer is part of the component's default style, so the caller's `style` overrides it.
+    val kind =
+        remember(cells) {
+            SwingStyleKind<ComboBoxStyleScope, Unit>(
+                { base, _ -> object : ComboBoxStyleScope, ComponentStyleScope by base {} },
+            ) {
+                applyNestedStyle(AllComponents)
+                applyNestedStyle(ComboBoxes)
+                listItemRenderer(cells)
+            }
+        }
     val declaredItems = items.toList()
     SwingNode(
         factory = { WideComboBox<T>() },
-        modifier = modifier.listItemRenderer(cells),
+        modifier = modifier.styleable(style, kind),
         update = { set(declaredItems) { model = DefaultComboBoxModel(Vector(it)) } },
     )
 }
@@ -654,4 +674,4 @@ particular row, and a cell that composes more than one component is refused - pu
 compose that.
 
 `listItemRenderer` also takes a renderer written against the Swing interface:
-`modifier.listItemRenderer(MyExistingRenderer())`.
+`style = { listItemRenderer(MyExistingRenderer()) }`.

@@ -8,11 +8,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.documentFilter
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -30,7 +30,7 @@ internal fun ColumnScope.DigitsOnlyCard() {
             TextField(
                 value = pin,
                 onValueChange = { pin = it },
-                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
+                style = { documentFilter(DigitsOnlyFilter) },
                 columns = 12,
             )
         }

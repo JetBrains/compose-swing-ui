@@ -579,7 +579,14 @@ public abstract interface class org/jetbrains/compose/swing/components/style/Sel
 }
 
 public final class org/jetbrains/compose/swing/components/style/StyleKt {
+	public static final fun caret (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljavax/swing/text/Caret;)V
+	public static final fun caretBlinkRate (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;I)V
+	public static final fun caretColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
+	public static final fun caretUpdatePolicy (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;I)V
 	public static final fun checked (Lorg/jetbrains/compose/swing/components/style/CheckableStyleScope;Lkotlin/jvm/functions/Function0;)V
+	public static final fun disabledTextColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
+	public static final fun documentFilter (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljavax/swing/text/DocumentFilter;)V
+	public static final fun focusAccelerator (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;C)V
 	public static final fun getButtons ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getCheckBoxMenuItems ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getCheckBoxes ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
@@ -618,7 +625,13 @@ public final class org/jetbrains/compose/swing/components/style/StyleKt {
 	public static final fun getToolBars ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getTrees ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun getViewports ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
+	public static final fun highlights (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/util/List;Ljavax/swing/text/Highlighter$HighlightPainter;)V
+	public static final fun listItemRenderer (Lorg/jetbrains/compose/swing/components/style/ComboBoxStyleScope;Ljavax/swing/ListCellRenderer;)V
+	public static final fun listItemRenderer (Lorg/jetbrains/compose/swing/components/style/ListBoxStyleScope;Ljavax/swing/ListCellRenderer;)V
+	public static final fun navigationFilter (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljavax/swing/text/NavigationFilter;)V
 	public static final fun selected (Lorg/jetbrains/compose/swing/components/style/SelectableStyleScope;Lkotlin/jvm/functions/Function0;)V
+	public static final fun selectedTextColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
+	public static final fun selectionColor (Lorg/jetbrains/compose/swing/components/style/TextStyleScope;Ljava/awt/Color;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/style/TextFieldStyleScope : org/jetbrains/compose/swing/components/style/TextStyleScope {

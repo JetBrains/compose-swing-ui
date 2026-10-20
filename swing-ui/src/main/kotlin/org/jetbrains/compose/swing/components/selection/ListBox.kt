@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.components.style.ListBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ListBoxes
+import org.jetbrains.compose.swing.components.style.listItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -84,7 +85,8 @@ import javax.swing.event.ListSelectionListener
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -145,7 +147,8 @@ public fun <T> ListBox(
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -263,7 +266,8 @@ private inline fun <T> ListBoxItemsImpl(
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -327,7 +331,8 @@ public fun <T> ListBox(
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -435,7 +440,8 @@ private inline fun <T> ListBoxModelImpl(
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -495,7 +501,8 @@ public fun <T> ListBox(
  * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it
  * @see javax.swing.JList
  */
 @Composable
@@ -559,7 +566,7 @@ private inline fun <T> ListBoxNode(
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
 ) {
-    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
+    val content = rememberItemContentKind(ListBoxKind, itemContent) { listItemRenderer(it) }
     val mirror = rememberMirrorState(selectedIndices)
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
@@ -578,15 +585,11 @@ private inline fun <T> ListBoxNode(
     }
     SwingNode(
         factory = { JList<T>() },
-        // The cell sizing follows the renderer in the chain, and the chain applies its elements in the
-        // order they are declared: a prototype is measured through whichever renderer is installed,
-        // and the composable cell is the one whose per-row measurement the caller is buying out.
         modifier =
             modifier
                 .listSelectionListener(JList::class, onUserSelection)
-                .declaredListItemRenderer(cells)
                 .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight)
-                .styleable(style, ListBoxKind),
+                .styleable(style, content),
         update = {
             set(selectionMode) { mode ->
                 narrowSelection(mirror, selectedIndices, listSelectionListener) { this.selectionMode = mode }

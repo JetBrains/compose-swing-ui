@@ -324,10 +324,9 @@ public fun SwingModifier.card(): SwingModifier =
 <!--- KNIT example-custom-modifier-01.kt -->
 <!--- CLEAR -->
 
-Where a builder needs a value the caller holds or shares - a handle, an anchor, a renderer - split it in
-two: a `remember*` composable that creates the value, and a plain builder that takes it.
-`rememberPopupAnchor()` with `popupAnchor(anchor)`, and `rememberListItemRenderer { }` with
-`listItemRenderer(renderer)`, are both that pair.
+Where a builder needs a value the caller holds or shares - a handle, an anchor - split it in two: a
+`remember*` composable that creates the value, and a plain builder that takes it. `rememberPopupAnchor()`
+with `popupAnchor(anchor)` is that pair.
 
 State private to each component the modifier reaches, such as whether that component is hovered, belongs
 on a `ComponentNode`, created once per component: it holds that state in its fields, runs coroutines in

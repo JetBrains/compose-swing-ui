@@ -3,8 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.caret
+import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
@@ -28,7 +27,7 @@ class CaretSelectionHandoverTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("abcdef")
-            TextField(state = state, modifier = SwingModifier.caret(if (replaced) second else first))
+            TextField(state = state, style = { caret(if (replaced) second else first) })
         }
         val field = onNodeOfType<JTextField>().fetch()
         state.selection = TextRange(2, 4)

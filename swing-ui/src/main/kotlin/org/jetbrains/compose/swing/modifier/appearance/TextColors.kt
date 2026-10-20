@@ -3,11 +3,13 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.components.style.CaretColorDescriptor
+import org.jetbrains.compose.swing.components.style.DisabledTextColorDescriptor
+import org.jetbrains.compose.swing.components.style.SelectedTextColorDescriptor
+import org.jetbrains.compose.swing.components.style.SelectionColorDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import java.awt.Color
-import javax.swing.text.JTextComponent
 
 /**
  * Sets the color of the caret in a text component - fields, areas, editor and text panes.
@@ -20,7 +22,8 @@ import javax.swing.text.JTextComponent
  * @return this chain with the caret color declared on it.
  * @see javax.swing.text.JTextComponent.setCaretColor
  */
-public fun SwingModifier.caretColor(color: Color): SwingModifier = property(CaretColorProperty, color)
+@Deprecated("Set it in the component's style: style = { caretColor(color) }")
+public fun SwingModifier.caretColor(color: Color): SwingModifier = property(CaretColorDescriptor, color)
 
 /**
  * Sets the background painted behind selected text in a text component.
@@ -29,7 +32,8 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier = property(Care
  * @return this chain with the selection color declared on it.
  * @see javax.swing.text.JTextComponent.setSelectionColor
  */
-public fun SwingModifier.selectionColor(color: Color): SwingModifier = property(SelectionColorProperty, color)
+@Deprecated("Set it in the component's style: style = { selectionColor(color) }")
+public fun SwingModifier.selectionColor(color: Color): SwingModifier = property(SelectionColorDescriptor, color)
 
 /**
  * Sets the color selected text is drawn in.
@@ -38,7 +42,8 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier = property(
  * @return this chain with the selected text color declared on it.
  * @see javax.swing.text.JTextComponent.setSelectedTextColor
  */
-public fun SwingModifier.selectedTextColor(color: Color): SwingModifier = property(SelectedTextColorProperty, color)
+@Deprecated("Set it in the component's style: style = { selectedTextColor(color) }")
+public fun SwingModifier.selectedTextColor(color: Color): SwingModifier = property(SelectedTextColorDescriptor, color)
 
 /**
  * Sets the color text is drawn in while the component is disabled.
@@ -48,47 +53,5 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier = proper
  * @return this chain with the disabled text color declared on it.
  * @see javax.swing.text.JTextComponent.setDisabledTextColor
  */
-public fun SwingModifier.disabledTextColor(color: Color): SwingModifier = property(DisabledTextColorProperty, color)
-
-private val CaretColorProperty =
-    ComponentPropertyDescriptor<JTextComponent, Color>(
-        name = "caretColor",
-        read = { it.caretColor },
-        write = { component, value ->
-            component.caretColor = value
-            // A text component's color setters only fire a property change, and the color itself is
-            // read at paint time, so each of these writes asks for the repaint that puts the new
-            // color on the screen.
-            component.repaint()
-        },
-    )
-
-private val SelectionColorProperty =
-    ComponentPropertyDescriptor<JTextComponent, Color>(
-        name = "selectionColor",
-        read = { it.selectionColor },
-        write = { component, value ->
-            component.selectionColor = value
-            component.repaint()
-        },
-    )
-
-private val SelectedTextColorProperty =
-    ComponentPropertyDescriptor<JTextComponent, Color>(
-        name = "selectedTextColor",
-        read = { it.selectedTextColor },
-        write = { component, value ->
-            component.selectedTextColor = value
-            component.repaint()
-        },
-    )
-
-private val DisabledTextColorProperty =
-    ComponentPropertyDescriptor<JTextComponent, Color>(
-        name = "disabledTextColor",
-        read = { it.disabledTextColor },
-        write = { component, value ->
-            component.disabledTextColor = value
-            component.repaint()
-        },
-    )
+@Deprecated("Set it in the component's style: style = { disabledTextColor(color) }")
+public fun SwingModifier.disabledTextColor(color: Color): SwingModifier = property(DisabledTextColorDescriptor, color)

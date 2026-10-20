@@ -14,16 +14,10 @@ import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
 import org.jetbrains.compose.swing.modifier.interaction.actionCommand
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.interaction.caret
-import org.jetbrains.compose.swing.modifier.interaction.caretBlinkRate
-import org.jetbrains.compose.swing.modifier.interaction.caretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
-import org.jetbrains.compose.swing.modifier.interaction.navigationFilter
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
@@ -66,7 +60,6 @@ import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -844,12 +837,7 @@ class SwingModifierTest {
     fun everyInteractionBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { actionCommand(null) }
         assertDeclaredChainCarriedOnce { buttonGroup(ButtonGroup()) }
-        assertDeclaredChainCarriedOnce { caret(DefaultCaret()) }
-        assertDeclaredChainCarriedOnce { caretBlinkRate(1) }
-        assertDeclaredChainCarriedOnce { caretUpdatePolicy(DefaultCaret.NEVER_UPDATE) }
         assertDeclaredChainCarriedOnce { defaultButton() }
-        assertDeclaredChainCarriedOnce { documentFilter(null) }
-        assertDeclaredChainCarriedOnce { focusAccelerator('a') }
         assertDeclaredChainCarriedOnce { focusRequester(FocusRequester()) }
         assertDeclaredChainCarriedOnce { orderedFocusTraversal() }
         assertDeclaredChainCarriedOnce { initialFocus() }
@@ -857,7 +845,6 @@ class SwingModifierTest {
         assertDeclaredChainCarriedOnce { onHover { } }
         assertDeclaredChainCarriedOnce { onFocus { } }
         assertDeclaredChainCarriedOnce { onPointerEvent { } }
-        assertDeclaredChainCarriedOnce { navigationFilter(null) }
         assertDeclaredChainCarriedOnce { onAccept { } }
     }
 

@@ -28,7 +28,6 @@ import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
-import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.composed
@@ -36,9 +35,7 @@ import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
-import org.jetbrains.compose.swing.modifier.interaction.caret
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
@@ -52,7 +49,6 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.text.TextRange
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -66,9 +62,6 @@ import javax.swing.TransferHandler
 import javax.swing.border.LineBorder
 import javax.swing.event.ChangeListener
 import javax.swing.event.DocumentListener
-import javax.swing.text.DefaultCaret
-import javax.swing.text.DefaultHighlighter
-import javax.swing.text.DocumentFilter
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -266,29 +259,25 @@ class ModifierInspectionTest {
     @Test
     fun anAppearanceElementNamesThePropertyItWritesAndDeclaresItsArgument() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        val painter = DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
-        val ranges = listOf(TextRange(0, 2))
         setContent {
             Panel {
                 TextArea(
                     state = rememberDocumentState("hello"),
-                    modifier = SwingModifier.testTag("marked").highlights(ranges, painter),
+                    modifier = SwingModifier.testTag("marked").name("notes"),
                 )
             }
         }
 
         assertEquals(
-            mapOf("ranges" to ranges, "painter" to painter),
-            declaredBy("marked", "highlights"),
-            "a highlight declares both the spans it marks and the painter that draws them",
+            mapOf("name" to "notes"),
+            declaredBy("marked", "name"),
+            "a name declares the name it writes",
         )
     }
 
     @Test
-    fun aTextEditingElementNamesWhatItInstallsOnTheField() = runComposeSwingTest {
+    fun anInputVerifierStandsInTheChainCarryingNoValues() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        val caret = DefaultCaret()
-        val filter = DocumentFilter()
         setContent {
             TextField(
                 value = "text",
@@ -296,22 +285,10 @@ class ModifierInspectionTest {
                 modifier =
                     SwingModifier
                         .testTag("field")
-                        .caret(caret)
-                        .documentFilter(filter)
                         .inputVerifier { true },
             )
         }
 
-        assertEquals(
-            mapOf("caret" to caret),
-            declaredBy("field", "caret"),
-            "a caret declares the caret instance it installs",
-        )
-        assertEquals(
-            mapOf("documentFilter" to filter),
-            declaredBy("field", "documentFilter"),
-            "a document filter declares the filter it installs",
-        )
         assertEquals(
             emptyMap(),
             declaredBy("field", "inputVerifier"),
@@ -508,21 +485,6 @@ class ModifierInspectionTest {
             chain.dropLast(1),
             "the chain should hold the factory's entries in place of the composed one",
         )
-    }
-
-    @Test
-    fun aWidgetsStyleSlotStandsLastAndReportsTheStyleItWasGiven() = runComposeSwingTest {
-        isDebugInspectorInfoEnabled = true
-        val style = SwingStyle<LabelStyleScope> { background(Color.BLUE) }
-        setContent { Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG), style = style) }
-
-        val chain = onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain()
-        assertEquals(
-            listOf("testTag", "styleable"),
-            chain.map { it.first },
-            "the style slot follows the caller's chain",
-        )
-        assertSame(style, chain.last().second["style"], "the slot reports the style the caller passed")
     }
 
     @Test

@@ -7,6 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -18,33 +21,18 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Component
 import javax.swing.JLabel
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 /** A providing ancestor's style reads the composition locals of the ancestor, however a descendant overrides them. */
 class StyleReplayTest {
     @Test
-    fun aProvidedStyleStillAppliesWhereADescendantOverridesALocalTheProviderReads() = runComposeSwingTest {
+    fun providerConditionUsesAncestorLocal() = runComposeSwingTest {
         setContent {
-            SwingNode(
-                factory = { JPanel() },
-                modifier =
-                    SwingModifier.styleable(
-                        {
-                            if (LocalFlag.currentValue) {
-                                provideNestedStyle(Probes) { LabelToolTip.provide("provided") }
-                            }
-                        },
-                        PlainProbeContainer,
-                    ),
-            ) {
-                CompositionLocalProvider(LocalFlag provides false) {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = SwingModifier.styleable(SwingStyle, NestedProbe),
-                    )
-                }
+            Panel(style = {
+                if (LocalFlag.currentValue) provideNestedStyle(Labels) { toolTip("provided") }
+            }) {
+                CompositionLocalProvider(LocalFlag provides false) { Label("label") }
             }
         }
 
@@ -53,34 +41,22 @@ class StyleReplayTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("localKinds")
-    fun aLocalTheProviderReadsReachesADescendantThatOverridesIt(
+    fun providerValueUsesAncestorLocal(
         localTip: ProvidableCompositionLocal<String>,
         readInsideBlock: Boolean,
     ) = runComposeSwingTest {
         var tip by mutableStateOf("first")
         setContent {
             CompositionLocalProvider(localTip provides tip) {
-                SwingNode(
-                    factory = { JPanel() },
-                    modifier =
-                        SwingModifier.styleable(
-                            {
-                                if (readInsideBlock) {
-                                    provideNestedStyle(Probes) { LabelToolTip.provide(localTip.currentValue) }
-                                } else {
-                                    val read = localTip.currentValue
-                                    provideNestedStyle(Probes) { LabelToolTip.provide(read) }
-                                }
-                            },
-                            PlainProbeContainer,
-                        ),
-                ) {
-                    CompositionLocalProvider(localTip provides "override") {
-                        SwingNode(
-                            factory = { JLabel() },
-                            modifier = SwingModifier.styleable(SwingStyle, NestedProbe),
-                        )
+                Panel(style = {
+                    if (readInsideBlock) {
+                        provideNestedStyle(Labels) { toolTip(localTip.currentValue) }
+                    } else {
+                        val read = localTip.currentValue
+                        provideNestedStyle(Labels) { toolTip(read) }
                     }
+                }) {
+                    CompositionLocalProvider(localTip provides "override") { Label("label") }
                 }
             }
         }
@@ -93,7 +69,7 @@ class StyleReplayTest {
     }
 
     @Test
-    fun anAdditiveElementInAStyleIsRefused() {
+    fun additiveStyleIsRejected() {
         val additive = stylePropertyOf<Unit> { AdditiveElement }
         assertFailsWith<IllegalArgumentException> {
             runComposeSwingTest {

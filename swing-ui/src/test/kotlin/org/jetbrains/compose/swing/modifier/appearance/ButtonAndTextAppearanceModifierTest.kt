@@ -8,6 +8,10 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.style.caretColor
+import org.jetbrains.compose.swing.components.style.disabledTextColor
+import org.jetbrains.compose.swing.components.style.selectedTextColor
+import org.jetbrains.compose.swing.components.style.selectionColor
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -311,12 +315,12 @@ class ButtonAndTextAppearanceModifierTest {
             TextField(
                 value = "",
                 onValueChange = {},
-                modifier =
-                    SwingModifier
-                        .caretColor(Color.RED)
-                        .selectionColor(Color.GREEN)
-                        .selectedTextColor(Color.BLUE)
-                        .disabledTextColor(Color.GRAY),
+                style = {
+                    caretColor(Color.RED)
+                    selectionColor(Color.GREEN)
+                    selectedTextColor(Color.BLUE)
+                    disabledTextColor(Color.GRAY)
+                },
             )
         }
 
@@ -330,7 +334,7 @@ class ButtonAndTextAppearanceModifierTest {
     @Test
     fun aCaretColorFollowsTheStateDrivingIt() = runComposeSwingTest {
         var color by mutableStateOf(Color.RED)
-        setContent { TextField(value = "", onValueChange = {}, modifier = SwingModifier.caretColor(color)) }
+        setContent { TextField(value = "", onValueChange = {}, style = { caretColor(color) }) }
 
         val field = onNodeOfType<JTextField>()
         field.assertProperty(Color.RED, "the declared color") { caretColor }
@@ -348,7 +352,7 @@ class ButtonAndTextAppearanceModifierTest {
             TextField(
                 value = "",
                 onValueChange = {},
-                modifier = if (recolored) SwingModifier.caretColor(Color.RED) else SwingModifier,
+                style = { if (recolored) caretColor(Color.RED) },
             )
         }
 
