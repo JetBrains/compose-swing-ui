@@ -24,26 +24,23 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
     override val key: CoroutineContext.Key<*> get() = Key
 
     /**
-     * Runs [write] - what one element writes onto [component] for the slot [node] holds, whether that is
-     * the slot's first write or a later one.
-     *
-     * [node] identifies the slot for as long as it holds one, which the element does not: a pass hands
-     * the slot a fresh element carrying the same declaration. [element] is that declaration, and is what
-     * a report about the write names it by.
+     * Runs [write] for [element] on [component].
+     * [slot] identifies the declaration by identity for as long as it remains installed.
      */
     public fun declaring(
         component: Component,
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     )
 
     /**
-     * Runs [restore] - the departing slot [node] holds putting [component] back where the modifier found it.
+     * Runs [restore] for the departing declaration, putting [component] back where the declaration found it.
+     * [slot] identifies the declaration by identity for as long as it remains installed.
      */
     public fun restoring(
         component: Component,
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         restore: () -> Unit,
     )
 
@@ -61,18 +58,18 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
  */
 internal inline fun SwingCompositionDiagnostics?.watchWrite(
     component: Component,
-    node: SwingModifier.ComponentNode<*>,
+    slot: Any,
     element: SwingModifier.NodeElement<*, *>,
     crossinline write: () -> Unit,
 ) {
-    if (this == null) write() else declaring(component, node, element) { write() }
+    if (this == null) write() else declaring(component, slot, element) { write() }
 }
 
 /** [watchWrite], for the departing slot putting [component] back where the modifier found it. */
 internal inline fun SwingCompositionDiagnostics?.watchRestore(
     component: Component,
-    node: SwingModifier.ComponentNode<*>,
+    slot: Any,
     crossinline restore: () -> Unit,
 ) {
-    if (this == null) restore() else restoring(component, node) { restore() }
+    if (this == null) restore() else restoring(component, slot) { restore() }
 }

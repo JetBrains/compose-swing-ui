@@ -38,22 +38,22 @@ internal class ModifierRestoreCheck(
 
     override fun declaring(
         component: Component,
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     ) {
         watched
             .getOrPut(component) { WatchedComponent(component, report) }
-            .wrote(node, element, write)
+            .wrote(slot, element, write)
     }
 
     override fun restoring(
         component: Component,
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         restore: () -> Unit,
     ) {
         val watch = watched[component] ?: return restore()
-        watch.left(node, restore)?.let(report)
+        watch.left(slot, restore)?.let(report)
         if (watch.holdsNothing) watched.remove(component)
     }
 }
@@ -83,7 +83,7 @@ private class WatchedComponent(
     private var seen: Map<String, Any?>? = null
 
     /** The live slots, each under the properties its writes have landed on. */
-    private val slots = IdentityHashMap<SwingModifier.ComponentNode<*>, WritingSlot>()
+    private val slots = IdentityHashMap<Any, WritingSlot>()
 
     /** Whether no slot of this component's modifier writes any property, so nothing is watched here. */
     val holdsNothing: Boolean get() = slots.isEmpty()
@@ -100,13 +100,13 @@ private class WatchedComponent(
      * failure however often the caller's code throws.
      */
     fun wrote(
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     ) {
         val before = readBeforeChange()
         write()
-        val slot = slots.getOrPut(node) { WritingSlot(element) }
+        val writing = slots.getOrPut(slot) { WritingSlot(element) }
         seen = before?.let { read() }
         val after = seen
         if (before == null || after == null) return
@@ -114,12 +114,12 @@ private class WatchedComponent(
         for ((property, value) in after) {
             if (property !in held && value == before[property]) continue
             if (property !in found) found[property] = before[property]
-            slot.wrote += property
+            writing.wrote += property
         }
     }
 
     /**
-     * Runs the [restore] of the slot [node] holds, records that the slot has left, and answers what it
+     * Runs [restore] for [slot], records that the slot has left, and answers what it
      * left standing away from where the modifier found it - or `null` where it left nothing.
      *
      * Only a property no live slot writes any more is answered for. What stands in a property another
@@ -127,15 +127,15 @@ private class WatchedComponent(
      * the last of them has left.
      */
     fun left(
-        node: SwingModifier.ComponentNode<*>,
+        slot: Any,
         restore: () -> Unit,
     ): AssertionError? {
         val before = readBeforeChange()
         restore()
         seen = before?.let { read() }
-        val slot = slots.remove(node) ?: return null
-        val element = slot.element
-        val last = slot.wrote.filter { property -> slots.values.none { property in it.wrote } }
+        val writing = slots.remove(slot) ?: return null
+        val element = writing.element
+        val last = writing.wrote.filter { property -> slots.values.none { property in it.wrote } }
         val owed =
             when {
                 element.restores == RestorePolicy.None -> emptyList()

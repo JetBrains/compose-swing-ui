@@ -36,9 +36,8 @@ public sealed class SwingComponentNode<out C : Component> {
     public abstract val component: C
 
     /**
-     * The effective [SwingModifier] chain currently declared on this node, including any inherited
-     * component defaults applicable to this component followed by elements passed directly on the
-     * node's own modifier.
+     * The [SwingModifier] chain currently declared on this node: the elements passed on the node's own
+     * modifier, a style among them as one element.
      *
      * Walk it with [SwingModifier.foldIn], which hands out a [SwingModifier.Element];
      * read the [name][SwingModifier.InspectableElement.name] and
@@ -49,9 +48,8 @@ public sealed class SwingComponentNode<out C : Component> {
      * returned for this component.
      *
      * It is the whole effective declared modifier chain, placement included: an element saying where the
-     * component sits in its parent stands in it alongside the ones saying what it looks like. Inherited
-     * defaults are flattened into their effective property elements; provider-key boundaries are not
-     * preserved and key names are not presented as synthetic modifier elements.
+     * component sits in its parent stands in it alongside the ones saying what it looks like. A style
+     * stays the single element it was declared as; its properties are not expanded into elements of their own.
      *
      * It answers whatever the composition declared last, whether or not the pass that declared it had
      * anything to write, so it never lags the composition. Every node holds its modifier whatever

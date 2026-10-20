@@ -54,7 +54,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
     internal val handles: (componentClass: Class<*>) -> Boolean,
 ) {
     /**
-     * Takes a hold on this property for [component], capturing what it stands at where nothing holds it
+     * Takes a capture of this property for [component], reading what it stands at where none exists
      * yet. A member of this class, rather than a top-level function taking the accessors apart, so
      * [SwingModifier.property]'s `alsoOverwrites` - a `List<ComponentPropertyDescriptor<T, *>>` - can call it without
      * needing this property's own value type.
@@ -62,7 +62,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
     internal fun holdCapture(
         captures: PropertyCaptures,
         component: T,
-    ): PropertyCaptures.Hold = captures.hold(name, component, read, write)
+    ): PropertyCaptures.Capture<*, *> = captures.capture(name, component, read, write)
 
     /** This property's name, which is also how a tool showing a modifier's elements names it. */
     override fun toString(): String = name

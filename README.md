@@ -159,7 +159,7 @@ fun SaveButton(onSave: () -> Unit) {
 <!--- KNIT example-readme-04.kt -->
 
 `lineBorder` and `emptyBorder` declare a border by its values and rebuild it only when they change.
-Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `remember`.
+Use `remember` for value objects such as `Font` and `Icon` used in a style or modifier.
 
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
 styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
@@ -174,15 +174,7 @@ custom Swing components into a composition. Every built-in wrapper is built on `
 way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
 
-Four further guides carry the rest:
-
-- [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
-  the composition, and the state holders that carry what a declared value cannot.
-- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across
-  passes, the `modifier` parameter, writing a property element of your own, and attaching listeners.
-- [`docs/FOUNDATION.md`](docs/FOUNDATION.md) - constraint-based layout, drawing and decorations.
-- [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer
-  their children, and rendering items with a composable cell.
+See [Component state](docs/COMPONENT-STATE.md) for editable properties, [Modifiers](docs/MODIFIERS.md) for modifiers, [Styles](docs/STYLES.md) for styling, [Foundation](docs/FOUNDATION.md) for layout and drawing, and [Custom containers](docs/CUSTOM-CONTAINERS.md) for child placement.
 
 To ask a mounted composition what it holds for a component and where that component was declared,
 see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).

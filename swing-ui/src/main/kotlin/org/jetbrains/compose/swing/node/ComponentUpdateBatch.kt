@@ -5,9 +5,11 @@ import org.jetbrains.compose.swing.defaults.refreshInheritedDefaults
 import org.jetbrains.compose.swing.modifier.ModifierPartition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
+import org.jetbrains.compose.swing.style.StyleNode
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Container
 import java.awt.Rectangle
+import java.util.ArrayDeque
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -42,6 +44,9 @@ internal class ComponentUpdateBatch {
     /** The nodes whose composition locals map was replaced after an observed pass read it, run again at the end. */
     private val heldForLocalsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
 
+    /** The style nodes whose ancestors changed, resolved again at the end, each after the ancestors held before it. */
+    private val heldForRestyle = ArrayDeque<StyleNode>()
+
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
 
@@ -56,10 +61,11 @@ internal class ComponentUpdateBatch {
     var diffingState: SwingModifierState? = null
 
     /**
-     * The [ModifierPartition.chain] the pass diffing [diffingState] is applying, from the point the standing slots
-     * are matched to it until [SwingModifierState.orderChain] puts them in its order. Meanwhile each family of
-     * [SwingModifierState.chain] holds the slots this declares in its order, followed by any it no longer declares
-     * until they leave, and the two families are not yet interleaved as this declares them.
+     * The [ModifierPartition.positional] the pass diffing [diffingState] is applying, from the point the standing
+     * slots are matched to it until [commitOrder][org.jetbrains.compose.swing.modifier.NodeRecords.commitOrder]
+     * puts them in its order. Meanwhile each family of [SwingModifierState.records] holds the slots this declares in
+     * its order, followed by any it no longer declares until they leave, and the two families are not yet interleaved
+     * as this declares them.
      */
     var diffingDeclaration: List<SwingModifier.Element>? = null
 
@@ -77,6 +83,7 @@ internal class ComponentUpdateBatch {
         changedContainers.clear()
         heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
+        heldForRestyle.clear()
         heldForChildSettle.clear()
         declaredForChildSettle.clear()
         section?.close()
@@ -119,6 +126,18 @@ internal class ComponentUpdateBatch {
         heldForLocalsRefresh += node
     }
 
+    /** Whether a batch is running: between [begin] and the end of [end]. */
+    val isRunning: Boolean get() = section != null
+
+    /**
+     * Holds [node] to resolve its style again once this batch has run every node's update block and modifier diff,
+     * so every ancestor has published what it resolved this pass. A pending node is queued once; a node held
+     * again after it runs is queued again.
+     */
+    fun holdForRestyle(node: StyleNode) {
+        if (heldForRestyle.none { it === node }) heldForRestyle.addLast(node)
+    }
+
     /**
      * Holds [node] to be settled against its children once this batch has brought them into place.
      * Holding a node twice settles it once, and a node that declares no such settle is not held at all.
@@ -156,9 +175,9 @@ internal class ComponentUpdateBatch {
 
     /**
      * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
-     * nodes that read a composition locals map this batch replaced, brings the containers this batch changed
-     * up to date, then runs every settle this batch held, and closes the section whichever way that goes - a
-     * batch that ends by throwing still leaves no section open.
+     * nodes that read a composition locals map this batch replaced, resolves again the styles whose ancestors
+     * changed, brings the containers this batch changed up to date, then runs every settle this batch held, and
+     * closes the section whichever way that goes - a batch that ends by throwing still leaves no section open.
      *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
@@ -167,11 +186,15 @@ internal class ComponentUpdateBatch {
             bringWidgetsUpToDate()
             heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
             heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
+            while (heldForRestyle.isNotEmpty()) {
+                heldForRestyle.removeFirst().restyle()
+            }
             refreshChangedContainers()
             runHeldChildSettles()
         } finally {
             heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()
+            heldForRestyle.clear()
             heldForChildSettle.clear()
             declaredForChildSettle.clear()
             changedContainers.clear()

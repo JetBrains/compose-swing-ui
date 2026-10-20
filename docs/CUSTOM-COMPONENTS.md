@@ -4,14 +4,7 @@ Compose Swing UI ships wrappers for the common widgets (`Button`, `TextField`, `
 real applications host many bespoke Swing components. Wrapping your own component uses the same
 public `SwingNode` API every built-in wrapper is built on. This guide shows how.
 
-Three further documents carry the rest:
-
-- [`COMPONENT-STATE.md`](COMPONENT-STATE.md) - a property the user can change as well as the
-  composition, and the state holders that carry what a declared value cannot.
-- [`MODIFIERS.md`](MODIFIERS.md) - how a modifier is ordered, matched and attached across passes, the
-  `modifier` parameter, writing a property element of your own, and attaching listeners.
-- [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) - containers, the placements they offer their
-  children, and rendering items with a composable cell.
+See [Component state](COMPONENT-STATE.md) for editable properties, [Modifiers](MODIFIERS.md) for modifiers, [Styles](STYLES.md) for styling, and [Custom containers](CUSTOM-CONTAINERS.md) for child placement.
 
 ## The mental model
 

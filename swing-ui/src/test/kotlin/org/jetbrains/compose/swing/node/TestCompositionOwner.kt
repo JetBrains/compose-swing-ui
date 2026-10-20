@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.StyleCollector
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -14,6 +15,8 @@ internal class TestCompositionOwner(
     coordinator: AfterValidationCoordinator = sharedAfterValidationCoordinator,
 ) : SwingCompositionOwner {
     override val snapshotObserver: OwnerSnapshotObserver = OwnerSnapshotObserver { onChanged -> onChanged() }
+
+    override val styleCollector: StyleCollector by lazy(LazyThreadSafetyMode.NONE) { StyleCollector() }
 
     private val afterValidationActions = AfterValidationActions(this, coordinator)
 

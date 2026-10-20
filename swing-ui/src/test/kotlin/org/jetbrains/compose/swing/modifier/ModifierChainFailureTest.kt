@@ -407,14 +407,14 @@ class ModifierChainFailureTest {
     ) : SwingCompositionDiagnostics {
         override fun declaring(
             component: Component,
-            node: SwingModifier.ComponentNode<*>,
+            slot: Any,
             element: SwingModifier.NodeElement<*, *>,
             write: () -> Unit,
         ) = write()
 
         override fun restoring(
             component: Component,
-            node: SwingModifier.ComponentNode<*>,
+            slot: Any,
             restore: () -> Unit,
         ) {
             if (refusals-- > 0) throw refusal
