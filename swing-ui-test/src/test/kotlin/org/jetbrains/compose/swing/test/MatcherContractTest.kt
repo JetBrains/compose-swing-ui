@@ -12,8 +12,8 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.enabled
 import javax.accessibility.AccessibleRole
 import javax.swing.JComboBox
 import javax.swing.JInternalFrame
@@ -113,7 +113,7 @@ class MatcherContractTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Button(text = "on", onClick = {})
-                Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
+                Button(text = "off", onClick = {}, style = { enabled(false) })
             }
         }
 

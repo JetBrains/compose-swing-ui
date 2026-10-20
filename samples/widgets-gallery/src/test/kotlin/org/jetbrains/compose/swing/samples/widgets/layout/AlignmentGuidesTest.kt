@@ -13,9 +13,10 @@ import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
@@ -325,13 +326,19 @@ class AlignmentGuidesTest {
                 Row(
                     modifier =
                         SwingModifier
-                            .preferredSize(240, 40)
                             .testTag(STAGE_TAG)
-                            .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox), setOf(GuideLine.Top)),
+                            .alignmentGuides(
+                                guides,
+                                shown = true,
+                                setOf(GuideMark.LayoutBox),
+                                setOf(GuideLine.Top),
+                            ).styleable {
+                                preferredSize(240, 40)
+                            },
                     horizontalArrangement = Arrangement.spacedBy(16),
                 ) {
                     Label("kept", SwingModifier.alignmentGuide(guides))
-                    Label("hidden", SwingModifier.alignmentGuide(guides).visible(shown))
+                    Label("hidden", SwingModifier.alignmentGuide(guides), style = { visible(shown) })
                 }
             }
             val stage = onNodeWithTag(STAGE_TAG)
@@ -366,12 +373,16 @@ class AlignmentGuidesTest {
                 // Centered, a child with the same insets on every side keeps its bounds under every value.
                 Box(
                     SwingModifier
-                        .preferredSize(240, 60)
                         .testTag(STAGE_TAG)
-                        .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox)),
+                        .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox))
+                        .styleable { preferredSize(240, 60) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label("Label", SwingModifier.emptyBorder(8).paintOutsets(value).alignmentGuide(guides))
+                    Label(
+                        "Label",
+                        SwingModifier.emptyBorder(8).alignmentGuide(guides),
+                        style = { paintOutsets(value) },
+                    )
                 }
             }
             val stage = onNodeWithTag(STAGE_TAG)
@@ -403,9 +414,9 @@ class AlignmentGuidesTest {
             setContent {
                 Row(
                     SwingModifier
-                        .preferredSize(240, 40)
                         .testTag(STAGE_TAG)
-                        .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox)),
+                        .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox))
+                        .styleable { preferredSize(240, 40) },
                 ) {
                     Label("Label", if (guided) SwingModifier.alignmentGuide(guides) else SwingModifier)
                 }

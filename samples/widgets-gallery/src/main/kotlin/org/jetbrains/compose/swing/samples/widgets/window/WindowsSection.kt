@@ -21,8 +21,6 @@ import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
@@ -30,6 +28,8 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.tooling.Preview
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.DialogState
@@ -194,15 +194,15 @@ private fun WindowScope.SecondaryWindowContent(
     Layer {
         Panel(
             PanelLayout.Border(),
-            modifier = SwingModifier.background(background),
+            style = { background(background) },
         ) {
             Label(
                 "A second top-level window, composed declaratively.",
                 modifier =
                     SwingModifier
                         .center()
-                        .horizontalAlignment(SwingConstants.CENTER)
-                        .foreground(if (dark) Color.WHITE else Color.BLACK),
+                        .horizontalAlignment(SwingConstants.CENTER),
+                style = { foreground(if (dark) Color.WHITE else Color.BLACK) },
             )
             Panel(PanelLayout.Flow(), SwingModifier.south()) {
                 Button("Click me", onClick = onClick)
@@ -217,9 +217,11 @@ private fun WindowScope.SecondaryWindowContent(
                         SwingModifier
                             .north()
                             .opaque(true)
-                            .background(DarkThemeBackground)
-                            .foreground(Color.WHITE)
                             .horizontalAlignment(SwingConstants.CENTER),
+                    style = {
+                        background(DarkThemeBackground)
+                        foreground(Color.WHITE)
+                    },
                 )
             }
         }

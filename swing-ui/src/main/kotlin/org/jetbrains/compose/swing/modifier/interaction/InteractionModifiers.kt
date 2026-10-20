@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
@@ -15,7 +14,8 @@ import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import org.jetbrains.compose.swing.modifier.listener.sameCallback
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.EnabledDescriptor
+import org.jetbrains.compose.swing.style.FocusableDescriptor
 import java.awt.event.MouseEvent
 
 /**
@@ -25,7 +25,8 @@ import java.awt.event.MouseEvent
  * @return this chain with the focusability declared on it.
  * @see java.awt.Component.setFocusable
  */
-public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property(FocusableProperty, focusable)
+@Deprecated("Set it in the component's style: style = { focusable(focusable) }")
+public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property(FocusableDescriptor, focusable)
 
 /**
  * Sets `isEnabled` on **this component only** - whether it responds to user input and paints in its
@@ -38,8 +39,9 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property
  * @return this chain with the enabled state declared on it.
  * @see java.awt.Component.setEnabled
  */
+@Deprecated("Set it in the component's style: style = { enabled(enabled) }")
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
-    property(EnabledProperty, enabled, inheritable = true)
+    property(EnabledDescriptor, enabled, inheritable = true)
 
 /**
  * Installs mouse enter/exit handlers.
@@ -112,20 +114,6 @@ public fun SwingModifier.onPointerEvent(
         onMouseReleased = onRelease ?: UNDECLARED,
     )
 }
-
-private val FocusableProperty =
-    ComponentPropertyDescriptor<Component, Boolean>(
-        name = "focusable",
-        read = { it.isFocusable },
-        write = { component, value -> component.isFocusable = value },
-    )
-
-private val EnabledProperty =
-    ComponentPropertyDescriptor<Component, Boolean>(
-        name = "enabled",
-        read = { it.isEnabled },
-        write = { component, value -> component.isEnabled = value },
-    )
 
 /** Runs [action] on any event. */
 private class EventIgnoring(

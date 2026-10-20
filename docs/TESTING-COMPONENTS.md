@@ -101,9 +101,9 @@ onAllNodesOfType<JCheckBox>().assertAll(SwingMatcher.isEnabled())
 <!--- KNIT example-testing-fragment-01.kt -->
 
 `hasAccessibleName(name)` matches the name a component reports through its accessible context — the
-name assistive technology reads. A widget derives it from its own text unless
-`SwingModifier.accessibleName` declares one, so it is the handle for a component that carries no
-displayed text of its own, and the matcher for a test whose subject is the accessible contract itself.
+name assistive technology reads. A widget derives it from its own text unless the
+`accessibleName` style setter declares one, so it is the handle for a component that carries no displayed
+text of its own, and the matcher for a test whose subject is the accessible contract itself.
 `hasName` is the unrelated `Component.getName`, which stays unset unless the `name` modifier or the
 test sets it.
 

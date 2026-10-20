@@ -3,17 +3,19 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * One Swing property of one or more component types. Define it once, in a top-level `val`, and declare
- * it on a component with [SwingModifier.property]; see that function for the full contract.
+ * One Swing property of one or more component types. Define it once, in a top-level `val`, and pass it
+ * to [org.jetbrains.compose.swing.style.stylePropertyOf] for a style setter, or
+ * [org.jetbrains.compose.swing.style.styleLocalOf] for a property descendants inherit. A component's own
+ * parameter that no style setter covers can declare it through [SwingModifier.property].
  *
  * Build a property of a single component type with the single-type [invoke] overload:
  *
  * ```
- * private val OpaqueProperty =
- *     ComponentPropertyDescriptor<JComponent, Boolean>(
- *         name = "opaque",
- *         read = { it.isOpaque },
- *         write = { c, v -> c.isOpaque = v }
+ * private val DividerSizeDescriptor =
+ *     ComponentPropertyDescriptor<JSplitPane, Int>(
+ *         name = "dividerSize",
+ *         read = { it.dividerSize },
+ *         write = { component, value -> component.dividerSize = value },
  *     )
  * ```
  *

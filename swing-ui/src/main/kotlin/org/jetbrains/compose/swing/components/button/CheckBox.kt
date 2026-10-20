@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.CheckBoxes
+import org.jetbrains.compose.swing.components.style.CheckableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
@@ -27,6 +33,7 @@ import javax.swing.JCheckBox
  * @param checked the checked state the box is held at
  * @param onCheckedChange callback invoked with the checked state when the box is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
 @Composable
@@ -35,6 +42,7 @@ public fun CheckBox(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<CheckableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(checked)
     CheckBoxNode(
@@ -43,6 +51,7 @@ public fun CheckBox(
             modifier.actionListener<JCheckBox> {
                 mirror.report { onCheckedChange(isSelected) }
             },
+        style = style,
         checked = checked,
         mirror = mirror,
     )
@@ -57,6 +66,7 @@ public fun CheckBox(
  * @param checked the checked state the box is held at
  * @param actionListener the listener notified when the checkbox is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
 @Composable
@@ -65,16 +75,28 @@ public fun CheckBox(
     checked: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<CheckableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(checked)
     CheckBoxNode(
         text = text,
         modifier =
             modifier.actionListener(actionListener),
+        style = style,
         checked = checked,
         mirror = mirror,
     )
 }
+
+/** [CheckableStyleScope] for CheckBox styles. The declared checked state supplies `isChecked`. */
+private val CheckBoxKind =
+    nestingStyleKind<CheckableStyleScope, Boolean>({ base, checked ->
+        object : CheckableStyleScope, ComponentStyleScope by base {
+            override val isChecked: Boolean get() = checked
+        }
+    }) {
+        applyNestedStyle(CheckBoxes)
+    }
 
 /**
  * The `JCheckBox` node both [CheckBox] overloads render. [checked] is settled against the box through
@@ -88,12 +110,13 @@ public fun CheckBox(
 private inline fun CheckBoxNode(
     text: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<CheckableStyleScope>,
     checked: Boolean,
     mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JCheckBox() },
-        modifier = modifier,
+        modifier = modifier.styleable(CheckBoxKind, checked, style),
         update = {
             set(text) { this.text = it }
             init { addItemListener { mirror.observed(isSelected) } }

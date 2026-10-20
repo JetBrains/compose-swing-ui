@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AWTEventMask
+import org.jetbrains.compose.swing.components.style.Layers
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
@@ -14,6 +15,11 @@ import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Graphics
@@ -69,6 +75,7 @@ import javax.swing.plaf.LayerUI
  * these callbacks do not cover, a preferred size of its own, a layout of the view of its own.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JLayer`.
+ * @param style the [SwingStyle] applied to the underlying `JLayer`.
  * @param onPaint paints the layer, in place of the view painting itself. It receives the layer's
  *   [Graphics2D], the layer's `width` and `height`, and
  *   `paintView`, which paints the view and the glass pane over it: call it inside a composite to wash the
@@ -89,6 +96,7 @@ import javax.swing.plaf.LayerUI
 @Composable
 public fun Layer(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     onPaint: (g: Graphics2D, width: Int, height: Int, paintView: () -> Unit) -> Unit = UNDECLARED_PAINT,
     onMouseEvent: (MouseEvent) -> Unit = UNDECLARED,
     onMouseMotionEvent: (MouseEvent) -> Unit = UNDECLARED,
@@ -101,6 +109,7 @@ public fun Layer(
         ui = delegate,
         eventMask = declaredEventMask(onMouseEvent, onMouseMotionEvent, onMouseWheelEvent),
         modifier = modifier then PaintObserverElement(delegate),
+        style = style,
         declareCallbacks = {
             set(onPaint) {
                 delegate.onPaint = it
@@ -144,6 +153,7 @@ public fun Layer(
  *   delegate's own listener list and only installing another delegate takes it off again, so a delegate
  *   shared between two layers holds both alive and hands each of them the other's property changes.
  * @param modifier the [SwingModifier] applied to the underlying `JLayer`.
+ * @param style the [SwingStyle] applied to the underlying `JLayer`.
  * @param eventMask the events the layer observes. `null`, the default, leaves the mask to [ui], which is
  *   where a `LayerUI` usually sets it - from `installUI`, on the layer it was handed. A non-null value
  *   takes the mask over instead, written after the delegate is installed, so a delegate declared beside
@@ -160,6 +170,7 @@ public fun Layer(
 public fun <V : Component> Layer(
     ui: LayerUI<in V>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @AWTEventMask eventMask: Long? = null,
     content: @Composable LayerScope.() -> Unit,
 ) {
@@ -167,6 +178,7 @@ public fun <V : Component> Layer(
         ui = ui,
         eventMask = eventMask,
         modifier = modifier,
+        style = style,
         declareCallbacks = {},
         content = content,
     )
@@ -189,13 +201,14 @@ private fun <V : Component> LayerNode(
     ui: LayerUI<in V>,
     eventMask: Long?,
     modifier: SwingModifier,
+    style: SwingStyle<ContainerStyleScope>,
     declareCallbacks: SwingNodeUpdater<JLayer<V>>.() -> Unit,
     content: @Composable LayerScope.() -> Unit,
 ) {
     val scope = remember { LayerScopeImpl() }
     SwingNode(
         factory = { JLayer<V>() },
-        modifier = modifier,
+        modifier = modifier.styleable(LayerKind, style),
         update = {
             set(LayerDeclaration(ui, eventMask)) { declaration ->
                 val mask = declaration.eventMask
@@ -396,3 +409,11 @@ private class LayerCallbacks(
 
 /** What a delegate holds until the pass that built it writes the declaration in: nothing declared. */
 private val UNDECLARED_CALLBACKS = LayerCallbacks(UNDECLARED, UNDECLARED, UNDECLARED)
+
+/** [ContainerStyleScope] for Layer styles. No component state is supplied. */
+private val LayerKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(Layers)
+    }

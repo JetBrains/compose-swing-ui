@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
@@ -23,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.event.HyperlinkListener
@@ -47,7 +47,8 @@ internal fun ColumnScope.ListSelectionListenerCard() {
         val listener = remember { ListSelectionListener { event -> if (!event.valueIsAdjusting) events++ } }
         ListBox(
             items = fruits,
-            modifier = SwingModifier.listSelectionListener(listener).preferredSize(Dimension(160, 90)),
+            modifier = SwingModifier.listSelectionListener(listener),
+            style = { preferredSize(Dimension(160, 90)) },
             selectedIndices = selected,
             onSelectionChange = { selected = it },
             visibleRowCount = 4,
@@ -94,8 +95,8 @@ internal fun ColumnScope.TreeListenersCard() {
                 SwingModifier
                     .treeSelectionListener(selectionListener)
                     .treeExpansionListener(expansionListener)
-                    .treeWillExpandListener(willExpandListener)
-                    .preferredSize(Dimension(200, 120)),
+                    .treeWillExpandListener(willExpandListener),
+            style = { preferredSize(Dimension(200, 120)) },
             label = { it.name },
             onSelectionChange = {},
             onExpansionChange = {},
@@ -120,7 +121,8 @@ internal fun ColumnScope.HyperlinkListenerCard() {
         EditorPane(
             markup = "<a href=\"https://example.com\">Hover or click this link</a>",
             onLinkActivate = { activated = it },
-            modifier = SwingModifier.hyperlinkListener(listener).preferredSize(Dimension(260, 40)),
+            modifier = SwingModifier.hyperlinkListener(listener),
+            style = { preferredSize(Dimension(260, 40)) },
             contentType = "text/html",
         )
         Label("Last hyperlink event: $lastEvent")
@@ -145,7 +147,7 @@ internal fun ColumnScope.InternalFrameListenerCard() {
                 }
             }
         WrappedCaption("Click inside then outside the frame to activate and deactivate it.")
-        DesktopPane(modifier = SwingModifier.preferredSize(Dimension(260, 140))) {
+        DesktopPane(style = { preferredSize(Dimension(260, 140)) }) {
             InternalFrame(
                 title = "Notes",
                 bounds = Rectangle(10, 10, 200, 100),

@@ -23,7 +23,7 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
@@ -247,7 +247,7 @@ private fun visibility(
 /** A viewport narrower than [WIDE] that scrolls both ways. */
 private val InViewport: StockParent = { child ->
     Panel(PanelLayout.Flow()) {
-        ScrollPane(modifier = SwingModifier.preferredSize(NARROW, NARROW + NARROW / 4)) {
+        ScrollPane(style = { preferredSize(NARROW, NARROW + NARROW / 4) }) {
             Viewport { child(SwingModifier) }
         }
     }

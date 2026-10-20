@@ -8,7 +8,10 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.style.StyleElement
+import org.jetbrains.compose.swing.style.collectsNothingUnder
+import org.jetbrains.compose.swing.style.requireKindTarget
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -20,10 +23,13 @@ import org.jetbrains.compose.swing.util.fastForEach
  * @param keyedCapacity how many keyed elements the modifier is expected to declare, which [keyed] is sized for.
  * @param positionalCapacity how many elements the modifier is expected to hold records for, which [positional] is
  *   sized for.
+ * @param holder the node the modifier is applied to; a style declaration that can collect nothing under its
+ *   ancestors is counted without a slot. `null` takes every style declaration.
  */
 internal class ModifierPartition(
     keyedCapacity: Int = 0,
     positionalCapacity: Int = 0,
+    private val holder: SwingNodeHolder<*>? = null,
 ) {
     /** The keyed (last-wins) elements of the modifier being applied, by [SwingModifier.NodeElement.key]. */
     val keyed: List<SwingModifier.NodeElement<*, *>> get() = keyedElements
@@ -98,13 +104,9 @@ internal class ModifierPartition(
      * @param element the entry to route.
      */
     fun take(element: SwingModifier.Element) {
+        element.requireSingleElementRole()
         when (element) {
             is SwingModifier.NodeElement<*, *> -> {
-                require(element !is ParentLayoutElement) {
-                    "A modifier entry cannot both write a component through SwingModifier.NodeElement and " +
-                        "declare layout data to its parent through ParentLayoutElement. " +
-                        "Split it into one entry for each responsibility."
-                }
                 takeElement(element)
             }
 
@@ -127,14 +129,21 @@ internal class ModifierPartition(
         }
     }
 
+    /** How many style declarations the walk has counted, taken or not; the next one's ordinal. */
     var styleCount: Int = 0
         private set
 
+    /** Counts a style declaration that holds no slot, so the declarations after it keep their ordinals. */
     fun skipStyle() {
         styleCount++
     }
 
     private fun takeElement(given: SwingModifier.NodeElement<*, *>) {
+        if (given is StyleElement<*, *> && holder != null && given.collectsNothingUnder(holder)) {
+            requireKindTarget(given.kind, holder.component)
+            skipStyle()
+            return
+        }
         val element = if (given is StyleElement<*, *>) given.atOrdinal(styleCount++) else given
         if (element.isPositionalElement) {
             positionalElements.add(element)
@@ -293,3 +302,12 @@ internal val SwingModifier.Element.isPositionalElement: Boolean
         } else {
             this is ParentLayoutNodeElement<*> && this !is ParentDataModifier
         }
+
+/** Rejects an element that declares both component writes and parent layout data. */
+internal fun SwingModifier.Element.requireSingleElementRole() {
+    require(this !is SwingModifier.NodeElement<*, *> || this !is ParentLayoutElement) {
+        "A modifier entry cannot both write a component through SwingModifier.NodeElement and " +
+            "declare layout data to its parent through ParentLayoutElement. " +
+            "Split it into one entry for each responsibility."
+    }
+}

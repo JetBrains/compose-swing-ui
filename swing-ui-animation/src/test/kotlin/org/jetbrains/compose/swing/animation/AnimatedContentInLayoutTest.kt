@@ -16,7 +16,8 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxSize
 import org.jetbrains.compose.swing.foundation.layout.requiredSize
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -81,7 +82,7 @@ class AnimatedContentInLayoutTest {
                 }
 
                 HalfFillParent.AssignedMaxima -> {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(300, 300)) {
+                    Panel(PanelLayout.Border(), style = { preferredSize(300, 300) }) {
                         AnimatedContent(
                             targetState = state,
                             modifier = SwingModifier.center(),
@@ -106,7 +107,7 @@ class AnimatedContentInLayoutTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, 300)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, 300) }) {
                     AnimatedContent(
                         targetState = state,
                         modifier = SwingModifier.center().testTag("animated"),
@@ -120,8 +121,8 @@ class AnimatedContentInLayoutTest {
                             modifier =
                                 SwingModifier
                                     .testTag("content-$target")
-                                    .fillMaxSize()
-                                    .preferredSize(200, 150),
+                                    .fillMaxSize(),
+                            style = { preferredSize(200, 150) },
                         )
                     }
                 }
@@ -142,19 +143,19 @@ class AnimatedContentInLayoutTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(REGION_WIDTH, REGION_HEIGHT) }) {
                     AnimatedContent(
                         targetState = state,
                         modifier = SwingModifier.center().testTag("animated-0"),
                     ) { Body(state = it) }
                 }
-                Row(modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
+                Row(modifier = SwingModifier.styleable { preferredSize(REGION_WIDTH, REGION_HEIGHT) }) {
                     AnimatedContent(
                         targetState = state,
                         modifier = SwingModifier.weight(1f).testTag("animated-1"),
                     ) { Body(state = it) }
                 }
-                Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
+                Panel(PanelLayout.GridBag, style = { preferredSize(REGION_WIDTH, REGION_HEIGHT) }) {
                     AnimatedContent(
                         targetState = state,
                         modifier =
@@ -189,7 +190,7 @@ class AnimatedContentInLayoutTest {
     ) = runComposeSwingTest {
         var state by mutableStateOf("a")
         setContent {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(100, 100)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(100, 100) }) {
                 if (container == "AnimatedContent") {
                     AnimatedContent(
                         targetState = state,
@@ -236,7 +237,7 @@ class AnimatedContentInLayoutTest {
 private fun Body(state: String) =
     Label(
         text = state,
-        modifier = SwingModifier.preferredSize(width = if (state == "a") 40 else 160, height = 20),
+        style = { preferredSize(width = if (state == "a") 40 else 160, height = 20) },
     )
 
 /** A half-filled box around a state-dependent preferred-size label. */
@@ -248,7 +249,8 @@ private fun HalfFilledTarget(
     Box(modifier = SwingModifier.testTag("$target-half-fill")) {
         Label(
             target,
-            modifier = SwingModifier.fillMaxSize(0.5f).preferredSize(width, width),
+            modifier = SwingModifier.fillMaxSize(0.5f),
+            style = { preferredSize(width, width) },
         )
     }
 }

@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -148,7 +149,7 @@ class FirstBaselineTest {
     fun aRowLinesABoxUpOnTheBaselineOfTheFieldInside() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(400, 200)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(400, 200))) {
                     Label("label", modifier = SwingModifier.alignByBaseline())
                     Box(modifier = SwingModifier.alignByBaseline()) {
                         TextField("field", onValueChange = {}, modifier = SwingModifier.padding(top = 10))
@@ -235,7 +236,7 @@ class FirstBaselineTest {
                             },
                         )
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(Constraints(maxWidth = 200))
                         try {
@@ -273,7 +274,7 @@ class FirstBaselineTest {
                             },
                         )
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(Constraints(maxWidth = 200))
                         val runs = placementRuns
@@ -307,7 +308,7 @@ class FirstBaselineTest {
                             },
                         )
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val runs = placementRuns
                         val placeable = measurables.single().measure(Constraints(maxWidth = 200))
@@ -339,7 +340,7 @@ class FirstBaselineTest {
                             },
                         )
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         baseline = measurables.single().measure(Constraints(maxWidth = 200))[FirstBaseline]
                         layout(constraints.minWidth, constraints.minHeight) {}
@@ -386,7 +387,7 @@ class FirstBaselineTest {
                             },
                         )
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
                         layout(constraints.minWidth, constraints.minHeight) {
@@ -448,7 +449,7 @@ class FirstBaselineTest {
                             )
                         }
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
                         layout(constraints.minWidth, constraints.minHeight) {
@@ -578,7 +579,7 @@ class FirstBaselineTest {
         setContent {
             Layout(
                 content = content,
-                modifier = containerModifier(200, 200),
+                modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                 measurePolicy = { measurables, constraints ->
                     val placeables = measurables.map { it.measure(offer) }
                     layout(constraints.minWidth, constraints.minHeight) {
@@ -639,7 +640,7 @@ class FirstBaselineTest {
                         },
                     )
                 },
-                modifier = containerModifier(200, 200),
+                modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                 measurePolicy = { measurables, constraints ->
                     val offer = Constraints(maxWidth = 200, maxHeight = 200 - content.offerShrink)
                     val box = measurables.single().measure(offer)

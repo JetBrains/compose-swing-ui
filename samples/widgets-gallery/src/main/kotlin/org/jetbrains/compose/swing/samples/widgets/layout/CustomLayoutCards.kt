@@ -33,13 +33,14 @@ import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.foundation.layout.onPlaced
 import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -92,27 +93,31 @@ private fun ColumnScope.MeasurePolicyCard() {
                     onClick = { gap = CUSTOM_GAPS[(CUSTOM_GAPS.indexOf(gap) + 1) % CUSTOM_GAPS.size] },
                     modifier =
                         SwingModifier
-                            .preferredSize(CUSTOM_SWATCH_SIZE)
-                            .accessibleName("placeRelative, gap $gap; activate to cycle")
                             .toolTip("Follows reading order; click to cycle the gap")
                             .onPlaced { relativeBounds = it },
+                    style = {
+                        preferredSize(CUSTOM_SWATCH_SIZE)
+                        accessibleName("placeRelative, gap $gap; activate to cycle")
+                    },
                 )
                 LayoutSwatch(
                     "<html><center>place(width -<br>child.width,y)</center></html>",
                     LayoutSampleColors.Green,
                     SwingModifier
-                        .preferredSize(CUSTOM_SWATCH_SIZE)
                         .toolTip("Uses physical coordinates and stays on the right")
                         .onPlaced { physicalBounds = it },
+                    style = { preferredSize(CUSTOM_SWATCH_SIZE) },
                 )
             },
             modifier =
                 SwingModifier
                     .layoutTrack()
-                    .preferredSize(CUSTOM_LAYOUT_SIZE)
-                    .componentOrientation(
-                        if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
-                    ),
+                    .styleable {
+                        preferredSize(CUSTOM_LAYOUT_SIZE)
+                        componentOrientation(
+                            if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                        )
+                    },
             measurePolicy = stackedPlacementPolicy(gap),
         )
     }
@@ -167,8 +172,8 @@ private fun ColumnScope.ConstraintSizingCard() {
                 onClick = { compactParent = !compactParent },
                 modifier =
                     SwingModifier
-                        .preferredSize(SIZE_CONTROL_SIZE)
                         .toolTip(if (compactParent) "Expand both parents" else "Tighten both parents"),
+                style = { preferredSize(SIZE_CONTROL_SIZE) },
             )
             Label(
                 "aspectRatio($aspectRatioText): ${boundsText(aspectBounds)} · " +
@@ -178,7 +183,7 @@ private fun ColumnScope.ConstraintSizingCard() {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8)) {
             Box(
-                modifier = SwingModifier.layoutTrack().preferredSize(parentSize),
+                modifier = SwingModifier.layoutTrack().styleable { preferredSize(parentSize) },
                 contentAlignment = Alignment.TopCenter,
             ) {
                 InteractiveLayoutSwatch(
@@ -188,13 +193,13 @@ private fun ColumnScope.ConstraintSizingCard() {
                     modifier =
                         SwingModifier
                             .aspectRatio(aspectRatio)
-                            .accessibleName("aspectRatio ${aspectRatioText}f")
                             .toolTip("aspectRatio(${aspectRatioText}f): click to cycle")
                             .onPlaced { aspectBounds = it },
+                    style = { accessibleName("aspectRatio ${aspectRatioText}f") },
                 )
             }
             Box(
-                modifier = SwingModifier.layoutTrack().preferredSize(parentSize),
+                modifier = SwingModifier.layoutTrack().styleable { preferredSize(parentSize) },
                 contentAlignment = Alignment.TopCenter,
             ) {
                 LayoutSwatch(
@@ -218,7 +223,11 @@ private fun RowScope.DirectionalSample(
 ) {
     val orientation = if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT
     Box(
-        modifier = SwingModifier.layoutTrack().preferredSize(DIRECTION_SAMPLE_SIZE).componentOrientation(orientation),
+        modifier =
+            SwingModifier.layoutTrack().styleable {
+                preferredSize(DIRECTION_SAMPLE_SIZE)
+                componentOrientation(orientation)
+            },
         contentAlignment = Alignment.TopCenter,
     ) {
         DirectionalSwatch(kind, bounds, onPlace)
@@ -248,14 +257,14 @@ private fun BoxScope.DirectionalSwatch(
             DirectionalModifier.AbsoluteOffset -> {
                 SwingModifier.absoluteOffset(x = DIRECTION_SHIFT)
             }
-        }.preferredSize(DIRECTION_SWATCH_SIZE)
-            .toolTip(if (kind.relative) "Mirrors under RTL" else "Stays in the physical direction")
+        }.toolTip(if (kind.relative) "Mirrors under RTL" else "Stays in the physical direction")
             .onPlaced(onPlaced)
     val x = bounds?.x?.toString() ?: "-"
     LayoutSwatch(
         "<html><center>${kind.title}<br>${kind.arguments}<br>x=$x</center></html>",
         if (kind.relative) LayoutSampleColors.Teal else LayoutSampleColors.Orange,
         modifier,
+        style = { preferredSize(DIRECTION_SWATCH_SIZE) },
     )
 }
 

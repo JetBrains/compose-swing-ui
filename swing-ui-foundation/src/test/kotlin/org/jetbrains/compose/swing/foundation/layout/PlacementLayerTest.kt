@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -19,8 +18,9 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.ComponentOrientation
@@ -260,10 +261,23 @@ class PlacementLayerTest {
                 Row {
                     Box(
                         modifier =
-                            SwingModifier.testTag("layered").preferredSize(40, 40).placementLayer { alpha = 0.5f },
+                            SwingModifier
+                                .testTag("layered")
+                                .placementLayer { alpha = 0.5f }
+                                .styleable { preferredSize(40, 40) },
                     ) {
-                        Box(modifier = SwingModifier.preferredSize(10, 10).background(Brush.of(Color.RED)))
-                        Box(modifier = SwingModifier.preferredSize(10, 10).background(Brush.of(Color.BLUE)))
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .background(Brush.of(Color.RED))
+                                    .styleable { preferredSize(10, 10) },
+                        )
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .background(Brush.of(Color.BLUE))
+                                    .styleable { preferredSize(10, 10) },
+                        )
                     }
                 }
             }
@@ -293,17 +307,17 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag("before")
-                                .preferredSize(40, 40)
                                 .background(Brush.of(Color.RED))
-                                .placementLayer { alpha = 0.5f },
+                                .placementLayer { alpha = 0.5f }
+                                .styleable { preferredSize(40, 40) },
                     )
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("after")
-                                .preferredSize(40, 40)
                                 .placementLayer { alpha = 0.5f }
-                                .background(Brush.of(Color.RED)),
+                                .background(Brush.of(Color.RED))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
@@ -319,12 +333,13 @@ class PlacementLayerTest {
             var color by mutableStateOf(Color.RED)
             var layered by mutableStateOf(true)
             setContent {
-                val sized = SwingModifier.testTag("layered").preferredSize(40, 40)
+                val sized = SwingModifier.testTag("layered")
                 Row {
                     Box(
                         modifier =
                             (if (layered) sized.placementLayer { alpha = 0.5f } else sized)
-                                .background(Brush.of(color)),
+                                .background(Brush.of(color))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
@@ -360,9 +375,9 @@ class PlacementLayerTest {
                 content(
                     SwingModifier
                         .testTag(CONTAINER_TAG)
-                        .preferredSize(40, 40)
                         .placementLayer(block)
-                        .then(paints),
+                        .then(paints)
+                        .styleable { preferredSize(40, 40) },
                 ) {}
             }
         }
@@ -439,7 +454,10 @@ class PlacementLayerTest {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Box(
                         modifier =
-                            SwingModifier.testTag("layered").preferredSize(40, 40).placementLayer { alpha = 0.5f },
+                            SwingModifier
+                                .testTag("layered")
+                                .placementLayer { alpha = 0.5f }
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
@@ -468,13 +486,13 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag("layered")
-                                .preferredSize(40, 40)
                                 .then(PlacementReadOffsetElement(shift, 1))
                                 .placementLayer {
                                     alpha = 0.5f
                                     clip = true
                                 }.then(PlacementReadOffsetElement(shift, -1))
-                                .background(Brush.of(Color.RED)),
+                                .background(Brush.of(Color.RED))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
@@ -497,30 +515,6 @@ class PlacementLayerTest {
             assertEquals(128.0, image.alphaAt(20 + 1, 10), 1.0, "the content fades inside the moved box")
         }
 
-    @Test
-    fun aNodeThatStopsPlacingWithALayerPaintsPlainlyAgain() =
-        runComposeSwingTest {
-            val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ alpha = 0.5f })
-            setContent {
-                Row {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("layered")
-                                .preferredSize(40, 40)
-                                .then(PlacementReadLayerElement(layer, relative = false))
-                                .background(Brush.of(Color.RED)),
-                    )
-                }
-            }
-            assertEquals(128.0, onNodeWithTag("layered").captureToImage().alphaAt(10, 10), 1.0)
-
-            layer.value = null
-            awaitIdle()
-
-            onNodeWithTag("layered").captureToImage().assertPixelColor(Color.RED, 10, 10)
-        }
-
     /**
      * A node placed without a layer clears the layer's decorator, or the component stays a painting origin and
      * non-opaque. No other decoration is declared here, so the layer is the only thing either reading can come from.
@@ -540,11 +534,14 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag("layered")
-                                .preferredSize(40, 40)
                                 .opaque(true)
-                                .then(PlacementReadLayerElement(layer, relative = false)),
+                                .then(PlacementReadLayerElement(layer, relative = false))
+                                .styleable { preferredSize(40, 40) },
                     ) {
-                        SwingNode(factory = { host }, modifier = SwingModifier.preferredSize(40, 40)) {
+                        SwingNode(
+                            factory = { host },
+                            modifier = SwingModifier.styleable { preferredSize(40, 40) },
+                        ) {
                             SwingNode(factory = { child })
                         }
                     }
@@ -565,14 +562,19 @@ class PlacementLayerTest {
     fun aRelativePlacementWithALayerMirrorsUnderARightToLeftParent() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(40 * 2, 40, ComponentOrientation.RIGHT_TO_LEFT)) {
+                Row(
+                    modifier =
+                        SwingModifier
+                            .containerTag()
+                            .styleable(containerStyle(40 * 2, 40, ComponentOrientation.RIGHT_TO_LEFT)),
+                ) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("layered")
                                 .then(ClipLayerElement(relative = true, width = 40))
-                                .preferredSize(10, 10)
-                                .background(Brush.of(Color.RED)),
+                                .background(Brush.of(Color.RED))
+                                .styleable { preferredSize(10, 10) },
                     )
                 }
             }
@@ -588,7 +590,12 @@ class PlacementLayerTest {
     fun aPlacementWithALayerReportsItsContentsBaseline() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(CHILD_WIDTH * CHILD_COUNT, CHILD_HEIGHT * 2)) {
+                Row(
+                    modifier =
+                        SwingModifier
+                            .containerTag()
+                            .styleable(containerStyle(CHILD_WIDTH * CHILD_COUNT, CHILD_HEIGHT * 2)),
+                ) {
                     for (relative in listOf(false, true)) {
                         DecoratedBaselineChild(
                             10,
@@ -623,9 +630,9 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag("layered")
-                                .preferredSize(40, 40)
                                 .then(PlacementReadLayerElement(block, relative))
-                                .background(Brush.of(Color.RED)),
+                                .background(Brush.of(Color.RED))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
@@ -652,26 +659,33 @@ class PlacementLayerTest {
             }
         }
 
-    @Test
-    fun aPropertyTheBlockNoLongerSetsPaintsAtItsDefault() =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun resettingOrRemovingALayerPaintsAtFullAlpha(removeLayer: Boolean) =
         runComposeSwingTest {
             var faded by mutableStateOf(true)
             val block: PlacementLayerScope.() -> Unit = { if (faded) alpha = 0.5f }
+            val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>(block)
             setContent {
                 Row {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("layered")
-                                .preferredSize(40, 40)
-                                .placementLayer(block)
-                                .background(Brush.of(Color.RED)),
+                                .then(
+                                    if (removeLayer) {
+                                        PlacementReadLayerElement(layer, relative = false)
+                                    } else {
+                                        SwingModifier.placementLayer(block)
+                                    },
+                                ).background(Brush.of(Color.RED))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
             assertEquals(128.0, onNodeWithTag("layered").captureToImage().alphaAt(10, 10), 1.0)
 
-            faded = false
+            if (removeLayer) layer.value = null else faded = false
             awaitIdle()
 
             onNodeWithTag("layered").captureToImage().assertPixelColor(Color.RED, 10, 10)
@@ -686,19 +700,14 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag(tag)
-                                .preferredSize(40, 40)
                                 .placementLayer(block)
-                                .background(Brush.of(Color.RED)),
+                                .background(Brush.of(Color.RED))
+                                .styleable { preferredSize(40, 40) },
                     )
                 }
             }
         }
     }
-
-    private fun BufferedImage.alphaAt(
-        x: Int,
-        y: Int,
-    ): Double = (getRGB(x, y) ushr 24).toDouble()
 
     /**
      * Composes a 20-pixel canvas for each pair, tagged by its first and modified by its second, drawing [content],
@@ -714,7 +723,7 @@ class PlacementLayerTest {
         setContent {
             Row {
                 for ((tag, modifier) in canvases) {
-                    Canvas(modifier = SwingModifier.testTag(tag).preferredSize(20, 20).then(modifier)) {
+                    Canvas(modifier = SwingModifier.testTag(tag).then(modifier).styleable { preferredSize(20, 20) }) {
                         content(graphics)
                     }
                 }
@@ -777,32 +786,5 @@ private class ClipLayerNode(
                 placeable.placeWithLayer(0, 0, layerBlock = block)
             }
         }
-    }
-}
-
-/** Places its content [sign] times the offset [offset] holds, read while placing. */
-private data class PlacementReadOffsetElement(
-    private val offset: State<Int>,
-    private val sign: Int,
-) : LayoutModifierNodeElement<PlacementReadOffsetNode>() {
-    override fun create(): PlacementReadOffsetNode = PlacementReadOffsetNode(offset, sign)
-
-    override fun update(node: PlacementReadOffsetNode) = Unit
-}
-
-private class PlacementReadOffsetNode(
-    private val offset: State<Int>,
-    private val sign: Int,
-) : LayoutModifierNode() {
-    override val name: String get() = "placementReadOffset"
-
-    override val declaredValues: Map<String, Any?> get() = emptyMap()
-
-    override fun MeasureScope.measure(
-        measurable: Measurable,
-        constraints: Constraints,
-    ): MeasureResult {
-        val placeable = measurable.measure(constraints)
-        return layout(placeable.width, placeable.height) { placeable.place(sign * offset.value, 0) }
     }
 }

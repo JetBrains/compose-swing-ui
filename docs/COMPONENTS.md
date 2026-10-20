@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.components.text.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.modifier.layout.*
+import org.jetbrains.compose.swing.style.*
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Color
@@ -53,10 +54,11 @@ exactly as the freshly constructed Swing widget does, so the defaults quoted her
 this library's. A parameter with no single correct default - `CheckBox`'s `checked`, or a
 `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
 
-Cross-cutting configuration - colors, fonts, borders, sizes, tooltips, accessibility, keyboard
-bindings, data transfer, raw listeners - arrives as a `SwingModifier` passed as `modifier`,
-described in
-[`MODIFIERS.md`](MODIFIERS.md#styling-with-a-modifier-swingmodifier-parameter).
+The properties of the component - colors, fonts, borders, sizes, tooltips, accessibility - arrive as a `SwingStyle`
+passed as `style`, described in [`STYLES.md`](STYLES.md). To style a composable that does not take a `style`
+parameter, put `SwingModifier.styleable { ... }` in its modifier; see [What a style is](STYLES.md#what-a-style-is).
+Everything else cross-cutting - keyboard bindings, data transfer, decoration, raw listeners - arrives as a
+`SwingModifier` passed as `modifier`, described in [`MODIFIERS.md`](MODIFIERS.md#styling-with-a-style-parameter).
 
 ---
 
@@ -377,7 +379,7 @@ the row's unless `opaque(false)` says otherwise.
 ```kotlin
 ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
     Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
-        Label(language.glyph, modifier = SwingModifier.west().preferredSize(24, 24))
+        Label(language.glyph, modifier = SwingModifier.west(), style = { preferredSize(24, 24) })
         Label(language.name)
     }
 }
@@ -746,8 +748,8 @@ position is hoisted into a [`ScrollState`](#scrollstate).
 
 ```kotlin
 ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
-    Viewport(modifier = SwingModifier.background(surface), unitIncrement = 16) { Body() }
-    VerticalScrollbar(modifier = SwingModifier.background(surface))
+    Viewport(style = { background(surface) }, unitIncrement = 16) { Body() }
+    VerticalScrollbar(style = { background(surface) })
     Label("Rows", modifier = SwingModifier.columnHeader())
     Label("#", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
 }
@@ -834,8 +836,12 @@ new layer.
 
 ```kotlin
 LayeredPane {
-    Body(modifier = SwingModifier.bounds(0, 0, 400, 300))
-    Label("Floating", modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER).bounds(16, 16, 120, 24))
+    Body(style = { bounds(0, 0, 400, 300) })
+    Label(
+        "Floating",
+        modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER),
+        style = { bounds(16, 16, 120, 24) },
+    )
 }
 ```
 
@@ -1015,7 +1021,7 @@ Panel {
                 )
             if (answer == JOptionPane.YES_OPTION) path = null
         },
-        modifier = SwingModifier.enabled(path != null),
+        style = { enabled(path != null) },
     )
 }
 ```
@@ -1077,7 +1083,7 @@ frame.jMenuBar = bar
 <!--- CLEAR -->
 
 There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
-that go gray together - is a shared value. Both surfaces read the one state in the modifier each builds,
+that go gray together - is a shared value. Both surfaces read the one state in the style each builds,
 so enabling and disabling them is a single state write.
 
 ```kotlin
@@ -1089,13 +1095,13 @@ Window(onCloseRequest = ::exitApplication) {
             MenuItem(
                 "Save",
                 onClick = ::save,
-                modifier = SwingModifier.enabled(dirty),
+                style = { enabled(dirty) },
                 accelerator = KeyStroke.getKeyStroke("control S"),
             )
         }
     }
     ToolBar {
-        Button("Save", onClick = ::save, modifier = SwingModifier.enabled(dirty))
+        Button("Save", onClick = ::save, style = { enabled(dirty) })
     }
 }
 ```
@@ -1108,12 +1114,12 @@ Window(onCloseRequest = ::exitApplication) {
 
 `Canvas` hands you a `DrawScope` over a blank surface, with declarative drawing primitives and direct
 access to the underlying `Graphics2D`. See [Foundation](FOUNDATION.md) for the drawing and decoration guide. Snapshot state read inside the draw lambda, at paint time, is observed:
-when it changes the surface repaints. Size the surface with the preferred-size modifier.
+when it changes the surface repaints. Size the surface with `preferredSize` inside `SwingModifier.styleable { ... }`.
 
 ```kotlin
 var radius by remember { mutableStateOf(24) }
 Panel(PanelLayout.Border()) {
-    Canvas(modifier = SwingModifier.preferredSize(Dimension(200, 200))) {
+    Canvas(modifier = SwingModifier.styleable { preferredSize(Dimension(200, 200)) }) {
         drawCircle(Color.BLUE, radius = radius.toFloat())
     }
     Slider(value = radius, onValueChange = { radius = it }, min = 4, max = 80, modifier = SwingModifier.south())
@@ -1204,7 +1210,7 @@ Panel(PanelLayout.Box()) {
             }
         },
     )
-    Button("Undo", onClick = note::undo, modifier = SwingModifier.enabled(note.canUndo))
+    Button("Undo", onClick = note::undo, style = { enabled(note.canUndo) })
 }
 ```
 

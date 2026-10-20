@@ -46,7 +46,12 @@ internal class ComponentUpdateBatch {
     /** The nodes whose style ancestors changed, resolved again at the end, each after the ancestors held before it. */
     private val heldForRestyle = ArrayDeque<SwingNodeHolder<*>>()
 
-    private var drainingRestyles = false
+    /**
+     * Whether [drainRestyles] is running. [SwingCompositionOwner.settleNow] runs no frame meanwhile: a frame's batch
+     * would discard the nodes still queued.
+     */
+    var isDrainingRestyles: Boolean = false
+        private set
 
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
@@ -139,10 +144,13 @@ internal class ComponentUpdateBatch {
         if (heldForRestyle.none { it === node }) heldForRestyle.addLast(node)
     }
 
-    /** Resolves queued styles once their triggering changes have been delivered. */
+    /**
+     * Resolves the queued styles, including those queued while it runs, in the order they were held. A call made
+     * while it runs returns at once, as the running loop serves what that call queued.
+     */
     fun drainRestyles() {
-        if (drainingRestyles) return
-        drainingRestyles = true
+        if (isDrainingRestyles) return
+        isDrainingRestyles = true
         try {
             while (heldForRestyle.isNotEmpty()) {
                 val node = heldForRestyle.removeFirst()
@@ -150,7 +158,7 @@ internal class ComponentUpdateBatch {
             }
         } finally {
             heldForRestyle.clear()
-            drainingRestyles = false
+            isDrainingRestyles = false
         }
     }
 
@@ -192,8 +200,9 @@ internal class ComponentUpdateBatch {
     /**
      * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
      * nodes that read a composition locals map this batch replaced, resolves again the styles whose ancestors
-     * changed, brings the containers this batch changed up to date, then runs every settle this batch held, and
-     * closes the section whichever way that goes - a batch that ends by throwing still leaves no section open.
+     * changed, brings the containers this batch changed up to date, runs every settle this batch held, resolves
+     * again the styles those held in turn, and closes the section whichever way that goes - a batch that ends by
+     * throwing still leaves no section open.
      *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
@@ -206,6 +215,7 @@ internal class ComponentUpdateBatch {
             refreshChangedContainers()
             // A settle writes a widget property and cannot re-enter the applier, so nothing it runs adds to the list.
             heldForChildSettle.fastForEach { it.childSettle?.invoke() }
+            drainRestyles()
         } finally {
             heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()

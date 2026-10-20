@@ -35,9 +35,8 @@ public fun SwingModifier.background(
  * Fills [shape]'s outline with [color] under the component's content; the solid-color overload of
  * [background][SwingModifier.background].
  *
- * [shape] has no default here: the [background][org.jetbrains.compose.swing.modifier.appearance.background] taking
- * a [Color] alone writes the Swing property, which is the one a look and feel honors, and a call naming only a color
- * keeps meaning that one wherever both are imported.
+ * [shape] has no default here, so a call naming only a color is always the style setter
+ * [background][org.jetbrains.compose.swing.style.background], which writes the Swing property a look and feel honors.
  *
  * @param color the fill.
  * @param shape the outline to fill; [RectangleShape] for the whole decorated box.

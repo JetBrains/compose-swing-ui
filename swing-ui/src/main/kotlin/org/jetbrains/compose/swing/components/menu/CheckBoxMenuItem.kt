@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.CheckBoxMenuItems
+import org.jetbrains.compose.swing.components.style.CheckableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
@@ -27,6 +33,7 @@ import javax.swing.KeyStroke
  * @param checked whether the item shows its checkmark
  * @param onCheckedChange callback invoked with the checked state when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JCheckBoxMenuItem
@@ -37,6 +44,7 @@ public fun CheckBoxMenuItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<CheckableStyleScope> = SwingStyle,
     accelerator: KeyStroke? = null,
 ) {
     val mirror = rememberMirrorState(checked)
@@ -46,6 +54,7 @@ public fun CheckBoxMenuItem(
             modifier.actionListener<JCheckBoxMenuItem> {
                 mirror.report { onCheckedChange(isSelected) }
             },
+        style = style,
         checked = checked,
         accelerator = accelerator,
         mirror = mirror,
@@ -61,6 +70,7 @@ public fun CheckBoxMenuItem(
  * @param checked whether the menu item is checked
  * @param actionListener the listener notified when the item is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JCheckBoxMenuItem
@@ -71,6 +81,7 @@ public fun CheckBoxMenuItem(
     checked: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<CheckableStyleScope> = SwingStyle,
     accelerator: KeyStroke? = null,
 ) {
     val mirror = rememberMirrorState(checked)
@@ -78,11 +89,22 @@ public fun CheckBoxMenuItem(
         text = text,
         modifier =
             modifier.actionListener(actionListener),
+        style = style,
         checked = checked,
         accelerator = accelerator,
         mirror = mirror,
     )
 }
+
+/** [CheckableStyleScope] for CheckBoxMenuItem styles. The declared checked state supplies `isChecked`. */
+private val CheckBoxMenuItemKind =
+    nestingStyleKind<CheckableStyleScope, Boolean>({ base, checked ->
+        object : CheckableStyleScope, ComponentStyleScope by base {
+            override val isChecked: Boolean get() = checked
+        }
+    }) {
+        applyNestedStyle(CheckBoxMenuItems)
+    }
 
 /**
  * The `JCheckBoxMenuItem` node both [CheckBoxMenuItem] overloads render. [checked] is settled against the
@@ -96,13 +118,14 @@ public fun CheckBoxMenuItem(
 private inline fun CheckBoxMenuItemNode(
     text: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<CheckableStyleScope>,
     checked: Boolean,
     accelerator: KeyStroke?,
     mirror: MirrorState<Boolean>,
 ) {
     MenuNode(
         factory = { JCheckBoxMenuItem() },
-        modifier = modifier,
+        modifier = modifier.styleable(CheckBoxMenuItemKind, checked, style),
         update = {
             set(text) { this.text = it }
             init { addItemListener { mirror.observed(isSelected) } }

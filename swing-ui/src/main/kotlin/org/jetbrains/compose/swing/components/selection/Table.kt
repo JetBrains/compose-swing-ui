@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AutoResizeMode
 import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
+import org.jetbrains.compose.swing.components.style.Tables
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
@@ -16,6 +17,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.settleWhenDue
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
@@ -97,6 +103,7 @@ import javax.swing.table.TableModel
  * @param rows the row data to display
  * @param columns declares the columns; see [TableScope]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedRowIndices the indices into [rows] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param onSelectionChange callback invoked with the indices into [rows] the user settles on
@@ -122,6 +129,7 @@ public fun <R> Table(
     rows: List<R>,
     columns: TableScope<R>.() -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedRowIndices: Set<Int>? = null,
     onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
@@ -138,6 +146,7 @@ public fun <R> Table(
         rows = rows,
         listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         state = null,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -171,6 +180,7 @@ public fun <R> Table(
  * @param columns declares the columns; see [TableScope]
  * @param listSelectionListener the listener notified of the user's selection-model changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedRowIndices the indices into [rows] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
@@ -198,6 +208,7 @@ public fun <R> Table(
     columns: TableScope<R>.() -> Unit,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedRowIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     sortable: Boolean = false,
@@ -213,6 +224,7 @@ public fun <R> Table(
         rows = rows,
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         state = null,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -240,6 +252,7 @@ private inline fun <R> TableRowsImpl(
     rows: List<R>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     state: TableState?,
     selectedRowIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
@@ -268,6 +281,7 @@ private inline fun <R> TableRowsImpl(
     TableNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         state = state,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -382,6 +396,7 @@ private inline fun <R> TableRowsImpl(
  *
  * @param model the table model to display; owned by the caller and never mutated by the library
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedRowIndices the indices in [model] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param onSelectionChange callback invoked with the indices in [model] the user settles on
@@ -406,6 +421,7 @@ private inline fun <R> TableRowsImpl(
 public fun Table(
     model: TableModel,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedRowIndices: Set<Int>? = null,
     onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
@@ -422,6 +438,7 @@ public fun Table(
         model = model,
         listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         state = null,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -452,6 +469,7 @@ public fun Table(
  * @param model the table model to display; owned by the caller and never mutated by the library
  * @param listSelectionListener the listener notified of the user's selection-model changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedRowIndices the indices in [model] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
@@ -478,6 +496,7 @@ public fun Table(
     model: TableModel,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedRowIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     sortable: Boolean = false,
@@ -493,6 +512,7 @@ public fun Table(
         model = model,
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         state = null,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -517,6 +537,7 @@ private inline fun TableImpl(
     model: TableModel,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     state: TableState?,
     selectedRowIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
@@ -534,6 +555,7 @@ private inline fun TableImpl(
     TableNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         state = state,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -592,6 +614,7 @@ private inline fun TableImpl(
  * @param state the hoistable state the table applies and reports its selection, sort order and column
  *   layout into; see [TableState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
@@ -613,6 +636,7 @@ public fun <R> Table(
     columns: TableScope<R>.() -> Unit,
     state: TableState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     sortable: Boolean = false,
     rowFilter: RowFilter<in TableModel, in Int>? = null,
@@ -625,6 +649,7 @@ public fun <R> Table(
         rows = rows,
         listSelectionListener = settledRowSelectionListener { indices -> state.selectedRowIndices = indices },
         modifier = modifier.tableStateBinding(state),
+        style = style,
         state = state,
         selectedRowIndices = state.selectedRowIndices,
         selectionMode = selectionMode,
@@ -653,6 +678,7 @@ public fun <R> Table(
  * @param state the hoistable state the table applies and reports its selection, sort order and column
  *   layout into; see [TableState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
@@ -673,6 +699,7 @@ public fun Table(
     model: TableModel,
     state: TableState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     sortable: Boolean = false,
     rowFilter: RowFilter<in TableModel, in Int>? = null,
@@ -685,6 +712,7 @@ public fun Table(
         model = model,
         listSelectionListener = settledRowSelectionListener { indices -> state.selectedRowIndices = indices },
         modifier = modifier.tableStateBinding(state),
+        style = style,
         state = state,
         selectedRowIndices = state.selectedRowIndices,
         selectionMode = selectionMode,
@@ -698,6 +726,14 @@ public fun Table(
         content = content,
     )
 }
+
+/** [SwingComponentStyleScope] for Table styles. No component state is supplied. */
+private val TableKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(Tables)
+    }
 
 /**
  * The `JTable` node every [Table] overload renders: all of it but the content, which [installContent]
@@ -714,6 +750,7 @@ public fun Table(
 private inline fun TableNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     state: TableState?,
     selectedRowIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
@@ -749,7 +786,8 @@ private inline fun TableNode(
     SwingNode(
         factory = { JTable(model) },
         modifier =
-            if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions),
+            (if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions))
+                .styleable(TableKind, style),
         update = {
             applyMirror(selectionMirror)
             set(selectionMode) { mode ->

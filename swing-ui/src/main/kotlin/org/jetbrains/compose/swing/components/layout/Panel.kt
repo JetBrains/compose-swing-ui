@@ -10,12 +10,18 @@ import org.jetbrains.compose.swing.annotations.BoxAxis
 import org.jetbrains.compose.swing.annotations.FlowAlignment
 import org.jetbrains.compose.swing.annotations.GridBagAnchor
 import org.jetbrains.compose.swing.annotations.GridBagFill
+import org.jetbrains.compose.swing.components.style.Panels
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Container
@@ -39,17 +45,19 @@ import javax.swing.JPanel
  *
  * @param layout the layout the panel's children are laid out under; see [PanelLayout]
  * @param modifier the [SwingModifier] applied to the panel
+ * @param style the [SwingStyle] applied to the panel
  * @param content the composable content of the panel, with [layout]'s scope as its receiver
  */
 @Composable
 public fun <S : PanelScope> Panel(
     layout: PanelLayout<S>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable S.() -> Unit,
 ) {
     SwingNode<JPanel>(
         factory = { JPanel() },
-        modifier = modifier,
+        modifier = modifier.styleable(PanelKind, style),
         update = { layout.installOn(this) },
         content = { key(layout.javaClass) { layout.contentScope.content() } },
     )
@@ -60,13 +68,15 @@ public fun <S : PanelScope> Panel(
  * in a centered row that wraps, `5` apart in user-space coordinates.
  *
  * @param modifier the [SwingModifier] applied to the panel
+ * @param style the [SwingStyle] applied to the panel
  * @param content the composable content of the panel
  */
 @Composable
 public fun Panel(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable PanelScope.() -> Unit,
-): Unit = Panel(PanelLayout.Flow(), modifier, content)
+): Unit = Panel(PanelLayout.Flow(), modifier, style, content)
 
 /**
  * The layout of a container the composition lays out: the Swing layout manager the container holds, the
@@ -741,3 +751,11 @@ private class ItemConstraints : GridBagConstraints() {
 // Sharing one instance is safe because GridBagLayout stores a deep copy of the constraints it is
 // handed - insets included - so no item can reach, let alone mutate, the instance another item used.
 private val DefaultInsets: Insets = Insets(0, 0, 0, 0)
+
+/** [ContainerStyleScope] for Panel styles. No component state is supplied. */
+private val PanelKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(Panels)
+    }

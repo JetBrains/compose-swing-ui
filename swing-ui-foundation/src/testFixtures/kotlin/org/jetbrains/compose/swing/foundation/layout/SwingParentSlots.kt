@@ -6,7 +6,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -40,14 +40,14 @@ internal val WidthSettingSlots: Map<String, Slot> =
         "BorderLayout NORTH" to borderLayoutSlot(BorderLayout.NORTH),
         "BorderLayout SOUTH" to borderLayoutSlot(BorderLayout.SOUTH),
         "BoxLayout Y_AXIS" to { width, subject ->
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                 Panel(PanelLayout.Box(BoxLayout.Y_AXIS), modifier = SwingModifier.north()) {
                     subject(SwingModifier)
                 }
             }
         },
         "GridBagLayout fill HORIZONTAL" to { width, subject ->
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                 Panel(PanelLayout.GridBag, modifier = SwingModifier.north()) {
                     subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
                 }
@@ -57,7 +57,7 @@ internal val WidthSettingSlots: Map<String, Slot> =
 
 internal fun borderLayoutSlot(region: String): Slot =
     { width, subject ->
-        Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+        Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
             subject(SwingModifier.layoutConstraint(region))
         }
     }
@@ -71,13 +71,13 @@ internal fun widthTakingSlots(viewportHeights: List<Int>): Map<String, Slot> =
     buildMap {
         for (height in viewportHeights) {
             this["JScrollPane $height high"] = { width, subject ->
-                ScrollPane(modifier = SwingModifier.preferredSize(width, height)) {
+                ScrollPane(style = { preferredSize(width, height) }) {
                     Viewport { subject(SwingModifier) }
                 }
             }
         }
         this["FlowLayout"] = { width, subject ->
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                 Panel(PanelLayout.Flow(), modifier = SwingModifier.north()) { subject(SwingModifier) }
             }
         }

@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -272,7 +272,11 @@ class AnimatedPaintingTest {
 private fun Block(color: Color) =
     Label(
         text = "",
-        modifier = SwingModifier.preferredSize(width = 40, height = 20).opaque(true).background(color),
+        modifier = SwingModifier.opaque(true),
+        style = {
+            preferredSize(width = 40, height = 20)
+            background(color)
+        },
     )
 
 /**

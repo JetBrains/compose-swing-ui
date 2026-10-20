@@ -71,7 +71,8 @@ internal interface SwingCompositionOwner {
      * rather than from an event of its own - which is what puts a declaration back onto a widget before
      * the user sees the change it answers. See [MirrorState.report].
      *
-     * Declines while a frame is already running, leaving that settlement to the one the event queued,
+     * Declines while a frame is already running or the restyles queued by the update batch are being resolved,
+     * leaving that settlement to the one the event queued,
      * and skips entirely a composition that no recomposer of this library is driving. Runs on the event
      * dispatch thread.
      */

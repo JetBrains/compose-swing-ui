@@ -17,9 +17,10 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 
 @Composable
@@ -48,8 +49,8 @@ internal fun ColumnScope.RowCard() {
                 },
                 modifier =
                     SwingModifier
-                        .preferredSize(fixedWidth, 32)
                         .toolTip("Activate to cycle the fixed width"),
+                style = { preferredSize(fixedWidth, 32) },
             )
             InteractiveLayoutSwatch(
                 weight.label(),
@@ -60,14 +61,15 @@ internal fun ColumnScope.RowCard() {
                 modifier =
                     SwingModifier
                         .weight(weight)
-                        .preferredSize(120, 40)
                         .componentListener(onComponentResized = { weightedWidth = it.component.width })
                         .toolTip("Activate to cycle the weight"),
+                style = { preferredSize(120, 40) },
             )
             LayoutSwatch(
                 "peer · weight(1f)",
                 LayoutSampleColors.Green,
-                SwingModifier.weight(1f).preferredSize(88, 32),
+                SwingModifier.weight(1f),
+                style = { preferredSize(88, 32) },
             )
         }
     }
@@ -145,7 +147,7 @@ internal fun ColumnScope.ColumnCard() {
         Label("Activate the green child to cycle its own align override")
         Label("Centered child x: $centeredX px; end-aligned child x: $endX px")
         Column(
-            modifier = SwingModifier.layoutTrack().preferredSize(320, 144),
+            modifier = SwingModifier.layoutTrack().styleable { preferredSize(320, 144) },
             verticalArrangement = Arrangement.spacedBy(6),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -154,19 +156,19 @@ internal fun ColumnScope.ColumnCard() {
                 LayoutSampleColors.Blue,
                 modifier =
                     SwingModifier
-                        .preferredSize(176, 32)
                         .componentListener(onComponentMoved = { centeredX = it.component.x }),
+                style = { preferredSize(176, 32) },
             )
-            LayoutSwatch("Centered · 112 px", LayoutSampleColors.Orange, SwingModifier.preferredSize(112, 32))
+            LayoutSwatch("Centered · 112 px", LayoutSampleColors.Orange, style = { preferredSize(112, 32) })
             InteractiveLayoutSwatch(
                 "align(${childAlignments[childAlignment].first}) · 144 px",
                 LayoutSampleColors.Green,
                 onClick = { childAlignment = (childAlignment + 1) % childAlignments.size },
                 SwingModifier
                     .align(childAlignments[childAlignment].second)
-                    .preferredSize(144, 32)
                     .componentListener(onComponentMoved = { endX = it.component.x })
                     .toolTip("Activate to cycle the child alignment"),
+                style = { preferredSize(144, 32) },
             )
         }
     }
@@ -205,9 +207,13 @@ private fun ColumnScope.ColumnArrangementPreview(
         modifier =
             SwingModifier
                 .layoutTrack()
-                .preferredSize(240, 176)
                 .testTag(COLUMN_PLAYGROUND_TAG)
-                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line)),
+                .alignmentGuides(
+                    guides,
+                    LocalAlignmentGuidesShown.current,
+                    marks,
+                    setOf(line),
+                ).styleable { preferredSize(240, 176) },
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
     ) {
@@ -237,12 +243,12 @@ private fun PositionedSwatch(
         label,
         color,
         modifier
-            .preferredSize(width, height)
             .componentListener(
                 onComponentMoved = {
                     onPositionChange(ChildPosition(it.component.x, it.component.y))
                 },
             ),
+        style = { preferredSize(width, height) },
     )
 }
 

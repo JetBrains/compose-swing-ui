@@ -3,12 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.BackgroundDescriptor
 import java.awt.Color
-import java.awt.Component
-import javax.swing.JComponent
 
 /**
  * Sets `background`; on a non-opaque component also declare [opaque]`(true)` for it to paint.
@@ -18,18 +16,6 @@ import javax.swing.JComponent
  * @return this modifier with the background color declared on it.
  * @see java.awt.Component.setBackground
  */
+@Deprecated("Set it in the component's style: style = { background(color) }")
 public fun SwingModifier.background(color: Color?): SwingModifier =
-    property(BackgroundProperty, color, inheritable = true)
-
-private val BackgroundProperty =
-    ComponentPropertyDescriptor<Component, Color?>(
-        name = "background",
-        read = { if (it.isBackgroundSet) it.background else null },
-        write = { component, value ->
-            component.background = value
-            // JComponent.setBackground already repaints. A plain AWT Component does not, so the
-            // new color would not show until an unrelated repaint - request one here. A color is
-            // read at paint only, so it asks for no layout.
-            if (component !is JComponent) component.repaint()
-        },
-    )
+    property(BackgroundDescriptor, color, inheritable = true)

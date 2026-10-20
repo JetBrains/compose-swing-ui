@@ -5,12 +5,18 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.FocusLostBehavior
+import org.jetbrains.compose.swing.components.style.FormattedTextFields
+import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory
@@ -66,6 +72,7 @@ import javax.swing.text.DefaultFormatterFactory
  * @param onValueChange callback invoked with the parsed value when the field commits an edit;
  *   applying [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param onEditValidChange callback invoked with whether the text now parses, each time that changes;
  *   nothing is reported by default
@@ -82,6 +89,7 @@ public fun FormattedTextField(
     value: Any?,
     onValueChange: (Any?) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     formatterFactory: AbstractFormatterFactory? = null,
     onEditValidChange: (Boolean) -> Unit = {},
     @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
@@ -96,6 +104,7 @@ public fun FormattedTextField(
             modifier
                 .onValueCommit { committed -> if (mirror.observed(committed)) onValueChange(committed) }
                 .onEditValidity(onEditValidChange),
+        style = style,
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
         columns = columns,
@@ -121,6 +130,7 @@ public fun FormattedTextField(
  * @param value the committed, typed value
  * @param valuePropertyChangeListener the listener notified when the committed `value` changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param onEditValidChange callback invoked with whether the text now parses, each time that changes;
  *   nothing is reported by default
@@ -137,6 +147,7 @@ public fun FormattedTextField(
     value: Any?,
     valuePropertyChangeListener: PropertyChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     formatterFactory: AbstractFormatterFactory? = null,
     onEditValidChange: (Boolean) -> Unit = {},
     @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
@@ -152,6 +163,7 @@ public fun FormattedTextField(
                 .propertyChangeListener("value", valuePropertyChangeListener)
                 .valueMirror(mirror)
                 .onEditValidity(onEditValidChange),
+        style = style,
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
         columns = columns,
@@ -177,6 +189,7 @@ public fun FormattedTextField(
  *
  * @param state the hoistable value state the field renders and drives
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
  *   [FocusLostBehavior] `JFormattedTextField` constant); `COMMIT_OR_REVERT` by default, which commits
@@ -189,6 +202,7 @@ public fun FormattedTextField(
 public fun FormattedTextField(
     state: FormattedValueState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     formatterFactory: AbstractFormatterFactory? = null,
     @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
     columns: Int = 0,
@@ -202,6 +216,7 @@ public fun FormattedTextField(
             modifier
                 .onValueCommit { committed -> if (mirror.observed(committed)) state.value = committed }
                 .formattedValueStateBinding(state),
+        style = style,
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
         columns = columns,
@@ -221,6 +236,7 @@ private inline fun FormattedTextFieldNode(
     value: Any?,
     mirror: MirrorState<Any?>,
     modifier: SwingModifier,
+    style: SwingStyle<TextFieldStyleScope>,
     formatterFactory: AbstractFormatterFactory?,
     @FocusLostBehavior focusLostBehavior: Int,
     columns: Int,
@@ -228,7 +244,7 @@ private inline fun FormattedTextFieldNode(
 ) {
     SwingNode(
         factory = { JFormattedTextField() },
-        modifier = modifier,
+        modifier = modifier.styleable(FormattedTextFieldKind, style),
         update = {
             set(columns) {
                 this.columns = it
@@ -327,3 +343,11 @@ private fun SwingModifier.valueMirror(mirror: MirrorState<Any?>): SwingModifier 
 /** Runs [onChange] with the field's edit validity each time the field reports it changed. */
 private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =
     propertyChangeListener<JFormattedTextField>("editValid") { onChange(isEditValid) }
+
+/** [TextFieldStyleScope] for FormattedTextField styles. No component state is supplied. */
+private val FormattedTextFieldKind =
+    nestingStyleKind<TextFieldStyleScope, Unit>(
+        { base, _ -> object : TextFieldStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(FormattedTextFields)
+    }

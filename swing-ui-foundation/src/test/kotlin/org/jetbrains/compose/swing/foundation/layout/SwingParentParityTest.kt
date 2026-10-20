@@ -12,8 +12,9 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -605,7 +606,7 @@ class SwingParentParityTest {
     }
 
     private fun nativeEastHtmlAtWidths(widths: List<Int>): List<MarkupCycle> =
-        eastHtmlAtWidths(widths) { modifier, child ->
+        eastHtmlAtWidths(widths) { modifier, width, child ->
             SwingNode(factory = {
                 JPanel(
                     SwingParentLayout(preferred = { Dimension() }) { parent ->
@@ -614,31 +615,31 @@ class SwingParentParityTest {
                         component.getBaseline(component.width, component.height)
                     },
                 ).apply { add(child) }
-            }, modifier = modifier)
+            }, modifier = modifier.styleable { preferredSize(width, width / 2) })
         }
 
     private fun columnEastHtmlAtWidths(widths: List<Int>): List<MarkupCycle> =
-        eastHtmlAtWidths(widths) { modifier, child ->
-            Column(modifier = modifier) {
+        eastHtmlAtWidths(widths) { modifier, width, child ->
+            Column(modifier = modifier.styleable { preferredSize(width, width / 2) }) {
                 SwingNode(factory = { child }, modifier = SwingModifier.fillMaxWidth().aspectRatio(2f))
             }
         }
 
     private fun eastHtmlAtWidths(
         widths: List<Int>,
-        subject: @Composable (SwingModifier, RowCountingHtmlLabel) -> Unit,
+        subject: @Composable (SwingModifier, Int, RowCountingHtmlLabel) -> Unit,
     ): List<MarkupCycle> {
         val cycles = mutableListOf<MarkupCycle>()
         runComposeSwingTest {
             val child = RowCountingHtmlLabel()
             var width by mutableIntStateOf(widths.first())
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(1000, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(1000, 600) }) {
                     subject(
                         SwingModifier
                             .layoutConstraint(BorderLayout.EAST)
-                            .testTag("subject")
-                            .preferredSize(width, width / 2),
+                            .testTag("subject"),
+                        width,
                         child,
                     )
                 }
@@ -717,7 +718,10 @@ class SwingParentParityTest {
                     }
                 }
             setContent {
-                SwingNode(factory = { host }, modifier = SwingModifier.preferredSize(320, 600)) {
+                SwingNode(
+                    factory = { host },
+                    modifier = SwingModifier.styleable { preferredSize(320, 600) },
+                ) {
                     val modifier = SwingModifier.layoutConstraint(BorderLayout.EAST).testTag("subject")
                     if (inColumn) {
                         Column(modifier = modifier) {
@@ -949,8 +953,12 @@ class SwingParentParityTest {
                     preferredSize.height
                 }
             val weightedGridBag: Slot = { width, subject ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
-                    Panel(PanelLayout.GridBag, modifier = SwingModifier.north().preferredSize(width, squeezedHeight)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
+                    Panel(
+                        PanelLayout.GridBag,
+                        modifier = SwingModifier.north(),
+                        style = { preferredSize(width, squeezedHeight) },
+                    ) {
                         subject(SwingModifier.item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.HORIZONTAL))
                     }
                 }

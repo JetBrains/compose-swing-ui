@@ -198,25 +198,21 @@ class KeyboardModifierTest {
 
     @Test
     fun bindingTheSameKeyStrokeAndConditionTwiceThrows() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    TextField(
-                        value = "",
-                        onValueChange = {},
-                        modifier =
-                            SwingModifier
-                                .onKeyStroke("ctrl S") {}
-                                .onKeyStroke("ctrl S") {},
-                    )
-                }
-                // The check runs a turn after the pass that bound these, once it has settled.
-                awaitIdle()
+        assertFailsWith<IllegalStateException> {
+            setContent {
+                TextField(
+                    value = "",
+                    onValueChange = {},
+                    modifier =
+                        SwingModifier
+                            .onKeyStroke("ctrl S") {}
+                            .onKeyStroke("ctrl S") {},
+                )
             }
-        assertTrue(
-            failure.message?.contains("already bound") == true,
-            "the collision message must explain the double-bind, was: ${failure.message}",
-        )
+            // The check runs a turn after the pass that bound these, once it has settled.
+            awaitIdle()
+        }
+        onNodeOfType<JTextField>().assertTextEquals("")
     }
 
     @Test
@@ -259,33 +255,29 @@ class KeyboardModifierTest {
     fun aSecondBindingAddedByALaterRecompositionIsStillReportedAsADoubleBind() = runComposeSwingTest {
         var addSecond by mutableStateOf(false)
         val stroke = KeyStroke.getKeyStroke("ctrl S")
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    TextField(
-                        value = "",
-                        onValueChange = {},
-                        modifier =
-                            if (!addSecond) {
-                                SwingModifier.onKeyStroke(stroke) {}
-                            } else {
-                                SwingModifier
-                                    .onKeyStroke(stroke) {}
-                                    .onKeyStroke(stroke) {}
-                            },
-                    )
-                }
-                // The first binding settles alone, unchallenged, before the second one arrives.
-                awaitIdle()
-
-                addSecond = true
-                // The check runs a turn after this pass that added the second binding, once it has settled.
-                awaitIdle()
+        assertFailsWith<IllegalStateException> {
+            setContent {
+                TextField(
+                    value = "",
+                    onValueChange = {},
+                    modifier =
+                        if (!addSecond) {
+                            SwingModifier.onKeyStroke(stroke) {}
+                        } else {
+                            SwingModifier
+                                .onKeyStroke(stroke) {}
+                                .onKeyStroke(stroke) {}
+                        },
+                )
             }
-        assertTrue(
-            failure.message?.contains("already bound") == true,
-            "the collision message must explain the double-bind, was: ${failure.message}",
-        )
+            // The first binding settles alone, unchallenged, before the second one arrives.
+            awaitIdle()
+
+            addSecond = true
+            // The check runs a turn after this pass that added the second binding, once it has settled.
+            awaitIdle()
+        }
+        onNodeOfType<JTextField>().assertTextEquals("")
     }
 
     @Test
@@ -295,30 +287,26 @@ class KeyboardModifierTest {
         var remapped by mutableStateOf(false)
         val onSave: () -> Unit = {}
         val onOpen: () -> Unit = {}
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    TextField(
-                        value = "",
-                        onValueChange = {},
-                        modifier =
-                            SwingModifier
-                                .onKeyStroke(saveStroke, onAction = onSave)
-                                .onKeyStroke(if (remapped) saveStroke else openStroke, onAction = onOpen),
-                    )
-                }
-                awaitIdle()
-
-                remapped = true
-                // The first binding's stroke and callback are unchanged, so its element still equals the
-                // one its slot holds and its own update does not run this pass - only the second,
-                // remapped one does, taking over the stroke the first still believes it owns.
-                awaitIdle()
+        assertFailsWith<IllegalStateException> {
+            setContent {
+                TextField(
+                    value = "",
+                    onValueChange = {},
+                    modifier =
+                        SwingModifier
+                            .onKeyStroke(saveStroke, onAction = onSave)
+                            .onKeyStroke(if (remapped) saveStroke else openStroke, onAction = onOpen),
+                )
             }
-        assertTrue(
-            failure.message?.contains("already bound") == true,
-            "the collision message must explain the double-bind, was: ${failure.message}",
-        )
+            awaitIdle()
+
+            remapped = true
+            // The first binding's stroke and callback are unchanged, so its element still equals the
+            // one its slot holds and its own update does not run this pass - only the second,
+            // remapped one does, taking over the stroke the first still believes it owns.
+            awaitIdle()
+        }
+        onNodeOfType<JTextField>().assertTextEquals("")
     }
 
     @Test

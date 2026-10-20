@@ -2,8 +2,9 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.BorderLayout
@@ -39,7 +40,7 @@ class GrantedWidthPreferredSizeQueryTest {
                 setContent {
                     SwingNode(
                         factory = { JPanel(BorderLayout()) },
-                        modifier = SwingModifier.preferredSize(200, 100),
+                        modifier = SwingModifier.styleable { preferredSize(200, 100) },
                     ) {
                         container {
                             SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth())

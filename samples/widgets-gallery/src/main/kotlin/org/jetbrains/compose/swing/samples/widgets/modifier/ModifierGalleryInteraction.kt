@@ -13,15 +13,15 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyEvent
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.event.KeyEvent
@@ -62,12 +62,14 @@ internal fun ColumnScope.PointerCard() {
             modifier =
                 SwingModifier
                     .opaque(true)
-                    .background(Color(0xE3, 0xF2, 0xFD))
-                    .preferredSize(Dimension(260, 32))
                     .onPointerEvent(
                         onPress = { e -> lastEvent = "pressed button ${e.button}" },
                         onClick = { e -> lastEvent = "clicked x${e.clickCount} button ${e.button}" },
                     ),
+            style = {
+                background(Color(0xE3, 0xF2, 0xFD))
+                preferredSize(Dimension(260, 32))
+            },
         )
         Label("Last pointer event: $lastEvent")
     }

@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -274,8 +275,8 @@ class PaintOutsetsFitTest {
                     SwingNode(
                         factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } },
                         modifier =
-                            SwingModifier.testTag("card").preferredSize(40, 20).onPlaced(onPlaced) then
-                                Shift(shift()) then decoration(),
+                            (SwingModifier.testTag("card").onPlaced(onPlaced) then Shift(shift()) then decoration())
+                                .styleable { preferredSize(40, 20) },
                     ) {
                         Label("child")
                     }

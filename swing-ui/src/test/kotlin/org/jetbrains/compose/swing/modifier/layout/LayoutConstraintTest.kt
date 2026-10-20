@@ -427,8 +427,8 @@ class LayoutConstraintTest {
             }
 
         assertTrue(
-            "GridBagConstraint" in failure.message.orEmpty(),
-            "the layout manager's own message reaches the caller: ${failure.message}",
+            failure.stackTrace.any { it.className == GridBagLayout::class.java.name },
+            "the layout manager's own exception reaches the caller",
         )
     }
 

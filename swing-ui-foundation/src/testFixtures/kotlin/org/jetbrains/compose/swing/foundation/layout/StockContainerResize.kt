@@ -8,8 +8,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.BorderLayout
@@ -32,7 +32,7 @@ public fun assertStockContainerLaysTextOutOnceAtANarrowerWidth(holders: Map<Stri
             var width by mutableIntStateOf(320)
             val area = ResizeCountingTextArea()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                     holder(SwingModifier.north().testTag("holder")) {
                         SwingNode(
                             factory = { JPanel(BorderLayout()).apply { add(area) } },

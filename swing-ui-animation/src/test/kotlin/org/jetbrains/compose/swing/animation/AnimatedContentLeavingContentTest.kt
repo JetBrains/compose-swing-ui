@@ -5,9 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -24,7 +24,14 @@ class AnimatedContentLeavingContentTest {
             var state by mutableStateOf("a")
             setContent {
                 AnimatedContent(targetState = state) {
-                    Label(text = it, modifier = SwingModifier.preferredSize(40, 20).opaque(true).background(Color.BLUE))
+                    Label(
+                        text = it,
+                        modifier = SwingModifier.opaque(true),
+                        style = {
+                            preferredSize(40, 20)
+                            background(Color.BLUE)
+                        },
+                    )
                 }
             }
 

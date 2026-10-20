@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
@@ -16,6 +17,7 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.NullAndEmptySource
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.JLabel
@@ -25,6 +27,52 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 class StyleTeardownFailureTest {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = ["original"])
+    fun failedCustomSlotRemovalPreservesTheOuterDeclaration(originalToolTip: String?) = runComposeSwingTest {
+        val label = JLabel().apply { toolTipText = originalToolTip }
+        val failure = IllegalStateException("The detach failed")
+        val events = ArrayList<String>()
+        val throwing = stylePropertyOf { _: Unit -> LifecycleElement("styled", events, detachFailure = failure) }
+        val toolTip =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                "toolTipText",
+                { it.toolTipText },
+                { component, value -> component.toolTipText = value },
+            )
+        val owner = TestCompositionOwner()
+        val holder = CreatedNodeHolder(label).attachedTo(owner)
+        try {
+            holder.applyDeclaredModifier(
+                SwingModifier.styleable(PlainProbe) { throwing.provide(Unit) }.property(toolTip, "outer"),
+            )
+            assertEquals("outer", label.toolTipText)
+
+            val thread = Thread.currentThread()
+            val enclosingHandler = thread.uncaughtExceptionHandler
+            thread.setUncaughtExceptionHandler { _, raised -> throw raised }
+            try {
+                assertSame(
+                    failure,
+                    assertFailsWith<IllegalStateException> {
+                        holder.applyDeclaredModifier(
+                            SwingModifier.styleable(PlainProbe) { }.property(toolTip, "outer"),
+                        )
+                    },
+                )
+            } finally {
+                thread.uncaughtExceptionHandler = enclosingHandler
+            }
+
+            assertEquals(listOf("attach", "update styled", "detach"), events)
+            assertEquals("outer", label.toolTipText)
+        } finally {
+            holder.resetModifierState()
+            owner.dispose()
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun teardownFailureRestoresOtherProperties(removeStyle: Boolean) = runComposeSwingTest {

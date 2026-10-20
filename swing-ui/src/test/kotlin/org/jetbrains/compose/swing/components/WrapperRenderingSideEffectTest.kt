@@ -8,8 +8,7 @@ import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -163,7 +162,7 @@ class WrapperRenderingSideEffectTest {
         // so it lays out to identical, non-zero bounds and can be captured.
         content = {
             Separator(
-                modifier = SwingModifier.preferredSize(Dimension(SEPARATOR_WIDTH, SEPARATOR_HEIGHT)),
+                style = { preferredSize(Dimension(SEPARATOR_WIDTH, SEPARATOR_HEIGHT)) },
                 orientation = SwingConstants.HORIZONTAL,
             )
         },

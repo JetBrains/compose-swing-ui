@@ -7,12 +7,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.ContentType
+import org.jetbrains.compose.swing.components.style.EditorPanes
+import org.jetbrains.compose.swing.components.style.TextPanes
+import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.net.URL
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
@@ -41,6 +48,7 @@ import javax.swing.text.html.HTMLDocument
  * @param markup the source, written in [contentType]'s language, the pane renders
  * @param onLinkActivate callback invoked with the raw `href` of a link the user activates
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
  *   MIME string); `text/plain` by default, which shows the source as written
  * @param baseUrl the location relative references in HTML [markup] resolve against; `null` by default
@@ -53,6 +61,7 @@ public fun EditorPane(
     markup: @Nls String,
     onLinkActivate: (String) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     @ContentType contentType: String = "text/plain",
     baseUrl: URL? = null,
 ) {
@@ -62,6 +71,7 @@ public fun EditorPane(
             modifier.hyperlinkListener { event ->
                 if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) onLinkActivate(event.description)
             },
+        style = style,
         contentType = contentType,
         baseUrl = baseUrl,
     )
@@ -76,6 +86,7 @@ public fun EditorPane(
  * @param markup the source, written in [contentType]'s language, the pane renders
  * @param hyperlinkListener the listener notified of link events
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
  *   MIME string); `text/plain` by default, which shows the source as written
  * @param baseUrl the location relative references in HTML [markup] resolve against; `null` by default
@@ -88,12 +99,14 @@ public fun EditorPane(
     markup: @Nls String,
     hyperlinkListener: HyperlinkListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     @ContentType contentType: String = "text/plain",
     baseUrl: URL? = null,
 ) {
     RenderedPaneNode(
         markup = markup,
         modifier = modifier.hyperlinkListener(hyperlinkListener),
+        style = style,
         contentType = contentType,
         baseUrl = baseUrl,
     )
@@ -110,6 +123,7 @@ public fun EditorPane(
 private inline fun RenderedPaneNode(
     markup: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<TextStyleScope>,
     @ContentType contentType: String,
     baseUrl: URL?,
 ) {
@@ -119,7 +133,7 @@ private inline fun RenderedPaneNode(
     val kit = remember(contentType) { editorKitFor(contentType) }
     SwingNode(
         factory = { JEditorPane() },
-        modifier = modifier,
+        modifier = modifier.styleable(EditorPaneKind, style),
         update = {
             // A JEditorPane publishes link events only while it is not editable, so this pane is fixed
             // non-editable.
@@ -177,6 +191,7 @@ private class RenderedSource(
  *
  * @param state the hoistable text state the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type into the pane; `true` by default
  * @see javax.swing.JEditorPane
  */
@@ -184,11 +199,12 @@ private class RenderedSource(
 public fun EditorPane(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     editable: Boolean = true,
 ) {
     SwingNode(
         factory = { JEditorPane() },
-        modifier = modifier.documentStateBinding(state),
+        modifier = modifier.documentStateBinding(state).styleable(EditorPaneKind, style),
         update = {
             // Install the kit before binding the document: a kit brings its own default document with
             // it, so whichever goes in second is what the pane is left holding. Update blocks run in
@@ -221,6 +237,7 @@ public fun EditorPane(
  * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type into the pane; `true` by default
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextPane
@@ -230,6 +247,7 @@ public fun TextPane(
     value: @Nls String,
     onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     editable: Boolean = true,
 ) {
     val mirror = rememberMirrorState(value)
@@ -237,6 +255,7 @@ public fun TextPane(
         value = value,
         mirror = mirror,
         modifier = modifier.onTextEdit(mirror, onValueChange),
+        style = style,
         editable = editable,
     )
 }
@@ -257,6 +276,7 @@ public fun TextPane(
  * @param value the current text
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type into the pane; `true` by default
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextPane
@@ -266,6 +286,7 @@ public fun TextPane(
     value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     editable: Boolean = true,
 ) {
     val mirror = rememberMirrorState(value)
@@ -273,6 +294,7 @@ public fun TextPane(
         value = value,
         mirror = mirror,
         modifier = modifier.documentListener(documentListener).textMirror(mirror),
+        style = style,
         editable = editable,
     )
 }
@@ -288,11 +310,12 @@ private inline fun TextPaneNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,
+    style: SwingStyle<TextStyleScope>,
     editable: Boolean,
 ) {
     SwingNode(
         factory = { JTextPane() },
-        modifier = modifier,
+        modifier = modifier.styleable(TextPaneKind, style),
         update = {
             declareText(value, mirror)
             set(editable) { this.isEditable = it }
@@ -311,6 +334,7 @@ private inline fun TextPaneNode(
  *
  * @param state the hoistable text state, over a `StyledDocument`, the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type into the pane; `true` by default
  * @see javax.swing.JTextPane
  */
@@ -318,13 +342,26 @@ private inline fun TextPaneNode(
 public fun TextPane(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextStyleScope> = SwingStyle,
     editable: Boolean = true,
 ) {
     SwingNode(
         factory = { JTextPane() },
-        modifier = modifier.documentStateBinding(state),
+        modifier = modifier.documentStateBinding(state).styleable(TextPaneKind, style),
         update = {
             set(editable) { this.isEditable = it }
         },
     )
 }
+
+/** [TextStyleScope] for EditorPane styles. No component state is supplied. */
+private val EditorPaneKind =
+    nestingStyleKind<TextStyleScope, Unit>({ base, _ -> object : TextStyleScope, ComponentStyleScope by base {} }) {
+        applyNestedStyle(EditorPanes)
+    }
+
+/** [TextStyleScope] for TextPane styles. No component state is supplied. */
+private val TextPaneKind =
+    nestingStyleKind<TextStyleScope, Unit>({ base, _ -> object : TextStyleScope, ComponentStyleScope by base {} }) {
+        applyNestedStyle(TextPanes)
+    }

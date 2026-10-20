@@ -32,19 +32,20 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import javax.swing.BoxLayout
 
 /**
- * A panel in a 260 by 90 box it stands in the corner of, declared outside the column so the unscoped
- * [AnimatedVisibility] takes the call.
+ * A panel in a 260 by 90 box it stands in the corner of. The box is a stock panel, so the unscoped
+ * [AnimatedVisibility] takes the call and fills it.
  */
 @Composable
 private fun BoxedPanel(
@@ -55,7 +56,7 @@ private fun BoxedPanel(
 ) {
     AnimatedVisibility(
         visible = showing,
-        modifier = SwingModifier.preferredSize(width = 260, height = 90),
+        modifier = SwingModifier.styleable { preferredSize(width = 260, height = 90) },
         enter = enter,
         exit = exit,
     ) {
@@ -133,9 +134,9 @@ private fun OrderDetailsPanel(
         PanelLayout.Box(axis = BoxLayout.Y_AXIS),
         modifier =
             SwingModifier
-                .background(themePanelColor())
                 .opaque(true)
                 .border(detailsBorder),
+        style = { background(themePanelColor()) },
     ) {
         Label("2 items · Standard delivery")
         Label("Estimated delivery: Friday")

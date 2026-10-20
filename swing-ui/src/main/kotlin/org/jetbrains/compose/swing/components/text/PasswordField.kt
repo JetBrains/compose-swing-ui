@@ -4,6 +4,8 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.style.PasswordFields
+import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.nio.CharBuffer
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
@@ -45,6 +51,7 @@ import javax.swing.text.Segment
  * @param onValueChange callback invoked with the field's new characters when the field is edited;
  *   applying [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
  *   echo character, and the NUL character (U+0000) shows the text in clear text
  * @param columns the preferred width in columns; `0` by default, taking the width from the characters
@@ -58,6 +65,7 @@ public fun PasswordField(
     value: CharArray,
     onValueChange: (CharArray) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     echoChar: Char? = null,
     columns: Int = 0,
     editable: Boolean = true,
@@ -69,6 +77,7 @@ public fun PasswordField(
         // Delivers the raw characters, read out of the document into a char array through a Segment,
         // so the password never reaches a String the caller cannot zero. See PASSWORD_EDITS.
         modifier = modifier.listener(PasswordEdit(mirror, onValueChange), PASSWORD_EDITS),
+        style = style,
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -94,6 +103,7 @@ public fun PasswordField(
  * @param value the current text value, as raw characters
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
  *   echo character, and the NUL character (U+0000) shows the text in clear text
  * @param columns the preferred width in columns; `0` by default, taking the width from the characters
@@ -107,6 +117,7 @@ public fun PasswordField(
     value: CharArray,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     echoChar: Char? = null,
     columns: Int = 0,
     editable: Boolean = true,
@@ -116,6 +127,7 @@ public fun PasswordField(
         value = value,
         mirror = mirror,
         modifier = modifier.documentListener(documentListener).passwordMirror(mirror),
+        style = style,
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -134,6 +146,7 @@ private inline fun PasswordFieldNode(
     value: CharArray,
     mirror: MirrorState<PasswordChars>,
     modifier: SwingModifier,
+    style: SwingStyle<TextFieldStyleScope>,
     echoChar: Char?,
     columns: Int,
     editable: Boolean,
@@ -143,6 +156,7 @@ private inline fun PasswordFieldNode(
         columns = columns,
         editable = editable,
         modifier = modifier,
+        style = style,
         update = { declarePassword(value, mirror) },
     )
 }
@@ -215,6 +229,7 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
  *
  * @param state the hoistable text state the field renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
  *   echo character, and the NUL character (U+0000) shows the text in clear text
  * @param columns the preferred width in columns; `0` by default, taking the width from the characters
@@ -226,6 +241,7 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
 public fun PasswordField(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     echoChar: Char? = null,
     columns: Int = 0,
     editable: Boolean = true,
@@ -235,6 +251,7 @@ public fun PasswordField(
         columns = columns,
         editable = editable,
         modifier = modifier.documentStateBinding(state),
+        style = style,
     )
 }
 
@@ -250,11 +267,12 @@ private inline fun PasswordFieldImpl(
     columns: Int,
     editable: Boolean,
     modifier: SwingModifier,
+    style: SwingStyle<TextFieldStyleScope>,
     crossinline update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit = {},
 ) {
     SwingNode(
         factory = { DefaultMaskPasswordField(columns) },
-        modifier = modifier,
+        modifier = modifier.styleable(PasswordFieldKind, style),
         update = {
             update(columns) {
                 this.columns = it
@@ -316,3 +334,11 @@ private val PASSWORD_EDITS =
         },
         onAdopt = { edit, document -> edit.mirror.observed(PasswordChars(document.fullPassword())) },
     )
+
+/** [TextFieldStyleScope] for PasswordField styles. No component state is supplied. */
+private val PasswordFieldKind =
+    nestingStyleKind<TextFieldStyleScope, Unit>(
+        { base, _ -> object : TextFieldStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(PasswordFields)
+    }

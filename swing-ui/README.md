@@ -35,11 +35,12 @@ fun main() = SwingUtilities.invokeLater {
 }
 ```
 
-Styling and interaction flow through a `modifier: SwingModifier = SwingModifier` parameter; domain
-callbacks like `onClick` stay ordinary parameters. To wrap your own Swing component, use the public
+Set a component's properties with its `style: SwingStyle<S> = SwingStyle` parameter. Add listeners, parent
+data and decoration with its `modifier: SwingModifier = SwingModifier` parameter. Domain callbacks like
+`onClick` stay ordinary parameters. See [`docs/STYLES.md`](../docs/STYLES.md). To wrap your own Swing component, use the public
 `SwingNode` API — see [`docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md).
 
-The complete component, layout, modifier, window, dialog, and menu API is documented in KDoc.
+The complete component, layout, style, modifier, window, dialog, and menu API is documented in KDoc.
 
 ## Related
 

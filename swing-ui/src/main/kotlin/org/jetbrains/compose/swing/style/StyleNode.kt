@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
@@ -23,12 +24,20 @@ import org.jetbrains.compose.swing.modifier.handDeclaredNodes
 import org.jetbrains.compose.swing.modifier.rewriteRecordsFrom
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.node.receivesAllComponents
 import org.jetbrains.compose.swing.node.restyleBelow
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 
-/** Creates and publishes a style layout slot before its first attachment callback. */
+/**
+ * Creates and publishes a style layout slot before its first attachment callback.
+ *
+ * @param holder the component whose modifier state holds the layout slot.
+ * @param declaringNode the style that declares and detaches this layout node.
+ * @param element the layout element the slot is created for.
+ * @param diagnostics the callbacks for declaration writes and restoration, or `null` when absent.
+ */
 private fun attachLayoutNode(
     holder: SwingNodeHolder<*>,
     declaringNode: StyleNode,
@@ -52,6 +61,9 @@ internal open class StyleElement<S : ComponentStyleScope, T>(
     internal fun atOrdinal(ordinal: Int): StyleElement<S, T> =
         if (ordinal == 0) this else OrderedStyleElement(kind, style, state, ordinal)
 
+    /** Whether this is the component's first style declaration, the one that applies [AllComponents]. */
+    internal open val isFirstOfComponent: Boolean get() = true
+
     override val targetType: Class<Component> get() = Component::class.java
 
     /** Each property the style writes is a slot of its own, held to its own policy. */
@@ -66,7 +78,7 @@ internal open class StyleElement<S : ComponentStyleScope, T>(
 
     override val declaredValues: Map<String, Any?> get() = mapOf("style" to style, "kind" to kind, "state" to state)
 
-    override fun create(): StyleNode = StyleNode()
+    override fun create(): StyleNode = StyleNode(kind)
 
     override fun update(node: StyleNode) {
         node.resolve(this)
@@ -78,17 +90,24 @@ internal open class StyleElement<S : ComponentStyleScope, T>(
     ): Boolean = node.resolve(this, mode)
 
     /**
-     * Runs [kind]'s default style and then [style], and returns the scope they ran against: [reusable], the scope of
-     * a run with this kind and state, or `null` where one is built over what [base] returns.
+     * Runs the styles provided for [AllComponents] where this is the component's first declaration, then [kind]'s
+     * default style and then [style], and returns the scope they ran against: [reusable], the scope of a run with this
+     * kind and state, or `null` where one is built over what [base] returns. The [collector] enforces the kind's write
+     * restriction only while its default runs.
+     *
+     * @param reusable a scope previously created for this kind and state, or `null` to create one.
+     * @param collector collects declarations and enforces the default style's restrictions.
+     * @param base supplies the component scope when creating a scope for this kind.
      */
     inline fun execute(
         reusable: ComponentStyleScope?,
+        collector: StyleCollector,
         base: () -> NestedStyleProviderScope,
     ): ComponentStyleScope {
         // A reusable scope was built by a kind that builds only an S.
         @Suppress("UNCHECKED_CAST")
         val scope = (reusable as S?) ?: kind.scope(base(), state)
-        with(kind.default) { scope.applyStyle() }
+        collector.applyDefault(kind, scope, appliesAllComponents = isFirstOfComponent)
         with(style) { scope.applyStyle() }
         return scope
     }
@@ -108,6 +127,8 @@ private class OrderedStyleElement<S : ComponentStyleScope, T>(
     ordinal: Int,
 ) : StyleElement<S, T>(kind, style, state) {
     override val key: Any = StyleKey(ordinal)
+
+    override val isFirstOfComponent: Boolean get() = false
 }
 
 private data class StyleKey(
@@ -120,12 +141,15 @@ private data class StyleKey(
  * the style restored. A parent-layout element the style sets is declared to the parent after the modifier's own,
  * a node-backed one through a layout slot of its own.
  *
- * The resolve runs inside the node's observed reads, so a snapshot state the style reads, including what a styled
- * ancestor publishes, resolves it again.
+ * A resolve with a style to run or a providing ancestor to read runs inside the node's observed reads, so a
+ * snapshot state the style reads, including what a providing ancestor provides, resolves it again. A resolve that
+ * can collect nothing builds and observes nothing.
  *
  * The node holds the nested blocks and style locals its last resolve provided to its descendants.
  */
-internal class StyleNode : SwingModifier.ComponentNode<Component>() {
+internal class StyleNode(
+    private var kind: SwingStyleKind<*, *>,
+) : SwingModifier.ComponentNode<Component>() {
     internal var previousStyle: StyleNode? = null
     internal var nextStyle: StyleNode? = null
 
@@ -162,12 +186,19 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         readsLocal = true
     }
 
+    /** Whether the last resolve ran under observed reads, so a resolve that reads nothing clears them once. */
+    private var observed = false
+
     /** Whether the last resolve provided a nested style key or set a style local. Read without observation. */
     internal val providesStyles: Boolean
         get() =
             Snapshot.withoutReadObservation {
                 (publication?.value ?: ProvidedStyles.Empty) !== ProvidedStyles.Empty
             }
+
+    /** Whether the last resolve provided a style for [AllComponents]. Read without observation. */
+    internal val providesAllComponents: Boolean
+        get() = Snapshot.withoutReadObservation { publication?.value?.nested?.containsKey(AllComponents) == true }
 
     /** The parent-layout values declared by the last layout reconciliation. */
     internal var declaredLayout: List<ParentLayoutElement> = emptyList()
@@ -186,13 +217,16 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
             }
         }
 
-    override val holdsLayoutNodes: Boolean
-        get() {
-            val records = holder?.modifierState?.records ?: return false
-            return records.fastFirstOrNull {
-                it.isStandingFor(ParentLayoutNodeType, this) && it.node.isAttached
-            } != null
-        }
+    /** Attached layout nodes in the order declared by this style. */
+    internal val layoutNodes: List<ParentLayoutNode>
+        get() =
+            declaredLayout.mapNotNull { element ->
+                if (element !is ParentLayoutNodeElement<*>) return@mapNotNull null
+                retainedLayoutNode(element)?.takeIf { it.isAttached }
+            }
+
+    override var holdsLayoutNodes: Boolean = false
+        private set
 
     /** Whether a layout slot's node reads composition locals. */
     internal val layoutRefreshesOnLocalMap: Boolean
@@ -236,11 +270,11 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         }
 
     /** The nested blocks and locals this node provides, read as a descendant resolves. */
-    val providedStyles: ProvidedStyles
-        get() = publication?.value ?: ProvidedStyles.Empty
+    fun providedStyles(): ProvidedStyles = publication?.value ?: ProvidedStyles.Empty
 
     override fun onAttach() {
         val holder = checkNotNull(holder)
+        requireKindTarget(kind, holder.component)
         // A style added to a node that has children already reaches them.
         if (holder.children.isNotEmpty()) {
             holder.restyleBelow()
@@ -252,12 +286,18 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
      * read has changed since and no composition local was read, the collected declarations still stand, so the slots
      * are refreshed under [mode] without collecting again. Otherwise the style resolves through observed reads.
      * A resolve that throws leaves no element behind, so the next one collects again and writes every slot.
+     *
+     * @param element the style declaration to apply.
+     * @param mode whether equal declarations may be adopted or must be written again.
      */
     fun resolve(
         element: StyleElement<*, *>,
         mode: WriteMode = WriteMode.AdoptEqual,
     ): Boolean {
         val holder = checkNotNull(holder) { "Node is not attached" }
+        // The node is reused across kinds, so the requirement is that of the element last applied, not of the first.
+        kind = element.kind
+        requireKindTarget(kind, holder.component)
         val owner = checkNotNull(holder.owner) { "Node is not attached to a composition" }
         if (!isStale && !readsLocal && element == ownStyle) {
             properties?.refresh(mode)
@@ -265,7 +305,16 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         }
         val collector = owner.styleCollector
         readsLocal = false
-        val collected = collectObserved(collector, element, holder)
+        val collected =
+            if (element.collectsNothingUnder(holder)) {
+                // Nothing is collected, so no scope or observer is built and an earlier observer is dropped.
+                if (observed) owner.snapshotObserver.clear(this)
+                observed = false
+                null
+            } else {
+                observed = true
+                collectObserved(collector, element, holder)
+            }
         // A collection that threw left the node stale, so the next resolve collects again.
         isStale = false
         // Attached slots can adopt equal declarations when no earlier slot wrote.
@@ -275,19 +324,23 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         return try {
             // Only the style's own reads run it again; what a write reads while it lands on the component does not.
             Snapshot.withoutReadObservation {
-                if (properties == null && collected.declarations.isNotEmpty()) {
+                if (properties == null && collected?.declarations?.isNotEmpty() == true) {
                     properties = StyleableProperties()
                 }
                 applyCollected(element, collected, updating, publication?.value ?: ProvidedStyles.Empty, properties)
             }
         } finally {
-            collected.release()
+            collected?.release()
         }
     }
 
     /**
      * Provides [element], what it [provides] and the [scope] it ran against. A state is written only where it
      * changes, so an equal resolve resolves no descendant again.
+     *
+     * @param element the successfully resolved declaration.
+     * @param scope the scope used for this resolve, or `null` when no style ran.
+     * @param provides the nested styles and locals descendants may consume.
      */
     internal fun updateProvidedStyles(
         element: StyleElement<*, *>,
@@ -297,6 +350,7 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         ownStyle = element
         kindScope = scope
         val before = providesStyles
+        val beforeAll = providesAllComponents
         val state = publication
         if (state == null) {
             if (provides !== ProvidedStyles.Empty) {
@@ -306,8 +360,8 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
             state.value = provides
         }
         val after = provides !== ProvidedStyles.Empty
-        // Descendants that resolved before this node published anything have not observed it yet.
-        if (before != after) holder?.restyleBelow()
+        // Descendants that resolved before this node published anything, or AllComponents, have not observed it yet.
+        if (before != after || beforeAll != providesAllComponents) holder?.restyleBelow()
     }
 
     override fun onReset() {
@@ -361,6 +415,8 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         }
         declaredLayout = emptyList()
         records?.clear(ParentLayoutNodeType, this)
+        holdsLayoutNodes = false
+        observed = false
         // Clears what this node provided, so every descendant that read it resolves again.
         failure =
             collectFailure(failure) {
@@ -373,7 +429,13 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         failure?.let { throw it }
     }
 
-    /** Reconciles layout nodes while publishing the incoming declaration even after a failed update. */
+    /**
+     * Reconciles layout nodes while publishing the incoming declaration even after a failed update.
+     *
+     * @param holder the component declaring the layout elements to its parent.
+     * @param declared the replacement layout declarations in write order.
+     * @param mode whether equal declarations may be adopted or must be written again.
+     */
     internal fun declareLayout(
         holder: SwingNodeHolder<*>,
         declared: List<ParentLayoutElement>,
@@ -389,7 +451,7 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
         holder.declaration.checkParentElementsAccepted(elements)
         val diagnostics = holder.owner?.diagnostics
         val state = checkNotNull(holder.modifierState)
-        val previousNodes = layoutElements.filterIsInstance<ParentLayoutNode>()
+        val previousNodes = layoutNodes
         var nodesChanged = false
         holder.declaration.restateStyleLayout(this) {
             var written = false
@@ -430,8 +492,11 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
                 }
             } finally {
                 declaredLayout = elements
+                holdsLayoutNodes = state.records?.fastFirstOrNull {
+                    it.isStandingFor(ParentLayoutNodeType, this) && it.node.isAttached
+                } != null
             }
-            nodesChanged = nodesChanged || previousNodes != layoutElements.filterIsInstance<ParentLayoutNode>()
+            nodesChanged = nodesChanged || previousNodes != layoutNodes
             written
         }
         return nodesChanged
@@ -442,6 +507,9 @@ internal class StyleNode : SwingModifier.ComponentNode<Component>() {
  * Runs the `update` of the first slot [from] picks again, and then of every slot declared after it, in declared
  * order, followed by modifier declarations after this style. Returns whether [from] picked a slot. A slot's node
  * reads its own composition locals, which the outer modifier's refresh does not reach.
+ *
+ * @param onInvalidates called when a rewritten node requires consumer invalidation.
+ * @param from selects the first declaration to rewrite; later declarations are rewritten unconditionally.
  */
 internal fun StyleNode.rewriteSlotsFrom(
     onInvalidates: () -> Unit = {},
@@ -463,6 +531,7 @@ internal fun StyleNode.rewriteSlotsFrom(
     return rewritten
 }
 
+/** Collects [element] with [collector], recording the reads so a change of one resolves it again. */
 private fun StyleNode.collectObserved(
     collector: StyleCollector,
     element: StyleElement<*, *>,
@@ -473,6 +542,17 @@ private fun StyleNode.collectObserved(
     observeReads(OnStyleReadChanged) { collected = collector.collect(this, element, holder.publisherAbove) }
     return checkNotNull(collected) { "The observed collect did not run" }
 }
+
+/**
+ * Whether resolving this element yields nothing: no style to run, a default that only nests, no key to apply. The
+ * unstyled declaration applies only [AllComponents], so it yields nothing unless an ancestor provides that key.
+ */
+internal fun StyleElement<*, *>.collectsNothingUnder(holder: SwingNodeHolder<*>): Boolean =
+    if (this === UnstyledComponent) {
+        !holder.receivesAllComponents
+    } else {
+        style === SwingStyle && kind.defaultAppliesOnlyNestedStyles && holder.publisherAbove == null
+    }
 
 /** The one callback every observed style resolve shares, so the observer keeps a single scope map for them. */
 private val OnStyleReadChanged: (StyleNode) -> Unit = { node ->
@@ -485,21 +565,6 @@ private val OnStyleReadChanged: (StyleNode) -> Unit = { node ->
         node.restyle()
     }
 }
-
-/** Runs [step], and returns [failure], or what [step] threw where [failure] is `null`; a later throw is suppressed. */
-private inline fun collectFailure(
-    failure: Throwable?,
-    step: () -> Unit,
-): Throwable? =
-    try {
-        step()
-        failure
-    } catch (
-        // A teardown step runs whatever the step before it threw; the first failure is rethrown once all have run.
-        @Suppress("TooGenericExceptionCaught") thrown: Throwable,
-    ) {
-        failure?.apply { if (thrown !== this) addSuppressed(thrown) } ?: thrown
-    }
 
 /** The nested blocks and style locals a node provides. Each key's blocks are observed independently. */
 internal class ProvidedStyles private constructor(
@@ -541,33 +606,49 @@ internal class ProvidedStyles private constructor(
     }
 }
 
-/** Applies collected property and layout declarations before publishing styles to descendants. */
+/**
+ * Applies collected property and layout declarations before publishing styles to descendants.
+ *
+ * @param element the declaration to retain after a successful apply.
+ * @param collected the resolved declarations, or `null` when no style ran.
+ * @param mode whether equal declarations may be adopted or must be written again.
+ * @param previous the previously published styles whose unchanged values may be retained.
+ * @param table the retained descriptor properties, or `null` when none have been declared.
+ */
 private fun StyleNode.applyCollected(
     element: StyleElement<*, *>,
-    collected: StyleCollection,
+    collected: StyleCollection?,
     mode: WriteMode,
     previous: ProvidedStyles,
-    properties: StyleableProperties?,
+    table: StyleableProperties?,
 ): Boolean {
     val holder = checkNotNull(holder)
+    val declarations = collected?.declarations.orEmpty()
     val state = checkNotNull(holder.modifierState)
+    val properties = collected?.properties.orEmpty()
+    val layoutElements = collected?.layoutElements.orEmpty()
     val detached = ComponentNodeType.hasDetached(state.records, this)
     var invalidates =
         if (detached) {
-            properties?.resolve(collected.declarations, mode, this)
-            attachNodes(holder, collected.properties, holder.owner?.diagnostics)
+            table?.resolve(declarations, mode, this)
+            attachNodes(holder, properties, holder.owner?.diagnostics)
         } else {
-            holder.diffKeyedElements(collected.properties, mode, this, { properties?.rewriteReleased(it) }) {
-                if (properties?.resolve(collected.declarations, mode, this) == true) WriteMode.RewriteEqual else mode
+            holder.diffKeyedElements(properties, mode, this, { table?.rewriteReleased(it) }) {
+                if (table?.resolve(declarations, mode, this) == true) WriteMode.RewriteEqual else mode
             }
         }
     val declaresLayout =
         declaredLayout.isNotEmpty() ||
-            collected.layoutElements.isNotEmpty() ||
+            layoutElements.isNotEmpty() ||
             ParentLayoutNodeType.hasRecords(state.records, this)
-    if (declaresLayout && declareLayout(holder, collected.layoutElements, mode)) invalidates = true
-    val provides = ProvidedStyles.of(collected.nested, collected.locals, previous)
-    updateProvidedStyles(element, collected.scope, provides)
+    if (declaresLayout && declareLayout(holder, layoutElements, mode)) invalidates = true
+    val provides =
+        if (collected == null) {
+            ProvidedStyles.Empty
+        } else {
+            ProvidedStyles.of(collected.nested, collected.locals, previous)
+        }
+    updateProvidedStyles(element, collected?.scope, provides)
     return invalidates
 }
 

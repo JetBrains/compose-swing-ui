@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.modifier.KeyElement
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
+import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 
@@ -206,15 +207,23 @@ private class InheritingSwingModifier(
  * Re-diffs this node's modifier behind the defaults it now stands under, unless the chain it applied last
  * already carries them and its last diff finished. A node released since it was held has applied nothing and is
  * skipped.
+ *
+ * @param restylesSlots whether ancestor changes give a style declaration a slot or take one away, which only a
+ *   full diff applies.
  */
-internal fun SwingNodeHolder<Component>.refreshInheritedDefaults() {
+internal fun SwingNodeHolder<Component>.refreshInheritedDefaults(restylesSlots: Boolean = false) {
     val state = modifierState ?: return
     val declared = state.declared
     val defaults = compositionLocalMap[LocalComponentDefaults]
     val inheriting = declared as? InheritingSwingModifier
     val finished = state.finished
-    if (finished && (inheriting?.outer ?: SwingModifier) == defaults.modifierFor(component.javaClass)) return
-    applyDeclaredModifier(defaults.effectiveModifier(component.javaClass, inheriting?.inner ?: declared))
+    if (finished && !restylesSlots &&
+        (inheriting?.outer ?: SwingModifier) == defaults.modifierFor(component.javaClass)
+    ) {
+        return
+    }
+    val modifier = defaults.effectiveModifier(component.javaClass, inheriting?.inner ?: declared)
+    if (restylesSlots) applyModifierDiff(modifier) else applyDeclaredModifier(modifier)
 }
 
 private fun areOrderedEntriesEqual(

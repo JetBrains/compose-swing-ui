@@ -26,7 +26,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
@@ -48,7 +49,7 @@ class RowColumnModifierTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.Top)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) }) {
                     Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { index ->
                             SwingModifier.align(alignment).takeIf { index == SHORT } ?: SwingModifier
@@ -75,7 +76,7 @@ class RowColumnModifierTest {
             val sharedLine: (Placeable) -> Int = { 5 }
             var line by mutableStateOf(sharedLine)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         RowChildren { index -> SwingModifier.alignBy(if (index == SHORT) line else sharedLine) }
                     }
@@ -99,7 +100,7 @@ class RowColumnModifierTest {
         runComposeSwingTest {
             var fill by mutableStateOf(false)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT) }) {
                     Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { SwingModifier.weight(1f, fill) }
                     }
@@ -128,7 +129,7 @@ class RowColumnModifierTest {
             var fill by mutableStateOf(false)
             var alignment by mutableStateOf(Alignment.Top)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT) }) {
                     Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { SwingModifier.weight(1f, fill).align(alignment) }
                     }
@@ -155,7 +156,7 @@ class RowColumnModifierTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.Start)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) }) {
                     Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { index ->
                             SwingModifier.align(alignment).takeIf { index == SHORT } ?: SwingModifier
@@ -182,7 +183,7 @@ class RowColumnModifierTest {
             val sharedLine: (Placeable) -> Int = { 5 }
             var line by mutableStateOf(sharedLine)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) }) {
                     Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         ColumnChildren { index -> SwingModifier.alignBy(if (index == SHORT) line else sharedLine) }
                     }
@@ -206,7 +207,7 @@ class RowColumnModifierTest {
         runComposeSwingTest {
             var fill by mutableStateOf(false)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT) }) {
                     Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { SwingModifier.weight(1f, fill) }
                     }
@@ -235,7 +236,7 @@ class RowColumnModifierTest {
             var fill by mutableStateOf(false)
             var alignment by mutableStateOf(Alignment.Start)
             setContent {
-                Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT) }) {
                     Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { SwingModifier.weight(1f, fill).align(alignment) }
                     }
@@ -285,7 +286,8 @@ private fun RowScope.RowChildren(modifier: RowScope.(Int) -> SwingModifier) {
     repeat(CHILDREN) { index ->
         Label(
             "child $index",
-            modifier = modifier(index).preferredSize(CHILD_EXTENT, if (index == SHORT) SHORT_HEIGHT else TALL),
+            modifier = modifier(index),
+            style = { preferredSize(CHILD_EXTENT, if (index == SHORT) SHORT_HEIGHT else TALL) },
         )
     }
 }
@@ -296,7 +298,8 @@ private fun ColumnScope.ColumnChildren(modifier: ColumnScope.(Int) -> SwingModif
     repeat(CHILDREN) { index ->
         Label(
             "child $index",
-            modifier = modifier(index).preferredSize(if (index == SHORT) SHORT_HEIGHT else TALL, CHILD_EXTENT),
+            modifier = modifier(index),
+            style = { preferredSize(if (index == SHORT) SHORT_HEIGHT else TALL, CHILD_EXTENT) },
         )
     }
 }

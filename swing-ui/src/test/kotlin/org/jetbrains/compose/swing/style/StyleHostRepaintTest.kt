@@ -1,23 +1,25 @@
 package org.jetbrains.compose.swing.style
 
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.components.selection.firstLabel
 import org.jetbrains.compose.swing.components.selection.renderCell
+import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
-import java.awt.Component
-import java.awt.Container
+import java.awt.Color
 import java.awt.image.BufferedImage
-import javax.swing.JComponent
 import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/** Whether a change of style asks the widget that hosts a cell to repaint, since the widget paints from the cell. */
+/** Whether a change of style asks the list that hosts a cell to repaint, since the list paints from the cell. */
 class StyleHostRepaintTest {
     @Test
     fun aCellStyleProvidedByRowThroughANestedProviderAsksNoRepaint() = runComposeSwingTest {
@@ -27,13 +29,14 @@ class StyleHostRepaintTest {
                 selectedIndices = setOf(0),
                 fixedCellWidth = 120,
                 fixedCellHeight = 40,
-                itemContent = {
+                itemContent = { item ->
                     val row = this
-                    ProbeContainer(
-                        StyleProbe(),
-                        { provideNestedStyle(Probes) { if (row.isSelected) ProbeFirst.provide("selected") } },
+                    Panel(
+                        style = {
+                            provideNestedStyle(Labels) { if (row.isSelected) background(Color.RED) }
+                        },
                     ) {
-                        ProbeContainer(StyleProbe(), SwingStyle) { ProbeLeaf(StyleProbe(), SwingStyle, NestedProbe) }
+                        Panel { Label(item) }
                     }
                 },
             )
@@ -52,21 +55,22 @@ class StyleHostRepaintTest {
         setContent {
             ListBox(
                 items = listOf("first", "second"),
-                itemContent = {
+                itemContent = { item ->
                     val row = this
-                    ProbeContainer(
-                        StyleProbe(),
-                        { provideNestedStyle(Probes) { if (row.isSelected) ProbeFirst.provide("selected") } },
+                    Panel(
+                        style = {
+                            provideNestedStyle(Labels) { if (row.isSelected) background(Color.RED) }
+                        },
                     ) {
-                        ProbeContainer(StyleProbe(), SwingStyle) { ProbeLeaf(StyleProbe(), SwingStyle, NestedProbe) }
+                        Panel { Label(item) }
                     }
                 },
             )
         }
         onNodeOfType<JList<*>>()
-            .assertProperty("selected") { assertNotNull(renderCell(0, isSelected = true).leafProbe()).first }
-            .assertProperty(false) { assertNotNull(renderCell(1).leafProbe()).first == "selected" }
-            .assertProperty("selected") { assertNotNull(renderCell(0, isSelected = true).leafProbe()).first }
+            .assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
+            .assertProperty(false) { assertNotNull(renderCell(1).firstLabel()).background == Color.RED }
+            .assertProperty(Color.RED) { assertNotNull(renderCell(0, isSelected = true).firstLabel()).background }
     }
 
     @Test
@@ -83,13 +87,9 @@ class StyleHostRepaintTest {
                         selectedIndices = setOf(0),
                         fixedCellWidth = 120,
                         fixedCellHeight = 20,
-                        itemContent = {
+                        itemContent = { item ->
                             val row = this
-                            ProbeLeaf(
-                                StyleProbe(),
-                                { if (row.isSelected) ProbeFirst.provide("selected") },
-                                PlainProbe,
-                            )
+                            Label(item, style = { if (row.isSelected) background(Color.RED) })
                         },
                     )
                 },
@@ -106,11 +106,5 @@ class StyleHostRepaintTest {
         }
     }
 
-    private fun JComponent.paintOnce() = paint(BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB).graphics)
-}
-
-/** The deepest [StyleProbe] in this component's first-child chain, the leaf a cell renders. */
-internal fun Component.leafProbe(): StyleProbe? = when {
-    this is Container && components.isNotEmpty() -> components.first().leafProbe()
-    else -> this as? StyleProbe
+    private fun JList<*>.paintOnce() = paint(BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB).graphics)
 }

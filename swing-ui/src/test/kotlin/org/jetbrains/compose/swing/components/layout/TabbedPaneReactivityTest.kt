@@ -7,9 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onDescendants
@@ -23,6 +28,7 @@ import java.awt.image.BufferedImage
 import javax.swing.Icon
 import javax.swing.ImageIcon
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeListener
 import kotlin.test.Test
@@ -38,7 +44,7 @@ import kotlin.test.assertTrue
  */
 class TabbedPaneReactivityTest {
     /** A pane wide enough for its whole tab strip, so a click aimed at a tab has something to land on. */
-    private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
+    private val roomForTheStrip = SwingStyle<ContainerStyleScope> { preferredSize(600, 400) }
 
     private fun icon(): Icon = ImageIcon(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
 
@@ -352,7 +358,7 @@ class TabbedPaneReactivityTest {
                     reported += "$declaredBy:$it"
                     selected = it
                 },
-                modifier = roomForTheStrip,
+                style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -381,7 +387,7 @@ class TabbedPaneReactivityTest {
             TabbedPane(
                 selectedIndex = 0,
                 changeListener = if (useSecond) second else first,
-                modifier = roomForTheStrip,
+                style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -492,5 +498,49 @@ class TabbedPaneReactivityTest {
             .onDescendants()
             .filterToOne(hasTestTag("header"))
             .assertTextEquals("before/after")
+    }
+
+    @Test
+    fun aHeaderStyleChangeDoesNotRepaintItsPage() = runComposeSwingTest {
+        var color by mutableStateOf(Color.RED)
+        var pageRepaints = 0
+        val headerColor = SwingStyle<LabelStyleScope> { foreground(color) }
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                SwingNode(
+                    factory =
+                        {
+                            object : JPanel() {
+                                override fun repaint(
+                                    tm: Long,
+                                    x: Int,
+                                    y: Int,
+                                    width: Int,
+                                    height: Int,
+                                ) {
+                                    pageRepaints++
+                                    super.repaint(tm, x, y, width, height)
+                                }
+                            }
+                        },
+                    modifier =
+                        SwingModifier.tab(
+                            "Page",
+                            header = { Label("header", SwingModifier.testTag("header"), headerColor) },
+                        ),
+                )
+            }
+        }
+        awaitIdle()
+        pageRepaints = 0
+
+        color = Color.BLUE
+        awaitIdle()
+
+        onNodeOfType<JTabbedPane>()
+            .onDescendants()
+            .filterToOne(hasTestTag("header"))
+            .assertProperty(Color.BLUE, "the header follows the style") { foreground }
+        assertEquals(0, pageRepaints, "a live header repaints itself, not the page it belongs to")
     }
 }

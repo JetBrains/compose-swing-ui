@@ -11,10 +11,8 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.defaults.DefaultFont
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -22,7 +20,6 @@ import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
-import org.jetbrains.compose.swing.foundation.layout.DefaultPaintOutsets
 import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.clipToBounds
@@ -32,13 +29,17 @@ import org.jetbrains.compose.swing.foundation.layout.paintOutsets
 import org.jetbrains.compose.swing.foundation.layout.width
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Container
@@ -127,29 +128,31 @@ private fun ColumnScope.FormEdgesCard(value: PaintOutsets?) {
                 SwingModifier
                     .layoutStage()
                     .testTag(PAINT_OUTSETS_FORM_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines),
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
+                    .styleable {
+                        font(STAGE_FONT)
+                        value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                    },
             verticalArrangement = Arrangement.spacedBy(16),
         ) {
-            ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                Label(
-                    "Label",
-                    SwingModifier
-                        .foreground(LayoutSampleColors.Text)
-                        .testTag(PAINT_OUTSETS_FORM_LABEL_TAG)
-                        .alignmentGuide(guides),
-                )
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_FIELD_TAG).alignmentGuide(guides),
-                    columns = 8,
-                )
-                Button(
-                    text = "Button",
-                    onClick = {},
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_BUTTON_TAG).alignmentGuide(guides),
-                )
-            }
+            Label(
+                "Label",
+                SwingModifier
+                    .testTag(PAINT_OUTSETS_FORM_LABEL_TAG)
+                    .alignmentGuide(guides),
+                style = { foreground(LayoutSampleColors.Text) },
+            )
+            TextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_FIELD_TAG).alignmentGuide(guides),
+                columns = 8,
+            )
+            Button(
+                text = "Button",
+                onClick = {},
+                modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_BUTTON_TAG).alignmentGuide(guides),
+            )
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
     }
@@ -171,38 +174,40 @@ private fun ColumnScope.BaselineRowCard(value: PaintOutsets?) {
             modifier =
                 SwingModifier
                     .layoutStage()
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines),
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
+                    .styleable {
+                        font(STAGE_FONT)
+                        value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                    },
             horizontalArrangement = Arrangement.spacedBy(32),
         ) {
-            ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                Label(
-                    "Label:",
+            Label(
+                "Label:",
+                SwingModifier
+                    .testTag(PAINT_OUTSETS_BASELINE_LABEL_TAG)
+                    .alignmentGuide(guides)
+                    .alignByBaseline(),
+                style = { foreground(LayoutSampleColors.Text) },
+            )
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier =
                     SwingModifier
-                        .foreground(LayoutSampleColors.Text)
-                        .testTag(PAINT_OUTSETS_BASELINE_LABEL_TAG)
+                        .testTag(PAINT_OUTSETS_BASELINE_FIELD_TAG)
                         .alignmentGuide(guides)
                         .alignByBaseline(),
-                )
-                TextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier =
-                        SwingModifier
-                            .testTag(PAINT_OUTSETS_BASELINE_FIELD_TAG)
-                            .alignmentGuide(guides)
-                            .alignByBaseline(),
-                    columns = 4,
-                )
-                Button(
-                    text = "OK",
-                    onClick = {},
-                    modifier =
-                        SwingModifier
-                            .testTag(PAINT_OUTSETS_BASELINE_BUTTON_TAG)
-                            .alignmentGuide(guides)
-                            .alignByBaseline(),
-                )
-            }
+                columns = 4,
+            )
+            Button(
+                text = "OK",
+                onClick = {},
+                modifier =
+                    SwingModifier
+                        .testTag(PAINT_OUTSETS_BASELINE_BUTTON_TAG)
+                        .alignmentGuide(guides)
+                        .alignByBaseline(),
+            )
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
     }
@@ -224,17 +229,19 @@ private fun ColumnScope.DecoratedBesideStockCard(value: PaintOutsets?) {
                 SwingModifier
                     .layoutStage()
                     .testTag(PAINT_OUTSETS_DECORATED_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines),
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
+                    .styleable {
+                        font(STAGE_FONT)
+                        value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                    },
             horizontalArrangement = Arrangement.spacedBy(16),
         ) {
-            ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                Button(
-                    text = "Stock",
-                    onClick = {},
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_STOCK_TAG).alignmentGuide(guides),
-                )
-                ShadowedBox(SwingModifier.testTag(PAINT_OUTSETS_SHADOWED_TAG).alignmentGuide(guides))
-            }
+            Button(
+                text = "Stock",
+                onClick = {},
+                modifier = SwingModifier.testTag(PAINT_OUTSETS_STOCK_TAG).alignmentGuide(guides),
+            )
+            ShadowedBox(SwingModifier.testTag(PAINT_OUTSETS_SHADOWED_TAG).alignmentGuide(guides))
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
     }
@@ -244,7 +251,7 @@ private fun ColumnScope.DecoratedBesideStockCard(value: PaintOutsets?) {
 private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
     ExampleCard("Explicit over inherited") {
         WrappedCaption(
-            "The first field inherits the section's value; the second also declares paintOutsets(FullInsets), " +
+            "The first field takes the section's value; the second also sets paintOutsets(FullInsets) in its style, " +
                 "which replaces it. The second field's band is its insets under every value.",
             CAPTION_WIDTH,
         )
@@ -256,27 +263,29 @@ private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
             modifier =
                 SwingModifier
                     .layoutStage()
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines),
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines)
+                    .styleable {
+                        font(STAGE_FONT)
+                        value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                    },
             horizontalArrangement = Arrangement.spacedBy(16),
         ) {
-            ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                TextField(
-                    value = inherited,
-                    onValueChange = { inherited = it },
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_INHERITED_TAG).alignmentGuide(guides),
-                    columns = 6,
-                )
-                TextField(
-                    value = explicit,
-                    onValueChange = { explicit = it },
-                    modifier =
-                        SwingModifier
-                            .testTag(PAINT_OUTSETS_EXPLICIT_TAG)
-                            .paintOutsets(PaintOutsets.FullInsets)
-                            .alignmentGuide(guides),
-                    columns = 6,
-                )
-            }
+            TextField(
+                value = inherited,
+                onValueChange = { inherited = it },
+                modifier = SwingModifier.testTag(PAINT_OUTSETS_INHERITED_TAG).alignmentGuide(guides),
+                columns = 6,
+            )
+            TextField(
+                value = explicit,
+                onValueChange = { explicit = it },
+                modifier =
+                    SwingModifier
+                        .testTag(PAINT_OUTSETS_EXPLICIT_TAG)
+                        .alignmentGuide(guides),
+                style = { paintOutsets(PaintOutsets.FullInsets) },
+                columns = 6,
+            )
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
     }
@@ -284,45 +293,47 @@ private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
 
 @Composable
 private fun ColumnScope.DeclarationOrderCard(value: PaintOutsets?) {
-    ExampleCard("Declaration order") {
+    ExampleCard("Width and value") {
         WrappedCaption(
-            "Where the value names part of the insets: after width(120) it adds the band to the field, which is " +
-                "wider than 120 px. Before width(120) the band comes off the layout box, and the field stays 120 px.",
+            "A style's value applies after the modifier's width(120). Where it names part of the insets, it adds " +
+                "the band to the field, which is wider than 120 px. The field without a value stays 120 px.",
             CAPTION_WIDTH,
         )
         var widthFirst by remember { mutableIntStateOf(0) }
         var widthLast by remember { mutableIntStateOf(0) }
-        Label("width(120).paintOutsets(value): field $widthFirst px")
-        Label("paintOutsets(value).width(120): field $widthLast px")
+        Label("width(120) and paintOutsets(value): field $widthFirst px")
+        Label("width(120) alone: field $widthLast px")
         val guides = remember { GuidedChildren() }
         val lines = setOf(GuideLine.Top)
         Row(
             modifier =
                 SwingModifier
                     .layoutStage()
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS, lines),
+                    .alignmentGuides(
+                        guides,
+                        LocalAlignmentGuidesShown.current,
+                        BOX_MARKS,
+                        lines,
+                    ).styleable { font(STAGE_FONT) },
             horizontalArrangement = Arrangement.spacedBy(16),
         ) {
-            ProvideComponentDefaults(DefaultFont provides STAGE_FONT) {
-                MeasuredField(
-                    "first",
-                    SwingModifier
-                        .testTag(PAINT_OUTSETS_WIDTH_FIRST_TAG)
-                        .alignmentGuide(guides)
-                        .width(120)
-                        .then(if (value != null) SwingModifier.paintOutsets(value) else SwingModifier),
-                    onWidthChange = { widthFirst = it },
-                )
-                MeasuredField(
-                    "last",
-                    SwingModifier
-                        .testTag(PAINT_OUTSETS_WIDTH_LAST_TAG)
-                        .alignmentGuide(guides)
-                        .then(if (value != null) SwingModifier.paintOutsets(value) else SwingModifier)
-                        .width(120),
-                    onWidthChange = { widthLast = it },
-                )
-            }
+            MeasuredField(
+                "first",
+                SwingModifier
+                    .testTag(PAINT_OUTSETS_WIDTH_FIRST_TAG)
+                    .alignmentGuide(guides)
+                    .width(120),
+                style = { value?.let { paintOutsets(it) } },
+                onWidthChange = { widthFirst = it },
+            )
+            MeasuredField(
+                "last",
+                SwingModifier
+                    .testTag(PAINT_OUTSETS_WIDTH_LAST_TAG)
+                    .alignmentGuide(guides)
+                    .width(120),
+                onWidthChange = { widthLast = it },
+            )
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
     }
@@ -334,12 +345,14 @@ private fun MeasuredField(
     initialText: String,
     modifier: SwingModifier,
     onWidthChange: (Int) -> Unit,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
 ) {
     var text by remember { mutableStateOf(initialText) }
     TextField(
         value = text,
         onValueChange = { text = it },
         modifier = modifier.componentListener(onComponentResized = { onWidthChange(it.component.width) }),
+        style = style,
     )
 }
 
@@ -362,21 +375,24 @@ private fun ColumnScope.SwingParentCard(value: PaintOutsets?) {
         Panel(
             PanelLayout.Flow(alignment = FlowLayout.LEADING, hgap = 16, vgap = 16),
             modifier = SwingModifier.layoutPanelTrack(),
+            style = {
+                layoutPanelTrack()
+                font(STAGE_FONT)
+                value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+            },
         ) {
-            ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                Button("Stock", onClick = {})
-                ShadowedBox(
-                    SwingModifier
-                        .testTag(PAINT_OUTSETS_SWING_PARENT_SHADOWED_TAG)
-                        .componentListener(
-                            onComponentResized = {
-                                // The event hands a Component, and only a Container has insets.
-                                val box = it.component as Container
-                                shadowed = SwingGeometry(box.insets, box.width, box.height)
-                            },
-                        ),
-                )
-            }
+            Button("Stock", onClick = {})
+            ShadowedBox(
+                SwingModifier
+                    .testTag(PAINT_OUTSETS_SWING_PARENT_SHADOWED_TAG)
+                    .componentListener(
+                        onComponentResized = {
+                            // The event hands a Component, and only a Container has insets.
+                            val box = it.component as Container
+                            shadowed = SwingGeometry(box.insets, box.width, box.height)
+                        },
+                    ),
+            )
         }
     }
 }
@@ -421,19 +437,21 @@ private fun ColumnScope.ChildPastContainerCard(value: PaintOutsets?) {
                         .layoutTrack()
                         .testTag(PAINT_OUTSETS_TRACK_TAG)
                         .alignmentGuides(guides, LocalAlignmentGuidesShown.current, BOX_MARKS)
-                        .then(if (clip) SwingModifier.clipToBounds() else SwingModifier),
+                        .then(if (clip) SwingModifier.clipToBounds() else SwingModifier)
+                        .styleable {
+                            font(STAGE_FONT)
+                            value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                        },
             ) {
-                ProvideComponentDefaults(DefaultPaintOutsets provides value, DefaultFont provides STAGE_FONT) {
-                    Button(
-                        text = "Clicked $clicks",
-                        onClick = { clicks++ },
-                        modifier =
-                            SwingModifier
-                                .testTag(PAINT_OUTSETS_PAST_BUTTON_TAG)
-                                .alignmentGuide(guides)
-                                .offset(x = offset),
-                    )
-                }
+                Button(
+                    text = "Clicked $clicks",
+                    onClick = { clicks++ },
+                    modifier =
+                        SwingModifier
+                            .testTag(PAINT_OUTSETS_PAST_BUTTON_TAG)
+                            .alignmentGuide(guides)
+                            .offset(x = offset),
+                )
             }
         }
         AlignmentGuideLegend(BOX_MARKS)
@@ -451,8 +469,17 @@ private fun ShadowedBox(modifier: SwingModifier) {
                 BorderFactory.createEmptyBorder(5, 12, 5, 12),
             )
         }
-    Box(modifier.shadow(4, Color(0, 0, 0, 160)).background(Color.WHITE, RectangleShape).border(border)) {
-        Label("Shadowed", SwingModifier.foreground(LayoutSampleColors.Text))
+    Box(
+        modifier =
+            modifier
+                .shadow(4, Color(0, 0, 0, 160))
+                .background(Color.WHITE, RectangleShape)
+                .border(border)
+                .styleable {
+                    applyNestedStyle(AllComponents)
+                },
+    ) {
+        Label("Shadowed", style = { foreground(LayoutSampleColors.Text) })
     }
 }
 

@@ -34,8 +34,8 @@ public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier = proper
  *
  * Only the order changes: which components Tab stops on stays Swing's own judgement. A control is a
  * stop exactly where it would be in a hand-written form, so captions, layout containers and anything
- * that cannot take the keyboard are stepped over. [focusable] declares that judgement for the
- * component it is applied to.
+ * that cannot take the keyboard are stepped over. [focusable][org.jetbrains.compose.swing.style.focusable]
+ * declares that judgement for the component it is applied to.
  *
  * @see java.awt.Container.setFocusTraversalPolicy
  */

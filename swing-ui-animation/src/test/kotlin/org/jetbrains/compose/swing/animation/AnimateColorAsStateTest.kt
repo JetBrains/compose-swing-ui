@@ -15,8 +15,8 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -45,7 +45,7 @@ class AnimateColorAsStateTest {
                         animationSpec = tween(RAMP_MILLIS),
                         finishedListener = { arrivals += it },
                     )
-                Label(text = "swatch", modifier = SwingModifier.opaque(true).background(color))
+                Label(text = "swatch", modifier = SwingModifier.opaque(true), style = { background(color) })
             }
             assertTrue(arrivals.isEmpty(), "the listener was called for a color no animation traveled to")
 
@@ -65,7 +65,7 @@ class AnimateColorAsStateTest {
             var target by mutableStateOf(Color.BLACK)
             setContent {
                 val color by animateColorAsState(target, animationSpec = tween(RAMP_MILLIS))
-                Label(text = "swatch", modifier = SwingModifier.opaque(true).background(color))
+                Label(text = "swatch", modifier = SwingModifier.opaque(true), style = { background(color) })
             }
             val label = onNodeOfType<JLabel>().fetch()
             assertEquals(Color.BLACK, label.background, "the first frame is the target it starts on")
@@ -114,7 +114,7 @@ class AnimateColorAsStateTest {
                     updateTransition(selected).animateColor(transitionSpec = { tween(RAMP_MILLIS) }) {
                         if (it) Color.WHITE else Color.BLACK
                     }
-                Label(text = "swatch", modifier = SwingModifier.opaque(true).background(color))
+                Label(text = "swatch", modifier = SwingModifier.opaque(true), style = { background(color) })
             }
             val label = onNodeOfType<JLabel>().fetch()
             assertEquals(Color.BLACK, label.background, "the first frame is the value the initial state stands for")
@@ -192,7 +192,7 @@ class AnimateColorAsStateTest {
             mainClock.autoAdvance = false
             setContent {
                 LaunchedEffect(Unit) { animatable.animateTo(Color.WHITE, tween(RAMP_MILLIS)) }
-                Label(text = "swatch", modifier = SwingModifier.opaque(true).background(animatable.value))
+                Label(text = "swatch", modifier = SwingModifier.opaque(true), style = { background(animatable.value) })
             }
             val label = onNodeOfType<JLabel>().fetch()
             assertEquals(Color.BLACK, label.background, "the holder did not start at the color it was built with")

@@ -21,7 +21,7 @@ import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -108,8 +108,8 @@ class AccessibleActionsTest {
     @Test
     fun scrollBarChangesTheScrollPanePosition() = runComposeSwingTest {
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 100)) {
-                Viewport { Label("large", SwingModifier.preferredSize(500, 500)) }
+            ScrollPane(style = { preferredSize(100, 100) }) {
+                Viewport { Label("large", style = { preferredSize(500, 500) }) }
             }
         }
         onAllNodesOfType<JScrollBar>().onFirst().performSetValue(30)

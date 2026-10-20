@@ -234,9 +234,10 @@ listener once and a fresh lambda re-registers nothing.
 
 ## Styling and configuration with modifiers
 
-`SwingModifier` is the Compose-shaped way to configure a component: appearance, layout hints,
-keyboard and interaction wiring, data transfer, accessibility, and listeners are expressed as
-modifier elements declared on a component. How a component's own elements combine with the caller's,
+`SwingModifier` is the Compose-shaped way to configure a component: layout hints, decoration,
+keyboard and interaction wiring, data transfer, and listeners are expressed as modifier elements
+declared on a component. The properties of the component itself, such as its colors, font and sizes, are set
+by its [style](#styles) instead. How a component's own elements combine with the caller's,
 and how a modifier is matched across passes, is described in
 [`MODIFIERS.md`](MODIFIERS.md#order-and-merge).
 
@@ -267,7 +268,7 @@ receive the defaults currently scoped around them.
 
 The library ships atomic `Default...` keys for broad component properties. The public API and KDoc
 define the exact current set; the keys provide no implicit values and each declares only its named
-property, so a background default does not imply opacity.
+property, so a background default does not imply opacity. These keys are deprecated: a component's style or a nested style ([STYLES.md](STYLES.md)) sets its starting look.
 
 The precedence is:
 
@@ -334,6 +335,62 @@ value after another key or an explicit modifier wins.
 Call `ProvideComponentDefaults` on the Event Dispatch Thread. Keep a provider around the smallest
 coherent subtree that needs the shared property; use a direct modifier for an isolated component or a
 local exception.
+
+---
+
+## Styles
+
+A `SwingStyle` sets the properties of one component. A component takes it as its `style` parameter, and a
+container can also provide styles to its descendants. [`STYLES.md`](STYLES.md) covers using and authoring
+styles; this section covers their precedence, restoration and updates.
+
+### Resolution
+
+A style runs outside composition, on the event dispatch thread, when the component attaches, when its style, kind or state input changes, or when snapshot state it reads changes. Recomposition with an equal style declaration and an unchanged state input does not run it again, and neither does a frame. A change to a plain Boolean input runs the style again even if the style does not read that input.
+
+The last write of a property wins. Descriptor-backed properties are written before custom elements, with declaration order within each group. When a style stops setting a property, its restore policy determines the restored value; by default, this is the component's value before styling.
+
+### Descendants and updates
+
+Nested styles and style locals stay within the composition that declares them. The cells a list renders, a spinner editor, a tab header, popup and context menus, secondary windows, window menu bars, tray menus and a `setContent(parent = ...)` composition need their shared styles declared at their own root. Components outside the composition are untouched.
+
+A change to snapshot state read inside a style updates the components whose styles read it, without recomposition. Changing a provided nested style or style local updates descendants that consume the changed value. Moving a component or its ancestor under another parent, or adding a style above existing children, updates descendant styles to reflect their new ancestors. Descendants receive their ancestors' styles on the first frame.
+
+A change to a rendered cell becomes visible when its widget repaints. Changes during cell rendering do not request another repaint.
+
+### Locals
+
+A style local (`styleLocalOf`) is a property a descendant inherits. `foreground`, `font` and
+`componentOrientation` are locals. A styled component that leaves a local unset takes the value of the nearest styled ancestor
+that set one, where the property's descriptor handles the component's class. An ancestor that sets `null`
+stops the inheritance at that container, so its descendants keep the look and feel's value. A component without a style declaration inherits properties through Swing.
+
+### Nested styles
+
+A container provides a style for a descendant kind with `provideNestedStyle(key, style)`, and a component
+applies the styles provided for a key with `applyNestedStyle(key)`. A descendant that applies a key receives the provided styles farthest provider first, against the descendant's own scope and state.
+
+`AllComponents` reaches every descendant in the same composition, including components without a style declaration. The library's components then apply the key of their kind. A style provided for that key wins over `AllComponents` whatever the distance between the providers. Other components receive a style provided for a kind only if their own kind applies that key.
+
+### Precedence
+
+For one property, from lowest to highest:
+
+```text
+component factory / look and feel
+< SwingNode or MenuNode update
+< nested styles for AllComponents, farthest provider first
+< nested styles for the component's kind key, farthest provider first
+< the rest of the kind's default style
+< the caller's style
+```
+
+A style local fills only a property that none of these set. Where a modifier element and a style write one widget property, the style's value wins. A nested style takes precedence over inheritance, so a `foreground` provided for `AllComponents` by a far ancestor beats a nearer container's local `foreground`.
+
+Kind keys are opt-in. `enabled`, `cursor`, `background` and `opaque` have no default that cascades
+to every descendant: a disabled section is `provideNestedStyle(AllComponents) { enabled(false) }`, and a card
+surface names the kinds it colors, so a button keeps its look and feel's face. A change that a nested block
+reads recomposes nothing; it resolves again only the components that ran the block.
 
 ---
 

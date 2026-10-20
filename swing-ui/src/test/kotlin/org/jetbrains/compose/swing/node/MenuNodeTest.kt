@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import javax.swing.JMenu
@@ -54,7 +55,7 @@ class MenuNodeTest {
             composeMenu {
                 MenuNode(
                     factory = { JMenuItem("Open") },
-                    modifier = SwingModifier.background(color),
+                    modifier = SwingModifier.styleable { background(color) },
                     update = { set(Unit) { background = Color.RED } },
                 )
             }
@@ -71,7 +72,7 @@ class MenuNodeTest {
     fun aNodeDeclaringNoUpdateStillTakesItsModifier() = runComposeSwingTest {
         val popup =
             composeMenu {
-                MenuNode(factory = { JMenuItem("Open") }, modifier = SwingModifier.background(Color.BLUE))
+                MenuNode(factory = { JMenuItem("Open") }, modifier = SwingModifier.styleable { background(Color.BLUE) })
             }
 
         val item = popup.getComponent(0) as JMenuItem

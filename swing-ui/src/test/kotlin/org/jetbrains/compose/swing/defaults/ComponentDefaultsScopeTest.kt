@@ -13,6 +13,8 @@ import kotlin.test.assertEquals
 /** What a provided default covers: the content of its provider, and nothing beside it. */
 class ComponentDefaultsScopeTest {
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aDefaultProvidedToOneSubtreeStaysOutOfASiblingSubtree() = runComposeSwingTest {
         var color by mutableStateOf(Color.RED)
         setContent {
@@ -39,6 +41,8 @@ class ComponentDefaultsScopeTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aNestedProviderOverridingOneKeyKeepsTheOuterKeys() = runComposeSwingTest {
         var background by mutableStateOf(Color.RED)
         var foreground by mutableStateOf(Color.GREEN)

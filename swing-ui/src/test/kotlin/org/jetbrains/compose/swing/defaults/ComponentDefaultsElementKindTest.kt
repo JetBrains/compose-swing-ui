@@ -53,6 +53,8 @@ private val TextProperty =
  */
 class ComponentDefaultsElementKindTest {
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aRestoredDefaultFollowsItsValueAndGivesBackTheComponentsOwnOnRemoval() = runComposeSwingTest {
         val own = JLabel().background
         var provided by mutableStateOf<Color?>(Color.RED)
@@ -79,6 +81,8 @@ class ComponentDefaultsElementKindTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aDerivedDefaultFollowsItsValueAndHandsTheFlagBackToTheFillOnRemoval() = runComposeSwingTest {
         val filled = JButton().isContentAreaFilled
         var provided by mutableStateOf<Boolean?>(!filled)
@@ -109,6 +113,8 @@ class ComponentDefaultsElementKindTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aMultiTargetDefaultFollowsItsValueOnEveryServedTypeAndGivesBackEachOwnOnRemoval() = runComposeSwingTest {
         val alignment = componentDefaultKeyOf<Int>("alignment") { horizontalAlignment(it) }
         var provided by mutableStateOf<Int?>(null)
@@ -161,6 +167,8 @@ class ComponentDefaultsElementKindTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aMultiTargetDefaultSkipsAComponentClassNoCaseServes() = runComposeSwingTest {
         val alignment = componentDefaultKeyOf<Int>("alignment") { horizontalAlignment(it) }
         var provided by mutableStateOf<Int?>(null)
@@ -184,6 +192,8 @@ class ComponentDefaultsElementKindTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun providerRejectsANonInheritableElementOfEveryKind() {
         val kinds: List<Pair<String, SwingModifier.(String) -> SwingModifier>> =
             listOf(

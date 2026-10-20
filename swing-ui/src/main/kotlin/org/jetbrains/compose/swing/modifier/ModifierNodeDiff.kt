@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
@@ -288,18 +289,23 @@ private inline fun detachDeparted(
         }
     }
     departing.fastForEach { records.withdraw(it) }
-    try {
-        departing.detachAll(diagnostics)
-    } finally {
-        departing.fastForEach { records.detachAndRemove(it, diagnostics) }
+    var failure = collectFailure(null) { departing.detachAll(diagnostics) }
+    departing.fastForEach { record ->
+        failure = collectFailure(failure) { records.detachAndRemove(record, diagnostics) }
     }
     released?.let { names ->
-        val modifier = declaringNode?.holder?.modifierState
-        modifier?.reassertPropertySlotsFrom(declaringNode.component, diagnostics, except = declaringNode) { record ->
-            record.element.affectsProperties(names)
-        }
-        rewriteReleased(names)
+        failure =
+            collectFailure(failure) {
+                val modifier = declaringNode?.holder?.modifierState
+                modifier?.reassertPropertySlotsFrom(
+                    declaringNode.component,
+                    diagnostics,
+                    except = declaringNode,
+                ) { it.element.affectsProperties(names) }
+            }
+        failure = collectFailure(failure) { rewriteReleased(names) }
     }
+    failure?.let { throw it }
     return true
 }
 

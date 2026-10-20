@@ -4,11 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.RawKind
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -160,9 +162,9 @@ internal class Stage(
                         SwingModifier
                             .testTag(STAGE_TAG)
                             .opaque(false)
-                            .preferredSize(size)
                             .then(declared())
-                            .then(content?.let { SwingModifier.decoration(it) } ?: SwingModifier),
+                            .then(content?.let { SwingModifier.decoration(it) } ?: SwingModifier)
+                            .styleable(RawKind) { preferredSize(size) },
                 )
             }
         }

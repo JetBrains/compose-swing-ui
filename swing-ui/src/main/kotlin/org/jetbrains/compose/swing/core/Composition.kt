@@ -171,7 +171,9 @@ internal class SwingContentComposition private constructor(
     override fun cancelAfterValidation(node: SwingComponentNode<*>): Unit =
         afterValidationActions.cancelAfterValidation(node)
 
-    override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
+    override fun settleNow() {
+        if (!updateBatch.isDrainingRestyles) parent.swingFrameClock()?.settleInPlace()
+    }
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
 

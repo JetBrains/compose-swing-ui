@@ -52,7 +52,8 @@ public sealed class SwingComponentNode<out C : Component> {
      * component sits in its parent stands in it alongside the ones saying what it looks like. Inherited
      * defaults are flattened into their effective property elements; provider-key boundaries are not
      * preserved and key names are not presented as synthetic modifier elements. A style stays the single
-     * element it was declared as; its properties are not expanded into elements of their own.
+     * element it was declared as; its properties are not expanded into elements of their own. A style that can
+     * collect nothing under the node's ancestors is left out.
      *
      * It answers whatever the composition declared last, whether or not the pass that declared it had
      * anything to write, so it never lags the composition. Every node holds its modifier whatever

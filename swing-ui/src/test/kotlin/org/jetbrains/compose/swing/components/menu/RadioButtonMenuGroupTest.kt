@@ -8,10 +8,12 @@ import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import javax.swing.DefaultButtonModel
+import javax.swing.JMenu
 import javax.swing.JPopupMenu
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
@@ -25,6 +27,26 @@ import kotlin.test.assertNull
  * callback receives when the user picks an option.
  */
 class RadioButtonMenuGroupTest {
+    @Test
+    fun aRadioButtonMenuGroupOptionsOwnStyleAppliesToThatOptionOnly() = runComposeSwingTest {
+        val popup =
+            composeMenu {
+                Menu("View") {
+                    RadioButtonMenuGroup(selectedIndex = 0, onSelectionChange = {}) {
+                        option("a")
+                        option("b", style = { enabled(false) })
+                    }
+                }
+            }
+        val menu = popup.getComponent(0) as JMenu
+
+        assertEquals(
+            listOf(true, false),
+            menu.menuComponents.map { it.isEnabled },
+            "only the option styled so is disabled",
+        )
+    }
+
     private fun RadioButtonMenuGroupScope.threeOptions() {
         option("Small")
         option("Medium")

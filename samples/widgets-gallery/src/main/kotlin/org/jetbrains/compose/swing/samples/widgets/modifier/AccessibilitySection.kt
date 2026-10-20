@@ -13,8 +13,6 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
@@ -26,6 +24,8 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.accessibleDescription
+import org.jetbrains.compose.swing.style.accessibleName
 import org.jetbrains.compose.swing.tooling.Preview
 
 // The accessibility modifiers: assistive-technology metadata (accessibleName/Description), label
@@ -52,10 +52,10 @@ private fun ColumnScope.AccessibleMetadataCard() {
         TextField(
             value = value,
             onValueChange = { value = it },
-            modifier =
-                SwingModifier
-                    .accessibleName("Search query")
-                    .accessibleDescription("Type a term to filter the results list."),
+            style = {
+                accessibleName("Search query")
+                accessibleDescription("Type a term to filter the results list.")
+            },
             columns = 24,
         )
     }

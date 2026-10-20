@@ -7,12 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.defaults.DefaultComponentOrientation
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.ComponentOrientation
@@ -33,7 +32,7 @@ class UnplacedChildVisibilityTest {
             var placed by mutableStateOf(true)
             var orientation by mutableStateOf(ComponentOrientation.LEFT_TO_RIGHT)
             setContent {
-                ProvideComponentDefaults(DefaultComponentOrientation provides orientation) {
+                Box(modifier = SwingModifier.styleable { componentOrientation(orientation) }) {
                     Layout(
                         content = { SizedChild(0, SwingModifier.testTag("child")) },
                         measurePolicy = { measurables, constraints ->
@@ -97,7 +96,7 @@ class UnplacedChildVisibilityTest {
             setContent {
                 val child =
                     remember {
-                        movableContentOf { SizedChild(0, SwingModifier.testTag("child").visible(false)) }
+                        movableContentOf { SizedChild(0, SwingModifier.testTag("child"), style = { visible(false) }) }
                     }
                 if (inLayout) {
                     Layout(

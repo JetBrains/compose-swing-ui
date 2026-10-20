@@ -23,7 +23,7 @@ import org.jetbrains.compose.swing.foundation.layout.onSizeChanged
 import org.jetbrains.compose.swing.foundation.layout.width
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -224,12 +224,16 @@ class AnimatedVisibilityNaturalSizeTest {
         runComposeSwingTest {
             var shown by mutableStateOf(false)
             setContent {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(WIDE, WIDE)) {
+                Panel(PanelLayout.Flow(), style = { preferredSize(WIDE, WIDE) }) {
                     Box {
                         Box(modifier = SwingModifier.width(100)) {
                             with(container) {
                                 EnterContent(shown, SwingModifier.testTag(CONTAINER)) {
-                                    Label("", modifier = SwingModifier.testTag(CONTENT).preferredSize(WIDE, 20))
+                                    Label(
+                                        "",
+                                        modifier = SwingModifier.testTag(CONTENT),
+                                        style = { preferredSize(WIDE, 20) },
+                                    )
                                 }
                             }
                         }
@@ -345,7 +349,7 @@ class AnimatedVisibilityNaturalSizeTest {
                     modifier,
                     transitionSpec = { expandIn(tween(TRANSITION_MILLIS)) togetherWith shrinkOut() },
                 ) { wide ->
-                    if (wide) content() else Label("", modifier = SwingModifier.preferredSize(50, 20))
+                    if (wide) content() else Label("", style = { preferredSize(50, 20) })
                 }
             }
         },
@@ -364,5 +368,5 @@ class AnimatedVisibilityNaturalSizeTest {
 /** Prefers [OWN], which is larger than the parent's space on both axes. */
 @Composable
 private fun Block(onSize: (Dimension) -> Unit = {}) {
-    Label("", modifier = SwingModifier.testTag(CONTENT).preferredSize(OWN).onSizeChanged(onSize))
+    Label("", modifier = SwingModifier.testTag(CONTENT).onSizeChanged(onSize), style = { preferredSize(OWN) })
 }

@@ -1,18 +1,18 @@
 package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.defaults.DefaultBackground
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -404,11 +404,11 @@ class PopupMenuTest {
     }
 
     @Test
-    fun anOpenMenuFollowsAChangedComponentDefault() = runComposeSwingTest {
+    fun anOpenMenuFollowsAChangedProvidedStyle() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var color by mutableStateOf(Color.MAGENTA)
         setWindowContent(WINDOW_TITLE) {
-            ProvideComponentDefaults(DefaultBackground provides color) {
+            CompositionLocalProvider(LocalPopupColor provides color) {
                 val anchor = rememberPopupAnchor()
                 Label("target", modifier = SwingModifier.popupAnchor(anchor))
                 PopupMenu(
@@ -417,16 +417,16 @@ class PopupMenuTest {
                     display = { popup, _, _, _ -> captured = popup },
                     onDismiss = {},
                 ) {
-                    MenuItem("Cut", onClick = { })
+                    MenuItem("Cut", onClick = { }, style = { background(LocalPopupColor.currentValue) })
                 }
             }
         }
         val item = (captured ?: error("the menu did not open")).getComponent(0)
-        assertEquals(Color.MAGENTA, item.background, "the item takes the default it was composed under")
+        assertEquals(Color.MAGENTA, item.background, "the item takes the style it was composed under")
 
         color = Color.RED
         awaitIdle()
-        assertEquals(Color.RED, item.background, "and the open menu must take the changed default")
+        assertEquals(Color.RED, item.background, "and the open menu must take the changed style")
     }
 
     @Test
@@ -599,6 +599,8 @@ class PopupMenuTest {
 }
 
 private const val WINDOW_TITLE = "popup-menu-test"
+
+private val LocalPopupColor = compositionLocalOf { Color.BLACK }
 
 /**
  * Composes [content] as the content of a window that is on screen by the time this returns, and settles

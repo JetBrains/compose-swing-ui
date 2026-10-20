@@ -5,8 +5,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -354,7 +355,7 @@ class IntrinsicQuerySideEffectTest {
         ) {
             SwingNode(
                 factory = { LayoutCountingPanel(BorderLayout()) },
-                modifier = SwingModifier.testTag("parent").preferredSize(320, 600),
+                modifier = SwingModifier.testTag("parent").styleable { preferredSize(320, 600) },
             ) {
                 Box(modifier = SwingModifier.testTag("subject")) {
                     shape.content(

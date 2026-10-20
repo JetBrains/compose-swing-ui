@@ -25,10 +25,11 @@ component once and let Compose keep it in sync with state:
 public fun MyWidget(
     /* state + callbacks */
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<MyWidgetStyleScope> = SwingStyle,
 ) {
     SwingNode(
         factory = { /* create the Swing component */ },
-        modifier = modifier,
+        modifier = modifier.styleable(MyWidgetKind, style),
         update = { /* reactively push state onto it */ },
         onRelease = { /* optional cleanup */ },
     )
@@ -36,6 +37,9 @@ public fun MyWidget(
 ```
 
 <!--- CLEAR -->
+
+Use `modifier` for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier.
+[`STYLES.md`](STYLES.md) covers the scope, the kind and the keys.
 
 - `factory` runs **once**, when the node enters the composition. Build (and do one-time
   configuration of) your Swing component here. Whatever it reads from the composable body, it reads
@@ -49,8 +53,10 @@ public fun MyWidget(
   actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable
   call inside it - `remember` included - a compile-time error, so read state in the composable body and
   pass the value in. A property written directly by a custom `SwingNode` or `MenuNode` `update` block is
-  baseline component state: a matching inherited default can overwrite it, and the node's explicit modifier is
-  applied last. For the component-default contract, see
+  baseline component state: a modifier element or style that sets the same property wins over it. For the style
+  contract, see [`Styles`](ARCHITECTURE.md#styles).
+  A matching inherited default can overwrite it, and the style applies after the node's
+  modifier. For the component-default contract, see
   [`Component defaults`](ARCHITECTURE.md#component-defaults).
 - `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to
   the thread's uncaught-exception handler, and the node is released as if it had returned.
@@ -62,8 +68,8 @@ available as the strongly-typed `this`.
 
 Two things about every component belong to the composition rather than to your code:
 
-- **the value of any property it declares** - a modifier applies a property through a node that first
-  records what the component had, and puts that back when the declaration goes;
+- **the value of any property it declares** - a style or a modifier that sets a property records what the
+  component had, and puts that back when the setting goes;
 - **the children of any container it builds** - insertion, order and removal are the applier's.
 
 A component a parent built and keeps - a scroll pane's scroll bar, a layer's glass pane - stays its
@@ -109,8 +115,8 @@ is nothing to race. Keeping the component out of your signatures is what lets th
 single writer.
 
 The same rule explains where a property belongs. One that only your component has is a parameter of
-your component. One that many unrelated components have is a modifier, so it reaches all of them
-without every wrapper repeating it - and so a caller composes it with everything else in one modifier.
+your component. One that many unrelated components have is a style property, so it reaches all of them
+without every wrapper repeating it - and so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
 
 ## The `SwingNode` signatures
 
@@ -296,15 +302,16 @@ fun Titled(text: String) {
 
 A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc
 holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given
-back through the modifier. Within one composition, a component is claimed by at most one node at a time;
+back through the part's style or modifier. To expose the part's properties to callers, accept a `style`
+parameter and apply it with `styleable` on the part's modifier. Within one composition, a component is claimed by at most one node at a time;
 a second claim is refused. When Swing types a getter wider than the part it returns, write the part's type as
 the third type argument: `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane)`.
 Under a host that uses indexed children, `declaringCall` names the declaration in that refusal.
 
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 
-The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for styling
-and lifecycle-safe listeners you apply a `SwingModifier`.
+The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for
+lifecycle-safe listeners you apply a `SwingModifier`, and the properties a caller sets are its style.
 
 ### `set(value) { ... }` - reactive property updates
 
@@ -448,6 +455,12 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
+import org.jetbrains.compose.swing.components.style.Spinners
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 -->
@@ -458,6 +471,7 @@ fun MySpinner(
     value: Int,
     onValueChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     min: Int = 0,
     max: Int = 100,
     step: Int = 1,
@@ -467,7 +481,11 @@ fun MySpinner(
         // The component adds its own element onto the caller's modifier; the changeListener
         // builder owns the listener's lifecycle. The typed overload hands the spinner over as the
         // receiver, and `this` is needed because the composable's own `value` parameter shadows it.
-        modifier = modifier.changeListener<JSpinner> { onValueChange(this.value as Int) },
+        // The style comes last, so it applies after the caller's modifier.
+        modifier =
+            modifier
+                .changeListener<JSpinner> { onValueChange(this.value as Int) }
+                .styleable(SpinnerKind, style),
         update = {
             // Reactive property updates: each block re-runs only when its value changes.
             set(min) { numberModel.minimum = it }
@@ -477,6 +495,13 @@ fun MySpinner(
         },
     )
 }
+
+// The kind names the shared styles this component picks up, so a style provided for `Spinners` reaches it.
+private val SpinnerKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        scope = { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+        default = { applyNestedStyle(Spinners) },
+    )
 
 // A `JSpinner` keeps the range and the step on its model, so that is where those parameters land.
 private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNumberModel

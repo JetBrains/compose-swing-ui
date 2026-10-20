@@ -8,8 +8,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.composed
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -38,7 +39,7 @@ class RowColumnWeightTest {
     fun aWeightedChildTakesTheHeightTheOtherChildrenLeave() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 300))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(1f))
                 }
@@ -59,7 +60,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             var weight by mutableFloatStateOf(1f)
             setContent {
-                Row(modifier = containerModifier(100, 10)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 10))) {
                     Box(modifier = SwingModifier.testTag("changed").weight(weight).absoluteOffset(2, 3))
                     Box(modifier = SwingModifier.weight(1f))
                 }
@@ -77,7 +78,7 @@ class RowColumnWeightTest {
     fun aWeightAComposedEntryDeclaresIsHonored() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 300))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.composed { weight(1f) })
                 }
@@ -97,7 +98,7 @@ class RowColumnWeightTest {
     fun twoWeightedChildrenSplitTheLeftoverHeightInProportion() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 340)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 340))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(1f))
                     SizedChild(2, SwingModifier.weight(2f))
@@ -119,7 +120,7 @@ class RowColumnWeightTest {
     fun aWeightedChildThatDoesNotFillKeepsTheHeightItPrefers() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 300))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(1f, fill = false))
                 }
@@ -139,8 +140,8 @@ class RowColumnWeightTest {
     fun aWeightedChildNeverGrowsPastTheMaximumItDeclares() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 400)) {
-                    SizedChild(0, SwingModifier.weight(1f).maximumSize(CHILD_WIDTH, 30))
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 400))) {
+                    SizedChild(0, SwingModifier.weight(1f), style = { maximumSize(CHILD_WIDTH, 30) })
                 }
             }
 
@@ -159,8 +160,8 @@ class RowColumnWeightTest {
     fun anUnweightedChildInARowNeverGrowsPastTheMaximumItDeclares() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(100, 100)) {
-                    SizedChild(0, SwingModifier.maximumSize(30, CHILD_HEIGHT))
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 100))) {
+                    SizedChild(0, style = { maximumSize(30, CHILD_HEIGHT) })
                 }
             }
 
@@ -175,8 +176,8 @@ class RowColumnWeightTest {
     fun anUnweightedChildInAColumnNeverGrowsPastTheMaximumItDeclares() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 400)) {
-                    SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, 30))
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(100, 400))) {
+                    SizedChild(0, style = { maximumSize(CHILD_WIDTH, 30) })
                 }
             }
 
@@ -192,7 +193,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.maximumSize(30, CHILD_HEIGHT))
+                    SizedChild(0, style = { maximumSize(30, CHILD_HEIGHT) })
                 }
             }
 
@@ -207,7 +208,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, 30))
+                    SizedChild(0, style = { maximumSize(CHILD_WIDTH, 30) })
                 }
             }
 
@@ -222,7 +223,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, 30))
+                    SizedChild(0, style = { maximumSize(CHILD_WIDTH, 30) })
                 }
             }
 
@@ -237,7 +238,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.maximumSize(30, CHILD_HEIGHT))
+                    SizedChild(0, style = { maximumSize(30, CHILD_HEIGHT) })
                 }
             }
 
@@ -255,10 +256,10 @@ class RowColumnWeightTest {
                     SizedChild(
                         0,
                         SwingModifier
-                            .maximumSize(10, 30)
                             .weight(1f)
                             .fillMaxHeight()
                             .aspectRatio(0.1f),
+                        style = { maximumSize(10, 30) },
                     )
                 }
             }
@@ -279,14 +280,14 @@ class RowColumnWeightTest {
     fun aWeightedCrossFilledAspectRatioEscapesAnImpossibleExactOffer() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(10, 30)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(10, 30))) {
                     SizedChild(
                         0,
                         SwingModifier
-                            .maximumSize(10, 30)
                             .weight(1f)
                             .fillMaxHeight()
                             .aspectRatio(0.1f),
+                        style = { maximumSize(10, 30) },
                     )
                 }
             }
@@ -314,7 +315,7 @@ class RowColumnWeightTest {
     fun twoWeightedChildrenSplitTheLeftoverWidthInProportion() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(350, 100)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(350, 100))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(1f))
                     SizedChild(2, SwingModifier.weight(2f))
@@ -337,7 +338,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 // Leaves exactly 5px after the fixture child, exposing fractional-weight rounding.
-                Row(modifier = containerModifier(55, 100)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(55, 100))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(0.5f))
                     SizedChild(2, SwingModifier.weight(1.5f))
@@ -361,7 +362,7 @@ class RowColumnWeightTest {
         runComposeSwingTest {
             setContent {
                 // This 23px offer sits on a Float rounding boundary that differs from Double accumulation.
-                Row(modifier = containerModifier(23, 100)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(23, 100))) {
                     SizedChild(0, SwingModifier.weight(8f))
                     SizedChild(1, SwingModifier.weight(75f / 41f))
                     SizedChild(2, SwingModifier.weight(7f))
@@ -384,7 +385,7 @@ class RowColumnWeightTest {
     fun twoChildrenAskingForEverythingKeepAndroidXsFloatOverflowRounding() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(350, 100)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(350, 100))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(Float.POSITIVE_INFINITY))
                     SizedChild(2, SwingModifier.weight(Float.POSITIVE_INFINITY))
@@ -410,7 +411,7 @@ class RowColumnWeightTest {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     SizedChild(0)
                     // Narrower than a fixture child, so the width the spacer holds is unmistakably its own.
-                    Label("", modifier = SwingModifier.weight(1f).preferredSize(20, CHILD_HEIGHT))
+                    Label("", modifier = SwingModifier.weight(1f), style = { preferredSize(20, CHILD_HEIGHT) })
                     SizedChild(1)
                 }
             }
@@ -463,7 +464,7 @@ class RowColumnWeightTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     SizedChild(0)
-                    SizedChild(1, SwingModifier.weight(1f).maximumSize(30, CHILD_HEIGHT))
+                    SizedChild(1, SwingModifier.weight(1f), style = { maximumSize(30, CHILD_HEIGHT) })
                 }
             }
 
@@ -493,7 +494,8 @@ class RowColumnWeightTest {
                             SwingModifier
                                 .weight(
                                     Float.POSITIVE_INFINITY,
-                                ).preferredSize(Int.MAX_VALUE, CHILD_HEIGHT),
+                                ),
+                        style = { preferredSize(Int.MAX_VALUE, CHILD_HEIGHT) },
                     )
                     Label(
                         "",
@@ -501,7 +503,8 @@ class RowColumnWeightTest {
                             SwingModifier
                                 .weight(
                                     Float.POSITIVE_INFINITY,
-                                ).preferredSize(Int.MAX_VALUE, CHILD_HEIGHT),
+                                ),
+                        style = { preferredSize(Int.MAX_VALUE, CHILD_HEIGHT) },
                     )
                 }
             }
@@ -517,7 +520,7 @@ class RowColumnWeightTest {
     fun aChildKeepsTheLastWeightItDeclares() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(350, 100)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(350, 100))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(2f, fill = false).weight(1f, fill = true))
                     SizedChild(2, SwingModifier.weight(2f))
@@ -604,11 +607,13 @@ class RowColumnWeightTest {
                             Label(
                                 text = "wide",
                                 modifier =
-                                    SwingModifier.testTag("wide").preferredSize(150, 10).weight(1f, fill = false),
+                                    SwingModifier.testTag("wide").weight(1f, fill = false),
+                                style = { preferredSize(150, 10) },
                             )
                             Label(
                                 text = "narrow",
-                                modifier = SwingModifier.preferredSize(10, 10).weight(1f, fill = false),
+                                modifier = SwingModifier.weight(1f, fill = false),
+                                style = { preferredSize(10, 10) },
                             )
                         }
                     },

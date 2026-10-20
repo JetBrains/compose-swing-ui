@@ -11,10 +11,10 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
@@ -40,9 +40,11 @@ internal fun SampleTitle(text: String) {
         text = text,
         modifier =
             SwingModifier
-                .font(Font(Font.SANS_SERIF, Font.BOLD, 20))
-                .foreground(Color(0x2D, 0x4B, 0x73))
                 .horizontalAlignment(SwingConstants.LEADING),
+        style = {
+            font(Font(Font.SANS_SERIF, Font.BOLD, 20))
+            foreground(Color(0x2D, 0x4B, 0x73))
+        },
     )
 }
 
@@ -54,9 +56,11 @@ internal fun Caption(text: String) {
         text = "<html><body style='width:520px'>$text</body></html>",
         modifier =
             SwingModifier
-                .font(Font(Font.SANS_SERIF, Font.PLAIN, 14))
-                .foreground(Color(0x5A, 0x5A, 0x5A))
                 .horizontalAlignment(SwingConstants.LEADING),
+        style = {
+            font(Font(Font.SANS_SERIF, Font.PLAIN, 14))
+            foreground(Color(0x5A, 0x5A, 0x5A))
+        },
     )
 }
 
@@ -93,7 +97,7 @@ internal fun ValueLabel(
         text = text,
         modifier =
             SwingModifier
-                .preferredSize(Dimension(width, 22))
                 .horizontalAlignment(SwingConstants.LEADING),
+        style = { preferredSize(Dimension(width, 22)) },
     )
 }

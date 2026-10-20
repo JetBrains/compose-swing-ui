@@ -13,7 +13,8 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -35,7 +36,7 @@ class AnimatedVisibilityPreferredSizeSetTest {
                 Column {
                     AnimatedVisibility(
                         visible = visible,
-                        modifier = SwingModifier.testTag(CONTAINER).preferredSize(120, 40),
+                        modifier = SwingModifier.testTag(CONTAINER).styleable { preferredSize(120, 40) },
                         enter =
                             fadeIn(tween(TRANSITION_MILLIS)) +
                                 expandVertically(tween(TRANSITION_MILLIS, easing = LinearEasing)),
@@ -68,7 +69,7 @@ class AnimatedVisibilityPreferredSizeSetTest {
             content = { visible ->
                 parent.Hosting {
                     FadingBlock(visible, SwingModifier.testTag("plain"))
-                    FadingBlock(visible, SwingModifier.testTag("sized").preferredSize(120, 40))
+                    FadingBlock(visible, SwingModifier.testTag("sized").styleable { preferredSize(120, 40) })
                 }
             },
             frames = 2,

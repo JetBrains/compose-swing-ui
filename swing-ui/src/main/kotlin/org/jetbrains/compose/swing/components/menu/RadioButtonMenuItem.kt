@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.RadioButtonMenuItems
+import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
@@ -28,6 +34,7 @@ import javax.swing.KeyStroke
  * @param selected whether the menu item is selected
  * @param onSelectedChange callback invoked with the selected state when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JRadioButtonMenuItem
@@ -38,6 +45,7 @@ public fun RadioButtonMenuItem(
     selected: Boolean,
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
     accelerator: KeyStroke? = null,
 ) {
     val mirror = rememberMirrorState(selected)
@@ -47,6 +55,7 @@ public fun RadioButtonMenuItem(
             modifier.actionListener<JRadioButtonMenuItem> {
                 mirror.report { onSelectedChange(isSelected) }
             },
+        style = style,
         selected = selected,
         accelerator = accelerator,
         mirror = mirror,
@@ -62,6 +71,7 @@ public fun RadioButtonMenuItem(
  * @param selected whether the menu item is selected
  * @param actionListener the listener notified when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JRadioButtonMenuItem
@@ -72,6 +82,7 @@ public fun RadioButtonMenuItem(
     selected: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
     accelerator: KeyStroke? = null,
 ) {
     val mirror = rememberMirrorState(selected)
@@ -79,11 +90,22 @@ public fun RadioButtonMenuItem(
         text = text,
         modifier =
             modifier.actionListener(actionListener),
+        style = style,
         selected = selected,
         accelerator = accelerator,
         mirror = mirror,
     )
 }
+
+/** [SelectableStyleScope] for RadioButtonMenuItem styles. The declared selected state supplies `isSelected`. */
+private val RadioButtonMenuItemKind =
+    nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
+        object : SelectableStyleScope, ComponentStyleScope by base {
+            override val isSelected: Boolean get() = selected
+        }
+    }) {
+        applyNestedStyle(RadioButtonMenuItems)
+    }
 
 /**
  * The `JRadioButtonMenuItem` node both [RadioButtonMenuItem] overloads render. [selected] is settled
@@ -97,13 +119,14 @@ public fun RadioButtonMenuItem(
 private inline fun RadioButtonMenuItemNode(
     text: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<SelectableStyleScope>,
     selected: Boolean,
     accelerator: KeyStroke?,
     mirror: MirrorState<Boolean>,
 ) {
     MenuNode(
         factory = { JRadioButtonMenuItem() },
-        modifier = modifier,
+        modifier = modifier.styleable(RadioButtonMenuItemKind, selected, style),
         update = {
             set(text) { this.text = it }
             init { addItemListener { mirror.observed(isSelected) } }

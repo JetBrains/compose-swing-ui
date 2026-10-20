@@ -17,16 +17,12 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.borderPainted
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.cursor
 import org.jetbrains.compose.swing.modifier.appearance.disabledIcon
 import org.jetbrains.compose.swing.modifier.appearance.disabledSelectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.focusPainted
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalTextPosition
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.iconTextGap
@@ -40,11 +36,16 @@ import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.appearance.verticalTextPosition
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -64,14 +65,21 @@ internal fun ColumnScope.AppearanceCard() {
             if (fancy) {
                 SwingModifier
                     .opaque(true)
-                    .background(Color(0xFF, 0xF3, 0xE0))
-                    .foreground(Color(0xBF, 0x36, 0x0C))
-                    .font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
                     .lineBorder(Color(0xBF, 0x36, 0x0C), 2)
             } else {
                 SwingModifier
             }
-        Label("Styled when the box is checked", modifier = styled)
+        Label(
+            "Styled when the box is checked",
+            modifier = styled,
+            style = {
+                if (fancy) {
+                    background(Color(0xFF, 0xF3, 0xE0))
+                    foreground(Color(0xBF, 0x36, 0x0C))
+                    font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
+                }
+            },
+        )
     }
 }
 
@@ -102,7 +110,6 @@ internal fun ColumnScope.IconFamilyCard() {
             onCheckedChange = { checked = it },
             modifier =
                 SwingModifier
-                    .enabled(enabled)
                     .icon(baseDot)
                     .selectedIcon(selectedDot)
                     .pressedIcon(pressedDot)
@@ -110,6 +117,7 @@ internal fun ColumnScope.IconFamilyCard() {
                     .rolloverSelectedIcon(rolloverSelectedDot)
                     .disabledIcon(disabledDot)
                     .disabledSelectedIcon(disabledSelectedDot),
+            style = { enabled(enabled) },
         )
     }
 }
@@ -143,7 +151,7 @@ internal fun ColumnScope.TextPositionCard() {
         }
         val textSide = intArrayOf(SwingConstants.LEFT, SwingConstants.CENTER, SwingConstants.RIGHT)[horizontal]
         val textRow = intArrayOf(SwingConstants.TOP, SwingConstants.CENTER, SwingConstants.BOTTOM)[vertical]
-        Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
+        Panel(PanelLayout.Flow(), style = { preferredSize(Dimension(260, 90)) }) {
             Button(
                 "Labeled",
                 onClick = { },
@@ -199,10 +207,12 @@ internal fun ColumnScope.CursorAndToolTipCard() {
             modifier =
                 SwingModifier
                     .opaque(true)
-                    .background(Color(0xE8, 0xF5, 0xE9))
-                    .preferredSize(Dimension(260, 32))
-                    .cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
                     .toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer"),
+            style = {
+                background(Color(0xE8, 0xF5, 0xE9))
+                preferredSize(Dimension(260, 32))
+                cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
+            },
         )
     }
 }
@@ -219,12 +229,11 @@ internal fun ColumnScope.PerLocationToolTipCard() {
         Canvas(
             modifier =
                 SwingModifier
-                    .preferredSize(Dimension(300, 56))
                     .lineBorder(Color.GRAY)
                     .toolTip { event ->
                         val width = event.component.width.coerceAtLeast(1)
                         bands.getOrNull(event.x * bands.size / width)?.first
-                    },
+                    }.styleable { preferredSize(Dimension(300, 56)) },
         ) {
             val band = width / bands.size
             bands.forEachIndexed { index, (_, color) ->

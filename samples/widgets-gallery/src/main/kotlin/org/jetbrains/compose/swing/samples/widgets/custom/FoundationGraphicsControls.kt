@@ -10,10 +10,10 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 
 // Sliders sharing a row split its width evenly.
 @Composable
@@ -42,7 +42,10 @@ internal fun RowScope.GraphicsSlider(
     Row(modifier = SwingModifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
         Label(
             "$label: $value$unit",
-            modifier = SwingModifier.preferredSize(108, 28).enabled(enabled),
+            style = {
+                preferredSize(108, 28)
+                enabled(enabled)
+            },
         )
         Slider(
             value = value,
@@ -50,10 +53,12 @@ internal fun RowScope.GraphicsSlider(
             modifier =
                 SwingModifier
                     .weight(1f)
-                    .preferredSize(80, 28)
-                    .testTag(tag)
-                    .accessibleName(label)
-                    .enabled(enabled),
+                    .testTag(tag),
+            style = {
+                preferredSize(80, 28)
+                accessibleName(label)
+                enabled(enabled)
+            },
             min = range.first,
             max = range.last,
         )

@@ -10,8 +10,6 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
@@ -19,13 +17,17 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -64,27 +66,19 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             var value by mutableStateOf(PaintOutsets.Decoration)
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides value) {
-                    Box {
-                        Box(modifier = SwingModifier.padding(32)) {
-                            Row(
-                                modifier = SwingModifier.testTag("row"),
-                                horizontalArrangement = Arrangement.spacedBy(8),
-                            ) {
-                                SwingNode(
-                                    factory = { JButton("Button") },
-                                    modifier = SwingModifier.testTag("stock").border(RingBorder(Color.RED)),
-                                )
-                                SwingNode(
-                                    factory = { ShadowButton("Button") },
-                                    modifier =
-                                        SwingModifier
-                                            .testTag(
-                                                "shadow",
-                                            ).border(RingBorder(Color.RED))
-                                            .shadow(8, Color.BLACK),
-                                )
-                            }
+                Box(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(value) }
+                        },
+                ) {
+                    Box(modifier = SwingModifier.padding(32)) {
+                        Row(
+                            modifier = SwingModifier.testTag("row"),
+                            horizontalArrangement = Arrangement.spacedBy(8),
+                        ) {
+                            RingedButton("stock", SwingModifier)
+                            RingedButton("shadow", SwingModifier.shadow(8, Color.BLACK)) { ShadowButton(it) }
                         }
                     }
                 }
@@ -131,7 +125,7 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.testTag("column")) {
-                    ShadowedCard("card", SwingModifier.paintOutsets(PaintOutsets.FullInsets))
+                    ShadowedCard("card", style = { paintOutsets(PaintOutsets.FullInsets) })
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
@@ -154,7 +148,11 @@ class PaintOutsetsDecoratedTest {
                     Box(modifier = SwingModifier.fillMaxWidth().height(10))
                     ShadowedCard(
                         "card",
-                        SwingModifier.paintOutsets(PaintOutsets.None).background(Color.BLUE).opaque(true),
+                        SwingModifier.opaque(true),
+                        style = {
+                            paintOutsets(PaintOutsets.None)
+                            background(Color.BLUE)
+                        },
                     )
                     Label("next", modifier = SwingModifier.testTag("next"))
                 }
@@ -180,11 +178,20 @@ class PaintOutsetsDecoratedTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) },
-                    modifier = SwingModifier.testTag("panel").background(Color.WHITE).opaque(true),
+                    modifier =
+                        SwingModifier
+                            .testTag(
+                                "panel",
+                            ).opaque(true)
+                            .styleable(RawKind) { background(Color.WHITE) },
                 ) {
                     ShadowedCard(
                         "card",
-                        SwingModifier.paintOutsets(PaintOutsets.None).background(Color.BLUE).opaque(true),
+                        SwingModifier.opaque(true),
+                        style = {
+                            paintOutsets(PaintOutsets.None)
+                            background(Color.BLUE)
+                        },
                     )
                 }
             }
@@ -214,9 +221,21 @@ class PaintOutsetsDecoratedTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) },
-                    modifier = SwingModifier.testTag("panel").background(Color.WHITE).opaque(true),
+                    modifier =
+                        SwingModifier
+                            .testTag(
+                                "panel",
+                            ).opaque(true)
+                            .styleable(RawKind) { background(Color.WHITE) },
                 ) {
-                    ShadowedCard("card", SwingModifier.paintOutsets(value).background(Color.BLUE).opaque(true))
+                    ShadowedCard(
+                        "card",
+                        SwingModifier.opaque(true),
+                        style = {
+                            paintOutsets(value)
+                            background(Color.BLUE)
+                        },
+                    )
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
@@ -239,7 +258,7 @@ class PaintOutsetsDecoratedTest {
             var value by mutableStateOf(PaintOutsets.Decoration)
             setContent {
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) {
-                    ShadowedCard("card", SwingModifier.paintOutsets(value))
+                    ShadowedCard("card", style = { paintOutsets(value) })
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
@@ -271,12 +290,16 @@ class PaintOutsetsDecoratedTest {
                     Box(
                         modifier =
                             SwingModifier
-                                .testTag("box")
-                                .paintOutsets(value)
-                                .emptyBorder(3)
-                                .shadow(8, Color.BLACK),
+                                .testTag(
+                                    "box",
+                                ).emptyBorder(3)
+                                .shadow(8, Color.BLACK)
+                                .styleable { paintOutsets(value) },
                     ) {
-                        SwingNode(factory = { JPanel() }, modifier = SwingModifier.preferredSize(120, 80))
+                        SwingNode(
+                            factory = { JPanel() },
+                            modifier = SwingModifier.styleable { preferredSize(120, 80) },
+                        )
                     }
                 }
             }
@@ -297,7 +320,7 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             var value by mutableStateOf(PaintOutsets.Decoration)
             var inColumn by mutableStateOf(true)
-            val card = movableContentOf { ShadowedCard("card", SwingModifier.paintOutsets(value)) }
+            val card = movableContentOf { ShadowedCard("card", style = { paintOutsets(value) }) }
             setContent {
                 Column { if (inColumn) card() }
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) { if (!inColumn) card() }
@@ -321,11 +344,11 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             setContent {
                 Column {
-                    ShadowedCard("foundation", SwingModifier.paintOutsets(TwoPixels))
+                    ShadowedCard("foundation", style = { paintOutsets(TwoPixels) })
                     Label("next", modifier = SwingModifier.testTag("next"))
                 }
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) {
-                    ShadowedCard("swing", SwingModifier.paintOutsets(TwoPixels))
+                    ShadowedCard("swing", style = { paintOutsets(TwoPixels) })
                 }
             }
             val reach = blurOutsets(8)
@@ -358,7 +381,7 @@ class PaintOutsetsDecoratedTest {
                                 .testTag("declared")
                                 .emptyBorder(-2, 0, -2, 0)
                                 .shadow(8, Color.BLACK)
-                                .paintOutsets(PaintOutsets.Decoration),
+                                .styleable(RawKind) { paintOutsets(PaintOutsets.Decoration) },
                     )
                 }
             }
@@ -386,9 +409,9 @@ class PaintOutsetsDecoratedTest {
                             modifier =
                                 SwingModifier
                                     .testTag(tag)
-                                    .paintOutsets(value)
                                     .emptyBorder(-2, 0, -2, 0)
-                                    .shadow(8, Color.BLACK),
+                                    .shadow(8, Color.BLACK)
+                                    .styleable(RawKind) { paintOutsets(value) },
                         )
                     }
                 }
@@ -412,14 +435,12 @@ class PaintOutsetsDecoratedTest {
             val placements = mutableListOf<Rectangle>()
             val sizes = mutableListOf<Dimension>()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(300, 200)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(300, 200) }) {
                     ShadowedCard(
                         "card",
-                        SwingModifier
-                            .paintOutsets(PaintOutsets.None)
-                            .onPlaced { placements += it }
-                            .onSizeChanged { sizes += it },
-                        radius,
+                        SwingModifier.onPlaced { placements += it }.onSizeChanged { sizes += it },
+                        radius = radius,
+                        style = { paintOutsets(PaintOutsets.None) },
                     )
                 }
             }
@@ -447,11 +468,11 @@ class PaintOutsetsDecoratedTest {
             val layout = CountingFlowLayout()
             setContent {
                 Column {
-                    val counted = SwingModifier.paintOutsets(value).countingMeasures { measures++ }
-                    ShadowedCard("foundation", counted, radius)
+                    val counted = SwingModifier.countingMeasures { measures++ }
+                    ShadowedCard("foundation", counted, radius, style = { paintOutsets(value) })
                 }
                 SwingNode(factory = { JPanel(layout) }) {
-                    ShadowedCard("swing", SwingModifier.paintOutsets(value), radius)
+                    ShadowedCard("swing", radius = radius, style = { paintOutsets(value) })
                 }
             }
             val cases =
@@ -480,14 +501,17 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             var value by mutableStateOf<PaintOutsets?>(null)
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides value) {
-                    Column {
-                        SwingNode(
-                            factory = { AwtCard() },
-                            modifier = SwingModifier.shadow(8, Color.BLACK),
-                        )
-                        Label("next", modifier = SwingModifier.testTag("next"))
-                    }
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            value?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                        },
+                ) {
+                    SwingNode(
+                        factory = { AwtCard() },
+                        modifier = SwingModifier.shadow(8, Color.BLACK).styleable(RawKind, SwingStyle),
+                    )
+                    Label("next", modifier = SwingModifier.testTag("next"))
                 }
             }
             for (each in listOf(null, PaintOutsets.Decoration, PaintOutsets.None, PaintOutsets.FullInsets)) {
@@ -499,56 +523,81 @@ class PaintOutsetsDecoratedTest {
         }
 
     @Test
-    fun theDecorationPaintsTheSameWhereverTheValueIsDeclared() =
+    fun theDecorationPaintsTheSameWhetherTheValueIsTheComponentsOwnOrProvided() =
         runComposeSwingTest {
             val values = listOf(PaintOutsets.None, PaintOutsets.FullInsets, TwoPixels)
             setContent {
                 Column {
                     for (value in values) {
-                        SwingNode(
-                            factory = { Card() },
-                            modifier =
-                                SwingModifier
-                                    .testTag("$value before")
-                                    .background(Color.BLUE)
-                                    .opaque(true)
-                                    .emptyBorder(3)
-                                    .shadow(8, Color.BLACK)
-                                    .paintOutsets(value),
+                        ShadowedCard(
+                            "$value own",
+                            SwingModifier.opaque(true),
+                            style = {
+                                paintOutsets(value)
+                                background(Color.BLUE)
+                            },
                         )
-                        SwingNode(
-                            factory = { Card() },
+                        Column(
                             modifier =
-                                SwingModifier
-                                    .testTag("$value after")
-                                    .background(Color.BLUE)
-                                    .opaque(true)
-                                    .emptyBorder(3)
-                                    .paintOutsets(value)
-                                    .shadow(8, Color.BLACK),
-                        )
+                                SwingModifier.styleable {
+                                    provideNestedStyle(AllComponents) { paintOutsets(value) }
+                                },
+                        ) {
+                            ShadowedCard(
+                                "$value provided",
+                                SwingModifier.opaque(true),
+                                style = { background(Color.BLUE) },
+                            )
+                        }
                     }
                 }
             }
             for (value in values) {
-                val before = onNodeWithTag("$value before").captureToImage()
-                val shadow = (before.height - 86) / 2
-                assertNotEquals(0, before.getRGB(before.width / 2, shadow - 2), "$value: the shadow paints")
-                assertImagesPixelPerfect(before, onNodeWithTag("$value after").captureToImage())
+                val own = onNodeWithTag("$value own").captureToImage()
+                val shadow = (own.height - 86) / 2
+                assertNotEquals(0, own.getRGB(own.width / 2, shadow - 2), "$value: the shadow paints")
+                assertImagesPixelPerfect(own, onNodeWithTag("$value provided").captureToImage())
             }
         }
 }
 
-/** A [Card] tagged [tag] with a 3 px empty border and a shadow of [radius], declaring [modifier] first. */
+/** A button tagged [tag] with a [RingBorder], built by [factory] and declaring [modifier] after the border. */
+@Composable
+private fun RingedButton(
+    tag: String,
+    modifier: SwingModifier,
+    factory: (String) -> JButton = { JButton(it) },
+) {
+    SwingNode(
+        factory = { factory("Button") },
+        modifier =
+            SwingModifier
+                .testTag(tag)
+                .border(RingBorder(Color.RED))
+                .then(modifier)
+                .styleable(RawKind, SwingStyle),
+    )
+}
+
+/**
+ * A [Card] tagged [tag] with a 3 px empty border and a shadow of [radius], declaring [modifier] first and [style]
+ * after the styles provided for every component.
+ */
 @Composable
 private fun ShadowedCard(
     tag: String,
-    modifier: SwingModifier,
+    modifier: SwingModifier = SwingModifier,
     radius: Int = 8,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
 ) {
     SwingNode(
         factory = { Card() },
-        modifier = modifier.testTag(tag).emptyBorder(3).shadow(radius, Color.BLACK),
+        modifier =
+            modifier
+                .testTag(tag)
+                .emptyBorder(3)
+                .shadow(radius, Color.BLACK)
+                .styleable(RawKind, style),
     )
 }
 

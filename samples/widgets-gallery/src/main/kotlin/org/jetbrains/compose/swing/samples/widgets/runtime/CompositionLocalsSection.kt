@@ -10,11 +10,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 
@@ -81,5 +80,5 @@ private fun InnerPanel() {
 @Composable
 private fun AccentedLabel(text: String) {
     val accent = LocalAccent.current
-    Label(text = text, modifier = SwingModifier.foreground(accent))
+    Label(text = text, style = { foreground(accent) })
 }

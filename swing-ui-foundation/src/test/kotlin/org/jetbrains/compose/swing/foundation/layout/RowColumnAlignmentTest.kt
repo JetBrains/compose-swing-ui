@@ -6,9 +6,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.apply
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -61,7 +65,7 @@ class RowColumnAlignmentTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(ACROSS_EXTENT, ALONG_EXTENT)),
                     horizontalAlignment = Alignment.Start,
                 ) {
                     SizedChild(0)
@@ -84,7 +88,7 @@ class RowColumnAlignmentTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(ALONG_EXTENT, ACROSS_EXTENT)),
                     verticalAlignment = Alignment.Top,
                 ) {
                     SizedChild(0)
@@ -106,7 +110,7 @@ class RowColumnAlignmentTest {
     fun aRowChildKeepsTheLastAlignmentItDeclares() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(ALONG_EXTENT, ACROSS_EXTENT))) {
                     SizedChild(0, SwingModifier.align(Alignment.Top).align(Alignment.Bottom))
                 }
             }
@@ -122,7 +126,7 @@ class RowColumnAlignmentTest {
     fun aColumnChildKeepsTheLastAlignmentItDeclares() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(ACROSS_EXTENT, ALONG_EXTENT))) {
                     SizedChild(0, SwingModifier.align(Alignment.Start).align(Alignment.End))
                 }
             }
@@ -138,7 +142,7 @@ class RowColumnAlignmentTest {
     fun anAlignAppendedAfterTheCallersModifierArgumentStillWins() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(ALONG_EXTENT, ACROSS_EXTENT))) {
                     BottomAlignedChild(modifier = SwingModifier.align(Alignment.Top))
                 }
             }
@@ -381,7 +385,11 @@ class RowColumnAlignmentTest {
                     FlexibleBaselineChild(30, SwingModifier.weight(1f).alignByBaseline())
                     SwingNode(
                         factory = { JPanel() },
-                        modifier = SwingModifier.weight(1f).alignByBaseline().preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                        modifier =
+                            SwingModifier
+                                .weight(1f)
+                                .alignByBaseline()
+                                .styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
                     )
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
@@ -435,7 +443,8 @@ class RowColumnAlignmentTest {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     CappedBaselineChild(
                         30,
-                        SwingModifier.maximumSize(CAPPED_BASELINE_WIDTH, CHILD_HEIGHT).alignByBaseline(),
+                        SwingModifier.alignByBaseline(),
+                        style = { maximumSize(CAPPED_BASELINE_WIDTH, CHILD_HEIGHT) },
                     )
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
@@ -457,7 +466,8 @@ class RowColumnAlignmentTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     CappedCrossBaselineChild(
-                        SwingModifier.maximumSize(CHILD_WIDTH, CAPPED_BASELINE_HEIGHT).alignByBaseline(),
+                        SwingModifier.alignByBaseline(),
+                        style = { maximumSize(CHILD_WIDTH, CAPPED_BASELINE_HEIGHT) },
                     )
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
@@ -480,7 +490,8 @@ class RowColumnAlignmentTest {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     CappedBaselineChild(
                         30,
-                        SwingModifier.weight(1f).alignByBaseline().maximumSize(CAPPED_BASELINE_WIDTH, CHILD_HEIGHT),
+                        SwingModifier.weight(1f).alignByBaseline(),
+                        style = { maximumSize(CAPPED_BASELINE_WIDTH, CHILD_HEIGHT) },
                     )
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
@@ -506,7 +517,7 @@ class RowColumnAlignmentTest {
                                 .alignByBaseline()
                                 .aspectRatio(1f)
                                 // 10_000: wide enough the main axis never binds, exercising only the cross-axis cap.
-                                .maximumSize(10_000, CAPPED_ASPECT_CROSS_AXIS),
+                                .styleable { maximumSize(10_000, CAPPED_ASPECT_CROSS_AXIS) },
                     )
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
@@ -524,7 +535,7 @@ class RowColumnAlignmentTest {
     fun aRowMeasuredByItsParentStillHoldsTheDeepestBaselineAndTheDeepestRemainder() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.preferredSize(200, 200)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(200, 200) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         BaselineChild(30, SwingModifier.alignByBaseline())
                         BaselineChild(10, SwingModifier.alignByBaseline())
@@ -674,7 +685,7 @@ private fun AlignedColumn(
     orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
 ) {
     Column(
-        modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT, orientation),
+        modifier = SwingModifier.containerTag().styleable(containerStyle(ACROSS_EXTENT, ALONG_EXTENT, orientation)),
         horizontalAlignment = alignment,
     ) {
         SizedChild(0)
@@ -685,7 +696,7 @@ private fun AlignedColumn(
 @Composable
 private fun AlignedRow(alignment: Alignment.Vertical) {
     Row(
-        modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT),
+        modifier = SwingModifier.containerTag().styleable(containerStyle(ALONG_EXTENT, ACROSS_EXTENT)),
         verticalAlignment = alignment,
     ) {
         SizedChild(0)
@@ -724,7 +735,10 @@ private fun BaselineRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
-        modifier = containerModifier(CHILD_WIDTH * CHILD_COUNT, ACROSS_EXTENT, orientation),
+        modifier =
+            SwingModifier
+                .containerTag()
+                .styleable(containerStyle(CHILD_WIDTH * CHILD_COUNT, ACROSS_EXTENT, orientation)),
         verticalAlignment = verticalAlignment,
         content = content,
     )
@@ -755,7 +769,7 @@ private fun BaselineChild(
 ) {
     SwingNode(
         factory = { BaselinePanel(baseline) },
-        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier = modifier.styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
     )
 }
 
@@ -767,7 +781,7 @@ private fun FlexibleBaselineChild(
 ) {
     SwingNode(
         factory = { FlexibleBaselinePanel(baseline) },
-        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier = modifier.styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
     )
 }
 
@@ -776,19 +790,31 @@ private fun FlexibleBaselineChild(
 private fun CappedBaselineChild(
     baseline: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
 ) {
     SwingNode(
         factory = { CappedBaselinePanel(baseline) },
-        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier =
+            modifier.styleable {
+                preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+                apply(style)
+            },
     )
 }
 
 /** A baseline child that reports only when the row asks it at its explicit capped height. */
 @Composable
-private fun CappedCrossBaselineChild(modifier: SwingModifier = SwingModifier) {
+private fun CappedCrossBaselineChild(
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
+) {
     SwingNode(
         factory = { CappedCrossBaselinePanel() },
-        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier =
+            modifier.styleable {
+                preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+                apply(style)
+            },
     )
 }
 

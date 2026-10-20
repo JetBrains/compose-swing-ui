@@ -7,8 +7,9 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -101,10 +102,10 @@ class BoxFillersTest {
     @Test
     fun glueBetweenTwoItemsPushesTheSecondToTheTrailingEdge() = runComposeSwingTest {
         setContent {
-            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = SwingModifier.preferredSize(400, 40)) {
-                Label("leading", modifier = SwingModifier.fixed())
+            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), style = { preferredSize(400, 40) }) {
+                Label("leading", style = { fixed() })
                 Glue()
-                Label("trailing", modifier = SwingModifier.fixed())
+                Label("trailing", style = { fixed() })
             }
         }
 
@@ -122,9 +123,9 @@ class BoxFillersTest {
     @Test
     fun withoutGlueTheItemsStayPackedTogether() = runComposeSwingTest {
         setContent {
-            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = SwingModifier.preferredSize(400, 40)) {
-                Label("leading", modifier = SwingModifier.fixed())
-                Label("trailing", modifier = SwingModifier.fixed())
+            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), style = { preferredSize(400, 40) }) {
+                Label("leading", style = { fixed() })
+                Label("trailing", style = { fixed() })
             }
         }
 
@@ -215,4 +216,7 @@ class BoxFillersTest {
  * A size a `BoxLayout` cannot stretch, so the leftover space of a row is left for whatever else in it
  * can absorb space. A label's own maximum is unbounded, which would let it share the leftover.
  */
-private fun SwingModifier.fixed(): SwingModifier = preferredSize(60, 20).maximumSize(60, 20)
+private fun ComponentStyleScope.fixed() {
+    preferredSize(60, 20)
+    maximumSize(60, 20)
+}

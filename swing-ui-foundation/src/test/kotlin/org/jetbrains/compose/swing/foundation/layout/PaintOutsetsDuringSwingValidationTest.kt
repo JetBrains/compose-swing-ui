@@ -10,8 +10,9 @@ import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -36,7 +37,7 @@ class PaintOutsetsDuringSwingValidationTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(flow) },
-                    modifier = SwingModifier.testTag("parent").preferredSize(200, 200),
+                    modifier = SwingModifier.testTag("parent").styleable { preferredSize(200, 200) },
                 ) {
                     Row(modifier = SwingModifier.testTag("row")) {
                         SwingNode(factory = { Card() }, modifier = SwingModifier.testTag("card").then(element))
@@ -74,9 +75,9 @@ class PaintOutsetsDuringSwingValidationTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(flow) },
-                    modifier = SwingModifier.testTag("parent").preferredSize(200, 200),
+                    modifier = SwingModifier.testTag("parent").styleable { preferredSize(200, 200) },
                 ) {
-                    Row(modifier = SwingModifier.testTag("row").paintOutsets(outsets).then(step)) {
+                    Row(modifier = SwingModifier.testTag("row").then(step).styleable { paintOutsets(outsets) }) {
                         SwingNode(factory = { Card() })
                     }
                 }
@@ -108,11 +109,15 @@ class PaintOutsetsDuringSwingValidationTest {
             setContent {
                 SwingNode(
                     factory = { JPanel(flow) },
-                    modifier = SwingModifier.testTag("parent").preferredSize(200, 200),
+                    modifier = SwingModifier.testTag("parent").styleable { preferredSize(200, 200) },
                 ) {
                     SwingNode(
                         factory = { Card() },
-                        modifier = SwingModifier.testTag("card").paintOutsets(PaintOutsets.None).then(step),
+                        modifier =
+                            SwingModifier
+                                .testTag("card")
+                                .then(step)
+                                .styleable { paintOutsets(PaintOutsets.None) },
                     )
                 }
             }
@@ -150,8 +155,8 @@ class PaintOutsetsDuringSwingValidationTest {
                                     if (hasDecoration) {
                                         SwingModifier
                                             .testTag("removing-card")
-                                            .paintOutsets(PaintOutsets.None)
                                             .then(step)
+                                            .styleable { paintOutsets(PaintOutsets.None) }
                                     } else {
                                         SwingModifier.testTag("removing-card")
                                     },
@@ -170,7 +175,7 @@ class PaintOutsetsDuringSwingValidationTest {
                             }
                         }
                     },
-                    modifier = SwingModifier.preferredSize(200, 200),
+                    modifier = SwingModifier.styleable { preferredSize(200, 200) },
                 )
             }
 

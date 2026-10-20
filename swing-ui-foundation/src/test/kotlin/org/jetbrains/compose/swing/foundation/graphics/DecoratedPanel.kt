@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Insets
@@ -72,29 +75,31 @@ internal open class DecoratedPanel(
 @Composable
 internal inline fun DecoratedFlowPanel(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
     crossinline content: @Composable () -> Unit = {},
 ) {
     SwingNode(
         factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
-        modifier = modifier,
+        modifier = modifier.styleable(style),
     ) { content() }
 }
 
 /**
- * A transparent [DecoratedPanel] declaring [modifier], which places [content] at its top-left corner at its preferred
- * size, as a `Box` does: the component a decoration-only test decorates, and a Swing parent whose children declare
- * decorations.
+ * A transparent [DecoratedPanel] declaring [modifier] and [style], which places [content] at its top-left corner at
+ * its preferred size, as a `Box` does: the component a decoration-only test decorates, and a Swing parent whose
+ * children declare decorations.
  */
 @Composable
 internal inline fun DecoratedBox(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit = {},
 ) {
     SwingNode(
         factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } },
-        modifier = modifier,
+        modifier = modifier.styleable(style),
         content = content,
     )
 }

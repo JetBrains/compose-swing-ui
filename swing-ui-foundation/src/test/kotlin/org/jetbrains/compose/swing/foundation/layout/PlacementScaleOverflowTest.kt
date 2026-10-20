@@ -11,8 +11,9 @@ import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -149,7 +150,11 @@ class PlacementScaleOverflowTest {
             setContent {
                 Box {
                     Row(
-                        modifier = SwingModifier.testTag("row").preferredSize(40, 40).placementLayer { scaleX = 0.75f },
+                        modifier =
+                            SwingModifier
+                                .testTag("row")
+                                .placementLayer { scaleX = 0.75f }
+                                .styleable { preferredSize(40, 40) },
                     ) {
                         Box(modifier = SwingModifier.requiredSize(80, 40))
                     }
@@ -159,8 +164,8 @@ class PlacementScaleOverflowTest {
                         modifier =
                             SwingModifier
                                 .testTag("column")
-                                .preferredSize(40, 40)
-                                .placementLayer { scaleX = 0.75f },
+                                .placementLayer { scaleX = 0.75f }
+                                .styleable { preferredSize(40, 40) },
                     ) {
                         Box(modifier = SwingModifier.requiredSize(80, 40))
                     }
@@ -197,7 +202,11 @@ class PlacementScaleOverflowTest {
                 Row {
                     Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 2f }) {
                         Canvas(
-                            modifier = SwingModifier.testTag("child").preferredSize(40, 40).shadow(4, Color.BLACK),
+                            modifier =
+                                SwingModifier
+                                    .testTag("child")
+                                    .shadow(4, Color.BLACK)
+                                    .styleable { preferredSize(40, 40) },
                         ) {}
                     }
                 }
@@ -223,8 +232,8 @@ class PlacementScaleOverflowTest {
                             modifier =
                                 SwingModifier
                                     .testTag(if (orientation.isLeftToRight) "leftToRight" else "rightToLeft")
-                                    .componentOrientation(orientation)
-                                    .placementLayer { scaleX = 0.75f },
+                                    .placementLayer { scaleX = 0.75f }
+                                    .styleable { componentOrientation(orientation) },
                             content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
                             measurePolicy = { measurables, _ ->
                                 val placeable = measurables.single().measure(Constraints())

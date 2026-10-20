@@ -102,18 +102,16 @@ public class SwingStyleProperty<V> internal constructor(
 )
 
 /**
- * Creates a style property written through [descriptor], with the same restore and rewrite options as
- * [SwingModifier.property][org.jetbrains.compose.swing.modifier.property]. A style property and a `property`
- * declaration of the same descriptor name share what the component held before either wrote it.
+ * Creates a style property with the restore and rewrite options of
+ * [SwingModifier.property][org.jetbrains.compose.swing.modifier.property].
+ * A style property and a modifier property with the same descriptor name share the original value to restore.
  *
- * @param descriptor the descriptor of the component property this style property writes.
- * @param restores what the component is held to once the style stops setting the property, as in
- *   [SwingModifier.property][org.jetbrains.compose.swing.modifier.property].
+ * @param descriptor the descriptor of the component property to set.
+ * @param restores the restoration policy when the style stops setting the property.
  * @param rewriteOn the rewrite option of [SwingModifier.property][org.jetbrains.compose.swing.modifier.property];
  *   `null` by default.
- * @param alsoOverwrites the other properties this write lands on, as in
- *   [SwingModifier.property][org.jetbrains.compose.swing.modifier.property].
- * @return the style property that sets the property through [descriptor].
+ * @param alsoOverwrites the other properties affected by this write.
+ * @return the style property for [descriptor].
  */
 public fun <V> stylePropertyOf(
     descriptor: ComponentPropertyDescriptor<*, V>,
@@ -134,11 +132,11 @@ public fun <V> stylePropertyOf(
  * declaration wins for the component and its descendants.
  *
  * @param descriptor the descriptor of the inherited component property.
- * @param restores what the component is held to once the style stops setting the property, as in
+ * @param restores the values restored once the style stops setting the property, as in
  *   [SwingModifier.property][org.jetbrains.compose.swing.modifier.property].
  * @param rewriteOn the rewrite option of [SwingModifier.property][org.jetbrains.compose.swing.modifier.property];
  *   `null` by default.
- * @param alsoOverwrites the other properties this write lands on, as in
+ * @param alsoOverwrites the other properties written by this declaration, as in
  *   [SwingModifier.property][org.jetbrains.compose.swing.modifier.property].
  * @return the style property that sets the inherited property through [descriptor].
  */
@@ -152,26 +150,26 @@ public fun <V> styleLocalOf(
     property =
         SwingStyleProperty { collector, value ->
             val element = PropertyElement(descriptor, value, restores, inheritable = false, rewriteOn, alsoOverwrites)
-            collector.declare(element)
-            collector.locals[descriptor.name] = ProvidedLocal(property, element.takeIf { value != null })
+            collector.declareLocal(element, ProvidedLocal(property, element.takeIf { value != null }))
         }
     return property
 }
 
 /**
- * A property whose write is a custom element: [element] builds it for a value, and that element's own key,
- * equality, target check and restore govern it, as they do in a modifier.
- * A style writes its descriptor-backed properties before the elements of properties made with this function,
- * each group in declaration order.
+ * Creates a style property whose value is applied by a custom element.
+ * A declaration replaces an earlier one with the same key. The element's equality, target constraints
+ * and restoration behavior apply as in a modifier.
+ * A style writes its descriptor-backed properties before its custom elements.
+ * Each group follows declaration order.
  *
- * The element is a [SwingModifier.NodeElement], or a [ParentLayoutElement] that folds no parent data. A style
- * element is never additive: a style slot is matched by key, so an additive element, such as a listener, belongs
- * in the component's modifier. A layout element wins over a modifier element with the same key, and an inheritable
- * one is left out under a parent whose protocol refuses it. A style that builds any other element fails when it
- * runs.
+ * [element] must return a [SwingModifier.NodeElement] or a [ParentLayoutElement] that folds no parent data.
+ * Returning any other element causes the style to fail when it runs.
+ * Additive elements are rejected; declare listeners in the component's modifier.
+ * A layout element takes precedence over a modifier element with the same key.
+ * An inheritable layout element is omitted when the parent's protocol refuses it.
  *
- * @param element builds the element that writes a value of this property.
- * @return the style property that writes through [element].
+ * @param element builds the element that applies a value of this property.
+ * @return the style property for [element].
  */
 public fun <V> stylePropertyOf(element: (V) -> SwingModifier.Element): SwingStyleProperty<V> =
     SwingStyleProperty { collector, value -> collector.writeElement(element(value)) }

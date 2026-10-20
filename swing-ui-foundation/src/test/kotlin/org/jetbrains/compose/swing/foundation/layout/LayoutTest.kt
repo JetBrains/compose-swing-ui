@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -34,7 +35,7 @@ class LayoutTest {
                         SizedChild(1)
                         SizedChild(2)
                     },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -55,7 +56,7 @@ class LayoutTest {
                         SizedChild(0)
                         SizedChild(1)
                     },
-                    modifier = containerModifier(200, CHILD_HEIGHT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, CHILD_HEIGHT)),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -79,7 +80,7 @@ class LayoutTest {
                         SizedChild(0)
                         SizedChild(1, SwingModifier.aspectRatio(2f))
                     },
-                    modifier = containerModifier(200, CHILD_HEIGHT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, CHILD_HEIGHT)),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -125,7 +126,7 @@ class LayoutTest {
                         val placeable = measurables.single().measure(Constraints(30, 30, 30, 30))
                         layout(30, 30) { placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -147,7 +148,7 @@ class LayoutTest {
             setContent {
                 Layout(
                     content = { SizedChild(0, SwingModifier.padding(8)) },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -177,7 +178,7 @@ class LayoutTest {
                             }
                         }
                     },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -199,7 +200,7 @@ class LayoutTest {
                         SizedChild(1)
                     },
                     measurePolicy = if (spaced) stackedRows { CHILD_HEIGHT } else stackedRows(),
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                 )
             }
 
@@ -262,7 +263,7 @@ class LayoutTest {
                             )
                         layout(placeable.width, placeable.height) { placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                 )
             }
 

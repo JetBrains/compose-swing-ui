@@ -56,6 +56,8 @@ private fun SwingModifier.customLabelProperty(value: String): SwingModifier =
 
 class ComponentDefaultsBehaviorTest {
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun outerInheritanceNestedReplacementRemovalAndRestoration() = runComposeSwingTest {
         val outerColor = Color.RED
         var innerColor by mutableStateOf<Color?>(Color.BLUE)
@@ -102,6 +104,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun duplicateKeysInOneProviderLastArgumentWins() = runComposeSwingTest {
         setContent {
             ProvideComponentDefaults(
@@ -115,6 +119,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun duplicateKeysInOneProviderLastRemovalWins() = runComposeSwingTest {
         setContent {
             ProvideComponentDefaults(
@@ -128,6 +134,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun competingKeysForSamePropertyLaterKeyWins() = runComposeSwingTest {
         val key1 = componentDefaultKeyOf<Color>("key1") { background(it) }
         val key2 = componentDefaultKeyOf<Color>("key2") { background(it) }
@@ -144,6 +152,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun customUpdateInheritedDefaultAndExplicitModifierPrecedence() = runComposeSwingTest {
         var defaultColor by mutableStateOf(Color.GREEN)
         var explicitColor by mutableStateOf<Color?>(null)
@@ -224,6 +234,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun currentReportsDeclarationEvenWhenPropertyLosesToAnotherKey() = runComposeSwingTest {
         val key1 = componentDefaultKeyOf<Color>("key1") { background(it) }
         val key2 = componentDefaultKeyOf<Color>("key2") { background(it) }
@@ -248,6 +260,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun coreKeysApplyExactlyTheirNamedPropertyAndSupplyNoImplicitValues() = runComposeSwingTest {
         val customFont = Font(Font.MONOSPACED, Font.ITALIC, 18)
         val customCursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
@@ -308,6 +322,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun mixedTargetTypesSkipNarrowerElementsOnIncompatibleComponents() = runComposeSwingTest {
         val mixedKey =
             componentDefaultKeyOf<String>("textAndColor") { text ->
@@ -333,6 +349,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun multiTargetDefaultsSkipComponentsNoCaseServes() = runComposeSwingTest {
         val alignment = componentDefaultKeyOf<Int>("alignment") { horizontalAlignment(it) }
 
@@ -347,6 +365,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun defaultsBecomingApplicableKeepEveryDeclaredElement() = runComposeSwingTest {
         val labelOnly = componentDefaultKeyOf<String>("labelOnly") { customLabelProperty(it) }
         var provided by mutableStateOf<ProvidedComponentDefault<*>>(labelOnly provides "unused")
@@ -436,6 +456,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun sharedSlotTransitionsInBothDirections() = runComposeSwingTest {
         var hasExplicit by mutableStateOf(true)
         var inheritedColor by mutableStateOf<Color?>(Color.RED)
@@ -474,6 +496,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun restorationOfUIResourceBaseline() = runComposeSwingTest {
         var hasDefault by mutableStateOf(true)
         val uiResource = ColorUIResource(Color.ORANGE)
@@ -493,6 +517,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun dynamicInsertionKeyedReorderAndLifecycle() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         var items by mutableStateOf(listOf("A", "B"))
@@ -541,6 +567,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun callerOwnedCompositionRootIsExcludedFromDefaults() = runComposeSwingTest {
         setContent {
             // Obtain the root container or observe that root is not touched
@@ -562,6 +590,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun nestedReprovisionOfSameValueMovesKeyToEndAndWinsPrecedence() = runComposeSwingTest {
         val keyA = componentDefaultKeyOf<Color>("keyA") { background(it) }
         val keyB = componentDefaultKeyOf<Color>("keyB") { background(it) }
@@ -581,6 +611,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun parkReactivateUnderInheritedDefaults() = runComposeSwingTest {
         var active by mutableStateOf(true)
 
@@ -613,6 +645,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun conditionalNodeRemovalAndReleaseUnderDefaults() = runComposeSwingTest {
         var show by mutableStateOf(true)
         var released = false
@@ -638,6 +672,8 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun rewriteOnReassertsDefaultWhenExternallyOverwritten() = runComposeSwingTest {
         setContent {
             ProvideComponentDefaults(DefaultOpaque provides true) {

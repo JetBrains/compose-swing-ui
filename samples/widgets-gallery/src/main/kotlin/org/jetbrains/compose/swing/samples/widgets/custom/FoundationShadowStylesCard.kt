@@ -23,13 +23,14 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.foundation.layout.height
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.cursor
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Font
@@ -84,7 +85,6 @@ private fun RowScope.ShadowStyleTile(
             modifier
                 .size(64, 64)
                 .testTag(SHADOW_STYLE_TAG_PREFIX + style.name)
-                .cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
                 .then(
                     when (style) {
                         ShadowStyle.Elevation -> {
@@ -120,15 +120,15 @@ private fun RowScope.ShadowStyleTile(
                                 .background(surface, RoundedCornerShape(16f))
                         }
                     },
-                ),
+                ).styleable { cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)) },
         contentAlignment = Alignment.Center,
     ) {
         Label(
             style.name,
-            modifier =
-                SwingModifier
-                    .font(Font(Font.SANS_SERIF, Font.BOLD, 11))
-                    .foreground(if (style == ShadowStyle.Glow) Color.WHITE else Color(0x26, 0x32, 0x38)),
+            style = {
+                font(Font(Font.SANS_SERIF, Font.BOLD, 11))
+                foreground(if (style == ShadowStyle.Glow) Color.WHITE else Color(0x26, 0x32, 0x38))
+            },
         )
     }
 }

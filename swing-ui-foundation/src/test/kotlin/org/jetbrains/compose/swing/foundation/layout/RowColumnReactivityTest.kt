@@ -7,10 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -42,7 +43,7 @@ class RowColumnReactivityTest {
             var arrangement by mutableStateOf(Arrangement.Top)
             setContent {
                 Column(
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT)),
                     verticalArrangement = arrangement,
                 ) {
                     repeat(CHILD_COUNT) { SizedChild(it) }
@@ -86,7 +87,7 @@ class RowColumnReactivityTest {
             var arrangement by mutableStateOf(Arrangement.Start)
             setContent {
                 Row(
-                    modifier = containerModifier(MAIN_EXTENT, CROSS_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(MAIN_EXTENT, CROSS_EXTENT)),
                     horizontalArrangement = arrangement,
                 ) {
                     repeat(CHILD_COUNT) { SizedChild(it) }
@@ -106,7 +107,8 @@ class RowColumnReactivityTest {
             var alignment by mutableStateOf(Alignment.Start)
             setContent {
                 Column(
-                    modifier = containerModifier(WIDE_CROSS_EXTENT, SHORT_MAIN_EXTENT),
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(WIDE_CROSS_EXTENT, SHORT_MAIN_EXTENT)),
                     horizontalAlignment = alignment,
                 ) {
                     SizedChild(0)
@@ -129,7 +131,10 @@ class RowColumnReactivityTest {
         runComposeSwingTest {
             var firstShare by mutableFloatStateOf(1f)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)) {
+                Column(
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)),
+                ) {
                     SizedChild(0, SwingModifier.weight(firstShare))
                     SizedChild(1, SwingModifier.weight(1f))
                 }
@@ -155,7 +160,7 @@ class RowColumnReactivityTest {
         runComposeSwingTest {
             var weighted by mutableStateOf(true)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
                     SizedChild(0)
                     SizedChild(1, if (weighted) SwingModifier.weight(1f) else SwingModifier)
                 }
@@ -187,9 +192,9 @@ class RowColumnReactivityTest {
         runComposeSwingTest {
             var wide by mutableStateOf(false)
             setContent {
-                Row(modifier = containerModifier(MAIN_EXTENT, CROSS_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(MAIN_EXTENT, CROSS_EXTENT))) {
                     val width = if (wide) WIDE_CHILD else CHILD_WIDTH
-                    Label("child", modifier = SwingModifier.preferredSize(width, CHILD_HEIGHT))
+                    Label("child", style = { preferredSize(width, CHILD_HEIGHT) })
                 }
             }
 
@@ -220,8 +225,8 @@ class RowColumnReactivityTest {
                             text = "Label:",
                             modifier =
                                 SwingModifier
-                                    .font(Font(Font.SANS_SERIF, Font.PLAIN, 12))
                                     .alignByBaseline(),
+                            style = { font(Font(Font.SANS_SERIF, Font.PLAIN, 12)) },
                         )
                         SwingNode(
                             factory = { JTextField("Text field", 12) },
@@ -261,7 +266,8 @@ class RowColumnReactivityTest {
             var alignment by mutableStateOf<Alignment.Horizontal?>(Alignment.End)
             setContent {
                 Column(
-                    modifier = containerModifier(WIDE_CROSS_EXTENT, SHORT_MAIN_EXTENT),
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(WIDE_CROSS_EXTENT, SHORT_MAIN_EXTENT)),
                     horizontalAlignment = Alignment.Start,
                 ) {
                     SizedChild(0, alignment?.let { SwingModifier.align(it) } ?: SwingModifier)

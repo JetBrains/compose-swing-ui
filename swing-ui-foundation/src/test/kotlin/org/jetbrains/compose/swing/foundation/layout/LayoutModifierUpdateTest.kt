@@ -9,9 +9,11 @@ import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildAt
@@ -178,7 +180,9 @@ class LayoutModifierUpdateTest {
             var measures = 0
             val keyed = KeyReadingElement()
             setContent {
-                Box(modifier = SwingModifier.testTag(UPDATED_TAG).preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(
+                    modifier = SwingModifier.testTag(UPDATED_TAG).styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) },
+                ) {
                     SizedChild(0, SwingModifier.padding(start = start).countingMeasures { measures++ }.then(keyed))
                 }
             }
@@ -203,7 +207,9 @@ class LayoutModifierUpdateTest {
             var x by mutableIntStateOf(4)
             var measures = 0
             setContent {
-                Box(modifier = SwingModifier.testTag(UPDATED_TAG).preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                Box(
+                    modifier = SwingModifier.testTag(UPDATED_TAG).styleable { preferredSize(BOX_EXTENT, BOX_EXTENT) },
+                ) {
                     SizedChild(0, SwingModifier.offset(x = x).countingMeasures { measures++ })
                 }
             }
@@ -300,7 +306,7 @@ class LayoutModifierUpdateTest {
             var y by mutableIntStateOf(0)
             setContent {
                 Column {
-                    Row(modifier = boxedRowModifier(UPDATED_TAG)) {
+                    Row(modifier = SwingModifier.testTag(UPDATED_TAG).styleable(BoxedRowStyle)) {
                         Box(modifier = SwingModifier.alignByBaseline()) {
                             val placedLower =
                                 SwingModifier.layout { measurable, constraints ->
@@ -335,7 +341,7 @@ class LayoutModifierUpdateTest {
                             )
                         }
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         measures++
                         val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
@@ -373,7 +379,7 @@ class LayoutModifierUpdateTest {
                             )
                         }
                     },
-                    modifier = containerModifier(200, 200),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200)),
                     measurePolicy = { measurables, constraints ->
                         val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
                         layout(constraints.minWidth, constraints.minHeight) {
@@ -527,7 +533,7 @@ class LayoutModifierUpdateTest {
         tag: String,
         offsetY: Int,
     ) {
-        Row(modifier = boxedRowModifier(tag)) {
+        Row(modifier = SwingModifier.testTag(tag).styleable(BoxedRowStyle)) {
             Box(modifier = SwingModifier.alignByBaseline()) {
                 DecoratedBaselineChild(30, SwingModifier.offset(y = offsetY))
             }
@@ -547,13 +553,6 @@ class LayoutModifierUpdateTest {
         }
     }
 
-    /**
-     * A row tagged [tag], sized for a box and a child on one baseline 20 below the box's own: a row's preferred height
-     * does not hold a line a box's children put.
-     */
-    private fun boxedRowModifier(tag: String): SwingModifier =
-        SwingModifier.testTag(tag).preferredSize(CHILD_WIDTH * 2, CHILD_HEIGHT * 2)
-
     /** A fixture-sized child whose policy provides [StartLine] at [line]. */
     @Composable
     private fun LineChild(
@@ -570,7 +569,7 @@ class LayoutModifierUpdateTest {
         tag: String,
         extent: Int,
         orientation: ComponentOrientation,
-    ): SwingModifier = SwingModifier.testTag(tag).preferredSize(extent, extent).componentOrientation(orientation)
+    ): SwingModifier = SwingModifier.testTag(tag).styleable(containerStyle(extent, extent, orientation))
 
     private fun ComposeSwingTest.childBoundsOf(tag: String): Rectangle =
         onNodeWithTag(tag).fetch<Container>().getComponent(0).bounds
@@ -578,10 +577,24 @@ class LayoutModifierUpdateTest {
     /** A child whose least width and height are below the ones it prefers. */
     @Composable
     private fun IntrinsicChild(modifier: SwingModifier) {
-        Label("intrinsic", modifier = modifier.minimumSize(20, 15).preferredSize(CHILD_WIDTH, CHILD_HEIGHT))
+        Label(
+            "intrinsic",
+            modifier = modifier,
+            style = {
+                minimumSize(20, 15)
+                preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+            },
+        )
     }
 
     private companion object {
+        /**
+         * The style of a row sized for a box and a child on one baseline 20 below the box's own: a row's preferred
+         * height does not hold a line a box's children put.
+         */
+        val BoxedRowStyle: SwingStyle<ComponentStyleScope> =
+            SwingStyle { preferredSize(CHILD_WIDTH * 2, CHILD_HEIGHT * 2) }
+
         const val UPDATED_TAG = "updated"
         const val FRESH_TAG = "fresh"
 

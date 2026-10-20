@@ -17,8 +17,9 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -87,11 +88,11 @@ internal class AnimatedContentStretchTest {
                 Panel(PanelLayout.Flow()) {
                     Panel(
                         PanelLayout.Border(),
-                        modifier = SwingModifier.preferredSize(assigned.width, assigned.height),
+                        style = { preferredSize(assigned.width, assigned.height) },
                     ) {
                         AnimatedContent(
                             targetState = state,
-                            modifier = SwingModifier.center().componentOrientation(slide.orientation),
+                            modifier = SwingModifier.center().styleable { componentOrientation(slide.orientation) },
                             contentAlignment = slide.alignment,
                             transitionSpec = {
                                 fadeIn(tween(800)) togetherWith
@@ -102,7 +103,7 @@ internal class AnimatedContentStretchTest {
                             },
                         ) {
                             val preferred = if (it == "a") Dimension(40, 20) else Dimension(NARROW, ARRIVING_HEIGHT)
-                            Label(it, modifier = SwingModifier.preferredSize(preferred.width, preferred.height))
+                            Label(it, style = { preferredSize(preferred.width, preferred.height) })
                         }
                     }
                 }
@@ -222,7 +223,7 @@ private fun replacing(
             if (wide) {
                 content(contentModifier)
             } else {
-                Label("Other", modifier = SwingModifier.preferredSize(NARROW / 4, 20))
+                Label("Other", style = { preferredSize(NARROW / 4, 20) })
             }
         }
     }

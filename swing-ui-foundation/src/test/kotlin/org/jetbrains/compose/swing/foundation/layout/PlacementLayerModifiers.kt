@@ -87,3 +87,30 @@ internal class CapturingPlacementReadLayerElement(
 
     override fun hashCode(): Int = System.identityHashCode(this)
 }
+
+/** Places its content [sign] times the offset [offset] holds, read while placing. */
+internal data class PlacementReadOffsetElement(
+    private val offset: State<Int>,
+    private val sign: Int,
+) : LayoutModifierNodeElement<PlacementReadOffsetNode>() {
+    override fun create(): PlacementReadOffsetNode = PlacementReadOffsetNode(offset, sign)
+
+    override fun update(node: PlacementReadOffsetNode) = Unit
+}
+
+internal class PlacementReadOffsetNode(
+    private val offset: State<Int>,
+    private val sign: Int,
+) : LayoutModifierNode() {
+    override val name: String get() = "placementReadOffset"
+
+    override val declaredValues: Map<String, Any?> get() = emptyMap()
+
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(sign * offset.value, 0) }
+    }
+}

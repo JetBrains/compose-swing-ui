@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.SelectableStyleScope
+import org.jetbrains.compose.swing.components.style.ToggleButtons
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 
@@ -32,6 +38,7 @@ import javax.swing.JToggleButton
  * @param selected whether the button is in its selected state
  * @param onSelectedChange callback invoked with the selected state when the button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JToggleButton
  */
 @Composable
@@ -40,6 +47,7 @@ public fun ToggleButton(
     selected: Boolean,
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(selected)
     ToggleButtonNode(
@@ -48,6 +56,7 @@ public fun ToggleButton(
             modifier.actionListener<JToggleButton> {
                 mirror.report { onSelectedChange(isSelected) }
             },
+        style = style,
         selected = selected,
         mirror = mirror,
     )
@@ -62,6 +71,7 @@ public fun ToggleButton(
  * @param selected whether the button is in its selected state
  * @param actionListener the listener notified when the button is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JToggleButton
  */
 @Composable
@@ -70,16 +80,28 @@ public fun ToggleButton(
     selected: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(selected)
     ToggleButtonNode(
         text = text,
         modifier =
             modifier.actionListener(actionListener),
+        style = style,
         selected = selected,
         mirror = mirror,
     )
 }
+
+/** [SelectableStyleScope] for ToggleButton styles. The declared selected state supplies `isSelected`. */
+private val ToggleButtonKind =
+    nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
+        object : SelectableStyleScope, ComponentStyleScope by base {
+            override val isSelected: Boolean get() = selected
+        }
+    }) {
+        applyNestedStyle(ToggleButtons)
+    }
 
 /**
  * The `JToggleButton` node both [ToggleButton] overloads render. [selected] is settled against the button
@@ -93,12 +115,13 @@ public fun ToggleButton(
 private inline fun ToggleButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<SelectableStyleScope>,
     selected: Boolean,
     mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JToggleButton() },
-        modifier = modifier,
+        modifier = modifier.styleable(ToggleButtonKind, selected, style),
         update = {
             set(text) { this.text = it }
             init { addItemListener { mirror.observed(isSelected) } }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
@@ -215,7 +216,7 @@ class IntrinsicModifierTest {
             var failure: IllegalStateException? = null
             var standInX by mutableIntStateOf(10)
             setContent {
-                Box(modifier = containerModifier(PANEL_EXTENT, PANEL_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(PANEL_EXTENT, PANEL_EXTENT))) {
                     Box(
                         modifier =
                             SwingModifier

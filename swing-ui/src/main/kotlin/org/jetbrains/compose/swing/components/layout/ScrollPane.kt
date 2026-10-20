@@ -7,10 +7,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.HorizontalScrollbarPolicy
 import org.jetbrains.compose.swing.annotations.VerticalScrollbarPolicy
+import org.jetbrains.compose.swing.components.style.ScrollPanes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Component
 import javax.swing.JScrollPane
 import javax.swing.border.Border
@@ -33,7 +39,7 @@ import javax.swing.border.Border
  * }
  * ```
  *
- * Set a fixed viewport size with `modifier = SwingModifier.preferredSize(...)`.
+ * Set a fixed viewport size with `style = { preferredSize(...) }`.
  *
  * The scroll position is hoistable state, so the application can read it, drive it, and follow the
  * user's scrolling:
@@ -50,6 +56,7 @@ import javax.swing.border.Border
  * [ScrollPaneScope.Viewport].
  *
  * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
+ * @param style the [SwingStyle] applied to the underlying `JScrollPane`
  * @param state the pane's two-way scroll position; see [ScrollState]. Left out, the pane gets a state
  *   of its own, which nothing outside it reads or drives
  * @param verticalScrollbar the vertical scrollbar policy; by default the bar is there only while the
@@ -66,6 +73,7 @@ import javax.swing.border.Border
 @Composable
 public fun ScrollPane(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     state: ScrollState = rememberScrollState(),
     @VerticalScrollbarPolicy verticalScrollbar: Int = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
     @HorizontalScrollbarPolicy horizontalScrollbar: Int = JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED,
@@ -77,7 +85,11 @@ public fun ScrollPane(
 
     SwingNode(
         factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar).also { scope.pane = it } },
-        modifier = modifier.scrollStateBinding(state).declaredViewportBorder(viewportBorder),
+        modifier =
+            modifier
+                .scrollStateBinding(state)
+                .declaredViewportBorder(viewportBorder)
+                .styleable(ScrollPaneKind, style),
         update = {
             set(verticalScrollbar) { verticalScrollBarPolicy = it }
             set(horizontalScrollbar) { horizontalScrollBarPolicy = it }
@@ -110,3 +122,11 @@ private val ViewportBorderProperty =
 
 private fun SwingModifier.declaredViewportBorder(border: Border?): SwingModifier =
     if (border == null) this else property(ViewportBorderProperty, border)
+
+/** [ContainerStyleScope] for ScrollPane styles. No component state is supplied. */
+private val ScrollPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(ScrollPanes)
+    }

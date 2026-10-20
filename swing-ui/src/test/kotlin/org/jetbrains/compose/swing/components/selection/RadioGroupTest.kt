@@ -6,14 +6,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Panels
+import org.jetbrains.compose.swing.components.style.RadioGroups
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.stylePropertyOf
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import javax.swing.BoxLayout
 import javax.swing.DefaultButtonModel
 import javax.swing.JPanel
@@ -332,4 +341,70 @@ class RadioGroupTest {
             read = { it.isSelected },
         )
     }
+
+    @Test
+    fun aRadioGroupOptionsOwnStyleAppliesToThatOptionOnly() = runComposeSwingTest {
+        var color by mutableStateOf(Color.MAGENTA)
+        setContent {
+            RadioGroup(selectedIndex = 0, onSelectionChange = {}) {
+                option("a")
+                option("b", style = { enabled(false) })
+                option("c", style = { background(color) })
+            }
+        }
+        val options = onAllNodesOfType<JRadioButton>()
+
+        listOf(true, false, true).forEachIndexed { index, expected ->
+            options[index].assertProperty(expected) { isEnabled }
+        }
+        for (expected in listOf(Color.MAGENTA, Color.RED)) {
+            color = expected
+            awaitIdle()
+            repeat(3) { index ->
+                options[index].assertProperty(index == 2, "only option c takes $expected") { background == expected }
+            }
+        }
+    }
+
+    @Test
+    fun aStyleProvidedForRadioGroupsReachesTheGroupsPanel() = runComposeSwingTest {
+        setContent {
+            Panel(style = { provideNestedStyle(RadioGroups) { PanelName.provide("provided") } }) {
+                RadioGroup(selectedIndex = 0, onSelectionChange = {}) { option("Small") }
+            }
+        }
+
+        onNodeWithText("Small").onParent().assertProperty("provided") { name }
+    }
+
+    @Test
+    fun aStyleProvidedForPanelsDoesNotReachTheGroupsPanel() = runComposeSwingTest {
+        setContent {
+            Panel(style = { provideNestedStyle(Panels) { PanelName.provide("provided") } }) {
+                RadioGroup(selectedIndex = 0, onSelectionChange = {}) { option("Small") }
+            }
+        }
+
+        onNodeWithText("Small").onParent().assertProperty(null) { name }
+    }
+
+    @Test
+    fun theCallersStyleOverridesAProvidedOneOnTheGroupsPanel() = runComposeSwingTest {
+        setContent {
+            Panel(style = { provideNestedStyle(RadioGroups) { PanelName.provide("provided") } }) {
+                RadioGroup(
+                    selectedIndex = 0,
+                    onSelectionChange = {},
+                    style = { PanelName.provide("caller") },
+                ) { option("Small") }
+            }
+        }
+
+        onNodeWithText("Small").onParent().assertProperty("caller") { name }
+    }
 }
+
+private val PanelName =
+    stylePropertyOf(
+        ComponentPropertyDescriptor<JPanel, String?>("name", { it.name }, { panel, value -> panel.name = value }),
+    )

@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -96,6 +98,8 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun componentsOfOneClassDeclaringNoModifierShareOneEffectiveChain() = runComposeSwingTest {
         val defaults = ComponentDefaults.Empty.withProvision(DefaultBackground provides Color.YELLOW)
 
@@ -109,6 +113,8 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun defaultsAndModifierChangedTogetherDiffTheNodeOnce() = runComposeSwingTest {
         var dark by mutableStateOf(false)
         var declaredWrites = 0
@@ -132,6 +138,8 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun unchangedRecompositionRetainsWholeChainAdoptionFastPath() = runComposeSwingTest {
         var tick by mutableStateOf(0)
         var writes = 0
@@ -175,6 +183,8 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun anUnrelatedDefaultChangePreservesInheritedColors() = runComposeSwingTest {
         val unrelatedKey = componentDefaultKeyOf<String>("buttonOnly") { buttonWriteTracking(it) {} }
         val background = Color(10, 20, 30)
@@ -226,7 +236,64 @@ class ComponentDefaultsCostTest {
         assertEquals(foreground, label.foreground, "an unrelated default preserves the foreground")
     }
 
+    /**
+     * A default that equals no other, so a refresh of the node's defaults is visible as one more update.
+     */
+    private fun updateCountingDefault(onUpdate: () -> Unit): ComponentDefaultKey<Unit> {
+        val probe =
+            object : SwingModifier.NodeElement<JLabel, SwingModifier.ComponentNode<JLabel>>() {
+                override val targetType: Class<JLabel> = JLabel::class.java
+
+                override val inheritable: Boolean get() = true
+
+                override fun create(): SwingModifier.ComponentNode<JLabel> =
+                    object : SwingModifier.ComponentNode<JLabel>() {}
+
+                override fun update(node: SwingModifier.ComponentNode<JLabel>) {
+                    onUpdate()
+                }
+
+                override fun equals(other: Any?): Boolean = false
+
+                override fun hashCode(): Int = System.identityHashCode(this)
+            }
+        return componentDefaultKeyOf<Unit>("probe") { this then probe }
+    }
+
     @Test
+    fun aStyledFirstInsertionAppliesItsDefaultsOnce() = runComposeSwingTest {
+        var updates = 0
+        val probeKey = updateCountingDefault { updates++ }
+
+        setContent {
+            ProvideComponentDefaults(probeKey provides Unit) {
+                Label("label", style = { foreground(Color.WHITE) })
+            }
+        }
+        assertEquals(1, updates, "mounting a styled label applies its defaults once")
+    }
+
+    @Test
+    fun aStyleChangeAloneAppliesTheStyleWithoutApplyingTheInheritedDefaultsAgain() = runComposeSwingTest {
+        var dark by mutableStateOf(false)
+        var updates = 0
+        val probeKey = updateCountingDefault { updates++ }
+
+        setContent {
+            ProvideComponentDefaults(probeKey provides Unit) {
+                Label("label", style = { foreground(if (dark) Color.BLACK else Color.WHITE) })
+            }
+        }
+        val mounted = updates
+        dark = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(Color.BLACK, "a pass changing only the style applies it") { foreground }
+        assertEquals(mounted, updates, "applying the style alone does not apply the inherited defaults again")
+    }
+
+    @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun togglingOneKeyOverSubtreeUpdatesOnlyAffectedNodes() = runComposeSwingTest {
         var defaultColor by mutableStateOf(Color.RED)
         var unprovokedWrites = 0
@@ -270,6 +337,8 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun heterogeneousNodesAndClassFilterCache() = runComposeSwingTest {
         val labelOnlyKey =
             componentDefaultKeyOf<String>("labelOnly") {

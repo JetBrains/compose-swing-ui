@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -93,7 +94,7 @@ class HeightFollowsWidthTest {
                 val change = mutableIntStateOf(0)
                 setContent {
                     ScrollPane(
-                        modifier = SwingModifier.preferredSize(WIDTH, WIDTH),
+                        style = { preferredSize(WIDTH, WIDTH) },
                         verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
                     ) {
                         Viewport { view(change) }
@@ -154,11 +155,12 @@ class HeightFollowsWidthTest {
                     setContent {
                         val extent = if (case == ScrollBarCase.AtBothWidths) narrow.atRatio - 10 else wide.atRatio + 10
                         ScrollPane(
-                            modifier =
-                                SwingModifier.preferredSize(
+                            style = {
+                                preferredSize(
                                     WIDTH,
                                     extent + reference.insets.run { top + bottom },
-                                ),
+                                )
+                            },
                         ) {
                             Viewport { view(change) }
                         }
@@ -286,7 +288,7 @@ class HeightFollowsWidthTest {
         setContent {
             SwingNode(
                 factory = { JPanel(layout) },
-                modifier = SwingModifier.preferredSize(fixture.width.intValue, 600),
+                modifier = SwingModifier.styleable { preferredSize(fixture.width.intValue, 600) },
             ) {
                 if (native) {
                     SwingNode(factory = { raw }, modifier = SwingModifier.testTag("box"))
@@ -585,7 +587,7 @@ private fun WrappingFixture(
     slot: Slot,
     onMeasure: () -> Unit,
 ) {
-    Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(2 * width, 600)) {
+    Panel(PanelLayout.Grid(), style = { preferredSize(2 * width, 600) }) {
         if (case.kind == "Ratio") {
             Panel(PanelLayout.Border()) {
                 Label("Preview", modifier = SwingModifier.north())

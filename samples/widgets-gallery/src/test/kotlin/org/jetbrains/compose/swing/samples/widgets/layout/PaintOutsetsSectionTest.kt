@@ -120,7 +120,7 @@ class PaintOutsetsSectionTest {
         }
 
     @Test
-    fun theDeclarationsExcessGoesToTheFieldAfterAWidthAndOffTheBoxBeforeIt() =
+    fun aStylesExcessGoesToTheFieldAfterTheModifiersWidth() =
         runComposeSwingTest {
             openSection("Paint outsets")
             val widthFirst = onNodeWithTag(PAINT_OUTSETS_WIDTH_FIRST_TAG).fetch<JTextField>()
@@ -134,8 +134,8 @@ class PaintOutsetsSectionTest {
             val grown = 120 + widthFirst.insets.left + widthFirst.insets.right
             assertTrue(grown > 120, "the field has insets")
             assertEquals(listOf(grown, 120), listOf(widthFirst.width, widthLast.width), "FullInsets")
-            onNodeWithText("width(120).paintOutsets(value): field $grown px").assertExists()
-            onNodeWithText("paintOutsets(value).width(120): field 120 px").assertExists()
+            onNodeWithText("width(120) and paintOutsets(value): field $grown px").assertExists()
+            onNodeWithText("width(120) alone: field 120 px").assertExists()
 
             declare("PaintOutsets(n)")
             onAllNodesOfType<JSlider>()

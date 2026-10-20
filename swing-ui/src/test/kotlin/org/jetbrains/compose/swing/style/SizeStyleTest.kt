@@ -1,58 +1,75 @@
-package org.jetbrains.compose.swing.modifier.layout
+package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
+import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dimension
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
- * Behavioral tests for the actual-size modifiers (`size`/`width`/`height`). They set the component's
+ * Behavioral tests for the actual-size styles (`size`/`width`/`height`). They set the component's
  * live size (`setSize`), which a layout manager would override on its next pass, so each test hosts the
- * modified child in a [JLayeredPane] - a parent with no layout manager - where the set size persists.
+ * styled child in a [JLayeredPane] - a parent with no layout manager - where the set size persists.
  * The assertions read what an observer of the live Swing component sees: its `getSize`/`getWidth`/
  * `getHeight`.
  */
-class SizeModifierTest {
+class SizeStyleTest {
+    @TestFactory
+    fun settersWriteRewriteAndRestore(): List<DynamicTest> = setterCaseTests(
+        listOf(
+            layoutCase("size", Dimension(1, 2), Dimension(3, 4), { it.size }) { size(it) },
+            layoutCase("size(width, height)", Dimension(1, 2), Dimension(3, 4), { it.size }) {
+                size(it.width, it.height)
+            },
+            layoutCase("width", 1, 2, { it.width }) { width(it) },
+            layoutCase("height", 1, 2, { it.height }) { height(it) },
+            layoutCase("preferredSize", Dimension(1, 2), Dimension(3, 4), ::declaredPreferredSize) {
+                preferredSize(it)
+            },
+            layoutCase("preferredSize(width, height)", Dimension(1, 2), Dimension(3, 4), ::declaredPreferredSize) {
+                preferredSize(it.width, it.height)
+            },
+            layoutCase("minimumSize", Dimension(1, 2), Dimension(3, 4), ::declaredMinimumSize) { minimumSize(it) },
+            layoutCase("minimumSize(width, height)", Dimension(1, 2), Dimension(3, 4), ::declaredMinimumSize) {
+                minimumSize(it.width, it.height)
+            },
+            layoutCase("maximumSize", Dimension(1, 2), Dimension(3, 4), ::declaredMaximumSize) { maximumSize(it) },
+            layoutCase("maximumSize(width, height)", Dimension(1, 2), Dimension(3, 4), ::declaredMaximumSize) {
+                maximumSize(it.width, it.height)
+            },
+        ),
+    )
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("sizeCases")
     fun aSizeDeclarationSetsTheActualSize(
         message: String,
-        modifier: SwingModifier,
+        style: SwingStyle<LabelStyleScope>,
         expected: Dimension,
     ) = runComposeSwingTest {
         setContent {
             LayeredPane {
-                Label(text = "child", modifier = modifier.layer(JLayeredPane.DEFAULT_LAYER))
+                Label(text = "child", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER), style = style)
             }
         }
         onNodeOfType<JLabel>().assertProperty(expected, message) { size }
-    }
-
-    @Test
-    fun theSizeDeclarationNamesEachAxisItsWriteCovers() {
-        val held =
-            SwingModifier.size(120, 40).foldIn(emptySet<String>()) { names, element ->
-                names + (element as SwingModifier.NodeElement<*, *>).heldProperties
-            }
-
-        assertEquals(setOf("size", "width", "height"), held, "one write, every axis it lands on named")
     }
 
     @Test
@@ -65,21 +82,20 @@ class SizeModifierTest {
                 val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
                 Label(
                     text = "child",
-                    modifier =
-                        when (declared) {
-                            1 -> onDefaultLayer.size(120, 40).width(10)
-                            2 -> onDefaultLayer.width(10)
-                            else -> onDefaultLayer
-                        },
+                    modifier = onDefaultLayer,
+                    style = {
+                        if (declared == 1) size(120, 40)
+                        if (declared == 1 || declared == 2) width(10)
+                    },
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        val stood = child.size
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(Dimension(0, 0)) { size }
 
         declared = 1
         awaitIdle()
-        assertEquals(Dimension(10, 40), child.size, "the width is declared last and wins its axis")
+        child.assertProperty(Dimension(10, 40), "the width is declared last and wins its axis") { size }
 
         // The whole size goes first, leaving the axis standing on what that size wrote.
         declared = 2
@@ -87,18 +103,22 @@ class SizeModifierTest {
         declared = 3
         awaitIdle()
 
-        assertEquals(stood, child.size, "the child is left at the size it stood at before either declaration")
+        child.assertProperty(
+            Dimension(0, 0),
+            "the child is left at the size it stood at before either declaration",
+        ) { size }
     }
 
     @Test
-    fun removingTheSizeModifierRestoresTheOriginalSize() = runComposeSwingTest {
+    fun removingTheSizeStyleRestoresTheOriginalSize() = runComposeSwingTest {
         var sized by mutableStateOf(true)
         setContent {
             LayeredPane {
                 val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
                 Label(
                     text = "child",
-                    modifier = if (sized) onDefaultLayer.size(120, 40) else onDefaultLayer,
+                    modifier = onDefaultLayer,
+                    style = { if (sized) size(120, 40) },
                 )
             }
         }
@@ -112,19 +132,23 @@ class SizeModifierTest {
         val restored = onNodeOfType<JLabel>()
         restored.assertProperty(
             Dimension(0, 0),
-            "removing the size modifier restores the component's original size",
+            "removing the size style restores the component's original size",
         ) { size }
     }
 
     @Test
-    fun addingTheSizeLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+    fun addingTheSizeLeavesTheAxisAnotherStyleDeclares() = runComposeSwingTest {
         var whole by mutableStateOf(false)
         setContent {
             LayeredPane {
                 val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
                 Label(
                     text = "child",
-                    modifier = (if (whole) onDefaultLayer.size(120, 40) else onDefaultLayer).width(10),
+                    modifier = onDefaultLayer,
+                    style = {
+                        if (whole) size(120, 40)
+                        width(10)
+                    },
                 )
             }
         }
@@ -141,14 +165,18 @@ class SizeModifierTest {
     }
 
     @Test
-    fun droppingTheSizeLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+    fun droppingTheSizeLeavesTheAxisAnotherStyleDeclares() = runComposeSwingTest {
         var whole by mutableStateOf(true)
         setContent {
             LayeredPane {
                 val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
                 Label(
                     text = "child",
-                    modifier = (if (whole) onDefaultLayer.size(120, 40) else onDefaultLayer).width(10),
+                    modifier = onDefaultLayer,
+                    style = {
+                        if (whole) size(120, 40)
+                        width(10)
+                    },
                 )
             }
         }
@@ -170,7 +198,8 @@ class SizeModifierTest {
             LayeredPane {
                 Label(
                     text = "child",
-                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(if (wide) 120 else 60, 40),
+                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER),
+                    style = { size(if (wide) 120 else 60, 40) },
                 )
             }
         }
@@ -194,12 +223,12 @@ class SizeModifierTest {
             LayeredPane {
                 Label(
                     text = "child",
-                    modifier =
-                        SwingModifier
-                            .layer(JLayeredPane.DEFAULT_LAYER)
-                            .width(10)
-                            .size(20, 30)
-                            .width(5),
+                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER),
+                    style = {
+                        width(10)
+                        size(20, 30)
+                        width(5)
+                    },
                 )
             }
         }
@@ -217,23 +246,20 @@ class SizeModifierTest {
                 val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
                 Label(
                     text = "child",
-                    modifier =
-                        onDefaultLayer then
-                            if (sizeFirst) {
-                                // Two pairs swap places, so only writing from the first of them puts
-                                // the geometry where the order declares it.
-                                SwingModifier
-                                    .size(20, 30)
-                                    .width(10)
-                                    .foreground(Color.RED)
-                                    .background(Color.BLUE)
-                            } else {
-                                SwingModifier
-                                    .width(10)
-                                    .size(20, 30)
-                                    .background(Color.BLUE)
-                                    .foreground(Color.RED)
-                            },
+                    modifier = onDefaultLayer,
+                    style = {
+                        if (sizeFirst) {
+                            size(20, 30)
+                            width(10)
+                            foreground(Color.RED)
+                            background(Color.BLUE)
+                        } else {
+                            width(10)
+                            size(20, 30)
+                            background(Color.BLUE)
+                            foreground(Color.RED)
+                        }
+                    },
                 )
             }
         }
@@ -252,44 +278,71 @@ class SizeModifierTest {
         fun sizeCases(): List<Arguments> = listOf(
             Arguments.of(
                 Named.of("size", "size should set the component's actual size"),
-                SwingModifier.size(120, 40),
+                SwingStyle<LabelStyleScope> { size(120, 40) },
                 Dimension(120, 40),
             ),
             Arguments.of(
                 Named.of("Dimension overload", "the Dimension overload should set the actual size"),
-                SwingModifier.size(Dimension(90, 30)),
+                SwingStyle<LabelStyleScope> { size(Dimension(90, 30)) },
                 Dimension(90, 30),
             ),
             Arguments.of(
                 Named.of("width keeps height", "width must keep the current height"),
-                SwingModifier.size(50, 33).width(150),
+                SwingStyle<LabelStyleScope> {
+                    size(50, 33)
+                    width(150)
+                },
                 Dimension(150, 33),
             ),
             Arguments.of(
                 Named.of("height keeps width", "height must keep the current width"),
-                SwingModifier.size(44, 50).height(55),
+                SwingStyle<LabelStyleScope> {
+                    size(44, 50)
+                    height(55)
+                },
                 Dimension(44, 55),
             ),
             Arguments.of(
                 Named.of("width then height", "width+height combine into a full size"),
-                SwingModifier.width(10).height(20),
+                SwingStyle<LabelStyleScope> {
+                    width(10)
+                    height(20)
+                },
                 Dimension(10, 20),
             ),
             Arguments.of(
                 Named.of("height then width", "distinct axes combine regardless of order"),
-                SwingModifier.height(20).width(10),
+                SwingStyle<LabelStyleScope> {
+                    height(20)
+                    width(10)
+                },
                 Dimension(10, 20),
             ),
             Arguments.of(
                 Named.of("size after width", "later size wins the width axis"),
-                SwingModifier.width(10).size(20, 30),
+                SwingStyle<LabelStyleScope> {
+                    width(10)
+                    size(20, 30)
+                },
                 Dimension(20, 30),
             ),
             Arguments.of(
                 Named.of("width after size", "later width wins the width axis, height stays from size"),
-                SwingModifier.size(20, 30).width(10),
+                SwingStyle<LabelStyleScope> {
+                    size(20, 30)
+                    width(10)
+                },
                 Dimension(10, 30),
             ),
         )
     }
 }
+
+private fun declaredPreferredSize(component: Component): Dimension? =
+    if (component.isPreferredSizeSet) component.preferredSize else null
+
+private fun declaredMinimumSize(component: Component): Dimension? =
+    if (component.isMinimumSizeSet) component.minimumSize else null
+
+private fun declaredMaximumSize(component: Component): Dimension? =
+    if (component.isMaximumSizeSet) component.maximumSize else null

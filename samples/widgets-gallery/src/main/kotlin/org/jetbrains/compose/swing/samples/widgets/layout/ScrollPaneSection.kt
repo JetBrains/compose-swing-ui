@@ -21,16 +21,17 @@ import org.jetbrains.compose.swing.components.layout.rememberScrollState
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.adjustmentListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -53,19 +54,19 @@ internal fun ScrollPaneSection() {
         SectionHeading("ScrollPane")
         ExampleCard("Viewport + scroll bars + rowHeader + columnHeader + corner") {
             ScrollPane(
-                modifier = SwingModifier.preferredSize(Dimension(420, 240)),
+                style = { preferredSize(Dimension(420, 240)) },
                 verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
                 horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS,
             ) {
-                Viewport(modifier = SwingModifier.background(Color(0x90, 0xA4, 0xAE))) {
+                Viewport(style = { background(Color(0x90, 0xA4, 0xAE)) }) {
                     Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1)) {
                         repeat(ROWS * COLS) { index ->
                             Cell("R${index / COLS},C${index % COLS}", Color(0xEC, 0xEF, 0xF1))
                         }
                     }
                 }
-                VerticalScrollbar(modifier = SwingModifier.background(Color(0xCF, 0xD8, 0xDC)))
-                HorizontalScrollbar(modifier = SwingModifier.background(Color(0xCF, 0xD8, 0xDC)))
+                VerticalScrollbar(style = { background(Color(0xCF, 0xD8, 0xDC)) })
+                HorizontalScrollbar(style = { background(Color(0xCF, 0xD8, 0xDC)) })
                 Panel(PanelLayout.Grid(rows = 1, cols = COLS), SwingModifier.columnHeader()) {
                     repeat(COLS) { col -> Cell("Col $col", Color(0xCF, 0xD8, 0xDC)) }
                 }
@@ -76,7 +77,7 @@ internal fun ScrollPaneSection() {
             }
         }
         ExampleCard("Plain viewport-only ScrollPane") {
-            ScrollPane(modifier = SwingModifier.preferredSize(Dimension(420, 100))) {
+            ScrollPane(style = { preferredSize(Dimension(420, 100)) }) {
                 Viewport {
                     Column {
                         repeat(20) { Label("Scrollable line ${it + 1}") }
@@ -131,7 +132,7 @@ private fun ColumnScope.ScrollStateCard() {
             max = scroll.maxY,
         )
         Label("Viewport ${scroll.extentWidth}x${scroll.extentHeight}, content ${scroll.viewWidth}x${scroll.viewHeight}")
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)), state = scroll) {
+        ScrollPane(style = { preferredSize(Dimension(220, 120)) }, state = scroll) {
             Viewport {
                 Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1)) {
                     repeat(ROWS * COLS) { index ->
@@ -159,7 +160,7 @@ private fun ColumnScope.AnimatedScrollCard() {
             Button("Nudge down", onClick = { scope.launch { scroll.animateScrollBy(dy = 75) } })
         }
         Label("x: ${scroll.x}   y: ${scroll.y}   scrolling: ${scroll.isScrollInProgress}")
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)), state = scroll) {
+        ScrollPane(style = { preferredSize(Dimension(220, 120)) }, state = scroll) {
             Viewport {
                 Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1)) {
                     repeat(ROWS * COLS) { index ->
@@ -184,7 +185,7 @@ private fun ColumnScope.ContentBehaviorCard() {
             Spinner(blockIncrement, onValueChange = { blockIncrement = it.toInt() }, min = 1, max = 400, step = 10)
         }
         WrappedCaption("The increments set how far an arrow-button click or a page click scrolls.")
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(180, 70))) {
+        ScrollPane(style = { preferredSize(Dimension(180, 70)) }) {
             Viewport(unitIncrement = unitIncrement, blockIncrement = blockIncrement) {
                 Panel(PanelLayout.Grid(rows = 4, cols = 6, hgap = 1, vgap = 1)) {
                     repeat(4 * 6) { index -> Cell("${index / 6},${index % 6}", Color(0xFF, 0xF3, 0xE0)) }
@@ -211,7 +212,7 @@ private fun ColumnScope.BorderAndWheelCard() {
             )
         }
         ScrollPane(
-            modifier = SwingModifier.preferredSize(Dimension(200, 90)),
+            style = { preferredSize(Dimension(200, 90)) },
             viewportBorder = if (showBorder) redOutline else null,
             wheelScrollingEnabled = wheelEnabled,
         ) {
@@ -238,7 +239,10 @@ private fun ColumnScope.AdjustmentListenerCard() {
         val listener = remember { AdjustmentListener { event -> position = event.value } }
         SwingNode(
             factory = { JScrollBar(JScrollBar.HORIZONTAL, 0, 10, 0, 100) },
-            modifier = SwingModifier.preferredSize(Dimension(240, 18)).adjustmentListener(listener),
+            modifier =
+                SwingModifier
+                    .adjustmentListener(listener)
+                    .styleable { preferredSize(Dimension(240, 18)) },
         )
         Label("Position: $position")
     }
@@ -258,8 +262,10 @@ private fun Cell(
         modifier =
             modifier
                 .opaque(true)
-                .background(color)
-                .preferredSize(Dimension(60, 24))
                 .horizontalAlignment(SwingConstants.CENTER),
+        style = {
+            background(color)
+            preferredSize(Dimension(60, 24))
+        },
     )
 }

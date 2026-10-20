@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.style.StyleElement
+import org.jetbrains.compose.swing.style.collectsNothingUnder
+import org.jetbrains.compose.swing.style.requireKindTarget
 import java.awt.Component
 
 /**
@@ -11,7 +14,7 @@ import java.awt.Component
  * anew - a callback rebuilt for this pass is enough to make it that - and what this asks is whether applying
  * it takes more than writing each changed slot its new element.
  *
- * A node with no modifier state yet has applied no modifier, so its first declaration always diffs; a node
+ * A node with no modifier state yet has applied no modifier, so its first declaration diffs; a node
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch. A node
  * whose last diff threw partway diffs its next declaration too.
  */
@@ -21,9 +24,9 @@ internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingMod
     if (state != null) {
         val held = state.startWrite()
         if (held !is UnfinishedPass) {
+            val handedNodes = state.handedNodes
             val adopted = adoptDeclaration(held, modifier, state.records)
             if (!adopted.diverged) {
-                val handedNodes = state.handedNodes
                 state.adopt(modifier)
                 notifyDeclaredNodes(adopted.handsOver, handedNodes)
                 return
@@ -68,6 +71,9 @@ private value class LinearDiff private constructor(
 
     /** The walk parting ways here, keeping [handsOver]. */
     fun diverge(): LinearDiff = LinearDiff(bits or Int.MIN_VALUE)
+
+    /** The same position, [handsOver] from here on where the last write holds a node the listener needs. */
+    fun handingOver(handsOver: Boolean): LinearDiff = if (handsOver) LinearDiff(bits or HANDOVER_MASK) else this
 }
 
 /**
@@ -91,11 +97,16 @@ private fun SwingNodeHolder<Component>.adoptDeclaration(
     next: SwingModifier,
     records: NodeRecords?,
     adopted: LinearDiff = LinearDiff.Start,
+    last: Boolean = true,
 ): LinearDiff =
     when {
         applied is CombinedSwingModifier && next is CombinedSwingModifier -> {
-            val outer = adoptDeclaration(applied.outer, next.outer, records, adopted)
-            if (outer.diverged) outer else adoptDeclaration(applied.inner, next.inner, records, outer)
+            val outer = adoptDeclaration(applied.outer, next.outer, records, adopted, last = false)
+            if (outer.diverged) outer else adoptDeclaration(applied.inner, next.inner, records, outer, last)
+        }
+
+        last && applied is StyleElement<*, *> && next is StyleElement<*, *> && applied != next -> {
+            adoptLastStyle(applied, next, records, adopted)
         }
 
         applied is SwingModifier.Element && applied.isPositionalElement && next is SwingModifier.Element -> {
@@ -106,6 +117,44 @@ private fun SwingNodeHolder<Component>.adoptDeclaration(
             if (applied == next) adopted else adopted.diverge()
         }
     }
+
+/**
+ * Hands [next] the slot of [applied], the last element of the chain, in place. Nothing keyed is written after the
+ * last element, so the slot is written as the diff would write it. A declaration that held no slot because it could
+ * collect nothing is adopted while [next] can collect nothing either. Answers [LinearDiff.diverged] where the node
+ * holds more than one style slot or the slot holds another element.
+ */
+private fun SwingNodeHolder<Component>.adoptLastStyle(
+    applied: StyleElement<*, *>,
+    next: StyleElement<*, *>,
+    records: NodeRecords?,
+    adopted: LinearDiff,
+): LinearDiff {
+    val state = modifierState
+    val record = records?.get(ComponentNodeType, null, applied.key)
+    return when {
+        state == null || next.key != applied.key || state.firstStyle?.nextStyle != null -> {
+            adopted.diverge()
+        }
+
+        record == null -> {
+            if (next.collectsNothingUnder(this)) {
+                requireKindTarget(next.kind, component)
+                adopted
+            } else {
+                adopted.diverge()
+            }
+        }
+
+        record.element !== applied || !NodeRecord.canRebind(record, next) -> {
+            adopted.diverge()
+        }
+
+        else -> {
+            adopted.handingOver(record.rebindAndWrite(next, component, owner?.diagnostics, WriteMode.AdoptEqual))
+        }
+    }
+}
 
 /**
  * Hands [next] to the next positional record from [LinearDiff.nextRecordIndex], where [applied] is

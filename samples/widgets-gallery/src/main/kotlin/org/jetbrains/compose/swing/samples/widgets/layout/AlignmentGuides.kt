@@ -21,7 +21,8 @@ import org.jetbrains.compose.swing.foundation.layout.MeasureResult
 import org.jetbrains.compose.swing.foundation.layout.MeasureScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Container
 import java.awt.Dimension
@@ -161,7 +162,12 @@ internal fun AlignmentGuideLegend(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Canvas(
-                            SwingModifier.preferredSize(if (entry.upright) Dimension(9, 20) else Dimension(20, 9)),
+                            modifier =
+                                SwingModifier.styleable {
+                                    preferredSize(
+                                        if (entry.upright) Dimension(9, 20) else Dimension(20, 9),
+                                    )
+                                },
                             renderingHints = null,
                             onDraw = entry.swatch,
                         )

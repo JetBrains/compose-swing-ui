@@ -11,10 +11,12 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.cursor
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isOfType
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -70,11 +72,11 @@ class LayerGlassPaneTest : OwnedGlassPaneContractTest() {
     @Test
     fun theGlassPaneAnswersForAPointOnlyWhereOneOfItsShownChildrenLies() = runComposeSwingTest {
         setContent {
-            Layer(modifier = SwingModifier.preferredSize(SIZE), onPaint = { _, _, _, paintView -> paintView() }) {
+            Layer(style = { preferredSize(SIZE) }, onPaint = { _, _, _, paintView -> paintView() }) {
                 Label(text = "body")
                 GlassPane(PanelLayout.Border()) {
                     // Covers the top of the pane alone, leaving points below it to the view.
-                    Label(text = "hint", modifier = SwingModifier.north().preferredSize(Dimension(60, 20)))
+                    Label(text = "hint", modifier = SwingModifier.north(), style = { preferredSize(Dimension(60, 20)) })
                 }
             }
         }
@@ -109,7 +111,7 @@ class LayerGlassPaneTest : OwnedGlassPaneContractTest() {
     @Test
     fun theGlassPaneAnswersForAPointItHasItsOwnReasonToTake() = runComposeSwingTest {
         setContent {
-            Layer(modifier = SwingModifier.preferredSize(SIZE), onPaint = { _, _, _, paintView -> paintView() }) {
+            Layer(style = { preferredSize(SIZE) }, onPaint = { _, _, _, paintView -> paintView() }) {
                 Label(text = "body")
                 GlassPane {}
             }
@@ -157,15 +159,18 @@ class LayerGlassPaneTest : OwnedGlassPaneContractTest() {
             // after realizing could have the packed size land after it and shrink the window under the test.
             Window(onCloseRequest = {}, title = WINDOW_TITLE, visible = false) {
                 Layer(
-                    modifier = SwingModifier.preferredSize(Dimension(320, 240)),
+                    style = { preferredSize(Dimension(320, 240)) },
                     onPaint = { _, _, _, paintView -> paintView() },
                 ) {
                     Button(text = "view", onClick = { viewClicks++ })
                     GlassPane(
                         modifier =
-                            SwingModifier.cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)).let {
-                                if (listening) it.mouseListener(onMouseClicked = { paneClicks++ }) else it
+                            if (listening) {
+                                SwingModifier.mouseListener(onMouseClicked = { paneClicks++ })
+                            } else {
+                                SwingModifier
                             },
+                        style = { cursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)) },
                     ) {}
                 }
             }
@@ -200,7 +205,7 @@ class LayerGlassPaneTest : OwnedGlassPaneContractTest() {
     @Test
     fun aBorderLayoutLetsASingleChildFillTheLayer() = runComposeSwingTest {
         setContent {
-            Layer(modifier = SwingModifier.preferredSize(SIZE)) {
+            Layer(style = { preferredSize(SIZE) }) {
                 Label(text = "body")
                 GlassPane(PanelLayout.Border()) { Label(text = "veil") }
             }
@@ -257,7 +262,7 @@ class LayerGlassPaneTest : OwnedGlassPaneContractTest() {
         var loading by mutableStateOf(true)
         var background by mutableStateOf(Color.RED)
         setContent {
-            Layer(modifier = SwingModifier.background(background)) {
+            Layer(style = { background(background) }) {
                 Label(text = "body")
                 if (loading) GlassPane { Label(text = "loading") }
             }
@@ -290,13 +295,15 @@ private class LayerGlassPaneHostScope(
     @Composable
     override fun GlassPane(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable PanelScope.() -> Unit,
-    ) = layer.GlassPane(modifier, content)
+    ) = layer.GlassPane(modifier, style, content)
 
     @Composable
     override fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable S.() -> Unit,
-    ) = layer.GlassPane(layout, modifier, content)
+    ) = layer.GlassPane(layout, modifier, style, content)
 }

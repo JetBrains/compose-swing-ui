@@ -41,11 +41,9 @@ import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.borderPainted
 import org.jetbrains.compose.swing.modifier.appearance.caretColor
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.icon
@@ -62,16 +60,18 @@ import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.modifier.key
-import org.jetbrains.compose.swing.modifier.layout.bounds
-import org.jetbrains.compose.swing.modifier.layout.location
-import org.jetbrains.compose.swing.modifier.layout.size
-import org.jetbrains.compose.swing.modifier.layout.width
-import org.jetbrains.compose.swing.modifier.layout.x
-import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.bounds
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.location
+import org.jetbrains.compose.swing.style.size
+import org.jetbrains.compose.swing.style.width
+import org.jetbrains.compose.swing.style.x
+import org.jetbrains.compose.swing.style.y
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -848,7 +848,8 @@ class WidgetIdentityTest {
                 Button(
                     if (it) "b" else "a",
                     onClick = {},
-                    modifier = SwingModifier.background(Color.GREEN).toolTip("tip"),
+                    modifier = SwingModifier.toolTip("tip"),
+                    style = { background(Color.GREEN) },
                 )
             },
             case<JComponent>(
@@ -869,7 +870,8 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = SwingModifier.toolTip("tip").background(if (it) Color.BLUE else Color.GREEN),
+                    modifier = SwingModifier.toolTip("tip"),
+                    style = { background(if (it) Color.BLUE else Color.GREEN) },
                 )
             },
             case<AbstractButton>(
@@ -959,7 +961,11 @@ class WidgetIdentityTest {
                     assertProperty(Color.BLUE) { this.background }
                 },
             ) {
-                Label("a", modifier = SwingModifier.key("theme").background(if (it) Color.BLUE else Color.GREEN))
+                Label(
+                    "a",
+                    modifier = SwingModifier.key("theme"),
+                    style = { background(if (it) Color.BLUE else Color.GREEN) },
+                )
             },
         )
 
@@ -1363,6 +1369,8 @@ class WidgetIdentityTest {
     private object GeometryAndInteractionCases {
         fun cases(): List<Case> = listOf(
             locationRemovalUnderStandingYCases(),
+            boundsUnderStandingXCases(),
+            sizeUnderStandingWidthCases(),
             geometryAndColorDeclarationReorderCases(),
             verifyInputWhenFocusTargetRemovalCases(),
             caretAndBlinkRateRemovalCases(),
@@ -1378,15 +1386,30 @@ class WidgetIdentityTest {
                     assertProperty(Point(0, 50)) { this.location }
                 },
             ) {
-                Label("a", modifier = (if (it) SwingModifier else SwingModifier.location(20, 30)).y(50))
+                Label(
+                    "a",
+                    style = {
+                        if (!it) location(20, 30)
+                        y(50)
+                    },
+                )
             },
+        )
+
+        private fun boundsUnderStandingXCases(): List<Case> = listOf(
             case<JComponent>(
                 "Bounds addition under standing x",
                 applied = {
                     assertProperty(Rectangle(10, 30, 100, 40)) { this.bounds }
                 },
             ) {
-                Label("a", modifier = (if (it) SwingModifier.bounds(20, 30, 100, 40) else SwingModifier).x(10))
+                Label(
+                    "a",
+                    style = {
+                        if (it) bounds(20, 30, 100, 40)
+                        x(10)
+                    },
+                )
             },
             case<JComponent>(
                 "Bounds change under standing x",
@@ -1394,7 +1417,13 @@ class WidgetIdentityTest {
                     assertProperty(Rectangle(10, 60, 100, 40)) { this.bounds }
                 },
             ) {
-                Label("a", modifier = SwingModifier.bounds(20, if (it) 60 else 30, 100, 40).x(10))
+                Label(
+                    "a",
+                    style = {
+                        bounds(20, if (it) 60 else 30, 100, 40)
+                        x(10)
+                    },
+                )
             },
             case<JComponent>(
                 "Bounds removal under standing x",
@@ -1405,15 +1434,30 @@ class WidgetIdentityTest {
                     assertProperty(Rectangle(10, 0, 0, 0)) { this.bounds }
                 },
             ) {
-                Label("a", modifier = (if (it) SwingModifier else SwingModifier.bounds(20, 30, 100, 40)).x(10))
+                Label(
+                    "a",
+                    style = {
+                        if (!it) bounds(20, 30, 100, 40)
+                        x(10)
+                    },
+                )
             },
+        )
+
+        private fun sizeUnderStandingWidthCases(): List<Case> = listOf(
             case<JComponent>(
                 "Size addition under standing width",
                 applied = {
                     assertProperty(Dimension(10, 40)) { this.size }
                 },
             ) {
-                Label("a", modifier = (if (it) SwingModifier.size(120, 40) else SwingModifier).width(10))
+                Label(
+                    "a",
+                    style = {
+                        if (it) size(120, 40)
+                        width(10)
+                    },
+                )
             },
             case<JComponent>(
                 "Size removal under standing width",
@@ -1424,7 +1468,13 @@ class WidgetIdentityTest {
                     assertProperty(Dimension(10, 0)) { this.size }
                 },
             ) {
-                Label("a", modifier = (if (it) SwingModifier else SwingModifier.size(120, 40)).width(10))
+                Label(
+                    "a",
+                    style = {
+                        if (!it) size(120, 40)
+                        width(10)
+                    },
+                )
             },
         )
 
@@ -1439,20 +1489,19 @@ class WidgetIdentityTest {
             ) {
                 Label(
                     "a",
-                    modifier =
+                    style = {
                         if (it) {
-                            SwingModifier
-                                .width(10)
-                                .size(20, 30)
-                                .background(Color.BLUE)
-                                .foreground(Color.RED)
+                            width(10)
+                            size(20, 30)
+                            background(Color.BLUE)
+                            foreground(Color.RED)
                         } else {
-                            SwingModifier
-                                .size(20, 30)
-                                .width(10)
-                                .foreground(Color.RED)
-                                .background(Color.BLUE)
-                        },
+                            size(20, 30)
+                            width(10)
+                            foreground(Color.RED)
+                            background(Color.BLUE)
+                        }
+                    },
                 )
             },
             case<JTextComponent>(

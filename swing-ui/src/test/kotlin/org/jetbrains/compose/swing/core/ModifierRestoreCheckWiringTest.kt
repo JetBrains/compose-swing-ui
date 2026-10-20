@@ -28,17 +28,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 /**
- * That the restore check reaches the compositions a test mounts, including the ones mounted inside
- * them: it is installed on the coroutine context the harness builds its recomposer over, and a nested
- * composition is meant to inherit it through its parent's effect context.
- *
- * Each reach case declares [UnrestoredName] and asserts the removal is reported. A composition the
- * checks never reached would report nothing, and the child-index-space walk, which rides on the same
- * seam, would stop there too.
- *
- * The last case covers what the check owes the composition it runs inside: reading a component to see
- * what a declaration writes runs the caller's own code, and a throw from it is reported rather than left
- * to end the recomposer.
+ * Restore checks report un-restored declarations in root, renderer, menu, and window compositions.
+ * A failed property read is reported while the composition remains able to recompose.
  */
 class ModifierRestoreCheckWiringTest {
     @Test
@@ -142,12 +133,9 @@ private fun NamedLabel(
 }
 
 private inline fun assertReportsTheUnrestoredName(gate: () -> Unit) {
-    val failure = assertFailsWith<AssertionError>(block = gate)
-    assertContains(
-        failure.message.orEmpty(),
-        "unrestoredName",
-        message = "the gate should report the declaration that left the component's name where it wrote it",
-    )
+    val message = assertFailsWith<AssertionError>(block = gate).message.orEmpty()
+    assertContains(message, "departing unrestoredName declaration")
+    assertContains(message, "left <left-behind>")
 }
 
 /**

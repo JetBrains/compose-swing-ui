@@ -17,13 +17,13 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.bounds
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.bounds
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -49,15 +49,17 @@ internal fun LayeredAndMdiSection() {
 @Composable
 private fun ColumnScope.LayeredPaneCard() {
     ExampleCard("LayeredPane (depth layers)") {
-        LayeredPane(modifier = SwingModifier.preferredSize(Dimension(240, 160))) {
+        LayeredPane(style = { preferredSize(Dimension(240, 160)) }) {
             Panel(
                 PanelLayout.Border(),
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.DEFAULT_LAYER)
-                        .bounds(10, 10, 160, 110)
-                        .opaque(true)
-                        .background(Color(0xBBDEFB)),
+                        .opaque(true),
+                style = {
+                    bounds(10, 10, 160, 110)
+                    background(Color(0xBBDEFB))
+                },
             ) {
                 Label("Default layer", SwingModifier.north())
             }
@@ -66,9 +68,11 @@ private fun ColumnScope.LayeredPaneCard() {
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.PALETTE_LAYER)
-                        .bounds(60, 40, 140, 90)
-                        .opaque(true)
-                        .background(Color(0xFFE0B2)),
+                        .opaque(true),
+                style = {
+                    bounds(60, 40, 140, 90)
+                    background(Color(0xFFE0B2))
+                },
             ) {
                 Label("Palette layer", SwingModifier.north())
             }
@@ -77,9 +81,11 @@ private fun ColumnScope.LayeredPaneCard() {
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.DRAG_LAYER)
-                        .bounds(110, 70, 110, 70)
-                        .opaque(true)
-                        .background(Color(0xC8E6C9)),
+                        .opaque(true),
+                style = {
+                    bounds(110, 70, 110, 70)
+                    background(Color(0xC8E6C9))
+                },
             ) {
                 Label("Drag layer (top)", SwingModifier.north())
             }
@@ -101,7 +107,7 @@ private fun ColumnScope.DesktopPaneCard() {
             Label("Controlled closes: $closedCount")
         }
 
-        DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 220))) {
+        DesktopPane(style = { preferredSize(Dimension(320, 220)) }) {
             InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 180, 120), onClose = { }) {
                 Label("Editor frame")
             }
@@ -184,7 +190,7 @@ private fun ColumnScope.HoistedInternalFrameCard() {
         }
         Label("Position: (${frame.x}, ${frame.y}) size ${frame.width} x ${frame.height} - last event: $lastEvent")
 
-        DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 220))) {
+        DesktopPane(style = { preferredSize(Dimension(320, 220)) }) {
             if (open) {
                 InternalFrame(
                     title = "Hoisted",

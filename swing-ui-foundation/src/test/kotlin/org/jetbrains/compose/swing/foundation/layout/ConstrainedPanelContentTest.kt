@@ -15,8 +15,9 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -207,7 +208,7 @@ class ConstrainedPanelContentTest {
         runComposeSwingTest {
             val panel = ConstrainedPanel()
             setContent {
-                Column(modifier = SwingModifier.preferredSize(300, 200)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     SwingNode(factory = { panel })
                 }
             }
@@ -334,7 +335,7 @@ class ConstrainedPanelContentTest {
             val panel = ConstrainedPanel()
             val parent = JPanel(HeightForWidthLayout(height = HeightQueries.getValue(query))).apply { add(panel) }
             val width = hostInGrid(parent, 320, 600)
-            panel.setContent { Label("x", modifier = SwingModifier.preferredSize(80, 80)) }
+            panel.setContent { Label("x", style = { preferredSize(80, 80) }) }
             awaitIdle()
             assertTrue(
                 panel.minIntrinsicHeight(320) < panel.maxIntrinsicHeight(320),
@@ -437,7 +438,7 @@ class ConstrainedPanelContentTest {
             val panel = ConstrainedPanel()
             val parent = JPanel(HeightForWidthLayout(height = { height(it) })).apply { add(panel) }
             setContent {
-                Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(400, 600)) {
+                Panel(PanelLayout.Grid(), style = { preferredSize(400, 600) }) {
                     SwingNode(factory = { JPanel(null).apply { add(parent) } })
                 }
             }
@@ -765,7 +766,7 @@ private fun composedBoxGrants(
         val parent = JPanel(layout)
         val width = mutableIntStateOf(widths.first())
         setContent {
-            Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(width.intValue, 600)) {
+            Panel(PanelLayout.Grid(), style = { preferredSize(width.intValue, 600) }) {
                 SwingNode(factory = { parent }) {
                     Box(propagateMinConstraints = true) {
                         val modifier = SwingModifier.testTag("text").fillMaxWidth()
@@ -824,7 +825,7 @@ private fun ComposeSwingTest.hostInGrid(
 ): MutableIntState {
     val cellWidth = mutableIntStateOf(width)
     setContent {
-        Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(cellWidth.intValue, height)) {
+        Panel(PanelLayout.Grid(), style = { preferredSize(cellWidth.intValue, height) }) {
             SwingNode(factory = { parent })
         }
     }

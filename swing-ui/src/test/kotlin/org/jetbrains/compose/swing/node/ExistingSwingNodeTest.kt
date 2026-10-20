@@ -18,9 +18,10 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
@@ -48,7 +49,7 @@ class ExistingSwingNodeTest {
             SwingNode(factory = { PartsPanel() }) {
                 ExistingSwingNode(
                     claim = PartsPanel::part,
-                    modifier = SwingModifier.background(Color.RED),
+                    modifier = SwingModifier.styleable { background(Color.RED) },
                     update = { set("declared") { toolTipText = it } },
                 )
             }
@@ -56,7 +57,7 @@ class ExistingSwingNodeTest {
 
         val parent = onNodeOfType<PartsPanel>().fetch()
         assertSame(parent, parent.part.parent, "the claimed component should stay where its parent put it")
-        assertEquals(Color.RED, parent.part.background, "the modifier should reach the claimed component")
+        assertEquals(Color.RED, parent.part.background, "the style should reach the claimed component")
         assertEquals("declared", parent.part.toolTipText, "the update block should reach the claimed component")
     }
 
@@ -68,7 +69,7 @@ class ExistingSwingNodeTest {
                 if (claimed) {
                     ExistingSwingNode(
                         claim = PartsPanel::pane,
-                        modifier = SwingModifier.background(Color.RED),
+                        modifier = SwingModifier.styleable { background(Color.RED) },
                         update = { set("declared") { toolTipText = it } },
                     ) {
                         Label("child")
@@ -100,7 +101,10 @@ class ExistingSwingNodeTest {
         setContent {
             SwingNode(factory = { PartsPanel() }) {
                 ReusableContentHost(active = active) {
-                    ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
+                    ExistingSwingNode(
+                        claim = PartsPanel::part,
+                        modifier = SwingModifier.styleable { background(Color.RED) },
+                    )
                 }
             }
         }
@@ -469,7 +473,7 @@ class ExistingSwingNodeTest {
                 ExistingSwingNode(
                     claim = PartsPanel::part,
                     modifier =
-                        SwingModifier.background(Color.RED).let {
+                        SwingModifier.styleable { background(Color.RED) }.let {
                             if (constrained) it.layoutConstraint(BorderLayout.NORTH) else it
                         },
                 )
@@ -529,7 +533,7 @@ class ExistingSwingNodeTest {
             SwingNode(factory = { PartsPanel() }) {
                 ExistingSwingNode<PartsPanel, _, JLabel>(
                     claim = { loose },
-                    modifier = SwingModifier.background(Color.RED),
+                    modifier = SwingModifier.styleable { background(Color.RED) },
                 )
                 Label("sibling")
             }
@@ -537,7 +541,7 @@ class ExistingSwingNodeTest {
         awaitIdle()
 
         assertNull(loose.parent, "the claimed component should stay outside any container")
-        assertEquals(Color.RED, loose.background, "the modifier should reach the claimed component")
+        assertEquals(Color.RED, loose.background, "the style should reach the claimed component")
     }
 }
 

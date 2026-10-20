@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -65,7 +66,7 @@ class PlacementLayerFadeReuseTest {
                         factory = { content },
                         modifier =
                             SwingModifier
-                                .preferredSize(40, 40)
+                                .styleable { preferredSize(40, 40) }
                                 .placementLayer { this.alpha = alpha.floatValue }
                                 .background(Brush.of(Color.RED)),
                     )
@@ -328,7 +329,10 @@ class PlacementLayerFadeReuseTest {
             val effect = if (containerLayer) FadeEffect.ContainerLayer else FadeEffect.ModifierLayer
             val tap =
                 showFade(fixture, effect) {
-                    SwingNode(factory = { scroll }, modifier = SwingModifier.preferredSize(FADE_SIDE, FADE_SIDE))
+                    SwingNode(
+                        factory = { scroll },
+                        modifier = SwingModifier.styleable { preferredSize(FADE_SIDE, FADE_SIDE) },
+                    )
                 }
             fadeTo(fixture, 0.8f)
             waitUntil(timeout = 10.seconds) { tap.node.shown().isRedAt(FADE_SIDE / 4, FADE_SIDE / 4) }
@@ -387,7 +391,10 @@ class PlacementLayerFadeReuseTest {
             val desktopSide = FADE_SIDE * 3
             val tap =
                 showFade(fixture, FadeEffect.ModifierLayer, side = desktopSide) {
-                    SwingNode(factory = { desktop }, modifier = SwingModifier.preferredSize(desktopSide, desktopSide))
+                    SwingNode(
+                        factory = { desktop },
+                        modifier = SwingModifier.styleable { preferredSize(desktopSide, desktopSide) },
+                    )
                 }
             val y = FADE_SIDE * 3 / 4
             waitUntil(timeout = 10.seconds) { tap.node.shown().isBlueAt(FADE_SIDE / 2, y) }
@@ -499,7 +506,7 @@ class PlacementLayerFadeReuseTest {
         setWindowContent {
             Row {
                 content(
-                    SwingModifier.testTag("endpointContent").preferredSize(40, 40),
+                    SwingModifier.testTag("endpointContent").styleable { preferredSize(40, 40) },
                     SwingModifier.drawBehind {
                         paints++
                         graphics.color = tint

@@ -11,8 +11,8 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onDescendants
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -45,21 +45,21 @@ private val PreferredWidthSlots: Map<String, Slot> =
             "BorderLayout WEST" to { SwingModifier.west() },
         ).mapValues<String, BorderPanelScope.() -> SwingModifier, Slot> { (_, placement) ->
             { width: Int, subject: @Composable (SwingModifier) -> Unit ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                     subject(placement())
                 }
             }
         } +
         mapOf<String, Slot>(
             "BoxLayout X_AXIS" to { width, subject ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
                     Panel(PanelLayout.Box(BoxLayout.X_AXIS), modifier = SwingModifier.north()) {
                         subject(SwingModifier)
                     }
                 }
             },
             "JSplitPane first side" to { width, subject ->
-                SplitPane(modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                SplitPane(style = { preferredSize(width, SLOT_HEIGHT) }) {
                     subject(SwingModifier.first())
                     Label("Second", modifier = SwingModifier.second())
                 }

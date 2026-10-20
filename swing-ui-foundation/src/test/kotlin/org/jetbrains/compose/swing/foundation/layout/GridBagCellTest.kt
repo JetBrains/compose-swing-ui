@@ -11,8 +11,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -45,7 +45,7 @@ class GridBagCellTest {
                         swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL"),
                     "GridBagLayout fill HORIZONTAL in a panel of fixed size" to { width, subject ->
                         Panel(PanelLayout.Flow()) {
-                            Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(width, 600)) {
+                            Panel(PanelLayout.GridBag, style = { preferredSize(width, 600) }) {
                                 subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
                             }
                         }
@@ -74,7 +74,11 @@ class GridBagCellTest {
             setContent {
                 slot(320) { modifier ->
                     Box(modifier = modifier.testTag("box")) {
-                        Label("", modifier = placement().testTag("label").preferredSize(2 * 320, 600))
+                        Label(
+                            "",
+                            modifier = placement().testTag("label"),
+                            style = { preferredSize(2 * 320, 600) },
+                        )
                     }
                 }
             }
@@ -117,25 +121,25 @@ class GridBagCellTest {
     @Test
     fun aContainerTheCellZeroedAndThenGrantedItsPreferredWidthUsesMinimumHeightAtNaturalWidth() {
         // The cell has no height in the second step, so GridBagLayout zeroes it before requesting minimum size.
-        val steps: List<ConstrainedScope.() -> SwingModifier> =
+        val steps =
             listOf(
-                { SwingModifier.aspectRatio(16f / 9f).preferredSize(2 * 320, 600) },
-                { SwingModifier.preferredSize(320, 0) },
-                { SwingModifier.preferredSize(320, 600 / 10) },
-                { SwingModifier.aspectRatio(16f / 9f).preferredSize(2 * 320, 600) },
+                LabelStep(Dimension(2 * 320, 600)) { SwingModifier.aspectRatio(16f / 9f) },
+                LabelStep(Dimension(320, 0)),
+                LabelStep(Dimension(320, 600 / 10)),
+                LabelStep(Dimension(2 * 320, 600)) { SwingModifier.aspectRatio(16f / 9f) },
             )
         runComposeSwingTest {
             var step by mutableIntStateOf(0)
             setContent {
                 Panel(PanelLayout.Flow()) {
-                    Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(320, 600)) {
+                    Panel(PanelLayout.GridBag, style = { preferredSize(320, 600) }) {
                         Box(
                             modifier =
                                 SwingModifier
                                     .item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.HORIZONTAL)
                                     .testTag("box"),
                         ) {
-                            Label("", modifier = steps[step]().testTag("label"))
+                            StepLabel(steps[step])
                         }
                     }
                 }
@@ -165,11 +169,11 @@ class GridBagCellTest {
     fun aContainerTheCellZeroedAndThenLaidOutAtItsPreferredWidthUpdatesAfterParentValidation(native: Boolean) {
         // Short of room, a cell that does not fill its width zeroes the box at its minimum width. Where the box fits,
         // the cell lays it out at the width it prefers, then the parent can query that width's preferred height.
-        val steps: List<ConstrainedScope.() -> SwingModifier> =
+        val steps =
             listOf(
-                { SwingModifier.aspectRatio(16f / 9f).preferredSize(2 * 320, 600) },
-                { SwingModifier.preferredSize(320 / 4, 600 / 10) },
-                { SwingModifier.aspectRatio(16f / 9f).preferredSize(320 / 2, 600) },
+                LabelStep(Dimension(2 * 320, 600)) { SwingModifier.aspectRatio(16f / 9f) },
+                LabelStep(Dimension(320 / 4, 600 / 10)),
+                LabelStep(Dimension(320 / 2, 600)) { SwingModifier.aspectRatio(16f / 9f) },
             )
         val nativeStages =
             listOf(NativeWidthStage.Ratio(640), NativeWidthStage.Fixed(80, 60), NativeWidthStage.Ratio(160))
@@ -177,11 +181,11 @@ class GridBagCellTest {
             var step by mutableIntStateOf(0)
             setContent {
                 Panel(PanelLayout.Flow()) {
-                    Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(320, 600)) {
+                    Panel(PanelLayout.GridBag, style = { preferredSize(320, 600) }) {
                         val modifier = SwingModifier.item().testTag("box")
                         WidthDependentSubject(native, modifier, nativeStages[step]) {
                             Box(modifier = modifier) {
-                                Label("", modifier = steps[step]().testTag("label"))
+                                StepLabel(steps[step])
                             }
                         }
                     }
@@ -220,13 +224,13 @@ class GridBagCellTest {
                             val tagged = modifier.testTag("box")
                             WidthDependentSubject(native, tagged, movedNativeStages[stageIndex]) {
                                 Box(modifier = tagged) {
-                                    Label("", modifier = movedFoundationStages[stageIndex]().testTag("label"))
+                                    StepLabel(movedFoundationStages[stageIndex])
                                 }
                             }
                         }
                     }
                 Panel(PanelLayout.Flow()) {
-                    Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(320, 600)) {
+                    Panel(PanelLayout.GridBag, style = { preferredSize(320, 600) }) {
                         if (step < 2) {
                             subject(
                                 SwingModifier.item(
@@ -297,12 +301,24 @@ private fun assertPreferredWidthStages(
     )
 }
 
-private val movedFoundationStages: List<ConstrainedScope.() -> SwingModifier> =
+/** A step of the label a test declares: its preferred [size], and the layout [modifier] it declares over it. */
+private class LabelStep(
+    val size: Dimension,
+    val modifier: ConstrainedScope.() -> SwingModifier = { SwingModifier },
+)
+
+/** The label [step] declares, tagged `label`. */
+@Composable
+private fun BoxScope.StepLabel(step: LabelStep) {
+    Label("", modifier = step.modifier(this).testTag("label"), style = { preferredSize(step.size) })
+}
+
+private val movedFoundationStages =
     listOf(
-        { SwingModifier.preferredSize(320 / 4, 600 / 10) },
-        { SwingModifier.preferredSize(320 / 4, 0) },
-        { SwingModifier.preferredSize(320 / 4, 600 / 10) },
-        { SwingModifier.aspectRatio(16f / 9f).preferredSize(320 / 2, 600) },
+        LabelStep(Dimension(320 / 4, 600 / 10)),
+        LabelStep(Dimension(320 / 4, 0)),
+        LabelStep(Dimension(320 / 4, 600 / 10)),
+        LabelStep(Dimension(320 / 2, 600)) { SwingModifier.aspectRatio(16f / 9f) },
     )
 
 private val movedNativeStages =

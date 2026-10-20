@@ -53,12 +53,12 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 
 // Seeking an engine transition, and what the Swing containers do while it is seeked: several cases
 // here drive AnimatedVisibility, AnimatedContent and the panel they build on, so they pin container
@@ -2165,7 +2165,14 @@ class SeekableTransitionStateTest {
 
             animatedValue1 = val1.value
             transition.AnimatedVisibility({ it == AnimStates.To }) {
-                Label(text = "content", modifier = SwingModifier.preferredSize(40, 20).opaque(true).background(Color.BLUE))
+                Label(
+                    text = "content",
+                    modifier = SwingModifier.opaque(true),
+                    style = {
+                        preferredSize(40, 20)
+                        background(Color.BLUE)
+                    },
+                )
             }
 
                 }}

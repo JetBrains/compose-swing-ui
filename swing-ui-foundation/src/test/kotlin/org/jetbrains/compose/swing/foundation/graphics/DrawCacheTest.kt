@@ -16,8 +16,9 @@ import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -150,7 +151,7 @@ class DrawCacheTest {
                             SwingModifier
                                 .testTag("panel")
                                 .opaque(false)
-                                .preferredSize(Dimension(32, 32))
+                                .styleable { preferredSize(Dimension(32, 32)) }
                                 .then(step)
                                 .then(if (extraStep) SwingModifier.drawBehind {} else SwingModifier)
                                 .fill(Color.BLUE),
@@ -593,7 +594,7 @@ private fun ComposeSwingTest.setUpFixture(
                     SwingModifier
                         .testTag("panel")
                         .opaque(setup.opaque)
-                        .preferredSize(Dimension(32, 32))
+                        .styleable { preferredSize(Dimension(32, 32)) }
                         .then(taking)
                         .then(outer)
                         .then(if (setup.nested) inner else SwingModifier)

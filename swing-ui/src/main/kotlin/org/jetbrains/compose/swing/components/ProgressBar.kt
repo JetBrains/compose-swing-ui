@@ -6,9 +6,15 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.components.style.ProgressBarStyleScope
+import org.jetbrains.compose.swing.components.style.ProgressBars
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.BoundedRangeModel
 import javax.swing.JProgressBar
 import javax.swing.SwingConstants
@@ -20,6 +26,7 @@ import javax.swing.SwingConstants
  *
  * @param value the current value
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param min the value an empty bar stands at; `0` by default
  * @param max the value a full bar stands at; `100` by default, so an undeclared range makes [value] a
  *   percentage
@@ -36,6 +43,7 @@ import javax.swing.SwingConstants
 public fun ProgressBar(
     value: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ProgressBarStyleScope> = SwingStyle,
     min: Int = 0,
     max: Int = 100,
     indeterminate: Boolean = false,
@@ -45,6 +53,7 @@ public fun ProgressBar(
 ) {
     ProgressBarNode(
         modifier = modifier,
+        style = style,
         indeterminate = indeterminate,
         orientation = orientation,
         stringPainted = stringPainted,
@@ -82,6 +91,7 @@ public fun ProgressBar(
  *
  * @param model the range the bar renders; owned by the caller
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param indeterminate whether the bar animates constantly instead of filling to the model's value;
  *   `false` by default. Declare `true` for work whose length is not known yet, and go back to `false`
  *   once it is
@@ -96,6 +106,7 @@ public fun ProgressBar(
 public fun ProgressBar(
     model: BoundedRangeModel,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ProgressBarStyleScope> = SwingStyle,
     indeterminate: Boolean = false,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
     stringPainted: Boolean = false,
@@ -103,6 +114,7 @@ public fun ProgressBar(
 ) {
     ProgressBarNode(
         modifier = modifier,
+        style = style,
         indeterminate = indeterminate,
         orientation = orientation,
         stringPainted = stringPainted,
@@ -122,6 +134,7 @@ public fun ProgressBar(
 @Composable
 private inline fun ProgressBarNode(
     modifier: SwingModifier,
+    style: SwingStyle<ProgressBarStyleScope>,
     indeterminate: Boolean,
     @Orientation orientation: Int,
     stringPainted: Boolean,
@@ -130,7 +143,7 @@ private inline fun ProgressBarNode(
 ) {
     SwingNode(
         factory = { JProgressBar() },
-        modifier = modifier,
+        modifier = modifier.styleable(ProgressBarKind, style),
         update = {
             installRange()
             set(indeterminate) { this.isIndeterminate = it }
@@ -140,3 +153,11 @@ private inline fun ProgressBarNode(
         },
     )
 }
+
+/** [ProgressBarStyleScope] for ProgressBar styles. No component state is supplied. */
+private val ProgressBarKind =
+    nestingStyleKind<ProgressBarStyleScope, Unit>(
+        { base, _ -> object : ProgressBarStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(ProgressBars)
+    }

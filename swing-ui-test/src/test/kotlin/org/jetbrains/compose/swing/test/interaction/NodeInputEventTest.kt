@@ -8,11 +8,13 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
 import org.jetbrains.compose.swing.platform.hostOs
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Point
@@ -39,7 +41,7 @@ class NodeInputEventTest {
     @Test
     fun clickingFiresTheButtonThroughItsOwnUi() = runComposeSwingTest {
         var clicks = 0
-        setContent { Button(text = "Go", onClick = { clicks++ }, modifier = buttonSize) }
+        setContent { Button(text = "Go", onClick = { clicks++ }, style = buttonSize) }
 
         onNodeOfType<JButton>().performClick()
 
@@ -49,7 +51,7 @@ class NodeInputEventTest {
     @Test
     fun pressingAndReleasingFiresTheButtonOnce() = runComposeSwingTest {
         var clicks = 0
-        setContent { Button(text = "Go", onClick = { clicks++ }, modifier = buttonSize) }
+        setContent { Button(text = "Go", onClick = { clicks++ }, style = buttonSize) }
 
         onNodeOfType<JButton>().performMousePress()
         assertEquals(0, clicks, "a press arms the button; a button fires on the release")
@@ -65,7 +67,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = { },
-                modifier = buttonSize.mouseListener(onMouseClicked = { counts += it.clickCount }),
+                modifier = SwingModifier.mouseListener(onMouseClicked = { counts += it.clickCount }),
+                style = buttonSize,
             )
         }
 
@@ -86,7 +89,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = { },
-                modifier = buttonSize.mouseListener(onMouseClicked = { held = it.modifiersEx }),
+                modifier = SwingModifier.mouseListener(onMouseClicked = { held = it.modifiersEx }),
+                style = buttonSize,
             )
         }
 
@@ -105,7 +109,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = { },
-                modifier = buttonSize.mouseListener(onMouseClicked = { button = it.button }),
+                modifier = SwingModifier.mouseListener(onMouseClicked = { button = it.button }),
+                style = buttonSize,
             )
         }
 
@@ -122,10 +127,11 @@ class NodeInputEventTest {
                 text = "Go",
                 onClick = { },
                 modifier =
-                    buttonSize.mouseListener(
+                    SwingModifier.mouseListener(
                         onMousePressed = { if (it.isPopupTrigger) triggers += it.id },
                         onMouseReleased = { if (it.isPopupTrigger) triggers += it.id },
                     ),
+                style = buttonSize,
             )
         }
 
@@ -148,7 +154,7 @@ class NodeInputEventTest {
                 text = "Go",
                 onClick = { },
                 modifier =
-                    buttonSize
+                    SwingModifier
                         .mouseListener(
                             onMouseEntered = {
                                 ids += it.id
@@ -164,6 +170,7 @@ class NodeInputEventTest {
                                 motionClickCounts += it.clickCount
                             },
                         ),
+                style = buttonSize,
             )
         }
 
@@ -190,7 +197,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = { },
-                modifier = buttonSize.mouseWheelListener { rotation = it.wheelRotation },
+                modifier = SwingModifier.mouseWheelListener { rotation = it.wheelRotation },
+                style = buttonSize,
             )
         }
 
@@ -202,7 +210,7 @@ class NodeInputEventTest {
     @Test
     fun draggingMovesTheSliderThumb() = runComposeSwingTest {
         var value by mutableIntStateOf(0)
-        setContent { Slider(value = value, onValueChange = { value = it }, modifier = sliderSize) }
+        setContent { Slider(value = value, onValueChange = { value = it }, style = sliderSize) }
 
         val slider = onNodeOfType<JSlider>().fetch()
         val middleHeight = slider.height / 2
@@ -231,7 +239,7 @@ class NodeInputEventTest {
     @Test
     fun aKeyPressRunsTheKeyBindingItIsBoundTo() = runComposeSwingTest {
         var clicks = 0
-        setContent { Button(text = "Go", onClick = { clicks++ }, modifier = buttonSize) }
+        setContent { Button(text = "Go", onClick = { clicks++ }, style = buttonSize) }
 
         onNodeOfType<JButton>().performKeyPress(KeyEvent.VK_SPACE)
 
@@ -245,7 +253,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = {},
-                modifier = buttonSize.mouseMotionListener(onMouseMoved = { moved = true }),
+                modifier = SwingModifier.mouseMotionListener(onMouseMoved = { moved = true }),
+                style = buttonSize,
             )
         }
 
@@ -273,7 +282,8 @@ class NodeInputEventTest {
             Button(
                 text = "Go",
                 onClick = {},
-                modifier = buttonSize.mouseMotionListener(onMouseDragged = { dragged += it }),
+                modifier = SwingModifier.mouseMotionListener(onMouseDragged = { dragged += it }),
+                style = buttonSize,
             )
         }
 
@@ -288,8 +298,8 @@ class NodeInputEventTest {
     }
 
     private companion object {
-        val buttonSize: SwingModifier = SwingModifier.preferredSize(120, 30)
-        val sliderSize: SwingModifier = SwingModifier.preferredSize(200, 30)
+        val buttonSize = SwingStyle<ComponentStyleScope> { preferredSize(120, 30) }
+        val sliderSize = SwingStyle<ComponentStyleScope> { preferredSize(200, 30) }
 
         /** Far enough into the slider to be on the thumb at its minimum, in the node's coordinates. */
         const val THUMB_GRAB_INSET: Int = 5

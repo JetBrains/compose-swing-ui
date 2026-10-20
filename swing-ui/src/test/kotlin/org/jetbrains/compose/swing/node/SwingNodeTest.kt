@@ -6,7 +6,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.FirstDescriptor
+import org.jetbrains.compose.swing.style.PlainProbe
+import org.jetbrains.compose.swing.style.ProbeFirst
+import org.jetbrains.compose.swing.style.ProbeScope
+import org.jetbrains.compose.swing.style.StyleProbe
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.probeKind
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -16,6 +28,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -28,6 +41,79 @@ import kotlin.test.assertTrue
  * Every assertion reads the live Swing component the node holds.
  */
 class SwingNodeTest {
+    @Test
+    fun aTrailingStyleOverridesTheCallerModifierAndAnEmptyStyleRestoresIt() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        var callerValue by mutableStateOf("modifier")
+        val ownStyle = SwingStyle<ProbeScope> { ProbeFirst.provide("style") }
+        setContent {
+            SwingNode(
+                factory = { StyleProbe() },
+                modifier =
+                    SwingModifier
+                        .property(FirstDescriptor, callerValue)
+                        .styleable(PlainProbe, if (styled) ownStyle else SwingStyle),
+            )
+        }
+
+        onNodeOfType<StyleProbe>().assertProperty("style") { first }
+        callerValue = "changed"
+        awaitIdle()
+        onNodeOfType<StyleProbe>().assertProperty("style") { first }
+        styled = false
+        awaitIdle()
+        onNodeOfType<StyleProbe>().assertProperty("changed") { first }
+        styled = true
+        awaitIdle()
+        onNodeOfType<StyleProbe>().assertProperty("style") { first }
+    }
+
+    @Test
+    fun aStyleKindWhoseDefaultWritesAPropertyAppliesItWithNoProvider() = runComposeSwingTest {
+        val kind = probeKind { ProbeFirst.provide("kind default") }
+        setContent {
+            SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(kind, SwingStyle))
+        }
+
+        onNodeOfType<StyleProbe>().assertProperty("kind default") { first }
+    }
+
+    @Test
+    fun aTrailingStyleOverridesAStableEarlierStyleableAndAnEmptyStyleRestoresIt() = runComposeSwingTest {
+        var declared by mutableStateOf(false)
+        val kind = SwingStyleKind<ComponentStyleScope, Unit>({ base, _ -> base })
+        val own = SwingStyle<ComponentStyleScope> { background(Color.RED) }
+        val modifier = SwingModifier.styleable { background(Color.BLUE) }
+        setContent {
+            SwingNode(
+                factory = { JLabel() },
+                modifier = modifier.styleable(kind, if (declared) own else SwingStyle),
+            )
+        }
+
+        onNodeOfType<JLabel>().assertProperty(Color.BLUE) { background }
+        declared = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(Color.RED) { background }
+        declared = false
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(Color.BLUE) { background }
+    }
+
+    @Test
+    fun aStyleKindRequiringANarrowerTypeThanTheComponentIsRejectedWithNoPublisher() {
+        val kind = SwingStyleKind<ComponentStyleScope, Unit>({ base, _ -> base }, SwingStyle, JLabel::class.java)
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                runComposeSwingTest {
+                    setContent {
+                        SwingNode(factory = { JPanel() }, modifier = SwingModifier.styleable(kind, SwingStyle))
+                    }
+                }
+            }
+        assertTrue("JLabel" in failure.message.orEmpty())
+    }
+
     @Test
     fun theUpdateBlockAppliesEveryStateChangeToTheComponent() = runComposeSwingTest {
         var text by mutableStateOf("first")
@@ -56,12 +142,12 @@ class SwingNodeTest {
         setContent {
             SwingNode(
                 factory = { JPanel() },
-                modifier = SwingModifier.background(color),
+                modifier = SwingModifier.styleable { background(color) },
                 update = { set(Unit) { background = Color.RED } },
             ) {
                 SwingNode(
                     factory = { JLabel() },
-                    modifier = SwingModifier.background(color),
+                    modifier = SwingModifier.styleable { background(color) },
                     update = { set(Unit) { background = Color.RED } },
                 )
             }

@@ -5,6 +5,8 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.style.ButtonStyleScope
+import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.border
@@ -12,16 +14,19 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.cursor
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.apply
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -44,25 +49,36 @@ internal fun SwingModifier.layoutStage(): SwingModifier =
 internal fun SwingModifier.layoutPanelTrack(): SwingModifier =
     this
         .lineBorder(LayoutSampleColors.Border)
-        .background(LayoutSampleColors.Track)
         .opaque(true)
 
-internal fun SwingModifier.layoutSampleSurface(color: Color): SwingModifier =
+internal fun ComponentStyleScope.layoutPanelTrack() {
+    background(LayoutSampleColors.Track)
+}
+
+internal fun SwingModifier.layoutSampleSurface(): SwingModifier =
     this
         .lineBorder(LayoutSampleColors.Border)
-        .background(color)
-        .foreground(LayoutSampleColors.Text)
         .opaque(true)
+
+internal fun ComponentStyleScope.layoutSampleSurface(color: Color) {
+    background(color)
+    foreground(LayoutSampleColors.Text)
+}
 
 @Composable
 internal fun LayoutSwatch(
     text: String,
     color: Color,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<LabelStyleScope> = SwingStyle,
 ) {
     Label(
         text = text,
-        modifier = modifier.layoutSampleSurface(color).horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier.layoutSampleSurface().horizontalAlignment(SwingConstants.CENTER),
+        style = {
+            layoutSampleSurface(color)
+            apply(style)
+        },
     )
 }
 
@@ -72,6 +88,7 @@ internal fun InteractiveLayoutSwatch(
     color: Color,
     onClick: () -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ButtonStyleScope> = SwingStyle,
     cursor: Cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR),
 ) {
     Button(
@@ -80,9 +97,13 @@ internal fun InteractiveLayoutSwatch(
         modifier =
             modifier
                 .contentAreaFilled(false)
-                .layoutSampleSurface(color)
-                .cursor(cursor)
+                .layoutSampleSurface()
                 .horizontalAlignment(SwingConstants.CENTER),
+        style = {
+            layoutSampleSurface(color)
+            cursor(cursor)
+            apply(style)
+        },
     )
 }
 
@@ -91,9 +112,18 @@ internal fun LayoutRegionSwatch(
     text: String,
     color: Color,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<LabelStyleScope> = SwingStyle,
     width: Int = 0,
 ) {
-    LayoutSwatch(text, color, modifier.preferredSize(Dimension(width, 28)))
+    LayoutSwatch(
+        text,
+        color,
+        modifier,
+        style = {
+            preferredSize(Dimension(width, 28))
+            apply(style)
+        },
+    )
 }
 
 @Composable
@@ -116,7 +146,7 @@ internal fun <T> LayoutParameterSelector(
                 val index = names.indexOf(selected)
                 if (index >= 0) onSelectionChange(index)
             },
-            modifier = SwingModifier.accessibleName(label),
+            style = { accessibleName(label) },
         )
     }
 }
@@ -139,7 +169,7 @@ internal fun LayoutSlider(
         Slider(
             value = value,
             onValueChange = onValueChange,
-            modifier = SwingModifier.accessibleName(accessibleName),
+            style = { accessibleName(accessibleName) },
             min = min,
             max = max,
         )

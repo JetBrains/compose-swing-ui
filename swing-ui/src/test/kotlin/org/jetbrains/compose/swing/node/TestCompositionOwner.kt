@@ -15,9 +15,7 @@ internal class TestCompositionOwner(
     coordinator: AfterValidationCoordinator = sharedAfterValidationCoordinator,
 ) : SwingCompositionOwner {
     override val snapshotObserver: OwnerSnapshotObserver =
-        OwnerSnapshotObserver { onChanged ->
-            deliverSnapshotChanges(onChanged)
-        }
+        OwnerSnapshotObserver { onChanged -> deliverSnapshotChanges(onChanged) }
 
     override val styleCollector: StyleCollector by lazy(LazyThreadSafetyMode.NONE) { StyleCollector() }
 

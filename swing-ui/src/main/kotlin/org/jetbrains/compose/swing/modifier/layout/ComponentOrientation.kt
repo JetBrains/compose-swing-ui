@@ -3,10 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.ComponentOrientationDescriptor
 import java.awt.ComponentOrientation
 
 /**
@@ -22,20 +21,6 @@ import java.awt.ComponentOrientation
  * @return this chain with the orientation declared on it.
  * @see java.awt.Component.setComponentOrientation
  */
+@Deprecated("Set it in the component's style: style = { componentOrientation(orientation) }")
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
-    property(ComponentOrientationProperty, orientation, inheritable = true)
-
-private val ComponentOrientationProperty =
-    ComponentPropertyDescriptor<Component, ComponentOrientation>(
-        name = "componentOrientation",
-        read = { it.componentOrientation },
-        // Honest Swing semantics: set on this component only; do not recurse to children.
-        // Setting the property only invalidates. Orientation flips leading and trailing layout positions,
-        // which needs a relayout, and moves what the component paints leading-aligned inside bounds that
-        // stay the same, which needs a repaint.
-        write = { component, value ->
-            component.componentOrientation = value
-            component.revalidate()
-            component.repaint()
-        },
-    )
+    property(ComponentOrientationDescriptor, orientation, inheritable = true)

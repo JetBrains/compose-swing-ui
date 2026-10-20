@@ -13,11 +13,11 @@ import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.enabled
 import javax.swing.text.AttributeSet
 import javax.swing.text.DocumentFilter
 
@@ -90,7 +90,7 @@ internal fun ColumnScope.DocumentStateCard() {
         Panel {
             Label("Text:")
             TextField(state = state, columns = 16)
-            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
+            Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
         }
         Label("Length is ${state.text.length}")
     }

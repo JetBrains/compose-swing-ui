@@ -14,10 +14,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.currentValueOf
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -313,8 +314,8 @@ class CompositionLocalConsumerLayoutNodeTest {
                                 modifier =
                                     SwingModifier
                                         .testTag("layer-box")
-                                        .preferredSize(Dimension(20, 20))
-                                        .then(LocalReadingElement(probe, width = null, x = null, LocalStaticAlpha)),
+                                        .then(LocalReadingElement(probe, width = null, x = null, LocalStaticAlpha))
+                                        .styleable { preferredSize(Dimension(20, 20)) },
                             )
                         }
                     }

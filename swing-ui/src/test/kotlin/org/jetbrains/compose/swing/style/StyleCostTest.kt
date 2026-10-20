@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -8,28 +10,395 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.staticCompositionLocalOf
+import io.mockk.clearMocks
+import io.mockk.mockk
+import io.mockk.verify
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Buttons
+import org.jetbrains.compose.swing.components.style.Labels
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.MethodSource
+import java.awt.Color
+import javax.swing.JCheckBox
+import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlin.reflect.KMutableProperty1
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * What a style costs on a pass that changes nothing. Resolves are counted by the runs of the styles, and writes
- * by the writes a [StyleProbe] logs.
- */
-class StyleCostTest {
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun unchangedStylesDoNotResolve(keyedWrite: Boolean) = runComposeSwingTest {
+internal class StyleCostTest {
+    @Test
+    fun emptyContainerAddsNoWrites() = runComposeSwingTest {
+        val writes = WriteCounter()
+        setContent {
+            Label("bare", style = { writes.counted.provide("own") })
+            Panel(style = {}) {
+                Label("under an empty style", style = { writes.counted.provide("own") })
+            }
+        }
+        assertEquals(2, writes.count, "each label writes its own property once, with or without the container")
+        onNodeWithText("bare").assertIsOfType<JComponent>().assertProperty("own") { toolTipText }
+        onNodeWithText("under an empty style").assertIsOfType<JComponent>().assertProperty("own") { toolTipText }
+    }
+
+    @Test
+    fun styleAndModifierChangeWritesOnce() = runComposeSwingTest {
+        var dark by mutableStateOf(false)
+        val writes = WriteCounter()
+        setContent {
+            Panel(style = { provideNestedStyle(Labels) { background(if (dark) Color.BLACK else Color.WHITE) } }) {
+                Label(
+                    "label",
+                    modifier = SwingModifier.property(writes.descriptor, if (dark) "dark" else "light"),
+                )
+            }
+        }
+        assertEquals(1, writes.count)
+        onNodeWithText("label").assertIsOfType<JComponent>().assertProperty("light") { toolTipText }
+
+        dark = true
+        awaitIdle()
+        assertEquals(2, writes.count, "a pass changing the provided style and the modifier writes the property once")
+        onNodeWithText("label").assertIsOfType<JComponent>().assertProperty("dark") { toolTipText }
+    }
+
+    @Test
+    fun styleChangedByStateAloneDoesNotPartitionTheUnchangedModifierAgain() = runComposeSwingTest {
+        var checked by mutableStateOf(false)
+        val keyAsks = mockk<Runnable>(relaxUnitFun = true)
+        val element = KeyAskCountingElement(keyAsks)
+        val onCheckedChange: (Boolean) -> Unit = {}
+        setContent {
+            CheckBox("box", checked, onCheckedChange, modifier = SwingModifier.then(element))
+        }
+        clearMocks(keyAsks, answers = false)
+
+        checked = true
+        awaitIdle()
+        onNodeOfType<JCheckBox>().assertProperty(true) { isSelected }
+        verify(exactly = 0) { keyAsks.run() }
+    }
+
+    @Test
+    fun unchangedPassDoesNoWork() = runComposeSwingTest {
+        var pass by mutableIntStateOf(0)
+        val writes = WriteCounter()
+        val nestedRuns = mockk<Runnable>(relaxUnitFun = true)
+        val ownRuns = mockk<Runnable>(relaxUnitFun = true)
+        setContent {
+            pass.let { }
+            Panel(
+                style = {
+                    background(Color.GRAY)
+                    provideNestedStyle(Labels) {
+                        nestedRuns.run()
+                        foreground(Color.BLUE)
+                    }
+                },
+            ) {
+                Label(
+                    "label",
+                    style = {
+                        ownRuns.run()
+                        writes.counted.provide("stable")
+                    },
+                )
+            }
+        }
+        verify(exactly = 1) {
+            nestedRuns.run()
+            ownRuns.run()
+        }
+        assertEquals(1, writes.count)
+
+        repeat(2) {
+            pass++
+            awaitIdle()
+        }
+        verify(exactly = 1) {
+            nestedRuns.run()
+            ownRuns.run()
+        }
+        assertEquals(1, writes.count, "equal styles write nothing")
+    }
+
+    @Test
+    fun unchangedPassWithMultipleStyleDeclarationsDoesNoWork() = runComposeSwingTest {
+        var pass by mutableIntStateOf(0)
+        val target = StyleProbe("target")
+        val firstRuns = mockk<Runnable>(relaxUnitFun = true)
+        val secondRuns = mockk<Runnable>(relaxUnitFun = true)
+        val first =
+            SwingStyle<ProbeScope> {
+                firstRuns.run()
+                ProbeFirst.provide("first")
+                ProbeSecond.provide("second")
+            }
+        val second =
+            SwingStyle<ProbeScope> {
+                secondRuns.run()
+                ProbeThird.provide("third")
+                ProbeFourth.provide("fourth")
+            }
+        setContent {
+            pass.let { }
+            SwingNode(
+                factory = { target },
+                modifier = SwingModifier.styleable(PlainProbe, first).then(SwingModifier.styleable(PlainProbe, second)),
+            )
+        }
+        verify(exactly = 1) {
+            firstRuns.run()
+            secondRuns.run()
+        }
+        val attachedWrites = target.writes.toList()
+        assertEquals(4, attachedWrites.size)
+
+        repeat(2) {
+            pass++
+            awaitIdle()
+        }
+        verify(exactly = 1) {
+            firstRuns.run()
+            secondRuns.run()
+        }
+        assertEquals(attachedWrites, target.writes, "an unchanged pass does not rerun or rewrite either style")
+    }
+
+    @Test
+    fun publisherPresenceRestylesActiveStylesOnOneComponent() = runComposeSwingTest {
+        var providing by mutableStateOf(false)
+        val parent = StyleProbe("parent")
+        val target = StyleProbe("target")
+        val runs = List(3) { mockk<Runnable>(relaxUnitFun = true) }
+        val writes = ArrayList<String>()
+        val unrelatedKey = NestedStyleKey<ProbeScope>("Unrelated")
+        val parentStyle =
+            SwingStyle<ProbeContainerScope> {
+                provideNestedStyle(unrelatedKey) { ProbeFourth.provide("unrelated") }
+            }
+        val firstStyle =
+            countedProbeStyle("first", runs[0], writes, StyleProbe::first) {
+                "first"
+            }
+        val secondStyle =
+            countedProbeStyle("second", runs[1], writes, StyleProbe::second) {
+                "second"
+            }
+        val thirdStyle =
+            countedProbeStyle("third", runs[2], writes, StyleProbe::third) {
+                "third"
+            }
+        setContent {
+            ProbeContainer(parent, if (providing) parentStyle else SwingStyle) {
+                SwingNode(
+                    factory = { target },
+                    modifier =
+                        SwingModifier
+                            .styleable(PlainProbe, firstStyle)
+                            .then(SwingModifier.styleable(PlainProbe, secondStyle))
+                            .then(SwingModifier.styleable(PlainProbe, thirdStyle)),
+                )
+            }
+        }
+        assertEquals(listOf("first=first", "second=second", "third=third"), writes)
+        verify(exactly = 1) {
+            runs[0].run()
+            runs[1].run()
+            runs[2].run()
+        }
+
+        providing = true
+        awaitIdle()
+        assertEquals(
+            listOf(
+                "first=first",
+                "second=second",
+                "third=third",
+                "second=second",
+                "third=third",
+            ),
+            writes,
+        )
+        verify(exactly = 2) {
+            runs[0].run()
+            runs[1].run()
+            runs[2].run()
+        }
+    }
+
+    @Test
+    fun threeStylesReadingOneSnapshotInputEachRunAndWriteOnce() = runComposeSwingTest {
+        var shade by mutableStateOf("light")
+        val target = StyleProbe("target")
+        val firstRuns = mockk<Runnable>(relaxUnitFun = true)
+        val secondRuns = mockk<Runnable>(relaxUnitFun = true)
+        val thirdRuns = mockk<Runnable>(relaxUnitFun = true)
+        val firstStyle =
+            SwingStyle<ProbeScope> {
+                firstRuns.run()
+                ProbeFirst.provide(shade)
+            }
+        val secondStyle =
+            SwingStyle<ProbeScope> {
+                secondRuns.run()
+                ProbeSecond.provide(shade)
+            }
+        val thirdStyle =
+            SwingStyle<ProbeScope> {
+                thirdRuns.run()
+                ProbeThird.provide(shade)
+            }
+        setContent {
+            SwingNode(
+                factory = { target },
+                modifier =
+                    SwingModifier
+                        .styleable(PlainProbe, firstStyle)
+                        .then(SwingModifier.styleable(PlainProbe, secondStyle))
+                        .then(SwingModifier.styleable(PlainProbe, thirdStyle)),
+            )
+        }
+        verify(exactly = 1) {
+            firstRuns.run()
+            secondRuns.run()
+            thirdRuns.run()
+        }
+        val attachedWrites = target.writes.toList()
+        assertEquals(listOf("first=light", "second=light", "third=light"), attachedWrites)
+
+        shade = "dark"
+        awaitIdle()
+        verify(exactly = 2) {
+            firstRuns.run()
+            secondRuns.run()
+            thirdRuns.run()
+        }
+        assertEquals(
+            attachedWrites + listOf("first=dark", "second=dark", "third=dark"),
+            target.writes,
+        )
+    }
+
+    @Test
+    fun changingOneStyleInputKeepsOtherStyleReadsSelective() = runComposeSwingTest {
+        val firstValue = mutableStateOf("first")
+        var middleValue by mutableStateOf("middle")
+        val lastValue = mutableStateOf("last")
+        val target = StyleProbe("target")
+        val writes = ArrayList<String>()
+        val runs = List(3) { mockk<Runnable>(relaxUnitFun = true) }
+        val firstStyle =
+            countedProbeStyle("first", runs[0], writes, StyleProbe::first) {
+                firstValue.value
+            }
+        val middleStyle =
+            countedProbeStyle("second", runs[1], writes, StyleProbe::second) {
+                middleValue
+            }
+        val lastStyle =
+            countedProbeStyle("third", runs[2], writes, StyleProbe::third) {
+                lastValue.value
+            }
+        setContent {
+            SwingNode(
+                factory = { target },
+                modifier =
+                    SwingModifier
+                        .styleable(PlainProbe, firstStyle)
+                        .then(SwingModifier.styleable(PlainProbe, middleStyle))
+                        .then(SwingModifier.styleable(PlainProbe, lastStyle)),
+            )
+        }
+        verify(exactly = 1) {
+            runs[0].run()
+            runs[1].run()
+            runs[2].run()
+        }
+        assertEquals(listOf("first=first", "second=middle", "third=last"), writes)
+
+        middleValue = "changed"
+        awaitIdle()
+        verify(exactly = 1) {
+            runs[0].run()
+            runs[2].run()
+        }
+        verify(exactly = 2) { runs[1].run() }
+        assertEquals("second=changed", writes[3])
+        assertEquals(listOf("second=changed", "third=last").take(writes.size - 3), writes.drop(3))
+        assertEquals("first", target.first)
+        assertEquals("changed", target.second)
+        assertEquals("last", target.third)
+    }
+
+    @Test
+    fun changedBlocksResolveOnlyTheirConsumers() = runComposeSwingTest {
+        var labelColor by mutableStateOf(Color.RED)
+        var buttonColor by mutableStateOf(Color.GRAY)
+        val labelRuns = mockk<Runnable>(relaxUnitFun = true)
+        val buttonRuns = mockk<Runnable>(relaxUnitFun = true)
+        val writes = WriteCounter()
+        val overridingWrites = WriteCounter()
+        setContent {
+            Panel(style = {
+                provideNestedStyle(Labels) {
+                    labelRuns.run()
+                    background(labelColor)
+                    foreground(Color.BLACK)
+                }
+                provideNestedStyle(Buttons) {
+                    buttonRuns.run()
+                    background(buttonColor)
+                }
+            }) {
+                Label("first", style = { writes.counted.provide("label") })
+                Label("second")
+                Label("overriding", style = {
+                    background(Color.BLUE)
+                    overridingWrites.counted.provide("explicit")
+                })
+                Button("button", onClick = {})
+            }
+        }
+        verify(exactly = 3) { labelRuns.run() }
+        verify(exactly = 1) { buttonRuns.run() }
+        assertEquals(1, overridingWrites.count)
+
+        labelColor = Color.GREEN
+        awaitIdle()
+        verify(exactly = 6) { labelRuns.run() }
+        verify(exactly = 1) { buttonRuns.run() }
+        onNodeWithText("first").assertProperty(Color.GREEN) { background }
+        onNodeWithText("second").assertProperty(Color.GREEN) { background }
+        onNodeWithText("overriding").assertProperty(Color.BLUE) { background }
+        assertEquals(1, overridingWrites.count, "the winning style is not written again")
+        val attached = listOf(writes.count, overridingWrites.count)
+
+        buttonColor = Color.GREEN
+        awaitIdle()
+        onNodeWithText("button").assertProperty(Color.GREEN) { background }
+        verify(exactly = 6) { labelRuns.run() }
+        assertEquals(attached, listOf(writes.count, overridingWrites.count))
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("unchangedStyles")
+    fun unchangedStylesDoNotResolve(case: UnchangedStyleCase) = runComposeSwingTest {
         var pass by mutableIntStateOf(0)
         val container = StyleProbe()
         val leaf = StyleProbe("leaf")
@@ -48,7 +417,7 @@ class StyleCostTest {
         val leafStyle =
             SwingStyle<ProbeScope> {
                 leafRuns++
-                if (keyedWrite) ProbeFirst.provide("styled")
+                case.first?.let { ProbeFirst.provide(it) }
                 ProbeThird.provide("caller")
             }
         setContent {
@@ -57,13 +426,14 @@ class StyleCostTest {
                 SwingNode(
                     factory = { leaf },
                     modifier =
-                        (if (keyedWrite) SwingModifier.property(FirstDescriptor, "chain $pass") else SwingModifier)
-                            .styleable(NestedProbe, leafStyle),
+                        case
+                            .modifier(pass)
+                            .styleable(NestedProbe, case.style(leafStyle)),
                 )
             }
         }
         onProbe("leaf")
-            .assertProperty(if (keyedWrite) "styled" else "inherited") { first }
+            .assertProperty(case.expectedFirst) { first }
             .assertProperty("nested") { second }
             .assertProperty("caller") { third }
         val attachedRuns = listOf(containerRuns, leafRuns, nestedRuns)
@@ -73,9 +443,9 @@ class StyleCostTest {
             awaitIdle()
         }
         assertEquals(attachedRuns, listOf(containerRuns, leafRuns, nestedRuns))
-        if (!keyedWrite) assertEquals(attachedWrites, container.writes + leaf.writes)
+        case.additionalWrites?.let { assertEquals(attachedWrites + it, container.writes + leaf.writes) }
         onProbe("leaf")
-            .assertProperty(if (keyedWrite) "styled" else "inherited") { first }
+            .assertProperty(case.expectedFirst) { first }
             .assertProperty("nested") { second }
     }
 
@@ -123,44 +493,268 @@ class StyleCostTest {
     @Test
     fun restyleReadsDoNotGrowWithDepth() {
         assertEquals(
-            statesReadByARestyleBelowAPublisher(plainContainers = 1),
-            statesReadByARestyleBelowAPublisher(plainContainers = 32),
-            "the states a leaf's restyle reads do not grow with the containers between it and the publisher",
+            statesReadByARestyleBelowAPublisher(plainPanels = 1),
+            statesReadByARestyleBelowAPublisher(plainPanels = 32),
+            "the states a label's restyle reads do not grow with the panels between it and the publisher",
         )
     }
 
-    private fun statesReadByARestyleBelowAPublisher(plainContainers: Int): Int {
-        var read = 0
-        runComposeSwingTest {
-            val shade = mutableStateOf("a")
-            val provider =
-                SwingStyle<ProbeContainerScope> {
-                    provideNestedStyle(Probes) { ProbeSecond.provide("nested") }
-                }
-            setContent {
-                ProbeContainer(StyleProbe(), provider) {
-                    Plain(plainContainers) {
-                        ProbeLeaf(StyleProbe("leaf"), { ProbeThird.provide(shade.value) }, NestedProbe)
-                    }
-                }
+    @Test
+    fun styleStateUpdatesWithoutRecomposition() = runComposeSwingTest {
+        val probe = StyleProbe()
+        var tint by mutableStateOf("light")
+        var resolves = 0
+        var compositions = 0
+        val kind = probeKind { resolves++ }
+        val style =
+            SwingStyle<ProbeScope> {
+                ProbeFirst.provide("fixed")
+                ProbeSecond.provide(tint)
             }
-            awaitIdle()
-            val states = HashSet<Any>()
-            Snapshot.observe(readObserver = { states += it }) {
-                Snapshot.withMutableSnapshot { shade.value = "b" }
-            }
-            awaitIdle()
-            assertTrue(shade in states, "the restyle reads the leaf's own state at $plainContainers containers")
-            read = states.size
+        setContent {
+            SideEffect { compositions++ }
+            ProbeLeaf(probe, style, kind)
         }
-        return read
+        assertEquals(listOf("first=fixed", "second=light"), probe.writes)
+        val composed = compositions
+        val resolved = resolves
+        probe.writes.clear()
+
+        tint = "dark"
+        awaitIdle()
+        assertEquals(listOf("second=dark"), probe.writes, "only the changed property is written")
+        assertEquals(resolved + 1, resolves, "the state change resolves the style once")
+        assertEquals(composed, compositions, "the state change recomposes nothing")
     }
 
-    @Composable
-    private fun Plain(
-        depth: Int,
-        content: @Composable () -> Unit,
+    @Test
+    fun changedProviderResolvesOnlyItsConsumers() = runComposeSwingTest {
+        val consumer = StyleProbe()
+        val bystander = StyleProbe()
+        var dark by mutableStateOf(false)
+        var consumerResolves = 0
+        var bystanderResolves = 0
+        val light = SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("light") } }
+        val darkStyle = SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("dark") } }
+        val consumerKind =
+            probeKind {
+                consumerResolves++
+                applyNestedStyle(Probes)
+            }
+        val bystanderKind =
+            probeKind {
+                bystanderResolves++
+                applyNestedStyle(OtherProbes)
+            }
+        val bystanderStyle = SwingStyle<ProbeScope> { ProbeSecond.provide("own style") }
+        setContent {
+            ProbeContainer(StyleProbe(), if (dark) darkStyle else light) {
+                ProbeLeaf(consumer, SwingStyle, consumerKind)
+                ProbeLeaf(bystander, bystanderStyle, bystanderKind)
+            }
+        }
+        assertEquals("light", consumer.first)
+        val consumerResolved = consumerResolves
+        val bystanderResolved = bystanderResolves
+        consumer.writes.clear()
+        bystander.writes.clear()
+
+        dark = true
+        awaitIdle()
+        assertEquals(listOf("first=dark"), consumer.writes)
+        assertEquals(consumerResolved + 1, consumerResolves, "the consumer of the key resolves once")
+        assertEquals(emptyList(), bystander.writes, "a component applying another key writes nothing")
+        assertEquals(bystanderResolved, bystanderResolves, "a component applying another key does not resolve")
+    }
+
+    @ParameterizedTest
+    @MethodSource("firstFrames")
+    fun firstFrameResolvesOnce(case: FirstFrameCase) = runComposeSwingTest {
+        val leaf = StyleProbe()
+        var resolves = 0
+        val kind =
+            probeKind {
+                resolves++
+                applyNestedStyle(Probes)
+            }
+        setContent {
+            ProbeContainer(StyleProbe(), case.provider) { ProbeLeaf(leaf, SwingStyle, kind) }
+        }
+        assertEquals(listOf(case.expectedWrite), leaf.writes)
+        assertEquals(1, resolves, "the container's first publish does not resolve the descendant again")
+    }
+
+    @Test
+    fun localMapChangeResolvesOnlyReaders() = runComposeSwingTest {
+        var tone by mutableStateOf("light")
+        var readerResolves = 0
+        var bystanderResolves = 0
+        val readerKind =
+            probeKind {
+                readerResolves++
+                ProbeFirst.provide(LocalTone.currentValue)
+            }
+        val bystanderKind =
+            probeKind {
+                bystanderResolves++
+                ProbeFirst.provide("own style")
+            }
+        setContent {
+            CompositionLocalProvider(LocalTone provides tone) {
+                ProbeLeaf(StyleProbe("reader"), SwingStyle, readerKind)
+                ProbeLeaf(StyleProbe(), SwingStyle, bystanderKind)
+            }
+        }
+        onProbe("reader").assertProperty("light") { first }
+        val readerResolved = readerResolves
+        val bystanderResolved = bystanderResolves
+
+        tone = "dark"
+        awaitIdle()
+        onProbe("reader").assertProperty("dark") { first }
+        assertEquals(readerResolved + 1, readerResolves, "a style that read the local resolves once")
+        assertEquals(bystanderResolved, bystanderResolves, "a style that read no local does not resolve")
+    }
+
+    sealed class FirstFrameCase(
+        val provider: SwingStyle<ProbeContainerScope>,
+        val expectedWrite: String,
     ) {
-        if (depth == 0) content() else ProbeContainer(StyleProbe(), SwingStyle) { Plain(depth - 1, content) }
+        data object Inherited : FirstFrameCase({ InheritedFirst.provide("inherited") }, "first=inherited")
+
+        data object Nested : FirstFrameCase(
+            { provideNestedStyle(Probes) { ProbeFirst.provide("nested") } },
+            "first=nested",
+        )
+    }
+
+    sealed class UnchangedStyleCase(
+        val first: String?,
+        val modifier: (Int) -> SwingModifier,
+        val expectedFirst: String,
+        val additionalWrites: List<String>?,
+        val style: (SwingStyle<ProbeScope>) -> SwingStyle<ProbeScope> = { it },
+    ) {
+        data object Inherited : UnchangedStyleCase(null, { SwingModifier }, "inherited", emptyList())
+
+        /** The leaf's style is a combination built again on every pass from the same parts. */
+        data object RebuiltCombination : UnchangedStyleCase(
+            null,
+            { SwingModifier },
+            "inherited",
+            emptyList(),
+            { it then it },
+        )
+
+        data object KeyedWrite : UnchangedStyleCase(
+            "styled",
+            { SwingModifier.property(FirstDescriptor, "chain $it") },
+            "styled",
+            null,
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun unchangedStyles(): List<UnchangedStyleCase> = listOf(
+            UnchangedStyleCase.Inherited,
+            UnchangedStyleCase.KeyedWrite,
+            UnchangedStyleCase.RebuiltCombination,
+        )
+
+        @JvmStatic
+        fun firstFrames(): List<FirstFrameCase> = listOf(FirstFrameCase.Inherited, FirstFrameCase.Nested)
     }
 }
+
+/** A modifier entry that counts each time its key is asked, which partitioning the modifier does per entry. */
+private class KeyAskCountingElement(
+    private val asks: Runnable,
+) : SwingModifier.NodeElement<JComponent, SwingModifier.ComponentNode<JComponent>>() {
+    override val targetType: Class<JComponent> get() = JComponent::class.java
+
+    override val key: Any
+        get() {
+            asks.run()
+            return javaClass
+        }
+
+    override fun create(): SwingModifier.ComponentNode<JComponent> = SwingModifier.ComponentNode()
+
+    override fun update(node: SwingModifier.ComponentNode<JComponent>) = Unit
+
+    override fun equals(other: Any?): Boolean = other is KeyAskCountingElement && asks === other.asks
+
+    override fun hashCode(): Int = System.identityHashCode(asks)
+}
+
+private class WriteCounter {
+    var count = 0
+
+    val descriptor =
+        ComponentPropertyDescriptor<JComponent, String?>(
+            name = "countedToolTipText",
+            read = { it.toolTipText },
+            write = { component, value ->
+                count++
+                component.toolTipText = value
+            },
+        )
+
+    val counted = stylePropertyOf(descriptor)
+}
+
+private fun countedProbeStyle(
+    name: String,
+    runs: Runnable,
+    writes: MutableList<String>,
+    property: KMutableProperty1<StyleProbe, String?>,
+    value: () -> String?,
+): SwingStyle<ProbeScope> {
+    val styledProperty =
+        stylePropertyOf(
+            ComponentPropertyDescriptor<StyleProbe, String?>(
+                name,
+                property::get,
+                { component, written ->
+                    writes += "$name=$written"
+                    property.set(component, written)
+                },
+            ),
+        )
+    return SwingStyle {
+        runs.run()
+        styledProperty.provide(value())
+    }
+}
+
+private fun statesReadByARestyleBelowAPublisher(plainPanels: Int): Int {
+    var read = 0
+    runComposeSwingTest {
+        val shade = mutableStateOf(Color.RED)
+        setContent {
+            Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) {
+                Plain(plainPanels) { Label("label", style = { background(shade.value) }) }
+            }
+        }
+        awaitIdle()
+        val states = HashSet<Any>()
+        Snapshot.observe(readObserver = { states += it }) {
+            Snapshot.withMutableSnapshot { shade.value = Color.BLUE }
+        }
+        awaitIdle()
+        assertTrue(shade in states, "the restyle reads the label's own state at $plainPanels panels")
+        read = states.size
+    }
+    return read
+}
+
+@Composable
+private fun Plain(
+    depth: Int,
+    content: @Composable () -> Unit,
+) {
+    if (depth == 0) content() else Panel { Plain(depth - 1, content) }
+}
+
+private val LocalTone = staticCompositionLocalOf { "plain" }

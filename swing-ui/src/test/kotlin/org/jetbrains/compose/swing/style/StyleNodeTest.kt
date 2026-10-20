@@ -19,8 +19,12 @@ import io.mockk.verify
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.resetModifierState
+import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -31,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Color
 import java.awt.Component
 import java.awt.FlowLayout
 import javax.swing.JLabel
@@ -38,6 +43,7 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /** A style declared through `styleable` on a custom component, and what it keeps observing as it changes. */
 internal class StyleNodeTest {
@@ -68,6 +74,106 @@ internal class StyleNodeTest {
         verify(exactly = 0) { state.onRemembered() }
         verify(exactly = 0) { state.onForgotten() }
         verify(exactly = 0) { state.onAbandoned() }
+    }
+
+    @Test
+    fun theKindlessStyleProvidesNestedStyles() = runComposeSwingTest {
+        setContent {
+            SwingNode(
+                factory = { JPanel() },
+                modifier =
+                    SwingModifier.testTag("container").styleable {
+                        provideNestedStyle(Probes) { LabelToolTip.provide("nested") }
+                    },
+            ) {
+                SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
+            }
+        }
+        onNodeOfType<JLabel>().assertProperty("nested") { toolTipText }
+    }
+
+    @Test
+    fun theKindlessStyleRejectsANonJComponentBeforeWritingProperties() = runComposeSwingTest {
+        val target = object : Component() {}.apply { background = Color.BLUE }
+        assertFailsWith<IllegalArgumentException> {
+            setContent {
+                SwingNode(factory = { target }, modifier = SwingModifier.styleable { background(Color.RED) })
+            }
+        }
+        assertEquals(Color.BLUE, target.background)
+    }
+
+    @Test
+    fun aRejectedKindlessStyleProvidesNothingToAnExistingChild() = runComposeSwingTest {
+        val owner = TestCompositionOwner()
+        val target = object : Component() {}.apply { background = Color.BLUE }
+        val parent = CreatedNodeHolder(target).attachedTo(owner)
+        val child = CreatedNodeHolder(JLabel()).attachedTo(owner)
+        val resolutions = ArrayList<Unit>()
+        child.parentTo(parent)
+        parent.children += child
+        try {
+            child.applyDeclaredModifier(
+                SwingModifier.styleable(NestedProbe) {
+                    resolutions += Unit
+                },
+            )
+            val before = resolutions.toList()
+            val childTip = child.component.toolTipText
+            val failure =
+                assertFailsWith<RuntimeException> {
+                    parent.applyDeclaredModifier(
+                        SwingModifier.styleable {
+                            background(Color.RED)
+                            provideNestedStyle(Probes) { LabelToolTip.provide("rejected") }
+                        },
+                    )
+                }
+            assertEquals(Color.BLUE, target.background)
+            assertEquals(childTip, child.component.toolTipText, "the child receives no rejected nested style")
+            assertEquals(before, resolutions, "a rejected provider must not provide or restyle its child")
+            assertIs<IllegalArgumentException>(failure)
+        } finally {
+            child.resetModifierState()
+            parent.resetModifierState()
+            owner.dispose()
+        }
+    }
+
+    @Test
+    fun anExplicitKindStylesANonJComponent() = runComposeSwingTest {
+        var target: Component? = null
+        setContent {
+            SwingNode(
+                factory = { object : Component() {}.also { target = it } },
+                modifier = SwingModifier.styleable(PlainProbe) { background(Color.RED) },
+            )
+        }
+        assertEquals(Color.RED, target?.background)
+    }
+
+    @Test
+    fun switchingANonJComponentFromAKindToTheKindlessStyleFails() {
+        val target = object : Component() {}.apply { background = Color.RED }
+        assertFailsWith<IllegalArgumentException> {
+            runComposeSwingTest {
+                var custom by mutableStateOf(true)
+                setContent {
+                    SwingNode(
+                        factory = { target },
+                        modifier =
+                            if (custom) {
+                                SwingModifier.styleable(PlainProbe) { background(Color.RED) }
+                            } else {
+                                SwingModifier.styleable { background(Color.BLUE) }
+                            },
+                    )
+                }
+                custom = false
+                awaitIdle()
+            }
+        }
+        assertEquals(Color.RED, target.background)
     }
 
     @Test
@@ -175,6 +281,22 @@ internal class StyleNodeTest {
     }
 
     @Test
+    fun anUnstyledComponentOfAThirdPartyNestingKindRunsNoDefault() = runComposeSwingTest {
+        var defaultRuns = 0
+        val kind =
+            nestingStyleKind<ProbeScope, Unit>(
+                { base, _ -> object : ProbeScope, ComponentStyleScope by base {} },
+            ) {
+                defaultRuns++
+                applyNestedStyle(Probes)
+            }
+        setContent {
+            SwingNode(factory = { StyleProbe() }, modifier = SwingModifier.styleable(kind, SwingStyle))
+        }
+        assertEquals(0, defaultRuns, "nothing above provides, so the default is not run")
+    }
+
+    @Test
     fun styleableModifiersKeepOrderAndRestoreEarlierProperties() = runComposeSwingTest {
         var includeFirst by mutableStateOf(true)
         var includeOrdinary by mutableStateOf(true)
@@ -223,6 +345,66 @@ internal class StyleNodeTest {
         onNodeOfType<StyleProbe>()
             .assertProperty(PROBE_OWN_VALUE) { first }
             .assertProperty(PROBE_OWN_VALUE) { second }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("combinedStyles")
+    fun aCombinedStyleRunsItsPartsInOrderAndAChangedPartRestyles(case: CombinedStyleCase) = runComposeSwingTest {
+        var last by mutableStateOf("last")
+        val leading =
+            SwingStyle<ProbeScope> {
+                ProbeFirst.provide("first")
+                ProbeSecond.provide("first only")
+            }
+        setContent {
+            val trailing = SwingStyle<ProbeScope> { ProbeFirst.provide(last) }
+            SwingNode(
+                factory = { StyleProbe() },
+                modifier = SwingModifier.styleable(PlainProbe, case.combine(leading, trailing)),
+            )
+        }
+        onNodeOfType<StyleProbe>()
+            .assertProperty(case.expectedFirst("last")) { first }
+            .assertProperty("first only") { second }
+
+        last = "changed"
+        awaitIdle()
+        onNodeOfType<StyleProbe>()
+            .assertProperty(case.expectedFirst("changed")) { first }
+            .assertProperty("first only") { second }
+    }
+
+    @Test
+    fun twoStylesBothApplyAfterAllComponentsOnce() = runComposeSwingTest {
+        setContent {
+            ProbeContainer(
+                StyleProbe(),
+                {
+                    provideNestedStyle(AllComponents) {
+                        ProbeThird.provide("all")
+                        ProbeFourth.provide("all")
+                    }
+                },
+            ) {
+                SwingNode(
+                    factory = { StyleProbe("leaf") },
+                    modifier =
+                        SwingModifier
+                            .styleable(PlainProbe) {
+                                ProbeFirst.provide("first")
+                                ProbeThird.provide("first only")
+                            }.styleable(PlainProbe) {
+                                ProbeFirst.provide("second")
+                                ProbeSecond.provide("second only")
+                            },
+                )
+            }
+        }
+        onProbe("leaf")
+            .assertProperty("second") { first }
+            .assertProperty("second only") { second }
+            .assertProperty("first only", "AllComponents runs before the first declaration only") { third }
+            .assertProperty("all", "a kind that applies no key receives AllComponents") { fourth }
     }
 
     @ParameterizedTest(name = "removes declaration {0}")
@@ -346,7 +528,50 @@ internal class StyleNodeTest {
         }
     }
 
+    /** A way to combine two styles, and the first property it leaves for the second style's [String] value. */
+    sealed class CombinedStyleCase(
+        val combine: (SwingStyle<ProbeScope>, SwingStyle<ProbeScope>) -> SwingStyle<ProbeScope>,
+        val expectedFirst: (String) -> String,
+    ) {
+        data object Then : CombinedStyleCase({ a, b -> a then b }, { it })
+
+        data object EmptyPartsDropped : CombinedStyleCase(
+            { a, b -> SwingStyle(SwingStyle, a, SwingStyle, b) then SwingStyle },
+            { it },
+        )
+
+        data object ApplyAfterOwnWrite : CombinedStyleCase(
+            { a, b ->
+                SwingStyle {
+                    apply(a)
+                    ProbeFirst.provide(PROBE_OWN_VALUE)
+                    apply(b)
+                }
+            },
+            { it },
+        )
+
+        data object OwnWriteAfterApply : CombinedStyleCase(
+            { a, b ->
+                SwingStyle {
+                    apply(a)
+                    apply(b)
+                    ProbeFirst.provide(PROBE_OWN_VALUE)
+                }
+            },
+            { PROBE_OWN_VALUE },
+        )
+    }
+
     companion object {
+        @JvmStatic
+        fun combinedStyles(): List<CombinedStyleCase> = listOf(
+            CombinedStyleCase.Then,
+            CombinedStyleCase.EmptyPartsDropped,
+            CombinedStyleCase.ApplyAfterOwnWrite,
+            CombinedStyleCase.OwnWriteAfterApply,
+        )
+
         @JvmStatic
         fun localKinds(): List<Arguments> = listOf(
             "static" to staticCompositionLocalOf { "unset" },

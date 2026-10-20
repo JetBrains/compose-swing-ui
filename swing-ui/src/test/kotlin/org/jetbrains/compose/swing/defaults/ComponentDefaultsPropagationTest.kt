@@ -34,6 +34,8 @@ import kotlin.test.assertEquals
 
 class ComponentDefaultsPropagationTest {
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun defaultsPropagateIntoRenderedCells() = runComposeSwingTest {
         val items = listOf("first", "second")
         var color by mutableStateOf(Color.MAGENTA)
@@ -62,6 +64,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun defaultsPropagateIntoMenuCompositionsAndCompileInMenuContext() = runComposeSwingTest {
         val menu =
             composeMenu {
@@ -75,6 +79,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aChangedDefaultReachesAnExplicitlyParentedSubcomposition() = runComposeSwingTest {
         var color by mutableStateOf(Color.CYAN)
         lateinit var parentContext: CompositionContext
@@ -101,6 +107,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aChangedDefaultIsReadByCurrentInAnExplicitlyParentedSubcomposition() = runComposeSwingTest {
         var color by mutableStateOf(Color.CYAN)
         var read: Color? = null
@@ -126,6 +134,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aChangedDefaultReachesATabHeader() = runComposeSwingTest {
         var font by mutableStateOf(Font(Font.DIALOG, Font.PLAIN, 12))
         setContent {
@@ -145,6 +155,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aChangedDefaultReachesASpinnerEditor() = runComposeSwingTest {
         var color by mutableStateOf(Color.MAGENTA)
         setContent {
@@ -163,6 +175,8 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
+    // Exercises the deprecated component-defaults API.
+    @Suppress("DEPRECATION")
     fun aChangedDefaultReachesAnOpenContextMenu() = runComposeSwingTest {
         var color by mutableStateOf(Color.MAGENTA)
         var captured: JPopupMenu? = null

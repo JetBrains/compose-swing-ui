@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.requireSingleElementRole
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.forEachStyle
 import org.jetbrains.compose.swing.node.forEachStyleReversed
@@ -15,8 +16,9 @@ import org.jetbrains.compose.swing.util.fastForEach
  * last write of a property winning, as in a modifier. One collector serves every node of a composition, one collect
  * at a time.
  *
- * The order is the kind's default style, then the caller's style, then each style local an ancestor provided
- * that neither set. The ancestors are the styled nodes along the component's parent links.
+ * The order is the styles provided for [AllComponents], once per component, then the kind's default style, then
+ * the caller's style, then each style local an ancestor provided that none of them set. The ancestors are the styled
+ * nodes along the component's parent links.
  *
  * A nested block runs against the consuming scope, with composition locals from its provider.
  */
@@ -39,9 +41,16 @@ internal class StyleCollector : NestedStyleProviderScope {
     /** The provider whose composition locals the running nested style reads; otherwise `null`. */
     private var localProvider: StyleNode? = null
 
+    /** The kind whose default is running; `null` while the caller's style runs. */
+    private var defaultKind: SwingStyleKind<*, *>? = null
+
     /**
      * Collects [node]'s [element] with the publishers from [publisher] up, and returns what it wrote. The caller
      * [releases][StyleCollection.release] the result once it has read it, which may run other collects.
+     *
+     * @param node the consumer whose style is resolved.
+     * @param element the declaration to collect for this resolve.
+     * @param publisher the nearest ancestor providing styles, or `null` at a style root.
      */
     fun collect(
         node: StyleNode,
@@ -58,8 +67,9 @@ internal class StyleCollector : NestedStyleProviderScope {
         this.publisher = publisher
         collected = result
         try {
-            val scope = element.execute(node.reusableScope(element)) { scopeFor(node) }
-            inheritLocals(checkNotNull(node.holder).component.javaClass)
+            val scope = element.execute(node.reusableScope(element), this) { scopeFor(node) }
+            // A component that declares no style keeps inheriting through Swing; it takes only AllComponents.
+            if (element !== UnstyledComponent) inheritLocals(checkNotNull(node.holder).component.javaClass)
             result.scope = scope
             return result
         } finally {
@@ -92,7 +102,7 @@ internal class StyleCollector : NestedStyleProviderScope {
         while (node != null) {
             val ancestor = node
             ancestor.modifierState?.forEachStyleReversed(ancestor) { style ->
-                val locals = style.providedStyles.locals
+                val locals = style.providedStyles().locals
                 for ((key, local) in locals) {
                     if (
                         checkNotNull(collected) { "A style property was provided outside a collect" }.declarations.any {
@@ -112,7 +122,32 @@ internal class StyleCollector : NestedStyleProviderScope {
         }
     }
 
-    override fun <V> SwingStyleProperty<V>.provide(value: V) = declaration(this@StyleCollector, value)
+    /**
+     * Applies the styles provided for [AllComponents] where [appliesAllComponents], then the kind's default with its
+     * write restriction, restoring the running kind on failure too.
+     */
+    fun <S : ComponentStyleScope> applyDefault(
+        kind: SwingStyleKind<S, *>,
+        scope: S,
+        appliesAllComponents: Boolean,
+    ) {
+        if (appliesAllComponents) applyProvidedFrom(publisher, scope, AllComponents)
+        val previous = defaultKind
+        defaultKind = kind
+        try {
+            with(kind.default) { scope.applyStyle() }
+        } finally {
+            defaultKind = previous
+        }
+    }
+
+    override fun <V> SwingStyleProperty<V>.provide(value: V) {
+        check(defaultKind?.defaultAppliesOnlyNestedStyles != true || blockKeys.isNotEmpty()) {
+            "The default of a nesting kind may only apply nested styles, but it provides a property outside one. " +
+                "Build the kind with the SwingStyleKind constructor instead of nestingStyleKind."
+        }
+        declaration(this@StyleCollector, value)
+    }
 
     fun writeElement(element: SwingModifier.Element) = checkNotNull(collected).write(element)
 
@@ -122,7 +157,19 @@ internal class StyleCollector : NestedStyleProviderScope {
         declarations.add(element)
     }
 
-    val locals: MutableMap<String, ProvidedLocal> get() = checkNotNull(collected).locals
+    /**
+     * Declares [element] on this component and provides [local] to descendants.
+     *
+     * @param element the declaration written on this component.
+     * @param local the inherited declaration, with a `null` element to stop inheritance.
+     */
+    fun declareLocal(
+        element: PropertyElement<*, *>,
+        local: ProvidedLocal,
+    ) {
+        declare(element)
+        checkNotNull(collected).locals[element.name] = local
+    }
 
     override val <T> CompositionLocal<T>.currentValue: T
         get() {
@@ -136,21 +183,14 @@ internal class StyleCollector : NestedStyleProviderScope {
             }
         }
 
+    /** Runs the styles the ancestors provide for [key] against this scope, farthest first. */
     override fun <S : ComponentStyleScope> S.applyNestedStyle(key: NestedStyleKey<in S>) {
-        this@StyleCollector.applyProvided(this, key)
-    }
-
-    /** Runs the styles the ancestors provide for [key] against [consumer], farthest first. */
-    private fun applyProvided(
-        consumer: ComponentStyleScope,
-        key: NestedStyleKey<*>,
-    ) {
         // The block would run the providers of key again, and so itself, without end.
-        check(key !in blockKeys) {
+        check(key !in this@StyleCollector.blockKeys) {
             "applyNestedStyle($key) runs inside a provideNestedStyle block for $key, which it would run again " +
                 "without end. Remove applyNestedStyle($key) from that block."
         }
-        applyProvidedFrom(publisher, consumer, key)
+        this@StyleCollector.applyProvidedFrom(this@StyleCollector.publisher, this, key)
     }
 
     /** Runs the styles [node] and the publishers above it provide for [key] against [consumer], farthest first. */
@@ -162,13 +202,13 @@ internal class StyleCollector : NestedStyleProviderScope {
         if (node == null) return
         applyProvidedFrom(node.publisherAbove, consumer, key)
         node.modifierState?.forEachStyle(node) { style ->
-            val styles = style.providedStyles.nested[key]?.value
+            val styles = style.providedStyles().nested[key]?.value
             if (styles != null) {
                 val outerProvider = localProvider
                 blockKeys.add(key)
                 localProvider = style
                 try {
-                    styles.fastForEach { with(it) { consumer.applyStyle() } }
+                    styles.fastForEach { provided -> with(provided) { consumer.applyStyle() } }
                 } finally {
                     localProvider = outerProvider
                     blockKeys.removeAt(blockKeys.lastIndex)
@@ -216,6 +256,7 @@ internal class StyleCollector : NestedStyleProviderScope {
 
         /** Records [element] as the last write for its key; rejects additive elements and parent data modifiers. */
         fun write(element: SwingModifier.Element) {
+            element.requireSingleElementRole()
             when {
                 element is SwingModifier.NodeElement<*, *> -> {
                     require(!element.additive) {
@@ -257,6 +298,7 @@ internal class StyleCollector : NestedStyleProviderScope {
 
 /** What a collect wrote, which its caller reads until it [releases][release] it. */
 internal interface StyleCollection {
+    /** Descriptor-backed declarations in write order, with the last declaration of each key retained. */
     val declarations: List<PropertyElement<*, *>>
 
     /** The elements, by element key, in write order, the last write of a property winning. */

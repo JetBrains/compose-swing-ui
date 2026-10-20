@@ -9,6 +9,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -174,7 +175,7 @@ class LayoutReadObservationTest {
                             row.measure(Constraints(width, width, CHILD_HEIGHT, CHILD_HEIGHT)).place(0, 0)
                         }
                     },
-                    modifier = containerModifier(200, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(200, 300)),
                 )
             }
             window.onNodeWithTag(CONTAINER_TAG).onChild().assertIsOfType<Container>().assertProperty(

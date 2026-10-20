@@ -24,16 +24,17 @@ import org.jetbrains.compose.swing.foundation.graphics.rememberImageLayer
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.cursor
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.onHover
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.AlphaComposite
 import java.awt.BasicStroke
@@ -74,8 +75,8 @@ private fun ColumnScope.CanvasCard() {
                 SwingModifier
                     .testTag(CANVAS_TAG)
                     .fillMaxWidth()
-                    .preferredSize(Dimension(320, 240))
-                    .lineBorder(Color(0x42, 0x85, 0xF4)),
+                    .lineBorder(Color(0x42, 0x85, 0xF4))
+                    .styleable { preferredSize(Dimension(320, 240)) },
         ) {
             drawRect(
                 GradientPaint(
@@ -146,8 +147,6 @@ private fun ColumnScope.DrawModifiersCard() {
                 SwingModifier
                     .testTag(DRAW_MODIFIERS_TAG)
                     .fillMaxWidth()
-                    .preferredSize(Dimension(320, 160))
-                    .cursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR))
                     // A drag keeps delivering events past the canvas edge, unlike a plain hover exit, so a
                     // dragged-out point must be checked against the canvas bounds rather than just cleared on exit.
                     .mouseMotionListener { spotlight = it.point.takeIf(it.component::contains) }
@@ -166,6 +165,9 @@ private fun ColumnScope.DrawModifiersCard() {
                         if (overlayOnTop) drawContent()
                         paintOrderTile(overlay = true)
                         if (!overlayOnTop) drawContent()
+                    }.styleable {
+                        preferredSize(Dimension(320, 160))
+                        cursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR))
                     },
         ) {
             paintOrderTile(overlay = false)

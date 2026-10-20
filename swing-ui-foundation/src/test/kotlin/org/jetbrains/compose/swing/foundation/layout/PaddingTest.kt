@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -105,7 +106,7 @@ class PaddingTest {
     fun paddingAllAppliedToChild() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(BOX_EXTENT, BOX_EXTENT))) {
                     SizedChild(0, SwingModifier.matchParentSize().padding(UNIFORM_PADDING))
                 }
             }
@@ -129,7 +130,7 @@ class PaddingTest {
     fun paddingPaddingValuesAppliedToChild() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(BOX_EXTENT, BOX_EXTENT))) {
                     SizedChild(
                         0,
                         SwingModifier.matchParentSize().padding(INSET_START, INSET_TOP, INSET_END, INSET_BOTTOM),
@@ -156,7 +157,7 @@ class PaddingTest {
     fun absolutePaddingAppliedToChild() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(BOX_EXTENT, BOX_EXTENT))) {
                     SizedChild(
                         0,
                         SwingModifier
@@ -185,7 +186,7 @@ class PaddingTest {
     fun insufficientSpaceAvailable() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_EXTENT, BOX_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(BOX_EXTENT, BOX_EXTENT))) {
                     SizedChild(0, SwingModifier.matchParentSize().padding(OVERSIZE_PADDING))
                 }
             }
@@ -219,7 +220,7 @@ class PaddingTest {
     fun aChainIsMeasuredOutermostFirst() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CHAIN_EXTENT, CHAIN_EXTENT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(CHAIN_EXTENT, CHAIN_EXTENT))) {
                     Child(0, CHAIN_EXTENT, CHAIN_EXTENT, SwingModifier.padding(CHAIN_PADDING).aspectRatio(2f))
                 }
             }
@@ -243,7 +244,12 @@ class PaddingTest {
     fun testPadding_rtl() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(ROW_WIDTH, SIZE, ComponentOrientation.RIGHT_TO_LEFT)) {
+                Row(
+                    modifier =
+                        SwingModifier.containerTag().styleable(
+                            containerStyle(ROW_WIDTH, SIZE, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
+                ) {
                     Child(0, SIZE, SIZE, SwingModifier.padding(PADDING_1, 0, PADDING_2, 0))
                     Child(1, SIZE, SIZE, SwingModifier.padding(0, 0, PADDING_3, 0))
                     Child(2, SIZE, SIZE, SwingModifier.padding(PADDING_1, 0, 0, 0))
@@ -266,7 +272,12 @@ class PaddingTest {
     fun testAbsolutePadding_rtl() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(ROW_WIDTH, SIZE, ComponentOrientation.RIGHT_TO_LEFT)) {
+                Row(
+                    modifier =
+                        SwingModifier.containerTag().styleable(
+                            containerStyle(ROW_WIDTH, SIZE, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
+                ) {
                     Child(0, SIZE, SIZE, SwingModifier.absolutePadding(PADDING_1, 0, PADDING_2, 0))
                     Child(1, SIZE, SIZE, SwingModifier.absolutePadding(0, 0, PADDING_3, 0))
                 }
@@ -287,7 +298,12 @@ class PaddingTest {
     fun testPaddingValuesRtl() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(TIGHT_EXTENT, TIGHT_EXTENT, ComponentOrientation.RIGHT_TO_LEFT)) {
+                Box(
+                    modifier =
+                        SwingModifier.containerTag().styleable(
+                            containerStyle(TIGHT_EXTENT, TIGHT_EXTENT, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
+                ) {
                     SizedChild(0, SwingModifier.matchParentSize().padding(TIGHT_START, 0, TIGHT_END, 0))
                 }
             }

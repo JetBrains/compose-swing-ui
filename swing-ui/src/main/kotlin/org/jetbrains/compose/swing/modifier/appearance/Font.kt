@@ -3,12 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.FontDescriptor
 import java.awt.Font
-import javax.swing.JComponent
 
 /**
  * Sets `font`; `null` takes the font from the parent container.
@@ -18,20 +16,5 @@ import javax.swing.JComponent
  * @return this modifier with the font declared on it.
  * @see java.awt.Component.setFont
  */
-public fun SwingModifier.font(font: Font?): SwingModifier = property(FontProperty, font, inheritable = true)
-
-private val FontProperty =
-    ComponentPropertyDescriptor<Component, Font?>(
-        name = "font",
-        read = { if (it.isFontSet) it.font else null },
-        write = { component, value ->
-            component.font = value
-            // JComponent.setFont already revalidates and repaints. A plain AWT Component only
-            // invalidates, so request both here: a font changes the size, which needs a relayout,
-            // and the glyphs, which need a repaint even where the bounds stay the same.
-            if (component !is JComponent) {
-                component.revalidate()
-                component.repaint()
-            }
-        },
-    )
+@Deprecated("Set it in the component's style: style = { font(font) }")
+public fun SwingModifier.font(font: Font?): SwingModifier = property(FontDescriptor, font, inheritable = true)

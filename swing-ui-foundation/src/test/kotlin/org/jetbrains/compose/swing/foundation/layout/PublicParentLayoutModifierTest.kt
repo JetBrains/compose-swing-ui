@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
@@ -243,7 +244,10 @@ class PublicParentLayoutModifierTest {
     fun repeatedWeightUsesTheLastDeclarationOfItsOwnParentDataKey() {
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(width = 180, height = CHILD_HEIGHT)) {
+                Row(
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(width = 180, height = CHILD_HEIGHT)),
+                ) {
                     SizedChild(0, SwingModifier.weight(1f).weight(2f))
                     SizedChild(1, SwingModifier.weight(1f))
                 }

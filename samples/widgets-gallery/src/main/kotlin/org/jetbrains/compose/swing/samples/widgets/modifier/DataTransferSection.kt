@@ -19,10 +19,10 @@ import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
 import org.jetbrains.compose.swing.modifier.datatransfer.rememberClipboardHandle
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -67,7 +67,6 @@ private fun ColumnScope.DragAndDropCard() {
                 PanelLayout.Flow(),
                 modifier =
                     SwingModifier
-                        .preferredSize(Dimension(240, 60))
                         .lineBorder(Color.GRAY)
                         .dropTarget(
                             acceptedActions = TransferHandler.COPY,
@@ -77,6 +76,7 @@ private fun ColumnScope.DragAndDropCard() {
                                 true
                             },
                         ),
+                style = { preferredSize(Dimension(240, 60)) },
             ) {
                 Label("Drop here: $dropped")
             }
@@ -147,9 +147,9 @@ private fun ColumnScope.OnExportDoneCard() {
                 PanelLayout.Flow(),
                 modifier =
                     SwingModifier
-                        .preferredSize(Dimension(240, 60))
                         .lineBorder(Color.GRAY)
                         .dropTarget(acceptedActions = TransferHandler.MOVE, onDrop = { true }),
+                style = { preferredSize(Dimension(240, 60)) },
             ) {
                 Label("Drop the label here to complete the move")
             }

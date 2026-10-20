@@ -5,11 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.focusable
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.composeInNestedComposition
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.focusable
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -36,10 +38,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 /**
- * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite:
- * font, border, cursor, clientProperty, testTag, focusable and preferredSize. Each test asserts the applied
- * Swing property AND its restoration to the pre-modifier default once the element leaves the modifier -
- * the round-trip contract every property element promises.
+ * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite - border,
+ * clientProperty and testTag - and for the font, cursor, focusable and preferredSize style setters. Each test
+ * asserts the applied Swing property AND its restoration to the prior default once the declaration leaves -
+ * the round-trip contract every property declaration promises.
  */
 class AppearanceMetadataModifierTest {
     @Test
@@ -107,12 +109,12 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
-    fun fontModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun fontStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         val custom = Font("Monospaced", Font.BOLD, 22)
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.font(custom) else SwingModifier)
+            Label("styled", style = { if (styled) font(custom) })
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().font
@@ -120,7 +122,7 @@ class AppearanceMetadataModifierTest {
 
         styled = false
         awaitIdle()
-        styledLabel.assertProperty(default, "removing the modifier should restore the default font") { font }
+        styledLabel.assertProperty(default, "removing the font should restore the default font") { font }
     }
 
     @Test
@@ -284,12 +286,12 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
-    fun cursorModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun cursorStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         val hand = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.cursor(hand) else SwingModifier)
+            Label("styled", style = { if (styled) cursor(hand) })
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().cursor
@@ -299,7 +301,7 @@ class AppearanceMetadataModifierTest {
         awaitIdle()
         styledLabel.assertProperty(
             default,
-            "removing the modifier should restore the default cursor",
+            "removing the cursor should restore the default cursor",
         ) { cursor }
     }
 
@@ -353,14 +355,17 @@ class AppearanceMetadataModifierTest {
         var styled by mutableStateOf(false)
         var fontDeclared by mutableStateOf(false)
         setContent {
-            val chain = if (styled) SwingModifier.clientProperty(key, "small") else SwingModifier
-            Label("X", modifier = if (fontDeclared) chain.font(declaredFont) else chain)
+            Label(
+                "X",
+                modifier = if (styled) SwingModifier.clientProperty(key, "small") else SwingModifier,
+                style = { if (fontDeclared) font(declaredFont) },
+            )
         }
         val label = onNodeOfType<JLabel>().fetch()
         val original = label.font
         val derived = original.deriveFont(original.size2D - 2f)
         // A look and feel that works the font out again from a styling key, which is what the font the
-        // modifier leaves standing has to answer to.
+        // style leaves standing has to answer to.
         label.addPropertyChangeListener(key) { label.font = derived }
 
         styled = true
@@ -376,7 +381,7 @@ class AppearanceMetadataModifierTest {
         assertEquals(
             derived,
             label.font,
-            "dropping the font should leave the font the standing key derives, not the one the modifier found",
+            "dropping the font should leave the font the standing key derives, not the one the style found",
         )
     }
 
@@ -391,32 +396,32 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
-    fun focusableModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun focusableStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.focusable(false) else SwingModifier)
+            Label("styled", style = { if (styled) focusable(false) })
         }
         val styledLabel = onNodeWithText("styled")
-        // Every AWT component reports itself focusable until something says otherwise; the modifier is
-        // what says otherwise. Were the default false, both assertions below would pass with no modifier
+        // Every AWT component reports itself focusable until something says otherwise; the style is
+        // what says otherwise. Were the default false, both assertions below would pass with no style
         // applied at all.
         val default = onNodeWithText("untouched").fetch<JLabel>().isFocusable
-        styledLabel.assertProperty(false, "the modifier should make the label unfocusable") { isFocusable }
+        styledLabel.assertProperty(false, "the style should make the label unfocusable") { isFocusable }
 
         styled = false
         awaitIdle()
         styledLabel.assertProperty(
             default,
-            "removing the modifier should restore the default focusability",
+            "removing focusable should restore the default focusability",
         ) { isFocusable }
     }
 
     @Test
-    fun preferredSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun preferredSizeStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var sized by mutableStateOf(true)
         setContent {
-            Label("X", modifier = if (sized) SwingModifier.preferredSize(Dimension(123, 45)) else SwingModifier)
+            Label("X", style = { if (sized) preferredSize(Dimension(123, 45)) })
         }
         val sizedLabel = onNodeOfType<JLabel>()
         sizedLabel.assertProperty(Dimension(123, 45), "the preferred size should apply while present") { preferredSize }
@@ -426,14 +431,14 @@ class AppearanceMetadataModifierTest {
         awaitIdle()
         onNodeOfType<JLabel>().assertProperty(
             false,
-            "removing the modifier should clear the preferred-size-set flag",
+            "removing the preferred size should clear the preferred-size-set flag",
         ) { isPreferredSizeSet }
     }
 
     @Test
     fun preferredSizeWidthHeightOverloadAppliesTheDimension() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.preferredSize(123, 45))
+            Label("X", style = { preferredSize(123, 45) })
         }
         val label = onNodeOfType<JLabel>()
         label.assertProperty(Dimension(123, 45), "the overload should apply the dimension") { preferredSize }

@@ -13,10 +13,11 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -46,9 +47,11 @@ class ConstrainedPanelDecorationTest {
                     modifier =
                         SwingModifier
                             .testTag("box")
-                            .preferredSize(Dimension(64, 48))
                             .opaque(true)
-                            .background(Color.RED),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                background(Color.RED)
+                            },
                 )
             }
 
@@ -72,10 +75,12 @@ class ConstrainedPanelDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(Dimension(64, 48))
                                 .opaque(true)
-                                .background(Color.RED)
-                                .clipToBounds(),
+                                .clipToBounds()
+                                .styleable {
+                                    preferredSize(Dimension(64, 48))
+                                    background(Color.RED)
+                                },
                     )
                 }
             }
@@ -94,8 +99,8 @@ class ConstrainedPanelDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(Dimension(64, 48))
-                                .background(Brush.of(Color.BLUE)),
+                                .background(Brush.of(Color.BLUE))
+                                .styleable { preferredSize(Dimension(64, 48)) },
                     )
                 }
             }
@@ -124,8 +129,8 @@ class ConstrainedPanelDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(Dimension(64, 48))
-                                .background(Brush.of(Color.BLUE)),
+                                .background(Brush.of(Color.BLUE))
+                                .styleable { preferredSize(Dimension(64, 48)) },
                     )
                 }
             }
@@ -207,8 +212,8 @@ class ConstrainedPanelDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(Dimension(64, 48))
-                                .shadow(radius = 8, color = Color.BLACK),
+                                .shadow(radius = 8, color = Color.BLACK)
+                                .styleable { preferredSize(Dimension(64, 48)) },
                     )
                 }
             }
@@ -229,7 +234,10 @@ class ConstrainedPanelDecorationTest {
                 Box {
                     Box(
                         modifier =
-                            SwingModifier.testTag("box").preferredSize(Dimension(64, 48)).spill(Insets(8, 8, 8, 8)),
+                            SwingModifier
+                                .testTag("box")
+                                .spill(Insets(8, 8, 8, 8))
+                                .styleable { preferredSize(Dimension(64, 48)) },
                     )
                 }
             }

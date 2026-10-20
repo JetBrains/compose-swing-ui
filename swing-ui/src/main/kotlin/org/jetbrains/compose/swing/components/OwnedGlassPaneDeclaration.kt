@@ -5,9 +5,16 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
+import org.jetbrains.compose.swing.components.style.GlassPanes
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.ExistingSwingNode
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.apply
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import java.awt.Component
 import java.awt.Container
 
@@ -23,18 +30,27 @@ internal class OwnedGlassPaneDeclaration(
     @Composable
     fun GlassPane(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable PanelScope.() -> Unit,
     ) {
-        GlassPane(defaultLayout, modifier, content)
+        GlassPane(defaultLayout, modifier, style, content)
     }
 
     @Composable
     fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable S.() -> Unit,
     ) {
-        pane(layout, modifier) { layout.contentScope.content() }
+        // The forced show runs after the caller's style, so the pane is shown whatever visibility that style sets.
+        pane(
+            layout,
+            modifier.styleable(GlassPaneKind) {
+                apply(style)
+                visible(true)
+            },
+        ) { layout.contentScope.content() }
     }
 }
 
@@ -58,8 +74,7 @@ internal inline fun <reified P : Component> ownedGlassPaneDeclaration(
         movableContentOf { layout, modifier, content ->
             ExistingSwingNode<P, _, Container>(
                 claim = claim,
-                // Last in the chain, so the pane is shown whatever the caller's modifier declares.
-                modifier = modifier.visible(true),
+                modifier = modifier,
                 update = { layout.installOn(this) },
                 declaringCall = declaringCall,
             ) {
@@ -67,3 +82,11 @@ internal inline fun <reified P : Component> ownedGlassPaneDeclaration(
             }
         },
     )
+
+/** [ContainerStyleScope] for GlassPane styles. No component state is supplied. */
+private val GlassPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(GlassPanes)
+    }

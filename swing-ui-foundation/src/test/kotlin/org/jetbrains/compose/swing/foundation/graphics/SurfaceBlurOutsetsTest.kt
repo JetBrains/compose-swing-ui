@@ -7,8 +7,9 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
@@ -35,8 +36,8 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .preferredSize(CONTENT_SIZE)
                                 .blur(radius),
+                        style = { preferredSize(CONTENT_SIZE) },
                     ) {
                         drawn = Dimension(size)
                         drawRect(Color.RED)
@@ -83,12 +84,13 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .preferredSize(CONTENT_SIZE)
                                 .opaque(false)
-                                .blur(radius),
+                                .blur(radius)
+                                .styleable { preferredSize(CONTENT_SIZE) },
                     ) {
                         DecoratedCanvas(
-                            modifier = SwingModifier.testTag("blurred-child").preferredSize(CONTENT_SIZE),
+                            modifier = SwingModifier.testTag("blurred-child"),
+                            style = { preferredSize(CONTENT_SIZE) },
                         ) {
                             drawRect(Color.RED)
                         }
@@ -143,7 +145,11 @@ class SurfaceBlurOutsetsTest {
                 Box {
                     Box(modifier = SwingModifier.testTag("blurred-surface").blur(17)) {
                         DecoratedCanvas(
-                            modifier = SwingModifier.preferredSize(CONTENT_SIZE).minimumSize(Dimension(21, 15)),
+                            modifier = SwingModifier,
+                            style = {
+                                preferredSize(CONTENT_SIZE)
+                                minimumSize(Dimension(21, 15))
+                            },
                         )
                     }
                 }
@@ -173,10 +179,10 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .preferredSize(CONTENT_SIZE)
                                 .blur(17)
                                 .blur(10)
                                 .shadow(4, Color.BLACK, offsetX = 2, offsetY = 1),
+                        style = { preferredSize(CONTENT_SIZE) },
                     ) {
                         drawn = Dimension(size)
                         drawRect(Color.RED)
@@ -218,8 +224,8 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .preferredSize(CONTENT_SIZE)
                                 .shadow(radius, Color.BLACK, offsetX = 3, offsetY = 2),
+                        style = { preferredSize(CONTENT_SIZE) },
                     ) {
                         drawRect(Color.RED)
                     }
@@ -251,19 +257,19 @@ class SurfaceBlurOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag("blurred-surface")
-                                .preferredSize(CONTENT_SIZE)
                                 .blur(17)
                                 .clip(RectangleShape)
                                 .background(Brush.of(Color.RED)),
+                        style = { preferredSize(CONTENT_SIZE) },
                     )
                     DecoratedCanvas(
                         modifier =
                             SwingModifier
                                 .testTag("blurred-child")
-                                .preferredSize(CONTENT_SIZE)
                                 .clip(contentBounds)
                                 .blur(17)
                                 .background(Brush.of(Color.RED)),
+                        style = { preferredSize(CONTENT_SIZE) },
                     )
                 }
             }

@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JLayer
@@ -48,12 +50,14 @@ public sealed interface LayerScope {
      * `FlowLayout`: a [PanelLayout.Flow] with its defaults.
      *
      * @param modifier the [SwingModifier] applied to the glass pane
+     * @param style the [SwingStyle] applied to the glass pane
      * @param content the composable content the glass pane shows over the view
      * @see javax.swing.JLayer.getGlassPane
      */
     @Composable
     public fun GlassPane(
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable PanelScope.() -> Unit,
     )
 
@@ -63,11 +67,11 @@ public sealed interface LayerScope {
      * The pane covers the layer, it is transparent where [content] paints nothing, and it paints after the
      * view, so an overlay declared here is drawn over the wrapped component. A mouse event goes to the
      * deepest component under the pointer that listens for it, and goes on to the view otherwise.
-     * [modifier] reaches the pane itself: a veil's background, a wait cursor, a mouse listener that keeps
-     * the mouse from the view.
+     * [modifier] and [style] apply to the pane itself: [style] sets a veil's background or a wait cursor, and a
+     * mouse listener in [modifier] keeps the mouse from the view.
      *
      * This is composed directly in the layer's content. The pane is shown for as long as this is in the
-     * composition, whatever visibility [modifier] declares. Once this leaves, every property [modifier]
+     * composition, whatever visibility [style] sets. Once this leaves, every property [modifier] and [style]
      * declared is given back, the pane is hidden again and the children [content] composed are removed;
      * [layout] stays installed on the pane. An overlay that comes and goes is an ordinary `if` around the
      * call, and an `if`/`else` that selects one of two declarations keeps the pane shown and applies the
@@ -76,6 +80,7 @@ public sealed interface LayerScope {
      *
      * @param layout the layout the pane's children are laid out under; see [PanelLayout]
      * @param modifier the [SwingModifier] applied to the glass pane
+     * @param style the [SwingStyle] applied to the glass pane
      * @param content the composable content the glass pane shows over the view, with [layout]'s scope as
      *   its receiver
      * @see javax.swing.JLayer.getGlassPane
@@ -84,6 +89,7 @@ public sealed interface LayerScope {
     public fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable S.() -> Unit,
     )
 }
@@ -96,15 +102,17 @@ internal class LayerScopeImpl : LayerScope {
     @Composable
     override fun GlassPane(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable PanelScope.() -> Unit,
-    ) = GlassPane(glassPane.defaultLayout, modifier, content)
+    ) = GlassPane(glassPane.defaultLayout, modifier, style, content)
 
     @Composable
     override fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable S.() -> Unit,
-    ) = glassPane.GlassPane(layout, modifier.slot(LayerParentProtocol, GLASS_PANE_DECLARATION), content)
+    ) = glassPane.GlassPane(layout, modifier.slot(LayerParentProtocol, GLASS_PANE_DECLARATION), style, content)
 }
 
 private val LayerParentProtocol = parentProtocolOf("JLayer slot") { it is JLayer<*> }

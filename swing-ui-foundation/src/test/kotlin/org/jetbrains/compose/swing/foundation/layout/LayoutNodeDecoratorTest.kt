@@ -13,8 +13,9 @@ import org.jetbrains.compose.swing.foundation.graphics.Fill
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -493,7 +494,7 @@ private suspend fun ComposeSwingTest.decoratedChild(modifier: BoxScope.() -> Swi
         Box {
             SwingNode(
                 factory = { RecordingPanel().also { panel = it } },
-                modifier = modifier().testTag(DECORATED).preferredSize(20, 20),
+                modifier = modifier().testTag(DECORATED).styleable { preferredSize(20, 20) },
             )
         }
     }

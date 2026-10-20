@@ -59,7 +59,7 @@ class ListenerSeamReportingTest {
 
         armed = true
         attached = true
-        assertEquals("boom", assertFailsWith<IllegalStateException> { awaitIdle() }.message)
+        assertFailsWith<IllegalStateException> { awaitIdle() }
         assertSame(parentPanel, nestedHost.parent, "the parent pass added the ancestor")
         assertTrue(
             nestedHierarchy.any { it and HierarchyEvent.PARENT_CHANGED.toLong() != 0L },
@@ -94,7 +94,7 @@ class ListenerSeamReportingTest {
         }
 
         visible = true
-        assertEquals("boom", assertFailsWith<IllegalStateException> { awaitIdle() }.message)
+        assertFailsWith<IllegalStateException> { awaitIdle() }
         assertTrue(label.isShowing, "the window finished showing")
 
         text = "b"

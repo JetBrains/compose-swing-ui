@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.TabLayoutPolicy
 import org.jetbrains.compose.swing.annotations.TabPlacement
+import org.jetbrains.compose.swing.components.style.TabbedPanes
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
@@ -15,6 +16,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.runReportingUncaught
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
@@ -53,6 +59,7 @@ import javax.swing.event.ChangeListener
  * @param onSelectedIndexChange callback invoked with the index of the tab the user selects, and with the
  *   tab the pane is left on where [selectedIndex] names no tab of the strip
  * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
+ * @param style the [SwingStyle] applied to the underlying `JTabbedPane`
  * @param tabPlacement where the tab strip is drawn; `TOP` by default
  * @param tabLayoutPolicy how the tab strip handles overflow; the default `WRAP_TAB_LAYOUT` wraps the
  *   tabs that do not fit onto further runs of the strip, and a look and feel supporting only one of the
@@ -65,6 +72,7 @@ public fun TabbedPane(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @TabPlacement tabPlacement: Int = JTabbedPane.TOP,
     @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
     content: @Composable TabbedPaneScope.() -> Unit,
@@ -73,6 +81,7 @@ public fun TabbedPane(
         selectedIndex = selectedIndex,
         changeListener = { event -> onSelectedIndexChange((event.source as JTabbedPane).selectedIndex) },
         modifier = modifier,
+        style = style,
         tabPlacement = tabPlacement,
         tabLayoutPolicy = tabLayoutPolicy,
         content = content,
@@ -90,6 +99,7 @@ public fun TabbedPane(
  * @param changeListener the listener notified when the user selects another tab, and when the pane is
  *   left on a tab [selectedIndex] does not name
  * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
+ * @param style the [SwingStyle] applied to the underlying `JTabbedPane`
  * @param tabPlacement where the tab strip is drawn; `TOP` by default
  * @param tabLayoutPolicy how the tab strip handles overflow; the default `WRAP_TAB_LAYOUT` wraps the
  *   tabs that do not fit onto further runs of the strip, and a look and feel supporting only one of the
@@ -102,6 +112,7 @@ public fun TabbedPane(
     selectedIndex: Int,
     changeListener: ChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @TabPlacement tabPlacement: Int = JTabbedPane.TOP,
     @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
     content: @Composable TabbedPaneScope.() -> Unit,
@@ -109,6 +120,7 @@ public fun TabbedPane(
     TabbedPaneImpl(
         selectedIndex = selectedIndex,
         modifier = modifier,
+        style = style,
         tabPlacement = tabPlacement,
         tabLayoutPolicy = tabLayoutPolicy,
         changeListener = changeListener,
@@ -127,6 +139,7 @@ public fun TabbedPane(
 private inline fun TabbedPaneImpl(
     selectedIndex: Int,
     modifier: SwingModifier,
+    style: SwingStyle<ContainerStyleScope>,
     @TabPlacement tabPlacement: Int,
     @TabLayoutPolicy tabLayoutPolicy: Int,
     changeListener: ChangeListener,
@@ -167,7 +180,7 @@ private inline fun TabbedPaneImpl(
 
     SwingNode(
         factory = { JTabbedPane() },
-        modifier = modifier.changeListener(JTabbedPane::class, onUserSelection),
+        modifier = modifier.changeListener(JTabbedPane::class, onUserSelection).styleable(TabbedPaneKind, style),
         update = {
             applyMirror(mirror)
             set(tabPlacement) { this.tabPlacement = it }
@@ -230,3 +243,11 @@ private fun settleSelection(
     reported[0] = pane.selectedIndex
     runReportingUncaught { listener.stateChanged(ChangeEvent(pane)) }
 }
+
+/** [ContainerStyleScope] for TabbedPane styles. No component state is supplied. */
+private val TabbedPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(TabbedPanes)
+    }

@@ -5,7 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -28,11 +29,11 @@ class RowColumnVisibilityTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(100, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(100, 300)),
                     verticalArrangement = Arrangement.spacedBy(10),
                 ) {
                     SizedChild(0)
-                    SizedChild(1, SwingModifier.visible(false))
+                    SizedChild(1, style = { visible(false) })
                     SizedChild(2)
                 }
             }
@@ -54,7 +55,7 @@ class RowColumnVisibilityTest {
                     verticalArrangement = Arrangement.spacedBy(10),
                 ) {
                     SizedChild(0)
-                    SizedChild(1, SwingModifier.visible(false))
+                    SizedChild(1, style = { visible(false) })
                     SizedChild(2)
                 }
             }
@@ -70,11 +71,11 @@ class RowColumnVisibilityTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(300, 100),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(300, 100)),
                     horizontalArrangement = Arrangement.spacedBy(10),
                 ) {
                     SizedChild(0)
-                    SizedChild(1, SwingModifier.visible(false))
+                    SizedChild(1, style = { visible(false) })
                     SizedChild(2)
                 }
             }
@@ -92,11 +93,11 @@ class RowColumnVisibilityTest {
             var shown by mutableStateOf(false)
             setContent {
                 Column(
-                    modifier = containerModifier(100, 300),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(100, 300)),
                     verticalArrangement = Arrangement.spacedBy(10),
                 ) {
                     SizedChild(0)
-                    SizedChild(1, SwingModifier.visible(shown))
+                    SizedChild(1, style = { visible(shown) })
                     SizedChild(2)
                 }
             }

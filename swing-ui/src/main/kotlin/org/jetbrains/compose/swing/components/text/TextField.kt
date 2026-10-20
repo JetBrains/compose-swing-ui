@@ -5,11 +5,17 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
+import org.jetbrains.compose.swing.components.style.TextFields
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTextField
 import javax.swing.event.DocumentListener
 
@@ -29,6 +35,7 @@ import javax.swing.event.DocumentListener
  * @param onValueChange callback invoked with the field's new text when the field is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param columns the preferred width in columns; `0` by default, taking the width from the text the
  *   field holds
  * @param editable whether the user can type into the field; `true` by default
@@ -40,6 +47,7 @@ public fun TextField(
     value: @Nls String,
     onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     columns: Int = 0,
     editable: Boolean = true,
 ) {
@@ -48,6 +56,7 @@ public fun TextField(
         value = value,
         mirror = mirror,
         modifier = modifier.onTextEdit(mirror, onValueChange),
+        style = style,
         columns = columns,
         editable = editable,
     )
@@ -69,6 +78,7 @@ public fun TextField(
  * @param value the current text value
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param columns the preferred width in columns; `0` by default, taking the width from the text the
  *   field holds
  * @param editable whether the user can type into the field; `true` by default
@@ -80,6 +90,7 @@ public fun TextField(
     value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     columns: Int = 0,
     editable: Boolean = true,
 ) {
@@ -88,6 +99,7 @@ public fun TextField(
         value = value,
         mirror = mirror,
         modifier = modifier.documentListener(documentListener).textMirror(mirror),
+        style = style,
         columns = columns,
         editable = editable,
     )
@@ -104,12 +116,13 @@ private inline fun TextFieldNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,
+    style: SwingStyle<TextFieldStyleScope>,
     columns: Int,
     editable: Boolean,
 ) {
     SwingNode(
         factory = { JTextField(columns) },
-        modifier = modifier,
+        modifier = modifier.styleable(TextFieldKind, style),
         update = {
             update(columns) {
                 this.columns = it
@@ -129,6 +142,7 @@ private inline fun TextFieldNode(
  *
  * @param state the hoistable text state the field renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param columns the preferred width in columns; `0` by default, taking the width from the text the
  *   field holds
  * @param editable whether the user can type into the field; `true` by default
@@ -138,12 +152,13 @@ private inline fun TextFieldNode(
 public fun TextField(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
     columns: Int = 0,
     editable: Boolean = true,
 ) {
     SwingNode(
         factory = { JTextField(columns) },
-        modifier = modifier.documentStateBinding(state),
+        modifier = modifier.documentStateBinding(state).styleable(TextFieldKind, style),
         update = {
             update(columns) {
                 this.columns = it
@@ -153,3 +168,11 @@ public fun TextField(
         },
     )
 }
+
+/** [TextFieldStyleScope] for TextField styles. No component state is supplied. */
+private val TextFieldKind =
+    nestingStyleKind<TextFieldStyleScope, Unit>(
+        { base, _ -> object : TextFieldStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(TextFields)
+    }

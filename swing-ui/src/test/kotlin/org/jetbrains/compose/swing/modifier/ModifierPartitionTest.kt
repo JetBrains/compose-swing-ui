@@ -52,12 +52,9 @@ class ModifierPartitionTest {
 
     @Test
     fun anElementCannotBeBothANodeAndAParentLayoutDeclaration() {
-        val refusal =
-            assertFailsWith<IllegalArgumentException> {
-                ModifierPartition().take(AmbiguousElement)
-            }
-
-        assertTrue(refusal.message.orEmpty().contains("cannot both"))
+        val partition = ModifierPartition()
+        assertFailsWith<IllegalArgumentException> { partition.take(AmbiguousElement) }
+        assertEquals(emptyList(), partition.parentLayoutElements)
     }
 
     @Test

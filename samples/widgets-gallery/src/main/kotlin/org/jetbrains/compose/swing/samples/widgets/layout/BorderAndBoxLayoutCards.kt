@@ -16,10 +16,10 @@ import org.jetbrains.compose.swing.components.layout.Spacer
 import org.jetbrains.compose.swing.components.layout.Strut
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -53,11 +53,14 @@ internal fun ColumnScope.FlowLayoutCard() {
                 hgap = gap,
                 vgap = gap,
             ),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(300, 104),
+            style = {
+                layoutPanelTrack()
+                preferredSize(300, 104)
+            },
         ) {
-            LayoutSwatch("A", LayoutSampleColors.Blue, SwingModifier.preferredSize(110, 28))
-            LayoutSwatch("B", LayoutSampleColors.Orange, SwingModifier.preferredSize(110, 28))
-            LayoutSwatch("C", LayoutSampleColors.Green, SwingModifier.preferredSize(110, 28))
+            LayoutSwatch("A", LayoutSampleColors.Blue, style = { preferredSize(110, 28) })
+            LayoutSwatch("B", LayoutSampleColors.Orange, style = { preferredSize(110, 28) })
+            LayoutSwatch("C", LayoutSampleColors.Green, style = { preferredSize(110, 28) })
         }
     }
 }
@@ -77,7 +80,10 @@ internal fun ColumnScope.BorderCompassCard() {
         )
         Panel(
             PanelLayout.Border(hgap = gap, vgap = gap),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(360, 140)),
+            style = {
+                layoutPanelTrack()
+                preferredSize(Dimension(360, 140))
+            },
         ) {
             LayoutRegionSwatch("north", LayoutSampleColors.Blue, SwingModifier.north())
             LayoutRegionSwatch("south", LayoutSampleColors.Green, SwingModifier.south())
@@ -101,13 +107,13 @@ internal fun ColumnScope.BorderOrientationCard() {
         )
         Panel(
             PanelLayout.Border(hgap = 4, vgap = 4),
-            modifier =
-                SwingModifier
-                    .layoutPanelTrack()
-                    .preferredSize(Dimension(360, 120))
-                    .componentOrientation(
-                        if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
-                    ),
+            style = {
+                layoutPanelTrack()
+                preferredSize(Dimension(360, 120))
+                componentOrientation(
+                    if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                )
+            },
         ) {
             LayoutRegionSwatch("pageStart", LayoutSampleColors.Blue, SwingModifier.pageStart())
             LayoutRegionSwatch("pageEnd", LayoutSampleColors.Green, SwingModifier.pageEnd())
@@ -140,22 +146,34 @@ internal fun ColumnScope.LinearLayoutCard() {
         Label("axis = ${if (horizontal) "X_AXIS" else "Y_AXIS"}")
         Panel(
             PanelLayout.Box(axis = if (horizontal) BoxLayout.X_AXIS else BoxLayout.Y_AXIS),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(320, 128),
+            style = {
+                layoutPanelTrack()
+                preferredSize(320, 128)
+            },
         ) {
             LayoutSwatch(
                 "First",
                 LayoutSampleColors.Blue,
-                SwingModifier.preferredSize(88, 28).maximumSize(88, 28),
+                style = {
+                    preferredSize(88, 28)
+                    maximumSize(88, 28)
+                },
             )
             LayoutSwatch(
                 "Second",
                 LayoutSampleColors.Orange,
-                SwingModifier.preferredSize(104, 32).maximumSize(104, 32),
+                style = {
+                    preferredSize(104, 32)
+                    maximumSize(104, 32)
+                },
             )
             LayoutSwatch(
                 "Third",
                 LayoutSampleColors.Green,
-                SwingModifier.preferredSize(72, 24).maximumSize(72, 24),
+                style = {
+                    preferredSize(72, 24)
+                    maximumSize(72, 24)
+                },
             )
         }
     }
@@ -171,36 +189,53 @@ internal fun ColumnScope.BoxFillersCard() {
         Label("Purple = RigidArea 24 px; gray = Spacer 16 px; pink = Strut 32 px; green = Glue")
         Panel(
             PanelLayout.Box(axis = BoxLayout.X_AXIS),
-            modifier = SwingModifier.layoutPanelTrack().preferredSize(460, 52),
+            style = {
+                layoutPanelTrack()
+                preferredSize(460, 52)
+            },
         ) {
             LayoutSwatch(
                 "Start",
                 LayoutSampleColors.Blue,
-                SwingModifier.preferredSize(54, 32).maximumSize(Dimension(54, 32)),
+                style = {
+                    preferredSize(54, 32)
+                    maximumSize(Dimension(54, 32))
+                },
             )
             RigidArea(
                 width = 24,
                 height = 32,
-                modifier = SwingModifier.layoutSampleSurface(LayoutSampleColors.Purple),
+                modifier = SwingModifier.layoutSampleSurface(),
+                style = { layoutSampleSurface(LayoutSampleColors.Purple) },
             )
             LayoutSwatch(
                 "Middle",
                 LayoutSampleColors.Orange,
-                SwingModifier.preferredSize(60, 32).maximumSize(Dimension(60, 32)),
+                style = {
+                    preferredSize(60, 32)
+                    maximumSize(Dimension(60, 32))
+                },
             )
-            Spacer(size = 16, modifier = SwingModifier.layoutSampleSurface(LayoutSampleColors.Gray))
+            Spacer(16, SwingModifier.layoutSampleSurface(), style = { layoutSampleSurface(LayoutSampleColors.Gray) })
             Strut(
                 orientation = SwingConstants.HORIZONTAL,
                 size = 32,
-                modifier = SwingModifier.layoutSampleSurface(LayoutSampleColors.Pink),
+                modifier = SwingModifier.layoutSampleSurface(),
+                style = { layoutSampleSurface(LayoutSampleColors.Pink) },
             )
             if (includeGlue) {
-                Glue(modifier = SwingModifier.layoutSampleSurface(LayoutSampleColors.Green))
+                Glue(
+                    modifier = SwingModifier.layoutSampleSurface(),
+                    style = { layoutSampleSurface(LayoutSampleColors.Green) },
+                )
             }
             LayoutSwatch(
                 "Trailing",
                 LayoutSampleColors.Blue,
-                SwingModifier.preferredSize(62, 32).maximumSize(Dimension(62, 32)),
+                style = {
+                    preferredSize(62, 32)
+                    maximumSize(Dimension(62, 32))
+                },
             )
         }
     }

@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.invalidateLayout
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.stylePropertyOf
 import java.awt.Component
 import java.awt.Insets
 import javax.swing.JComponent
@@ -107,7 +109,12 @@ private data class FixedPaintOutsets(
 /**
  * Declares which part of this component's insets is paint outsets; see [PaintOutsets]. Under a Swing parent it
  * changes only what a `Decoratable` reports and clips.
+ * The modifier applies at its position in the chain, and the style setter after every layout declaration, so a
+ * declaration between layout modifiers can change the geometry when it moves to the style.
+ *
+ * @param outsets which part of the component's insets is paint outsets.
  */
+@Deprecated("Set it in the component's style: style = { paintOutsets(outsets) }")
 public fun SwingModifier.paintOutsets(outsets: PaintOutsets): SwingModifier = this then PaintOutsetsElement(outsets)
 
 /**
@@ -115,10 +122,28 @@ public fun SwingModifier.paintOutsets(outsets: PaintOutsets): SwingModifier = th
  *
  * It comes first in a descendant's modifier, and a `paintOutsets` the descendant declares replaces it.
  */
+@Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { paintOutsets(outsets) } }")
 public val DefaultPaintOutsets: ComponentDefaultKey<PaintOutsets> =
-    componentDefaultKeyOf("paintOutsets") { paintOutsets(it) }
+    componentDefaultKeyOf("paintOutsets") { this then PaintOutsetsElement(it) }
 
-/** The `paintOutsets` declaration; a later one replaces it, an inherited one included. */
+private val PaintOutsetsProperty = stylePropertyOf { outsets: PaintOutsets -> PaintOutsetsElement(outsets) }
+
+/**
+ * Declares which part of this component's insets is paint outsets; see [PaintOutsets]. Under a Swing parent it
+ * changes only what a `Decoratable` reports and clips. It applies after every layout declaration of the component's
+ * modifier: under `width(100)`, the layout box is 100 wide and the component grows by the excess.
+ *
+ * A container gives it to every descendant in the same composition with
+ * `provideNestedStyle(AllComponents) { paintOutsets(value) }`; a nearer provider of [PaintOutsets.Decoration]
+ * withdraws it.
+ *
+ * @param outsets which part of the component's insets is paint outsets.
+ */
+public fun ComponentStyleScope.paintOutsets(outsets: PaintOutsets) {
+    PaintOutsetsProperty.provide(outsets)
+}
+
+/** The `paintOutsets` declaration. */
 private data class PaintOutsetsElement(
     val outsets: PaintOutsets,
 ) : ParentLayoutNodeElement<PaintOutsetsNode>() {

@@ -9,9 +9,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
@@ -35,6 +37,7 @@ interface GlassPaneHostScope {
     @Composable
     fun GlassPane(
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable PanelScope.() -> Unit,
     )
 
@@ -42,14 +45,15 @@ interface GlassPaneHostScope {
     fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         content: @Composable S.() -> Unit,
     )
 }
 
 /**
  * Behavioral tests for what every glass pane declaration promises, whichever component owns the pane: the
- * pane is the host's own, laid out by the layout the declaration names, configured by its modifier and hidden
- * again once the declaration goes away.
+ * pane is the host's own, laid out by the layout the declaration names, configured by its modifier and style,
+ * and hidden again once the declaration goes away.
  *
  * A subclass supplies the host and the way to find the panes of the hosts composed.
  */
@@ -125,10 +129,19 @@ abstract class OwnedGlassPaneContractTest {
     }
 
     @Test
-    fun theModifierReachesThePaneAndIsGivenBackWhenTheDeclarationLeaves() = runComposeSwingTest {
+    fun theStyleReachesThePaneAndIsGivenBackWhenTheDeclarationLeaves() = runComposeSwingTest {
         var showPane by mutableStateOf(false)
         setContent {
-            Host { if (showPane) GlassPane(modifier = SwingModifier.background(Color.RED).visible(false)) {} }
+            Host {
+                if (showPane) {
+                    GlassPane(
+                        style = {
+                            background(Color.RED)
+                            visible(false)
+                        },
+                    ) {}
+                }
+            }
         }
 
         val pane = glassPane()
@@ -137,8 +150,8 @@ abstract class OwnedGlassPaneContractTest {
         showPane = true
         awaitIdle()
 
-        assertEquals(Color.RED, pane.background, "the modifier reaches the pane")
-        assertTrue(pane.isVisible, "a declared pane is shown whatever visibility its modifier declares")
+        assertEquals(Color.RED, pane.background, "the style reaches the pane")
+        assertTrue(pane.isVisible, "a declared pane is shown whatever visibility its style declares")
 
         showPane = false
         awaitIdle()
@@ -148,23 +161,23 @@ abstract class OwnedGlassPaneContractTest {
     }
 
     @Test
-    fun aModifierChangedWhileThePaneIsDeclaredReachesThePaneAndIsGivenBackWhenItLeaves() = runComposeSwingTest {
+    fun aStyleChangedWhileThePaneIsDeclaredReachesThePaneAndIsGivenBackWhenItLeaves() = runComposeSwingTest {
         var showPane by mutableStateOf(false)
         var background by mutableStateOf(Color.RED)
         setContent {
-            Host { if (showPane) GlassPane(modifier = SwingModifier.background(background)) {} }
+            Host { if (showPane) GlassPane(style = { background(background) }) {} }
         }
 
         val pane = glassPane()
         val earlier = pane.background
         showPane = true
         awaitIdle()
-        assertEquals(Color.RED, pane.background, "the modifier first declared reaches the pane")
+        assertEquals(Color.RED, pane.background, "the style first declared reaches the pane")
 
         background = Color.BLUE
         awaitIdle()
 
-        assertEquals(Color.BLUE, pane.background, "a modifier changed while the pane is declared reaches it")
+        assertEquals(Color.BLUE, pane.background, "a style changed while the pane is declared reaches it")
         assertTrue(pane.isVisible, "and the pane stays shown")
 
         showPane = false
@@ -230,11 +243,11 @@ abstract class OwnedGlassPaneContractTest {
             Host {
                 if (present) {
                     if (alternate) {
-                        GlassPane(PanelLayout.Border(), SwingModifier.background(Color.BLUE)) {
+                        GlassPane(PanelLayout.Border(), style = { background(Color.BLUE) }) {
                             Label(text = "second")
                         }
                     } else {
-                        GlassPane(modifier = SwingModifier.background(Color.RED)) { Label(text = "first") }
+                        GlassPane(style = { background(Color.RED) }) { Label(text = "first") }
                     }
                 }
             }
@@ -251,7 +264,7 @@ abstract class OwnedGlassPaneContractTest {
 
         assertSame(pane, glassPane(), "selecting the other branch keeps the host's own pane")
         assertTrue(pane.isVisible, "and keeps it shown")
-        assertEquals(Color.BLUE, pane.background, "the selected declaration's modifier reaches the pane")
+        assertEquals(Color.BLUE, pane.background, "the selected declaration's style reaches the pane")
         assertIs<BorderLayout>(pane.layout, "and its layout is installed")
         assertEquals(listOf("second"), pane.components.map { (it as JLabel).text }, "and its content fills the pane")
 

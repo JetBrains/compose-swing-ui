@@ -14,8 +14,9 @@ import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -278,7 +279,7 @@ class PartialRepaintTest {
                                 ).apply { isOpaque = false }
                             },
                             modifier = modifier,
-                        ) { Canvas(modifier = SwingModifier.testTag("child").preferredSize(40, 40)) {} }
+                        ) { Canvas(modifier = SwingModifier.testTag("child").styleable { preferredSize(40, 40) }) {} }
                     } else {
                         Box(modifier = modifier, contentAlignment = Alignment.Center) {
                             Canvas(modifier = SwingModifier.testTag("child").size(40, 40)) {}

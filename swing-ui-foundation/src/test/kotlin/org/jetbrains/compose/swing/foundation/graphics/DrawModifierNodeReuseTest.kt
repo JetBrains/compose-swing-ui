@@ -7,8 +7,9 @@ import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScop
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -40,16 +41,16 @@ class DrawModifierNodeReuseTest {
                         modifier =
                             SwingModifier
                                 .testTag("first")
-                                .preferredSize(Dimension(20, 20))
-                                .then(if (onFirst) element else SwingModifier),
+                                .then(if (onFirst) element else SwingModifier)
+                                .styleable { preferredSize(Dimension(20, 20)) },
                     )
                     SwingNode(
                         factory = { DecoratedPanel().apply { isOpaque = false } },
                         modifier =
                             SwingModifier
                                 .testTag("second")
-                                .preferredSize(Dimension(20, 20))
-                                .then(if (onFirst) SwingModifier else element),
+                                .then(if (onFirst) SwingModifier else element)
+                                .styleable { preferredSize(Dimension(20, 20)) },
                     )
                 }
             }

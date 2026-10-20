@@ -26,11 +26,12 @@ import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -66,7 +67,7 @@ private fun ColumnScope.AnimatedProgressCard() {
         )
         ProgressBar(
             value = animated,
-            modifier = SwingModifier.preferredSize(Dimension(360, 22)),
+            style = { preferredSize(Dimension(360, 22)) },
             min = 0,
             max = 100,
         )
@@ -100,8 +101,8 @@ private fun ColumnScope.SpringMarkerCard() {
         Canvas(
             modifier =
                 SwingModifier
-                    .preferredSize(Dimension(360, 48))
-                    .lineBorder(Color.GRAY),
+                    .lineBorder(Color.GRAY)
+                    .styleable { preferredSize(Dimension(360, 48)) },
         ) {
             drawRect(Color(0xE3, 0xF2, 0xFD))
 
@@ -166,8 +167,8 @@ private fun Disc(scale: Float) {
     Canvas(
         modifier =
             SwingModifier
-                .preferredSize(Dimension(120, 120))
-                .lineBorder(Color.GRAY),
+                .lineBorder(Color.GRAY)
+                .styleable { preferredSize(Dimension(120, 120)) },
     ) {
         val radius = minOf(width, height) / 2.0f * scale
         drawCircle(Color(0x42, 0x85, 0xF4), radius = radius)

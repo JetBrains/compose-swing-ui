@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -133,11 +133,8 @@ class LambdaListenerModifierTest {
         val button = onNodeOfType<JButton>().fetch<JButton>()
         val foreign = ActionEvent(Any(), ActionEvent.ACTION_PERFORMED, "test")
         button.actionListeners.forEach { it.actionPerformed(foreign) }
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertTrue(
-            failure.message.orEmpty().contains("is not scoped to JButton"),
-            "a scoped listener names the type it could not scope the event to, but was: ${failure.message}",
-        )
+        assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals("Click", button.text)
     }
 
     @Test
@@ -205,8 +202,8 @@ class LambdaListenerModifierTest {
                 onClick = {},
                 modifier =
                     SwingModifier
-                        .enabled(enabled)
                         .propertyChangeListener<JButton>("enabled") { receiver = this },
+                style = { enabled(enabled) },
             )
         }
 

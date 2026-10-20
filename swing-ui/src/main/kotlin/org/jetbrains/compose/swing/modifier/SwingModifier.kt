@@ -29,7 +29,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.collectFailure
@@ -53,6 +52,7 @@ import org.jetbrains.compose.swing.node.observesLocals
 import org.jetbrains.compose.swing.node.requireOwner
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.StyleNode
+import org.jetbrains.compose.swing.style.UnstyledComponent
 import org.jetbrains.compose.swing.style.rewriteSlotsFrom
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
@@ -78,9 +78,9 @@ import java.awt.Component
  * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
  * fails with a clear error naming the element and the required vs. actual type.
  *
- * Conditional composition works the way it does in Compose: `if (selected) it.background(blue)
- * else it` adds the background when selected and removes it (restoring the value the component had
- * before the modifier first touched that property) when not.
+ * Use `if (showHints) it.onHover(onEnter = showHint) else it` to attach a hover listener only
+ * while hints are enabled. A property element removed from the modifier restores its captured
+ * value by default.
  *
  * The modifier is immutable; build it in place in the composable body. It needs no `remember`: a modifier
  * declaring what the one last applied to a component declares is skipped, and each element is judged on
@@ -370,10 +370,9 @@ public interface SwingModifier {
      * style and needs no `remember` - push it onto the node in [update] and have the node read it when the
      * event fires.
      *
-     * An element is one of two kinds, selected by [additive]: a **property** element (the default),
-     * right for a value like `background` or `border`, or a **subscription** element, right for a
-     * listener like `onHover`. See [additive] and [key] for how each kind is matched across
-     * recompositions.
+     * A **property** element (the default) writes a component property. A **subscription** element
+     * registers a listener, as `onFocus` does. See [additive] and [key] for how each kind is
+     * matched across recompositions.
      *
      * [equals] and [hashCode] are abstract, so every element states its own equality: the slot skips an
      * incoming element equal to the one it holds, unless it is a property element and a property
@@ -1275,6 +1274,12 @@ private val OnLocalReadChanged: (SwingModifier.ComponentNode<*>) -> Unit = { nod
  */
 @InternalSwingUiApi
 public class SwingModifierState internal constructor() {
+    /**
+     * Whether the node's ancestors changed since its style slots were last checked against them: a declaration
+     * takes a slot only while it can collect something under them.
+     */
+    internal var ancestorsChanged: Boolean = false
+
     /** The linked style declarations, kept separately from their descriptor entries. */
     internal var firstStyle: StyleNode? = null
 
@@ -1320,6 +1325,9 @@ public class SwingModifierState internal constructor() {
 
     /** Whether a declaration has been applied: a state created only to hold a style has not. */
     private var hasApplied = false
+
+    /** Whether a declaration applied or a failed one awaits its retry; a state holding only a style has neither. */
+    internal val hasApplication: Boolean get() = hasApplied || !finished
 
     /** Whether a chain entering this state attaches whole: no node is installed and no declaration has applied. */
     internal val attachesWholeChain: Boolean get() = records == null && !hasApplied
@@ -1563,7 +1571,7 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * [detached][SwingModifier.ComponentNode.onDetach] (restoring the value the component had before the modifier
  * first touched that property).
  *
- * Runs after the component's own `set`s, so a modifier can override component defaults. A modifier
+ * Runs after the component's own `set`s, so a modifier can override what they wrote. A modifier
  * declaring what the one applied last declares is skipped whole - a listener callback the pass rebuilt
  * reaches the node that reads it without counting as a change - and in a modifier that did change, every
  * element ahead of the first write is skipped with it.
@@ -1578,8 +1586,7 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * where neither changed allocates nothing, and a change of an unrelated local re-diffs nothing.
  *
  * @param localMap the composition locals in scope where the node declaring [modifier] was composed.
- * @param modifier the caller modifier to declare before the component-tier style; [SwingModifier]
- *   clears the caller chain.
+ * @param modifier the modifier the node declares; [SwingModifier] clears its chain.
  */
 @PublishedApi
 internal fun SwingNodeUpdater<out Component>.applyModifier(
@@ -1589,7 +1596,7 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
     // A change of the defaults alone re-diffs at the end of the batch, so a modifier changed on the same
     // pass has already applied them and the node is diffed once.
     updater.set(localMap[LocalComponentDefaults]) {
-        if (modifierState != null) requireOwner().updateBatch.holdForDefaultsRefresh(this)
+        if (modifierState?.hasApplication == true) requireOwner().updateBatch.holdForDefaultsRefresh(this)
     }
     updater.set(modifier) {
         applyDeclaredModifier(compositionLocalMap[LocalComponentDefaults].effectiveModifier(component.javaClass, it))
@@ -1601,7 +1608,6 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
  * @param handsOver whether a record written in place before this diff holds a node the holder's
  *   [DeclaredNodesListener] needs; the diff adopts that record and hands the nodes over.
  */
-@VisibleForTesting
 internal fun SwingNodeHolder<Component>.applyModifierDiff(
     modifier: SwingModifier,
     handsOver: Boolean = false,
@@ -1696,11 +1702,14 @@ private fun SwingNodeHolder<Component>.partitionModifier(
     // accumulator, so the walk carries its destinations rather than capturing them. It is sized for the records
     // installed, which a modifier changing its values rather than its shape declares again.
     val installed = state.records?.size ?: 0
-    val incoming = ModifierPartition(installed - state.positionalCount, state.positionalCount)
+    val incoming = ModifierPartition(installed - state.positionalCount, state.positionalCount, holder = this)
     modifier.foldIn(incoming) { partition, element ->
         partition.take(element)
         partition
     }
+    // A component that declares no style takes the unstyled declaration, so a style provided for AllComponents
+    // reaches it too.
+    if (incoming.styleCount == 0) incoming.take(UnstyledComponent)
 
     // A placement says where the node is attached rather than what its component looks like, so the walk
     // routes it here rather than into a slot, which is what keeps it away from the element diff it has no

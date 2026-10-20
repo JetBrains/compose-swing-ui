@@ -9,6 +9,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.DesktopPanes
+import org.jetbrains.compose.swing.components.style.InternalFrames
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -21,6 +23,11 @@ import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.wrongSlotHost
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Rectangle
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -78,12 +85,14 @@ import javax.swing.event.InternalFrameListener
  * ```
  *
  * @param modifier the [SwingModifier] applied to the underlying `JDesktopPane`
+ * @param style the [SwingStyle] applied to the underlying `JDesktopPane`
  * @param content declares the internal frames; see [DesktopPaneScope]
  * @see javax.swing.JDesktopPane
  */
 @Composable
 public fun DesktopPane(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable DesktopPaneScope.() -> Unit,
 ) {
     // Remembered with the pane: it holds the hoisted states the pane's frames currently drive.
@@ -91,7 +100,7 @@ public fun DesktopPane(
 
     SwingNode(
         factory = { JDesktopPane() },
-        modifier = modifier,
+        modifier = modifier.styleable(DesktopPaneKind, style),
         // A desktop holds frames and nothing else, as many of them as the composition declares, in the
         // order it declares them - so anything else composed here is refused rather than left standing
         // on the desktop unseen.
@@ -152,6 +161,7 @@ public sealed interface DesktopPaneScope {
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
+     * @param style the [SwingStyle] applied to the frame
      * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
@@ -162,6 +172,7 @@ public sealed interface DesktopPaneScope {
         bounds: Rectangle,
         onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable InternalFrameScope.() -> Unit,
     )
@@ -177,6 +188,7 @@ public sealed interface DesktopPaneScope {
      * @param bounds the frame's position and size within the desktop
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
+     * @param style the [SwingStyle] applied to the frame
      * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
@@ -187,6 +199,7 @@ public sealed interface DesktopPaneScope {
         bounds: Rectangle,
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable InternalFrameScope.() -> Unit,
     )
@@ -205,6 +218,7 @@ public sealed interface DesktopPaneScope {
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
+     * @param style the [SwingStyle] applied to the frame
      * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
@@ -215,6 +229,7 @@ public sealed interface DesktopPaneScope {
         state: InternalFrameState,
         onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable InternalFrameScope.() -> Unit,
     )
@@ -230,6 +245,7 @@ public sealed interface DesktopPaneScope {
      *   alone
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
+     * @param style the [SwingStyle] applied to the frame
      * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body; see [InternalFrameScope]
      * @see javax.swing.JInternalFrame
@@ -240,6 +256,7 @@ public sealed interface DesktopPaneScope {
         state: InternalFrameState,
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<ContainerStyleScope> = SwingStyle,
         controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable InternalFrameScope.() -> Unit,
     )
@@ -259,6 +276,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         bounds: Rectangle,
         onClose: () -> Unit,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         controls: InternalFrameControls,
         content: @Composable InternalFrameScope.() -> Unit,
     ) {
@@ -269,6 +287,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             onClose = onClose,
             rawListener = null,
             modifier = modifier,
+            style = style,
             content = content,
         )
     }
@@ -279,6 +298,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         bounds: Rectangle,
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         controls: InternalFrameControls,
         content: @Composable InternalFrameScope.() -> Unit,
     ) {
@@ -289,6 +309,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             onClose = null,
             rawListener = internalFrameListener,
             modifier = modifier,
+            style = style,
             content = content,
         )
     }
@@ -299,6 +320,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         state: InternalFrameState,
         onClose: () -> Unit,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         controls: InternalFrameControls,
         content: @Composable InternalFrameScope.() -> Unit,
     ) {
@@ -310,6 +332,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             onClose = onClose,
             rawListener = null,
             modifier = modifier,
+            style = style,
             content = content,
         )
     }
@@ -320,6 +343,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         state: InternalFrameState,
         internalFrameListener: InternalFrameListener,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         controls: InternalFrameControls,
         content: @Composable InternalFrameScope.() -> Unit,
     ) {
@@ -331,6 +355,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             onClose = null,
             rawListener = internalFrameListener,
             modifier = modifier,
+            style = style,
             content = content,
         )
     }
@@ -410,6 +435,7 @@ private inline fun FrameNode(
     noinline onClose: (() -> Unit)?,
     rawListener: InternalFrameListener?,
     modifier: SwingModifier,
+    style: SwingStyle<ContainerStyleScope>,
     noinline content: @Composable InternalFrameScope.() -> Unit,
 ) {
     // The onClose overload routes the close control through a listener that reads the declared callback
@@ -466,13 +492,14 @@ private inline fun FrameNode(
                 isVisible = true
             }
         },
-        // The desktop attachment is declared last, so a frame stands on its desktop whatever placement
-        // the caller's own modifier names.
+        // The desktop attachment follows the caller's own modifier, so a frame stands on its desktop whatever
+        // placement that modifier names.
         modifier =
             modifier
                 .then(stateChannels)
                 .then(closeChannel)
-                .slot(DesktopPaneParentProtocol, FRAME_REGION, InternalFrameAttachment),
+                .slot(DesktopPaneParentProtocol, FRAME_REGION, InternalFrameAttachment)
+                .styleable(InternalFrameKind, style),
         update = {
             set(title) { this.title = it }
             set(controls.closable) { this.isClosable = it }
@@ -719,4 +746,20 @@ private fun frameStateAttachSync(
         val state = target.value ?: return@HierarchyListener
         frame.applyMaximized(state.maximized, applied, state)
         frame.applyIconified(state.iconified, applied, state)
+    }
+
+/** [ContainerStyleScope] for DesktopPane styles. No component state is supplied. */
+private val DesktopPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(DesktopPanes)
+    }
+
+/** [ContainerStyleScope] for InternalFrame styles. No component state is supplied. */
+private val InternalFrameKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(InternalFrames)
     }

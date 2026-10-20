@@ -1,9 +1,8 @@
 package org.jetbrains.compose.swing.components.layout
 
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
@@ -59,7 +58,10 @@ class ScrollCapacityBoundaryTest {
                 )
             if (overflow != "unbound") {
                 ScrollPane(
-                    modifier = SwingModifier.preferredSize(300, 200).componentOrientation(orientation),
+                    style = {
+                        preferredSize(300, 200)
+                        componentOrientation(orientation)
+                    },
                     state = state,
                 ) {
                     Viewport {

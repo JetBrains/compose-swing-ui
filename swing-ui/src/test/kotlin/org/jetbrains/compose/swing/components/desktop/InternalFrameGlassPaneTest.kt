@@ -14,9 +14,11 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.cursor
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasText
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isOfType
@@ -108,7 +110,7 @@ class InternalFrameGlassPaneTest : OwnedGlassPaneContractTest() {
             // under the pointer. It is realized at the size it packs to, which the desktop's preferred size
             // decides, so no later resize reported by the window system lands under the test.
             Window(onCloseRequest = {}, title = WINDOW_TITLE, visible = false) {
-                DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 240))) {
+                DesktopPane(style = { preferredSize(Dimension(320, 240)) }) {
                     InternalFrame(title = "frame", bounds = Rectangle(0, 0, 200, 120), onClose = {}) {
                         Button(text = "content", onClick = { contentClicks++ })
                         GlassPane(
@@ -151,10 +153,10 @@ class InternalFrameGlassPaneTest : OwnedGlassPaneContractTest() {
         setContent {
             // The window is realized but never shown, at the size the desktop's preferred size packs it to.
             Window(onCloseRequest = {}, title = WINDOW_TITLE, visible = false) {
-                DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 240))) {
+                DesktopPane(style = { preferredSize(Dimension(320, 240)) }) {
                     InternalFrame(title = "frame", bounds = Rectangle(0, 0, 200, 120), onClose = {}) {
                         Button(text = "content", onClick = {})
-                        GlassPane(modifier = SwingModifier.cursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR))) {}
+                        GlassPane(style = { cursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR)) }) {}
                     }
                 }
             }
@@ -255,13 +257,15 @@ private class FrameGlassPaneHostScope(
     @Composable
     override fun GlassPane(
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable PanelScope.() -> Unit,
-    ) = frame.GlassPane(modifier, content)
+    ) = frame.GlassPane(modifier, style, content)
 
     @Composable
     override fun <S : PanelScope> GlassPane(
         layout: PanelLayout<S>,
         modifier: SwingModifier,
+        style: SwingStyle<ContainerStyleScope>,
         content: @Composable S.() -> Unit,
-    ) = frame.GlassPane(layout, modifier, content)
+    ) = frame.GlassPane(layout, modifier, style, content)
 }

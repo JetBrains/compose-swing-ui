@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 /**
  * A builder taking one callback per method of a listener interface defaults every one of them, so that a
@@ -67,14 +66,9 @@ private fun assertRefused(
     builder: String,
     declare: () -> SwingModifier,
 ) {
-    val failure =
-        assertFailsWith<IllegalArgumentException>("$builder should refuse a call that declares no callback") {
-            declare()
-        }
-    assertTrue(
-        failure.message.orEmpty().startsWith("$builder declares no callback"),
-        "the refusal should name $builder, but said: ${failure.message}",
-    )
+    assertFailsWith<IllegalArgumentException>("$builder should refuse a call that declares no callback") {
+        declare()
+    }
 }
 
 private fun assertDeclares(

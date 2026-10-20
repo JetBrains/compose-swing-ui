@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
 import org.jetbrains.compose.swing.test.interaction.performMousePress
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
@@ -205,7 +205,7 @@ class LayerTest {
         var showPane by mutableStateOf(false)
         setContent {
             Layer(onPaint = { _, _, _, paintView -> paintView() }) {
-                Canvas(modifier = SwingModifier.preferredSize(SIZE)) { g, width, height ->
+                Canvas(style = { preferredSize(SIZE) }) { g, width, height ->
                     g.color = VIEW_COLOR
                     g.fillRect(0, 0, width, height)
                 }
@@ -387,10 +387,10 @@ class LayerTest {
                     modifier = SwingModifier.testTag(CALLBACK_LAYER),
                     onPaint = { _, _, _, paintView -> paintView() },
                 ) {
-                    Label(text = "body", modifier = SwingModifier.preferredSize(VIEW_SIZE))
+                    Label(text = "body", style = { preferredSize(VIEW_SIZE) })
                 }
                 Layer(ui = remember { LayerUI<Component>() }, modifier = SwingModifier.testTag(RAW_LAYER)) {
-                    Label(text = "body", modifier = SwingModifier.preferredSize(VIEW_SIZE))
+                    Label(text = "body", style = { preferredSize(VIEW_SIZE) })
                 }
             }
         }

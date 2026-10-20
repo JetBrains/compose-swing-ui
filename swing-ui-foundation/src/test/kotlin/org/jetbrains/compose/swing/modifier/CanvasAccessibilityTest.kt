@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -15,7 +16,7 @@ class CanvasAccessibilityTest {
     fun canvasReportsIntrinsicCanvasRole() =
         runComposeSwingTest {
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(Dimension(40, 40))) {}
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(Dimension(40, 40)) }) {}
             }
             assertTrue(
                 SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS).matches(onNodeWithTag("canvas").fetch()),

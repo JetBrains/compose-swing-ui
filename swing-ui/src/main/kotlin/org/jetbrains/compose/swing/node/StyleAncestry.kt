@@ -1,8 +1,13 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.defaults.refreshInheritedDefaults
 import org.jetbrains.compose.swing.modifier.ComponentNodeType
 import org.jetbrains.compose.swing.modifier.SwingModifierState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.StyleElement
 import org.jetbrains.compose.swing.style.StyleNode
+import org.jetbrains.compose.swing.style.UnstyledComponent
+import org.jetbrains.compose.swing.style.collectsNothingUnder
 import org.jetbrains.compose.swing.util.fastForEach
 
 internal fun SwingModifierState.finishStyleReconciliation() {
@@ -73,6 +78,19 @@ internal inline fun SwingModifierState.forEachStyleReversed(
     }
 }
 
+/** Whether an ancestor provides a style for [AllComponents]. */
+internal val SwingNodeHolder<*>.receivesAllComponents: Boolean
+    get() {
+        var ancestor = publisherAbove
+        while (ancestor != null) {
+            var provides = false
+            ancestor.modifierState?.forEachStyle(ancestor) { if (it.providesAllComponents) provides = true }
+            if (provides) return true
+            ancestor = ancestor.publisherAbove
+        }
+        return false
+    }
+
 internal val SwingNodeHolder<*>.providesStyles: Boolean
     get() {
         var provides = false
@@ -80,20 +98,45 @@ internal val SwingNodeHolder<*>.providesStyles: Boolean
         return provides
     }
 
-/** Resolves descendant styles when the current update batch ends, or immediately when no batch is running. */
+/**
+ * Whether the style declarations of this node's applied modifier, or the unstyled declaration where it declares
+ * none, that can collect something under the current ancestors are not the ones holding a slot. The ancestors
+ * decide that for every declaration of a node at once, so comparing their counts is enough.
+ */
+private fun SwingNodeHolder<*>.hasStaleStyleSlots(state: SwingModifierState): Boolean {
+    var slots = 0
+    state.forEachStyle(this) { slots++ }
+    var styles = 0
+    var collecting = 0
+    state.declared.foldIn(Unit) { _, element ->
+        if (element is StyleElement<*, *>) {
+            styles++
+            if (!element.collectsNothingUnder(this)) collecting++
+        }
+    }
+    if (styles == 0 && !UnstyledComponent.collectsNothingUnder(this)) collecting++
+    return collecting != slots
+}
+
+/**
+ * Resolves descendant styles when the current update batch ends, or immediately when this node stands in no
+ * composition. Outside a batch and a snapshot delivery, the queued styles are resolved once the whole walk is held.
+ */
 internal fun SwingNodeHolder<*>.restyleBelow() {
     val batch = owner?.updateBatch
     children.fastForEach { it.restyleSubtree(batch) }
+    if (batch != null && !batch.isRunning && owner?.snapshotObserver?.isDelivering != true) batch.drainRestyles()
 }
 
-/** Resolves again every style of this subtree: once [batch] ends where it is running, otherwise at once. */
+/** Resolves again every style of this subtree: held in [batch] for its drain where there is one, otherwise at once. */
 internal fun SwingNodeHolder<*>.restyleSubtree(batch: ComponentUpdateBatch?) {
     val state = modifierState
-    if (state != null && state.styleNode != null) {
+    // Every component takes part: one that declares no style takes the unstyled declaration.
+    if (state != null) {
         state.forEachStyle(this) { it.restyle(replay = false) }
+        state.ancestorsChanged = true
         if (batch != null) {
             batch.holdForRestyle(this)
-            if (!batch.isRunning && owner?.snapshotObserver?.isDelivering != true) batch.drainRestyles()
         } else {
             refreshStyle()
         }
@@ -101,9 +144,13 @@ internal fun SwingNodeHolder<*>.restyleSubtree(batch: ComponentUpdateBatch?) {
     children.fastForEach { it.restyleSubtree(batch) }
 }
 
-/** Resolves stale styles after ancestor changes. */
+/** Diffs again where ancestor changes give a style declaration a slot or take one away, then resolves stale styles. */
 internal fun SwingNodeHolder<*>.refreshStyle() {
     val state = modifierState ?: return
+    if (state.ancestorsChanged) {
+        state.ancestorsChanged = false
+        if (hasStaleStyleSlots(state)) refreshInheritedDefaults(restylesSlots = true)
+    }
     var first: StyleNode? = null
     state.forEachStyle(this) {
         if (first == null && it.isStale) first = it

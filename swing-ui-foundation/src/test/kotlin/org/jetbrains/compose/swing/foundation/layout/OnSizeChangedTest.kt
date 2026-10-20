@@ -28,10 +28,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.location
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.location
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.size
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.EventQueue
@@ -84,7 +85,8 @@ class OnSizeChangedTest {
             setContent {
                 SwingNode(
                     factory = { InitialZeroExtentPanel().also { panel = it } },
-                    modifier = SwingModifier.preferredSize(0, 0).onSizeChanged { reported += it },
+                    modifier =
+                        SwingModifier.onSizeChanged { reported += it }.styleable { preferredSize(0, 0) },
                 )
             }
             awaitIdle()
@@ -107,8 +109,8 @@ class OnSizeChangedTest {
                     text = "child",
                     modifier =
                         SwingModifier
-                            .preferredSize(extent, extent)
                             .onSizeChanged { callbackThreads += EventQueue.isDispatchThread() },
+                    style = { preferredSize(extent, extent) },
                 )
             }
             awaitIdle()
@@ -132,7 +134,7 @@ class OnSizeChangedTest {
 
             setContent {
                 Box(modifier = SwingModifier.onSizeChanged { reported += it }) {
-                    Label(text = "child", modifier = SwingModifier.preferredSize(sizePx, sizePx))
+                    Label(text = "child", style = { preferredSize(sizePx, sizePx) })
                 }
             }
             awaitIdle()
@@ -155,7 +157,7 @@ class OnSizeChangedTest {
                 Box(modifier = SwingModifier.onSizeChanged { reported += it }) {
                     // The space reserved around the child is reserved inside the container reporting, so it
                     // counts toward what that container occupies.
-                    Label(text = "child", modifier = SwingModifier.padding(sizePx).preferredSize(10, 10))
+                    Label(text = "child", modifier = SwingModifier.padding(sizePx), style = { preferredSize(10, 10) })
                 }
             }
             awaitIdle()
@@ -188,7 +190,7 @@ class OnSizeChangedTest {
                                 .onSizeChanged { reported += it }
                                 .onPlaced { placements += it },
                     ) {
-                        Label(text = "child", modifier = SwingModifier.preferredSize(10, 10))
+                        Label(text = "child", style = { preferredSize(10, 10) })
                     }
                 }
             }
@@ -218,14 +220,14 @@ class OnSizeChangedTest {
             var alignment by mutableStateOf(Alignment.TopStart)
 
             setContent {
-                Box(modifier = SwingModifier.preferredSize(200, 100), contentAlignment = alignment) {
+                Box(modifier = SwingModifier.styleable { preferredSize(200, 100) }, contentAlignment = alignment) {
                     Label(
                         text = "child",
                         modifier =
                             SwingModifier
-                                .preferredSize(50, 40)
                                 .onSizeChanged { reported += it }
                                 .onPlaced { placements += it },
+                        style = { preferredSize(50, 40) },
                     )
                 }
             }
@@ -256,7 +258,7 @@ class OnSizeChangedTest {
             setContent {
                 val added = if (addModifier) SwingModifier.onSizeChanged(report2) else SwingModifier
                 Box(modifier = SwingModifier.onSizeChanged(report1) then added) {
-                    Label(text = "child", modifier = SwingModifier.preferredSize(sizePx, sizePx))
+                    Label(text = "child", style = { preferredSize(sizePx, sizePx) })
                 }
             }
             awaitIdle()
@@ -297,7 +299,7 @@ class OnSizeChangedTest {
             setContent {
                 val added = if (addModifier) SwingModifier.onSizeChanged(report2) else SwingModifier
                 Box(modifier = SwingModifier.onSizeChanged(report1) then added) {
-                    Label(text = "child", modifier = SwingModifier.preferredSize(sizePx, sizePx))
+                    Label(text = "child", style = { preferredSize(sizePx, sizePx) })
                 }
             }
             awaitIdle()
@@ -333,7 +335,7 @@ class OnSizeChangedTest {
 
             setContent {
                 Box(modifier = SwingModifier.onSizeChanged(lambda1).onSizeChanged(lambda2)) {
-                    Label(text = "child", modifier = SwingModifier.preferredSize(sizePx, sizePx))
+                    Label(text = "child", style = { preferredSize(sizePx, sizePx) })
                 }
             }
             awaitIdle()
@@ -401,10 +403,12 @@ class OnSizeChangedTest {
                 Box {
                     if (moveContent) {
                         Box(
-                            modifier = SwingModifier.preferredSize(120, 120),
+                            modifier = SwingModifier.styleable { preferredSize(120, 120) },
                         ) { moving(SwingModifier.matchParentSize()) }
                     } else {
-                        Box(modifier = SwingModifier.preferredSize(50, 50)) { moving(SwingModifier.matchParentSize()) }
+                        Box(
+                            modifier = SwingModifier.styleable { preferredSize(50, 50) },
+                        ) { moving(SwingModifier.matchParentSize()) }
                     }
                 }
             }
@@ -433,8 +437,8 @@ class OnSizeChangedTest {
                             text = "child",
                             modifier =
                                 SwingModifier
-                                    .preferredSize(extent, extent)
                                     .onSizeChanged(report),
+                            style = { preferredSize(extent, extent) },
                         )
                     }
                 }
@@ -473,7 +477,8 @@ class OnSizeChangedTest {
                             content = {
                                 Label(
                                     text = "child",
-                                    modifier = SwingModifier.preferredSize(sizePx, sizePx).onSizeChanged { tracked },
+                                    modifier = SwingModifier.onSizeChanged { tracked },
+                                    style = { preferredSize(sizePx, sizePx) },
                                 )
                             },
                             measurePolicy = { measurables, constraints ->
@@ -522,8 +527,6 @@ class OnSizeChangedTest {
                         modifier =
                             SwingModifier
                                 .layer(JLayeredPane.DEFAULT_LAYER)
-                                .location(0, 0)
-                                .size(extent, extent)
                                 .onSizeChanged {
                                     sizes += it
                                     error("sized")
@@ -531,6 +534,10 @@ class OnSizeChangedTest {
                                     placements += it
                                     error("placed")
                                 },
+                        style = {
+                            location(0, 0)
+                            size(extent, extent)
+                        },
                     )
                 }
             }

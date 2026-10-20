@@ -4,7 +4,8 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -375,10 +376,9 @@ class ImageLayerReRecordingTest {
                     Canvas(
                         modifier =
                             SwingModifier
-                                .testTag(
-                                    "clipped",
-                                ).preferredSize(size, size)
-                                .clip(CircleShape, antialias = true),
+                                .testTag("clipped")
+                                .clip(CircleShape, antialias = true)
+                                .styleable { preferredSize(size, size) },
                         renderingHints = null,
                     ) { drawTranslucentEllipses(graphics) }
                 }

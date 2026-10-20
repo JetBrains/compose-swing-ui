@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import java.awt.Dimension
@@ -36,7 +36,7 @@ internal object NaturalSize {
         content: @Composable BorderPanelScope.() -> Unit,
     ) {
         Panel(PanelLayout.Flow(), modifier) {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(size), content = content)
+            Panel(PanelLayout.Border(), style = { preferredSize(size) }, content = content)
         }
     }
 }

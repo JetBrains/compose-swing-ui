@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import kotlin.test.Test
@@ -191,7 +192,7 @@ class MeasureOnceTest {
             setContent {
                 Layout(
                     content = { SizedChild(0) },
-                    modifier = containerModifier(CHILD_WIDTH, 2 * CHILD_HEIGHT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, 2 * CHILD_HEIGHT)),
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(constraints.copy(minHeight = 0))
                         layout(constraints.maxWidth, constraints.maxHeight) {
@@ -220,7 +221,7 @@ class MeasureOnceTest {
             setContent {
                 Layout(
                     content = { SizedChild(0) },
-                    modifier = containerModifier(CHILD_WIDTH, 2 * CHILD_HEIGHT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, 2 * CHILD_HEIGHT)),
                     measurePolicy = { measurables, constraints ->
                         layout(constraints.maxWidth, constraints.maxHeight) {
                             try {

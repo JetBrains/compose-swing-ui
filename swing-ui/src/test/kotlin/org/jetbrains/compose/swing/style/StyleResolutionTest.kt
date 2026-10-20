@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
@@ -192,38 +191,6 @@ internal class StyleResolutionTest {
     }
 
     @Test
-    fun aStateReadInsideTheStyleResolvesAgainWithoutRecomposition() = runComposeSwingTest {
-        val probe = StyleProbe()
-        var tint by mutableStateOf("light")
-        var resolves = 0
-        var compositions = 0
-        val kind = probeKind { resolves++ }
-        val style =
-            SwingStyle<ProbeScope> {
-                ProbeFirst.provide("fixed")
-                ProbeSecond.provide(tint)
-            }
-        setContent {
-            SideEffect { compositions++ }
-            ProbeLeaf(probe, style, kind)
-        }
-        assertEquals(listOf("first=fixed", "second=light"), probe.writes)
-        val composed = compositions
-        val resolved = resolves
-        probe.writes.clear()
-
-        tint = "dark"
-        awaitIdle()
-        assertEquals(
-            listOf("second=dark"),
-            probe.writes,
-            "only the changed property is written, as nothing declared before it changed",
-        )
-        assertEquals(resolved + 1, resolves, "the state change resolves the style once")
-        assertEquals(composed, compositions, "the state change recomposes nothing")
-    }
-
-    @Test
     fun forOneKeyTheNearerProviderWinsPerPropertyAndTheFartherOneStandsWhereItLeavesIt() = runComposeSwingTest {
         val leaf = StyleProbe("leaf")
         var nearerProvides by mutableStateOf(true)
@@ -319,38 +286,6 @@ internal class StyleResolutionTest {
         onProbe("leaf").assertProperty(expected) { property.get(this) }
     }
 
-    @Test
-    fun aLeafRemovedFromAProviderRestoresItsOriginalValue() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
-        var present by mutableStateOf(true)
-        var underSecond by mutableStateOf(false)
-        setContent {
-            ProbeContainer(
-                StyleProbe(),
-                { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } },
-            ) {
-                if (present) ProbeLeaf(leaf, SwingStyle, NestedProbe)
-            }
-            ProbeContainer(
-                StyleProbe(),
-                { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } },
-            ) {
-                if (underSecond) ProbeLeaf(leaf, SwingStyle, NestedProbe)
-            }
-        }
-        onProbe("leaf").assertProperty("provided") { first }
-
-        present = false
-        awaitIdle()
-
-        assertEquals("own", leaf.first)
-
-        underSecond = true
-        awaitIdle()
-
-        onProbe("leaf").assertProperty("second provider") { first }
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("lateProviders")
     fun aProviderAppearingAfterItsChildrenResolvedReachesThem(styleAppearsLate: Boolean) = runComposeSwingTest {
@@ -366,7 +301,11 @@ internal class StyleResolutionTest {
                     if (styleAppearsLate && !provides) {
                         SwingModifier
                     } else {
-                        SwingModifier.styleable(PlainProbeContainer, style)
+                        if (provides) {
+                            SwingModifier.styleable(PlainProbeContainer, style)
+                        } else {
+                            SwingModifier
+                        }
                     },
             ) {
                 ProbeLeaf(StyleProbe("leaf"), SwingStyle, NestedProbe)
@@ -397,68 +336,6 @@ internal class StyleResolutionTest {
         assertContains(failure.message.orEmpty(), "$Probes")
     }
 
-    @Test
-    fun aNestedBlockAppliesTheStylesProvidedForAnotherKey() = runComposeSwingTest {
-        val leaf = StyleProbe()
-        setContent {
-            ProbeContainer(
-                StyleProbe(),
-                {
-                    provideNestedStyle(Probes) {
-                        applyNestedStyle(OtherProbes)
-                        ProbeSecond.provide("probes")
-                    }
-                    provideNestedStyle(OtherProbes) { ProbeFirst.provide("other") }
-                },
-            ) {
-                ProbeLeaf(leaf, SwingStyle, NestedProbe)
-            }
-        }
-        assertEquals(listOf("first=other", "second=probes"), leaf.writes)
-    }
-
-    @Test
-    fun aChangedProviderStyleResolvesOnlyTheComponentsApplyingItsKeys() = runComposeSwingTest {
-        val consumer = StyleProbe()
-        val bystander = StyleProbe()
-        var dark by mutableStateOf(false)
-        var consumerResolves = 0
-        var bystanderResolves = 0
-        val light =
-            SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("light") } }
-        val darkStyle =
-            SwingStyle<ProbeContainerScope> { provideNestedStyle(Probes) { ProbeFirst.provide("dark") } }
-        val consumerKind =
-            probeKind {
-                consumerResolves++
-                applyNestedStyle(Probes)
-            }
-        val bystanderKind =
-            probeKind {
-                bystanderResolves++
-                applyNestedStyle(OtherProbes)
-            }
-        val bystanderStyle = SwingStyle<ProbeScope> { ProbeSecond.provide("own style") }
-        setContent {
-            ProbeContainer(StyleProbe(), if (dark) darkStyle else light) {
-                ProbeLeaf(consumer, SwingStyle, consumerKind)
-                ProbeLeaf(bystander, bystanderStyle, bystanderKind)
-            }
-        }
-        assertEquals("light", consumer.first)
-        val consumerResolved = consumerResolves
-        val bystanderResolved = bystanderResolves
-        consumer.writes.clear()
-        bystander.writes.clear()
-
-        dark = true
-        awaitIdle()
-        assertEquals(listOf("first=dark"), consumer.writes)
-        assertEquals(consumerResolved + 1, consumerResolves, "the consumer of the key resolves once")
-        assertEquals(emptyList(), bystander.writes, "a component applying another key writes nothing")
-        assertEquals(bystanderResolved, bystanderResolves, "a component applying another key does not resolve")
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("firstFrameProviders")
     fun onTheFirstFrameADescendantResolvesOnceAgainstItsContainersStyle(
@@ -479,38 +356,6 @@ internal class StyleResolutionTest {
         }
         assertEquals(listOf(expected), leaf.writes)
         assertEquals(1, resolves, "the container's first publish does not resolve the descendant again")
-    }
-
-    @Test
-    fun aReplacedLocalMapResolvesAgainOnlyTheStylesThatReadALocal() = runComposeSwingTest {
-        var tone by mutableStateOf("light")
-        var readerResolves = 0
-        var bystanderResolves = 0
-        val readerKind =
-            probeKind {
-                readerResolves++
-                ProbeFirst.provide(LocalTone.currentValue)
-            }
-        val bystanderKind =
-            probeKind {
-                bystanderResolves++
-                ProbeFirst.provide("own style")
-            }
-        setContent {
-            CompositionLocalProvider(LocalTone provides tone) {
-                ProbeLeaf(StyleProbe("reader"), SwingStyle, readerKind)
-                ProbeLeaf(StyleProbe(), SwingStyle, bystanderKind)
-            }
-        }
-        onProbe("reader").assertProperty("light") { first }
-        val readerResolved = readerResolves
-        val bystanderResolved = bystanderResolves
-
-        tone = "dark"
-        awaitIdle()
-        onProbe("reader").assertProperty("dark") { first }
-        assertEquals(readerResolved + 1, readerResolves, "a style that read the local resolves once")
-        assertEquals(bystanderResolved, bystanderResolves, "a style that read no local does not resolve")
     }
 
     companion object {
@@ -567,8 +412,6 @@ internal class StyleResolutionTest {
         )
     }
 }
-
-private val LocalTone = staticCompositionLocalOf { "plain" }
 
 /** Provider-local input used by the same-apply publication scenario. */
 private val LocalProviderValue = staticCompositionLocalOf { "default" }

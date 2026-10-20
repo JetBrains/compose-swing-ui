@@ -6,14 +6,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.defaults.DefaultBackground
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
+import org.jetbrains.compose.swing.components.style.TableHeaders
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performMouseDrag
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -45,7 +46,7 @@ class TableHeaderTest {
     fun theHeaderIsTheRowsTablesOwn() = runComposeSwingTest {
         setContent {
             Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
-                Header(modifier = SwingModifier.background(Color.RED))
+                Header(style = { background(Color.RED) })
             }
         }
 
@@ -74,7 +75,7 @@ class TableHeaderTest {
     fun theHeaderIsTheModelTablesOwn() = runComposeSwingTest {
         setContent {
             Table(model = DefaultTableModel(arrayOf(arrayOf<Any>("Ada")), arrayOf<Any>("Name"))) {
-                Header(modifier = SwingModifier.background(Color.RED))
+                Header(style = { background(Color.RED) })
             }
         }
 
@@ -90,7 +91,7 @@ class TableHeaderTest {
             ScrollPane {
                 Viewport {
                     Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
-                        Header(modifier = SwingModifier.background(Color.RED))
+                        Header(style = { background(Color.RED) })
                     }
                 }
             }
@@ -163,7 +164,7 @@ class TableHeaderTest {
             Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
                 if (declared) {
                     Header(
-                        modifier = SwingModifier.background(Color.RED),
+                        style = { background(Color.RED) },
                         reorderingAllowed = false,
                         resizingAllowed = false,
                     )
@@ -326,16 +327,17 @@ class TableHeaderTest {
     }
 
     @Test
-    fun aMovedHeaderAppliesItsCurrentModifierAndKeepsInheritedDefaultsBelowIt() = runComposeSwingTest {
+    fun aMovedHeaderAppliesItsCurrentStyleAndKeepsTheProvidedStyleBelowIt() = runComposeSwingTest {
         var alternate by mutableStateOf(false)
         var background by mutableStateOf(Color.RED)
         var inherited by mutableStateOf(Color.GREEN)
         var explicit by mutableStateOf(true)
         setContent {
-            ProvideComponentDefaults(DefaultBackground provides inherited) {
+            Panel(style = { provideNestedStyle(TableHeaders) { background(inherited) } }) {
                 Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
-                    val modifier = if (explicit) SwingModifier.background(background) else SwingModifier
-                    if (alternate) BlueHeader(modifier) else RedHeader(modifier)
+                    val style =
+                        if (explicit) SwingStyle<SwingComponentStyleScope> { background(background) } else SwingStyle
+                    if (alternate) BlueHeader(style) else RedHeader(style)
                 }
             }
         }
@@ -347,22 +349,22 @@ class TableHeaderTest {
         inherited = Color.YELLOW
         awaitIdle()
         assertSame(header, onNodeOfType<JTable>().fetch().tableHeader, "the moved declaration should keep the header")
-        assertEquals(Color.BLUE, header.background, "the moved declaration should apply the modifier declared now")
+        assertEquals(Color.BLUE, header.background, "the moved declaration should apply the style declared now")
 
         background = Color.MAGENTA
         awaitIdle()
-        assertEquals(Color.MAGENTA, header.background, "a later modifier change should reach the moved header")
+        assertEquals(Color.MAGENTA, header.background, "a later style change should reach the moved header")
 
         explicit = false
         awaitIdle()
-        assertEquals(Color.YELLOW, header.background, "withdrawal should expose the inherited default")
+        assertEquals(Color.YELLOW, header.background, "withdrawal should expose the provided style")
         inherited = Color.CYAN
         awaitIdle()
-        assertEquals(Color.CYAN, header.background, "inherited defaults should keep updating")
+        assertEquals(Color.CYAN, header.background, "the provided style should keep updating")
         alternate = false
         inherited = Color.GREEN
         awaitIdle()
-        assertEquals(Color.GREEN, header.background, "moving back should read the inherited default again")
+        assertEquals(Color.GREEN, header.background, "moving back should read the provided style again")
     }
 
     @Test
@@ -398,11 +400,15 @@ private fun HeaderedTable(
 }
 
 @Composable
-private fun TableContentScope.RedHeader(modifier: SwingModifier = SwingModifier.background(Color.RED)) {
-    Header(modifier = modifier, reorderingAllowed = false, resizingAllowed = false)
+private fun TableContentScope.RedHeader(
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle { background(Color.RED) },
+) {
+    Header(style = style, reorderingAllowed = false, resizingAllowed = false)
 }
 
 @Composable
-private fun TableContentScope.BlueHeader(modifier: SwingModifier = SwingModifier.background(Color.BLUE)) {
-    Header(modifier = modifier, reorderingAllowed = true, resizingAllowed = true)
+private fun TableContentScope.BlueHeader(
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle { background(Color.BLUE) },
+) {
+    Header(style = style, reorderingAllowed = true, resizingAllowed = true)
 }

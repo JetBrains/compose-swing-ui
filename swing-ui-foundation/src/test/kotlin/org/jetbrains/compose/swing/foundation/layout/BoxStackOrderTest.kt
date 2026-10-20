@@ -10,13 +10,14 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.repaintsDuring
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -48,7 +49,7 @@ class BoxStackOrderTest {
     fun theChildDeclaredLastPaintsOverTheOnesBeforeIt() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT))) {
                     FilledChild(Color.RED)
                     FilledChild(Color.BLUE)
                 }
@@ -73,7 +74,7 @@ class BoxStackOrderTest {
     fun theChildDeclaredLastTakesAPressWhereTheChildrenOverlap() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT))) {
                     SizedChild(0)
                     SizedChild(1)
                 }
@@ -135,7 +136,7 @@ class BoxStackOrderTest {
     fun aChildDeclaringAZIndexPaintsOverALaterSibling() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT))) {
                     FilledChild(Color.RED, SwingModifier.zIndex(1f))
                     FilledChild(Color.BLUE)
                 }
@@ -155,7 +156,7 @@ class BoxStackOrderTest {
     fun aChildDeclaringAZIndexTakesAPressFromALaterSibling() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT))) {
                     SizedChild(0, SwingModifier.zIndex(1f))
                     SizedChild(1)
                 }
@@ -512,7 +513,11 @@ private fun FilledChild(
 ) {
     Panel(
         PanelLayout.Flow(),
-        modifier = modifier.opaque(true).background(color).preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier = modifier.opaque(true),
+        style = {
+            background(color)
+            preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
+        },
     ) {}
 }
 

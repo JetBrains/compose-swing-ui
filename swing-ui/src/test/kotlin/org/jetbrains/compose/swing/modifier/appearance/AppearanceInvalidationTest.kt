@@ -7,6 +7,12 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.TestNodeKind
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -26,24 +32,24 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Behavioral regression tests for the appearance modifiers' invalidation, branched on the target kind.
+ * Behavioral regression tests for the appearance properties' invalidation, branched on the target kind.
  *
- * A `JComponent` self-revalidates and self-repaints inside its own setters, so the modifier must add
+ * A `JComponent` self-revalidates and self-repaints inside its own setters, so the property must add
  * nothing on that path. A plain AWT [Component] does not: its `setFont` only invalidates (no layout
  * pass, no repaint) and `setForeground`/`setBackground` do neither. So for a non-`JComponent` target
- * the modifier must itself request what the change needs: a font changes both the size and the
+ * the property must itself request what the change needs: a font changes both the size and the
  * pixels, so it asks for a relayout and a repaint; a color changes only the pixels, so it asks for a
  * repaint and no relayout.
  *
  * A widget that does invalidate for itself sets the opposite requirement, on the two properties where
  * its setter is unusual: `JTextComponent.setMargin` marks the component invalid without asking for the
- * layout pass that would act on it or for a paint of the text it moves, so the modifier must ask for both;
+ * layout pass that would act on it or for a paint of the text it moves, so the property must ask for both;
  * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
  * nothing, so a declaration the label is already carrying must reach its setter no further - a
  * recomposition rebuilds the chain, and a redundant write would cost a layout and a paint each time.
  *
- * Every case drives the change through the real public API ([SwingNode] plus the modifier under test,
- * re-applied across a recomposition) and observes behavior deterministically under headless.
+ * Every case drives the change through the real public API ([SwingNode] plus the modifier or style under
+ * test, applied again when its state changes) and observes behavior deterministically under headless.
  */
 class AppearanceInvalidationTest {
     /**
@@ -122,7 +128,8 @@ class AppearanceInvalidationTest {
                 // The growing label gets a small font initially and a much larger one when `large` flips.
                 SwingNode(
                     factory = { growing },
-                    modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
+                    modifier =
+                        SwingModifier.styleable { font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)) },
                 )
                 SwingNode(factory = { sibling })
             }
@@ -154,7 +161,10 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { target },
-                modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
+                modifier =
+                    SwingModifier.styleable(TestNodeKind) {
+                        font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8))
+                    },
             )
         }
 
@@ -181,20 +191,20 @@ class AppearanceInvalidationTest {
 
     @Test
     fun reactiveBackgroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
-        assertColorChangeRepaintsOnly { SwingModifier.background(it) }
+        assertColorChangeRepaintsOnly { background(it) }
     }
 
     @Test
     fun reactiveForegroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
-        assertColorChangeRepaintsOnly { SwingModifier.foreground(it) }
+        assertColorChangeRepaintsOnly { foreground(it) }
     }
 
-    private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: (Color) -> SwingModifier) {
+    private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: ComponentStyleScope.(Color) -> Unit) {
         var color by mutableStateOf(Color.RED)
         val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
 
         setContent {
-            SwingNode(factory = { target }, modifier = declare(color))
+            SwingNode(factory = { target }, modifier = SwingModifier.styleable(TestNodeKind) { declare(color) })
         }
 
         awaitIdle()
@@ -287,7 +297,6 @@ class AppearanceInvalidationTest {
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
         assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { background(null) }
         assertDeclaredChainCarriedOnce { border(null) }
         assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
         assertDeclaredChainCarriedOnce { emptyBorder(1) }
@@ -297,9 +306,6 @@ class AppearanceInvalidationTest {
         assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
         assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
         assertDeclaredChainCarriedOnce { focusPainted(true) }
-        assertDeclaredChainCarriedOnce { cursor(null) }
-        assertDeclaredChainCarriedOnce { font(null) }
-        assertDeclaredChainCarriedOnce { foreground(null) }
         assertDeclaredChainCarriedOnce { icon(null) }
         assertDeclaredChainCarriedOnce { pressedIcon(null) }
         assertDeclaredChainCarriedOnce { selectedIcon(null) }

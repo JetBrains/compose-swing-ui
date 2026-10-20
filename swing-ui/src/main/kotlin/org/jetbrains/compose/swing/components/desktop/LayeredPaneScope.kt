@@ -40,7 +40,7 @@ public sealed interface LayeredPaneScope {
      * Declaring a different depth moves the child to position 0 - the topmost position within a layer -
      * of the layer it names, keeping what it remembers and the component it is realized as.
      *
-     * The child positions itself within the pane through `SwingModifier.bounds(...)`, since a layered
+     * The child positions itself within the pane through `bounds(...)` in its style, since a layered
      * pane lays no child out.
      *
      * @param layer the depth the child is placed at

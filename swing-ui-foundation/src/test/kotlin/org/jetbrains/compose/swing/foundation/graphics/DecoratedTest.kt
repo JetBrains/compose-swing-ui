@@ -9,8 +9,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -47,8 +48,8 @@ class DecoratedTest {
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(64, 64)
-                                .fill(Color.BLUE),
+                                .fill(Color.BLUE)
+                                .styleable { preferredSize(64, 64) },
                     )
                 }
             }
@@ -73,8 +74,8 @@ class DecoratedTest {
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(64, 64)
-                                .cut(),
+                                .cut()
+                                .styleable { preferredSize(64, 64) },
                     ) {
                         SwingNode(factory = { filling(Color.RED) })
                     }
@@ -98,10 +99,13 @@ class DecoratedTest {
             var decoration by mutableStateOf<List<Decorator>>(listOf(Spill(Insets(1, 2, 3, 4))))
             setContent {
                 Box {
-                    val base = SwingModifier.testTag("panel").emptyBorder(5, 6, 7, 8).preferredSize(64, 64)
+                    val base = SwingModifier.testTag("panel").emptyBorder(5, 6, 7, 8)
                     SwingNode(
                         factory = { boxPanel() },
-                        modifier = decoration.fold(base) { modifier, decorator -> modifier.decoration(decorator) },
+                        modifier =
+                            decoration
+                                .fold(base) { modifier, decorator -> modifier.decoration(decorator) }
+                                .styleable { preferredSize(64, 64) },
                     ) {
                         SwingNode(factory = { filling(Color.RED) }, modifier = SwingModifier.testTag("child"))
                     }
@@ -182,8 +186,8 @@ class DecoratedTest {
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(64, 64)
-                                .spill(Insets(4, 4, 4, 4)),
+                                .spill(Insets(4, 4, 4, 4))
+                                .styleable { preferredSize(64, 64) },
                     ) {
                         SwingNode(factory = { filling(Color.RED) })
                     }
@@ -237,9 +241,9 @@ class DecoratedTest {
                         modifier =
                             SwingModifier
                                 .testTag("panel")
-                                .preferredSize(64, 64)
                                 .spill(Insets(4, 4, 4, 4))
-                                .fill(Color.BLUE),
+                                .fill(Color.BLUE)
+                                .styleable { preferredSize(64, 64) },
                     )
                 }
             }
@@ -273,7 +277,11 @@ class DecoratedTest {
                 Box {
                     SwingNode(
                         factory = { DecoratedPanel() },
-                        modifier = SwingModifier.testTag("panel").preferredSize(64, 64).shadow(4, Color.BLACK),
+                        modifier =
+                            SwingModifier
+                                .testTag("panel")
+                                .shadow(4, Color.BLACK)
+                                .styleable { preferredSize(64, 64) },
                     )
                 }
             }

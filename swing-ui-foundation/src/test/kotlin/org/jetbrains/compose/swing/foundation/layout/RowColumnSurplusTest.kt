@@ -4,7 +4,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -28,16 +28,16 @@ class RowColumnSurplusTest {
     fun aTallColumnLeavesTheHeightItsChildrenDidNotAskForEmpty() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(IMPOSED_CROSS, IMPOSED_MAIN)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(IMPOSED_CROSS, IMPOSED_MAIN) }) {
                     Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
-                        Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CROSS_EXTENT, FIRST_EXTENT)) {}
+                        Panel(PanelLayout.Flow(), style = { preferredSize(CROSS_EXTENT, FIRST_EXTENT) }) {}
                         Panel(
                             PanelLayout.GridBag,
-                            modifier = SwingModifier.preferredSize(CROSS_EXTENT, SECOND_EXTENT),
+                            style = { preferredSize(CROSS_EXTENT, SECOND_EXTENT) },
                         ) {}
                         Panel(
                             PanelLayout.Border(),
-                            modifier = SwingModifier.preferredSize(CROSS_EXTENT, THIRD_EXTENT),
+                            style = { preferredSize(CROSS_EXTENT, THIRD_EXTENT) },
                         ) {}
                     }
                 }
@@ -62,16 +62,16 @@ class RowColumnSurplusTest {
     fun aWideRowLeavesTheWidthItsChildrenDidNotAskForEmpty() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(IMPOSED_MAIN, IMPOSED_CROSS)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(IMPOSED_MAIN, IMPOSED_CROSS) }) {
                     Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
-                        Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(FIRST_EXTENT, CROSS_EXTENT)) {}
+                        Panel(PanelLayout.Flow(), style = { preferredSize(FIRST_EXTENT, CROSS_EXTENT) }) {}
                         Panel(
                             PanelLayout.GridBag,
-                            modifier = SwingModifier.preferredSize(SECOND_EXTENT, CROSS_EXTENT),
+                            style = { preferredSize(SECOND_EXTENT, CROSS_EXTENT) },
                         ) {}
                         Panel(
                             PanelLayout.Border(),
-                            modifier = SwingModifier.preferredSize(THIRD_EXTENT, CROSS_EXTENT),
+                            style = { preferredSize(THIRD_EXTENT, CROSS_EXTENT) },
                         ) {}
                     }
                 }

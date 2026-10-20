@@ -15,7 +15,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -198,7 +199,7 @@ class ExistingSwingNodeClaimTest {
             SwingNode(factory = { PartsPanel() }) {
                 ExistingSwingNode(
                     claim = if (changed) later else PartsPanel::part,
-                    modifier = SwingModifier.background(if (changed) Color.BLUE else Color.RED),
+                    modifier = SwingModifier.styleable { background(if (changed) Color.BLUE else Color.RED) },
                 )
             }
         }
@@ -268,7 +269,10 @@ class ExistingSwingNodeClaimTest {
                 val claim =
                     remember {
                         movableContentOf {
-                            ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
+                            ExistingSwingNode(
+                                claim = PartsPanel::part,
+                                modifier = SwingModifier.styleable { background(Color.RED) },
+                            )
                         }
                     }
                 if (first) claim()
@@ -298,7 +302,10 @@ class ExistingSwingNodeClaimTest {
         setContent {
             SwingNode(factory = { panel }) {
                 key(current) {
-                    ExistingSwingNode(claim = PartsPanel::part, modifier = SwingModifier.background(Color.RED))
+                    ExistingSwingNode(
+                        claim = PartsPanel::part,
+                        modifier = SwingModifier.styleable { background(Color.RED) },
+                    )
                 }
             }
         }

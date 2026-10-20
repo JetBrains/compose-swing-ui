@@ -3,7 +3,8 @@ package org.jetbrains.compose.swing.foundation.graphics.drawscope
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.image.BufferedImage
@@ -16,7 +17,10 @@ internal fun ComposeSwingTest.captureEach(
 ): List<BufferedImage> {
     var current: DrawScope.() -> Unit = {}
     setContent {
-        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(width, height), renderingHints = null) {
+        Canvas(
+            modifier = SwingModifier.testTag("canvas").styleable { preferredSize(width, height) },
+            renderingHints = null,
+        ) {
             current()
         }
     }

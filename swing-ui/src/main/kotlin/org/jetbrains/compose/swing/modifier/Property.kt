@@ -6,7 +6,9 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * Declares [descriptor] on the component, [value] for as long as this declaration stands. The property is
+ * Declares [descriptor] on the component, [value] for as long as this declaration stands. A style declares a
+ * property through [org.jetbrains.compose.swing.style.stylePropertyOf] or
+ * [org.jetbrains.compose.swing.style.styleLocalOf], with the same rules. The property is
  * read as the declaration arrives and written back when the declaration leaves, so a widget that
  * outlives it carries what it did before.
  *
@@ -24,7 +26,7 @@ import java.awt.Component
  *     if (dividerSize == null) this else property(DividerSizeProperty, dividerSize)
  * ```
  *
- * Declare only a property this library ships no modifier of its own for. Two declarations of one
+ * Use this function for a component's own parameter that no style setter covers. Two declarations of one
  * [ComponentPropertyDescriptor.name] - even through two different handles - share one slot: the last one declared
  * wins, and they take one record of what the property stood at before either wrote it, put back from
  * whichever of them leaves last. Every handle of one name has to read and write the property alike.
@@ -48,6 +50,7 @@ import java.awt.Component
  *   values. During such a write and any nested writes, only declarations applied after the
  *   latest [rewriteOn] declaration that wrote may reapply their values. The writing declaration and earlier
  *   declarations ignore these events, so synchronous notifications cannot repeat the same write.
+ *   A later declaration of the same property that does not name [rewriteOn] does not win over this one.
  * @param alsoOverwrites properties [descriptor]'s own write lands on besides the one it declares - a
  *   coarse geometry naming each axis it covers, a button's fill keeping its opaque flag in step with it.
  *   Each is held beside the declared one and given back after it, so a removal puts back every property

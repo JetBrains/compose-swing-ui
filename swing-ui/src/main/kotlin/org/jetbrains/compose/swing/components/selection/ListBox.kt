@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.ListLayoutOrientation
 import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
+import org.jetbrains.compose.swing.components.style.ListBoxStyleScope
+import org.jetbrains.compose.swing.components.style.ListBoxes
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -14,6 +16,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.util.Vector
 import javax.swing.JList
 import javax.swing.ListModel
@@ -58,6 +64,7 @@ import javax.swing.event.ListSelectionListener
  *
  * @param items the items to display
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user settles on a new selection
@@ -83,6 +90,7 @@ import javax.swing.event.ListSelectionListener
 public fun <T> ListBox(
     items: List<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     selectedIndices: Set<Int>? = null,
     onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
@@ -97,6 +105,7 @@ public fun <T> ListBox(
         items = items,
         listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -117,6 +126,7 @@ public fun <T> ListBox(
  * @param items the items to display
  * @param listSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
@@ -142,6 +152,7 @@ public fun <T> ListBox(
     items: List<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     selectedIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
@@ -155,6 +166,7 @@ public fun <T> ListBox(
         items = items,
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -178,6 +190,7 @@ private inline fun <T> ListBoxItemsImpl(
     items: List<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<ListBoxStyleScope>,
     selectedIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
@@ -191,6 +204,7 @@ private inline fun <T> ListBoxItemsImpl(
     ListBoxNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -229,6 +243,7 @@ private inline fun <T> ListBoxItemsImpl(
  *
  * @param model the caller-owned list model to display; installed as-is and never mutated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user settles on a new selection
@@ -254,6 +269,7 @@ private inline fun <T> ListBoxItemsImpl(
 public fun <T> ListBox(
     model: ListModel<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     selectedIndices: Set<Int>? = null,
     onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
@@ -268,6 +284,7 @@ public fun <T> ListBox(
         model = model,
         listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -291,6 +308,7 @@ public fun <T> ListBox(
  * @param model the caller-owned list model to display; installed as-is and never mutated
  * @param listSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
@@ -316,6 +334,7 @@ public fun <T> ListBox(
     model: ListModel<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     selectedIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
@@ -329,6 +348,7 @@ public fun <T> ListBox(
         model = model,
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -352,6 +372,7 @@ private inline fun <T> ListBoxModelImpl(
     model: ListModel<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<ListBoxStyleScope>,
     selectedIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
@@ -364,6 +385,7 @@ private inline fun <T> ListBoxModelImpl(
     ListBoxNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
+        style = style,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -396,6 +418,7 @@ private inline fun <T> ListBoxModelImpl(
  * @param items the items to display
  * @param state the hoistable selection state the list applies and reports into; see [ListState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
@@ -419,6 +442,7 @@ public fun <T> ListBox(
     items: List<T>,
     state: ListState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
     @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
@@ -431,6 +455,7 @@ public fun <T> ListBox(
         items = items,
         listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
         modifier = modifier.listStateBinding(state),
+        style = style,
         selectedIndices = state.selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -453,6 +478,7 @@ public fun <T> ListBox(
  * @param model the caller-owned list model to display; installed as-is and never mutated
  * @param state the hoistable selection state the list applies and reports into; see [ListState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
@@ -476,6 +502,7 @@ public fun <T> ListBox(
     model: ListModel<T>,
     state: ListState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
     @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
@@ -488,6 +515,7 @@ public fun <T> ListBox(
         model = model,
         listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
         modifier = modifier.listStateBinding(state),
+        style = style,
         selectedIndices = state.selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
@@ -498,6 +526,14 @@ public fun <T> ListBox(
         itemContent = itemContent,
     )
 }
+
+/** [ListBoxStyleScope] for ListBox styles. No component state is supplied. */
+private val ListBoxKind =
+    nestingStyleKind<ListBoxStyleScope, Unit>(
+        { base, _ -> object : ListBoxStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(ListBoxes)
+    }
 
 /**
  * The `JList` node every [ListBox] overload renders: all of it but the content, which [installContent]
@@ -511,6 +547,7 @@ public fun <T> ListBox(
 private inline fun <T> ListBoxNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<ListBoxStyleScope>,
     selectedIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
@@ -547,7 +584,8 @@ private inline fun <T> ListBoxNode(
             modifier
                 .listSelectionListener(JList::class, onUserSelection)
                 .declaredListItemRenderer(cells)
-                .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
+                .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight)
+                .styleable(ListBoxKind, style),
         update = {
             set(selectionMode) { mode ->
                 narrowSelection(mirror, selectedIndices, listSelectionListener) { this.selectionMode = mode }

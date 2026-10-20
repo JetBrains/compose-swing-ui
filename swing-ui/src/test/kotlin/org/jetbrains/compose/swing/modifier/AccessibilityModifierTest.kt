@@ -9,8 +9,6 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.accessibility.LabelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
@@ -18,6 +16,9 @@ import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.accessibleDescription
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -45,21 +46,21 @@ class AccessibilityModifierTest {
             TextField(
                 "",
                 onValueChange = {},
-                modifier = if (named) SwingModifier.accessibleName("City field") else SwingModifier,
+                style = { if (named) accessibleName("City field") },
             )
         }
         val field = onNodeOfType<JTextField>()
-        // A JTextField has no intrinsic accessible name, so the pre-modifier default is null.
+        // A JTextField has no intrinsic accessible name, so the pre-style default is null.
         field.assertProperty(
             "City field",
-            "the accessible name should apply while the modifier is present",
+            "the accessible name should apply while the style sets it",
         ) { accessibleContext.accessibleName }
 
         named = false
         awaitIdle()
         field.assertProperty(
             null,
-            "removing the modifier should restore the null accessible name",
+            "removing it from the style should restore the null accessible name",
         ) { accessibleContext.accessibleName }
     }
 
@@ -70,21 +71,20 @@ class AccessibilityModifierTest {
             Button(
                 "Save",
                 onClick = { },
-                modifier =
-                    if (described) SwingModifier.accessibleDescription("Persist the document") else SwingModifier,
+                style = { if (described) accessibleDescription("Persist the document") },
             )
         }
         val button = onNodeOfType<JButton>()
         button.assertProperty(
             "Persist the document",
-            "the accessible description should apply while the modifier is present",
+            "the accessible description should apply while the style sets it",
         ) { accessibleContext.accessibleDescription }
 
         described = false
         awaitIdle()
         button.assertProperty(
             null,
-            "removing the modifier should restore the null accessible description",
+            "removing it from the style should restore the null accessible description",
         ) { accessibleContext.accessibleDescription }
     }
 
@@ -96,13 +96,13 @@ class AccessibilityModifierTest {
             Button(
                 text,
                 onClick = { },
-                modifier = if (named) SwingModifier.accessibleName("Persist the document") else SwingModifier,
+                style = { if (named) accessibleName("Persist the document") },
             )
         }
         val button = onNodeOfType<JButton>()
         button.assertProperty(
             "Persist the document",
-            "the accessible name should apply while the modifier is present",
+            "the accessible name should apply while the style sets it",
         ) { accessibleContext.accessibleName }
 
         // A button answers with its text while it holds no name of its own, so a name pinned on removal
@@ -112,7 +112,7 @@ class AccessibilityModifierTest {
         awaitIdle()
         button.assertProperty(
             "Store",
-            "removing the modifier should hand the name back to the button's own text",
+            "removing it from the style should hand the name back to the button's own text",
         ) { accessibleContext.accessibleName }
     }
 
@@ -122,13 +122,13 @@ class AccessibilityModifierTest {
         setContent {
             SwingNode(
                 factory = { JLabel("label text").apply { accessibleContext.accessibleName = WIDGET_NAME } },
-                modifier = if (named) SwingModifier.accessibleName("Named by the declaration") else SwingModifier,
+                modifier = SwingModifier.styleable { if (named) accessibleName("Named by the declaration") },
             )
         }
         val label = onNodeOfType<JLabel>()
         label.assertProperty(
             "Named by the declaration",
-            "the declared name should apply while the modifier is present",
+            "the declared name should apply while the style sets it",
         ) { accessibleContext.accessibleName }
 
         // A context answers a name it was set and, where it was set none, one it derives - and cannot be
@@ -138,7 +138,7 @@ class AccessibilityModifierTest {
         awaitIdle()
         label.assertProperty(
             WIDGET_NAME,
-            "removing the modifier should put back the name the widget carried",
+            "removing it from the style should put back the name the widget carried",
         ) { accessibleContext.accessibleName }
     }
 
@@ -151,24 +151,20 @@ class AccessibilityModifierTest {
                     JLabel("label text").apply { accessibleContext.accessibleDescription = WIDGET_DESCRIPTION }
                 },
                 modifier =
-                    if (described) {
-                        SwingModifier.accessibleDescription("Described by the declaration")
-                    } else {
-                        SwingModifier
-                    },
+                    SwingModifier.styleable { if (described) accessibleDescription("Described by the declaration") },
             )
         }
         val label = onNodeOfType<JLabel>()
         label.assertProperty(
             "Described by the declaration",
-            "the declared description should apply while the modifier is present",
+            "the declared description should apply while the style sets it",
         ) { accessibleContext.accessibleDescription }
 
         described = false
         awaitIdle()
         label.assertProperty(
             WIDGET_DESCRIPTION,
-            "removing the modifier should put back the description the widget carried",
+            "removing it from the style should put back the description the widget carried",
         ) { accessibleContext.accessibleDescription }
     }
 
@@ -180,16 +176,14 @@ class AccessibilityModifierTest {
             TextField(
                 "",
                 onValueChange = {},
-                modifier =
-                    SwingModifier.toolTip(tip).let {
-                        if (described) it.accessibleDescription("The address to deliver to") else it
-                    },
+                modifier = SwingModifier.toolTip(tip),
+                style = { if (described) accessibleDescription("The address to deliver to") },
             )
         }
         val field = onNodeOfType<JTextField>()
         field.assertProperty(
             "The address to deliver to",
-            "the accessible description should apply while the modifier is present",
+            "the accessible description should apply while the style sets it",
         ) { accessibleContext.accessibleDescription }
 
         described = false
@@ -197,7 +191,7 @@ class AccessibilityModifierTest {
         awaitIdle()
         field.assertProperty(
             "Where you work",
-            "removing the modifier should hand the description back to the field's own tooltip",
+            "removing it from the style should hand the description back to the field's own tooltip",
         ) { accessibleContext.accessibleDescription }
     }
 
@@ -206,10 +200,10 @@ class AccessibilityModifierTest {
         setContent {
             Label(
                 "X",
-                modifier =
-                    SwingModifier
-                        .accessibleName("Coordinate")
-                        .accessibleDescription("The horizontal position"),
+                style = {
+                    accessibleName("Coordinate")
+                    accessibleDescription("The horizontal position")
+                },
             )
         }
         // Each matcher must find the label the accessible state was declared on, not any node.
@@ -508,8 +502,6 @@ class AccessibilityModifierTest {
 
     @Test
     fun everyAccessibilityBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { accessibleName(null) }
-        assertDeclaredChainCarriedOnce { accessibleDescription(null) }
         assertDeclaredChainCarriedOnce { labelTarget(LabelTarget()) }
         assertDeclaredChainCarriedOnce { labelFor(LabelTarget()) }
         assertDeclaredChainCarriedOnce { mnemonic(KeyEvent.VK_A) }

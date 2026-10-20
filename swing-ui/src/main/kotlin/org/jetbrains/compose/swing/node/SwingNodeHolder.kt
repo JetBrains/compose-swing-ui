@@ -18,6 +18,8 @@ import org.jetbrains.compose.swing.modifier.attachNodes
 import org.jetbrains.compose.swing.modifier.detachNodes
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.resetModifierState
+import org.jetbrains.compose.swing.style.StyleElement
+import org.jetbrains.compose.swing.style.collectsNothingUnder
 import org.jetbrains.compose.swing.tooling.NODE_KEY
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.jetbrains.compose.swing.util.fastFirstOrNull
@@ -232,7 +234,10 @@ internal sealed class SwingNodeHolder<out T : Component> :
 
     override val modifier: SwingModifier
         get() {
-            return modifierState?.declared ?: SwingModifier
+            val declared = modifierState?.declared ?: return SwingModifier
+            return declared.foldIn<SwingModifier>(SwingModifier) { chain, element ->
+                if (element is StyleElement<*, *> && element.collectsNothingUnder(this)) chain else chain.then(element)
+            }
         }
 
     /**

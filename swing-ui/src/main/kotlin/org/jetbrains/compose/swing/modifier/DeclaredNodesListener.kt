@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.modifier
 
-import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
@@ -43,7 +42,7 @@ internal fun SwingNodeHolder<*>.visitDeclaredNodes(block: (SwingModifier.Node) -
     val declaring = if (batch != null && batch.diffingState === modifierState) batch.diffingDeclaration else null
     if (declaring == null) {
         records.fastForEach { if (it.isStandingFor(null, null) && it.key == null) block(it.node) }
-        visitStyleLayoutNodes(block)
+        modifierState?.forEachStyle(this) { it.layoutNodes.fastForEach(block) }
         return
     }
     // Mid-pass, each family's records are standing in declared order: walk the declaration, taking each element's
@@ -57,7 +56,7 @@ internal fun SwingNodeHolder<*>.visitDeclaredNodes(block: (SwingModifier.Node) -
         if (layout) layoutIndex = index + 1 else componentIndex = index + 1
         if (index < records.size && records[index].isAttached) block(records[index].node)
     }
-    visitStyleLayoutNodes(block)
+    modifierState?.forEachStyle(this) { it.layoutNodes.fastForEach(block) }
 }
 
 /**
@@ -75,13 +74,6 @@ internal fun SwingNodeHolder<*>.notifyDeclaredNodes(
     visitDeclaredNodes { nodes += it }
     if (nodes.isNotEmpty() || handedNodes) {
         runReportingUncaught { listener.onDeclaredNodesChanged(this, nodes) }
-    }
-}
-
-/** Visits the attached layout nodes the component's style declares, in the order it declares them. */
-private fun SwingNodeHolder<*>.visitStyleLayoutNodes(block: (SwingModifier.Node) -> Unit) {
-    modifierState?.forEachStyle(this) { style ->
-        style.layoutElements.fastForEach { if (it is ParentLayoutNode && it.isAttached) block(it) }
     }
 }
 

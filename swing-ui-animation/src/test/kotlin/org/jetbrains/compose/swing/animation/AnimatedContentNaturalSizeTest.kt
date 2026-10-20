@@ -14,7 +14,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -49,8 +49,8 @@ class AnimatedContentNaturalSizeTest {
                         "",
                         modifier =
                             SwingModifier
-                                .testTag(if (it == "block") CONTENT else "small")
-                                .preferredSize(if (it == "block") OWN else Dimension(20, 10)),
+                                .testTag(if (it == "block") CONTENT else "small"),
+                        style = { preferredSize(if (it == "block") OWN else Dimension(20, 10)) },
                     )
                 }
             }
@@ -81,7 +81,7 @@ class AnimatedContentNaturalSizeTest {
                             expandIn(tween(LONG)) togetherWith shrinkOut(tween(LONG))
                         }
                     }) {
-                        Label("", modifier = SwingModifier.preferredSize(contentSizes.getValue(it)))
+                        Label("", style = { preferredSize(contentSizes.getValue(it)) })
                     }
                 }
             }

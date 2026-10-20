@@ -7,7 +7,8 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -25,7 +26,7 @@ class RowColumnFillTest {
     fun aChildCanFillTheRowsMainAxis() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
                 }
             }
@@ -41,7 +42,7 @@ class RowColumnFillTest {
     fun aChildCanFillTheColumnsMainAxis() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
                     SizedChild(0, SwingModifier.fillMaxHeight())
                 }
             }
@@ -57,7 +58,7 @@ class RowColumnFillTest {
     fun aFillingChildTakesTheColumnsWholeWidth() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
                 }
             }
@@ -73,7 +74,7 @@ class RowColumnFillTest {
     fun aFillingChildTakesTheRowsWholeHeight() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(MAIN_EXTENT, CROSS_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(MAIN_EXTENT, CROSS_EXTENT))) {
                     SizedChild(0, SwingModifier.fillMaxHeight())
                 }
             }
@@ -89,7 +90,14 @@ class RowColumnFillTest {
     fun aFillingChildTakesOnlyTheWidthTheColumnsBorderLeaves() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT).emptyBorder(BORDER)) {
+                Column(
+                    modifier =
+                        SwingModifier
+                            .containerTag()
+                            .emptyBorder(
+                                BORDER,
+                            ).styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT)),
+                ) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
                 }
             }
@@ -106,7 +114,7 @@ class RowColumnFillTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT)),
                     horizontalAlignment = Alignment.End,
                 ) {
                     SizedChild(0, SwingModifier.align(Alignment.CenterHorizontally).fillMaxWidth())
@@ -125,7 +133,7 @@ class RowColumnFillTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT)),
                     horizontalAlignment = Alignment.Start,
                 ) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
@@ -149,8 +157,8 @@ class RowColumnFillTest {
     fun aFillingChildStopsAtTheMaximumWidthItDeclares() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
-                    SizedChild(0, SwingModifier.fillMaxWidth().maximumSize(MAXIMUM_CROSS, CHILD_HEIGHT))
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
+                    SizedChild(0, SwingModifier.fillMaxWidth(), style = { maximumSize(MAXIMUM_CROSS, CHILD_HEIGHT) })
                 }
             }
 
@@ -169,8 +177,8 @@ class RowColumnFillTest {
     fun aFillingChildStopsAtTheMaximumHeightItDeclares() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(MAIN_EXTENT, CROSS_EXTENT)) {
-                    SizedChild(0, SwingModifier.fillMaxHeight().maximumSize(CHILD_WIDTH, MAXIMUM_CROSS))
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(MAIN_EXTENT, CROSS_EXTENT))) {
+                    SizedChild(0, SwingModifier.fillMaxHeight(), style = { maximumSize(CHILD_WIDTH, MAXIMUM_CROSS) })
                 }
             }
 
@@ -185,8 +193,8 @@ class RowColumnFillTest {
     fun aChildThatDoesNotFillStopsAtTheMaximumWidthItDeclares() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
-                    SizedChild(0, SwingModifier.maximumSize(NARROW_CROSS, CHILD_HEIGHT))
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
+                    SizedChild(0, style = { maximumSize(NARROW_CROSS, CHILD_HEIGHT) })
                 }
             }
 
@@ -201,7 +209,10 @@ class RowColumnFillTest {
     fun aChildTakesTheWholeWidthAndItsShareOfTheHeightAtOnce() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)) {
+                Column(
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)),
+                ) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.weight(1f).fillMaxWidth())
                 }
@@ -222,7 +233,10 @@ class RowColumnFillTest {
     fun aChildDeclaringItsFillBeforeItsWeightIsPlacedTheSameWay() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)) {
+                Column(
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)),
+                ) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.fillMaxWidth().weight(1f))
                 }
@@ -243,7 +257,7 @@ class RowColumnFillTest {
         runComposeSwingTest {
             var filling by mutableStateOf(false)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT))) {
                     SizedChild(0, if (filling) SwingModifier.fillMaxWidth() else SwingModifier)
                 }
             }
@@ -276,7 +290,7 @@ class RowColumnFillTest {
         runComposeSwingTest {
             var filling by mutableStateOf(false)
             setContent {
-                Row(modifier = containerModifier(MAIN_EXTENT, CROSS_EXTENT)) {
+                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(MAIN_EXTENT, CROSS_EXTENT))) {
                     SizedChild(0, if (filling) SwingModifier.fillMaxHeight() else SwingModifier)
                 }
             }

@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -28,7 +29,10 @@ class DefaultMinSizeTest {
     fun testDefaultMinSize() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_EXTENT, CONTAINER_EXTENT)) {
+                Box(
+                    modifier =
+                        SwingModifier.containerTag().styleable(containerStyle(CONTAINER_EXTENT, CONTAINER_EXTENT)),
+                ) {
                     Child(0, ASKED_EXTENT, ASKED_EXTENT, SwingModifier.defaultMinSize(MIN_WIDTH, MIN_HEIGHT))
                     Child(
                         index = 1,
@@ -54,7 +58,7 @@ class DefaultMinSizeTest {
     fun testDefaultMinSize_withCoercingMaxConstraints() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(TIGHT_WIDTH, TIGHT_HEIGHT)) {
+                Box(modifier = SwingModifier.containerTag().styleable(containerStyle(TIGHT_WIDTH, TIGHT_HEIGHT))) {
                     Child(0, ASKED_EXTENT, ASKED_EXTENT, SwingModifier.defaultMinSize(MIN_WIDTH, MIN_HEIGHT))
                 }
             }
@@ -78,8 +82,8 @@ class DefaultMinSizeTest {
                         height = ASKED_EXTENT,
                         modifier =
                             SwingModifier
-                                .minimumSize(ASKED_EXTENT, ASKED_EXTENT)
                                 .defaultMinSize(MIN_WIDTH, MIN_HEIGHT),
+                        style = { minimumSize(ASKED_EXTENT, ASKED_EXTENT) },
                     )
                 }
             }

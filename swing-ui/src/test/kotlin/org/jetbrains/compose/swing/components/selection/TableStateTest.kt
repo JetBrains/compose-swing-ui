@@ -4,8 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -140,7 +139,7 @@ class TableStateTest {
         val rows = (0 until ROW_COUNT).map { Person("person $it", it) }
         val state = TableState()
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
+            ScrollPane(style = { preferredSize(160, 80) }) {
                 Viewport {
                     Table(rows = rows, columns = { column("Name") { it.name } }, state = state)
                 }

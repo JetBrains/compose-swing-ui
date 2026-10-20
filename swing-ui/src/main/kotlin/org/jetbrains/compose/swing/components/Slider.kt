@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.components.style.Sliders
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -19,6 +20,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.BoundedRangeModel
 import javax.swing.JSlider
 import javax.swing.SwingConstants
@@ -43,6 +49,7 @@ import javax.swing.event.ChangeListener
  *   outside the range, or one off the grid [snapToTicks] resolves to; applying a [value] the slider can
  *   hold is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
  *   on, one the user reaches outside a drag, and the value the slider is left on where it cannot hold
  *   [value]
@@ -70,6 +77,7 @@ public fun Slider(
     value: Int,
     onValueChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     onValueSettled: (Int) -> Unit = {},
     min: Int = 0,
     max: Int = 100,
@@ -86,6 +94,7 @@ public fun Slider(
     val channel = rememberSliderValueChannel(mirror, mirror, value)
     SliderNode(
         modifier = modifier.changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) },
+        style = style,
         labelMin = min,
         labelMax = max,
         orientation = orientation,
@@ -121,6 +130,7 @@ public fun Slider(
  * @param value the current value
  * @param changeListener the listener notified when the value changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param min the smallest value the slider can hold; `0` by default
  * @param max the largest value the slider can hold; `100` by default
  * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
@@ -145,6 +155,7 @@ public fun Slider(
     value: Int,
     changeListener: ChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     min: Int = 0,
     max: Int = 100,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
@@ -159,6 +170,7 @@ public fun Slider(
     val mirror = rememberMirrorState(value)
     SliderNode(
         modifier = modifier.changeListener(changeListener).sliderValueMirror(mirror),
+        style = style,
         labelMin = min,
         labelMax = max,
         orientation = orientation,
@@ -217,6 +229,7 @@ private val SLIDER_RANGE =
  * @param model the range the slider renders and the user moves; owned by the caller and never written to
  *   by the library
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param onValueChange callback invoked with every value the slider publishes, the ones a drag passes
  *   through included
  * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
@@ -242,6 +255,7 @@ private val SLIDER_RANGE =
 public fun Slider(
     model: BoundedRangeModel,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     onValueChange: (Int) -> Unit = {},
     onValueSettled: (Int) -> Unit = {},
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
@@ -259,6 +273,7 @@ public fun Slider(
     ModelSliderNode(
         model = model,
         modifier = modifier.changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) },
+        style = style,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -281,6 +296,7 @@ public fun Slider(
  *   by the library
  * @param changeListener the listener notified when the value changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
  *   `HORIZONTAL` by default, which runs the track across the width the slider is given
  * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
@@ -303,6 +319,7 @@ public fun Slider(
     model: BoundedRangeModel,
     changeListener: ChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
     inverted: Boolean = false,
     majorTickSpacing: Int = 0,
@@ -315,6 +332,7 @@ public fun Slider(
     ModelSliderNode(
         model = model,
         modifier = modifier.changeListener(changeListener),
+        style = style,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -337,6 +355,7 @@ public fun Slider(
 private inline fun ModelSliderNode(
     model: BoundedRangeModel,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     @Orientation orientation: Int,
     inverted: Boolean,
     majorTickSpacing: Int,
@@ -348,6 +367,7 @@ private inline fun ModelSliderNode(
 ) {
     SliderNode(
         modifier = modifier,
+        style = style,
         // The range Swing's own labels are generated over is the model's, read as it stands: a range the
         // caller moves inside the model reaches the labels through the slider's own regeneration.
         labelMin = model.minimum,
@@ -380,6 +400,7 @@ private inline fun ModelSliderNode(
 @Composable
 private inline fun SliderNode(
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     labelMin: Int,
     labelMax: Int,
     @Orientation orientation: Int,
@@ -395,7 +416,7 @@ private inline fun SliderNode(
     val declaredLabels = rememberDeclaredLabels(labels)
     SwingNode(
         factory = { JSlider() },
-        modifier = modifier,
+        modifier = modifier.styleable(SliderKind, style),
         update = {
             // Everything that snaps the value goes in before the range itself, so a recomposition that
             // moves both lands the new value on the new grid rather than the old.
@@ -509,3 +530,11 @@ private val SLIDER_VALUES =
         },
         registration = SLIDER_VALUE_MIRRORS,
     )
+
+/** [SwingComponentStyleScope] for Slider styles. No component state is supplied. */
+private val SliderKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(Sliders)
+    }

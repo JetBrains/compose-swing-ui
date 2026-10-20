@@ -5,9 +5,13 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -19,15 +23,22 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Color
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
+import javax.swing.UIManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 
 internal class StyleCompositionMoveTest {
     @Test
@@ -244,43 +255,31 @@ internal class StyleCompositionMoveTest {
         }
     }
 
-    @Test
-    fun styledContentMovedToAnotherCompositionResolvesWithItsNewParent() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("movedComponents")
+    fun <C : JComponent> styledContentMovedToAnotherCompositionResolvesWithItsNewParent(
+        leafFactory: () -> C,
+        node: @Composable (C) -> Unit,
+        host: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle,
+        text: (C) -> String?,
+    ) = runComposeSwingTest {
         var inFirst by mutableStateOf(true)
         lateinit var context: CompositionContext
-        val leaf = JLabel("own")
-        val kind =
-            probeKind {
-                LabelText.provide("default")
-                applyNestedStyle(Probes)
-            }
-        val moved =
-            movableContentOf {
-                SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(kind, SwingStyle))
-            }
+        val leaf = leafFactory()
+        val moved = movableContentOf { node(leaf) }
         setContent { context = rememberCompositionContext() }
-        val first =
-            JPanel().setContent(parent = context) {
-                ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { LabelText.provide("first") } }) {
-                    if (inFirst) moved()
-                }
-            }
-        val second =
-            JPanel().setContent(parent = context) {
-                ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { LabelText.provide("second") } }) {
-                    if (!inFirst) moved()
-                }
-            }
+        val first = host(context, "first") { if (inFirst) moved() }
+        val second = host(context, "second") { if (!inFirst) moved() }
         try {
             awaitIdle()
-            assertEquals("first", leaf.text)
-            val changes = mutableListOf<Any?>()
-            leaf.addPropertyChangeListener("text") { changes += it.newValue }
+            assertEquals("first", text(leaf))
+            val changes = mutableListOf<String?>()
+            leaf.addPropertyChangeListener("text") { changes += text(leaf) }
 
             inFirst = false
             awaitIdle()
-            assertEquals("second", leaf.text)
-            assertEquals<List<Any?>>(listOf("own", "second"), changes)
+            assertEquals("second", text(leaf))
+            assertEquals<List<String?>>(listOf("own", "second"), changes)
         } finally {
             second.dispose()
             first.dispose()
@@ -288,35 +287,135 @@ internal class StyleCompositionMoveTest {
     }
 
     @Test
-    fun styledMenuMovedToAnotherCompositionResolvesWithItsNewParent() = runComposeSwingTest {
-        var inFirst by mutableStateOf(true)
-        lateinit var context: CompositionContext
-        val menu = JMenu("own")
-        val kind =
-            probeKind {
-                MenuText.provide("default")
-                applyNestedStyle(Probes)
+    fun movedSubtreeFollowsNewAncestors() = runComposeSwingTest {
+        var underFirst by mutableStateOf(true)
+        setContent {
+            val moved =
+                remember {
+                    movableContentOf {
+                        ProbeContainer(
+                            StyleProbe(),
+                            SwingStyle,
+                        ) { ProbeLeaf(StyleProbe("leaf"), SwingStyle, NestedProbe) }
+                    }
+                }
+            ProbeContainer(StyleProbe(), SwingStyle) {
+                ProbeContainer(StyleProbe(), {
+                    provideNestedStyle(Probes) {
+                        ProbeFirst.provide("first parent")
+                        ProbeSecond.provide("first parent")
+                    }
+                }) { if (underFirst) moved() }
+                ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second parent") } }) {
+                    if (!underFirst) moved()
+                }
             }
-        val moved =
-            movableContentOf {
-                MenuNode(factory = { menu }, modifier = SwingModifier.styleable(kind, SwingStyle))
-            }
-        setContent { context = rememberCompositionContext() }
-        val first = JPopupMenu().setContent(parent = context) { MenuParent("first") { if (inFirst) moved() } }
-        val second = JPopupMenu().setContent(parent = context) { MenuParent("second") { if (!inFirst) moved() } }
-        try {
-            awaitIdle()
-            assertEquals("first", menu.text)
-            val changes = mutableListOf<Any?>()
-            menu.addPropertyChangeListener("text") { changes += it.newValue }
+        }
+        onProbe("leaf")
+            .assertProperty("first parent") { first }
+            .assertProperty("first parent") { second }
 
-            inFirst = false
-            awaitIdle()
-            assertEquals("second", menu.text)
-            assertEquals<List<Any?>>(listOf("own", "second"), changes)
-        } finally {
-            second.dispose()
-            first.dispose()
+        underFirst = false
+        awaitIdle()
+
+        onProbe("leaf")
+            .assertProperty("second parent") { first }
+            .assertProperty(PROBE_OWN_VALUE) { second }
+    }
+
+    @Test
+    fun anUnstyledLabelMovedUnderAProviderTakesItsStyleAndRestoresMovedOut() = runComposeSwingTest {
+        var underProvider by mutableStateOf(false)
+        setContent {
+            val moved =
+                remember {
+                    movableContentOf {
+                        Panel(style = { provideNestedStyle(Labels) { foreground(Color.GREEN) } }) { Label("moved") }
+                    }
+                }
+            Panel(style = { provideNestedStyle(Labels) { background(Color.RED) } }) { if (underProvider) moved() }
+            Panel { if (!underProvider) moved() }
+        }
+        val original = UIManager.getColor("Label.background")
+        onNodeWithText("moved").assertProperty(original) { background }.assertProperty(Color.GREEN) { foreground }
+        val label = onNodeWithText("moved").fetch()
+
+        underProvider = true
+        awaitIdle()
+        onNodeWithText("moved").assertProperty(Color.RED) { background }.assertProperty(Color.GREEN) { foreground }
+        assertSame(label, onNodeWithText("moved").fetch())
+
+        underProvider = false
+        awaitIdle()
+        onNodeWithText("moved").assertProperty(original) { background }.assertProperty(Color.GREEN) { foreground }
+        assertSame(label, onNodeWithText("moved").fetch())
+    }
+
+    @Test
+    fun removedLeafRestoresBeforeReuse() = runComposeSwingTest {
+        val leaf = StyleProbe("leaf")
+        var present by mutableStateOf(true)
+        var underSecond by mutableStateOf(false)
+        setContent {
+            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } }) {
+                if (present) ProbeLeaf(leaf, SwingStyle, NestedProbe)
+            }
+            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } }) {
+                if (underSecond) ProbeLeaf(leaf, SwingStyle, NestedProbe)
+            }
+        }
+        onProbe("leaf").assertProperty("provided") { first }
+
+        present = false
+        awaitIdle()
+
+        assertEquals("own", leaf.first)
+
+        underSecond = true
+        awaitIdle()
+
+        onProbe("leaf").assertProperty("second provider") { first }
+    }
+
+    companion object {
+        @JvmStatic
+        fun movedComponents(): List<Arguments> {
+            val label: () -> JLabel = { JLabel("own") }
+            val menu: () -> JMenu = { JMenu("own") }
+            val labelKind =
+                probeKind {
+                    LabelText.provide("default")
+                    applyNestedStyle(Probes)
+                }
+            val menuKind =
+                probeKind {
+                    MenuText.provide("default")
+                    applyNestedStyle(Probes)
+                }
+            val labelNode: @Composable (JLabel) -> Unit = { leaf ->
+                SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(labelKind, SwingStyle))
+            }
+            val menuNode: @Composable (JMenu) -> Unit = { leaf ->
+                MenuNode(factory = { leaf }, modifier = SwingModifier.styleable(menuKind, SwingStyle))
+            }
+            val labelHost: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle =
+                { context, value, content ->
+                    JPanel().setContent(parent = context) {
+                        ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { LabelText.provide(value) } }) {
+                            content()
+                        }
+                    }
+                }
+            val menuHost: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle =
+                { context, value, content ->
+                    JPopupMenu().setContent(parent = context) { MenuParent(value, content) }
+                }
+            val labelText: (JLabel) -> String? = { it.text }
+            val menuText: (JMenu) -> String? = { it.text }
+            return listOf(
+                Arguments.of(Named.of("label", label), labelNode, labelHost, labelText),
+                Arguments.of(Named.of("menu", menu), menuNode, menuHost, menuText),
+            )
         }
     }
 }

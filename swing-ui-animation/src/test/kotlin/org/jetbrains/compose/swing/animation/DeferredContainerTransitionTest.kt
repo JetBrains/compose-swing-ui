@@ -9,10 +9,10 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -30,7 +30,10 @@ import kotlin.test.assertTrue
 /** A content of a known size, so the container it stands in can be measured. */
 @Composable
 private fun Body(text: String) =
-    Label(text = text, modifier = SwingModifier.preferredSize(40, 20).opaque(true).background(Color.BLUE))
+    Label(text = text, modifier = SwingModifier.opaque(true), style = {
+        preferredSize(40, 20)
+        background(Color.BLUE)
+    })
 
 /**
  * What a deferred phase puts on screen: content the transition itself does not show yet is composed and
@@ -339,7 +342,7 @@ class DeferredContainerTransitionTest {
                 rememberTransition(state).AnimatedContent(
                     transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
                 ) {
-                    Label(text = it, modifier = SwingModifier.preferredSize(WIDTHS.getValue(it), 20))
+                    Label(text = it, style = { preferredSize(WIDTHS.getValue(it), 20) })
                 }
             }
             onRoot().onChild().assertProperty(WIDTHS.getValue("a")) { width }
@@ -411,7 +414,7 @@ class DeferredContainerTransitionTest {
             val state = DeferredTransitionState("a")
             setContent {
                 rememberTransition(state).AnimatedContent {
-                    Label(text = it, modifier = SwingModifier.preferredSize(if (it == "a") 40 else 80, 20))
+                    Label(text = it, style = { preferredSize(if (it == "a") 40 else 80, 20) })
                 }
             }
             onRoot().onChild().assertProperty(40) { width }

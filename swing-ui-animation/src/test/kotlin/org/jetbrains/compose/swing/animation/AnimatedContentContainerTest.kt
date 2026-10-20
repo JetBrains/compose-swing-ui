@@ -14,10 +14,10 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -177,7 +177,7 @@ class AnimatedContentContainerTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, 100)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, 100) }) {
                     Row(SwingModifier.west().testTag(CONTAINER)) {
                         AnimatedContent(targetState = state, transitionSpec = { traveling() }) {
                             Filled(width = if (it == "a") 40 else 160)
@@ -277,7 +277,7 @@ class AnimatedContentContainerTest {
         runComposeSwingTest {
             var state by mutableStateOf("a")
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(200, 200)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(200, 200) }) {
                     AnimatedContent(
                         targetState = state,
                         modifier = SwingModifier.north().testTag(CONTAINER),
@@ -369,7 +369,14 @@ private fun Filled(
     color: Color = Color.BLUE,
     width: Int = 40,
     height: Int = 20,
-) = Label(text = "", modifier = modifier.preferredSize(width, height).opaque(true).background(color))
+) = Label(
+    text = "",
+    modifier = modifier.opaque(true),
+    style = {
+        preferredSize(width, height)
+        background(color)
+    },
+)
 
 /** A size that travels for longer than the frames each test sends, with contents that appear and leave at once. */
 private fun AnimatedContentTransitionScope<String>.traveling(): ContentTransform =

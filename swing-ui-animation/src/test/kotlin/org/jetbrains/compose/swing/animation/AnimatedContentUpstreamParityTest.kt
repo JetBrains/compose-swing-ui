@@ -28,8 +28,7 @@ import org.jetbrains.compose.swing.animation.core.snap
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
@@ -363,5 +362,5 @@ private fun SizedContent(
     text: Any,
     size: Dimension,
 ) {
-    Label(text = text.toString(), modifier = SwingModifier.preferredSize(size.width, size.height))
+    Label(text = text.toString(), style = { preferredSize(size.width, size.height) })
 }

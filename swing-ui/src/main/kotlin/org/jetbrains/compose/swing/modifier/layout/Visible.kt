@@ -3,10 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.VisibleDescriptor
 
 /**
  * Sets `isVisible` - whether the component is shown in its parent's layout.
@@ -25,11 +24,5 @@ import java.awt.Component
  * @return this chain with the visibility declared on it.
  * @see java.awt.Component.setVisible
  */
-public fun SwingModifier.visible(visible: Boolean): SwingModifier = property(VisibleProperty, visible)
-
-private val VisibleProperty =
-    ComponentPropertyDescriptor<Component, Boolean>(
-        name = "visible",
-        read = { it.isVisible },
-        write = { component, value -> component.isVisible = value },
-    )
+@Deprecated("Set it in the component's style: style = { visible(visible) }")
+public fun SwingModifier.visible(visible: Boolean): SwingModifier = property(VisibleDescriptor, visible)

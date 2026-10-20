@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.style.RadioButtons
+import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -12,6 +14,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 
@@ -29,6 +35,7 @@ import javax.swing.JRadioButton
  * @param selected whether the radio button is selected
  * @param onSelectedChange callback invoked with the selected state when the button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JRadioButton
  */
 @Composable
@@ -37,6 +44,7 @@ public fun RadioButton(
     selected: Boolean,
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(selected)
     RadioButtonNode(
@@ -45,6 +53,7 @@ public fun RadioButton(
             modifier.actionListener<JRadioButton> {
                 mirror.report { onSelectedChange(isSelected) }
             },
+        style = style,
         selected = selected,
         mirror = mirror,
     )
@@ -59,6 +68,7 @@ public fun RadioButton(
  * @param selected whether the radio button is selected
  * @param actionListener the listener notified when the radio button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.JRadioButton
  */
 @Composable
@@ -67,16 +77,28 @@ public fun RadioButton(
     selected: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SelectableStyleScope> = SwingStyle,
 ) {
     val mirror = rememberMirrorState(selected)
     RadioButtonNode(
         text = text,
         modifier =
             modifier.actionListener(actionListener),
+        style = style,
         selected = selected,
         mirror = mirror,
     )
 }
+
+/** [SelectableStyleScope] for RadioButton styles. The declared selected state supplies `isSelected`. */
+private val RadioButtonKind =
+    nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
+        object : SelectableStyleScope, ComponentStyleScope by base {
+            override val isSelected: Boolean get() = selected
+        }
+    }) {
+        applyNestedStyle(RadioButtons)
+    }
 
 /**
  * The `JRadioButton` node both [RadioButton] overloads render. [selected] is settled against the button
@@ -90,12 +112,13 @@ public fun RadioButton(
 private inline fun RadioButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
+    style: SwingStyle<SelectableStyleScope>,
     selected: Boolean,
     mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JRadioButton() },
-        modifier = modifier,
+        modifier = modifier.styleable(RadioButtonKind, selected, style),
         update = {
             set(text) { this.text = it }
             init { addItemListener { mirror.observed(isSelected) } }
