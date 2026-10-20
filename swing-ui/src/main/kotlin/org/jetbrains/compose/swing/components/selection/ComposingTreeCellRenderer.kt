@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import java.awt.Component
+import javax.swing.JComponent
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreeCellRenderer
@@ -99,7 +100,8 @@ internal class TreeNodeValue<T>(
 internal class ComposingTreeCellRenderer<T>(
     parentContext: CompositionContext,
     currentNodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
-) : TreeCellRenderer {
+) : JComponent(),
+    TreeCellRenderer {
     // A single reused node body (null before the first render) keeps the size-1 pool the render
     // model expects.
     private val valueState = mutableStateOf<T?>(null)
@@ -114,6 +116,10 @@ internal class ComposingTreeCellRenderer<T>(
         ) {
             TreeNodeCell(valueState, scope, currentNodeContent)
         }
+
+    override fun updateUI() {
+        cellComposition.updateUI()
+    }
 
     override fun getTreeCellRendererComponent(
         tree: JTree,

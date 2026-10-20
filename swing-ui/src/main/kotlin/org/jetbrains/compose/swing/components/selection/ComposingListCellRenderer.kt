@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import javax.swing.JComboBox
+import javax.swing.JComponent
 import javax.swing.JList
 import javax.swing.ListCellRenderer
 import javax.swing.ListModel
@@ -79,7 +80,8 @@ internal class ComposingListCellRenderer<T>(
     parentContext: CompositionContext,
     private val itemType: Class<*>?,
     currentItemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
-) : ListCellRenderer<Any?> {
+) : JComponent(),
+    ListCellRenderer<Any?> {
     // A single reused item cell keeps the size-1 pool the render model expects.
     private val itemState = mutableStateOf<Any?>(null)
     private val scope = MutableListItemScope()
@@ -95,6 +97,10 @@ internal class ComposingListCellRenderer<T>(
         ) {
             Cell(itemState, scope, currentItemContent)
         }
+
+    override fun updateUI() {
+        cellComposition.updateUI()
+    }
 
     override fun getListCellRendererComponent(
         list: JList<out Any?>,

@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.OnDemandComposition
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
+import javax.swing.SwingUtilities
 
 /**
  * The renderer a widget's composable cells are painted through - ONE reused component and ONE reused
@@ -43,8 +44,18 @@ internal class CellRendererComposition(
 
     // The cell composition itself, mounted as this object is created and disposed by [dispose]. It joins
     // parentContext but is a separate controlled composition, driven synchronously by [render].
-    private val composition: OnDemandComposition =
+    private var composition: OnDemandComposition? =
         OnDemandComposition(parentContext) { Render(hasCellState, body) }
+
+    private var refreshUi = false
+
+    /** Refreshes the cell's UI before the next render writes its inputs. */
+    fun updateUI() {
+        refreshUi = true
+    }
+
+    // Whether a render is in progress, so a render nested in its recompose leaves the cell alone.
+    private var rendering = false
 
     /**
      * Writes [hasCell] and the cell inputs through [writeInputs], then recomposes-and-applies this cell
@@ -52,6 +63,9 @@ internal class CellRendererComposition(
      * this returns reaches the widget's `CellRendererPane` to paint. The write is recorded against the
      * cell composition so the synchronous recompose sees the change; this takes no frame from the window
      * recomposer.
+     *
+     * The cell takes the current look and feel after Swing calls the renderer's `updateUI`.
+     * A refresh that throws is retried on the next render.
      *
      * @param hasCell whether the widget named a cell for this render - a presence signal each
      *   renderer draws from its own widget's inputs (an index, a carried wrapper, and the like), never
@@ -62,22 +76,42 @@ internal class CellRendererComposition(
     fun render(
         hasCell: Boolean,
         writeInputs: () -> Unit,
-    ): Component =
+    ): Component {
+        val activeComposition = composition ?: return EMPTY_CELL
+        // A render nested in another one is answered the component the outer render is still building,
+        // which a refresh must not touch.
+        val nested = rendering
+        rendering = true
         try {
-            composition.recompose {
-                hasCellState.value = hasCell
-                writeInputs()
-            } ?: EMPTY_CELL
-        } catch (overflow: MultipleTopLevelComponentsException) {
-            throw IllegalStateException(singleComponentMessage, overflow)
+            return try {
+                if (!nested && refreshUi) {
+                    // Parent invalidations can replace the root. Resolve it before installing its UI,
+                    // which must precede the new inputs' component properties.
+                    activeComposition.recompose {}?.let(SwingUtilities::updateComponentTreeUI)
+                    refreshUi = false
+                }
+                activeComposition.recompose {
+                    hasCellState.value = hasCell
+                    writeInputs()
+                } ?: EMPTY_CELL
+            } catch (overflow: MultipleTopLevelComponentsException) {
+                throw IllegalStateException(singleComponentMessage, overflow)
+            }
+        } finally {
+            rendering = nested
         }
+    }
 
     /**
      * Disposes this cell composition and its observer. A renderer over it stays safe to invoke
      * afterwards - the widget that captured that renderer outlives the composition - and a render on a
-     * successfully disposed one renders the empty cell a composition holding nothing composes.
+     * disposed one renders the empty cell, including when a disposal callback throws.
      */
-    fun dispose(): Unit = composition.dispose()
+    fun dispose() {
+        val activeComposition = composition ?: return
+        composition = null
+        activeComposition.dispose()
+    }
 }
 
 /**

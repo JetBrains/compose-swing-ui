@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import javax.swing.JComponent
 import javax.swing.JTable
 import javax.swing.table.TableCellRenderer
 
@@ -60,7 +61,8 @@ public sealed interface TableCellScope {
 internal class ComposingTableCellRenderer<R>(
     parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
-) : TableCellRenderer {
+) : JComponent(),
+    TableCellRenderer {
     // A single reused cell (null before the first render) keeps the size-1 pool the render model
     // expects.
     private val rowState = mutableStateOf<R?>(null)
@@ -84,6 +86,10 @@ internal class ComposingTableCellRenderer<R>(
     /** Takes [content] as the cell body every later render composes. */
     fun adopt(content: @Composable TableCellScope.(row: R) -> Unit) {
         contentState.value = content
+    }
+
+    override fun updateUI() {
+        cellComposition.updateUI()
     }
 
     override fun getTableCellRendererComponent(
