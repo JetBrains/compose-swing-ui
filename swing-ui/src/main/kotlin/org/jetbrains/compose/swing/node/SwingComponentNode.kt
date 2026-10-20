@@ -37,8 +37,7 @@ public sealed class SwingComponentNode<out C : Component> {
     public abstract val component: C
 
     /**
-     * The effective [SwingModifier] chain currently declared on this node, including any inherited
-     * component defaults applicable to this component followed by elements passed directly on the
+     * The effective [SwingModifier] chain currently declared on this node: the elements passed directly on the
      * node's own modifier.
      *
      * Walk it with [SwingModifier.foldIn], which hands out a [SwingModifier.Element];

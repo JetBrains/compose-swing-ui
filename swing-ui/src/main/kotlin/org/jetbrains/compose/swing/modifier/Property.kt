@@ -61,45 +61,7 @@ public fun <T : Component, V> SwingModifier.property(
     restores: RestorePolicy = RestorePolicy.EverythingWritten,
     rewriteOn: String? = null,
     alsoOverwrites: List<ComponentPropertyDescriptor<T, *>> = emptyList(),
-): SwingModifier =
-    this then PropertyElement(descriptor, value, restores, inheritable = false, rewriteOn, alsoOverwrites)
-
-/** A [property] declaration that component defaults may provide to descendants. */
-internal fun <T : Component, V> SwingModifier.inheritableProperty(
-    descriptor: ComponentPropertyDescriptor<T, V>,
-    value: V,
-    restores: RestorePolicy = RestorePolicy.EverythingWritten,
-    rewriteOn: String? = null,
-    alsoOverwrites: List<ComponentPropertyDescriptor<T, *>> = emptyList(),
-): SwingModifier = this then PropertyElement(descriptor, value, restores, inheritable = true, rewriteOn, alsoOverwrites)
-
-/**
- * Declares [descriptor] as [property] does, optionally providing it to descendants as a component default.
- *
- * @param descriptor the property being written.
- * @param value the value to write while this declaration stands.
- * @param restores what the component is held to once this declaration leaves.
- * @param inheritable lets the declaration be provided to descendants as a component default - a property
- *   such as a color or a font that makes sense across a whole subtree. A property [descriptor] serves only
- *   some component types reaches only those among the descendants.
- * @param rewriteOn the bean property whose announced change makes the node write [value] again.
- * @param alsoOverwrites properties [descriptor]'s own write lands on besides the one it declares.
- * @return this modifier with [descriptor] declared on it.
- */
-@Suppress("LongParameterList")
-// One parameter per independent facet of the declaration: the property and its value, what the
-// component is held to once the declaration leaves, whether it cascades as a default, and the two ways
-// a write reaches another property.
-@Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }.")
-public fun <T : Component, V> SwingModifier.property(
-    descriptor: ComponentPropertyDescriptor<T, V>,
-    value: V,
-    restores: RestorePolicy = RestorePolicy.EverythingWritten,
-    inheritable: Boolean,
-    rewriteOn: String? = null,
-    alsoOverwrites: List<ComponentPropertyDescriptor<T, *>> = emptyList(),
-): SwingModifier =
-    this then PropertyElement(descriptor, value, restores, inheritable, rewriteOn, alsoOverwrites)
+): SwingModifier = this then PropertyElement(descriptor, value, restores, rewriteOn, alsoOverwrites)
 
 /**
  * A declaration made through [descriptor]. Identified by [descriptor]'s own
@@ -110,23 +72,14 @@ public fun <T : Component, V> SwingModifier.property(
  *
  * Two elements are equal when they declare the *same* [descriptor] - identity, so a pair allocated once,
  * beside the builder or on the property object, compares equal across passes - and carry an equal
- * [value]. [restores], [inheritable], [rewriteOn] and [alsoOverwrites] take no part in equality.
- * Reusing an equal declaration keeps the existing node without updating it, including the [rewriteOn]
+ * [value]. [restores], [rewriteOn] and [alsoOverwrites] take no part in equality.
+ * Adopting an equal declaration keeps the existing node without updating it, including the [rewriteOn]
  * and [alsoOverwrites] supplied when that node was created.
- *
- * Internal rather than file-private so [org.jetbrains.compose.swing.defaults.ComponentDefaults] can tell
- * a property declaration apart from a plain [SwingModifier.NodeElement] and ask [handles] which classes
- * an inherited default built from one reaches.
  */
 internal class PropertyElement<T : Component, V>(
     private val descriptor: ComponentPropertyDescriptor<T, V>,
     private val value: V,
     override val restores: RestorePolicy,
-    @Deprecated(
-        "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
-            "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
-    )
-    override val inheritable: Boolean,
     internal val rewriteOn: String?,
     private val alsoOverwrites: List<ComponentPropertyDescriptor<T, *>>,
 ) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {

@@ -35,7 +35,6 @@ import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
-import org.jetbrains.compose.swing.defaults.LocalComponentDefaults
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
@@ -391,20 +390,6 @@ public interface SwingModifier {
     public abstract class NodeElement<T : Component, N : ComponentNode<T>> :
         Element,
         InspectableElement {
-        /**
-         * Whether this element is permitted to cascade as an inherited component default.
-         *
-         * `false` by default. Only non-additive property elements intended to apply across a heterogeneous
-         * subtree opt in to `true`. Behavior, listeners, focus management and button-group membership remain
-         * `false`. A layout declaration cascades through
-         * [ParentLayoutElement.inheritable][org.jetbrains.compose.swing.layout.ParentLayoutElement.inheritable].
-         */
-        @Deprecated(
-            "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
-                "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
-        )
-        public open val inheritable: Boolean get() = false
-
         /**
          * The component type this element targets. The node's [ComponentNode.component] arrives already typed
          * [T]; a node that is not a [T] is rejected at apply with a clear error. Use the most general
@@ -1607,25 +1592,11 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * component. A modifier declaring both kinds of placement is refused here, since a parent holds a child by
  * one of the two.
  *
- * Inherited component defaults in [localMap] are put ahead of [modifier], keyed apart from it, so a pass
- * where neither changed allocates nothing, and a change of an unrelated local re-diffs nothing.
- *
- * @param localMap the composition locals in scope where the node declaring [modifier] was composed.
  * @param modifier the modifier the node declares; [SwingModifier] clears its chain.
  */
 @PublishedApi
-internal fun SwingNodeUpdater<out Component>.applyModifier(
-    localMap: CompositionLocalMap,
-    modifier: SwingModifier,
-) {
-    // A change of the defaults alone re-diffs at the end of the batch, so a modifier changed on the same
-    // pass has already applied them and the node is diffed once.
-    updater.set(localMap[LocalComponentDefaults]) {
-        if (modifierState?.hasApplication == true) requireOwner().updateBatch.holdForDefaultsRefresh(this)
-    }
-    updater.set(modifier) {
-        applyDeclaredModifier(compositionLocalMap[LocalComponentDefaults].effectiveModifier(component.javaClass, it))
-    }
+internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier) {
+    updater.set(modifier) { applyDeclaredModifier(it) }
 }
 
 /**

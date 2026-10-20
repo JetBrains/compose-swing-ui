@@ -313,30 +313,12 @@ class PropertyTest {
     }
 
     companion object {
-        @Suppress("DEPRECATION")
-        @Deprecated("Covers the deprecated inheritable property overload.")
         @JvmStatic
         fun propertyDeclarations(): List<Arguments> = listOf(
             Arguments.of("default restoration", SwingModifier.property(ToolTipProperty, DECLARED_TIP)),
             Arguments.of(
                 "explicit restoration",
                 SwingModifier.property(ToolTipProperty, DECLARED_TIP, RestorePolicy.EverythingWritten),
-            ),
-            Arguments.of(
-                "named inheritance with default restoration",
-                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = true),
-            ),
-            Arguments.of(
-                "named non-inheritance with default restoration",
-                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = false),
-            ),
-            Arguments.of(
-                "positional inheritance",
-                SwingModifier.property(ToolTipProperty, DECLARED_TIP, RestorePolicy.EverythingWritten, true),
-            ),
-            Arguments.of(
-                "named inheritance with rewrite",
-                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = true, rewriteOn = "toolTipText"),
             ),
         )
     }

@@ -173,17 +173,17 @@ class VirtualSwingNodeTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("providedAroundOrInside")
-    fun componentDefaultsReachComponentsInAGroupUnchanged(
+    fun aNestedStyleAroundOrInsideAGroupReachesItsComponentsUnchanged(
         case: String,
         content: @Composable (Boolean) -> Unit,
     ) = runComposeSwingTest {
         var enabled by mutableStateOf(false)
         setContent { content(enabled) }
 
-        onNodeOfType<JButton>().assertProperty(false, "$case: initial default") { isEnabled }
+        onNodeOfType<JButton>().assertProperty(false, "$case: initial style") { isEnabled }
         enabled = true
         awaitIdle()
-        onNodeOfType<JButton>().assertProperty(true, "$case: changed default") { isEnabled }
+        onNodeOfType<JButton>().assertProperty(true, "$case: changed style") { isEnabled }
     }
 
     @ParameterizedTest(name = "{0}")

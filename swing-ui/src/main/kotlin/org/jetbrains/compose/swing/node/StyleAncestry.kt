@@ -1,9 +1,9 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.defaults.refreshInheritedDefaults
 import org.jetbrains.compose.swing.modifier.ComponentNodeType
 import org.jetbrains.compose.swing.modifier.SwingModifierState
+import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.style.AllComponents
 import org.jetbrains.compose.swing.style.StyleElement
 import org.jetbrains.compose.swing.style.StyleNode
@@ -155,7 +155,7 @@ internal fun SwingNodeHolder<*>.refreshStyle() {
     val state = modifierState ?: return
     if (state.ancestorsChanged) {
         state.ancestorsChanged = false
-        if (hasStaleStyleSlots(state)) refreshInheritedDefaults(restylesSlots = true)
+        if (hasStaleStyleSlots(state)) applyModifierDiff(state.declared)
     }
     var first: StyleNode? = null
     state.forEachStyle(this) {

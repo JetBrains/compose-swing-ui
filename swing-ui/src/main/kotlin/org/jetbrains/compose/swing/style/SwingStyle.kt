@@ -121,7 +121,7 @@ public fun <V> stylePropertyOf(
     alsoOverwrites: List<ComponentPropertyDescriptor<*, *>> = emptyList(),
 ): SwingStyleProperty<V> =
     SwingStyleProperty { collector, value ->
-        collector.declare(PropertyElement(descriptor, value, restores, inheritable = false, rewriteOn, alsoOverwrites))
+        collector.declare(PropertyElement(descriptor, value, restores, rewriteOn, alsoOverwrites))
     }
 
 /**
@@ -150,7 +150,7 @@ public fun <V> styleLocalOf(
     lateinit var property: SwingStyleProperty<V>
     property =
         SwingStyleProperty { collector, value ->
-            val element = PropertyElement(descriptor, value, restores, inheritable = false, rewriteOn, alsoOverwrites)
+            val element = PropertyElement(descriptor, value, restores, rewriteOn, alsoOverwrites)
             collector.declareLocal(element, ProvidedLocal(property, element.takeIf { value != null }))
         }
     return property

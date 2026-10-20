@@ -26,9 +26,9 @@ import kotlin.test.assertTrue
 
 /** How a child's visibility carries through a policy leaving it unplaced and placing it again. */
 class UnplacedChildVisibilityTest {
-    /** A child left unplaced stays hidden when the component defaults it inherits change. */
+    /** A child left unplaced stays hidden when the orientation it inherits from its parent's style changes. */
     @Test
-    fun anUnplacedChildStaysHiddenWhenItsComponentDefaultsChange() =
+    fun anUnplacedChildStaysHiddenWhenItsInheritedOrientationChanges() =
         runComposeSwingTest {
             var placed by mutableStateOf(true)
             var orientation by mutableStateOf(ComponentOrientation.LEFT_TO_RIGHT)
@@ -51,7 +51,7 @@ class UnplacedChildVisibilityTest {
             orientation = ComponentOrientation.RIGHT_TO_LEFT
             awaitIdle()
 
-            assertEquals(ComponentOrientation.RIGHT_TO_LEFT, child.componentOrientation, "the defaults must apply")
+            assertEquals(ComponentOrientation.RIGHT_TO_LEFT, child.componentOrientation, "the style must apply")
             assertEquals(emptyList(), reported, "the unplaced child must stay hidden")
 
             placed = true

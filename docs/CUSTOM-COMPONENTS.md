@@ -58,9 +58,6 @@ Use `modifier` for placement, listeners and decoration, and `style` for the comp
   pass the value in. A property written directly by a custom `SwingNode` or `MenuNode` `update` block is
   baseline component state: a modifier element or style that sets the same property wins over it. For the style
   contract, see [`Styles`](ARCHITECTURE.md#styles).
-  A matching inherited default can overwrite it, and the style applies after the node's
-  modifier. For the component-default contract, see
-  [`Component defaults`](ARCHITECTURE.md#component-defaults).
 - `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to
   the thread's uncaught-exception handler, and the node is released as if it had returned.
 

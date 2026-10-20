@@ -2,7 +2,6 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ReusableComposeNode
@@ -325,7 +324,7 @@ class ModifierNodeTest {
             ReusableContent(item) {
                 ReusableComposeNode<SwingNodeHolder<JPanel>, SwingApplier>(
                     factory = { CreatedNodeHolder(JPanel()) },
-                    update = { SwingNodeUpdater(this).applyModifier(CompositionLocalMap.Empty, modifier) },
+                    update = { SwingNodeUpdater(this).applyModifier(modifier) },
                 )
             }
         }

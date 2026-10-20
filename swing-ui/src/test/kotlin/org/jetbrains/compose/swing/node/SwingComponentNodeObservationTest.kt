@@ -2,7 +2,6 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
@@ -342,7 +341,7 @@ class SwingComponentNodeObservationTest {
             ReusableContent(key) {
                 ReusableComposeNode<SwingNodeHolder<ListeningPanel>, SwingApplier>(
                     factory = { CreatedNodeHolder(component) },
-                    update = { SwingNodeUpdater(this).applyModifier(CompositionLocalMap.Empty, modifier) },
+                    update = { SwingNodeUpdater(this).applyModifier(modifier) },
                 )
             }
         }

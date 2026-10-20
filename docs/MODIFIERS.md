@@ -108,10 +108,6 @@ An additive element has no key and is identified by its position among the addit
 additive element of the modifier takes over from the k-th one of the last pass. A property element
 entering or leaving does not change those positions.
 
-The `inheritable` parameter of `property` and `NodeElement.inheritable` are deprecated together with
-[component defaults](ARCHITECTURE.md#component-defaults). Use a style property
-([STYLES.md](STYLES.md#a-property-written-by-an-element)) or a nested style to carry a declaration to descendants.
-
 A `styleable` may appear more than once. An empty
 style clears that declaration's contribution. Removing a later declaration restores the earlier declaration's value
 for overlapping properties. An equal style is not run again unless a state it reads changes. When a style runs, a
@@ -185,8 +181,8 @@ Keys apply to the whole modifier regardless of where they appear. `key(a).key(b)
 Some elements are read by the component's immediate parent rather than applied to the component: where
 it sits in a `BorderLayout`, its `GridBagConstraints`, a weight in a `Row`. Each such declaration names
 the family of parents that understands it, and one placed under any other parent is refused with an error
-naming that family. An inheritable declaration a style property can write is left out under such
-a parent instead, whether a style writes it or the component declares it, as Foundation's
+naming that family. An inheritable declaration, one that a style property can write, is left out under such
+a parent instead, as Foundation's
 [`paintOutsets`](FOUNDATION.md#paint-outsets-taken-from-the-insets) is under a Swing parent. Writing
 a declaration of your own, and what the parent receives, is covered in
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers).

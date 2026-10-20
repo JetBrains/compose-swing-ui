@@ -49,7 +49,7 @@ public inline fun <reified T : Component> MenuNode(
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(localMap, materialized)
+            updater.applyModifier(materialized)
         },
         content = content,
     )

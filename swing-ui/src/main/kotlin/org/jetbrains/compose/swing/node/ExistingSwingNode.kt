@@ -82,7 +82,7 @@ public inline fun <reified P : Component, R : Component, reified T : R> Existing
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(localMap, materialized)
+            updater.applyModifier(materialized)
         },
     )
 }
@@ -126,7 +126,7 @@ public inline fun <reified P : Component, R : Component, reified T : R> Existing
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(localMap, materialized)
+            updater.applyModifier(materialized)
         },
         content = content,
     )

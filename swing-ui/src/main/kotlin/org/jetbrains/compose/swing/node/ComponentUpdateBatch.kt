@@ -2,7 +2,6 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.beginSection
-import org.jetbrains.compose.swing.defaults.refreshInheritedDefaults
 import org.jetbrains.compose.swing.modifier.ModifierPartition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
@@ -37,9 +36,6 @@ internal class ComponentUpdateBatch {
      * union and repaints nothing.
      */
     private val changedContainers: MutableMap<Container, Rectangle> = IdentityHashMap()
-
-    /** The nodes whose inherited component defaults changed, re-diffed at the end. */
-    private val heldForDefaultsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
 
     /** The nodes whose composition locals map was replaced after an observed pass read it, run again at the end. */
     private val heldForLocalsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
@@ -95,7 +91,6 @@ internal class ComponentUpdateBatch {
     fun begin() {
         changedGroups.clear()
         changedContainers.clear()
-        heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
         heldForRestyle.clear()
         heldForChildSettle.clear()
@@ -120,15 +115,6 @@ internal class ComponentUpdateBatch {
         // A negative size makes the union empty until the first area is added, which it then becomes.
         val union = changedContainers.getOrPut(container) { Rectangle(0, 0, -1, -1) }
         if (area != null && !area.isEmpty) union.add(area)
-    }
-
-    /**
-     * Holds [node] to re-diff its modifier behind the component defaults it now inherits, once this batch has
-     * applied everything else it declares. A node's defaults are stored once per pass, so it is held at most
-     * once.
-     */
-    fun holdForDefaultsRefresh(node: SwingNodeHolder<*>) {
-        heldForDefaultsRefresh += node
     }
 
     /**
@@ -206,7 +192,7 @@ internal class ComponentUpdateBatch {
     }
 
     /**
-     * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
+     * Runs [bringWidgetsUpToDate], brings up to date the modifier
      * nodes that read a composition locals map this batch replaced, resolves again the styles whose ancestors
      * changed, brings the containers this batch changed up to date, runs every settle this batch held, resolves
      * again the styles those held in turn, and closes the section whichever way that goes - a batch that ends by
@@ -220,7 +206,6 @@ internal class ComponentUpdateBatch {
     fun end(bringWidgetsUpToDate: () -> Unit) {
         try {
             bringWidgetsUpToDate()
-            heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
             heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
             drainRestyles()
             changedGroups.hosts.fastForEach { heldForChildSettle.remove(it) }
@@ -229,7 +214,6 @@ internal class ComponentUpdateBatch {
             heldForChildSettle.fastForEach { it.childSettle?.invoke() }
             drainRestyles()
         } finally {
-            heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()
             heldForRestyle.clear()
             heldForChildSettle.clear()
