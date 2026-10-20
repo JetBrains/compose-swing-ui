@@ -422,6 +422,7 @@ internal sealed class PlacementLayer : Decorator {
                 }
                 cache.layer.draw(graphics)
             }
+            if (visible) cache.repaintIfLost()
         }
 
         /**

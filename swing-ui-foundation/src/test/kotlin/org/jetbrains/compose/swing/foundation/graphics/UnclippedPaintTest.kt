@@ -55,7 +55,7 @@ class UnclippedPaintTest {
             val component = onNodeWithTag("decorated").fetch<JComponent>()
 
             val failure =
-                assertFailsWith<IllegalStateException> {
+                assertFailsWith<IllegalArgumentException> {
                     renderImage(component.width, component.height) {
                         it.clipRect(0, 0, component.width, component.height)
                         component.paint(it)

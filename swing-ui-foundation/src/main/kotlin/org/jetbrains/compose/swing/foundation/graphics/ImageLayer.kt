@@ -97,6 +97,10 @@ public class ImageLayer
         internal var recordingCount: Int = 0
             private set
 
+        /** Advances each time a recording held on a surface is found lost, so a holder can tell it was. */
+        internal var lossCount: Int = 0
+            private set
+
         /** Whether the recording is aligned to a destination's device pixels. */
         internal var isAligned: Boolean = false
             private set
@@ -348,6 +352,7 @@ public class ImageLayer
         private fun dropIfLost(recording: Recording): Boolean {
             val lost = recording.dropIfLost()
             if (lost) {
+                lossCount++
                 this.recording = null
                 isAligned = false
             }

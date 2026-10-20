@@ -67,8 +67,9 @@ public abstract class DecorationModifierNode<T : Component> :
     /**
      * A new [ImageLayer] for this step to keep a drawing in across paints, through [drawCached] and [recordCached]. A
      * recording made with [ImageLayer.record] directly is never reused. A repaint request on the component, or graphics
-     * taken from it outside paint, makes the layer record again. The step owns the layer until it leaves the
-     * decoration, which releases it. Call this before the node attaches, such as in a property initializer.
+     * taken from it outside paint, makes the layer record again. A recording lost by the time the paint ends repaints
+     * the component. The step owns the layer until it leaves the decoration, which releases it. Call this before the
+     * node attaches, such as in a property initializer.
      *
      * @throws IllegalStateException if the node is attached.
      */
@@ -109,6 +110,7 @@ public abstract class DecorationModifierNode<T : Component> :
         try {
             paint(graphics, width, height, content)
         } finally {
+            drawCaches.fastForEach { it.repaintIfLost() }
             paintWidth = outerWidth
             paintHeight = outerHeight
         }

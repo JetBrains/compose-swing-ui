@@ -27,6 +27,8 @@ import kotlin.math.roundToInt
  * component's bounds by them while its layout bounds stay; any other parent clips what is painted past the bounds.
  * `paintOutsets(PaintOutsets.None)` gives them layout space under either. See "Bounds" in `docs/FOUNDATION.md`.
  *
+ * Request a repaint when the drawn content changes; otherwise the old content may stay on screen.
+ *
  * @param radius how far the silhouette is spread, in the component's own units; `0` or less casts a hard edge.
  * @param color the shadow's fill, usually translucent.
  * @param offsetX how far the shadow moves right of what casts it.
@@ -117,20 +119,13 @@ private class ShadowNode(
         height: Int,
     ): Shape = content.outsetBy(outsets)
 
-    /** The content, created by the first paint. */
-    private var captured: ImageLayer? = null
+    /** The shadow, which embeds [captured]. */
+    private val blurred = obtainImageLayer()
 
-    /** The shadow the content casts, created by the first paint. */
-    private var blurred: ImageLayer? = null
+    /** The content. */
+    private val captured = obtainImageLayer()
 
     override val isOpaque: Boolean get() = false
-
-    /** [captured] and [blurred], created by the first paint that needs them. */
-    private fun layers(): Pair<ImageLayer, ImageLayer> {
-        val captured = captured ?: ImageLayer().also { captured = it }
-        val blurred = blurred ?: ImageLayer().also { blurred = it }
-        return captured to blurred
-    }
 
     override fun paint(
         graphics: Graphics2D,
@@ -138,31 +133,61 @@ private class ShadowNode(
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
-        if (width <= 0 || height <= 0) return
+        if (width > 0 && height > 0) paintOver(graphics, graphics.clipArea(), width, height, content)
+    }
+
+    private fun paintOver(
+        graphics: Graphics2D,
+        area: Rectangle,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) {
+        // A layer that drew its pixels counts as drawn, so a `false` drew nothing: the shadow drawn is never cast
+        // again, and the content paints directly where its capture was lost before its own draw.
+        if (!area.isEmpty) {
+            if (captured.hasContent && blurred.drawCached(graphics, area)) {
+                if (!captured.drawCached(graphics, area)) content(graphics, width, height)
+            } else {
+                castOver(graphics, area, width, height, content)
+            }
+        }
+    }
+
+    private fun castOver(
+        graphics: Graphics2D,
+        area: Rectangle,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) {
         val full = outsets.around(width, height)
-        val area = graphics.clipArea()
-        if (area.isEmpty) return
         val wholePixels = graphics.transform.castsInWholePixels
         val shadow = shadowBounds(area, width, height, wholePixels)
         // The shadow over the area is cast by the content within the outsets under the whole shadow area,
         // offset back; the capture also holds the area itself, because it is drawn as the content.
         val source = area.union(Rectangle(shadow).apply { translate(-offsetX, -offsetY) }.intersection(full))
-        val (captured, blurred) = layers()
         val capture = alignedTo(graphics, source)
         val cast = alignedTo(graphics, shadow)
         try {
-            // Aligned to the device pixels the content paints on, so the capture is drawn back pixel for pixel.
-            captured.record(capture, source.width, source.height) { recording ->
-                recording.translate(-source.x, -source.y)
-                content(recording, width, height)
+            // The capture is recorded inside the shadow's recording, so both read their invalidation baseline before
+            // the content paints and a request during the capture leaves neither reusable.
+            blurred.recordCached(graphics, area) { layer ->
+                // Aligned to the device pixels the content paints on, so the capture is drawn back pixel for pixel.
+                captured.recordCached(graphics, area) { capturing ->
+                    capturing.record(capture, source.width, source.height) { recording ->
+                        recording.translate(-source.x, -source.y)
+                        content(recording, width, height)
+                    }
+                }
+                cast(captured, layer, cast, shadow, wholePixels)
             }
-            cast(captured, blurred, cast, shadow, wholePixels)
         } finally {
             capture.dispose()
             cast.dispose()
         }
         blurred.draw(graphics)
-        captured.draw(graphics)
+        if (captured.hasContent) captured.draw(graphics) else content(graphics, width, height)
     }
 
     /**
@@ -212,13 +237,6 @@ private class ShadowNode(
             recording.fillRect(0, 0, pixels.width, pixels.height)
         }
         blurred.renderEffect = if (wholePixels) drawEffect else effect
-    }
-
-    override fun onRemovedFromDecoration() {
-        captured?.release()
-        captured = null
-        blurred?.release()
-        blurred = null
     }
 }
 

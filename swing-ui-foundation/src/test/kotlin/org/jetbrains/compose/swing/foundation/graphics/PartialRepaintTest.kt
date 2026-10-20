@@ -474,6 +474,8 @@ class PartialRepaintTest {
                 )
             val full = canvas.paintOnto(width, height, transform)
             haloStrips(canvas.paintOutsets).mapNotNull { (edge, strip) ->
+                // Without it, the shadow kept from the full repaint is drawn again and the strip is not cast at all.
+                canvas.repaint()
                 val partial = canvas.paintOnto(width, height, transform, strip)
                 val where = "$name, $edge halo $strip"
                 val pixels = devicePixels(transform, strip)

@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Point
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.Shape
@@ -19,6 +20,8 @@ import kotlin.math.abs
  * grows the component's bounds by them while its layout bounds stay; any other parent clips what is painted past the
  * bounds. `paintOutsets(PaintOutsets.None)` gives them layout space under either. A clip declared before this can
  * still cut the halo.
+ *
+ * Request a repaint when the drawn content changes; otherwise the old content may stay on screen.
  *
  * @param radius how far each pixel is spread, in the component's own units; `0` or less softens nothing.
  * @return this chain with the blur declared on it.
@@ -55,18 +58,15 @@ private class BlurNode(
 ) : DecorationModifierNode<Component>() {
     override val repaintsWithinOutsets: Boolean get() = true
 
-    /** What the content is recorded in, created by the first paint and released while the blur paints nothing. */
-    private var layer: ImageLayer? = null
+    /** What the content is recorded in, released while the blur paints nothing. */
+    private val layer = obtainImageLayer()
 
     var radius: Int = radius
         set(value) {
             field = value
             effect = BlurEffect(value.toFloat(), edgeTreatment = TileMode.Decal)
             drawEffect = BlurEffect(value.toFloat())
-            if (value <= 0) {
-                layer?.release()
-                layer = null
-            }
+            if (value <= 0) layer.release()
         }
 
     private var effect: BlurEffect = BlurEffect(radius.toFloat(), edgeTreatment = TileMode.Decal)
@@ -76,6 +76,9 @@ private class BlurNode(
      * [BlurEffect.recordingBounds] reserves.
      */
     private var drawEffect: BlurEffect = BlurEffect(radius.toFloat())
+
+    /** Where [paint] draws the recording, which the paint that reuses it draws it at again. */
+    private val drawOrigin = Point()
 
     override val isOpaque: Boolean get() = false
 
@@ -98,26 +101,23 @@ private class BlurNode(
     ) {
         if (width <= 0 || height <= 0) return
         val area = graphics.clipArea()
-        if (area.isEmpty) return
+        if (area.isEmpty || layer.drawCached(graphics, area, drawOrigin.x, drawOrigin.y)) return
         val bounds = effect.recordingBounds(area)
         val scale = effect.recordingScale
-        val layer = layer ?: ImageLayer().also { layer = it }
-        layer.record(bounds.width, bounds.height, scale) { recording ->
-            // A thin line then covers only part of a reduced pixel, which antialiasing records rather than dropping it
-            // or widening it to a whole pixel, depending on where it falls.
-            if (scale < 1) {
-                recording.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        layer.recordCached(graphics, area) {
+            it.record(bounds.width, bounds.height, scale) { recording ->
+                // A thin line then covers only part of a reduced pixel, which antialiasing records rather than dropping
+                // it or widening it to a whole pixel, depending on where it falls.
+                if (scale < 1) {
+                    recording.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                }
+                recording.translate(-bounds.x, -bounds.y)
+                content(recording, width, height)
             }
-            recording.translate(-bounds.x, -bounds.y)
-            content(recording, width, height)
         }
         layer.renderEffect = drawEffect
-        layer.draw(graphics, bounds.x, bounds.y)
-    }
-
-    override fun onRemovedFromDecoration() {
-        layer?.release()
-        layer = null
+        drawOrigin.setLocation(bounds.x, bounds.y)
+        layer.draw(graphics, drawOrigin.x, drawOrigin.y)
     }
 }
 
@@ -129,7 +129,7 @@ private class BlurNode(
 internal fun Graphics2D.clipArea(): Rectangle {
     val clip =
         clip ?: run {
-            check(abs(transform.determinant) <= Double.MIN_VALUE) {
+            require(abs(transform.determinant) <= Double.MIN_VALUE) {
                 "A decorator that records its content records the area its graphics clips to, and this graphics " +
                     "has no clip; hand a decorator's content a clipped graphics, such as an ImageLayer recording"
             }

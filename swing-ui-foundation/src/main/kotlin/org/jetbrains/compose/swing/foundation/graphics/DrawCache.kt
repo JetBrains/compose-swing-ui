@@ -84,15 +84,6 @@ internal class DrawCache(
     ): Boolean {
         checkEventDispatchThread()
         val cachedRecording = cachedRecording ?: return false
-        return drawShifted(graphics, x, y, cachedRecording)
-    }
-
-    private fun drawShifted(
-        graphics: Graphics2D,
-        x: Int,
-        y: Int,
-        cachedRecording: CachedRecording,
-    ): Boolean {
         val recordedTransform = cachedRecording.transform
         val transform = graphics.transform
         val shiftX = transform.translateX - recordedTransform.translateX
@@ -110,9 +101,6 @@ internal class DrawCache(
             } else {
                 layer.draw(graphics, x, y)
             }
-            // A surface lost while it is drawn has already composited onto the destination, so recording again here
-            // would composite twice. The dropped recording, which moved the count, is made in the repaint's paint.
-            if (layer.recordingCount != cachedRecording.recordingCount) host.component?.repaint()
         }
         return reusable
     }
@@ -134,6 +122,7 @@ internal class DrawCache(
         cachedRecording.isValid = false
         // Read before the content paints, so an invalidation during the recording voids it.
         val before = invalidationCount.get()
+        val lossesBefore = layer.lossCount
         val transform = graphics.transform
         block(layer)
         val component = host.component
@@ -141,11 +130,29 @@ internal class DrawCache(
         cachedRecording.invalidationCount = before
         cachedRecording.recordingCount = layer.recordingCount
         cachedRecording.isAligned = layer.isAligned
+        cachedRecording.lossCount = lossesBefore
         cachedRecording.width = width
         cachedRecording.height = height
         cachedRecording.area.setBounds(area)
         cachedRecording.transform.setTransform(transform)
         cachedRecording.isValid = true
+    }
+
+    /**
+     * Requests a repaint when the recording this cache holds was lost by the time the paint that drew it is done: its
+     * [layer] lost a surface since the recording began. The recording is dropped, so the repaint records again.
+     *
+     * Call it once a paint is done, never between a recording and its draw. A surface lost while it is drawn has
+     * already composited onto the destination, so recording again in the same paint would composite twice.
+     */
+    fun repaintIfLost() {
+        checkEventDispatchThread()
+        val cachedRecording = cachedRecording?.takeIf { it.isValid } ?: return
+        // Reading it drops a surface the graphics device discarded, which advances the loss count.
+        layer.hasContent
+        if (layer.lossCount == cachedRecording.lossCount) return
+        cachedRecording.isValid = false
+        host.component?.repaint()
     }
 
     /** Makes the next draw of this cache and of every cache before it record again. */
@@ -279,6 +286,9 @@ private class CachedRecording {
     var invalidationCount = 0
     var recordingCount = 0
     var isAligned = false
+
+    /** [ImageLayer.lossCount] as the recording began; a larger count since means a surface was lost. */
+    var lossCount = 0
     var width = 0
     var height = 0
     val area = Rectangle()
