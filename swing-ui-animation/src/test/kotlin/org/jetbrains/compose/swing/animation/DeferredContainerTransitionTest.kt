@@ -9,9 +9,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -30,9 +30,10 @@ import kotlin.test.assertTrue
 /** A content of a known size, so the container it stands in can be measured. */
 @Composable
 private fun Body(text: String) =
-    Label(text = text, modifier = SwingModifier.opaque(true), style = {
+    Label(text = text, style = {
         preferredSize(40, 20)
         background(Color.BLUE)
+        opaque(true)
     })
 
 /**

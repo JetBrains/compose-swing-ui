@@ -23,11 +23,14 @@ import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
@@ -245,7 +248,10 @@ class PaintOutsetsDeclarationTest {
                     LinedField("styled")
                     SwingNode(
                         factory = { JTextField(8) },
-                        modifier = SwingModifier.testTag("raw").border(LineBorder(Color.RED, LINE)),
+                        modifier =
+                            SwingModifier
+                                .testTag("raw")
+                                .styleable(BareKind) { border(LineBorder(Color.RED, LINE)) },
                     )
                 }
             }
@@ -393,3 +399,9 @@ private class OwnElementsLayout :
 
     override fun invalidateLayout(target: Container): Unit = Unit
 }
+
+/** The kind of a raw node's component that takes none of the styles provided for every component. */
+private val BareKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    )

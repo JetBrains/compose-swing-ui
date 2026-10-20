@@ -6,10 +6,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -99,13 +99,16 @@ class DecoratedTest {
             var decoration by mutableStateOf<List<Decorator>>(listOf(Spill(Insets(1, 2, 3, 4))))
             setContent {
                 Box {
-                    val base = SwingModifier.testTag("panel").emptyBorder(5, 6, 7, 8)
+                    val base = SwingModifier.testTag("panel")
                     SwingNode(
                         factory = { boxPanel() },
                         modifier =
                             decoration
                                 .fold(base) { modifier, decorator -> modifier.decoration(decorator) }
-                                .styleable { preferredSize(64, 64) },
+                                .styleable {
+                                    emptyBorder(5, 6, 7, 8)
+                                    preferredSize(64, 64)
+                                },
                     ) {
                         SwingNode(factory = { filling(Color.RED) }, modifier = SwingModifier.testTag("child"))
                     }
@@ -160,7 +163,11 @@ class DecoratedTest {
                 Box {
                     SwingNode(
                         factory = { DecoratedPanel() },
-                        modifier = SwingModifier.testTag("panel").border(border).spill(Insets(8, 8, 8, 8)),
+                        modifier =
+                            SwingModifier
+                                .testTag("panel")
+                                .spill(Insets(8, 8, 8, 8))
+                                .styleable { border(border) },
                     )
                 }
             }

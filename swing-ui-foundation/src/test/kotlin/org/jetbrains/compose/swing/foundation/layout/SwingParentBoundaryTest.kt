@@ -22,9 +22,9 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -221,7 +221,10 @@ class SwingParentBoundaryTest {
                             SwingNode(
                                 factory = { DecoratedPanel(BorderLayout()) },
                                 modifier =
-                                    SwingModifier.testTag("card").emptyBorder(2).shadow(8, Color.BLACK),
+                                    SwingModifier
+                                        .testTag("card")
+                                        .shadow(8, Color.BLACK)
+                                        .styleable { emptyBorder(2) },
                             ) {
                                 SwingNode(
                                     factory = { JPanel() },
@@ -270,7 +273,10 @@ class SwingParentBoundaryTest {
                         SwingNode(
                             factory = { DecoratedPanel(BorderLayout()) },
                             modifier =
-                                SwingModifier.testTag("card").emptyBorder(2).shadow(8, Color.BLACK),
+                                SwingModifier
+                                    .testTag("card")
+                                    .shadow(8, Color.BLACK)
+                                    .styleable { emptyBorder(2) },
                         ) {
                             SwingNode(
                                 factory = { JPanel() },
@@ -370,7 +376,7 @@ class SwingParentBoundaryTest {
         runComposeSwingTest {
             setContent {
                 Panel(PanelLayout.Flow()) {
-                    Box(modifier = SwingModifier.testTag("box").emptyBorder(2)) {
+                    Box(modifier = SwingModifier.testTag("box").styleable { emptyBorder(2) }) {
                         Label("Preview", modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(2f))
                     }
                 }
@@ -396,7 +402,13 @@ class SwingParentBoundaryTest {
         runComposeSwingTest {
             setContent {
                 Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
-                    Box(modifier = SwingModifier.north().testTag("box").emptyBorder(3)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .north()
+                                .testTag("box")
+                                .styleable { emptyBorder(3) },
+                    ) {
                         Box(modifier = SwingModifier.fillMaxWidth().aspectRatio(2f).shadow(6, Color.BLACK))
                     }
                 }

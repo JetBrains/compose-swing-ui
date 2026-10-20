@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
 import javax.swing.AbstractButton
 import javax.swing.JMenuBar
 import javax.swing.JPopupMenu
@@ -43,9 +44,9 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = proper
  * A button stops taking this from the look and feel once the property is set, and Swing offers no way to
  * hand it back.
  *
- * This, rather than [opaque]`(false)`, is how a button is made transparent: a look and feel paints the
- * fill from this property, and keeps the opaque flag in step with it - for every button but a menu item,
- * whose flag stands on its own.
+ * This, rather than [opaque][org.jetbrains.compose.swing.style.opaque]`(false)`, is how a button is made
+ * transparent: a look and feel paints the fill from this property, and keeps the opaque flag in step with
+ * it - for every button but a menu item, whose flag stands on its own.
  *
  * @param filled `false` leaves the area behind the text and icon unpainted, so whatever is behind the
  *   button shows through it.
@@ -53,7 +54,7 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = proper
  * @see javax.swing.AbstractButton.setContentAreaFilled
  */
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
-    property(ContentAreaFilledProperty, filled, alsoOverwrites = listOf(ButtonOpaqueProperty))
+    property(ContentAreaFilledProperty, filled, alsoOverwrites = listOf(OpaqueDescriptor))
 
 /**
  * Sets whether a button paints its rollover state - the look it takes while the pointer is over it.
@@ -150,10 +151,4 @@ private val FocusPaintedProperty =
         name = "focusPainted",
         read = { it.isFocusPainted },
         write = { component, value -> component.isFocusPainted = value },
-    )
-private val ButtonOpaqueProperty =
-    ComponentPropertyDescriptor<AbstractButton, Boolean?>(
-        name = "opaque",
-        read = { it.isOpaque },
-        write = { component, value -> value?.let { component.isOpaque = it } },
     )

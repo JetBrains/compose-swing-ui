@@ -13,10 +13,10 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.SharedInsetsBorder
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -378,9 +378,11 @@ class ConstrainedPanelTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .border(border)
                                 .spill(Insets(8, 8, 8, 8))
-                                .styleable { preferredSize(Dimension(64, 48)) },
+                                .styleable {
+                                    preferredSize(Dimension(64, 48))
+                                    border(border)
+                                },
                     )
                 }
             }

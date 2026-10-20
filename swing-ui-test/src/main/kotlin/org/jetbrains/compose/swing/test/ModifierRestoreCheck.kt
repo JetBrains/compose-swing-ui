@@ -108,12 +108,17 @@ private class WatchedComponent(
         write: () -> Unit,
     ) {
         val before = readBeforeChange()
-        write()
         val slot = slots.getOrPut(info) { WritingSlot(element) }
+        val held = element.heldProperties
+        if (before != null) {
+            val landed = held.filter { it in before }
+            landed.filter { it !in found }.associateWithTo(found) { before[it] }
+            slot.wrote += landed
+        }
+        write()
         seen = before?.let { read() }
         val after = seen
         if (before == null || after == null) return
-        val held = element.heldProperties
         for ((property, value) in after) {
             if (property !in held && value == before[property]) continue
             if (property !in found) found[property] = before[property]

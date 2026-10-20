@@ -13,8 +13,8 @@ import java.awt.RenderingHints
  * Fills [shape]'s outline with [brush] under the component's content.
  *
  * An opaque component, such as a custom `JPanel`-based [Decoratable] under most looks and feels, fills its
- * background over the brush, so declare [opaque][org.jetbrains.compose.swing.modifier.appearance.opaque]`(false)`
- * on such a component for the fill to show. A [Row][org.jetbrains.compose.swing.foundation.layout.Row],
+ * background over the brush, so set [opaque][org.jetbrains.compose.swing.style.opaque]`(false)` in the style
+ * of such a component for the fill to show. A [Row][org.jetbrains.compose.swing.foundation.layout.Row],
  * [Column][org.jetbrains.compose.swing.foundation.layout.Column] and
  * [Box][org.jetbrains.compose.swing.foundation.layout.Box] are transparent unless set opaque. An outline other than
  * [RectangleShape] is filled with an antialiased edge, as AndroidX's `background` fills it.

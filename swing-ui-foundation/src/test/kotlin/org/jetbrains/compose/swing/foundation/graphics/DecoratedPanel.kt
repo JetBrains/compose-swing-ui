@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.styleable
 import java.awt.FlowLayout
@@ -75,7 +75,7 @@ internal open class DecoratedPanel(
 @Composable
 internal inline fun DecoratedFlowPanel(
     modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ComponentStyleScope> = SwingStyle,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     crossinline content: @Composable () -> Unit = {},
 ) {
     SwingNode(
@@ -92,7 +92,7 @@ internal inline fun DecoratedFlowPanel(
 @Composable
 internal inline fun DecoratedBox(
     modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ComponentStyleScope> = SwingStyle,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit = {},

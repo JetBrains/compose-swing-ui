@@ -10,9 +10,7 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimatedContainersSection
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimationSection
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
@@ -44,8 +42,10 @@ import org.jetbrains.compose.swing.samples.widgets.window.LayeredAndMdiSection
 import org.jetbrains.compose.swing.samples.widgets.window.TraySection
 import org.jetbrains.compose.swing.samples.widgets.window.WindowsSection
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.FlowLayout
@@ -113,7 +113,7 @@ internal fun ColumnScope.ExampleCard(
                 BorderFactory.createEmptyBorder(6, 6, 6, 6),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
+    Column(modifier = SwingModifier.fillMaxWidth().styleable { border(cardBorder) }) {
         content()
     }
 }
@@ -128,7 +128,13 @@ internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
         horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
     ) {
         Viewport {
-            Column(SwingModifier.opaque(true).styleable { background(UIManager.getColor("Panel.background")) }) {
+            Column(
+                modifier =
+                    SwingModifier.styleable {
+                        background(UIManager.getColor("Panel.background"))
+                        opaque(true)
+                    },
+            ) {
                 cards()
             }
         }

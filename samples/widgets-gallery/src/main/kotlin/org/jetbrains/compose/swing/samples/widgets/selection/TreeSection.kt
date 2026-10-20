@@ -19,12 +19,12 @@ import org.jetbrains.compose.swing.components.selection.rememberTreeState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
@@ -193,7 +193,7 @@ private fun ColumnScope.EditableTreeCard() {
                 ) { value ->
                     Panel(
                         PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
-                        modifier = SwingModifier.opaque(false),
+                        style = { opaque(false) },
                     ) {
                         // The look-and-feel's own file icons, so a node reads the same on every platform.
                         val icon =

@@ -9,12 +9,13 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
@@ -29,7 +30,7 @@ internal const val ROW_GAP: Int = 8
 // The whole screen wrapped in a uniform body inset. main composes exactly this; so does the test.
 @Composable
 internal fun ReactiveTaskListScreen() {
-    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(16)) {
+    Panel(PanelLayout.Border(), style = { emptyBorder(16) }) {
         ReactiveTaskList(SwingModifier.center())
     }
 }
@@ -80,7 +81,7 @@ internal fun ColumnScope.Card(
                 BorderFactory.createEmptyBorder(ROW_GAP, ROW_GAP, ROW_GAP, ROW_GAP),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
+    Column(modifier = SwingModifier.fillMaxWidth().styleable { border(cardBorder) }) {
         content()
     }
 }

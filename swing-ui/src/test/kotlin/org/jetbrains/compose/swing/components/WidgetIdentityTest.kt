@@ -48,17 +48,15 @@ import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.icon
 import org.jetbrains.compose.swing.modifier.appearance.margin
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
 import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
 import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
 import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.interaction.caret
 import org.jetbrains.compose.swing.modifier.interaction.caretBlinkRate
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
-import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
@@ -68,7 +66,10 @@ import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.bounds
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.style.location
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.size
+import org.jetbrains.compose.swing.style.toolTip
+import org.jetbrains.compose.swing.style.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.style.width
 import org.jetbrains.compose.swing.style.x
 import org.jetbrains.compose.swing.style.y
@@ -329,7 +330,7 @@ class WidgetIdentityTest {
                 applied = {
                     assertProperty("b") { this.toolTipText }
                 },
-            ) { Layer(modifier = SwingModifier.toolTip(if (it) "b" else "a")) {} },
+            ) { Layer(style = { toolTip(if (it) "b" else "a") }) {} },
             case<JComponent>(
                 "RadioGroup",
                 applied = {
@@ -349,13 +350,13 @@ class WidgetIdentityTest {
                 applied = {
                     assertProperty("b") { this.toolTipText }
                 },
-            ) { Panel(modifier = SwingModifier.toolTip(if (it) "b" else "a")) {} },
+            ) { Panel(style = { toolTip(if (it) "b" else "a") }) {} },
             case<JComponent>(
                 "ScrollPane",
                 applied = {
                     assertProperty("b") { this.toolTipText }
                 },
-            ) { ScrollPane(modifier = SwingModifier.toolTip(if (it) "b" else "a")) {} },
+            ) { ScrollPane(style = { toolTip(if (it) "b" else "a") }) {} },
         )
 
         private fun splitPaneCases(): List<Case> = listOf(
@@ -421,13 +422,13 @@ class WidgetIdentityTest {
                 applied = {
                     assertProperty("b") { this.toolTipText }
                 },
-            ) { DesktopPane(modifier = SwingModifier.toolTip(if (it) "b" else "a")) {} },
+            ) { DesktopPane(style = { toolTip(if (it) "b" else "a") }) {} },
             case<JComponent>(
                 "LayeredPane",
                 applied = {
                     assertProperty("b") { this.toolTipText }
                 },
-            ) { LayeredPane(modifier = SwingModifier.toolTip(if (it) "b" else "a")) {} },
+            ) { LayeredPane(style = { toolTip(if (it) "b" else "a") }) {} },
         )
 
         private fun sizingCases(): List<Case> = listOf(
@@ -759,7 +760,7 @@ class WidgetIdentityTest {
                 initial = { assertProperty("tip") { toolTipText } },
                 applied = { assertProperty(null) { this.toolTipText } },
             ) {
-                Button("a", onClick = {}, modifier = SwingModifier.toolTip(if (it) null else "tip"))
+                Button("a", onClick = {}, style = { if (!it) toolTip("tip") })
             },
             case<JComponent>(
                 "CheckBox tooltip removal",
@@ -770,7 +771,7 @@ class WidgetIdentityTest {
                     "a",
                     checked = false,
                     onCheckedChange = {},
-                    modifier = SwingModifier.toolTip(if (it) null else "tip"),
+                    style = { if (!it) toolTip("tip") },
                 )
             },
             case<JComponent>(
@@ -782,7 +783,7 @@ class WidgetIdentityTest {
                     "a",
                     selected = false,
                     onSelectedChange = {},
-                    modifier = SwingModifier.toolTip(if (it) null else "tip"),
+                    style = { if (!it) toolTip("tip") },
                 )
             },
             case<JComponent>(
@@ -794,7 +795,7 @@ class WidgetIdentityTest {
                     "a",
                     selected = false,
                     onSelectedChange = {},
-                    modifier = SwingModifier.toolTip(if (it) null else "tip"),
+                    style = { if (!it) toolTip("tip") },
                 )
             },
         )
@@ -804,7 +805,7 @@ class WidgetIdentityTest {
                 "Label tooltip removal",
                 initial = { assertProperty("tip") { toolTipText } },
                 applied = { assertProperty(null) { this.toolTipText } },
-            ) { Label("a", modifier = SwingModifier.toolTip(if (it) null else "tip")) },
+            ) { Label("a", style = { if (!it) toolTip("tip") }) },
             case<JComponent>(
                 "Custom property removal",
                 initial = {
@@ -842,21 +843,21 @@ class WidgetIdentityTest {
                 applied = {
                     assertProperty("b") { this.text }
                     assertProperty(Color.GREEN) { background }
-                    assertProperty("tip") { this.toolTipText }
+                    assertProperty("tip") { this.name }
                 },
             ) {
                 Button(
                     if (it) "b" else "a",
                     onClick = {},
-                    modifier = SwingModifier.toolTip("tip"),
+                    modifier = SwingModifier.name("tip"),
                     style = { background(Color.GREEN) },
                 )
             },
             case<JComponent>(
                 "Modifier value change",
-                applied = { assertProperty("second") { this.toolTipText } },
+                applied = { assertProperty("second") { this.name } },
             ) {
-                Button("a", onClick = {}, modifier = SwingModifier.toolTip(if (it) "second" else "first"))
+                Button("a", onClick = {}, modifier = SwingModifier.name(if (it) "second" else "first"))
             },
         )
 
@@ -870,7 +871,7 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = SwingModifier.toolTip("tip"),
+                    modifier = SwingModifier.name("tip"),
                     style = { background(if (it) Color.BLUE else Color.GREEN) },
                 )
             },
@@ -925,34 +926,34 @@ class WidgetIdentityTest {
             case<JComponent>(
                 "Modifier key change",
                 applied = {
-                    assertProperty("tip") { this.toolTipText }
+                    assertProperty("tip") { this.name }
                 },
             ) {
-                Label("a", modifier = SwingModifier.key(it).toolTip("tip"))
+                Label("a", modifier = SwingModifier.key(it).name("tip"))
             },
             case<JComponent>(
                 "Modifier key change with slot addition",
                 applied = {
-                    assertProperty("tip") { this.toolTipText }
+                    assertProperty("tip") { this.name }
                 },
             ) {
                 Label(
                     "a",
-                    modifier = SwingModifier.key(it).let { modifier -> if (it) modifier.toolTip("tip") else modifier },
+                    modifier = SwingModifier.key(it).let { keyed -> if (it) keyed.name("tip") else keyed },
                 )
             },
             case<JComponent>(
                 "Modifier key change with slot removal",
                 initial = {
-                    assertProperty("tip") { toolTipText }
+                    assertProperty("tip") { name }
                 },
                 applied = {
-                    assertProperty(null) { this.toolTipText }
+                    assertProperty(null) { this.name }
                 },
             ) {
                 Label(
                     "a",
-                    modifier = SwingModifier.key(it).let { modifier -> if (it) modifier else modifier.toolTip("tip") },
+                    modifier = SwingModifier.key(it).let { keyed -> if (it) keyed else keyed.name("tip") },
                 )
             },
             case<JComponent>(
@@ -1197,7 +1198,7 @@ class WidgetIdentityTest {
                     assertProperty(false) { this.isContentAreaFilled }
                 },
             ) {
-                Button("a", onClick = {}, modifier = SwingModifier.opaque(true).contentAreaFilled(!it))
+                Button("a", onClick = {}, modifier = SwingModifier.contentAreaFilled(!it), style = { opaque(true) })
             },
         )
 
@@ -1210,7 +1211,8 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = (if (it) SwingModifier else SwingModifier.opaque(true)).contentAreaFilled(false),
+                    modifier = SwingModifier.contentAreaFilled(false),
+                    style = { if (!it) opaque(true) },
                 )
             },
             case<AbstractButton>(
@@ -1227,7 +1229,8 @@ class WidgetIdentityTest {
                 Button(
                     "a",
                     onClick = {},
-                    modifier = (if (it) SwingModifier.contentAreaFilled(false) else SwingModifier).opaque(true),
+                    modifier = if (it) SwingModifier.contentAreaFilled(false) else SwingModifier,
+                    style = { opaque(true) },
                 )
             },
             case<JTextComponent>(
@@ -1531,7 +1534,7 @@ class WidgetIdentityTest {
                     assertProperty(true) { this.verifyInputWhenFocusTarget }
                 },
             ) {
-                TextField("a", onValueChange = {}, modifier = SwingModifier.verifyInputWhenFocusTarget(it))
+                TextField("a", onValueChange = {}, style = { verifyInputWhenFocusTarget(it) })
             },
         )
 
@@ -1548,7 +1551,7 @@ class WidgetIdentityTest {
                 TextField(
                     "a",
                     onValueChange = {},
-                    modifier = if (it) SwingModifier else SwingModifier.verifyInputWhenFocusTarget(false),
+                    style = { if (!it) verifyInputWhenFocusTarget(false) },
                 )
             },
             run {

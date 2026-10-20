@@ -14,9 +14,9 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -119,8 +119,10 @@ class PaintOutsetsPaintingInFoundationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .opaque(true)
-                                .styleable { styleBackground(Color.WHITE) },
+                                .styleable {
+                                    styleBackground(Color.WHITE)
+                                    opaque(true)
+                                },
                     ) {
                         Box(
                             modifier =

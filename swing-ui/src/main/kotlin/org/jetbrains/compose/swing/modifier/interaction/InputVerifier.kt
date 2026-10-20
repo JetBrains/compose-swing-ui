@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.VerifyInputWhenFocusTargetDescriptor
 import javax.swing.InputVerifier
 import javax.swing.JComponent
 
@@ -26,8 +26,9 @@ import javax.swing.JComponent
  * ```
  *
  * A component whose gate must be bypassed - a Cancel button, which has to activate whatever the focused
- * field holds - declares [verifyInputWhenFocusTarget] `false` instead. Removing this modifier puts back
- * the verifier the component carried before it was applied.
+ * field holds - sets
+ * [verifyInputWhenFocusTarget][org.jetbrains.compose.swing.style.verifyInputWhenFocusTarget] `false` in its
+ * style instead. Removing this modifier puts back the verifier the component carried before it was applied.
  *
  * @param verify read live, so a fresh lambda each recomposition takes effect immediately.
  * @return this chain with the focus gate declared on it.
@@ -45,8 +46,9 @@ public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = t
  * @return this chain with the focus-target verification declared on it.
  * @see javax.swing.JComponent.setVerifyInputWhenFocusTarget
  */
+@Deprecated("Set it in the component's style: style = { verifyInputWhenFocusTarget(verify) }")
 public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =
-    property(VerifyInputWhenFocusTargetProperty, verify)
+    property(VerifyInputWhenFocusTargetDescriptor, verify)
 
 /**
  * Installs one [InputVerifier] per node whose answer comes from the node's live predicate, so a fresh
@@ -98,10 +100,3 @@ private class InputVerifierElement(
         }
     }
 }
-
-private val VerifyInputWhenFocusTargetProperty =
-    ComponentPropertyDescriptor<JComponent, Boolean>(
-        name = "verifyInputWhenFocusTarget",
-        read = { it.verifyInputWhenFocusTarget },
-        write = { component, value -> component.verifyInputWhenFocusTarget = value },
-    )

@@ -205,7 +205,6 @@ internal fun ColumnScope.BoxFillersCard() {
             RigidArea(
                 width = 24,
                 height = 32,
-                modifier = SwingModifier.layoutSampleSurface(),
                 style = { layoutSampleSurface(LayoutSampleColors.Purple) },
             )
             LayoutSwatch(
@@ -216,18 +215,14 @@ internal fun ColumnScope.BoxFillersCard() {
                     maximumSize(Dimension(60, 32))
                 },
             )
-            Spacer(16, SwingModifier.layoutSampleSurface(), style = { layoutSampleSurface(LayoutSampleColors.Gray) })
+            Spacer(size = 16, style = { layoutSampleSurface(LayoutSampleColors.Gray) })
             Strut(
                 orientation = SwingConstants.HORIZONTAL,
                 size = 32,
-                modifier = SwingModifier.layoutSampleSurface(),
                 style = { layoutSampleSurface(LayoutSampleColors.Pink) },
             )
             if (includeGlue) {
-                Glue(
-                    modifier = SwingModifier.layoutSampleSurface(),
-                    style = { layoutSampleSurface(LayoutSampleColors.Green) },
-                )
+                Glue(style = { layoutSampleSurface(LayoutSampleColors.Green) })
             }
             LayoutSwatch(
                 "Trailing",

@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
 import javax.swing.JComponent
 
-class DeprecatedModifierCase<S : SwingStyleScope>(
+internal class DeprecatedModifierCase<S : SwingStyleScope>(
     val name: String,
     val expected: Any?,
     val read: (JComponent) -> Any?,

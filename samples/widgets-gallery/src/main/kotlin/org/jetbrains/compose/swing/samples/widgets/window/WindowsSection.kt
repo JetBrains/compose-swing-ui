@@ -22,7 +22,6 @@ import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
@@ -30,6 +29,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.tooling.Preview
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.DialogState
@@ -216,11 +216,11 @@ private fun WindowScope.SecondaryWindowContent(
                     modifier =
                         SwingModifier
                             .north()
-                            .opaque(true)
                             .horizontalAlignment(SwingConstants.CENTER),
                     style = {
                         background(DarkThemeBackground)
                         foreground(Color.WHITE)
+                        opaque(true)
                     },
                 )
             }

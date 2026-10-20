@@ -9,7 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -73,11 +73,11 @@ class CaretModifierTest {
     @Test
     fun aCaretRedeclaredAcrossARecompositionKeepsTheSelectionMadeBetweenPasses() = runComposeSwingTest {
         val caret = DefaultCaret()
-        var tip by mutableStateOf("first")
+        var declared by mutableStateOf("first")
         setContent {
             SwingNode(
                 factory = { JTextField(TEXT) },
-                modifier = SwingModifier.caret(caret).toolTip(tip),
+                modifier = SwingModifier.caret(caret).name(declared),
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -85,7 +85,7 @@ class CaretModifierTest {
 
         // The modifier changes, so it is diffed again with the same caret declared in it. Installing that
         // caret a second time would put it at offset 0 and drop what the user selected.
-        tip = "second"
+        declared = "second"
         awaitIdle()
 
         assertSame(caret, field.caret, "the same caret should stay installed across the pass")

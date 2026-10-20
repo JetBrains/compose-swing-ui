@@ -28,7 +28,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -67,7 +67,10 @@ private fun Component.paintedAlpha(): Float = Color(captureToImage().getRGB(2, 2
 private fun Body(
     text: String,
     width: Int = 40,
-) = Label(text = text, modifier = SwingModifier.opaque(true), style = { preferredSize(width, height = 20) })
+) = Label(text = text, style = {
+    preferredSize(width, height = 20)
+    opaque(true)
+})
 
 class CrossfadeTest {
     @Test

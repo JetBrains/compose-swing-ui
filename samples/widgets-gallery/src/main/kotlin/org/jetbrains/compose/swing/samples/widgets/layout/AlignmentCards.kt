@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.layout.AbsoluteAlignment
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
@@ -24,6 +26,7 @@ import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
@@ -65,7 +68,11 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         val orientation = if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT
         Label("End: leading child at x = $endX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().styleable { componentOrientation(orientation) },
+            modifier =
+                SwingModifier.background(LayoutSampleColors.Track, RectangleShape).fillMaxWidth().styleable {
+                    lineBorder(LayoutSampleColors.Border)
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.End,
         ) {
             LayoutSwatch(
@@ -79,7 +86,11 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         }
         Label("Absolute.Right: leading child at x = $absoluteX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().styleable { componentOrientation(orientation) },
+            modifier =
+                SwingModifier.background(LayoutSampleColors.Track, RectangleShape).fillMaxWidth().styleable {
+                    lineBorder(LayoutSampleColors.Border)
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.Absolute.Right,
         ) {
             LayoutSwatch(
@@ -112,8 +123,9 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
         Column(
             modifier =
                 SwingModifier
-                    .layoutTrack()
+                    .background(LayoutSampleColors.Track, RectangleShape)
                     .styleable {
+                        lineBorder(LayoutSampleColors.Border)
                         preferredSize(Dimension(220, 28))
                         componentOrientation(orientation)
                     },
@@ -131,8 +143,9 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
         Column(
             modifier =
                 SwingModifier
-                    .layoutTrack()
+                    .background(LayoutSampleColors.Track, RectangleShape)
                     .styleable {
+                        lineBorder(LayoutSampleColors.Border)
                         preferredSize(Dimension(220, 28))
                         componentOrientation(orientation)
                     },
@@ -176,10 +189,11 @@ internal fun ColumnScope.AlignByBaselineCard() {
         Row(
             modifier =
                 SwingModifier
-                    .layoutTrack()
+                    .background(LayoutSampleColors.Track, RectangleShape)
                     .fillMaxWidth()
                     .testTag(BASELINE_ROW_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines),
+                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines)
+                    .styleable { lineBorder(LayoutSampleColors.Border) },
             horizontalArrangement = Arrangement.spacedBy(16),
             verticalAlignment = Alignment.Bottom,
         ) {

@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Column
@@ -16,11 +18,12 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import java.awt.Color
 
 @Composable
@@ -35,9 +38,10 @@ internal fun ColumnScope.RowCard() {
         Row(
             modifier =
                 SwingModifier
-                    .layoutTrack()
+                    .background(LayoutSampleColors.Track, RectangleShape)
                     .fillMaxWidth()
-                    .componentListener(onComponentResized = { rowWidth = it.component.width }),
+                    .componentListener(onComponentResized = { rowWidth = it.component.width })
+                    .styleable { lineBorder(LayoutSampleColors.Border) },
             horizontalArrangement = Arrangement.spacedBy(8),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -47,10 +51,10 @@ internal fun ColumnScope.RowCard() {
                 onClick = {
                     fixedWidth = FIXED_WIDTHS[(FIXED_WIDTHS.indexOf(fixedWidth) + 1) % FIXED_WIDTHS.size]
                 },
-                modifier =
-                    SwingModifier
-                        .toolTip("Activate to cycle the fixed width"),
-                style = { preferredSize(fixedWidth, 32) },
+                style = {
+                    preferredSize(fixedWidth, 32)
+                    toolTip("Activate to cycle the fixed width")
+                },
             )
             InteractiveLayoutSwatch(
                 weight.label(),
@@ -61,9 +65,11 @@ internal fun ColumnScope.RowCard() {
                 modifier =
                     SwingModifier
                         .weight(weight)
-                        .componentListener(onComponentResized = { weightedWidth = it.component.width })
-                        .toolTip("Activate to cycle the weight"),
-                style = { preferredSize(120, 40) },
+                        .componentListener(onComponentResized = { weightedWidth = it.component.width }),
+                style = {
+                    preferredSize(120, 40)
+                    toolTip("Activate to cycle the weight")
+                },
             )
             LayoutSwatch(
                 "peer · weight(1f)",
@@ -112,10 +118,11 @@ private fun ColumnScope.RowArrangementPreview(
     Row(
         modifier =
             SwingModifier
-                .layoutTrack()
+                .background(LayoutSampleColors.Track, RectangleShape)
                 .fillMaxWidth()
                 .testTag(ROW_PLAYGROUND_TAG)
-                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line)),
+                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line))
+                .styleable { lineBorder(LayoutSampleColors.Border) },
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = verticalAlignment,
     ) {
@@ -147,7 +154,11 @@ internal fun ColumnScope.ColumnCard() {
         Label("Activate the green child to cycle its own align override")
         Label("Centered child x: $centeredX px; end-aligned child x: $endX px")
         Column(
-            modifier = SwingModifier.layoutTrack().styleable { preferredSize(320, 144) },
+            modifier =
+                SwingModifier.background(LayoutSampleColors.Track, RectangleShape).styleable {
+                    lineBorder(LayoutSampleColors.Border)
+                    preferredSize(320, 144)
+                },
             verticalArrangement = Arrangement.spacedBy(6),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -166,9 +177,11 @@ internal fun ColumnScope.ColumnCard() {
                 onClick = { childAlignment = (childAlignment + 1) % childAlignments.size },
                 SwingModifier
                     .align(childAlignments[childAlignment].second)
-                    .componentListener(onComponentMoved = { endX = it.component.x })
-                    .toolTip("Activate to cycle the child alignment"),
-                style = { preferredSize(144, 32) },
+                    .componentListener(onComponentMoved = { endX = it.component.x }),
+                style = {
+                    preferredSize(144, 32)
+                    toolTip("Activate to cycle the child alignment")
+                },
             )
         }
     }
@@ -206,14 +219,13 @@ private fun ColumnScope.ColumnArrangementPreview(
     Column(
         modifier =
             SwingModifier
-                .layoutTrack()
+                .background(LayoutSampleColors.Track, RectangleShape)
                 .testTag(COLUMN_PLAYGROUND_TAG)
-                .alignmentGuides(
-                    guides,
-                    LocalAlignmentGuidesShown.current,
-                    marks,
-                    setOf(line),
-                ).styleable { preferredSize(240, 176) },
+                .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, setOf(line))
+                .styleable {
+                    lineBorder(LayoutSampleColors.Border)
+                    preferredSize(240, 176)
+                },
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
     ) {

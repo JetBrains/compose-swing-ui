@@ -18,8 +18,10 @@ import javax.swing.text.JTextComponent
  * This is the space inside the border; to put space outside it, size the component or space it in its
  * container. Removing the modifier restores the space the look and feel had chosen.
  *
- * It is the component's default border that turns this into space, so a chain that also declares a
- * [border] leaves the margin to that border - one built by [lineBorder] or [emptyBorder] ignores it.
+ * It is the component's default border that turns this into space, so a style that also sets a
+ * [border][org.jetbrains.compose.swing.style.border] leaves the margin to that border - one built by
+ * [lineBorder][org.jetbrains.compose.swing.style.lineBorder] or
+ * [emptyBorder][org.jetbrains.compose.swing.style.emptyBorder] ignores it.
  *
  * @param margin how much each side keeps; all four at zero pulls the content flush with the border.
  * @return this chain with the margin declared on it.

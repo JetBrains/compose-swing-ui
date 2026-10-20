@@ -5,8 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.apply
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -92,11 +93,10 @@ class RowColumnFillTest {
             setContent {
                 Column(
                     modifier =
-                        SwingModifier
-                            .containerTag()
-                            .emptyBorder(
-                                BORDER,
-                            ).styleable(containerStyle(CROSS_EXTENT, MAIN_EXTENT)),
+                        SwingModifier.containerTag().styleable {
+                            apply(containerStyle(CROSS_EXTENT, MAIN_EXTENT))
+                            emptyBorder(BORDER)
+                        },
                 ) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
                 }

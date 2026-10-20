@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -91,7 +93,12 @@ class ButtonAndTextAppearanceModifierTest {
         underMetal {
             var filled by mutableStateOf(true)
             setContent {
-                Button("Save", onClick = { }, modifier = SwingModifier.opaque(true).contentAreaFilled(filled))
+                Button(
+                    "Save",
+                    onClick = { },
+                    modifier = SwingModifier.contentAreaFilled(filled),
+                    style = { opaque(true) },
+                )
             }
 
             val button = onNodeOfType<JButton>()
@@ -118,10 +125,8 @@ class ButtonAndTextAppearanceModifierTest {
                 Button(
                     "Save",
                     onClick = { },
-                    modifier =
-                        SwingModifier
-                            .let { if (declared) it.opaque(true) else it }
-                            .contentAreaFilled(false),
+                    modifier = SwingModifier.contentAreaFilled(false),
+                    style = { if (declared) opaque(true) },
                 )
             }
 
@@ -207,7 +212,7 @@ class ButtonAndTextAppearanceModifierTest {
                     modifier =
                         SwingModifier
                             .let { if (fill) it.contentAreaFilled(false) else it }
-                            .let { if (flag) it.opaque(true) else it },
+                            .styleable { if (flag) opaque(true) },
                 )
             }
 
@@ -242,11 +247,9 @@ class ButtonAndTextAppearanceModifierTest {
                 SwingNode(
                     factory = { JButton("Save") },
                     modifier =
-                        if (declared) {
-                            SwingModifier.opaque(true).contentAreaFilled(false)
-                        } else {
-                            SwingModifier
-                        },
+                        SwingModifier
+                            .let { if (declared) it.contentAreaFilled(false) else it }
+                            .styleable { if (declared) opaque(true) },
                 )
             }
 
@@ -270,10 +273,8 @@ class ButtonAndTextAppearanceModifierTest {
                 MenuItem(
                     "Open",
                     onClick = { },
-                    modifier =
-                        SwingModifier
-                            .let { if (declared) it.opaque(false) else it }
-                            .contentAreaFilled(false),
+                    modifier = SwingModifier.contentAreaFilled(false),
+                    style = { if (declared) opaque(false) },
                 )
             }
         val item = popup.getComponent(0) as JMenuItem

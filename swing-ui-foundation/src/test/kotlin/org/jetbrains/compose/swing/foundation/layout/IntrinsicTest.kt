@@ -12,10 +12,10 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
@@ -491,7 +491,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").emptyBorder(3)) {
+                    Box(modifier = SwingModifier.testTag("box").styleable { emptyBorder(3) }) {
                         Box(modifier = SwingModifier.size(100, 50).shadow(6, Color.BLACK))
                     }
                 }
@@ -520,7 +520,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").emptyBorder(3)) {
+                    Box(modifier = SwingModifier.testTag("box").styleable { emptyBorder(3) }) {
                         SwingNode(factory = { HalfAsTallAsWide() })
                     }
                 }
@@ -541,7 +541,13 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").width(200).emptyBorder(3)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("box")
+                                .width(200)
+                                .styleable { emptyBorder(3) },
+                    ) {
                         Box(modifier = SwingModifier.fillMaxWidth().aspectRatio(2f).shadow(6, Color.BLACK))
                     }
                 }

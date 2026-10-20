@@ -3,7 +3,7 @@
 
 package org.jetbrains.compose.swing.defaults
 
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.style.BackgroundDescriptor
 import org.jetbrains.compose.swing.style.ComponentOrientationDescriptor
@@ -11,12 +11,14 @@ import org.jetbrains.compose.swing.style.CursorDescriptor
 import org.jetbrains.compose.swing.style.EnabledDescriptor
 import org.jetbrains.compose.swing.style.FontDescriptor
 import org.jetbrains.compose.swing.style.ForegroundDescriptor
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.cursor
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.opaque
 import java.awt.Color
 import java.awt.ComponentOrientation
 import java.awt.Cursor
@@ -79,5 +81,14 @@ public val DefaultComponentOrientation: ComponentDefaultKey<ComponentOrientation
 /**
  * Key for the default opaque flag applied to compatible descendants via [opaque].
  */
+@Deprecated("Set it in each component's style: style = { opaque(opaque) }")
 public val DefaultOpaque: ComponentDefaultKey<Boolean> =
-    componentDefaultKeyOf("opaque") { opaque(it) }
+    componentDefaultKeyOf("opaque") {
+        property(
+            OpaqueDescriptor,
+            it,
+            restores = RestorePolicy.None,
+            inheritable = true,
+            rewriteOn = "opaque",
+        )
+    }

@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -586,8 +586,9 @@ class AnimatedContentStateMachineTest {
 @Composable
 private fun Body(text: String) {
     val width = if (text == "a") NARROW_WIDTH else WIDE_WIDTH
-    Label(text = text, modifier = SwingModifier.opaque(true), style = {
+    Label(text = text, style = {
         preferredSize(width = width, height = BODY_HEIGHT)
+        opaque(true)
     })
 }
 

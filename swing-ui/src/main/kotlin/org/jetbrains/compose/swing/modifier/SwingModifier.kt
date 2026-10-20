@@ -66,16 +66,16 @@ import java.awt.Component
  * component; the rest declare something the node holder reads itself, such as where the component is
  * attached in its parent.
  *
- * Build a modifier by calling the builder extensions off the [companion][SwingModifier.Companion]
- * (`SwingModifier.foreground(c).border(b)`, see the sibling `*Modifiers.kt` files) and pass it to a
- * component's `modifier` parameter. The empty modifier ([SwingModifier] itself, the companion)
- * applies nothing and is the parameter default.
+ * Call builder extensions on the [companion][SwingModifier.Companion] and pass the result to a
+ * component's `modifier` parameter. In a `Panel(PanelLayout.Border())`,
+ * `SwingModifier.north().onFocus(onGained = showHint)` places the child at the top and shows a hint
+ * when it gains focus. The empty modifier ([SwingModifier] itself) is the parameter default.
  *
  * Implement [NodeElement] to wrap any Swing property or listener the library does not ship a builder
  * for. See `docs/MODIFIERS.md`.
  *
  * An [NodeElement] declares the component type it targets via [NodeElement.targetType]. A modifier targeting
- * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
+ * a type the node is not (e.g. `contentAreaFilled`, an `AbstractButton` property, on a bare `java.awt.Component`)
  * fails with a clear error naming the element and the required vs. actual type.
  *
  * Use `if (showHints) it.onHover(onEnter = showHint) else it` to attach a hover listener only
@@ -632,11 +632,14 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
     }
 
     /**
-     * [state] takes it out again if `onAttach` throws, and the node itself - marked attached before this
-     * ran - is detached with it: its `onDetach` runs, its `coroutineScope` cancels, and its observed reads clear,
-     * so it is not left attached with no record holding it. A node whose `onAttach` succeeded and whose first
-     * `update` then throws stays installed instead, for the next pass to hand the same node its declaration again.
-     * Returns whether that `update` automatically invalidates its consumer.
+     * Inserts this record into [state], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto
+     * it: the first install. The record is installed while `onAttach` runs, so
+     * [SwingModifier.Node.visitDeclaredNodes] finds the node from there; [state] takes it out again if `onAttach`
+     * throws, and the node itself - marked attached before this ran - is detached with it: its `onDetach` runs, its
+     * `coroutineScope` cancels, and its observed reads clear, so it is not left attached with no record holding it.
+     * A node whose `onAttach` succeeded and whose first `update` then throws stays installed instead, for the next
+     * pass to hand the same node its declaration again. Returns whether that `update` automatically invalidates its
+     * consumer.
      *
      * @param state owns the record and withdraws it if the node's `onAttach` throws.
      * @param diagnostics where a failing callback is reported, or `null` for none.
@@ -1797,9 +1800,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
             state,
             partition,
             ComponentNodeType,
-            if (marked !=
-                null
-            ) {
+            if (marked != null) {
                 WriteMode.AdoptEqual
             } else {
                 mode

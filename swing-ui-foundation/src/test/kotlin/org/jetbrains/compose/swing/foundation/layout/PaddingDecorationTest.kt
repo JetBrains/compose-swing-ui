@@ -14,11 +14,11 @@ import org.jetbrains.compose.swing.foundation.graphics.border
 import org.jetbrains.compose.swing.foundation.graphics.clip
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -337,10 +337,12 @@ class PaddingDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .opaque(true)
                                 .border(1, Color.BLUE)
                                 .padding(8)
-                                .styleable { background(Color.GREEN) },
+                                .styleable {
+                                    background(Color.GREEN)
+                                    opaque(true)
+                                },
                     ) { Content() }
                 }
             }

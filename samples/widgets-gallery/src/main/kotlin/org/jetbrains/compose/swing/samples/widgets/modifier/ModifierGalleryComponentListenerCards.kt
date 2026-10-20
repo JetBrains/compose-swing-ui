@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.containerListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
@@ -21,6 +20,7 @@ import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.visible
 import java.awt.Color
@@ -56,12 +56,12 @@ internal fun ColumnScope.MouseMotionAndWheelListenerCard() {
             "Move the pointer or scroll over this label",
             modifier =
                 SwingModifier
-                    .opaque(true)
                     .mouseMotionListener(motionListener)
                     .mouseWheelListener(wheelListener),
             style = {
                 background(Color(0xF3, 0xE5, 0xF5))
                 preferredSize(Dimension(260, 32))
+                opaque(true)
             },
         )
         Label("Position: $position, wheel rotation: $rotation")

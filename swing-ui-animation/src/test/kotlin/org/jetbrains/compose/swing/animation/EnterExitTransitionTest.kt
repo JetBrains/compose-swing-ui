@@ -10,9 +10,8 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.layout.Alignment
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -210,12 +209,10 @@ class EnterExitTransitionTest {
             ) {
                 Label(
                     text = "",
-                    modifier =
-                        SwingModifier
-                            .opaque(true),
                     style = {
                         preferredSize(width = 40, height = 20)
                         background(ContentColor)
+                        opaque(true)
                     },
                 )
             }

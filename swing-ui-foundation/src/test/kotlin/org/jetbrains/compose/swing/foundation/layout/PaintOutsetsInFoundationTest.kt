@@ -17,9 +17,9 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
@@ -182,7 +182,7 @@ class PaintOutsetsInFoundationTest {
     fun nestedRowsPlaceEveryChildInsideTheChildPlacementBounds() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.testTag("row").emptyBorder(2)) {
+                Row(modifier = SwingModifier.testTag("row").styleable { emptyBorder(2) }) {
                     Column(modifier = SwingModifier.testTag("column")) {
                         Label("plain", modifier = SwingModifier.testTag("plain"))
                         Canvas(
@@ -477,7 +477,13 @@ class PaintOutsetsInFoundationTest {
         runComposeSwingTest {
             setContent {
                 Box {
-                    Box(modifier = SwingModifier.testTag("card").emptyBorder(2).shadow(4, Color.BLACK)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("card")
+                                .shadow(4, Color.BLACK)
+                                .styleable { emptyBorder(2) },
+                    ) {
                         SwingNode(
                             factory = { JList(arrayOf("one", "two", "three")) },
                             modifier = SwingModifier.testTag("plain"),

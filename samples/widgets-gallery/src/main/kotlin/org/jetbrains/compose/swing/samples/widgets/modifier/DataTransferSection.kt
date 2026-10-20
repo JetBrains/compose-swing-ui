@@ -12,8 +12,6 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
@@ -22,6 +20,8 @@ import org.jetbrains.compose.swing.modifier.datatransfer.rememberClipboardHandle
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.lineBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
@@ -58,8 +58,8 @@ private fun ColumnScope.DragAndDropCard() {
                 text = payload,
                 modifier =
                     SwingModifier
-                        .border(dashed)
                         .draggable(exportedActions = TransferHandler.COPY) { StringSelection(payload) },
+                style = { border(dashed) },
             )
         }
         Panel {
@@ -67,7 +67,6 @@ private fun ColumnScope.DragAndDropCard() {
                 PanelLayout.Flow(),
                 modifier =
                     SwingModifier
-                        .lineBorder(Color.GRAY)
                         .dropTarget(
                             acceptedActions = TransferHandler.COPY,
                             canImport = { flavors -> DataFlavor.stringFlavor in flavors },
@@ -76,7 +75,10 @@ private fun ColumnScope.DragAndDropCard() {
                                 true
                             },
                         ),
-                style = { preferredSize(Dimension(240, 60)) },
+                style = {
+                    preferredSize(Dimension(240, 60))
+                    lineBorder(Color.GRAY)
+                },
             ) {
                 Label("Drop here: $dropped")
             }
@@ -130,7 +132,6 @@ private fun ColumnScope.OnExportDoneCard() {
                 text = payload,
                 modifier =
                     SwingModifier
-                        .border(dashed)
                         .draggable(exportedActions = TransferHandler.MOVE) { StringSelection(payload) }
                         .onExportDone { _, action ->
                             lastOutcome =
@@ -140,6 +141,7 @@ private fun ColumnScope.OnExportDoneCard() {
                                     else -> "action $action"
                                 }
                         },
+                style = { border(dashed) },
             )
         }
         Panel {
@@ -147,9 +149,11 @@ private fun ColumnScope.OnExportDoneCard() {
                 PanelLayout.Flow(),
                 modifier =
                     SwingModifier
-                        .lineBorder(Color.GRAY)
                         .dropTarget(acceptedActions = TransferHandler.MOVE, onDrop = { true }),
-                style = { preferredSize(Dimension(240, 60)) },
+                style = {
+                    preferredSize(Dimension(240, 60))
+                    lineBorder(Color.GRAY)
+                },
             ) {
                 Label("Drop the label here to complete the move")
             }

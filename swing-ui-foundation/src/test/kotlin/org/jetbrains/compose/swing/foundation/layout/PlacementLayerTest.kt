@@ -16,9 +16,9 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -42,7 +42,6 @@ import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.Rectangle2D
-import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.RepaintManager
 import kotlin.test.Test
@@ -534,9 +533,11 @@ class PlacementLayerTest {
                         modifier =
                             SwingModifier
                                 .testTag("layered")
-                                .opaque(true)
                                 .then(PlacementReadLayerElement(layer, relative = false))
-                                .styleable { preferredSize(40, 40) },
+                                .styleable {
+                                    opaque(true)
+                                    preferredSize(40, 40)
+                                },
                     ) {
                         SwingNode(
                             factory = { host },
@@ -707,51 +708,6 @@ class PlacementLayerTest {
                 }
             }
         }
-    }
-
-    /**
-     * Composes a 20-pixel canvas for each pair, tagged by its first and modified by its second, drawing [content],
-     * a red square filling the canvas by default.
-     */
-    private fun ComposeSwingTest.setCanvases(
-        vararg canvases: Pair<String, SwingModifier>,
-        content: (Graphics2D) -> Unit = {
-            it.color = Color.RED
-            it.fillRect(0, 0, 20, 20)
-        },
-    ) {
-        setContent {
-            Row {
-                for ((tag, modifier) in canvases) {
-                    Canvas(modifier = SwingModifier.testTag(tag).then(modifier).styleable { preferredSize(20, 20) }) {
-                        content(graphics)
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Paints the component tagged [tag] onto an image of [scale] device pixels per pixel, at a sub-pixel offset
-     * of the device grid, after [setUp] prepares the graphics.
-     */
-    private fun ComposeSwingTest.paintTagged(
-        tag: String,
-        scale: Double = 1.0,
-        setUp: Graphics2D.() -> Unit = {},
-    ): BufferedImage {
-        val component = onNodeWithTag(tag).fetch<JComponent>()
-        val image = BufferedImage((20 * scale).toInt(), (20 * scale).toInt(), BufferedImage.TYPE_INT_ARGB)
-        val graphics = image.createGraphics()
-        try {
-            graphics.scale(scale, scale)
-            graphics.translate(0.3, 0.6)
-            graphics.setUp()
-            component.printAll(graphics)
-        } finally {
-            graphics.dispose()
-        }
-        return image
     }
 }
 

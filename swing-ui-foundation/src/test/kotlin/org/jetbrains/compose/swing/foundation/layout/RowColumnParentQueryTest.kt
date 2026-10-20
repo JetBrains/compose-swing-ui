@@ -6,12 +6,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.alignmentX
-import org.jetbrains.compose.swing.modifier.layout.alignmentY
-import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.alignmentX
+import org.jetbrains.compose.swing.style.alignmentY
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -89,8 +89,14 @@ class RowColumnParentQueryTest {
             declaring {
                 for ((index, child) in children.withIndex()) {
                     val (x, y, hidden) = child
-                    val modifier = SwingModifier.alignmentX(x).alignmentY(y)
-                    SizedChild(index, modifier, style = if (hidden) SwingStyle { visible(false) } else SwingStyle)
+                    SizedChild(
+                        index,
+                        style = {
+                            alignmentX(x)
+                            alignmentY(y)
+                            if (hidden) visible(false)
+                        },
+                    )
                 }
             }
         }
@@ -131,9 +137,16 @@ class RowColumnParentQueryTest {
             var z by mutableFloatStateOf(0f)
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(0f).alignmentY(1f).zIndex(z))
-                    SizedChild(1, SwingModifier.alignmentX(Component.CENTER_ALIGNMENT))
-                    SizedChild(2, SwingModifier.alignmentX(1f))
+                    SizedChild(
+                        0,
+                        SwingModifier.zIndex(z),
+                        style = {
+                            alignmentX(0f)
+                            alignmentY(1f)
+                        },
+                    )
+                    SizedChild(1, style = { alignmentX(Component.CENTER_ALIGNMENT) })
+                    SizedChild(2, style = { alignmentX(1f) })
                 }
             }
 
@@ -155,8 +168,20 @@ class RowColumnParentQueryTest {
                 Layout(
                     modifier = SwingModifier.testTag(CONTAINER_TAG),
                     content = {
-                        SizedChild(0, SwingModifier.alignmentX(0f).alignmentY(1f))
-                        SizedChild(1, SwingModifier.alignmentX(1f).alignmentY(0f))
+                        SizedChild(
+                            0,
+                            style = {
+                                alignmentX(0f)
+                                alignmentY(1f)
+                            },
+                        )
+                        SizedChild(
+                            1,
+                            style = {
+                                alignmentX(1f)
+                                alignmentY(0f)
+                            },
+                        )
                     },
                     measurePolicy = { measurables, constraints ->
                         val placeables = measurables.map { it.measure(constraints) }
@@ -180,7 +205,12 @@ class RowColumnParentQueryTest {
     fun aColumnsBorderInsetsReachBothTheExtentsItAsksFor() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.testTag(CONTAINER_TAG).border(EmptyBorder(5, 10, 15, 20))) {
+                Column(
+                    modifier =
+                        SwingModifier.testTag(CONTAINER_TAG).styleable {
+                            border(EmptyBorder(5, 10, 15, 20))
+                        },
+                ) {
                     SizedChild(0, style = { minimumSize(18, 12) })
                 }
             }
@@ -259,9 +289,9 @@ class RowColumnParentQueryTest {
         presentA: Boolean,
         presentC: Boolean,
     ) {
-        if (presentC) SizedChild(2, SwingModifier.alignmentX(Component.CENTER_ALIGNMENT))
-        if (presentA) SizedChild(0, SwingModifier.alignmentX(0f))
-        SizedChild(1, SwingModifier.alignmentX(1f))
+        if (presentC) SizedChild(2, style = { alignmentX(Component.CENTER_ALIGNMENT) })
+        if (presentA) SizedChild(0, style = { alignmentX(0f) })
+        SizedChild(1, style = { alignmentX(1f) })
     }
 
     companion object {

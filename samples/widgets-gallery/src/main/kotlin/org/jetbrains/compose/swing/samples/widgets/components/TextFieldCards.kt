@@ -15,9 +15,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
-import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.verifyInputWhenFocusTarget
 import javax.swing.text.AttributeSet
 import javax.swing.text.DocumentFilter
 
@@ -74,7 +74,7 @@ internal fun ColumnScope.InputVerifierCard() {
             Button(
                 "Reset",
                 onClick = { port = "8080" },
-                modifier = SwingModifier.verifyInputWhenFocusTarget(false),
+                style = { verifyInputWhenFocusTarget(false) },
             )
         }
         Label(if (portValid) "Port is valid" else "Port is invalid - focus is held here until it is fixed")

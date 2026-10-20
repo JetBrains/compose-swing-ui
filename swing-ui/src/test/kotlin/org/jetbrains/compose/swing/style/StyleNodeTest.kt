@@ -17,6 +17,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
@@ -38,6 +39,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.FlowLayout
+import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -45,7 +47,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
-/** A style declared through `styleable` on a custom component, and what it keeps observing as it changes. */
 internal class StyleNodeTest {
     @Test
     fun declaringAStyleDoesNotOwnItsStatesRememberLifecycle() {
@@ -77,18 +78,20 @@ internal class StyleNodeTest {
     }
 
     @Test
-    fun theKindlessStyleProvidesNestedStyles() = runComposeSwingTest {
+    fun theKindlessStyleOffersJComponentPropertiesAndProvidesNestedStyles() = runComposeSwingTest {
         setContent {
             SwingNode(
                 factory = { JPanel() },
                 modifier =
                     SwingModifier.testTag("container").styleable {
+                        toolTip("container")
                         provideNestedStyle(Probes) { LabelToolTip.provide("nested") }
                     },
             ) {
                 SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
             }
         }
+        onNodeWithTag("container").assertIsOfType<JPanel>().assertProperty("container") { toolTipText }
         onNodeOfType<JLabel>().assertProperty("nested") { toolTipText }
     }
 
@@ -196,8 +199,8 @@ internal class StyleNodeTest {
         onNodeWithTag("last").assertIsOfType<JLabel>().assertProperty("second") { toolTipText }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("observingDeclarations")
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     fun aNodeObservingStateStopsWhenItsStyleStopsSettingIt(inParentLayout: Boolean) = runComposeSwingTest {
         var present by mutableStateOf(true)
         val watched = mutableIntStateOf(0)
@@ -452,6 +455,31 @@ internal class StyleNodeTest {
     }
 
     @Test
+    fun buttonModifierStyleAndTypedStyleApplyInOrder() = runComposeSwingTest {
+        var typedBackground by mutableStateOf(false)
+        setContent {
+            Button(
+                "button",
+                onClick = {},
+                modifier = SwingModifier.styleable { background(Color.RED) },
+                style = {
+                    toolTip("typed style")
+                    if (typedBackground) background(Color.BLUE)
+                },
+            )
+        }
+        onNodeOfType<JButton>()
+            .assertProperty("typed style") { toolTipText }
+            .assertProperty(Color.RED) { background }
+        typedBackground = true
+        awaitIdle()
+        onNodeOfType<JButton>().assertProperty(Color.BLUE) { background }
+        typedBackground = false
+        awaitIdle()
+        onNodeOfType<JButton>().assertProperty(Color.RED) { background }
+    }
+
+    @Test
     fun aProvidedStyleStillAppliesWhereADescendantOverridesALocalTheProviderReads() = runComposeSwingTest {
         setContent {
             SwingNode(
@@ -582,12 +610,6 @@ internal class StyleNodeTest {
                 Arguments.of(Named.of("$kind local read $position the block", local), inside)
             }
         }
-
-        @JvmStatic
-        fun observingDeclarations(): List<Arguments> = listOf(
-            Arguments.of(Named.of("a property", false)),
-            Arguments.of(Named.of("a parent-layout declaration", true)),
-        )
     }
 }
 

@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.style.bounds
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -362,21 +362,21 @@ class LayeredPaneBehaviorTest {
     fun theLayeredPanesOwnModifierFollowsTheStateDrivingIt() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Canvas")
         setContent {
-            LayeredPane(modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier) {
+            LayeredPane(modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier) {
                 Label(text = "child", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
             }
         }
 
         val pane = onNodeOfType<JLayeredPane>().fetch()
-        assertEquals("Canvas", pane.toolTipText, "the modifier applies to the layered pane itself")
+        assertEquals("Canvas", pane.name, "the modifier applies to the layered pane itself")
 
         tip = "Stacked children"
         awaitIdle()
-        assertEquals("Stacked children", pane.toolTipText, "the modifier follows the state driving it")
+        assertEquals("Stacked children", pane.name, "the modifier follows the state driving it")
 
         tip = null
         awaitIdle()
-        assertNull(pane.toolTipText, "dropping the element restores the tooltip the pane had without it")
+        assertNull(pane.name, "dropping the element restores the name the pane had without it")
     }
 
     @Test

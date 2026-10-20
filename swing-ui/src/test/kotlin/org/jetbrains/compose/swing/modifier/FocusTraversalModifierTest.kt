@@ -445,7 +445,12 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Button("A", onClick = { }, modifier = SwingModifier.focusTraversalIndex(1), style = { focusable(true) })
+                Button(
+                    "A",
+                    onClick = { },
+                    modifier = SwingModifier.focusTraversalIndex(1),
+                    style = { focusable(true) },
+                )
             }
         }
         val form = onWindowWithTitle(FORM_TITLE)

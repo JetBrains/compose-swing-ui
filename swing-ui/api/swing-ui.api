@@ -1353,17 +1353,25 @@ public final class org/jetbrains/compose/swing/style/StyleKt {
 	public static final fun SwingStyle ([Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/style/SwingStyle;
 	public static final fun accessibleDescription (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/lang/String;)V
 	public static final fun accessibleName (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/lang/String;)V
+	public static final fun alignmentX (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;F)V
+	public static final fun alignmentY (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;F)V
 	public static final fun apply (Lorg/jetbrains/compose/swing/style/SwingStyleScope;Lorg/jetbrains/compose/swing/style/SwingStyle;)V
 	public static final fun background (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Color;)V
+	public static final fun border (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Ljavax/swing/border/Border;)V
 	public static final fun bounds (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;IIII)V
 	public static final fun componentOrientation (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/ComponentOrientation;)V
 	public static final fun cursor (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Cursor;)V
+	public static final fun emptyBorder (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;I)V
+	public static final fun emptyBorder (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;IIII)V
+	public static final fun emptyBorder (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Ljava/awt/Insets;)V
 	public static final fun enabled (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Z)V
 	public static final fun focusable (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Z)V
 	public static final fun font (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Font;)V
 	public static final fun foreground (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Color;)V
 	public static final fun getAllComponents ()Lorg/jetbrains/compose/swing/style/NestedStyleKey;
 	public static final fun height (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;I)V
+	public static final fun lineBorder (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Ljava/awt/Color;I)V
+	public static synthetic fun lineBorder$default (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Ljava/awt/Color;IILjava/lang/Object;)V
 	public static final fun location (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;II)V
 	public static final fun location (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Point;)V
 	public static final fun maximumSize (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;II)V
@@ -1371,6 +1379,7 @@ public final class org/jetbrains/compose/swing/style/StyleKt {
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;II)V
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Dimension;)V
 	public static final fun nestingStyleKind (Lkotlin/jvm/functions/Function2;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/style/SwingStyleKind;
+	public static final fun opaque (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Z)V
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;II)V
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Ljava/awt/Dimension;)V
 	public static final fun size (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;II)V
@@ -1384,6 +1393,9 @@ public final class org/jetbrains/compose/swing/style/StyleKt {
 	public static final fun styleable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/style/SwingStyleKind;Ljava/lang/Object;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun styleable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/style/SwingStyleKind;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun then (Lorg/jetbrains/compose/swing/style/SwingStyle;Lorg/jetbrains/compose/swing/style/SwingStyle;)Lorg/jetbrains/compose/swing/style/SwingStyle;
+	public static final fun toolTip (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Ljava/lang/String;)V
+	public static final fun toolTip (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Lkotlin/jvm/functions/Function1;)V
+	public static final fun verifyInputWhenFocusTarget (Lorg/jetbrains/compose/swing/style/SwingComponentStyleScope;Z)V
 	public static final fun visible (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;Z)V
 	public static final fun width (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;I)V
 	public static final fun x (Lorg/jetbrains/compose/swing/style/ComponentStyleScope;I)V

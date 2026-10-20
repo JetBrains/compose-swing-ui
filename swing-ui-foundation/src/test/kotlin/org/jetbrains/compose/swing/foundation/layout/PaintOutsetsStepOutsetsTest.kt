@@ -10,9 +10,9 @@ import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -58,8 +58,32 @@ class PaintOutsetsStepOutsetsTest {
             assertFirstAt(Rectangle(8, 8, 40, 40), Insets(8, 8, 8, 8), next = 56)
         }
 
+    // Tests the deprecated paintOutsets forwarding and declaration order.
+    @Suppress("DEPRECATION")
     @Test
-    fun noneWithAStepBoxedToAPaddingReservesThePaddingOnce() =
+    fun noneDeclaredBeforeAStepBoxedToAPaddingReservesThePaddingOnce() =
+        runComposeSwingTest {
+            setContent {
+                Column {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag(FIRST)
+                                .paintOutsets(PaintOutsets.None)
+                                .background(Red)
+                                .padding(8)
+                                .size(40, 40),
+                    )
+                    Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
+                }
+            }
+            assertFirstAt(Rectangle(8, 8, 40, 40), Insets(8, 8, 8, 8), next = 56)
+        }
+
+    // Tests the deprecated paintOutsets forwarding and declaration order.
+    @Suppress("DEPRECATION")
+    @Test
+    fun noneDeclaredAfterAStepBoxedToAPaddingSettlesOnTheSameLayout() =
         runComposeSwingTest {
             setContent {
                 Column {
@@ -69,8 +93,8 @@ class PaintOutsetsStepOutsetsTest {
                                 .testTag(FIRST)
                                 .background(Red)
                                 .padding(8)
-                                .size(40, 40)
-                                .styleable { paintOutsets(PaintOutsets.None) },
+                                .paintOutsets(PaintOutsets.None)
+                                .size(40, 40),
                     )
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
                 }
@@ -98,6 +122,8 @@ class PaintOutsetsStepOutsetsTest {
             assertFirstAt(Rectangle(10, 10, 40, 40), Insets(10, 10, 0, 0), next = 40)
         }
 
+    // Tests the deprecated paintOutsets forwarding and declaration order.
+    @Suppress("DEPRECATION")
     @Test
     fun underNoneAShadowTakesItsReachOnceWhereverAPaddingIsDeclared() =
         runComposeSwingTest {
@@ -106,23 +132,30 @@ class PaintOutsetsStepOutsetsTest {
                     Box(
                         modifier =
                             SwingModifier
-                                .testTag("shadow, padding")
+                                .testTag("none, shadow, padding")
+                                .paintOutsets(PaintOutsets.None)
                                 .shadow(8, Color.BLACK)
                                 .padding(8)
-                                .styleable { paintOutsets(PaintOutsets.None) },
-                    ) {
-                        Box(modifier = SwingModifier.size(40, 40))
-                    }
+                                .size(40, 40),
+                    )
                     Box(
                         modifier =
                             SwingModifier
-                                .testTag("padding, shadow")
-                                .padding(8)
+                                .testTag("shadow, padding, none")
                                 .shadow(8, Color.BLACK)
-                                .styleable { paintOutsets(PaintOutsets.None) },
-                    ) {
-                        Box(modifier = SwingModifier.size(40, 40))
-                    }
+                                .padding(8)
+                                .paintOutsets(PaintOutsets.None)
+                                .size(40, 40),
+                    )
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("padding, none, shadow")
+                                .padding(8)
+                                .paintOutsets(PaintOutsets.None)
+                                .shadow(8, Color.BLACK)
+                                .size(40, 40),
+                    )
                     Box(
                         modifier =
                             SwingModifier
@@ -137,18 +170,20 @@ class PaintOutsetsStepOutsetsTest {
             val reach = undeclared.paintOutsets.top
             val box = 56 + 2 * reach
             assertNotEquals(0, reach, "the shadow reaches past the box")
-            val orders = listOf("shadow, padding", "padding, shadow")
+            val orders = listOf("none, shadow, padding", "shadow, padding, none", "padding, none, shadow")
             for ((index, order) in orders.withIndex()) {
                 onNodeWithTag(order).assertProperty(
                     Rectangle(reach + 8, index * box + reach + 8, 40, 40),
                     "$order: the shadow's reach and the padding, each once",
                 ) { layoutBounds }
             }
-            assertEquals(Rectangle(8, 2 * box + 8, 40, 40), undeclared.layoutBounds, "the last box ends at 2 * $box")
+            assertEquals(Rectangle(8, 3 * box + 8, 40, 40), undeclared.layoutBounds, "the last box ends at 3 * $box")
         }
 
+    // Tests the deprecated paintOutsets forwarding and declaration order.
+    @Suppress("DEPRECATION")
     @Test
-    fun underNoneARotatingLayerTakesNoSpace() =
+    fun underNoneARotatingLayerTakesNoSpaceWhereverItIsDeclared() =
         runComposeSwingTest {
             setContent {
                 Column {
@@ -156,17 +191,30 @@ class PaintOutsetsStepOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag(FIRST)
+                                .paintOutsets(PaintOutsets.None)
+                                .size(60, 40)
+                                .placementLayer { rotationZ = 30f },
+                    )
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("second")
                                 .size(60, 40)
                                 .placementLayer { rotationZ = 30f }
-                                .styleable { paintOutsets(PaintOutsets.None) },
+                                .paintOutsets(PaintOutsets.None),
                     )
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
                 }
             }
             val first = onNodeWithTag(FIRST).fetch<JComponent>()
             assertNotEquals(Insets(0, 0, 0, 0), first.paintOutsets, "the rotated box reaches past its layout bounds")
-            assertEquals(Rectangle(0, 0, 60, 40), first.layoutBounds)
-            onNodeWithTag(NEXT).assertProperty(40) { layoutBounds.y }
+            onNodeWithTag("second").assertIsOfType<JComponent>().assertProperty(first.paintOutsets) { paintOutsets }
+            assertEquals(Rectangle(0, 0, 60, 40), first.layoutBounds, "declared before the layer")
+            onNodeWithTag("second").assertProperty(
+                Rectangle(0, 40, 60, 40),
+                "declared after the layer",
+            ) { layoutBounds }
+            onNodeWithTag(NEXT).assertProperty(80) { layoutBounds.y }
         }
 
     @Test
@@ -177,7 +225,11 @@ class PaintOutsetsStepOutsetsTest {
                     Row(modifier = SwingModifier.testTag(FIRST).styleable { paintOutsets(PaintOutsets.None) }) {
                         SwingNode(
                             factory = { Card() },
-                            modifier = SwingModifier.testTag("card").emptyBorder(3).shadow(8, Color.BLACK),
+                            modifier =
+                                SwingModifier
+                                    .testTag("card")
+                                    .shadow(8, Color.BLACK)
+                                    .styleable { emptyBorder(3) },
                         )
                     }
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
@@ -202,13 +254,14 @@ class PaintOutsetsStepOutsetsTest {
                         modifier =
                             SwingModifier
                                 .testTag(FIRST)
-                                .emptyBorder(3)
                                 .background(Red)
                                 .padding(8)
-                                .styleable { paintOutsets(PaintOutsets(4)) },
-                    ) {
-                        Box(modifier = SwingModifier.size(40, 40))
-                    }
+                                .size(40, 40)
+                                .styleable {
+                                    paintOutsets(PaintOutsets(4))
+                                    emptyBorder(3)
+                                },
+                    )
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
                 }
             }
@@ -277,8 +330,10 @@ class PaintOutsetsStepOutsetsTest {
         }
 
     /**
-     * The border is applied first, so the container awaits validation as the shadow's new reach is written. The
-     * panel validates in the event after the one that invalidates it, ahead of anything queued later.
+     * The border and the shadow's new reach are written in one apply, so the change joins the validation the
+     * container awaits. The panel validates in the event after the one that invalidates it, ahead of anything queued
+     * later. The border width is read in composition: a style that read the state itself would write the border in
+     * a later step and lay the container out a second time.
      */
     @Test
     fun outsetsChangedInAContainerAwaitingValidationLayItOutOnce() =
@@ -296,13 +351,16 @@ class PaintOutsetsStepOutsetsTest {
             setContent {
                 SwingNode(factory = { SelfValidatingPanel() }) {
                     Layout(measurePolicy = counting) {
+                        val borderWidth = radius
                         Box(
                             modifier =
                                 SwingModifier
                                     .testTag(FIRST)
-                                    .emptyBorder(radius)
                                     .shadow(radius, Color.BLACK)
-                                    .styleable { paintOutsets(PaintOutsets.None) },
+                                    .styleable {
+                                        paintOutsets(PaintOutsets.None)
+                                        emptyBorder(borderWidth)
+                                    },
                         ) {
                             Box(modifier = SwingModifier.size(40, 40))
                         }

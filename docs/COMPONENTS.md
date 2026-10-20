@@ -378,7 +378,7 @@ the row's unless `opaque(false)` says otherwise.
 
 ```kotlin
 ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
-    Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
+    Panel(PanelLayout.Border(), style = { opaque(false) }) {
         Label(language.glyph, modifier = SwingModifier.west(), style = { preferredSize(24, 24) })
         Label(language.name)
     }

@@ -29,12 +29,12 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
 import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
@@ -275,7 +275,7 @@ private fun ColumnScope.ChoiceCard() {
                 // holds a slot of its own on the leading edge, so every name starts in the same place
                 // whatever glyph precedes it, and the name takes the space that is left.
                 val swatch = rememberDotIcon(language.swatch)
-                Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
+                Panel(PanelLayout.Border(), style = { opaque(false) }) {
                     Label(
                         "",
                         modifier =

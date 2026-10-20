@@ -2,11 +2,10 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.RawKind
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -332,9 +331,12 @@ class DecorationTest {
         decorators: List<Decorator>,
     ): SwingModifier =
         decorators
-            .fold(SwingModifier.testTag(tag).opaque(false)) { modifier, decorator ->
+            .fold(SwingModifier.testTag(tag)) { modifier, decorator ->
                 modifier.then(DecoratorElement(decorator))
-            }.styleable(RawKind) { preferredSize(side, side) }
+            }.styleable {
+                opaque(false)
+                preferredSize(side, side)
+            }
 
     /** What a [SIZE] by [SIZE] component declaring [decorators], the first outermost, paints with [content] inside. */
     private fun ComposeSwingTest.paint(

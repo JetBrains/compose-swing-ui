@@ -23,8 +23,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.apply
+import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
@@ -415,7 +416,12 @@ class BoxTest {
     fun testBox_hasCorrectIntrinsicMeasurements_withNoAlignedChildren() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.testTag(CONTAINER_TAG).border(EmptyBorder(5, 10, 15, 20))) {
+                Box(
+                    modifier =
+                        SwingModifier.testTag(CONTAINER_TAG).styleable {
+                            border(EmptyBorder(5, 10, 15, 20))
+                        },
+                ) {
                     Child(0, 200, 160, SwingModifier.matchParentSize())
                 }
             }
@@ -439,11 +445,10 @@ class BoxTest {
             setContent {
                 Box(
                     modifier =
-                        SwingModifier
-                            .containerTag()
-                            .border(
-                                EmptyBorder(5, 10, 15, 20),
-                            ).styleable(containerStyle(200, 160)),
+                        SwingModifier.containerTag().styleable {
+                            apply(containerStyle(200, 160))
+                            border(EmptyBorder(5, 10, 15, 20))
+                        },
                 ) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.matchParentSize())
                 }
@@ -462,11 +467,10 @@ class BoxTest {
             setContent {
                 Box(
                     modifier =
-                        SwingModifier
-                            .containerTag()
-                            .border(
-                                EmptyBorder(5, 10, 15, 20),
-                            ).styleable(containerStyle(200, 160)),
+                        SwingModifier.containerTag().styleable {
+                            apply(containerStyle(200, 160))
+                            border(EmptyBorder(5, 10, 15, 20))
+                        },
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0)

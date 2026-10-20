@@ -443,10 +443,18 @@ private object FramedScopeImpl : FramedScope {
 fun Framed(
     title: String,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable FramedScope.() -> Unit,
 ) {
     val border = remember(title) { TitledBorder(title) }
-    Panel(PanelLayout.Border(), modifier = modifier.border(border)) {
+    Panel(
+        PanelLayout.Border(),
+        modifier = modifier,
+        style = {
+            border(border)
+            apply(style)
+        },
+    ) {
         FramedScopeImpl.content()
     }
 }
@@ -469,9 +477,9 @@ Four things make a composite of this shape behave:
 - **Hold the scope to its three rules** - a `@Composable` content block, children composed directly,
   and each check run where its answer is whole (see *Placing children under constraints*). A
   composite's regions are placements like any other, so nothing about them is special.
-- **Keep the composite composable-shaped** - state in, callbacks out, and a `modifier` parameter
-  chained onto the outermost container it emits, so a caller styles the composite the way they style
-  any component.
+- **Keep the composite composable-shaped** - state in, callbacks out, and `modifier` and `style`
+  parameters passed to the outermost container it emits, with the composite's own properties set first so the
+  caller's style wins, so a caller styles the composite the way they style any component.
 - **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`,
   as above. A `Border` or `Icon` built in the composable body is a different instance on every
   recomposition, and neither overrides `equals`, so every

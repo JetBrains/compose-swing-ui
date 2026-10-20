@@ -49,7 +49,7 @@ import java.awt.Shape as AwtShape
  *
  * This is a decoration step, not Swing's border property: it paints where it is declared among the decorations,
  * and a look and feel never replaces it.
- * [lineBorder][org.jetbrains.compose.swing.modifier.appearance.lineBorder] writes the Swing border property instead,
+ * [lineBorder][org.jetbrains.compose.swing.style.lineBorder] writes the Swing border property instead,
  * which reserves its thickness as insets and is what a widget's own painting knows about.
  *
  * @param width how wide the line is, in the component's own units; `0` or less draws nothing.

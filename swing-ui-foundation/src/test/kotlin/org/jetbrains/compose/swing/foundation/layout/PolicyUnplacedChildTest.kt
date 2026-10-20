@@ -14,10 +14,10 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
@@ -61,8 +61,10 @@ class PolicyUnplacedChildTest {
                     content = {
                         Panel(
                             PanelLayout.Flow(),
-                            modifier = SwingModifier.opaque(true),
-                            style = { background(Color.RED) },
+                            style = {
+                                background(Color.RED)
+                                opaque(true)
+                            },
                         ) {}
                         Box(modifier = SwingModifier.background(brush = { _, _ -> Color.BLUE }))
                     },
@@ -314,9 +316,9 @@ class PolicyUnplacedChildTest {
                     content = {
                         Panel(
                             PanelLayout.Flow(),
-                            modifier = SwingModifier.opaque(true),
                             style = {
                                 background(Color.RED)
+                                opaque(true)
                                 visible(visible)
                             },
                         ) {}

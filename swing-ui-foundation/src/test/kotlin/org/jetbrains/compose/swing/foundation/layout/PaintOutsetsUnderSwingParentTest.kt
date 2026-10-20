@@ -9,11 +9,11 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
@@ -48,12 +48,13 @@ import kotlin.test.assertNotNull
 class PaintOutsetsUnderSwingParentTest {
     @Test
     fun everyStockLayoutSeesPlainSizesAndTheBorderInsets() {
-        // Every size set: [PREFERRED], [MINIMUM] and [MAXIMUM].
-        val everySize: SwingStyle<ComponentStyleScope> =
+        // Every size set: [PREFERRED], [MINIMUM] and [MAXIMUM], and a border of [BORDER].
+        val everySize: SwingStyle<SwingComponentStyleScope> =
             SwingStyle {
                 preferredSize(PREFERRED)
                 minimumSize(MINIMUM)
                 maximumSize(MAXIMUM)
+                emptyBorder(BORDER)
             }
         for (layout in StockLayout.entries) {
             runComposeSwingTest {
@@ -254,14 +255,13 @@ class PaintOutsetsUnderSwingParentTest {
 
         operator fun Dimension.plus(other: Dimension): Dimension = Dimension(width + other.width, height + other.height)
 
-        /** A component tagged [tag] with a border and a shadow over a fill. */
+        /** A component tagged [tag] with a shadow over a fill. */
         fun sized(
             tag: String,
             onPlaced: (Rectangle) -> Unit,
         ): SwingModifier =
             SwingModifier
                 .testTag(tag)
-                .emptyBorder(BORDER)
                 .onPlaced(onPlaced)
                 .shadow(RADIUS, Color.BLACK)
                 .background(Brush.of(Color.BLUE))

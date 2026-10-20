@@ -17,9 +17,9 @@ import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -80,9 +80,10 @@ class CachedShadowBlurTest {
                         TextArea(
                             text,
                             {},
-                            SwingModifier.testTag("editor").opaque(false).align(Alignment.Center),
+                            SwingModifier.testTag("editor").align(Alignment.Center),
                             rows = 2,
                             columns = 10,
+                            style = { opaque(false) },
                         )
                     }
                 }

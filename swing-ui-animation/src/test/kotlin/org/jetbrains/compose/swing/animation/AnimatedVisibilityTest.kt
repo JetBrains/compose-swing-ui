@@ -22,9 +22,9 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
@@ -71,8 +71,9 @@ internal fun Block(
     height: Int = 20,
 ) = Label(
     text = "",
-    modifier = modifier.opaque(true),
+    modifier = modifier,
     style = {
+        opaque(true)
         preferredSize(width = width, height = height)
         background(Color.BLUE)
     },

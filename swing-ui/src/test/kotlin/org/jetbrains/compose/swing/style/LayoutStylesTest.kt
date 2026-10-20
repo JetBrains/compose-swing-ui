@@ -56,32 +56,6 @@ private fun setterCases(): List<SetterCase> = listOf(
         ComponentOrientation.LEFT_TO_RIGHT,
         { it.componentOrientation },
     ) { componentOrientation(it) },
-    SetterCase(
-        "accessibleName",
-        "first",
-        "second",
-        { onNodeWithTag("accessibleName").assertIsOfType<JLabel>() },
-        { it.accessibleContext.accessibleName },
-    ) { value ->
-        Label(
-            text = "accessibleName",
-            modifier = SwingModifier.testTag("accessibleName"),
-            style = { (value() as String?)?.let { accessibleName(it) } },
-        )
-    },
-    SetterCase(
-        "accessibleDescription",
-        "first",
-        "second",
-        { onNodeWithTag("accessibleDescription").assertIsOfType<JLabel>() },
-        { it.accessibleContext.accessibleDescription },
-    ) { value ->
-        Label(
-            text = "accessibleDescription",
-            modifier = SwingModifier.testTag("accessibleDescription"),
-            style = { (value() as String?)?.let { accessibleDescription(it) } },
-        )
-    },
 )
 
 internal inline fun <reified V : Any> layoutCase(

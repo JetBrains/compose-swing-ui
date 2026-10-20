@@ -19,12 +19,12 @@ import org.jetbrains.compose.swing.components.layout.ToolBarSeparator
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
@@ -88,12 +88,12 @@ private fun SplitPaneSide(
 ) {
     Label(
         text = text,
-        modifier =
-            modifier
-                .opaque(true)
-                .lineBorder(Color(0x90, 0xA4, 0xAE))
-                .horizontalAlignment(SwingConstants.CENTER),
-        style = { background(color) },
+        modifier = modifier.horizontalAlignment(SwingConstants.CENTER),
+        style = {
+            opaque(true)
+            lineBorder(Color(0x90, 0xA4, 0xAE))
+            background(color)
+        },
     )
 }
 

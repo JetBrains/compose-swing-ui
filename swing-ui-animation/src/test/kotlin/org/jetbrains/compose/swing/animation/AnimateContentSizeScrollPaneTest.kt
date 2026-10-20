@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -39,10 +40,9 @@ class AnimateContentSizeScrollPaneTest {
                             Box(
                                 modifier =
                                     SwingModifier
-                                        .lineBorder(Color.GRAY)
                                         .animateContentSize(
                                             finishedListener = { initial, target -> lastRun = initial to target },
-                                        ),
+                                        ).styleable { lineBorder(Color.GRAY) },
                             ) {
                                 Label(text = List(lines) { "line $it" }.joinToString("<br>", "<html>", "</html>"))
                             }
