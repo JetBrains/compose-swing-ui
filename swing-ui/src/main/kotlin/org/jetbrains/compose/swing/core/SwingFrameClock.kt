@@ -6,6 +6,7 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import java.awt.Component
 import java.awt.DisplayMode
+import javax.swing.RepaintManager
 import javax.swing.SwingUtilities
 import javax.swing.Timer
 import kotlin.time.Duration.Companion.seconds
@@ -244,6 +245,12 @@ internal class SwingFrameClock(
      * that broadcast without publishing those would recompose against state already superseded - which
      * leaves a widget holding a change the composition has answered, for the next paint to show.
      *
+     * A frame that advances frame-driven work first asks the installed `RepaintManager` to validate the
+     * layout the earlier passes invalidated, as a Compose frame lays out before its next animation
+     * callbacks. An enter or exit transition takes its target from the measure that follows the pass that
+     * changed it. Swing's own validation is queued behind the change, so a frame that ran first would find
+     * no target and end the transition at once. The frame adds no layout of its own.
+     *
      * Holds [inFrame] for as long as it runs, so a widget listener reached from the changes applied here
      * asks for no frame of its own - see [settleInPlace].
      */
@@ -252,6 +259,10 @@ internal class SwingFrameClock(
         try {
             Snapshot.sendApplyNotifications()
             dispatcher.drain()
+            // Read after the drain, because the first awaiter registers from the effect the drain runs.
+            if (!compositionFramePaused && compositionClock.hasAwaiters) {
+                RepaintManager.currentManager(null).validateInvalidComponents()
+            }
             broadcastClock.sendFrame(System.nanoTime())
         } finally {
             inFrame = false
