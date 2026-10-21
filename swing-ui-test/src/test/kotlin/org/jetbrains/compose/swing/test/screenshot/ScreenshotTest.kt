@@ -97,15 +97,6 @@ class ScreenshotTest {
     }
 
     @Test
-    fun captureMatchesItselfStructurally() = runComposeSwingTest {
-        setContent { Button(text = "Click me", onClick = {}) }
-
-        val image = onNodeWithText("Click me").captureToImage()
-        // MSSIM of an image against itself is exactly 1.0, comfortably above the default threshold.
-        assertImageMatches(expected = image, image = image)
-    }
-
-    @Test
     fun smallElementMoveStillPassesDefaultThreshold() = runComposeSwingTest {
         val expected = renderWithElementAt()
         val nudged = renderWithElementAt(elementX = 38)

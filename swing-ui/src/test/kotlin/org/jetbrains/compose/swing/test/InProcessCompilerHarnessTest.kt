@@ -31,11 +31,11 @@ class InProcessCompilerHarnessTest {
     @Test
     fun assertRejectedFailsWhenAnErrorGoesUnnamed() {
         val result =
-            InProcessCompilerHarness.compileSnippet(
-                "TwoUnresolvedSnippet.kt",
+            CompilationResult(
+                ExitCode.COMPILATION_ERROR,
                 """
-                val first = missingFirst
-                val second = missingSecond
+                e: TwoUnresolvedSnippet.kt:1:18: error: Unresolved reference 'missingFirst'.
+                e: TwoUnresolvedSnippet.kt:2:19: error: Unresolved reference 'missingSecond'.
                 """.trimIndent(),
             )
 

@@ -88,6 +88,8 @@ class WindowMenuBarTest {
                 )
             }
 
+        // The window grows again once its menu bar is laid out.
+        awaitWindowStandsStill(onWindowWithTitle("menu-bar-parity").fetch<JFrame>())
         onWindowWithTitle("menu-bar-parity")
             .onNode(SwingMatcher.isOfType<JMenuBar>())
             .assertTreeMatches(reference)

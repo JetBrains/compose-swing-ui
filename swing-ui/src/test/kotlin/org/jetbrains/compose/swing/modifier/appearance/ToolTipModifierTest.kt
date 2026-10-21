@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.MouseEvent
@@ -16,6 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -45,15 +47,19 @@ class ToolTipModifierTest {
     fun toolTipModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
-            Label("X", modifier = if (styled) SwingModifier.toolTip("hint") else SwingModifier)
+            SwingNode(
+                factory = { JLabel("X").apply { toolTipText = "built-in" } },
+                modifier = if (styled) SwingModifier.toolTip("hint") else SwingModifier,
+            )
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals("hint", label.fetch<JLabel>().toolTipText, "the tooltip should apply while present")
+        val component = label.fetch<JLabel>()
+        assertEquals("hint", component.toolTipText, "the tooltip should apply while present")
 
         styled = false
         awaitIdle()
-        // The element left the chain, so the tooltip is cleared back to the prior (null) default.
-        assertNull(label.fetch<JLabel>().toolTipText, "removing the modifier should clear the tooltip")
+        assertSame(component, label.fetch<JLabel>(), "removing the modifier should preserve the component")
+        assertEquals("built-in", component.toolTipText, "removing the modifier should restore the caller's tooltip")
     }
 
     @Test
