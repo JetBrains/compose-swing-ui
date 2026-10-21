@@ -216,7 +216,7 @@ and screenshot comparison the harness offers.
 Full quality-gate command (what CI runs):
 
 ```bash
-./gradlew :buildSrc:ktlintCheck :buildSrc:detekt
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt detektMain detektTest detektTestFixtures
 ./gradlew build
 ```
 

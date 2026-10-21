@@ -80,12 +80,12 @@ the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a modu
 the convention plugins it applies: the vendored engine package under `swing-ui-animation` is
 exempt from ktlint, detekt and Compose lint checks; the hand-written animation APIs and containers
 remain under those gates. `samples/docs`, which holds generated code, carries none beyond compilation.
-One gate sits outside `build`: `buildSrc` is an included build the
-root-level tasks do not reach. So the full gate is two commands, and they are what to run locally
-before pushing:
+Two gates sit outside `build`: `buildSrc` is an included build the root-level tasks do not reach,
+and `check` runs only the plain `detekt` task, not the type-resolution variants. So the full gate is
+two commands, and they are what to run locally before pushing:
 
 ```bash
-./gradlew :buildSrc:ktlintCheck :buildSrc:detekt
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt detektMain detektTest detektTestFixtures
 ./gradlew build
 ```
 
@@ -100,10 +100,10 @@ Piece by piece:
   ```bash
   ./gradlew ktlintFormat
   ```
-- **`detekt`** - static analysis (`config/detekt/detekt.yml`, on top of the default config). The gate
-  runs it through `check`, which wires the type-resolution variants, `detektMain` and `detektTest`;
-  rules that need the compile classpath only fire there. When scoping a run to one module while
-  iterating, invoke `:module:detektMain` and `:module:detektTest` rather than the plain
+- **`detekt`** - static analysis (`config/detekt/detekt.yml`, on top of the default config). Rules
+  that need the compile classpath fire only in the type-resolution variants, `detektMain`,
+  `detektTest` and `detektTestFixtures`, which the full gate runs by name. When scoping a run to one
+  module while iterating, invoke `:module:detektMain` and `:module:detektTest` rather than the plain
   `:module:detekt` task, which runs without type resolution and stays silent on those rules. This
   does not apply to `buildSrc`, whose plain `detekt` task (below) is its own gate.
 - **`checkKotlinAbi`** - the Kotlin Gradle plugin's built-in ABI validation, comparing the compiled

@@ -37,19 +37,6 @@ tasks.withType<Detekt>().configureEach {
     jvmTarget.set("21")
 }
 
-// The default `detekt` task runs without type resolution, so rules that need the compile classpath
-// (UseOrEmpty, UseCheckOrError, ImplicitDefaultLocale, ...) never fire. Wire the type-resolution tasks
-// detektMain/detektTest - which compile the sources first - into `check` so those rules are enforced.
-tasks.named("check") {
-    dependsOn(tasks.named("detektMain"), tasks.named("detektTest"))
-}
-
-plugins.withId("java-test-fixtures") {
-    tasks.named("check") {
-        dependsOn(tasks.named("detektTestFixtures"))
-    }
-}
-
 // The module carrying this project's own detekt rules; it applies this convention too, and a module
 // cannot contribute its rules to itself.
 private val detektRuleSet = ":swing-ui-detekt"

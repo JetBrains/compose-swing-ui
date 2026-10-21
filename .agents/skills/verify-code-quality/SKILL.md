@@ -13,13 +13,14 @@ description: Run lint, static analysis, ABI validation and coverage gates for co
 4. Run the full gate once before committing:
 
 ```bash
-./gradlew :buildSrc:ktlintCheck :buildSrc:detekt
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt detektMain detektTest detektTestFixtures
 ./gradlew build --continue
 ```
 
-Two commands, because `buildSrc` is an included build the root-level tasks do not reach. `build` runs
-every module's `check` — compile, ktlint, detekt, the Compose lint checks, tests, `checkKotlinAbi` and
-the coverage floors — plus `assemble`. `--continue` reports every failure in one run instead of
+Two commands, because `buildSrc` is an included build the root-level tasks do not reach, and `check`
+runs only the plain `detekt` task, not the type-resolution variants. `build` runs every module's
+`check` — compile, ktlint, plain detekt, the Compose lint checks, tests, `checkKotlinAbi` and the
+coverage floors — plus `assemble`. `--continue` reports every failure in one run instead of
 stopping at the first.
 
 ## Scoping a run

@@ -5,6 +5,11 @@ on:
 
 env:
   ANDROIDX_FORKS: :swing-ui-foundation :swing-ui-animation
+  # The Static Analysis job runs exactly the tasks the verify jobs exclude. A task `check` reaches
+  # that is missing here still runs in verify.
+  STATIC_ANALYSIS: >-
+    lint detekt detektMain detektTest detektTestFixtures
+    ktlintKotlinScriptCheck ktlintMainSourceSetCheck ktlintTestSourceSetCheck ktlintTestFixturesSourceSetCheck
 
 jobs:
   verify:
@@ -22,11 +27,10 @@ jobs:
           # A new module is gated here without being listed.
           - group: swing-ui
             tasks: >-
-              :buildSrc:ktlintCheck :buildSrc:detekt
-              build $(printf -- '-x %s:build ' $ANDROIDX_FORKS)
+              build $(printf -- '-x %s:build ' $ANDROIDX_FORKS) $(printf -- '-x %s ' $STATIC_ANALYSIS)
 
           - group: androidx-forks
-            tasks: $(printf -- '%s:check ' $ANDROIDX_FORKS)
+            tasks: $(printf -- '%s:check ' $ANDROIDX_FORKS) $(printf -- '-x %s ' $STATIC_ANALYSIS)
 
     steps:
       - uses: actions/checkout@v6
@@ -53,6 +57,26 @@ jobs:
         with:
           artifact-name: tests-results-${{ matrix.group }}
           upload-artifact: ${{ job.status == 'failure' }}
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        name: Checkout Repository
+
+      - uses: ./.github/actions/setup-prerequisites
+        name: Setup Prerequisites
+        with:
+          java-version: 21
+
+      - shell: bash
+        name: Run Static Analysis
+        run: ./gradlew --no-daemon --stacktrace --continue :buildSrc:ktlintCheck :buildSrc:detekt $STATIC_ANALYSIS
 
   publishing:
     name: Publishing
