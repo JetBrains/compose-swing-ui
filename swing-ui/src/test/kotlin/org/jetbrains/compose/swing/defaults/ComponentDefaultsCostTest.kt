@@ -1,7 +1,5 @@
 package org.jetbrains.compose.swing.defaults
 
-import androidx.compose.runtime.CompositionLocalMap
-import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,12 +8,10 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.onAllNodesOfType
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import javax.swing.JButton
@@ -179,51 +175,55 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
-    fun refreshingUnderTwoOrMoreInheritedDefaultsSkipsReDiffingWhenAnUnrelatedKeyChanges() = runComposeSwingTest {
-        // Targets JButton alone, so it never contributes to what a JLabel inherits - but changing its
-        // value is still a real change to the defaults, so a label under it is still scheduled for a
-        // refresh.
+    fun anUnrelatedDefaultChangePreservesInheritedColors() = runComposeSwingTest {
         val unrelatedKey = componentDefaultKeyOf<String>("buttonOnly") { buttonWriteTracking(it) {} }
+        val background = Color(10, 20, 30)
+        val foreground = Color(40, 50, 60)
+        var unrelated by mutableStateOf("first")
+        var updates = 0
+        val trackingElement =
+            object : SwingModifier.NodeElement<JLabel, SwingModifier.ComponentNode<JLabel>>() {
+                override val targetType: Class<JLabel> = JLabel::class.java
 
-        var firstMap: CompositionLocalMap? = null
-        var secondMap: CompositionLocalMap? = null
+                override fun create(): SwingModifier.ComponentNode<JLabel> =
+                    object : SwingModifier.ComponentNode<JLabel>() {}
+
+                override fun update(node: SwingModifier.ComponentNode<JLabel>) {
+                    updates++
+                }
+
+                // Every visit must update the probe, even when it is handed the same element.
+                override fun equals(other: Any?): Boolean = false
+
+                override fun hashCode(): Int = System.identityHashCode(this)
+            }
 
         setContent {
             ProvideComponentDefaults(
-                DefaultBackground provides Color(10, 20, 30),
-                DefaultForeground provides Color(40, 50, 60),
-                unrelatedKey provides "first",
+                DefaultBackground provides background,
+                DefaultForeground provides foreground,
+                unrelatedKey provides unrelated,
             ) {
-                firstMap = currentComposer.currentCompositionLocalMap
-            }
-            ProvideComponentDefaults(
-                DefaultBackground provides Color(10, 20, 30),
-                DefaultForeground provides Color(40, 50, 60),
-                unrelatedKey provides "second",
-            ) {
-                secondMap = currentComposer.currentCompositionLocalMap
+                Label("inheriting", modifier = trackingElement)
+                SwingNode(factory = { JButton() })
             }
         }
 
-        val holder = CreatedNodeHolder(JLabel()).attachedTo(TestCompositionOwner())
-        holder.applyDeclaredModifier(SwingModifier)
-        holder.compositionLocalMap = checkNotNull(firstMap)
-        // Two or more defaults (DefaultBackground and DefaultForeground) apply to this label; this first
-        // refresh bakes their inherited chain into what the holder has applied.
-        holder.refreshInheritedDefaults()
-        val appliedAfterFirst = holder.modifierState?.applied
+        val label = onNodeOfType<JLabel>().fetch()
+        val button = onNodeOfType<JButton>().fetch()
+        assertEquals(2, updates, "mounting initializes and updates the always-updating probe")
+        assertEquals("first", button.text, "the button receives its own default")
+        assertEquals(background, label.background, "the label inherits its background")
+        assertEquals(foreground, label.foreground, "the label inherits its foreground")
 
-        // The second defaults are a genuinely different instance - unrelatedKey's own value is a real
-        // change - but background and foreground, the only two that apply to a JLabel, are unchanged.
-        holder.compositionLocalMap = checkNotNull(secondMap)
-        holder.refreshInheritedDefaults()
+        unrelated = "second"
+        awaitIdle()
 
-        assertSame(
-            appliedAfterFirst,
-            holder.modifierState?.applied,
-            "refreshing a label under two or more inherited defaults must not re-diff its applied chain " +
-                "when only a default that does not apply to it changed",
-        )
+        assertEquals(3, updates, "recomposition updates the probe once without an extra defaults refresh")
+        assertEquals("second", button.text, "the changed default reaches the button")
+        assertSame(label, onNodeOfType<JLabel>().fetch(), "changing an unrelated default keeps the label")
+        assertEquals(background, label.background, "an unrelated default preserves the background")
+        assertEquals(foreground, label.foreground, "an unrelated default preserves the foreground")
     }
 
     @Test

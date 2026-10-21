@@ -159,7 +159,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun horizontalSeparatorAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        // A horizontal separator has zero preferred height; give it an explicit size on both sides
+        // A horizontal separator has zero preferred width; give it an explicit size on both sides
         // so it lays out to identical, non-zero bounds and can be captured.
         content = {
             Separator(

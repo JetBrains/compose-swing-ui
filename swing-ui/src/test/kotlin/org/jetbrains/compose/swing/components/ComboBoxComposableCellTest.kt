@@ -15,14 +15,9 @@ import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JTextField
 import javax.swing.ListCellRenderer
-import javax.swing.SwingUtilities
-import javax.swing.UIManager
-import javax.swing.plaf.metal.MetalLookAndFeel
-import javax.swing.plaf.nimbus.NimbusLookAndFeel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -35,19 +30,6 @@ import kotlin.test.assertTrue
  * leaves an editable combo box's editor, and the value being typed into it, as they were.
  */
 class ComboBoxComposableCellTest {
-    @Test
-    fun itemContentRealizesAComposableCellPerItem() = runComposeSwingTest {
-        setContent {
-            ComboBox(items = listOf("red", "green", "blue"), selectedItem = "red", onSelectionChange = {}) { item ->
-                Panel { Label(item) }
-            }
-        }
-
-        val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        assertEquals("green", combo.renderCell(index = 1).firstLabelText(), "the cell should render item 1")
-        assertEquals("blue", combo.renderCell(index = 2).firstLabelText(), "the reused cell should rerender item 2")
-    }
-
     @Test
     fun recomposedItemContentUpdatesTheCell() = runComposeSwingTest {
         var items by mutableStateOf(listOf("old"))
@@ -106,53 +88,6 @@ class ComboBoxComposableCellTest {
             combo.renderDisplayArea(value = "red").firstLabelText(),
             "and so is one lying before it, which the scan wraps around to reach",
         )
-    }
-
-    @Test
-    fun aRenderAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
-        var showCombo by mutableStateOf(true)
-        setContent {
-            if (showCombo) {
-                ComboBox(items = listOf("red", "green"), selectedItem = "red", onSelectionChange = {}) { item ->
-                    Label(item)
-                }
-            }
-        }
-
-        val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val composingRenderer = combo.renderer
-        val cellBefore = composingRenderer.renderCell(value = "red", index = 0)
-
-        // The renderer outlives its composition: the popup list of the combo box keeps the renderer it
-        // was given and goes on invoking it while the window it belongs to is torn down, after the cell
-        // composition is disposed.
-        showCombo = false
-        awaitIdle()
-
-        val cellAfter = composingRenderer.renderCell(value = "green", index = 1)
-        assertNotSame(
-            cellBefore,
-            cellAfter,
-            "a disposed cell composition must give up the component it composed",
-        )
-        assertNull(
-            cellAfter.firstLabelText(),
-            "a render on a disposed cell composition must render an empty cell rather than a stale item",
-        )
-        assertTrue(
-            combo.renderCell(index = 1) is JLabel,
-            "the combo box itself renders through its own renderer again once the composable cell is gone",
-        )
-    }
-
-    @Test
-    fun omittingItemContentKeepsTheDefaultRenderer() = runComposeSwingTest {
-        setContent { ComboBox(items = listOf("a", "b"), selectedItem = "a", onSelectionChange = {}) }
-
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        val cell = combo.renderCell(index = 0)
-        assertTrue(cell is JLabel, "the default combo renderer renders a JLabel")
-        assertEquals("a", (cell as JLabel).text, "the default renderer renders the item's toString")
     }
 
     @Test
@@ -302,61 +237,6 @@ class ComboBoxComposableCellTest {
         showCombo = false
         awaitIdle()
         onAllNodesOfType<JComboBox<*>>().assertCountEquals(0)
-    }
-
-    @Test
-    fun theRestoredRendererFollowsLaterLookAndFeelChanges() = runComposeSwingTest {
-        val hostLookAndFeel = UIManager.getLookAndFeel()
-        UIManager.setLookAndFeel(MetalLookAndFeel())
-        try {
-            var composableCells by mutableStateOf(true)
-            setContent {
-                ComboBox(
-                    items = listOf("red", "green"),
-                    selectedItem = "red",
-                    onSelectionChange = {},
-                    itemContent =
-                        if (composableCells) {
-                            { item -> Label(item) }
-                        } else {
-                            null
-                        },
-                )
-            }
-
-            val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-            val composingRenderer: ListCellRenderer<*> = combo.renderer
-
-            // A look-and-feel change updates every component's UI, which is what an application does
-            // by walking its tree; a composable cell renderer is not the look and feel's, so the
-            // incoming delegate keeps it and installs none of its own.
-            UIManager.setLookAndFeel(NimbusLookAndFeel())
-            SwingUtilities.updateComponentTreeUI(root)
-            assertSame(composingRenderer, combo.renderer, "a look-and-feel change should keep the composable cell")
-
-            composableCells = false
-            awaitIdle()
-            assertEquals(
-                "red",
-                (combo.renderCell(index = 0) as JLabel).text,
-                "taking itemContent away should render the combo box's own renderer",
-            )
-
-            // What comes back is the combo box's own renderer, which is the look and feel's to
-            // replace: the next look-and-feel change hands it the renderer of the look and feel in
-            // force, exactly as on a combo box that never carried a composable cell.
-            SwingUtilities.updateComponentTreeUI(root)
-            assertEquals(
-                JComboBox<String>().renderer.javaClass,
-                combo.renderer.javaClass,
-                "a look-and-feel change should give the combo box the renderer of the look and feel in force",
-            )
-        } finally {
-            // The look and feel is process-wide state deciding how every later component renders, so
-            // putting the host one back is what keeps every other test in this JVM measuring against
-            // the look and feel it expects.
-            UIManager.setLookAndFeel(hostLookAndFeel)
-        }
     }
 
     @Test

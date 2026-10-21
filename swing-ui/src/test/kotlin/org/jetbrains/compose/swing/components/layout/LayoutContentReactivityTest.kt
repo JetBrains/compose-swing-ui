@@ -10,9 +10,11 @@ import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.BoxLayout
 import javax.swing.JLabel
-import kotlin.test.Test
 
 /**
  * A container's `content` is composition state like any other: the children it declares become the
@@ -66,32 +68,25 @@ class LayoutContentReactivityTest {
         assertTheContainerHosts(*hosted(listOf(FIRST_CAPTION)).toTypedArray())
     }
 
-    @Test
-    fun aBoxFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Panel(PanelLayout.Box()) { content() } }
-    }
-
-    @Test
-    fun aRowFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content ->
+    @TestFactory
+    fun containersFollowTheirContent(): List<DynamicTest> = listOf(
+        ContainerCase("aBoxFollowsItsContent") { content -> Panel(PanelLayout.Box()) { content() } },
+        ContainerCase("aRowFollowsItsContent") { content ->
             Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) { content() }
+        },
+        ContainerCase("aFlowPanelFollowsItsContent") { content -> Panel(PanelLayout.Flow()) { content() } },
+        ContainerCase("aGridPanelFollowsItsContent") { content -> Panel(PanelLayout.Grid()) { content() } },
+        ContainerCase("aToolBarFollowsItsContent") { content -> ToolBar(floatable = false) { content() } },
+    ).map { (name, container) ->
+        dynamicTest(name) {
+            runComposeSwingTest { assertTheContentIsFollowed(container = container) }
         }
     }
 
-    @Test
-    fun aFlowPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Panel(PanelLayout.Flow()) { content() } }
-    }
-
-    @Test
-    fun aGridPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Panel(PanelLayout.Grid()) { content() } }
-    }
-
-    @Test
-    fun aToolBarFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> ToolBar(floatable = false) { content() } }
-    }
+    private data class ContainerCase(
+        val name: String,
+        val content: @Composable (@Composable () -> Unit) -> Unit,
+    )
 
     private companion object {
         const val FIRST_CAPTION = "first"

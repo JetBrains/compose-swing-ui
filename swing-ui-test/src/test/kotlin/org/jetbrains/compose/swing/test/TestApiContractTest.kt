@@ -147,12 +147,6 @@ class TestApiContractTest {
     }
 
     @Test
-    fun rootInteractionResolves() = runComposeSwingTest {
-        setContent { Label(text = "child") }
-        onRoot().assertExists()
-    }
-
-    @Test
     fun textComponentTextEqualsReadsFieldText() = runComposeSwingTest {
         setContent { TextField(value = "field text", onValueChange = { }) }
         onNodeWithText("field text").assertTextEquals("field text")

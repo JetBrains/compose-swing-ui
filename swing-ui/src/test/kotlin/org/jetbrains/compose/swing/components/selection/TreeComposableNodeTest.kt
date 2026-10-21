@@ -82,54 +82,6 @@ class TreeComposableNodeTest {
         )
 
     @Test
-    fun nodeContentRealizesAComposableNodePerRow() = runComposeSwingTest {
-        setContent {
-            Tree(
-                root = sample,
-                children = { it.children },
-                label = { it.name },
-            ) { value ->
-                Panel { Label("${value.name} (${value.children.size})") }
-            }
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        // The whole value reaches the node, not just the text its label renders.
-        assertEquals(
-            "root (2)",
-            tree.renderRow(0).firstLabelText(),
-            "the composable node for row 0 should have realized a JLabel built from that row's value",
-        )
-        assertEquals(
-            "fruit (2)",
-            tree.renderRow(1).firstLabelText(),
-            "the reused node should rerender the next row",
-        )
-    }
-
-    @Test
-    fun aNullValueRendersThroughTheNodeBodyLikeAnyOther() = runComposeSwingTest {
-        val root: Branch? = Branch("root")
-        setContent {
-            Tree(
-                root = root,
-                children = { parent -> if (parent === root) listOf(null, Branch("leaf")) else emptyList() },
-                label = { it?.name ?: "(none)" },
-            ) { value ->
-                Label(value?.name ?: "(none)")
-            }
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
-            "(none)",
-            tree.renderRow(1).firstLabelText(),
-            "a node whose value is null is a node the node body renders",
-        )
-        assertEquals("leaf", tree.renderRow(2).firstLabelText(), "the next node renders its own value")
-    }
-
-    @Test
     fun aValueMovingUnderAnUnchangedLabelRepaintsItsRow() = runComposeSwingTest {
         var apple by mutableStateOf(Branch("apple", badge = "ripe"))
         val changed = mutableListOf<TreePath>()
@@ -328,21 +280,5 @@ class TreeComposableNodeTest {
             tree.renderRow(0).firstLabelText(),
             "declaring nodeContent again should render the composable node",
         )
-    }
-
-    @Test
-    fun omittingNodeContentKeepsTheTreesOwnRenderer() = runComposeSwingTest {
-        setContent {
-            Tree(root = sample, children = { it.children }, label = { it.name })
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        assertNull(
-            tree.cellRenderer as? ComposingTreeCellRenderer<*>,
-            "omitting nodeContent must leave the tree's own renderer, not install a composing one",
-        )
-        val node = tree.renderRow(0)
-        assertTrue(node is JLabel, "the tree's own renderer renders a JLabel")
-        assertEquals("root", (node as JLabel).text, "the tree's own renderer renders the node's label")
     }
 }

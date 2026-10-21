@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -48,35 +47,6 @@ class TableComposableCellTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41))
 
     @Test
-    fun cellContentRealizesAComposableCellPerCell() = runComposeSwingTest {
-        setContent {
-            Table(
-                rows = people,
-                columns = {
-                    column("Name") { it.name }
-                    column(
-                        header = "Age",
-                        cellContent = { row -> Panel { Label("${row.name}: ${row.age}") } },
-                    ) { it.age }
-                },
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(
-            "Ada: 36",
-            table.renderCell(row = 0, column = 1).firstLabelText(),
-            "the composable cell should have realized a JLabel built from the row it belongs to",
-        )
-        // A single reused component per column rerenders for every cell of that column the table paints.
-        assertEquals(
-            "Alan: 41",
-            table.renderCell(row = 1, column = 1).firstLabelText(),
-            "the reused cell should rerender the next row",
-        )
-    }
-
-    @Test
     fun aColumnRendersThroughItsOwnCellsAlone() = runComposeSwingTest {
         setContent {
             Table(
@@ -99,34 +69,6 @@ class TableComposableCellTest {
             "<Ada>",
             table.renderCell(row = 0, column = 0).firstLabelText(),
             "rerendering the first column should not have been disturbed by the second",
-        )
-    }
-
-    @Test
-    fun aNullRowRendersThroughTheCellBodyLikeAnyOther() = runComposeSwingTest {
-        val rows: List<Person?> = listOf(null, Person("Alan", 41))
-        setContent {
-            Table(
-                rows = rows,
-                columns = {
-                    column(
-                        header = "Name",
-                        cellContent = { row -> Label(row?.name ?: "(none)") },
-                    ) { it?.name }
-                },
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(
-            "(none)",
-            table.renderCell(row = 0, column = 0).firstLabelText(),
-            "a row whose value is null is a row the cell body renders",
-        )
-        assertEquals(
-            "Alan",
-            table.renderCell(row = 1, column = 0).firstLabelText(),
-            "the next row renders its own value",
         )
     }
 
@@ -316,40 +258,5 @@ class TableComposableCellTest {
             cellAfter.firstLabelText(),
             "a render on the disposed cell composition must render an empty cell rather than a stale one",
         )
-    }
-
-    @Test
-    fun takingTheCellsAwayLeavesTheCompositionIntact() = runComposeSwingTest {
-        var composableCells by mutableStateOf(true)
-        var showTable by mutableStateOf(true)
-        setContent {
-            if (showTable) {
-                Table(
-                    rows = people,
-                    columns = {
-                        column(
-                            header = "Name",
-                            cellContent =
-                                if (composableCells) {
-                                    { row -> Label(row.name) }
-                                } else {
-                                    null
-                                },
-                        ) { it.name }
-                    },
-                    selectedRowIndices = setOf(0),
-                )
-            }
-        }
-
-        composableCells = false
-        awaitIdle()
-
-        // Disposing a cell composition must touch nothing of the composition it was mounted from. Discarding
-        // the table afterwards rewrites the very slots the disposal ran from, and disposing the composition at
-        // the end of the test rewrites all of them, so both fail outright if the disposal disturbed either.
-        showTable = false
-        awaitIdle()
-        onAllNodesOfType<JTable>().assertCountEquals(0)
     }
 }

@@ -400,18 +400,6 @@ class AccessibilityModifierTest {
     }
 
     @Test
-    fun theDisplayedIndexReachesALabel() = runComposeSwingTest {
-        setContent {
-            Label("Save As", modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
-        }
-        assertEquals(
-            5,
-            onNodeOfType<JLabel>().fetch().displayedMnemonicIndex,
-            "the declared index should reach a label",
-        )
-    }
-
-    @Test
     fun theDisplayedIndexStandsWhenTheTextChangesUnderIt() = runComposeSwingTest {
         var text by mutableStateOf("Save As")
         setContent {

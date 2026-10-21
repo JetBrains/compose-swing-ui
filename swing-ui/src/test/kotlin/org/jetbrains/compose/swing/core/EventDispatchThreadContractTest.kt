@@ -17,6 +17,9 @@ import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.setContentAsMenuInteropHost
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JMenuBar
@@ -42,10 +45,12 @@ import kotlin.time.Duration.Companion.seconds
  * test thread against the failure the worker actually observed.
  */
 class EventDispatchThreadContractTest {
-    @Test
-    fun containerSetContentOffTheEventDispatchThreadFailsFast() {
-        val panel = JPanel()
-        assertRejectedOffEdt { panel.setContent { } }
+    @TestFactory
+    fun setContentOffTheEventDispatchThreadFailsFast(): List<DynamicTest> = listOf<Pair<String, () -> Unit>>(
+        "container" to { JPanel().setContent { } },
+        "menu bar" to { JMenuBar().setContent { } },
+    ).map { (name, setContent) ->
+        dynamicTest(name) { assertRejectedOffEdt(setContent) }
     }
 
     @Test
@@ -57,12 +62,6 @@ class EventDispatchThreadContractTest {
         } finally {
             frame.dispose()
         }
-    }
-
-    @Test
-    fun menuBarSetContentOffTheEventDispatchThreadFailsFast() {
-        val menuBar = JMenuBar()
-        assertRejectedOffEdt { menuBar.setContent { } }
     }
 
     @Test
