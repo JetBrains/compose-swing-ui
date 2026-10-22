@@ -11,6 +11,9 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JToolBar
@@ -50,103 +53,53 @@ class LayoutModifierReactivityTest {
         assertNull(target().toolTipText, "$subject: the tool tip after the element was dropped")
     }
 
-    @Test
-    fun aBorderPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Border") { modifier ->
+    @TestFactory
+    fun containersFollowTheirModifier(): List<DynamicTest> = listOf<Pair<String, @Composable (SwingModifier) -> Unit>>(
+        "PanelLayout.Border" to { modifier ->
             Panel(PanelLayout.Border(), modifier = modifier) { Label("child", SwingModifier.center()) }
-        }
-    }
-
-    @Test
-    fun aBoxFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("Box") { modifier ->
+        },
+        "Box" to { modifier ->
             Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aBoxPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Box") { modifier ->
-            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aColumnFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("Column") { modifier ->
-            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aRowFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("Row") { modifier ->
+        },
+        "Row" to { modifier ->
             Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aCardPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Card") { modifier ->
+        },
+        "PanelLayout.Card" to { modifier ->
             Panel(PanelLayout.Card(selectedCard = "only"), modifier = modifier) {
                 Label("child", SwingModifier.card("only"))
             }
-        }
-    }
-
-    @Test
-    fun aFlowPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Flow") { modifier ->
+        },
+        "PanelLayout.Flow" to { modifier ->
             Panel(PanelLayout.Flow(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aGridBagPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.GridBag") { modifier ->
+        },
+        "PanelLayout.GridBag" to { modifier ->
             Panel(PanelLayout.GridBag, modifier = modifier) { Label("child", SwingModifier.item()) }
-        }
-    }
-
-    @Test
-    fun aGridPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("PanelLayout.Grid") { modifier ->
+        },
+        "PanelLayout.Grid" to { modifier ->
             Panel(PanelLayout.Grid(), modifier = modifier) { Label("child") }
-        }
-    }
-
-    @Test
-    fun aScrollPaneFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("ScrollPane") { modifier ->
+        },
+        "ScrollPane" to { modifier ->
             ScrollPane(modifier = modifier) { Viewport { Label("child") } }
-        }
-    }
-
-    @Test
-    fun aSplitPaneFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("SplitPane") { modifier ->
+        },
+        "SplitPane" to { modifier ->
             SplitPane(modifier = modifier) {
                 Label("A", SwingModifier.first())
                 Label("B", SwingModifier.second())
             }
-        }
-    }
-
-    @Test
-    fun aTabbedPaneFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("TabbedPane") { modifier ->
+        },
+        "TabbedPane" to { modifier ->
             TabbedPane(
                 selectedIndex = 0,
                 onSelectedIndexChange = {},
                 modifier = modifier,
             ) { Label("child", SwingModifier.tab("General")) }
-        }
-    }
-
-    @Test
-    fun aToolBarFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("ToolBar") { modifier ->
+        },
+        "ToolBar" to { modifier ->
             ToolBar(modifier = modifier, floatable = false) { Label("child") }
+        },
+    ).map { (subject, container) ->
+        dynamicTest(subject) {
+            runComposeSwingTest { assertTheModifierIsFollowed(subject, container = container) }
         }
     }
 

@@ -51,6 +51,7 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
 import java.awt.BorderLayout
@@ -58,6 +59,7 @@ import java.awt.Color
 import java.awt.Component
 import java.beans.PropertyChangeListener
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.KeyStroke
 import javax.swing.SpinnerNumberModel
 import javax.swing.SwingUtilities
@@ -138,15 +140,15 @@ class ModifierInspectionTest {
     @Test
     fun aComponentDeclaredWithNoModifierCarriesTheEmptyChain() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        setContent { Label(text = "hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG)) }
+        setContent { Label(text = "hello") }
 
-        val node =
-            assertNotNull(onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode<*>)
-        assertEquals(
-            listOf("testTag"),
-            node.modifier.elements().map { it.name },
-            "a component whose chain declares one element carries that one and nothing else",
+        val label = onNodeOfType<JLabel>().fetch()
+        assertEquals("hello", label.text)
+        assertNotNull(
+            label.findDeclaringGroup()?.node as? SwingComponentNode<*>,
+            "the live label has a declaring group",
         )
+        assertEquals(emptyList(), label.declaredChain(), "a modifier-free label carries an empty inspected chain")
     }
 
     @Test
@@ -474,22 +476,15 @@ class ModifierInspectionTest {
             }
         }
 
-        fun declarations(suffix: String) = listOf(
-            declaredBy("border-$suffix", "border"),
-            declaredBy("tab-$suffix", "tab"),
-            declaredBy("cells-$suffix", "listCellSizing"),
-        )
-
-        assertEquals(
-            declarations("one"),
-            declarations("two"),
-            "two chains built from one argument declare the same thing",
-        )
-        assertNotEquals(
-            declarations("one"),
-            declarations("other"),
-            "and a chain built from another argument declares something else",
-        )
+        listOf(
+            "border" to "border",
+            "tab" to "tab",
+            "cells" to "listCellSizing",
+        ).forEach { (tag, element) ->
+            val first = declaredBy("$tag-one", element)
+            assertEquals(first, declaredBy("$tag-two", element), "$element retains equal arguments")
+            assertNotEquals(first, declaredBy("$tag-other", element), "$element distinguishes changed arguments")
+        }
     }
 
     @Test

@@ -34,6 +34,7 @@ import javax.swing.JButton
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -499,7 +500,7 @@ class ParentDeclarationTest {
         var callback: WeakReference<Any>? = null
         val element =
             RecordingLayoutNodeElement("a", mutableListOf()) { callback = observeUnderAFreshCallback(it, watched) }
-        child.applyModifierDiff(SwingModifier.then(element))
+        SwingUtilities.invokeAndWait { child.applyModifierDiff(SwingModifier.then(element)) }
 
         child.applyModifierDiff(SwingModifier)
 

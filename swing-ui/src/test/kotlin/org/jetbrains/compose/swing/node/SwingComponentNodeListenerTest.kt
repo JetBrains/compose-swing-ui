@@ -513,6 +513,44 @@ class SwingComponentNodeListenerTest {
         }
 
     @Test
+    fun aNodeBelowAMovedNodeIsToldItDetachedAndAttachedAndDropsTheReadsItObservedThere() = runComposeSwingTest {
+        var inOuter by mutableStateOf(false)
+        val component = ListeningPanel()
+        val host = JPanel()
+        lateinit var context: CompositionContext
+        lateinit var content: @Composable () -> Unit
+        setContent {
+            context = rememberCompositionContext()
+            content =
+                remember {
+                    movableContentOf { SwingNode(factory = { JPanel() }) { SwingNode(factory = { component }) } }
+                }
+            SwingNode(factory = { host })
+            if (inOuter) content()
+        }
+        awaitIdle()
+        val handle = host.setContent(parent = context) { if (!inOuter) content() }
+        awaitIdle()
+        val node = component.events.single().node
+        val state = mutableIntStateOf(0)
+        val changes = ArrayList<SwingComponentNode<*>>()
+        node.observeReads({ changes += it }) { state.intValue }
+
+        inOuter = true
+        awaitIdle()
+        state.intValue = 1
+        awaitIdle()
+
+        assertEquals(
+            listOf(Event("attached", node), Event("detached", node), Event("attached", node)),
+            component.events,
+            "moving a node moves the nodes below it too",
+        )
+        assertEquals(emptyList(), changes, "a read observed in the old composition runs no callback")
+        handle.dispose()
+    }
+
+    @Test
     fun anAfterValidationRequestRunsOnceAndNeverAfterItsNodeDetaches() = runComposeSwingTest {
         val host = ListeningPanel()
         setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }

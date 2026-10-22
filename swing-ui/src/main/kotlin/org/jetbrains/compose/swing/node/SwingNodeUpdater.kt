@@ -90,13 +90,13 @@ public value class SwingNodeUpdater<T : Component>
          * two declarations the widget resolves together, or reading back a property no declaration is
          * written through. A mirror that reports without it fails at the first change.
          *
-         * Runs once, on the pass that creates the node: the composition a node stands in is the same for
-         * its whole life.
+         * Runs once, on the pass that creates the node. A report settles in the composition the node stands in
+         * at the time, so it follows the node into another composition.
          *
          * @param mirror the record whose reports settle in this node's composition. Remember it in this
          *   node's own group, so it is released with the node it answers for.
          */
-        public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.owner = owner }
+        public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.holder = this }
 
         /**
          * Runs [block], which calls a caller's callback while a pass applies - from [init], [update], [set],

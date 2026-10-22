@@ -37,7 +37,8 @@ import java.awt.Component
  * component stays where its parent holds it. What [update] wrote stays on the component.
  *
  * Within one composition, a component is claimed by at most one node at a time. A second node claiming it
- * is refused, including a node that replaces the first one under a changed `key`.
+ * is refused, including a node that replaces the first one under a changed `key`. Separate content compositions
+ * do not see each other's claims, so a component claimed in two compositions is not detected.
  *
  * Under a host that holds its children in regions, the node names the region its component stands in with
  * [org.jetbrains.compose.swing.modifier.layout.slot] without an attachment. Under an indexed

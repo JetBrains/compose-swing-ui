@@ -19,11 +19,13 @@ import org.jetbrains.compose.swing.setContent
 import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JPanel
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -100,13 +102,15 @@ class FrameClockPacingTest {
     fun anAnimationAdvancesAtTheClockCadenceRatherThanAsFastAsTheEventQueueTurns() = runSwingTest {
         val composition = JPanel()
         val recomposer = SwingRecomposer.create(composition)
+        val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
         var target by mutableStateOf(0f)
         val steps = mutableListOf<Float>()
+        val frameNanos = mutableListOf<Long>()
         var content: DisposableHandle? = null
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target)
+                    val fraction = linearRamp(target, cadenceFrames) { frameNanos += it }
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -115,25 +119,12 @@ class FrameClockPacingTest {
             target = 1f
             awaitUntil("the animation reaches its target") { steps.last() == 1f }
 
-            val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
             assertTrue(
                 steps.size > 1,
                 "the animation must advance in steps rather than snap to its target; it went $steps",
             )
-            assertTrue(
-                steps.size <= cadenceFrames * CADENCE_HEADROOM,
-                "a ${ANIMATION_MILLIS}ms animation on a ${recomposer.clock.frameDelayMillis}ms cadence takes on " +
-                    "the order of $cadenceFrames steps; ${steps.size} means it ran as fast as the event " +
-                    "queue turned rather than on the clock",
-            )
-            assertTrue(
-                steps.zipWithNext().all { (previous, next) -> next > previous },
-                "a linear animation must advance one way only; it went $steps",
-            )
-            assertTrue(
-                steps.zipWithNext().all { (previous, next) -> next - previous <= MAX_STEP },
-                "no step may jump most of the way at once; it went $steps",
-            )
+            assertFramesSpanTheirCadence(recomposer.clock.frameDelayMillis, frameNanos)
+            assertEveryFrameAdvancedOneStep(steps, cadenceFrames)
         } finally {
             content?.dispose()
             recomposer.dispose()
@@ -144,14 +135,16 @@ class FrameClockPacingTest {
     fun aWriteLandingMidAnimationAppliesAtOnceAndTheAnimationNeitherSkipsNorJumps() = runSwingTest {
         val composition = JPanel()
         val recomposer = SwingRecomposer.create(composition)
+        val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
         var target by mutableStateOf(0f)
         var counter by mutableStateOf(0)
         val steps = mutableListOf<Float>()
+        val frameNanos = mutableListOf<Long>()
         var content: DisposableHandle? = null
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target)
+                    val fraction = linearRamp(target, cadenceFrames) { frameNanos += it }
                     Label(text = "n=$counter f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -179,15 +172,64 @@ class FrameClockPacingTest {
                 "a write made mid-animation must not wait for the animation's next frame; " +
                     "the slowest took $worstCycles event-dispatch cycles",
             )
-            val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
+            assertFramesSpanTheirCadence(recomposer.clock.frameDelayMillis, frameNanos)
+            assertEveryFrameAdvancedOneStep(steps, cadenceFrames)
+        } finally {
+            content?.dispose()
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun aWriteBetweenFramesAppliesAtOnceWhileFrameAwaitersWaitOutTheCadence() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        val clock = recomposer.clock
+        clock.setFramesPerSecond(1)
+        var counter by mutableStateOf(0)
+        val frameNanos = mutableListOf<Long>()
+        var content: DisposableHandle? = null
+        try {
+            content =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    Label(text = "n=$counter")
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            withFrameNanos { frameNanos += it }
+                        }
+                    }
+                }
+            awaitUntil("the content mounts") { labelTextOrNull(composition) == "n=0" }
+            awaitUntil("the frame-driven work takes its first frame") { frameNanos.isNotEmpty() }
+
+            var worstCycles = 0
+            repeat(WRITES_TIMED) { round ->
+                counter = round + 1
+                worstCycles =
+                    maxOf(
+                        worstCycles,
+                        cyclesUntil("write ${round + 1} reaches the widget") {
+                            labelTextOrNull(composition) == "n=${round + 1}"
+                        },
+                    )
+            }
+
             assertTrue(
-                steps.size <= cadenceFrames * CADENCE_HEADROOM,
-                "writes must not smuggle extra animation frames in: a ${ANIMATION_MILLIS}ms animation " +
-                    "took ${steps.size} steps against $writes writes",
+                worstCycles <= MAX_CYCLES_TO_APPLY,
+                "a write made between frames must not wait for the next one; " +
+                    "the slowest took $worstCycles event-dispatch cycles",
             )
+
+            awaitUntil("the cadence releases the frame awaiters") { frameNanos.size > 1 }
+            val wait = (frameNanos[1] - frameNanos[0]).nanoseconds
+            // The timer starts after the first frame is stamped and cannot fire before its delay, so
+            // a second frame that arrives sooner was not sent by the cadence.
+            val cadence = clock.frameDelayMillis.milliseconds
             assertTrue(
-                steps.zipWithNext().all { (previous, next) -> next > previous && next - previous <= MAX_STEP },
-                "the animation must neither run backwards nor jump; it went $steps",
+                wait >= cadence,
+                "frame-driven work must be sent no second frame before the cadence elapses, however many " +
+                    "writes are recomposed in between; the second came $wait after the first, " +
+                    "on a cadence of $cadence",
             )
         } finally {
             content?.dispose()
@@ -242,7 +284,7 @@ class FrameClockPacingTest {
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target)
+                    val fraction = linearRamp(target, ANIMATION_MILLIS / recomposer.clock.frameDelayMillis) {}
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -267,25 +309,71 @@ class FrameClockPacingTest {
 
     /**
      * A frame-driven stand-in for an animation, so these tests pin the clock rather than an animation
-     * engine: each time [target] moves, it walks from the value it holds to [target] over
-     * [ANIMATION_MILLIS], one step per frame the clock sends. It lands on [target] exactly and then
-     * awaits no further frame, so a settled ramp asks the clock for nothing.
+     * engine: each time [target] moves, it walks from the value it holds to [target] in [stepCount]
+     * equal steps, one per frame the clock sends, and reports the time of each frame to [onFrame].
+     * It lands on [target] exactly and then awaits no further frame, so a settled ramp asks the clock
+     * for nothing.
+     *
+     * A step counts frames and does not read the time, so a frame that arrives late makes the run
+     * longer and no step bigger: load can slow this ramp down but never change what it did.
      */
     @Composable
-    private fun linearRamp(target: Float): Float {
+    private fun linearRamp(
+        target: Float,
+        stepCount: Int,
+        onFrame: (frameNanos: Long) -> Unit,
+    ): Float {
         var value by remember { mutableStateOf(target) }
         LaunchedEffect(target) {
             val start = value
             if (start == target) return@LaunchedEffect
-            val startNanos = withFrameNanos { it }
-            var elapsed = 0L
-            while (elapsed < ANIMATION_NANOS) {
-                elapsed = withFrameNanos { it } - startNanos
-                val progress = (elapsed.toFloat() / ANIMATION_NANOS).coerceAtMost(1f)
-                value = start + (target - start) * progress
+            onFrame(withFrameNanos { it })
+            repeat(stepCount) { step ->
+                onFrame(withFrameNanos { it })
+                value = if (step == stepCount - 1) target else start + (target - start) * (step + 1) / stepCount
             }
         }
         return value
+    }
+
+    /**
+     * Asserts that the [frameNanos] the clock sent span at least a [CADENCE_HEADROOM]th of the time that
+     * many frames take on a cadence of [cadenceMillis].
+     *
+     * This is what tells a clock-paced run from one that ran as fast as the event queue turned: the
+     * latter sends the same frames in a handful of milliseconds. It bounds the span from below only,
+     * because load stretches a run and never shortens it. It reads the span rather than the gap between
+     * two frames, since a frame sent late leaves the next one close behind it, however evenly the timer
+     * ticks.
+     */
+    private fun assertFramesSpanTheirCadence(
+        cadenceMillis: Int,
+        frameNanos: List<Long>,
+    ) {
+        val frameCount = frameNanos.size - 1
+        val spanMillis = (frameNanos.last() - frameNanos.first()).nanoseconds.inWholeMilliseconds
+        assertTrue(frameCount > 1, "the animation must have been sent several frames; it got $frameNanos")
+        assertTrue(
+            spanMillis * CADENCE_HEADROOM >= frameCount * cadenceMillis,
+            "$frameCount frames on a ${cadenceMillis}ms cadence take on the order of " +
+                "${frameCount * cadenceMillis}ms; they were sent within ${spanMillis}ms, which means the work " +
+                "ran as fast as the event queue turned rather than on the clock",
+        )
+    }
+
+    /**
+     * Asserts that each of [steps] after the first moved the ramp by one of its [stepCount] equal steps:
+     * no frame was skipped and none was served twice.
+     */
+    private fun assertEveryFrameAdvancedOneStep(
+        steps: List<Float>,
+        stepCount: Int,
+    ) {
+        assertEquals(stepCount + 1, steps.size, "every frame's value must reach the composed widget")
+        assertTrue(
+            steps.zipWithNext().all { (previous, next) -> abs(next - previous - 1f / stepCount) <= 1e-4f },
+            "each step must be exactly one of $stepCount equal steps; it went $steps",
+        )
     }
 
     /**
@@ -343,16 +431,13 @@ class FrameClockPacingTest {
          */
         const val MAX_CYCLES_TO_APPLY: Int = 50
         const val ANIMATION_MILLIS: Int = 400
-        const val ANIMATION_NANOS: Long = ANIMATION_MILLIS * 1_000_000L
 
         /**
-         * How far over the nominal step count a run may go before it is no longer clock-paced. The
-         * cadence is nominal and jitters with load, so the bound is loose; free-running work overruns
-         * it by two orders of magnitude rather than by a factor.
+         * The measured frame span must be at least one quarter of its nominal cadence span.
+         * Event queue scheduling can bunch adjacent frames together under load.
          */
         const val CADENCE_HEADROOM: Int = 4
         const val LATE_FRAMES: Int = 3
-        const val MAX_STEP: Float = 0.5f
         val LATE_START = 300.milliseconds
         val QUIET_PERIOD = 200.milliseconds
         val SETTLE_TIMEOUT = 10.seconds

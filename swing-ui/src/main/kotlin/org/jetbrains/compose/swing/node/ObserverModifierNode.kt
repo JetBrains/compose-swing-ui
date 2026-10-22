@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
 /** A [SwingModifier.Node] notified through [onObservedReadsChanged] when a value read in [observeReads] changes. */
@@ -19,7 +20,7 @@ public interface ObserverModifierNode {
  * Runs [block], recording its reads under this node; after one of them changes, calls
  * [ObserverModifierNode.onObservedReadsChanged] once, while the node is attached.
  *
- * @throws IllegalStateException if this node is not attached.
+ * @throws IllegalStateException if this node is not attached or the call is off the Event Dispatch Thread.
  */
 public fun <T> T.observeReads(block: () -> Unit): Unit where T : SwingModifier.Node, T : ObserverModifierNode =
     observeReads(OnObservedReadsChanged, block)
@@ -30,12 +31,13 @@ public fun <T> T.observeReads(block: () -> Unit): Unit where T : SwingModifier.N
  * [SnapshotStateObserver.observeReads] groups them: pass the same instance on every call, and use one
  * instance per set of reads that must not drop another's.
  *
- * @throws IllegalStateException if this node is not attached.
+ * @throws IllegalStateException if this node is not attached or the call is off the Event Dispatch Thread.
  */
 public fun <T : SwingModifier.Node> T.observeReads(
     onChanged: (T) -> Unit,
     block: () -> Unit,
 ) {
+    checkEventDispatchThread()
     requireOwner().snapshotObserver.observeReads(this, onChanged, block)
 }
 

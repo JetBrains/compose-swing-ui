@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test
 
+import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -25,6 +26,41 @@ class LibraryFailureSurfacedByGateTest {
 
         // Thrown and forgotten, so the composition is free to become idle normally afterward rather than
         // failing every further gate on the same failure.
+        awaitIdle()
+    }
+
+    @Test
+    fun aFailureRaisedWhileTheGateLaysTheRootOutFailsThatGate() = runComposeSwingTest {
+        setContent {}
+
+        // A nonempty event queue keeps AWT from ending the gate's wait by shutting down the EDT.
+        // Reposting starts in doLayout because the gate lays out the root only after the queue drains.
+        var reposting = true
+        lateinit var repost: Runnable
+        repost =
+            Runnable {
+                if (reposting) {
+                    SwingUtilities.invokeLater(repost)
+                }
+            }
+        val thrown = IllegalStateException("raised while the root was laid out")
+        val failing =
+            object : JComponent() {
+                override fun doLayout() {
+                    SwingUtilities.invokeLater(repost)
+                    throw thrown
+                }
+            }
+        root.add(failing)
+
+        val failure =
+            try {
+                assertFailsWith<IllegalStateException> { awaitIdle() }
+            } finally {
+                reposting = false
+                root.remove(failing)
+            }
+        assertSame(thrown, failure, "the gate surfaces the layout failure itself")
         awaitIdle()
     }
 }

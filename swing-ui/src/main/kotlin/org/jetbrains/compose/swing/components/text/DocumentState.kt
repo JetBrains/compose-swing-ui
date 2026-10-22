@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.annotations.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import org.jetbrains.compose.swing.text.TextRange
+import java.beans.PropertyChangeListener
 import java.io.StringReader
 import javax.swing.JEditorPane
 import javax.swing.event.CaretListener
@@ -85,6 +86,16 @@ public class DocumentState internal constructor(
             selectionState = range
         }
 
+    // Swing replaces a caret without a caret event, so the selection is read from the new caret when
+    // the `caret` property changes.
+    private val caretPropertyListener =
+        PropertyChangeListener {
+            val caret = component?.caret
+            val range = if (caret == null) TextRange(0, 0) else TextRange(caret.mark, caret.dot)
+            appliedSelection = range
+            selectionState = range
+        }
+
     // undoableEditHappened fires after the document's own insert/remove listeners. During a
     // [recordAsOneEdit] block, the edit is diverted into the pending compound edit instead of being
     // recorded here directly.
@@ -130,7 +141,8 @@ public class DocumentState internal constructor(
      *
      * A bound component settles the assigned range against the document it renders, and the settled
      * range is what this property then reports: assigning an offset past the document's end reports the
-     * end.
+     * end. Replacing the component's caret adopts the new caret's selection; a component with no
+     * caret reports an empty range at offset zero.
      *
      * @see javax.swing.text.Caret.setDot
      */
@@ -240,11 +252,13 @@ public class DocumentState internal constructor(
         selectionState = settled
         appliedSelection = settled
         target.addCaretListener(caretListener)
+        target.addPropertyChangeListener("caret", caretPropertyListener)
     }
 
     /** Detaches the selection sync from [target], leaving the shared document in place. */
     internal fun unbind(target: JTextComponent) {
         target.removeCaretListener(caretListener)
+        target.removePropertyChangeListener("caret", caretPropertyListener)
         if (component === target) component = null
     }
 
@@ -391,6 +405,7 @@ private fun Document.readText(): String {
 // document, or one a navigation filter redirects, settles somewhere else than it asked for, and that
 // landing place - not the request - is the selection the component has.
 private fun JTextComponent.applySelection(range: TextRange): TextRange {
+    val caret = caret ?: return TextRange(0, 0)
     val docLength = document.length
     val anchor = range.start.coerceIn(0, docLength)
     val dot = range.end.coerceIn(0, docLength)

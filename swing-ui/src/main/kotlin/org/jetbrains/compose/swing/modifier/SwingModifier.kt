@@ -201,6 +201,12 @@ public interface SwingModifier {
 
         /**
          * Runs once every node of the chain is attached. Runs again only after [onDetach].
+         * A component that moves into another composition detaches its nodes and attaches them again there; a move
+         * within one composition runs neither.
+         *
+         * This callback can run before the current composition changes finish applying. Read composition locals in
+         * the element's `update` or layout callbacks to follow those changes; see
+         * [CompositionLocalConsumerModifierNode].
          *
          * A throw propagates to the caller applying the modifier and fails the pass; the node is detached first.
          * A throw from [onDetach] during that detach is suppressed on it, not reported.
@@ -210,6 +216,7 @@ public interface SwingModifier {
         /**
          * Runs when the entry leaves the modifier or the node is released, deactivated or reused, while every
          * node of its chain is still attached.
+         * It also runs when the component moves into another composition.
          *
          * A throw is reported to the thread's uncaught-exception handler and the node detaches, as if this had
          * returned.
@@ -286,11 +293,12 @@ public interface SwingModifier {
     /**
      * The stateful counterpart of an [NodeElement], created once per slot and kept across recompositions.
      *
-     * [onAttach] runs once, before the owning [NodeElement]'s first [update][NodeElement.update] pushes the
-     * latest data onto the node's fields. So a listener installed in [onAttach] is live before the first
-     * `update` lands, and every field it reads needs an initial value that stands until then. [onDetach]
-     * runs when the element leaves the modifier or the node is released or reused, to restore a captured
-     * original or remove an installed listener. A reused or deactivated node gets [onReset] first.
+     * [onAttach] runs each time the node attaches, and the owning [NodeElement]'s [update][NodeElement.update]
+     * follows it to push the latest data onto the node's fields. So a listener installed in [onAttach] is live
+     * before that `update` lands, and every field it reads needs an initial value that stands until then.
+     * [onDetach] runs when the element leaves the modifier, the node is released, deactivated or reused, or its
+     * component moves into another composition, to restore a captured original or remove an installed listener.
+     * A reused or deactivated node gets [onReset] first.
      *
      * Property nodes come apart in the reverse of the order the modifier declared them last, so a node
      * putting back what it read finds every node declared before it still standing. Subscription nodes are
@@ -1356,7 +1364,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
         if (marked == null) {
             diffKeyedElements(this, state, partition, adoptable, diagnostics)
         } else {
-            marked.runComponentLifecycles(state, partition, diagnostics)
+            marked.runComponentLifecycles(state, partition.keyed.keys, diagnostics)
         }
     // A whole attach leaves no component slot standing from before this pass.
     val changes = updateModifierNodes(this, state, partition.chain, ComponentNodeType, adoptable || marked != null)
@@ -1364,7 +1372,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
 }
 
 /**
- * The nodes of a chain [mark] marked attached, whose `onAttach` has yet to run.
+ * The nodes of a chain [mark] or [markAttached] marked attached, whose `onAttach` has yet to run.
  *
  * A slot is recorded before its node's `onAttach` runs and dropped again if `onAttach` throws, so a pass that throws
  * partway leaves the nodes whose `onAttach` did not run unrecorded, as the diff does. The keyed nodes stand in the
@@ -1375,7 +1383,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
  * one's had a chance to run. Neither is recorded anywhere by the time the throw reaches the caller, so nothing
  * else would ever detach them - [mark] unwinds the first kind itself, and [detachOrphaned] the second.
  */
-private class MarkedChain(
+internal class MarkedChain(
     private val keyed: List<ElementRecord<*, *>>,
     private val components: List<ElementRecord<*, *>>,
     private val layoutNodes: List<LayoutNodeRecord>,
@@ -1398,18 +1406,18 @@ private class MarkedChain(
      */
     fun runComponentLifecycles(
         state: SwingModifierState,
-        partition: ModifierPartition,
+        keys: Collection<Any>,
         diagnostics: SwingCompositionDiagnostics?,
     ): Boolean {
         var autoInvalidates = false
         var index = 0
-        for (key in partition.keyed.keys) {
+        for (key in keys) {
             val record = keyed[index++]
             record.runAttachLifecycle(diagnostics, { state.records[key] = record }, { state.records.remove(key) })
             if (record.node.shouldAutoInvalidate) autoInvalidates = true
         }
         state.declaredKeyOrder.clear()
-        state.declaredKeyOrder.addAll(partition.keyed.keys)
+        state.declaredKeyOrder.addAll(keys)
         components.fastForEach { record ->
             record.runAttachLifecycle(diagnostics, state.chain)
             if (record.node.shouldAutoInvalidate) autoInvalidates = true
@@ -1417,17 +1425,29 @@ private class MarkedChain(
         return autoInvalidates || components.isNotEmpty()
     }
 
+    /** Marks every node attached to [holder], without running any `onAttach`. */
+    fun markAttached(holder: SwingNodeHolder<*>) {
+        keyed.fastForEach { it.node.attach(holder) }
+        components.fastForEach { it.node.attach(holder) }
+        layoutNodes.fastForEach { it.node.attach(holder) }
+    }
+
     /**
      * Detaches every node this marked that never joined [state]: one whose `onAttach` never got a turn because an
      * earlier node's threw first. A node whose own `onAttach` ran - whether it went on to join [state] or threw
      * and was already detached by [NodeRecord.runAttachLifecycle] - is untouched here; only one still attached and
      * standing in neither [SwingModifierState.chain] nor [SwingModifierState.records] is reached, and it runs no
-     * `onDetach`, since none of its own lifecycle ran either.
+     * `onDetach`, since none of its own lifecycle ran either. Every orphan is detached even when detaching one
+     * throws; the first failure propagates, with the later ones suppressed on it.
      */
     fun detachOrphaned(state: SwingModifierState) {
-        keyed.fastForEach { it.detachIfOrphaned(state) }
-        components.fastForEach { it.detachIfOrphaned(state) }
-        layoutNodes.fastForEach { it.detachIfOrphaned(state) }
+        val records = ArrayList<NodeRecord<*, *>>(keyed.size + components.size + layoutNodes.size)
+        records += keyed
+        records += components
+        records += layoutNodes
+        var failure: Throwable? = null
+        records.fastForEach { record -> failure = collectFailure(failure) { record.detachIfOrphaned(state) } }
+        failure?.let { throw it }
     }
 
     private fun NodeRecord<*, *>.detachIfOrphaned(state: SwingModifierState) {

@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.annotations.TransferAction
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
+import org.jetbrains.compose.swing.modifier.keyboard.InputMapBinding
 import java.awt.Point
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
@@ -119,8 +120,10 @@ public fun SwingModifier.dropTarget(
  * When [bindKeys] is `true` (the default), the platform copy/cut/paste keystrokes (the menu-shortcut
  * modifier with `C`/`X`/`V`) are bound on the component so the standard shortcuts trigger these
  * operations while it is focused; pass `false` to enable the operations without installing key
- * bindings (e.g. to drive them from your own menu). Requires a [JComponent] target. All callbacks are
- * read live, so passing fresh lambdas across recompositions takes effect immediately.
+ * bindings (e.g. to drive them from your own menu). Removing a binding restores the local binding it
+ * displaced when the clipboard binding still holds the stroke, and leaves inherited bindings inherited.
+ * All callbacks are read live, so passing fresh lambdas across recompositions takes effect immediately.
+ * Requires a [JComponent] target.
  *
  * Pass a [handle] from [rememberClipboardHandle] to also trigger copy/cut/paste programmatically. The
  * handle binds to the component this modifier is applied to, so [ClipboardHandle.copy],
@@ -445,6 +448,7 @@ private class ClipboardElement(
         var canImport: (List<DataFlavor>) -> Boolean = { true }
 
         private var keysBound = false
+        private var keyBindings: List<InputMapBinding> = emptyList()
 
         fun apply(bindKeys: Boolean) {
             val component = component
@@ -466,12 +470,13 @@ private class ClipboardElement(
             // platform copy/cut/paste keystrokes in place, matching every other declared value here.
             when {
                 bindKeys && !keysBound -> {
-                    bindClipboardKeys(component)
+                    keyBindings = bindClipboardKeys(component)
                     keysBound = true
                 }
 
                 !bindKeys && keysBound -> {
-                    unbindClipboardKeys(component)
+                    unbindClipboardKeys(keyBindings)
+                    keyBindings = emptyList()
                     keysBound = false
                 }
             }
@@ -481,7 +486,8 @@ private class ClipboardElement(
             val component = component
             clearSlotIfOwned(component, this) { it.source }
             clearSlotIfOwned(component, this) { it.drop }
-            if (keysBound) unbindClipboardKeys(component)
+            if (keysBound) unbindClipboardKeys(keyBindings)
+            keyBindings = emptyList()
             keysBound = false
             uninstallIfEmpty(component)
         }
@@ -528,32 +534,24 @@ private class ExportDoneElement(
     }
 }
 
-private const val COPY_KEY = "swing-ui.clipboard.copy"
-private const val CUT_KEY = "swing-ui.clipboard.cut"
-private const val PASTE_KEY = "swing-ui.clipboard.paste"
-
-private fun bindClipboardKeys(component: JComponent) {
+private fun bindClipboardKeys(component: JComponent): List<InputMapBinding> {
     val shortcut = menuShortcutMask()
-    val inputMap = component.getInputMap(JComponent.WHEN_FOCUSED)
-    inputMap.put(KeyStroke.getKeyStroke('C'.code, shortcut), COPY_KEY)
-    inputMap.put(KeyStroke.getKeyStroke('X'.code, shortcut), CUT_KEY)
-    inputMap.put(KeyStroke.getKeyStroke('V'.code, shortcut), PASTE_KEY)
-    val actionMap = component.actionMap
-    actionMap.put(COPY_KEY, TransferHandler.getCopyAction())
-    actionMap.put(CUT_KEY, TransferHandler.getCutAction())
-    actionMap.put(PASTE_KEY, TransferHandler.getPasteAction())
+    return listOf(
+        'C' to TransferHandler.getCopyAction(),
+        'X' to TransferHandler.getCutAction(),
+        'V' to TransferHandler.getPasteAction(),
+    ).map { (letter, action) ->
+        InputMapBinding(
+            component.getInputMap(JComponent.WHEN_FOCUSED),
+            KeyStroke.getKeyStroke(letter.code, shortcut),
+            component.actionMap,
+            action,
+        ).also { it.install() }
+    }
 }
 
-private fun unbindClipboardKeys(component: JComponent) {
-    val shortcut = menuShortcutMask()
-    val inputMap = component.getInputMap(JComponent.WHEN_FOCUSED)
-    inputMap.remove(KeyStroke.getKeyStroke('C'.code, shortcut))
-    inputMap.remove(KeyStroke.getKeyStroke('X'.code, shortcut))
-    inputMap.remove(KeyStroke.getKeyStroke('V'.code, shortcut))
-    val actionMap = component.actionMap
-    actionMap.remove(COPY_KEY)
-    actionMap.remove(CUT_KEY)
-    actionMap.remove(PASTE_KEY)
+private fun unbindClipboardKeys(bindings: List<InputMapBinding>) {
+    bindings.forEach { it.uninstall() }
 }
 
 /** A drag-source/clipboard-export slice: what to export and which operations it offers. */

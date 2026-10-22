@@ -7,6 +7,9 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import java.awt.event.InputEvent
 import javax.swing.JTable
@@ -42,9 +45,6 @@ import kotlin.test.assertTrue
  */
 class TableRowSortingTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
-
-    private fun tableModel(vararg names: String): DefaultTableModel =
-        DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
 
     private val byLengthDescending =
         Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
@@ -334,6 +334,14 @@ class TableRowSortingTest {
         )
     }
 
+    @TestFactory
+    fun onlyHeaderGesturesReachOnSortChange(): List<DynamicTest> =
+        listOf("declared rows" to false, "caller-owned model" to true).map { (name, modelDriven) ->
+            dynamicTest(name) {
+                assertOnlyHeaderGesturesReachOnSortChange(modelDriven, people)
+            }
+        }
+
     @Test
     fun aStatesSortOrderOutlivesTheSorterAModelSwapRebuilds() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
@@ -568,10 +576,11 @@ class TableRowSortingTest {
     fun aColumnWhoseDeclaredComparatorIsHeldIsNotSortedAgainOnEveryPass() = runComposeSwingTest {
         // Held across passes: a comparator compared by identity has to be, for the pass that redeclares
         // it to leave the ordering alone.
+        val rows = people.reversed()
         var rowHeight by mutableStateOf(20)
         setContent {
             Table(
-                rows = people,
+                rows = rows,
                 columns = { column("Name", comparator = byNameAscending) { it.name } },
                 state = rememberTableState(initialSortKeys = listOf(SortKey(0, SortOrder.ASCENDING))),
                 sortable = true,
@@ -580,14 +589,19 @@ class TableRowSortingTest {
         }
 
         val table = onNodeOfType<JTable>().fetch()
+        val sorter = table.rowSorter
+        assertEquals(listOf("Ada", "Alan", "Grace"), table.shownNames())
+        assertEquals(listOf(SortKey(0, SortOrder.ASCENDING)), sorter.sortKeys)
         var sorts = 0
-        table.rowSorter.addRowSorterListener { event ->
+        sorter.addRowSorterListener { event ->
             if (event.type == RowSorterEvent.Type.SORTED) sorts++
         }
 
         rowHeight = 24
         awaitIdle()
 
+        assertEquals(24, table.rowHeight, "the pass the count is taken over should have reached the table")
+        assertSame(sorter, table.rowSorter, "on the sorter it was taken on, which the table still holds")
         assertEquals(0, sorts, "a pass that redeclares nothing about the ordering should not sort the rows again")
     }
 
@@ -700,4 +714,71 @@ class TableRowSortingTest {
         assertSame(model, (table.rowSorter as TableRowSorter<*>).model, "the sorter should follow the new model")
         assertEquals(listOf("Nikola", "Marie"), table.shownNames(), "the state's order should survive the swap")
     }
+}
+
+private fun tableModel(vararg names: String): DefaultTableModel =
+    DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
+
+private fun assertOnlyHeaderGesturesReachOnSortChange(
+    modelDriven: Boolean,
+    people: List<Person>,
+) = runComposeSwingTest {
+    val received = mutableListOf<List<SortKey>>()
+    var rows by mutableStateOf(people)
+    var header by mutableStateOf("Name")
+    var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+    setContent {
+        HeaderPane {
+            if (modelDriven) {
+                Table(model = model, sortable = true, onSortChange = { received += it })
+            } else {
+                Table(
+                    rows = rows,
+                    columns = { column(header) { it.name } },
+                    sortable = true,
+                    onSortChange = { received += it },
+                )
+            }
+        }
+    }
+
+    val table = onNodeOfType<JTable>().fetch()
+    val ascending = listOf(SortKey(0, SortOrder.ASCENDING))
+    val descending = listOf(SortKey(0, SortOrder.DESCENDING))
+    assertEquals(emptyList(), received, "installing the table reports no user gesture")
+
+    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    assertEquals(listOf(ascending), received, "one header click reports its order exactly once")
+
+    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    assertEquals(listOf(ascending, descending), received, "another click reports the new order exactly once")
+    assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the user's order reaches the rows")
+
+    if (modelDriven) {
+        model = tableModel("Ada", "Alan", "Grace", "Bob")
+    } else {
+        rows = people + Person("Bob", 29)
+        header = "Person"
+    }
+    awaitIdle()
+
+    assertEquals(
+        listOf(ascending, descending),
+        received,
+        "putting the user's order back after a content refresh reports no new gesture",
+    )
+    assertSame(table, onNodeOfType<JTable>().fetch(), "the content refresh updates the same table")
+    assertEquals(listOf("Grace", "Bob", "Alan", "Ada"), table.shownNames(), "the new rows keep the user's order")
+
+    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    assertEquals(
+        listOf(ascending, descending, ascending),
+        received,
+        "header gestures are still reported after the refresh",
+    )
+    assertEquals(
+        listOf("Ada", "Alan", "Bob", "Grace"),
+        table.shownNames(),
+        "the next gesture sorts the refreshed rows",
+    )
 }

@@ -36,8 +36,9 @@ class ComponentDefaultsPropagationTest {
     @Test
     fun defaultsPropagateIntoRenderedCells() = runComposeSwingTest {
         val items = listOf("first", "second")
+        var color by mutableStateOf(Color.MAGENTA)
         setContent {
-            ProvideComponentDefaults(DefaultBackground provides Color.MAGENTA) {
+            ProvideComponentDefaults(DefaultBackground provides color) {
                 ListBox(
                     items = items,
                     itemContent = { item ->
@@ -48,14 +49,16 @@ class ComponentDefaultsPropagationTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val rendered0 = list.renderCell(0) as JLabel
-        assertEquals(Color.MAGENTA, rendered0.background, "the rendered cell should inherit the component default")
-        val rendered1 = list.renderCell(1) as JLabel
-        assertEquals(
-            Color.MAGENTA,
-            rendered1.background,
-            "the second rendered cell should inherit the component default",
-        )
+        assertEquals(items.size, list.model.size, "the list retains both items")
+        for (expected in listOf(Color.MAGENTA, Color.RED)) {
+            color = expected
+            awaitIdle()
+            for (index in items.indices) {
+                val rendered = list.renderCell(index) as JLabel
+                assertEquals(items[index], rendered.text, "cell $index renders its own item")
+                assertEquals(expected, rendered.background, "cell $index inherits the current default $expected")
+            }
+        }
     }
 
     @Test

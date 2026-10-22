@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.JTextField
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import kotlin.coroutines.coroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,7 +62,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun assigningTextReplacesFieldContentAtMinimalSpan() = runComposeSwingTest {
+    fun assigningTextUpdatesTheFieldAndState() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -71,6 +73,39 @@ class TextFieldStateTest {
         awaitIdle()
         onNodeOfType<JTextField>().assertTextEquals("help")
         assertEquals("help", state.text.toString())
+    }
+
+    @Test
+    fun assigningTextReplacesOnlyTheChangedSpan() = runComposeSwingTest {
+        lateinit var state: DocumentState
+        setContent {
+            state = rememberDocumentState("hello")
+            TextField(state = state)
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        state.selection = TextRange(2, 2)
+        awaitIdle()
+        val edits = ArrayList<String>()
+        field.document.addDocumentListener(
+            object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) {
+                    edits += "insert ${e.length} at ${e.offset}"
+                }
+
+                override fun removeUpdate(e: DocumentEvent) {
+                    edits += "remove ${e.length} at ${e.offset}"
+                }
+
+                override fun changedUpdate(e: DocumentEvent) = Unit
+            },
+        )
+
+        state.text = "help"
+        awaitIdle()
+
+        assertEquals(listOf("remove 2 at 3", "insert 1 at 3"), edits)
+        assertEquals(TextRange(2, 2), state.selection, "the text before the changed span keeps the caret")
+        assertEquals(2, field.caretPosition)
     }
 
     @Test

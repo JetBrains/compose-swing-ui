@@ -18,12 +18,12 @@ import kotlin.coroutines.CoroutineContext
  * painted, leaving it observing nothing.
  *
  * One owner stands for the whole life of the composition behind it, so what a node reads through it on
- * its first pass is what it reads on every later one.
+ * its first pass is what it reads on every later one, until the node moves to another composition.
  */
 internal interface SwingCompositionOwner {
     /**
-     * The observer every attached node's [observeReads] records with, the node itself as the scope: a modifier node,
-     * or a [SwingComponentNode].
+     * The observer every attached node's [observeReads] records with, under a scope of its own: a modifier
+     * node, or a [SwingComponentNode].
      */
     val snapshotObserver: OwnerSnapshotObserver
 

@@ -54,15 +54,16 @@ public class MirrorState<V>
         initial: V,
     ) : State<V> {
         /**
-         * The composition a reported change takes its frame in, handed over by the node this mirror
-         * settles through as that node is created - see [SwingNodeUpdater.applyMirror].
+         * The node this mirror settles through, handed over as that node is created - see
+         * [SwingNodeUpdater.applyMirror]. A reported change takes its frame in the composition the node
+         * stands in.
          *
          * A mirror with none cannot [report]: the change would reach the caller and the widget would keep
          * it until an event of its own carried the answer, which is the flash [report] exists to
          * prevent. So the first change through an unstated mirror fails, rather than quietly taking a
          * slower path nothing announces.
          */
-        internal var owner: SwingCompositionOwner? = null
+        internal var holder: SwingNodeHolder<*>? = null
 
         /**
          * The channel an unanswered change travels to the composition on, and the whole of what [subscribe]
@@ -190,14 +191,14 @@ public class MirrorState<V>
             reportingOwner.settleNow()
         }
 
-        /** The owner this mirror settles through, which it has only once applied to a node. */
+        /** The composition this mirror settles through, which it has only once applied to a node. */
         internal val reportingOwner: SwingCompositionOwner
             get() =
-                checkNotNull(owner) {
+                checkNotNull(holder) {
                     "This mirror has not been applied to a node. Declare the property with declare(), " +
                         "which applies it, or apply it directly with applyMirror() in the update block " +
                         "of the node the mirror settles."
-                }
+                }.requireOwner()
 
         /**
          * Whether a write of this wrapper's own to its widget is currently in flight. It is true only for

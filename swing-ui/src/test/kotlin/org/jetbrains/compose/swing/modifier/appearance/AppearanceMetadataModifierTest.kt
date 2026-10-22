@@ -8,6 +8,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.composeInNestedComposition
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -16,13 +18,16 @@ import java.awt.Dimension
 import java.awt.Font
 import java.awt.Insets
 import java.awt.Panel
+import java.beans.PropertyChangeListener
 import javax.swing.BorderFactory
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.border.Border
 import javax.swing.border.EmptyBorder
 import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
@@ -37,6 +42,70 @@ import kotlin.test.assertTrue
  * the round-trip contract every property element promises.
  */
 class AppearanceMetadataModifierTest {
+    @Test
+    fun aBorderMovedIntoAnotherCompositionStaysDeclaredAndIsPutBackOnRemoval() = runComposeSwingTest {
+        val panel = JPanel()
+        val original = panel.border
+        val declaredBorder = BorderFactory.createEmptyBorder(1, 2, 3, 4)
+        var declared by mutableStateOf(true)
+        val nested =
+            composeInNestedComposition {
+                SwingNode(
+                    factory = { panel },
+                    modifier = if (declared) SwingModifier.border(declaredBorder) else SwingModifier,
+                )
+            }
+
+        nested.moveContentOut()
+        awaitIdle()
+
+        assertSame(declaredBorder, panel.border, "a moved component keeps the border its modifier declares")
+        assertEquals(Insets(1, 2, 3, 4), panel.insets, "a moved component keeps the insets of the declared border")
+
+        declared = false
+        awaitIdle()
+
+        assertSame(original, panel.border, "removing the border after the move puts back the border the component had")
+        nested.dispose()
+    }
+
+    @Test
+    fun aBorderRestoreFailureDuringMoveStillAppliesTheDeclarationInTheDestination() = runComposeSwingTest {
+        val original = BorderFactory.createLineBorder(Color.BLUE, 7)
+        val panel = JPanel().apply { border = original }
+        val declaredBorder = BorderFactory.createEmptyBorder(1, 2, 3, 4)
+        val failure = IllegalStateException("border restore listener failed")
+        var declared by mutableStateOf(true)
+        val nested =
+            composeInNestedComposition {
+                SwingNode(
+                    factory = { panel },
+                    modifier = if (declared) SwingModifier.border(declaredBorder) else SwingModifier,
+                )
+            }
+        var throwOnRestore = true
+        panel.addPropertyChangeListener(
+            "border",
+            PropertyChangeListener { event ->
+                if (throwOnRestore && event.newValue === original) {
+                    throwOnRestore = false
+                    throw failure
+                }
+            },
+        )
+
+        nested.moveContentOut()
+        val reported = assertFailsWith<IllegalStateException> { awaitIdle() }
+
+        assertSame(failure, reported, "the restoration failure is reported unchanged")
+        assertSame(declaredBorder, panel.border, "the moved declaration must still be applied in its new composition")
+
+        declared = false
+        awaitIdle()
+        assertSame(original, panel.border, "removing the declaration restores the border the component had")
+        nested.dispose()
+    }
+
     @Test
     fun fontModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         val custom = Font("Monospaced", Font.BOLD, 22)

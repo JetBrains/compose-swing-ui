@@ -6,8 +6,8 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
- * The snapshot observer of one composition, which every attached node records its reads with, the node
- * itself as the scope: a modifier node, or a component node. Created and started on first use, so a
+ * The snapshot observer of one composition, which every attached node records its reads with, under a
+ * scope of its own: a modifier node, or a component node. Created and started on first use, so a
  * composition that never observes holds none.
  *
  * @param onChangedExecutor runs the observer's change notifications.
@@ -21,6 +21,13 @@ internal class OwnerSnapshotObserver(
 
     /** Whether [observer] was created. */
     val isStarted: Boolean get() = lazyObserver.isInitialized()
+
+    /**
+     * The scope each node records its reads under, from its first read until [clear] drops them. The observer
+     * keeps a change it queued for a scope after [clear], so a node that observes again gets a new scope, and
+     * that change reaches no forwarder.
+     */
+    private val readScopes = IdentityHashMap<Any, ReadScope>()
 
     /**
      * One forwarder per distinct `onChanged` instance, by identity as the observer groups reads, kept while any
@@ -55,8 +62,9 @@ internal class OwnerSnapshotObserver(
     ) {
         @Suppress("UNCHECKED_CAST") // Each forwarder is stored under its onChanged, in its kind's map.
         val forwarder = forwarders.getOrPut(onChanged) { Forwarder(onChanged, isAttached) } as Forwarder<T>
-        forwarder.scopes += node
-        observer.observeReads(node, forwarder, block)
+        val scope = readScopes.getOrPut(node) { ReadScope(node) }
+        forwarder.scopes += scope
+        observer.observeReads(scope, forwarder, block)
     }
 
     /** Drops every read recorded under the modifier [node], without creating the observer where none was created. */
@@ -67,9 +75,9 @@ internal class OwnerSnapshotObserver(
 
     private fun clearScope(
         forwarders: IdentityHashMap<(Nothing) -> Unit, Forwarder<*>>,
-        scope: Any,
+        node: Any,
     ) {
-        if (!isStarted) return
+        val scope = readScopes.remove(node) ?: return
         observer.clear(scope)
         forwarders.values.removeIf { forwarder ->
             forwarder.scopes.remove(scope)
@@ -84,21 +92,30 @@ internal class OwnerSnapshotObserver(
             observer.clear()
             modifierForwarders.clear()
             componentForwarders.clear()
+            readScopes.clear()
         }
     }
 }
 
-/** Calls [onChanged] with a scope that is still attached and still observes under it, recording the scopes that do. */
+/** The reads of one [node] from its first read until they are cleared. */
+private class ReadScope(
+    val node: Any,
+)
+
+/**
+ * Calls [onChanged] with the node of a scope that is still attached and still observes under it, recording the scopes
+ * that do.
+ */
 private class Forwarder<T : Any>(
     private val onChanged: (T) -> Unit,
     private val isAttached: (T) -> Boolean,
-) : (Any) -> Unit {
-    val scopes: MutableSet<Any> = Collections.newSetFromMap(IdentityHashMap())
+) : (ReadScope) -> Unit {
+    val scopes: MutableSet<ReadScope> = Collections.newSetFromMap(IdentityHashMap())
 
-    override fun invoke(scope: Any) {
+    override fun invoke(scope: ReadScope) {
         if (scope !in scopes) return
         @Suppress("UNCHECKED_CAST") // Only this forwarder's own observeReads records a scope under it, for a T.
-        val target = scope as T
+        val target = scope.node as T
         if (isAttached(target)) onChanged(target)
     }
 }

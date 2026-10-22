@@ -40,6 +40,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 private val CustomLabelProperty =
@@ -531,12 +532,20 @@ class ComponentDefaultsBehaviorTest {
         showSecond = true
         awaitIdle()
         onAllNodesOfType<JLabel>().assertCountEquals(4)
-        assertEquals(Color.MAGENTA, onAllNodesOfType<JLabel>().fetchAll()[1].background)
+        val beforeMove = onAllNodesOfType<JLabel>().fetchAll()
+        assertEquals(listOf("first", "second", "A", "B"), beforeMove.map { it.text })
+        assertEquals(Color.MAGENTA, beforeMove[1].background)
+        val labelA = beforeMove[2]
+        val labelB = beforeMove[3]
 
         // Keyed reorder preserves default
         items = listOf("B", "A")
         awaitIdle()
-        onAllNodesOfType<JLabel>().fetchAll().forEach {
+        val afterMove = onAllNodesOfType<JLabel>().fetchAll()
+        assertEquals(listOf("first", "second", "B", "A"), afterMove.map { it.text })
+        assertSame(labelB, afterMove[2])
+        assertSame(labelA, afterMove[3])
+        afterMove.forEach {
             assertEquals(Color.MAGENTA, it.background)
         }
     }
@@ -594,11 +603,14 @@ class ComponentDefaultsBehaviorTest {
         }
 
         onNodeOfType<JLabel>().assertExists()
-        assertEquals(Color.MAGENTA, onNodeOfType<JLabel>().fetch().background)
+        val mountedLabel = onNodeOfType<JLabel>().fetch()
+        assertEquals(Color.MAGENTA, mountedLabel.background)
 
         // Park component (active = false)
         active = false
         awaitIdle()
+        onAllNodesOfType<JLabel>().assertCountEquals(0)
+        assertNull(mountedLabel.parent)
 
         // Reactivate component (active = true)
         active = true

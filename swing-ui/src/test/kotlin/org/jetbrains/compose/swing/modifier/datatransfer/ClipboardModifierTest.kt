@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -16,8 +17,11 @@ import java.awt.datatransfer.ClipboardOwner
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
+import java.awt.event.KeyEvent
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JTextField
+import javax.swing.KeyStroke
 import javax.swing.TransferHandler
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -354,9 +358,8 @@ class ClipboardModifierTest {
     @Test
     fun clipboardBindsTheStandardKeystrokesWhenRequested() = runComposeSwingTest {
         setContent {
-            TextField(
-                value = "",
-                onValueChange = {},
+            SwingNode(
+                factory = { JLabel() },
                 modifier =
                     SwingModifier.clipboard(
                         transferable = { StringSelection("x") },
@@ -364,22 +367,19 @@ class ClipboardModifierTest {
                     ),
             )
         }
-        val component = onNodeOfType<JTextField>().fetch()
-
-        // Read the bindings through the real InputMap/ActionMap without reconstructing the
-        // platform shortcut mask (unavailable headless): every copy/cut/paste keystroke the
-        // modifier installed must resolve to one of the standard TransferHandler actions.
+        val component = onNodeOfType<JLabel>().fetch()
+        val shortcut = menuShortcutMask()
         val inputMap = component.getInputMap(JComponent.WHEN_FOCUSED)
         val actionMap = component.actionMap
-        val boundActions =
-            inputMap
-                .allKeys()
-                .orEmpty()
-                .mapNotNull { stroke -> actionMap.get(inputMap.get(stroke)) }
-                .toSet()
-        assertTrue(TransferHandler.getCopyAction() in boundActions, "copy must be bound to a keystroke")
-        assertTrue(TransferHandler.getCutAction() in boundActions, "cut must be bound to a keystroke")
-        assertTrue(TransferHandler.getPasteAction() in boundActions, "paste must be bound to a keystroke")
+        listOf(
+            KeyEvent.VK_C to TransferHandler.getCopyAction(),
+            KeyEvent.VK_X to TransferHandler.getCutAction(),
+            KeyEvent.VK_V to TransferHandler.getPasteAction(),
+        ).forEach { (key, action) ->
+            val stroke = KeyStroke.getKeyStroke(key, shortcut)
+            val binding = assertNotNull(inputMap.get(stroke), "$stroke must be bound")
+            assertSame(action, actionMap.get(binding), "$stroke must invoke the standard clipboard action")
+        }
     }
 
     @Test

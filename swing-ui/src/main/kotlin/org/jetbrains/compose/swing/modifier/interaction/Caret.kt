@@ -238,6 +238,9 @@ private class CaretElement(
         // changes to in between - a swapped caret gives back the original, not its predecessor.
         private var restored: Caret? = null
 
+        // The caret this node installed last.
+        private var installed: Caret? = null
+
         override fun onAttach() {
             restored = component.caret
         }
@@ -246,25 +249,27 @@ private class CaretElement(
             // Installing a caret puts it at offset 0 and drops the selection, so the write runs only
             // when the component is not already carrying the declared caret.
             val declared = caret ?: return
-            if (component.caret !== declared) component.caret = declared
+            if (component.caret === declared) return
+            if (declared === installed) component.replaceCaretKeepingSelection(declared) else component.caret = declared
+            installed = declared
         }
 
         override fun onDetach() {
-            val component = component
-            val declared = component.caret
-            val original = restored
-            if (declared === original) return
-
-            // Installing a caret puts it at offset 0 and drops the selection. The selection and the
-            // caret position belong to the text, not to the caret object being taken off, so a removal
-            // carries them across.
-            val dot = declared?.dot ?: 0
-            val mark = declared?.mark ?: dot
-            component.caret = original
-            original?.let {
-                it.dot = mark
-                if (dot != mark) it.moveDot(dot)
-            }
+            if (component.caret !== restored) component.replaceCaretKeepingSelection(restored)
         }
+    }
+}
+
+/**
+ * Installs [caret] at the position and selection the caret it replaces holds. Installing a caret puts it at
+ * offset 0 and drops the selection, but both belong to the text, not to the caret object.
+ */
+private fun JTextComponent.replaceCaretKeepingSelection(caret: Caret?) {
+    val dot = this.caret?.dot ?: 0
+    val mark = this.caret?.mark ?: dot
+    this.caret = caret
+    caret?.let {
+        it.dot = mark
+        if (dot != mark) it.moveDot(dot)
     }
 }

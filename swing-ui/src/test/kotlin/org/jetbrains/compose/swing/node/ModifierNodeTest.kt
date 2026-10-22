@@ -1,24 +1,35 @@
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.key
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.awt.Component
 import java.lang.ref.WeakReference
 import javax.swing.JPanel
@@ -101,6 +112,23 @@ class ModifierNodeTest {
     }
 
     @Test
+    fun aRemovedModifierNodesCallbackObservedOnScopeCancellationIsNotHeldByTheComposition() = runComposeSwingTest {
+        val watched = mutableIntStateOf(0)
+        var present by mutableStateOf(true)
+        var probe: ProbeNode? = null
+        setContent {
+            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+        }
+        val callback = observeOnScopeCancellationUnderAFreshCallback(checkNotNull(probe), watched)
+        probe = null
+
+        present = false
+        awaitIdle()
+
+        assertTrue(isCollected(callback), "a read made as the node's scope cancels must not outlive the node")
+    }
+
+    @Test
     fun aDeactivatedNodesCallbackIsNotHeldByTheComposition() = runComposeSwingTest {
         val watched = mutableIntStateOf(0)
         var active by mutableStateOf(true)
@@ -117,6 +145,108 @@ class ModifierNodeTest {
         awaitIdle()
 
         assertTrue(isCollected(callback), "a deactivated node's callback must not stay reachable from the composition")
+    }
+
+    @Test
+    fun aNodeWhoseDeferredActionRanIsNotHeldByItsCompositionOnceItDetaches() = runComposeSwingTest {
+        var present by mutableStateOf(true)
+        var probe: ProbeNode? = null
+        setContent {
+            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+        }
+        val node = requestDeferredAction(checkNotNull(probe))
+        probe = null
+        awaitIdle()
+
+        present = false
+        awaitIdle()
+
+        assertTrue(isCollected(node), "a detached node must not stay reachable from the composition")
+    }
+
+    @Test
+    fun aRemovedModifierRequestingDeferredActionsOnScopeCancellationIsNotHeldByTheComposition() = runComposeSwingTest {
+        var present by mutableStateOf(true)
+        var probe: ProbeNode? = null
+        var completions = 0
+        var calls = 0
+        setContent {
+            SwingNode(
+                factory = { JPanel() },
+                modifier = if (present) SwingModifier then ProbeElement { probe = it } else SwingModifier,
+            )
+        }
+        val node = requestDeferredActionsOnScopeCancellation(checkNotNull(probe), { completions++ }, { calls++ })
+        probe = null
+
+        present = false
+        awaitIdle()
+
+        assertEquals(1, completions, "removing the modifier must cancel its scope")
+        assertEquals(0, calls, "actions requested during cancellation must not run after detachment")
+        assertTrue(isCollected(node), "a removed modifier must not stay reachable from the live composition")
+    }
+
+    @Test
+    fun aRemovedComponentModifierRequestingDeferredActionsOnScopeCancellationIsNotHeldByTheComposition() =
+        runComposeSwingTest {
+            var present by mutableStateOf(true)
+            var probe: ProbeNode? = null
+            var completions = 0
+            var calls = 0
+            setContent {
+                if (present) {
+                    SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+                }
+            }
+            val node = requestDeferredActionsOnScopeCancellation(checkNotNull(probe), { completions++ }, { calls++ })
+            probe = null
+
+            present = false
+            awaitIdle()
+
+            assertEquals(1, completions, "removing the component must cancel its modifier's scope")
+            assertEquals(0, calls, "actions requested during cancellation must not run after detachment")
+            assertTrue(
+                isCollected(node),
+                "a removed component's modifier must not stay reachable from the live composition",
+            )
+        }
+
+    @Test
+    fun aComponentNodeWhoseDeferredActionRanIsNotHeldByItsCompositionOnceItIsRemoved() = runComposeSwingTest {
+        var present by mutableStateOf(true)
+        var attached: SwingComponentNode<*>? = null
+        setContent { if (present) SwingNode(factory = { NodeCapturingPanel { attached = it } }) }
+        val node = requestDeferredAction(checkNotNull(attached))
+        attached = null
+        awaitIdle()
+
+        present = false
+        awaitIdle()
+
+        assertTrue(isCollected(node), "a removed component node must not stay reachable from the composition")
+    }
+
+    @Test
+    fun aMovedComponentNodesCallbackIsNotHeldByTheCompositionItLeft() = runComposeSwingTest {
+        val watched = mutableIntStateOf(0)
+        val present = mutableStateOf(true)
+        var node: SwingComponentNode<*>? = null
+        val nested =
+            composeInNestedComposition {
+                if (present.value) SwingNode(factory = { NodeCapturingPanel { node = it } })
+            }
+        val callback = observeUnderAFreshCallback(checkNotNull(node), watched)
+        node = null
+
+        nested.moveContentOut()
+        awaitIdle()
+        present.value = false
+        awaitIdle()
+
+        assertTrue(isCollected(callback), "a component node that left a composition leaves no read behind in it")
+        nested.dispose()
     }
 
     /**
@@ -338,6 +468,137 @@ class ModifierNodeTest {
     }
 
     @Test
+    fun aNodeMovedToAnotherCompositionDetachesAndAttachesAgainAndObservesThere() = runComposeSwingTest {
+        val watched = mutableIntStateOf(0)
+        val events = mutableListOf<String>()
+        var changes = 0
+        val modifier =
+            SwingModifier then RecordingElement(events) then ObservingElement(watched::intValue) { changes++ }
+        val nested = composeInNestedComposition { SwingNode(factory = { JPanel() }, modifier = modifier) }
+
+        nested.moveContentOut()
+        awaitIdle()
+        nested.dispose()
+        watched.intValue = 1
+        awaitIdle()
+
+        assertEquals(1, changes, "a moved node hears a change once the composition it left is disposed")
+        assertEquals(
+            listOf("onAttach", "onDetach", "onAttach"),
+            events,
+            "moving a node to another composition detaches it from one and attaches it to the other",
+        )
+    }
+
+    /**
+     * A change applied on another thread is reported by a task posted to the event dispatch thread. A node that
+     * moves to another composition before that task runs must not hear it for what it read in the one it left,
+     * even while another node keeps observing there.
+     */
+    @Test
+    fun aNodeMovedBeforeAPostedChangeReportIsNotToldOfItByTheCompositionItLeft() = runComposeSwingTest {
+        val watched = mutableIntStateOf(0)
+        var movedChanges = 0
+        var keptChanges = 0
+        val nested =
+            composeInNestedComposition(
+                onMovingOut = {
+                    thread {
+                        watched.intValue = 1
+                        Snapshot.sendApplyNotifications()
+                    }.join()
+                },
+                staying = {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier then ObservingElement(watched::intValue) { keptChanges++ },
+                    )
+                },
+            ) {
+                SwingNode(
+                    factory = { JPanel() },
+                    modifier = SwingModifier then ObservingElement(watched::intValue) { movedChanges++ },
+                )
+            }
+
+        nested.moveContentOut()
+        awaitIdle()
+
+        assertEquals(1, keptChanges, "the node staying in its composition hears the change")
+        assertEquals(0, movedChanges, "a change reported after the node left its composition must not reach it")
+        nested.dispose()
+    }
+
+    @Test
+    fun aNodeUnderAMovedNodeIsMovedToTheOtherCompositionWithIt() = runComposeSwingTest {
+        val watched = mutableIntStateOf(0)
+        val events = mutableListOf<String>()
+        var changes = 0
+        var probe: ProbeNode? = null
+        val modifier =
+            SwingModifier then
+                RecordingElement(events) then
+                ObservingElement(watched::intValue) { changes++ } then
+                ProbeElement { probe = it }
+        var calls = 0
+        val action: (ProbeNode) -> Unit = { calls++ }
+        val nested =
+            composeInNestedComposition(
+                // Queued while the pass composes, so the move it applies comes before the queue drains.
+                onMovingOut = {
+                    val node = checkNotNull(probe)
+                    synchronized(node.component.treeLock) { node.requestAfterValidation(action) }
+                },
+            ) {
+                SwingNode(factory = { JPanel() }) { SwingNode(factory = { JPanel() }, modifier = modifier) }
+            }
+        val node = checkNotNull(probe)
+
+        nested.moveContentOut()
+        awaitIdle()
+
+        assertEquals(0, calls, "a request pending as its node detaches from the composition it leaves never runs")
+
+        nested.dispose()
+        synchronized(node.component.treeLock) { node.requestAfterValidation(action) }
+        watched.intValue = 1
+        awaitIdle()
+
+        assertEquals(1, calls, "a request made once the composition it left is disposed runs")
+        assertEquals(1, changes, "the node hears a change once the composition it left is disposed")
+        assertEquals(
+            listOf("onAttach", "onDetach", "onAttach"),
+            events,
+            "a node under a moved node detaches from one composition and attaches to the other",
+        )
+    }
+
+    @Test
+    fun aNodeMovedToAnotherCompositionKeepsWhatItsModifierDeclaresAndWhatItCaptured() = runComposeSwingTest {
+        val panel = JPanel()
+        val original = panel.background
+        var declared by mutableStateOf(true)
+        val nested =
+            composeInNestedComposition {
+                SwingNode(
+                    factory = { panel },
+                    modifier = if (declared) SwingModifier.background(Color.RED) else SwingModifier,
+                )
+            }
+
+        nested.moveContentOut()
+        awaitIdle()
+
+        assertEquals(Color.RED, panel.background, "a moved node keeps the value its modifier declares")
+
+        declared = false
+        awaitIdle()
+
+        assertEquals(original, panel.background, "a moved node puts back the value it stood at before the modifier")
+        nested.dispose()
+    }
+
+    @Test
     fun aComponentNodeIsDetachedWithoutResettingWhenItsHolderIsReleased() = runComposeSwingTest {
         val events = mutableListOf<String>()
         var present by mutableStateOf(true)
@@ -353,6 +614,52 @@ class ModifierNodeTest {
     }
 }
 
+/** Content composed in a composition nested under the test's own, which [moveContentOut] moves into the test's own. */
+internal class NestedComposition(
+    private val movedOut: MutableState<Boolean>,
+    private val handle: DisposableHandle,
+) {
+    /** Moves the content into the test's own composition on the next pass. */
+    fun moveContentOut() {
+        movedOut.value = true
+    }
+
+    /** Disposes the nested composition. */
+    fun dispose() = handle.dispose()
+}
+
+/**
+ * Composes [content] as movable content in a composition nested under the test's own, beside [staying], which
+ * stays there. [onMovingOut] runs in the test's own composition on the pass that moves [content] into it.
+ */
+internal suspend fun ComposeSwingTest.composeInNestedComposition(
+    onMovingOut: () -> Unit = {},
+    staying: @Composable () -> Unit = {},
+    content: @Composable () -> Unit,
+): NestedComposition {
+    val movedOut = mutableStateOf(false)
+    val host = JPanel()
+    lateinit var context: CompositionContext
+    lateinit var movable: @Composable () -> Unit
+    setContent {
+        context = rememberCompositionContext()
+        movable = remember { movableContentOf(content) }
+        SwingNode(factory = { host })
+        if (movedOut.value) {
+            onMovingOut()
+            movable()
+        }
+    }
+    awaitIdle()
+    val handle =
+        host.setContent(parent = context) {
+            if (!movedOut.value) movable()
+            staying()
+        }
+    awaitIdle()
+    return NestedComposition(movedOut, handle)
+}
+
 /** Composes a panel carrying a [ProbeNode] and returns the attached node. */
 private fun ComposeSwingTest.composeProbe(): ProbeNode {
     var probe: ProbeNode? = null
@@ -360,7 +667,7 @@ private fun ComposeSwingTest.composeProbe(): ProbeNode {
     return checkNotNull(probe)
 }
 
-private class ProbeElement(
+internal class ProbeElement(
     private val created: (ProbeNode) -> Unit,
 ) : SwingModifier.NodeElement<Component, ProbeNode>() {
     override val targetType: Class<Component> get() = Component::class.java
@@ -374,7 +681,7 @@ private class ProbeElement(
     override fun hashCode(): Int = ProbeElement::class.hashCode()
 }
 
-private class ProbeNode : SwingModifier.ComponentNode<Component>()
+internal class ProbeNode : SwingModifier.ComponentNode<Component>()
 
 /** Observes [watched] on [node] under a callback no one else holds, returning a weak reference to it. */
 internal fun observeUnderAFreshCallback(
@@ -384,6 +691,70 @@ internal fun observeUnderAFreshCallback(
     val onChanged: (SwingModifier.Node) -> Unit = { watched.intValue }
     node.observeReads(onChanged) { watched.intValue }
     return WeakReference(onChanged)
+}
+
+/**
+ * Has [node]'s scope observe [watched] under a callback no one else holds as it cancels, returning a weak
+ * reference to the callback.
+ */
+private fun observeOnScopeCancellationUnderAFreshCallback(
+    node: SwingModifier.Node,
+    watched: MutableIntState,
+): WeakReference<Any> {
+    val onChanged: (SwingModifier.Node) -> Unit = { watched.intValue }
+    node.coroutineScope.coroutineContext.job.invokeOnCompletion {
+        node.observeReads(onChanged) { watched.intValue }
+    }
+    return WeakReference(onChanged)
+}
+
+/** Observes [watched] on [node] under a callback no one else holds, returning a weak reference to it. */
+internal fun observeUnderAFreshCallback(
+    node: SwingComponentNode<*>,
+    watched: MutableIntState,
+): WeakReference<Any> {
+    val onChanged: (SwingComponentNode<*>) -> Unit = { watched.intValue }
+    node.observeReads(onChanged) { watched.intValue }
+    return WeakReference(onChanged)
+}
+
+/** Queues an action for [node] under its component's tree lock, returning a weak reference to the node. */
+private fun requestDeferredAction(node: ProbeNode): WeakReference<Any> {
+    synchronized(node.component.treeLock) { node.requestAfterValidation<ProbeNode> { } }
+    return WeakReference(node)
+}
+
+/** Queues an action for [node] under its component's tree lock, returning a weak reference to the node. */
+private fun requestDeferredAction(node: SwingComponentNode<*>): WeakReference<Any> {
+    synchronized(node.component.treeLock) { node.requestAfterValidation<SwingComponentNode<*>> { } }
+    return WeakReference(node)
+}
+
+private fun requestDeferredActionsOnScopeCancellation(
+    node: ProbeNode,
+    onCompletion: () -> Unit,
+    onAction: () -> Unit,
+): WeakReference<Any> {
+    val first: (ProbeNode) -> Unit = { onAction() }
+    val second: (ProbeNode) -> Unit = { onAction() }
+    node.coroutineScope.coroutineContext.job.invokeOnCompletion {
+        onCompletion()
+        synchronized(node.component.treeLock) {
+            node.requestAfterValidation(first)
+            node.requestAfterValidation(second)
+        }
+    }
+    return WeakReference(node)
+}
+
+/** A panel that hands each node it is told attached to [onAttached]. */
+internal class NodeCapturingPanel(
+    private val onAttached: (SwingComponentNode<*>) -> Unit,
+) : JPanel(),
+    SwingComponentNodeListener {
+    override fun onAttached(node: SwingComponentNode<*>) = onAttached.invoke(node)
+
+    override fun onDetached(node: SwingComponentNode<*>) = Unit
 }
 
 /** Whether [reference] is cleared, asking for a collection several times, since one `System.gc()` is a hint. */

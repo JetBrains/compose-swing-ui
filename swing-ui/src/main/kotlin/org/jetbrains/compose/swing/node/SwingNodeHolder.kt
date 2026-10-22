@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
+import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentElement
@@ -12,6 +13,8 @@ import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
+import org.jetbrains.compose.swing.modifier.attachNodes
+import org.jetbrains.compose.swing.modifier.detachNodes
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.tooling.NODE_KEY
@@ -335,35 +338,73 @@ internal sealed class SwingNodeHolder<out T : Component> :
     final override val isAttached: Boolean get() = owner != null && !deactivated
 
     /**
-     * Attaches this node to the composition [owner] stands for, detaching it from the one it stood in,
-     * and answers it. A [SwingComponentNodeListener] component is told each change.
+     * Attaches this node and every node under it to the composition [owner] stands for, detaching them
+     * from the one they stood in, and answers this node. A [SwingComponentNodeListener] component is told each
+     * change.
      *
      * An applier attaches a node to the composition its parent stands in as it inserts it, so the
      * owner travels the node tree. The root is attached by the composition itself, being the one node
      * no parent hands an owner down to, and detached by it, with `null`, as it is disposed.
      *
-     * A listener's throw is reported to the thread's uncaught-exception handler and the owner change finishes.
-     * Tracked reads and pending requests in the previous owner are dropped for this node and its attached modifier
-     * nodes. Parked nodes only refresh their owner. Children receive the new owner as well.
+     * A subtree inserted from another composition, as moved `movableContent`, leaves it whole and then
+     * joins this one whole: each node's modifier nodes detach and its reads and pending layout requests
+     * there are dropped, then its modifier nodes attach and update again. A deactivated node only takes
+     * the new composition.
+     *
+     * A listener's throw from `onDetached` or `onAttached`, or a modifier node's throw from `onDetach`, is
+     * reported to the uncaught-exception handler, and the owner change finishes as if the callback had
+     * returned. A modifier node's `onAttach` failure detaches that node and ends the pass and recomposer;
+     * a rollback `onDetach` failure is suppressed on it, and other applier work is not rolled back.
+     * Tracked reads and pending requests in the previous owner are dropped for this node and its attached
+     * modifier nodes. Children receive the new owner after this node's modifier nodes attach successfully.
      */
     internal fun attachedTo(owner: SwingCompositionOwner?): SwingNodeHolder<T> {
-        val previous = this.owner
-        if (owner === previous) return this
-        if (previous != null) {
-            if (!deactivated) tellComponentDetached()
-            previous.snapshotObserver.clear(this)
-            previous.cancelAfterValidation(this)
-            modifierState?.standingInUnwindOrder()?.fastForEach { record ->
-                if (record.node.isAttached) {
-                    previous.snapshotObserver.clear(record.node)
-                    previous.cancelAfterValidation(record.node)
-                }
-            }
-        }
-        this.owner = owner
-        if (owner != null && !deactivated) tellComponentAttached()
-        children.fastForEach { it.attachedTo(owner) }
+        moveTo(owner, forGood = owner == null)
         return this
+    }
+
+    /**
+     * Takes this node and its children out of the composition they stand in and into [owner]. With [forGood], the
+     * modifier is reset as on release rather than only detached, for a node that stands in no composition after.
+     *
+     * Every step of leaving the previous composition is attempted for this node and for each child, even when one
+     * throws. The first failure propagates, with the later ones suppressed on it, and the node does not join [owner].
+     */
+    private fun moveTo(
+        owner: SwingCompositionOwner?,
+        forGood: Boolean,
+    ) {
+        val previous = this.owner
+        if (owner === previous) return
+        if (previous != null) {
+            runEveryStep(
+                {
+                    if (!deactivated) {
+                        tellComponentDetached()
+                        if (forGood) resetModifierState() else modifierState?.detachNodes(previous.diagnostics)
+                    }
+                },
+                { previous.snapshotObserver.clear(this) },
+                { previous.cancelAfterValidation(this) },
+                { this.owner = null },
+                {
+                    val movedChildren = children.toList()
+                    var childrenFailure: Throwable? = null
+                    movedChildren.fastForEach { child ->
+                        childrenFailure = collectFailure(childrenFailure) { child.moveTo(null, forGood) }
+                    }
+                    childrenFailure?.let { throw it }
+                },
+            )
+        }
+        if (owner != null) {
+            this.owner = owner
+            if (!deactivated) {
+                tellComponentAttached()
+                modifierState?.attachNodes(this, owner.diagnostics)
+            }
+            children.fastForEach { it.moveTo(owner, forGood = false) }
+        }
     }
 
     /**
