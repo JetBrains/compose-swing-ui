@@ -2,12 +2,14 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
@@ -185,9 +187,10 @@ class SetContentMisuseTest {
         dynamicTest(row.name) {
             runSwingTest {
                 val recomposer = SwingRecomposer.create(JPanel())
-                val parent = recomposer.compositionContext
+                // The failure shuts down the recomposer it composed under, so the next call names another.
+                val next = SwingRecomposer.create(JPanel())
                 try {
-                    assertFailsWith<FirstPassFailure> { row.failing(parent) }
+                    assertFailsWith<FirstPassFailure> { row.failing(recomposer.compositionContext) }
                     assertEquals(
                         0,
                         row.container.componentCount,
@@ -201,7 +204,7 @@ class SetContentMisuseTest {
 
                     // The failed call composed nothing and handed its caller no handle, so nothing blocks
                     // the next one.
-                    val again = row.again(parent)
+                    val again = row.again(next.compositionContext)
 
                     assertEquals(
                         1,
@@ -210,6 +213,7 @@ class SetContentMisuseTest {
                     )
                     again.dispose()
                 } finally {
+                    next.dispose()
                     recomposer.dispose()
                 }
             }
@@ -321,12 +325,12 @@ class SetContentMisuseTest {
     }
 
     @Test
-    fun contentSetAfterAFirstPassThrewInTheSameEventComposesOnceAndTheRecomposerEnds() = runSwingTest {
+    fun contentSetAfterAFirstPassThrewInTheSameEventIsRefusedAndTheRecomposerEnds() = runSwingTest {
         val panel = JPanel()
         val recomposer = SwingRecomposer.create(panel)
         try {
             // The failure lands in the event the recomposer was created in, before its coroutine has had
-            // a turn: the recomposer must still end, and nothing may recompose under it in between.
+            // a turn: the recomposer must still end, and nothing may compose under it in between.
             val failure = IllegalStateException("boom")
             assertSame(
                 failure,
@@ -336,20 +340,51 @@ class SetContentMisuseTest {
                 "the first pass's failure reaches the caller as it is",
             )
 
-            var caption by mutableStateOf("first")
             var passes = 0
-            val second = JPanel()
-            second.setContent(parent = recomposer.compositionContext) {
-                passes++
-                Label(text = caption)
+            assertFailsWith<IllegalArgumentException>("content set after the failure is refused") {
+                JPanel().setContent(parent = recomposer.compositionContext) {
+                    passes++
+                    Label(text = "second")
+                }
             }
-            assertEquals(1, passes, "content set after the failure composes once")
+            assertEquals(0, passes, "content refused after the failure never composes")
 
-            caption = "second"
-            awaitUntil("the recomposer that recorded the failure ends") { recomposer.isDisposed }
-            repeat(4) { yield() }
+            awaitUntil("the recomposer that drove the failed pass ends") { recomposer.isDisposed }
+        } finally {
+            recomposer.dispose()
+        }
+    }
 
-            assertEquals(1, passes, "a recomposer that has recorded a failure recomposes nothing")
+    @Test
+    fun contentSetAfterAFirstPassThrewIsRefusedWhileAnEffectUnderTheRecomposerStillRuns() = runSwingTest {
+        val panel = JPanel()
+        val recomposer = SwingRecomposer.create(panel)
+        try {
+            // A running effect holds the recomposer's state until it has finished cancelling, which takes
+            // turns of its own: the refusal must not wait for that.
+            var effectRunning = false
+            JPanel().setContent(parent = recomposer.compositionContext) {
+                LaunchedEffect(Unit) {
+                    effectRunning = true
+                    awaitCancellation()
+                }
+            }
+            awaitUntil("the sibling's effect is running") { effectRunning }
+
+            assertFailsWith<IllegalStateException> {
+                panel.setContent(parent = recomposer.compositionContext) { throw IllegalStateException("boom") }
+            }
+
+            var passes = 0
+            assertFailsWith<IllegalArgumentException>("content set after the failure is refused") {
+                JPanel().setContent(parent = recomposer.compositionContext) {
+                    passes++
+                    Label(text = "second")
+                }
+            }
+            assertEquals(0, passes, "content refused after the failure never composes")
+
+            awaitUntil("the recomposer that drove the failed pass ends") { recomposer.isDisposed }
         } finally {
             recomposer.dispose()
         }

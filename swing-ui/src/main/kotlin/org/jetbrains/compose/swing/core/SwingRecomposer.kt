@@ -37,12 +37,19 @@ import kotlin.coroutines.EmptyCoroutineContext
  *
  * A failure ends it too. The runtime records the first throw and recomposes nothing after it - from a
  * recomposition pass, from content's first composition, or from an effect the content launched - so this
- * is [dispose]d as soon as the runtime reports it stopped. A pass or an effect that throws is reported
- * through the thread's uncaught-exception handler once; a first composition's throw reaches whoever
- * composed it. A pass or an effect reports the stop as it happens.
- * A first composition records the failure without deriving anything, so its stop is reported only on
- * the next change reaching the runtime - a state write, or the settlement an input event queues - and
- * content set in between composes once and is torn down with the rest.
+ * is [dispose]d when it happens. A pass or an effect that throws is reported through the thread's
+ * uncaught-exception handler once, except a cancellation, which ends this unreported; a first
+ * composition's throw reaches whoever composed it. That throw shuts this down before it reaches them, and
+ * this is disposed on a later turn of its dispatcher, once the effects running under it have finished
+ * cancelling. In between, content that names this as its parent is refused, and content a window sets under
+ * it composes once and is torn down with the rest. The shutdown cancels the effects under this as
+ * [Recomposer.cancel] does, so a completion handler on a job under this runs inside the call that composed.
+ *
+ * While the Compose runtime's hot reload is enabled, an error in composing content or in applying its
+ * changes does not end this and is reported to nobody. A later reload recovers it: a composition error
+ * on the next reload of the code, any other apply error only on a reload that saves state. A failing
+ * effect and an error the runtime raises for its own broken invariants end this as they do without hot
+ * reload.
  *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
@@ -93,25 +100,27 @@ public class SwingRecomposer private constructor(
         // the state that registration left behind.
         scope.launch(clock) {
             // Every type is caught because what a pass throws is the content's to choose. A cancellation
-            // is the scope ending, which is a disposal rather than a failure: an effect that throws is
-            // reported by the handler the scope carries, not from here.
+            // is a disposal rather than a failure: an effect that throws is reported by the handler the
+            // scope carries, not from here.
             @Suppress("TooGenericExceptionCaught")
             try {
                 recomposer.runRecomposeAndApplyChanges()
             } catch (cancellation: CancellationException) {
+                // The scope ending finds disposed set. A pass or an apply that throws a cancellation
+                // leaves the recomposer Inactive, which the watch below does not read as a stop.
+                dispose()
                 throw cancellation
             } catch (failure: Throwable) {
-                reportUncaught(failure)
+                // The runner stops only on a failure the runtime rethrows, so nothing recomposes under
+                // this any more. A failure hot reload records instead leaves the runner waiting.
+                runEveryStep({ reportUncaught(failure) }, ::dispose)
             }
         }
-        // The runtime answers Idle or PendingWork for as long as it recomposes, and falls to Inactive once
-        // it has recorded a failure, so a fall out of those two states is the recomposer stopping - for an
-        // effect that throws as well as for a pass that does.
-        // Cancelling in dispose() falls out of them too, and finds disposed set. Where a first composition
-        // in the event this was created in has already failed, the first turn reads that Inactive and
-        // disposes before the start-up frame the runner queued, so nothing recomposes under it.
+        // A failing effect or dispose() cancels the recomposer, and cancelling in dispose() finds disposed
+        // set. Inactive is no stop: hot reload holds a recorded error there until a reload clears it, and
+        // disposing would drop this from the runtime's running recomposers, which a reload reaches.
         scope.launch {
-            recomposer.currentState.first { !it.isRecomposing }
+            recomposer.currentState.first { state -> state.isShutDown }
             dispose()
         }
     }
@@ -270,8 +279,8 @@ public class SwingRecomposer private constructor(
 }
 
 /**
- * Whether a recomposer in this state is running and recomposing what invalidates. The states are named
- * rather than compared by order, so a state added between them cannot change what this answers.
+ * Whether a recomposer in this state has been cancelled. The states are named rather than compared by
+ * order, so a state added between them cannot change what this answers.
  */
-private val Recomposer.State.isRecomposing: Boolean
-    get() = this == Recomposer.State.Idle || this == Recomposer.State.PendingWork
+private val Recomposer.State.isShutDown: Boolean
+    get() = this == Recomposer.State.ShuttingDown || this == Recomposer.State.ShutDown

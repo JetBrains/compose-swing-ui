@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Tag
  *
  * The tag goes on a class when every case in it depends on that state, and on a single case when only
  * that case does.
+ *
+ * It also goes on a test that switches the Compose runtime's hot reload mode. That mode is one value for
+ * the whole process, and a reload reaches every running recomposer in it, so such a test runs alone.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

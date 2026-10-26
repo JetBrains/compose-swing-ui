@@ -24,8 +24,8 @@ import kotlin.test.assertNull
 
 /**
  * What a menu body that throws costs. The menu's composition is built inside the gesture that opens it,
- * so the failure is reported to whoever made the gesture. The window's recomposer records that failure
- * and is ended.
+ * so the failure is reported to whoever made the gesture. The window's recomposer is ended on the next
+ * turn, with no state change needed to reach it.
  *
  * The case realizes a real [javax.swing.JFrame], so the window hands out and replaces its recomposer on
  * the production path.
@@ -57,12 +57,12 @@ class ContextMenuFailureTest {
             assertEquals("the menu body cannot render", failure.message, "the gesture is handed the body's failure")
             assertNull(captured, "a menu whose body threw is not put on screen")
 
-            // The runtime reports its stop on the next change reaching it, which this write is.
-            caption = "after"
             awaitUntil("the failed menu composition ends the window's recomposer") {
-                frame.swingRecomposerOrNull() == null
+                frame.swingRecomposerOrNull() ==
+                    null
             }
             assertEquals(0, host.componentCount, "the content the window held is torn down")
+            caption = "after"
 
             val next = JPanel().also { frame.contentPane.add(it) }
             next.setContent { Label(caption) }

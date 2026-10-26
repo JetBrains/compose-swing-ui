@@ -94,6 +94,8 @@ class RuntimeFailureIsolationTest {
     ): DynamicTest = DynamicTest.dynamicTest(name) {
         runSwingTest {
             val parent = Recomposer(Dispatchers.Swing)
+            // The failed first pass ends the recomposer it composed under, so the replacement takes another.
+            val next = Recomposer(Dispatchers.Swing)
             val panel = FailingRemovalPanel(listenerRemoval = cleanup)
             val listenersBefore = panel.hierarchyListeners.toList()
             try {
@@ -103,9 +105,10 @@ class RuntimeFailureIsolationTest {
                 assertEquals(1, panel.listenerRemovals)
                 assertEquals(listenersBefore, panel.hierarchyListeners.toList())
                 panel.listenerRemoval = null
-                panel.setContent(parent = parent) { Label("replacement") }.dispose()
+                panel.setContent(parent = next) { Label("replacement") }.dispose()
             } finally {
                 parent.cancel()
+                next.cancel()
             }
         }
     }

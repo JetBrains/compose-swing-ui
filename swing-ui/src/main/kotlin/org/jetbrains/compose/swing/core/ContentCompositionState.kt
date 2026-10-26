@@ -7,6 +7,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.Job
 import org.jetbrains.compose.swing.util.DeferredAction
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
@@ -175,28 +176,15 @@ private fun Component.mountedRecomposerDriving(context: CompositionContext): Swi
         ?: (this as? Container)?.components?.firstNotNullOfOrNull { it.mountedRecomposerDriving(context) }
 
 /**
- * Whether this context is a recomposer that has been cancelled, so nothing composed under it would
- * recompose again.
+ * Whether the recomposer under this context has been cancelled or closed, so nothing composed under it
+ * would recompose again.
  *
- * Only a [Recomposer] answers anything here. A context published by a live composition is that
- * composition's own child and carries no state of its own.
- *
- * A cancelled recomposer reports [ShuttingDown][Recomposer.State.ShuttingDown] or
- * [ShutDown][Recomposer.State.ShutDown], reached by cancelling or by its effect job completing, whether
- * or not it ever recomposed. A recomposer built but never started is
- * [Inactive][Recomposer.State.Inactive], which is a live one.
- *
- * The states are named rather than compared by order, so a state added between them cannot change what
- * this answers.
+ * Read from the effect job every context under a recomposer shares, which stops being active the moment it
+ * is cancelled. The recomposer's own state follows only once its running effects have finished, which can
+ * take turns of their own. A recomposer built but never started is a live one.
  */
 private val CompositionContext.isShutDown: Boolean
-    get() {
-        val recomposer = this as? Recomposer ?: return false
-        return when (recomposer.currentState.value) {
-            Recomposer.State.ShutDown, Recomposer.State.ShuttingDown -> true
-            else -> false
-        }
-    }
+    get() = effectCoroutineContext[Job]?.isActive == false
 
 /**
  * The phase a `setContent` is in.

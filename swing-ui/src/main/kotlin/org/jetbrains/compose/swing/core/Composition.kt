@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
+import kotlinx.coroutines.cancel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.AfterValidationActions
 import org.jetbrains.compose.swing.node.ComponentUpdateBatch
@@ -205,9 +206,21 @@ internal class SwingContentComposition private constructor(
      * withdrawn from the global apply observers with it - before the failure reaches the caller. Compose may
      * throw while disposing the half-built composition; that is added to the failure as suppressed, and the
      * failure that stopped the first pass is the one the caller gets.
+     *
+     * The recomposer this composition runs under is shut down as well: the runtime keeps the failure on it
+     * and recomposes nothing under it again.
      */
     fun setContent(content: @Composable () -> Unit) {
-        disposingOnFailure(::dispose) {
+        disposingOnFailure(
+            dispose = {
+                // Cancels the recomposer's effect job, which every context under it shares. Only the shutdown
+                // happens here; the recomposer disposes its content on a later turn, after a pass still open
+                // around this call has unwound. Completion handlers on jobs under it run here, as they do
+                // for Recomposer.cancel().
+                coroutineContext.cancel()
+                dispose()
+            },
+        ) {
             composition.setContent { InspectedContent(compositionDataHost, inspection.isRecording, content) }
         }
     }

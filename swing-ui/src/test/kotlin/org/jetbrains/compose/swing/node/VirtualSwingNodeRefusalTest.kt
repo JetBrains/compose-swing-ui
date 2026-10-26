@@ -405,8 +405,10 @@ class VirtualSwingNodeRefusalTest {
         val container = JPanel()
         val claimed = JLabel("claimed")
         val host = JPanel().apply { add(claimed) }
+        // A refused first pass ends the recomposer it composed under, so it composes under one of its own.
+        val refusing = Recomposer(Dispatchers.Swing)
         assertFailsWith<IllegalStateException> {
-            container.setContent(context) {
+            container.setContent(refusing) {
                 SwingNode(factory = { host }) {
                     if (grouped) {
                         VirtualSwingNode {
@@ -422,6 +424,7 @@ class VirtualSwingNodeRefusalTest {
         }
         assertEquals(emptyList(), container.components.toList())
         assertEquals(listOf(claimed), host.components.toList())
+        refusing.cancel()
 
         val following =
             container.setContent(context) {
