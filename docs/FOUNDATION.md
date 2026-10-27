@@ -722,7 +722,8 @@ does for a component with a shadow: the box the parent places is then larger tha
 
 A provided value comes first in the modifier; a declaration on the component replaces it at its own position. The
 parent aligns the box it places, baselines included; `onPlaced` and `onSizeChanged` report the component's layout
-bounds, which reach the excess past that box, as past a `padding`.
+bounds, which reach the excess past that box, as past a `padding`. `LayoutModifierNode.layoutBoxInParent()` returns
+that box.
 
 Siblings closer than their facing paint outsets overlap, and the later one is on top for input and paint: space them
 by at least the sum of the facing outsets. A Foundation container paints and hits a child past its layout bounds,

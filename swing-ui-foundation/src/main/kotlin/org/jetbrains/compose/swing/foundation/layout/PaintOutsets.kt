@@ -164,6 +164,10 @@ internal class PaintOutsetsNode(
                 constraints.constrainHeight(placeable.height.grownBy(-vertical)),
             ) {
                 placeable.place(-left, -top)
+                // The content wrote its layout bounds as it was placed; the container sees the box less the excess.
+                // A placement run to read alignment lines places nothing, so the record is already narrowed.
+                val box = if (!isPlacingForAlignment) child?.placedLayoutBox else null
+                box?.setBounds(box.x + left, box.y + top, box.width.grownBy(-horizontal), box.height.grownBy(-vertical))
             }
         }
 

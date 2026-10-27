@@ -392,6 +392,9 @@ public sealed class PlacementScope {
     /** Whether the container reads left to right; see `java.awt.ComponentOrientation`. */
     public abstract val isLeftToRight: Boolean
 
+    /** True in a run that only reads alignment lines: it writes no layout box, so a layout node narrows nothing. */
+    internal open val isPlacingForAlignment: Boolean get() = false
+
     /**
      * Places the child at [x] from the left edge, whatever the orientation.
      *

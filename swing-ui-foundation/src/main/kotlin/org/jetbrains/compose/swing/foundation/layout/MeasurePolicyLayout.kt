@@ -220,6 +220,7 @@ internal class MeasurePolicyLayout(
                 if (!child.isPlacedByParent) child.hide()
             }
             measurables.fitContainerPaintOutsets()
+            measurables.layoutPass.fastForEach { it.endPlacement() }
             if (measurables.zIndexChanged) {
                 measurables.zIndexChanged = false
                 measurables.panel.stackingOrder.restack()
@@ -385,7 +386,7 @@ internal enum class RunningCause {
 
 /**
  * Sets this component's bounds to the layout bounds at ([x], [y]) in its parent's coordinates, [width] by [height],
- * grown by [outsets] on each side.
+ * grown by [outsets] on each side. Returns whether that changed the bounds.
  */
 internal fun Component.setBoundsAround(
     x: Int,
@@ -393,12 +394,15 @@ internal fun Component.setBoundsAround(
     width: Int,
     height: Int,
     outsets: Insets,
-) = setBounds(
-    x - outsets.left,
-    y - outsets.top,
-    width.grownBy(outsets.left + outsets.right),
-    height.grownBy(outsets.top + outsets.bottom),
-)
+): Boolean {
+    val boundsX = x - outsets.left
+    val boundsY = y - outsets.top
+    val boundsWidth = width.grownBy(outsets.left + outsets.right)
+    val boundsHeight = height.grownBy(outsets.top + outsets.bottom)
+    val changed = this.x != boundsX || this.y != boundsY || this.width != boundsWidth || this.height != boundsHeight
+    setBounds(boundsX, boundsY, boundsWidth, boundsHeight)
+    return changed
+}
 
 /**
  * One container's children as its policy sees them, and the two ways that policy is run over them: for
@@ -881,6 +885,36 @@ internal class ChildMeasurable(
     var placedInRun: Int = -1
 
     /**
+     * The layout box of the child's last placement, in the coordinates of its container's component; null until the
+     * child is placed. The rectangle is reused, so a reader outside the placement copies it.
+     */
+    var placedLayoutBox: Rectangle? = null
+
+    /** What [placedLayoutBox] held when the container's last pass ended; null until one ends with the child placed. */
+    var lastLayoutBox: Rectangle? = null
+
+    var placementChangedBounds: Boolean = false
+
+    /**
+     * Ends a run of the placement block over this child. Where the box changed and the component bounds did not, Swing
+     * repaints nothing for the child, so it repaints itself: what it paints from the box may move. The request is the
+     * child's own, so a decorated child's decoration records its steps again and its caches are invalidated.
+     */
+    fun endPlacement() {
+        val box = placedLayoutBox
+        if (!isPlacedByParent || box == null) return
+        val previous = lastLayoutBox
+        if (previous == null) {
+            lastLayoutBox = Rectangle(box)
+        } else if (box != previous) {
+            previous.setBounds(box)
+            if (!placementChangedBounds) {
+                component.repaint()
+            }
+        }
+    }
+
+    /**
      * Whether the running or last run of its container's placement block placed this child, as androidx's
      * `MeasurePassDelegate.isPlacedByParent`. A child the run leaves unplaced is [hidden][hide].
      */
@@ -1305,7 +1339,10 @@ internal class ChildPlaceable(
         // At the outsets the child holds, which its container fits once the layout nodes around it are placed.
         val origin = child.owner.panel.decoration.heldPaintOutsets
         val outsets = child.decoratable?.decoration?.heldPaintOutsets ?: NoPaintOutsets
-        component.setBoundsAround(placedX + origin.left, placedY + origin.top, measuredWidth, measuredHeight, outsets)
+        val layoutX = placedX + origin.left
+        val layoutY = placedY + origin.top
+        child.placementChangedBounds =
+            component.setBoundsAround(layoutX, layoutY, measuredWidth, measuredHeight, outsets)
         if (placedAgain) {
             // Ahead of the resize or move event setBounds posts, so that event finds nothing new to report.
             if (reportsOwnPlacement) component.reportPlacedAgain()
@@ -1315,7 +1352,16 @@ internal class ChildPlaceable(
             child.layOutMarkupIfWidthChanged(previousWidth)
             if (child.answersOtherwiseThan(read)) child.owner.measured = null
         }
+        updatePlacedLayoutBox(layoutX, layoutY)
         child.placedInRun = child.owner.placementRun
+    }
+
+    private fun updatePlacedLayoutBox(
+        x: Int,
+        y: Int,
+    ) {
+        val box = child.placedLayoutBox ?: Rectangle().also { child.placedLayoutBox = it }
+        box.setBounds(x, y, measuredWidth, measuredHeight)
     }
 
     override fun mergeAlignmentLines(

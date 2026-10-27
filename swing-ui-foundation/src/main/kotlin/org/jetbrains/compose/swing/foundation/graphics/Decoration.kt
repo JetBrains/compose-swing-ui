@@ -27,6 +27,9 @@ import kotlin.math.floor
  * modifier a step paints at, what a rotating or scaling placement layer adds and, for a Foundation container, what its
  * children paint past it. Any other parent gives only the part of the steps' outsets the component's
  * [PaintOutsets][org.jetbrains.compose.swing.foundation.layout.PaintOutsets] value leaves in layout.
+ *
+ * The *layout box* is the box a Foundation container sizes and aligns. A layout modifier node reads it with
+ * [layoutBoxInParent][org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode.layoutBoxInParent].
  */
 public class Decoration internal constructor(
     /** The steps the component's modifier declares. */

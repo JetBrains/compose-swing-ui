@@ -142,6 +142,34 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
     }
 
     /**
+     * The layout box of this node's component, as its Foundation container last placed it: the box the container sizes
+     * and aligns. Every node of the modifier reads the same box. It is the layout bounds, moved in by what the
+     * component's `paintOutsets` value names past its decoration's outsets, or out where those outsets reach further
+     * than the value names. Without a value, the box is the layout bounds.
+     *
+     * The box is relative to the container's component, as `component.bounds` is. `onPlaced` reports layout
+     * coordinates, which differ from these by the container's paint outsets.
+     *
+     * The component repaints when the box changes, so a drawing made from the box needs no repaint request of its own.
+     *
+     * Reads no snapshot state. Call it on the event dispatch thread.
+     *
+     * @return the box as a new [Rectangle]; null before the container has received this node, under a parent that is no
+     *   Foundation container, before the container first places the component, and while the container's last placement
+     *   left the component unplaced.
+     * @throws IllegalStateException if this node is not attached, or if it is read while its container places its
+     *   children.
+     */
+    public fun layoutBoxInParent(): Rectangle? {
+        check(isAttached) { "Node is not attached" }
+        val child = child ?: return null
+        check(child.owner.layoutState != LayoutState.LayingOut) {
+            "A layout node reads its layout box once its container has placed its children, as a draw does"
+        }
+        return if (child.isLeftUnplaced) null else child.placedLayoutBox?.let(::Rectangle)
+    }
+
+    /**
      * Has the container measure this node's component again and lay it out by that measure. Called while a layout
      * pass of the container measures the component, this does nothing: the running pass lays the component out by the
      * measure it runs. Otherwise it takes effect at once, or, while a layout of the container or of a container
@@ -427,6 +455,8 @@ internal class AlignmentLinePlacementScope(
     override val parentWidth: Int,
     override val isLeftToRight: Boolean,
 ) : PlacementScope() {
+    override val isPlacingForAlignment: Boolean get() = true
+
     var position: Int = AlignmentLine.UNSPECIFIED
         private set
 
@@ -497,6 +527,8 @@ internal class LineMergingPlacementScope :
 
     override var isLeftToRight: Boolean = true
         private set
+
+    override val isPlacingForAlignment: Boolean get() = true
 
     /** The lines each result being replayed names, outermost first. */
     private val named = ArrayList<Map<AlignmentLine, Int>>()

@@ -136,18 +136,18 @@ private fun ColumnScope.FormEdgesCard(value: PaintOutsets?) {
                     SwingModifier
                         .foreground(LayoutSampleColors.Text)
                         .testTag(PAINT_OUTSETS_FORM_LABEL_TAG)
-                        .alignmentGuide(guides, value),
+                        .alignmentGuide(guides),
                 )
                 TextField(
                     value = name,
                     onValueChange = { name = it },
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_FIELD_TAG).alignmentGuide(guides, value),
+                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_FIELD_TAG).alignmentGuide(guides),
                     columns = 8,
                 )
                 Button(
                     text = "Button",
                     onClick = {},
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_BUTTON_TAG).alignmentGuide(guides, value),
+                    modifier = SwingModifier.testTag(PAINT_OUTSETS_FORM_BUTTON_TAG).alignmentGuide(guides),
                 )
             }
         }
@@ -180,7 +180,7 @@ private fun ColumnScope.BaselineRowCard(value: PaintOutsets?) {
                     SwingModifier
                         .foreground(LayoutSampleColors.Text)
                         .testTag(PAINT_OUTSETS_BASELINE_LABEL_TAG)
-                        .alignmentGuide(guides, value)
+                        .alignmentGuide(guides)
                         .alignByBaseline(),
                 )
                 TextField(
@@ -189,7 +189,7 @@ private fun ColumnScope.BaselineRowCard(value: PaintOutsets?) {
                     modifier =
                         SwingModifier
                             .testTag(PAINT_OUTSETS_BASELINE_FIELD_TAG)
-                            .alignmentGuide(guides, value)
+                            .alignmentGuide(guides)
                             .alignByBaseline(),
                     columns = 4,
                 )
@@ -199,7 +199,7 @@ private fun ColumnScope.BaselineRowCard(value: PaintOutsets?) {
                     modifier =
                         SwingModifier
                             .testTag(PAINT_OUTSETS_BASELINE_BUTTON_TAG)
-                            .alignmentGuide(guides, value)
+                            .alignmentGuide(guides)
                             .alignByBaseline(),
                 )
             }
@@ -231,9 +231,9 @@ private fun ColumnScope.DecoratedBesideStockCard(value: PaintOutsets?) {
                 Button(
                     text = "Stock",
                     onClick = {},
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_STOCK_TAG).alignmentGuide(guides, value),
+                    modifier = SwingModifier.testTag(PAINT_OUTSETS_STOCK_TAG).alignmentGuide(guides),
                 )
-                ShadowedBox(SwingModifier.testTag(PAINT_OUTSETS_SHADOWED_TAG).alignmentGuide(guides, value))
+                ShadowedBox(SwingModifier.testTag(PAINT_OUTSETS_SHADOWED_TAG).alignmentGuide(guides))
             }
         }
         AlignmentGuideLegend(BOX_MARKS, lines)
@@ -263,7 +263,7 @@ private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
                 TextField(
                     value = inherited,
                     onValueChange = { inherited = it },
-                    modifier = SwingModifier.testTag(PAINT_OUTSETS_INHERITED_TAG).alignmentGuide(guides, value),
+                    modifier = SwingModifier.testTag(PAINT_OUTSETS_INHERITED_TAG).alignmentGuide(guides),
                     columns = 6,
                 )
                 TextField(
@@ -273,7 +273,7 @@ private fun ColumnScope.ExplicitOverInheritedCard(value: PaintOutsets?) {
                         SwingModifier
                             .testTag(PAINT_OUTSETS_EXPLICIT_TAG)
                             .paintOutsets(PaintOutsets.FullInsets)
-                            .alignmentGuide(guides, PaintOutsets.FullInsets),
+                            .alignmentGuide(guides),
                     columns = 6,
                 )
             }
@@ -308,7 +308,7 @@ private fun ColumnScope.DeclarationOrderCard(value: PaintOutsets?) {
                     "first",
                     SwingModifier
                         .testTag(PAINT_OUTSETS_WIDTH_FIRST_TAG)
-                        .alignmentGuide(guides, value)
+                        .alignmentGuide(guides)
                         .width(120)
                         .then(if (value != null) SwingModifier.paintOutsets(value) else SwingModifier),
                     onWidthChange = { widthFirst = it },
@@ -317,7 +317,7 @@ private fun ColumnScope.DeclarationOrderCard(value: PaintOutsets?) {
                     "last",
                     SwingModifier
                         .testTag(PAINT_OUTSETS_WIDTH_LAST_TAG)
-                        .alignmentGuide(guides, value)
+                        .alignmentGuide(guides)
                         .then(if (value != null) SwingModifier.paintOutsets(value) else SwingModifier)
                         .width(120),
                     onWidthChange = { widthLast = it },
@@ -430,7 +430,7 @@ private fun ColumnScope.ChildPastContainerCard(value: PaintOutsets?) {
                         modifier =
                             SwingModifier
                                 .testTag(PAINT_OUTSETS_PAST_BUTTON_TAG)
-                                .alignmentGuide(guides, value)
+                                .alignmentGuide(guides)
                                 .offset(x = offset),
                     )
                 }

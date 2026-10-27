@@ -11,11 +11,8 @@ import java.awt.Component
  * says a layer of the component started or stopped rotating or scaling it: a Foundation container's own children keep
  * where its last pass placed them, and the parent fits its bounds around the layout bounds it placed, and works out its
  * own paint outsets in turn; see [childPaintOutsetsChanged]. The invalidations this causes lay nothing out; see
- * [RunningCause.PaintOutsetFit]. Where none of these changed, the parent only works out
- * [whether it holds a child a repaint may have to grow for][updateHasChildSpreadingRepaint], if
- * [that][Decoration.holdsSpreadingRepaint] changed for the component. Where the outsets the steps take changed, the
- * parent is measured again if the component's `paintOutsets` value takes its layout box to another size; see
- * [revalidateForExcess].
+ * [RunningCause.PaintOutsetFit]. Where the outsets the steps take changed, the parent is measured again if the
+ * component's `paintOutsets` value takes its layout box to another size; see [revalidateForExcess].
  *
  * Under any other parent, where the paint outsets changed, a Foundation container's own children keep where its last
  * pass placed them, and the component is revalidated, as `setBorder` does when the insets differ: once the event
@@ -73,7 +70,11 @@ private fun ChildMeasurables.moveChildren(
 ) {
     if (shiftX == 0 && shiftY == 0) return
     layoutPass.fastForEach { child ->
+        if (child.isLeftUnplaced) return@fastForEach
         val component = child.component
-        if (!child.isLeftUnplaced) component.setLocation(component.x + shiftX, component.y + shiftY)
+        component.setLocation(component.x + shiftX, component.y + shiftY)
+        child.placedLayoutBox?.translate(shiftX, shiftY)
+        child.lastLayoutBox?.translate(shiftX, shiftY)
+        child.placementChangedBounds = true
     }
 }

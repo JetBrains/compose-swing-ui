@@ -292,7 +292,7 @@ class AlignmentGuidesTest {
         }
 
     @Test
-    fun aChildDeclaredWithAnotherValueAsksItselfToRepaint() =
+    fun aGuidedChildDeclaredWithAnotherValueOutlinesTheBoxItsContainerPlaced() =
         runComposeSwingTest {
             val guides = GuidedChildren()
             var value by mutableStateOf(PaintOutsets.None)
@@ -305,7 +305,7 @@ class AlignmentGuidesTest {
                         .alignmentGuides(guides, shown = true, setOf(GuideMark.LayoutBox)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label("Label", SwingModifier.emptyBorder(8).paintOutsets(value).alignmentGuide(guides, value))
+                    Label("Label", SwingModifier.emptyBorder(8).paintOutsets(value).alignmentGuide(guides))
                 }
             }
             val stage = onNodeWithTag(STAGE_TAG)
@@ -318,18 +318,14 @@ class AlignmentGuidesTest {
                 "None: the layout box is the bounds",
             )
 
-            val asked = repaintsAskedDuring { value = PaintOutsets.FullInsets }
+            value = PaintOutsets.FullInsets
+            awaitIdle()
 
-            assertEquals(bounds, label.bounds, "the label stays where it was, so Swing repaints nothing for it")
-            assertEquals(
-                setOf(label to Rectangle(label.size)),
-                asked.toSet(),
-                "the label alone asks to repaint, and asks for its whole area, which holds its guides",
-            )
+            assertEquals(bounds, label.bounds, "the label stays where it was")
             assertEquals(
                 listOf(label.x + 8, label.xs.last - 8),
                 stage.captureToImage().columnsWith(GuideMark.LayoutBox.color, inside),
-                "FullInsets: the layout box is the content area, and no outline is left at the bounds",
+                "FullInsets: the guides outline the content area the container placed, and none is left at the bounds",
             )
         }
 

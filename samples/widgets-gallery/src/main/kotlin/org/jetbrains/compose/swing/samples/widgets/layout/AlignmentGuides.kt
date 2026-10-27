@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.Canvas
-import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DrawModifierNode
 import org.jetbrains.compose.swing.foundation.graphics.decoration
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
@@ -14,16 +13,19 @@ import org.jetbrains.compose.swing.foundation.graphics.invalidateDraw
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Column
-import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
+import org.jetbrains.compose.swing.foundation.layout.Constraints
+import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode
+import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNodeElement
+import org.jetbrains.compose.swing.foundation.layout.Measurable
+import org.jetbrains.compose.swing.foundation.layout.MeasureResult
+import org.jetbrains.compose.swing.foundation.layout.MeasureScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Container
 import java.awt.Dimension
-import java.awt.Insets
 import java.awt.Rectangle
-import javax.swing.JComponent
 
 /**
  * Whether the gallery draws its alignment guides. The "Alignment guides" item of the View menu reaches the cards of
@@ -87,11 +89,11 @@ internal class GuidedChildren {
 
 /** A component that declares [alignmentGuide], as the container that draws its guides reads it. */
 internal interface GuidedChild {
-    /** What its guides are drawn from, in its parent's coordinates, or null while it is hidden. */
+    /** What its guides are drawn from, in its parent's coordinates, or null while it is hidden or left unplaced. */
     fun boxes(): GuideBoxes?
 }
 
-/** What the guides of one child are drawn from. */
+/** What the guides of one visible child are drawn from, in the coordinates of its parent. */
 internal class GuideBoxes(
     val bounds: Rectangle,
     val layoutBox: Rectangle,
@@ -100,18 +102,13 @@ internal class GuideBoxes(
 )
 
 /**
- * Has the container that declares [alignmentGuides] with the same [guides] mark this component, a direct child of it.
- * The component works out its own boxes and repaints itself when they change with its declaration.
+ * Has the container that declares [alignmentGuides] with the same [guides] mark this component, a direct child of it
+ * under a Foundation container.
  *
- * [paintOutsets] must be the value the component is declared with or inherits: its layout box is then its layout
- * bounds moved in, per side, by the part of the insets the value names past its decoration's own outsets. Without a
- * value, the layout box is the layout bounds. The library hands no component the box its parent placed, so the box is
- * worked out again here, which holds for a decorated component whose only paint outsets are its decoration's.
+ * Declare it where no decoration step comes before it: a step declared before a layout node paints at that node's box.
  */
-internal fun SwingModifier.alignmentGuide(
-    guides: GuidedChildren,
-    paintOutsets: PaintOutsets? = null,
-): SwingModifier = this then AlignmentGuideElement(guides, paintOutsets)
+internal fun SwingModifier.alignmentGuide(guides: GuidedChildren): SwingModifier =
+    this then AlignmentGuideElement(guides)
 
 /**
  * Draws guides over a Foundation container, after its content and only while [shown]: the [marks] of each visible
@@ -194,18 +191,13 @@ private fun DrawScope.drawSwatch(mark: GuideMark) {
 
 private data class AlignmentGuideElement(
     val guides: GuidedChildren,
-    val paintOutsets: PaintOutsets?,
-) : SwingModifier.NodeElement<JComponent, AlignmentGuideNode>() {
-    override val targetType: Class<JComponent> get() = JComponent::class.java
-
-    override val additive: Boolean get() = true
-
+) : LayoutModifierNodeElement<AlignmentGuideNode>() {
     override val name: String get() = "alignmentGuide"
 
-    override fun create(): AlignmentGuideNode = AlignmentGuideNode(guides, paintOutsets)
+    override fun create(): AlignmentGuideNode = AlignmentGuideNode(guides)
 
     override fun update(node: AlignmentGuideNode) {
-        node.declare(guides, paintOutsets)
+        node.declare(guides)
     }
 }
 
@@ -215,25 +207,29 @@ private data class AlignmentGuideElement(
  */
 private class AlignmentGuideNode(
     private var guides: GuidedChildren,
-    private var paintOutsets: PaintOutsets?,
-) : SwingModifier.ComponentNode<JComponent>(),
+) : LayoutModifierNode(),
     GuidedChild {
+    // Joining other guides changes no measure.
+    override val shouldAutoInvalidate: Boolean get() = false
+
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
     override fun onAttach() {
         guides.children += this
         component.repaint()
     }
 
-    fun declare(
-        guides: GuidedChildren,
-        paintOutsets: PaintOutsets?,
-    ) {
-        if (guides === this.guides && paintOutsets == this.paintOutsets) return
-        if (guides !== this.guides) {
-            this.guides.children -= this
-            guides.children += this
-            this.guides = guides
-        }
-        this.paintOutsets = paintOutsets
+    fun declare(guides: GuidedChildren) {
+        if (guides === this.guides) return
+        this.guides.children -= this
+        guides.children += this
+        this.guides = guides
         component.repaint()
     }
 
@@ -244,28 +240,8 @@ private class AlignmentGuideNode(
 
     override fun boxes(): GuideBoxes? {
         val target = component
-        if (!target.isVisible) return null
+        val layoutBox = target.takeIf { it.isVisible }?.let { layoutBoxInParent() } ?: return null
         val bounds = target.bounds
-        // No typed reference says whether the component paints through a decoration: a stock widget does not.
-        val decoration = (target as? Decoratable)?.decoration
-        val layoutBox = decoration?.localLayoutBounds(target) ?: Rectangle(bounds.size)
-        layoutBox.translate(bounds.x, bounds.y)
-        paintOutsets?.let { value ->
-            val insets = target.insets
-            val outsets = decoration?.paintOutsets() ?: Insets(0, 0, 0, 0)
-            val named = value.outsetsOf(target, insets, outsets)
-            // The part of the insets the value names, clamped as the library clamps it, past the decoration's outsets.
-            val left = named.left.coerceIn(0, maxOf(insets.left, outsets.left, 0)) - outsets.left
-            val top = named.top.coerceIn(0, maxOf(insets.top, outsets.top, 0)) - outsets.top
-            val right = named.right.coerceIn(0, maxOf(insets.right, outsets.right, 0)) - outsets.right
-            val bottom = named.bottom.coerceIn(0, maxOf(insets.bottom, outsets.bottom, 0)) - outsets.bottom
-            layoutBox.setBounds(
-                layoutBox.x + left,
-                layoutBox.y + top,
-                layoutBox.width - left - right,
-                layoutBox.height - top - bottom,
-            )
-        }
         val baseline = target.getBaseline(bounds.width, bounds.height)
         return GuideBoxes(bounds, layoutBox, if (baseline < 0) null else bounds.y + baseline)
     }

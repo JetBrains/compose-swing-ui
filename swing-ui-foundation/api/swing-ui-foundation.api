@@ -784,6 +784,7 @@ public abstract class org/jetbrains/compose/swing/foundation/layout/LayoutModifi
 	public fun intrinsicPlaceable (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;II)Lorg/jetbrains/compose/swing/foundation/layout/Placeable;
 	public final fun invalidateMeasurement ()V
 	public final fun invalidatePlacement ()V
+	public final fun layoutBoxInParent ()Ljava/awt/Rectangle;
 	public fun maxIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;I)I
 	public fun maxIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;I)I
 	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/Measurable;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
