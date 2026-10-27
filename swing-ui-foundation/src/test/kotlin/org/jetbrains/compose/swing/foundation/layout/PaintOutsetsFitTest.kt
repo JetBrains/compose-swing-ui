@@ -5,10 +5,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
+import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -17,9 +17,11 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Insets
@@ -48,7 +50,7 @@ class PaintOutsetsFitTest {
                 listOf(1.25f, 1.5f, 1.75f, 2f).map {
                     scale = it
                     awaitIdle()
-                    card.paintOutsets()
+                    card.paintOutsets
                 }
 
             assertEquals(
@@ -77,7 +79,7 @@ class PaintOutsetsFitTest {
             val outsets = blurOutsets(12)
             assertEquals(
                 Insets(outsets, outsets, outsets, outsets),
-                card.paintOutsets(),
+                card.paintOutsets,
                 "the card's paint outsets follow the last radius",
             )
             assertEquals(0, inner.measures, "the container holding the card")
@@ -120,7 +122,7 @@ class PaintOutsetsFitTest {
                 awaitIdle()
             }
 
-            assertEquals(Insets(0, 20, 0, 20), box.paintOutsets(), "the box spreads by what its scaled child paints")
+            assertEquals(Insets(0, 20, 0, 20), box.paintOutsets, "the box spreads by what its scaled child paints")
             assertEquals(0, outer.measures, "fitting the box and moving its child must not measure its parent")
         }
 
@@ -173,16 +175,16 @@ class PaintOutsetsFitTest {
             }
             val row = onNodeWithTag("row").fetch<JComponent>()
             val reaching = onNodeWithTag("reaching").fetch<JComponent>()
-            assertEquals(Insets(8, 8, 8, 0), row.paintOutsets(), "the row spreads by what the box paints past it")
+            assertEquals(Insets(8, 8, 8, 0), row.paintOutsets, "the row spreads by what the box paints past it")
 
             taken = 12
             width = 20
             awaitIdle()
 
-            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets(), "the box takes the new reach")
+            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets, "the box takes the new reach")
             assertEquals(Rectangle(0, 0, 40, 40), reaching.layoutBounds, "and keeps its layout bounds")
             assertEquals(Rectangle(40, 0, 10, 40), onNodeWithTag("beside").fetch().layoutBounds)
-            assertEquals(Insets(12, 12, 12, 2), row.paintOutsets(), "the row spreads by the new reach")
+            assertEquals(Insets(12, 12, 12, 2), row.paintOutsets, "the row spreads by the new reach")
             assertEquals(Rectangle(0, 0, 50, 40), row.layoutBounds, "and keeps its layout bounds")
             assertEquals(Rectangle(0, 40, 20, 10), onNodeWithTag("below").fetch().layoutBounds)
         }
@@ -215,9 +217,11 @@ class PaintOutsetsFitTest {
             width = 20
             awaitIdle()
 
-            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets(), "the box takes the new reach")
+            assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets, "the box takes the new reach")
             assertEquals(Rectangle(16, 16, 40, 40), reaching.layoutBounds, "and keeps its layout bounds")
-            assertEquals(Insets(0, 0, 0, 0), onNodeWithTag("row").fetch().paintOutsets(), "inside the row")
+            onAllNodesOfType<JComponent>()
+                .filterToOne(SwingMatcher.hasTestTag("row"))
+                .assertProperty(Insets(0, 0, 0, 0), "inside the row") { paintOutsets }
             assertTrue(reaching.isValid, "the pass that measured the box validates it")
         }
 
@@ -281,7 +285,5 @@ class PaintOutsetsFitTest {
 
     private companion object {
         val ShiftProtocol = layoutParentDataProtocol("shift")
-
-        fun Component.paintOutsets(): Insets = (this as Decoratable).decoration.paintOutsets()
     }
 }

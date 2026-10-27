@@ -131,7 +131,7 @@ internal class MeasurePolicyLayout(
             if (target.parent !is CellRendererPane && !measurables.isReadingSizePreferences) target.parent?.revalidate()
         } else {
             parent.find(target)?.preferred = null
-            parent.during(RunningCause.ChildInvalidation) { target.parent?.revalidate() }
+            parent.during(RunningCause.ChildInvalidation) { parent.panel.revalidate() }
         }
     }
 
@@ -346,21 +346,12 @@ internal class MeasurePolicyLayout(
 }
 
 /**
- * Runs [block] keeping the settled result of this component's own Foundation container, where it drives one, and of
- * every Foundation container standing between it and the root: a visibility change AWT reports up through all of
- * them must not read as one of them measuring something new.
+ * Runs [block] keeping the settled result of this container and of each Foundation container above it, up to the first
+ * parent that is not a Foundation container.
  */
-internal fun Component.keepingSettledResult(block: () -> Unit) {
-    val measurables = (this as? Decoratable)?.decoration?.childMeasurables
-    val parent = parent
-    if (measurables != null) {
-        measurables.during(RunningCause.ParentPlacement) {
-            if (parent != null) parent.keepingSettledResult(block) else block()
-        }
-    } else if (parent != null) {
-        parent.keepingSettledResult(block)
-    } else {
-        block()
+private fun ChildMeasurables.keepingSettledResult(block: () -> Unit) {
+    during(RunningCause.ParentPlacement) {
+        panel.decoration.parentMeasurables?.keepingSettledResult(block) ?: block()
     }
 }
 
@@ -1025,11 +1016,11 @@ internal class ChildMeasurable(
             lastPlacement = ChildPlacement.Unplaced
             // Already at a zero size, the setSize below posts no resize, so a container child is laid out again
             // here to leave its own children unplaced.
-            if (decoratable != null && layoutWidth == 0 && layoutHeight == 0) component.layOutAgain()
+            if (decoratable != null && layoutWidth == 0 && layoutHeight == 0) layOutAgain()
         }
         if (component.isVisible) {
             lastPlacement = ChildPlacement.Hidden
-            component.keepingSettledResult { component.isVisible = false }
+            keepingSettledResult { component.isVisible = false }
         }
         component.setSize(0, 0)
     }
@@ -1041,7 +1032,21 @@ internal class ChildMeasurable(
         lastPlacement = ChildPlacement.Placed
         if (hidden) {
             // Shown, the child revalidates itself as well as its parent, and both keep what they settled on.
-            component.keepingSettledResult { component.isVisible = true }
+            keepingSettledResult { component.isVisible = true }
+        }
+    }
+
+    /**
+     * Runs [block] keeping the settled result of this child's own Foundation container, where it drives one, and of its
+     * container and those above it; see the [ChildMeasurables] overload. A visibility change AWT reports up through all
+     * of them must not read as one of them measuring something new.
+     */
+    fun keepingSettledResult(block: () -> Unit) {
+        val own = decoratable?.decoration?.childMeasurables
+        if (own != null) {
+            own.during(RunningCause.ParentPlacement) { owner.keepingSettledResult(block) }
+        } else {
+            owner.keepingSettledResult(block)
         }
     }
 
@@ -1304,7 +1309,7 @@ internal class ChildPlaceable(
         if (placedAgain) {
             // Ahead of the resize or move event setBounds posts, so that event finds nothing new to report.
             if (reportsOwnPlacement) component.reportPlacedAgain()
-            if (!resized && child.decoratable != null) component.layOutAgain()
+            if (!resized && child.decoratable != null) child.layOutAgain()
         }
         if (readable) {
             child.layOutMarkupIfWidthChanged(previousWidth)

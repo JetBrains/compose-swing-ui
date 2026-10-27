@@ -447,24 +447,16 @@ internal fun Shape.outsetBy(outsets: Insets): Shape {
 }
 
 /**
- * This component's layout bounds, in its parent's layout coordinates; a new [Rectangle]. A component that is not
- * [Decoratable] takes its bounds as its layout bounds. A Foundation parent's paint outsets move its layout origin off
- * its bounds' origin; any other parent places its children against `getInsets()`, which carry its outsets already.
+ * [component]'s layout bounds, in the layout coordinates of its parent; a new [Rectangle]. This decoration is the one
+ * written to [component]. A Foundation container holding it moves its layout origin off its bounds' origin by its
+ * paint outsets; any other parent places its children against `getInsets()`, which carry its outsets already.
  */
-internal val Component.layoutBounds: Rectangle
-    get() {
-        val outsets = (this as? Decoratable)?.decoration?.heldPaintOutsets ?: NoPaintOutsets
-        val parentDecoration = (parent as? Decoratable)?.decoration
-        val origin =
-            if (parentDecoration?.childMeasurables == null) {
-                NoPaintOutsets
-            } else {
-                parentDecoration.heldPaintOutsets
-            }
-        return Rectangle(
-            x + outsets.left - origin.left,
-            y + outsets.top - origin.top,
-            (width - outsets.left - outsets.right).coerceAtLeast(0),
-            (height - outsets.top - outsets.bottom).coerceAtLeast(0),
-        )
-    }
+internal fun Decoration.layoutBoundsInParent(component: Component): Rectangle {
+    val origin = parentMeasurables?.panel?.decoration?.heldPaintOutsets ?: NoPaintOutsets
+    return Rectangle(
+        component.x + heldPaintOutsets.left - origin.left,
+        component.y + heldPaintOutsets.top - origin.top,
+        layoutWidth(component),
+        layoutHeight(component),
+    )
+}

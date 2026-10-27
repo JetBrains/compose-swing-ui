@@ -19,6 +19,7 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -29,6 +30,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
+import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -36,8 +38,13 @@ import org.jetbrains.compose.swing.modifier.layout.location
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -743,33 +750,71 @@ class OnPlacedTest {
             )
             assertEquals(listOf(Rectangle(20, 0, 10, 10)), second, "the second declaration reports the same placement")
         }
+}
 
-    /**
-     * A shadow moves a plain child within its box's bounds by the paint outsets it takes; the report leaves that out.
-     */
-    @Test
-    fun aPlainChildOfAShadowedBoxReportsWhereItsPolicyPlacedIt() =
-        runComposeSwingTest {
-            val reported = mutableListOf<Rectangle>()
+/** `onPlaced` reports in the layout coordinates of a parent whose shadow moves its layout origin. */
+class ShadowedParentOnPlacedTest {
+    @ParameterizedTest(name = "{0} in {1}")
+    @CsvSource(
+        "StockLabel, ShadowedBox",
+        "StockLabel, ShadowedLayout",
+        "ShadowedBox, ShadowedBox",
+        "ShadowedBox, ShadowedLayout",
+    )
+    fun placementReportsStayInTheLayoutCoordinatesOfAShadowedParent(
+        child: ReportedChild,
+        parent: ShadowedParent,
+    ) = runComposeSwingTest {
+        val reported = mutableListOf<Rectangle>()
+        val reporting = SwingModifier.preferredSize(40, 20).onPlaced { reported += it }
+        val reportingChild: @Composable (SwingModifier) -> Unit = { placed ->
+            when (child) {
+                ReportedChild.StockLabel -> Label(text = "child", modifier = placed.then(reporting))
+                ReportedChild.ShadowedBox -> Box(modifier = placed.then(reporting).shadow(3, Color.BLACK)) {}
+            }
+        }
 
-            setContent {
-                Box {
-                    Box(modifier = SwingModifier.shadow(4, Color.BLACK)) {
-                        Label(
-                            text = "child",
-                            modifier =
-                                SwingModifier
-                                    .padding(start = 3, top = 2)
-                                    .preferredSize(10, 10)
-                                    .onPlaced { reported += it },
+        setContent {
+            Box {
+                when (parent) {
+                    ShadowedParent.ShadowedBox -> {
+                        Box(modifier = SwingModifier.testTag("parent").shadow(6, Color.BLACK)) {
+                            reportingChild(SwingModifier.padding(start = 5, top = 7))
+                        }
+                    }
+
+                    ShadowedParent.ShadowedLayout -> {
+                        Layout(
+                            content = { reportingChild(SwingModifier) },
+                            modifier = SwingModifier.testTag("parent").shadow(6, Color.BLACK),
+                            measurePolicy = { measurables, _ ->
+                                val placeable = measurables.single().measure(Constraints())
+                                layout(100, 40) { placeable.place(5, 7) }
+                            },
                         )
                     }
                 }
             }
-            awaitIdle()
-
-            assertEquals(Rectangle(3, 2, 10, 10), reported.last(), "the report must name where the box's policy put it")
         }
+        awaitIdle()
+
+        onAllNodesOfType<JComponent>()
+            .filterToOne(SwingMatcher.hasTestTag("parent"))
+            .assertProperty(true, "the shadow moves the parent's layout origin off the origin of its bounds") {
+                paintOutsets.left > 0
+            }
+        assertEquals(Rectangle(5, 7, 40, 20), reported.last(), "the report must name where the policy put the child")
+    }
+
+    enum class ReportedChild {
+        StockLabel,
+        ShadowedBox,
+    }
+
+    enum class ShadowedParent {
+        ShadowedBox,
+        ShadowedLayout,
+    }
 }
 
 private class InitialZeroBoundsPanel : JPanel() {

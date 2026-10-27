@@ -4,7 +4,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.snapshots.Snapshot
-import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
+import org.jetbrains.compose.swing.foundation.graphics.layoutBoundsInParent
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
@@ -100,10 +102,14 @@ private abstract class BoundsReport<V : Any>(
 
     /** Takes what [component] reads now as the deduplication baseline, without reporting it. */
     fun seedFrom(component: Component) {
-        val baseline = component.layoutBounds
+        val baseline = layoutBoundsOf(component)
         reported = read(baseline)
         initialZeroPending = baseline.width == 0 && baseline.height == 0
     }
+
+    private fun layoutBoundsOf(component: Component): Rectangle =
+        (component as? Decoratable)?.decoration?.layoutBoundsInParent(component)
+            ?: component.stockLayoutBoundsInParent()
 
     override fun componentResized(event: ComponentEvent): Unit = report(event.component)
 
@@ -117,7 +123,7 @@ private abstract class BoundsReport<V : Any>(
 
     fun report(component: Component) {
         if (!component.isVisible) return
-        val reading = read(component.layoutBounds)
+        val reading = read(layoutBoundsOf(component))
         if (!initialZeroPending && reading == reported) return
         reported = reading
         initialZeroPending = false
@@ -197,4 +203,14 @@ internal fun Component.reportPlacedAgain() {
             is SizeReport -> Snapshot.withoutReadObservation { listener.report(this) }
         }
     }
+}
+
+/**
+ * This stock component's layout bounds in the layout coordinates of its parent, as a new [Rectangle]. A stock child
+ * holds no link to its container's record, so the record is read through the layout manager that places it.
+ */
+internal fun Component.stockLayoutBoundsInParent(): Rectangle {
+    val container = (parent?.layout as? MeasurePolicyLayout)?.measurables
+    val origin = container?.panel?.decoration?.heldPaintOutsets ?: NoPaintOutsets
+    return Rectangle(x - origin.left, y - origin.top, width, height)
 }

@@ -1,8 +1,5 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.foundation.graphics.Decoratable
-import java.awt.Component
-
 /** What a placement block did with a child. */
 internal enum class ChildPlacement {
     Placed,
@@ -29,12 +26,12 @@ internal enum class ChildPlacement {
 internal fun ChildMeasurable.unplace(joining: Boolean = false) {
     if (lastPlacement != ChildPlacement.Placed) return
     if (joining && component.isVisible) {
-        component.keepingSettledResult { component.isVisible = false }
+        keepingSettledResult { component.isVisible = false }
         lastPlacement = ChildPlacement.JoinedUnplacedContainer
     } else {
         lastPlacement = ChildPlacement.InUnplacedContainer
     }
-    if (decoratable != null) component.layOutAgain()
+    if (decoratable != null) layOutAgain()
 }
 
 /**
@@ -43,9 +40,9 @@ internal fun ChildMeasurable.unplace(joining: Boolean = false) {
  * or leaves unplaced, what is inside it. It keeps the result it settled on as a container, as it does when its
  * container resizes it.
  */
-internal fun Component.layOutAgain() {
-    (this as? Decoratable)?.decoration?.childMeasurables?.during(RunningCause.ParentPlacement) { invalidate() }
-        ?: invalidate()
+internal fun ChildMeasurable.layOutAgain() {
+    val children = decoratable?.decoration?.childMeasurables ?: return component.invalidate()
+    children.during(RunningCause.ParentPlacement) { component.invalidate() }
 }
 
 /**
