@@ -49,10 +49,11 @@ over with `rememberCompositionContext()`, and `component.findRecomposer()` reads
 driving composed content - a `Recomposer` is a `CompositionContext`, so it stands as a parent as it is.
 `component.setContent(parent) { ... }` then composes on the call, whatever the component is attached
 to. The named parent remains its parent if the component moves between windows; the destination window
-only supplies the current recomposer registration and the window the content reads. Everything mounted
-inside such a component joins the same parent: a `setContent` naming no parent of its own on a component
-hanging under that content composition resolves to the composition it was given rather than to the
-window's.
+only supplies the current recomposer registration and the window the content reads. Where the named parent
+is a window's own composition, closing that window ends the content wherever its component has moved to.
+Everything mounted inside such a component joins the same parent: a `setContent` naming no parent of its
+own on a component hanging under that content composition resolves to the composition it was given rather
+than to the window's.
 
 
 Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
@@ -102,12 +103,13 @@ user both write it. *Settling a value the user can also change*, below, is where
 
 `withFrameNanos`, and the animation APIs built on it, advance at a nominal cadence instead. Content
 mounted under a window takes that cadence from the display the window is on and follows it across
-displays; a composition standing in no window keeps a fixed nominal rate. The cadence is best-effort
-wall-clock timing rather than vsync, and it runs only while something is awaiting a frame, so an idle
-window does no per-frame work while an animating one advances a step at a time. A change landing
-mid-animation does not wait for the animation's next frame, and leaves the animation exactly where it
-was, so the animation neither skips a step nor takes an extra one. Time-based work in separate
-windows is independent.
+displays. Content that named a window's composition as its parent keeps the frame pace of that window's
+display after it moves to another window. A composition standing in no window keeps a fixed nominal rate.
+The cadence is best-effort wall-clock timing rather than vsync, and it runs only while something is
+awaiting a frame, so an idle window does no per-frame work while an animating one advances a step at a
+time. A change landing mid-animation does not wait for the animation's next frame, and leaves the
+animation exactly where it was, so the animation neither skips a step nor takes an extra one.
+Time-based work in separate windows is independent.
 
 ---
 

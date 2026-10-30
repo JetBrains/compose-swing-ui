@@ -10,8 +10,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
@@ -25,6 +28,7 @@ import javax.swing.CellRendererPane
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
+import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -158,9 +162,35 @@ internal suspend fun awaitUntil(
     }
 }
 
+/**
+ * Suspends on the EDT until every turn queued before this call has run, such as the rejoin a hierarchy
+ * change queues. A turn those turns queue in their own run is not covered.
+ */
+internal suspend fun awaitQueuedTurns() {
+    withContext(Dispatchers.Swing) { yield() }
+}
+
 internal val SETTLE_TIMEOUT = 10.seconds
 
 /** Spans many frame intervals, so a recomposer still running would have applied a change well inside it. */
 internal val QUIET_PERIOD = 300.milliseconds
 
 internal const val CELL_SIDE: Int = 40
+
+internal class NamedContent(
+    val panel: JPanel,
+    val handle: DisposableHandle,
+)
+
+/** Mounts [content] under [window]'s recomposer, as the only content left composing in [window]. */
+internal fun soleContentNaming(
+    window: JFrame,
+    content: @Composable () -> Unit,
+): NamedContent {
+    val first = JPanel().also { window.contentPane.add(it) }
+    val firstHandle = first.setContent { Label(text = "first") }
+    val panel = JPanel().also { window.contentPane.add(it) }
+    val handle = panel.setContent(parent = assertNotNull(first.findRecomposer())) { content() }
+    firstHandle.dispose()
+    return NamedContent(panel, handle)
+}

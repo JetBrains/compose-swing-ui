@@ -96,13 +96,13 @@ class SetContentMoveTest {
     }
 
     @Test
-    fun aContainerAddedToAnotherWindowKeepsTheContextItWasExplicitlyGiven() = runSwingTest {
+    fun aContainerAddedToAnotherWindowKeepsTheCompositionItWasGivenAndReadsTheWindowItStandsIn() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val first = realizedFrame()
         val second = realizedFrame()
         try {
             // A caller-named parent remains this content's parent even when the panel itself moves to
-            // another window.
+            // another window, while the window it reads is the one it stands in.
             val panel = JPanel().also { first.contentPane.add(it) }
             val recorder = CompositionRecorder()
             val handle =
@@ -115,18 +115,18 @@ class SetContentMoveTest {
                 recorder.windows.first(),
                 "the content composition must start out under the window whose context was named",
             )
+            val composedOnce = recorder.remembered
 
             second.contentPane.add(panel)
             second.pack()
-            awaitUntil("the panel moves to the second window") {
-                SwingUtilities.getWindowAncestor(panel) === second
-            }
+            awaitUntil("the moved content reads the second window") { recorder.windows.last() === second }
 
             assertSame(
-                first,
-                recorder.windows.last(),
-                "a panel moved to another window must keep the explicitly named context's window",
+                composedOnce,
+                recorder.remembered,
+                "content under an explicitly named context must keep its composition across a move",
             )
+
             assertEquals(
                 listOf("moved"),
                 labelTexts(panel),
@@ -136,6 +136,109 @@ class SetContentMoveTest {
             handle.dispose()
             assertEquals(0, panel.hierarchyListeners.size, "disposing after a move must leave no listener behind")
             assertEquals(emptyList(), labelTexts(panel), "disposing after a move must take the content down")
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun theOnlyContentOfANamedWindowKeepsRecomposingAfterItMovesToAnotherWindow() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            var text by mutableStateOf("before")
+            val named = soleContentNaming(first) { Label(text = text) }
+            val recomposer = assertNotNull(first.findRecomposer())
+
+            second.contentPane.add(named.panel)
+            // Spans the turn the window it left would end its recomposer on.
+            awaitQueuedTurns()
+            text = "after"
+
+            awaitUntil("the moved content recomposes") { labelTexts(named.panel) == listOf("after") }
+            assertSame(recomposer, first.findRecomposer(), "the named window must keep the recomposer driving it")
+
+            named.handle.dispose()
+            awaitUntil("the emptied window ends its recomposer") { first.findRecomposer() == null }
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun closingANamedWindowEndsTheContentThatMovedOutOfIt() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            var effectDisposed = false
+            val named =
+                soleContentNaming(first) {
+                    DisposableEffect(Unit) {
+                        onDispose { effectDisposed = true }
+                    }
+                    Label(text = "moved")
+                }
+            second.contentPane.add(named.panel)
+            awaitQueuedTurns()
+
+            first.dispose()
+
+            awaitUntil("closing the named window ends the content composing on it") { effectDisposed }
+            assertEquals(emptyList(), labelTexts(named.panel), "the ended content must leave nothing behind")
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun closingANamedWindowEndsContentMountedInsideContentThatMovedOutOfIt() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            var innerDisposed = false
+            val named = soleContentNaming(first) { Label(text = "moved") }
+            second.contentPane.add(named.panel)
+            awaitQueuedTurns()
+            val inner = JPanel().also { named.panel.add(it) }
+            inner.setContent {
+                DisposableEffect(Unit) {
+                    onDispose { innerDisposed = true }
+                }
+                Label(text = "inner")
+            }
+            awaitUntil("the inner content composes") { labelTexts(inner) == listOf("inner") }
+
+            first.dispose()
+
+            awaitUntil("closing the named window ends the content mounted inside the moved content") {
+                innerDisposed
+            }
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun closingTheWindowContentMovedToLetsTheNamedWindowEndItsRecomposer() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            val named = soleContentNaming(first) { Label(text = "moved") }
+            second.contentPane.add(named.panel)
+            awaitQueuedTurns()
+
+            second.dispose()
+
+            awaitUntil("closing the window it stands in ends the content") { labelTexts(named.panel).isEmpty() }
+            awaitUntil("the emptied named window ends its recomposer") { first.findRecomposer() == null }
         } finally {
             second.dispose()
             first.dispose()

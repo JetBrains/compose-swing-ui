@@ -111,7 +111,8 @@ internal fun mountUnderNamedParent(
     // so this content registers with none and stays on it wherever its container goes. A context taken from
     // inside a live composition is that composition's own child and is torn down with it, and a recomposer
     // this library keeps ends with the window it was created for, so content named either of those follows
-    // windows like any other.
+    // windows like any other. Content named on a window's recomposer keeps that recomposer running wherever
+    // its container goes.
     val standsOnItsOwnRecomposer = namedParent is Recomposer && kept == null
     // What the content registers with. The context's own recomposer where this library keeps it, then the
     // one driving the content this container hangs inside, and last the one its window shares - the same
@@ -259,8 +260,8 @@ internal class ContentCompositionState(
 
     /**
      * The context this content composes under, published to whatever is mounted inside [component].
-     * `null` while the content is still waiting for a parent, while its container moves between windows,
-     * and once it is disposed.
+     * `null` while the content is still waiting for a parent, while its container moves between windows
+     * unless a caller named a window's recomposer as the context, and once it is disposed.
      */
     var publishedContext: CompositionContext? = null
         private set
@@ -283,11 +284,27 @@ internal class ContentCompositionState(
      * The window recomposer this content belongs to while it composes under [parentContext], whether or
      * not the registration is standing right now. A rejoin that puts the container back where it was
      * takes the registration up again with this rather than by asking the window, which answers nothing
-     * for a window that shares no recomposer. A content composition nesting into this one registers with
-     * it as well.
+     * for a window that shares no recomposer.
      */
     var parentRecomposer: SwingRecomposer? = null
         private set
+
+    /**
+     * The window recomposer the caller named as this content's parent. The content composes on it wherever
+     * its container goes, so it holds [drivenRegistration] there from [start] to [dispose]: that recomposer
+     * ends itself once nothing registered with it is left, and ending ends this content too.
+     */
+    private var namedRecomposer: SwingRecomposer? = null
+
+    /**
+     * The recomposer that recomposes this content: the one the caller named, else [parentRecomposer],
+     * which a move changes while named content stays on the recomposer it was named under. A content
+     * composition nesting into this one registers with this recomposer.
+     */
+    val drivingRecomposer: SwingRecomposer? get() = namedRecomposer ?: parentRecomposer
+
+    /** Kept apart from the registration that follows the window, which a move withdraws. */
+    private val drivenRegistration = DisposableHandle { dispose() }
 
     private val deferredRejoin = DeferredAction(::rejoin)
 
@@ -320,6 +337,10 @@ internal class ContentCompositionState(
         namedParentContext = namedParent?.context
         val parent = namedParent ?: resolveParentOrNull(component)
         if (parent != null) composeUnder(parent)
+        namedParent?.recomposer?.takeIf { it.recomposer === namedParent.context }?.let { named ->
+            namedRecomposer = named
+            named.registerContentComposition(drivenRegistration)
+        }
     }
 
     /**
@@ -428,11 +449,15 @@ internal class ContentCompositionState(
                 // Withdrawn on the spot: AWT delivers a parent change to a container's descendants before
                 // the container itself, so content nested inside this is asked where it hangs while this
                 // container still names the composition it is leaving. Answering nothing sends that walk on
-                // to where it really hangs now, and the rejoin publishes the new answer.
-                publishedContext = null
-                // Withdrawn with it: the window this content is leaving may close before the queued rejoin
-                // runs, and its teardown must not dispose content standing in another window by then. The
-                // rejoin registers with whatever recomposer the new place resolves to.
+                // to where it really hangs now, and the rejoin publishes the new answer. Content named on a
+                // window's recomposer keeps publishing it: that recomposer still drives this content after
+                // the move, so nested content must stay on it. Any other content is driven by the recomposer
+                // of the window it is leaving until its rejoin runs, and nested content rejoins first.
+                if (namedRecomposer == null) publishedContext = null
+                // The follow-the-window registration is withdrawn with it: the window this content is
+                // leaving may close before the queued rejoin runs, and its teardown must not dispose content
+                // standing in another window by then. The rejoin registers with whatever recomposer the new
+                // place resolves to. A named recomposer's [drivenRegistration] stays.
                 registerWith(null)
             }
         }
@@ -440,8 +465,8 @@ internal class ContentCompositionState(
 
     /**
      * Rejoins a moved composition under the context its container now resolves to, unless its caller named
-     * a still-live parent explicitly. A caller-named parent remains the composition's parent; only the
-     * destination's recomposer registration changes. Where the result names the context already held, the
+     * a parent explicitly. A caller-named parent remains the composition's parent; only the destination's
+     * recomposer registration changes. Where the result names the context already held, the
      * composition stays live rather than being rebuilt.
      */
     private fun rejoin() {
@@ -478,7 +503,7 @@ internal class ContentCompositionState(
         val arrivedIn = component.ownerWindowOrNull()
         val moved = phase == Phase.Mounted && arrivedIn != null && arrivedIn !== statedWindow.value
         val resolved = if (moved) resolveParentOrNull(component) else null
-        val named = namedParentContext?.takeUnless { it.hasEnded }
+        val named = namedParentContext
         return if (resolved != null && named != null) {
             ParentComposition(named, resolved.window, resolved.recomposer)
         } else {
@@ -506,6 +531,7 @@ internal class ContentCompositionState(
             { component.removeHierarchyListener(registration) },
             { component[CONTENT_COMPOSITION_KEY] = null },
             { registerWith(null) },
+            { namedRecomposer?.also { namedRecomposer = null }?.deregisterContentComposition(drivenRegistration) },
             ::disposeComposition,
         )
     }
@@ -574,7 +600,7 @@ internal fun Component.contentCompositionOrNull(): ContentCompositionState? =
 private fun Component.enclosingContentRecomposerOrNull(): SwingRecomposer? =
     generateSequence(parent) { it.parent }
         .firstNotNullOfOrNull { it.contentCompositionOrNull()?.takeIf { state -> state.publishedContext != null } }
-        ?.parentRecomposer
+        ?.drivingRecomposer
 
 /**
  * The only [HierarchyEvent] change flag that can put a [Component] under a different window:

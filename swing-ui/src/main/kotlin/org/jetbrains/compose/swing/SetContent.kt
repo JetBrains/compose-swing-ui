@@ -78,7 +78,8 @@ import javax.swing.RootPaneContainer
  *
  * @param parent the composition context this content joins and shares the recomposition scope of, and
  *   the one anything mounted inside this content joins. Defaults to `null`, meaning the composition the
- *   container's own place in the Swing tree resolves to.
+ *   container's own place in the Swing tree resolves to. Where it is a window's own composition,
+ *   closing that window ends this content wherever its container has moved to.
  * @param content the composable content to set
  * @return a [DisposableHandle] that disposes this content composition when invoked (or cancels it if it
  *   has not mounted yet). Must be disposed on the Event Dispatch Thread.

@@ -122,7 +122,9 @@ public class SwingRecomposer private constructor(
      *
      * Content registers itself when it composes under this recomposer or adopts its window, and
      * [deregisterContentComposition]s when it is disposed, composes under another recomposer, or leaves
-     * the window mid-move for its queued rejoin to place again. Two kinds of content stand outside the
+     * the window mid-move for its queued rejoin to place again. Content that named this recomposer as its
+     * parent holds a second registration for as long as it lives, wherever its container goes, so what
+     * still composes on this recomposer keeps it running. Two kinds of content stand outside the
      * set: content composed under a caller-named context that is no window's own, while its container
      * hangs off no window and stands inside no other content, registers with no recomposer until its
      * container adopts a window; and content on a recomposer of its caller's own registers with none at
