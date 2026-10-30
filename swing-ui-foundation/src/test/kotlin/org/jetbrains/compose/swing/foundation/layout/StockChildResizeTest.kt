@@ -16,15 +16,23 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.GridBagConstraints
 import java.awt.Insets
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.JComponent
+import javax.swing.JEditorPane
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextArea
+import javax.swing.border.EmptyBorder
+import javax.swing.text.JTextComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -223,7 +231,6 @@ class StockChildResizeTest {
             settleWithPaint()
             val box = onNodeWithTag("box").fetch<JComponent>()
 
-            fun wrappedHeightAt(width: Int) = wrappingTextArea().apply { setSize(width, 1) }.preferredSize.height
             assertEquals(Dimension(WIDTH, wrappedHeightAt(WIDTH)), box.preferredSize, "wide: preferred")
 
             width = WIDTH - 60
@@ -250,6 +257,242 @@ class StockChildResizeTest {
                 },
             ),
         )
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @CsvSource(
+        "plain label, unbounded",
+        "HTML label, unbounded",
+        "wrapping text area, unbounded",
+        "plain label, at most 10",
+        "HTML label, at most 10",
+        "wrapping text area, at most 10",
+        "plain label, at least 30",
+        "HTML label, at least 30",
+        "wrapping text area, at least 30",
+    )
+    fun eachChildFillingAColumnsWidthTakesEveryNewWidthInOneResizeAtTheHeightItHolds(
+        kind: String,
+        bound: String,
+    ) = runComposeSwingTest {
+        var width by mutableIntStateOf(800)
+        val records = List(3) { ResizeRecord() }
+        setContent {
+            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                Column(modifier = SwingModifier.center()) {
+                    for (record in records) {
+                        SwingNode(
+                            factory = { recordingChild(kind, "One line", record) },
+                            modifier =
+                                when (bound) {
+                                    "at most 10" -> SwingModifier.fillMaxWidth().heightIn(max = 10)
+                                    "at least 30" -> SwingModifier.fillMaxWidth().heightIn(min = 30)
+                                    else -> SwingModifier.fillMaxWidth()
+                                },
+                        )
+                    }
+                }
+            }
+        }
+        awaitIdle()
+        val heights = records.map { it.child.height }
+
+        for (newWidth in listOf(790, 780, 700)) {
+            records.forEach { it.reset() }
+            width = newWidth
+            awaitIdle()
+
+            assertEquals(
+                heights.map { listOf(newWidth to it) },
+                records.map { it.bounds.distinct() },
+                "width $newWidth: every size each child was given",
+            )
+            assertEquals(listOf(1, 1, 1), records.map { it.resizedEvents.size }, "width $newWidth: resize events")
+        }
+    }
+
+    @Test
+    fun aTextAreaTakingAnotherLineAtANewWidthReachesItsListenerOnlyAtItsFinalSize() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            val record = ResizeRecord()
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    Column(modifier = SwingModifier.center()) {
+                        SwingNode(
+                            factory = { recordingChild("wrapping text area", WRAPPING_TEXT, record) },
+                            modifier = SwingModifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            val wide = record.child.height
+            assertEquals(wrappedHeightAt(WIDTH), wide, "wide: the height the text takes at its width")
+            record.reset()
+
+            width = WIDTH / 2
+            awaitIdle()
+
+            val narrow = record.child.height
+            assertEquals(wrappedHeightAt(WIDTH / 2), narrow, "narrow: the height the text takes at its width")
+            assertTrue(narrow > wide, "the text takes more lines")
+            assertEquals(
+                listOf(WIDTH / 2 to wide, WIDTH / 2 to narrow),
+                record.bounds.distinct(),
+                "narrowing: it is read at the new width and the height it holds, then takes the height read there",
+            )
+            assertEquals(
+                listOf(WIDTH / 2 to narrow, WIDTH / 2 to narrow),
+                record.resizedEvents,
+                "narrowing: each resize event finds the final size",
+            )
+            record.reset()
+
+            width = WIDTH
+            awaitIdle()
+
+            assertEquals(wrappedHeightAt(WIDTH), record.child.height, "widened: the height the text takes at its width")
+            assertEquals(
+                listOf(WIDTH to narrow, WIDTH to wide),
+                record.bounds.distinct(),
+                "widening: it is read at the new width and the height it holds, then takes the height read there",
+            )
+            assertEquals(
+                listOf(WIDTH to wide, WIDTH to wide),
+                record.resizedEvents,
+                "widening: each resize event finds the final size",
+            )
+        }
+
+    @ParameterizedTest(name = "{0}, insets {1} each side, held at height {2}")
+    @CsvSource(
+        "text area, 2, 1",
+        "text area, 2, 4",
+        "text area, 2, 5",
+        "editor pane, 3, 4",
+        "editor pane, 3, 6",
+        "editor pane, 3, 7",
+    )
+    fun aTextChildHeldAtAnyHeightTakesTheHeightItWrapsToAtANewWidth(
+        kind: String,
+        inset: Int,
+        heldHeight: Int,
+    ) = runComposeSwingTest {
+        val child = borderedTextChild(kind, inset)
+        var offer by mutableStateOf(Dimension(500, 600))
+        setContent {
+            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(800, 800)) {
+                val offered = offer
+                Layout(
+                    content = { SwingNode(factory = { child }) },
+                    modifier = SwingModifier.center(),
+                    measurePolicy =
+                        MeasurePolicy { measurables, _ ->
+                            val placeable =
+                                measurables
+                                    .single()
+                                    .measure(Constraints(offered.width, offered.width, 0, offered.height))
+                            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                        },
+                )
+            }
+        }
+        awaitIdle()
+
+        offer = Dimension(500, heldHeight)
+        awaitIdle()
+        assertEquals(Dimension(500, heldHeight), child.size, "the child holds the offered height")
+
+        offer = Dimension(80, 600)
+        awaitIdle()
+
+        val wrapped = borderedTextChild(kind, inset).apply { setSize(80, 600) }.preferredSize.height
+        assertEquals(Dimension(80, wrapped), child.size, "the height it wraps to at the new width")
+    }
+}
+
+private fun wrappedHeightAt(width: Int) = wrappingTextArea().apply { setSize(width, 1) }.preferredSize.height
+
+private fun borderedTextChild(
+    kind: String,
+    inset: Int,
+): JTextComponent {
+    val child =
+        when (kind) {
+            "text area" -> wrappingTextArea()
+            else -> JEditorPane("text/plain", WRAPPING_TEXT)
+        }
+    child.border = EmptyBorder(inset, inset, inset, inset)
+    return child
+}
+
+/** What one stock child was resized to: the sizes set on it, and the size it held at each resize event. */
+private class ResizeRecord {
+    lateinit var child: JComponent
+    val bounds = mutableListOf<Pair<Int, Int>>()
+    val resizedEvents = mutableListOf<Pair<Int, Int>>()
+
+    fun reset() {
+        bounds.clear()
+        resizedEvents.clear()
+    }
+}
+
+private fun recordingChild(
+    kind: String,
+    text: String,
+    record: ResizeRecord,
+): JComponent {
+    val child =
+        when (kind) {
+            "plain label" -> RecordingLabel(text, record)
+            "HTML label" -> RecordingLabel("<html>$text</html>", record)
+            else -> RecordingTextArea(text, record)
+        }
+    child.addComponentListener(
+        object : ComponentAdapter() {
+            override fun componentResized(e: ComponentEvent) {
+                record.resizedEvents += child.width to child.height
+            }
+        },
+    )
+    record.child = child
+    return child
+}
+
+private class RecordingLabel(
+    text: String,
+    private val record: ResizeRecord,
+) : JLabel(text) {
+    override fun setBounds(
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) {
+        record.bounds += width to height
+        super.setBounds(x, y, width, height)
+    }
+}
+
+private class RecordingTextArea(
+    text: String,
+    private val record: ResizeRecord,
+) : JTextArea(text) {
+    init {
+        lineWrap = true
+        wrapStyleWord = true
+    }
+
+    override fun setBounds(
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) {
+        record.bounds += width to height
+        super.setBounds(x, y, width, height)
+    }
 }
 
 /** A wrapping text area that paints through the decoration its modifier declares, its insets carrying the outsets. */

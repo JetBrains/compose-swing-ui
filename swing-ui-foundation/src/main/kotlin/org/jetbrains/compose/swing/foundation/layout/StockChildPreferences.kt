@@ -36,7 +36,17 @@ internal fun ChildMeasurable.measureUnmodified(
     } else {
         var extent =
             if (constraints.hasFixedWidth && constraints.minWidth > 0 && constraints.minWidth != layoutWidth) {
-                preferredExtentSizedTo(constraints.minWidth, constraints.maxHeight, maySizeStockChildren)
+                // At the height it holds, so a child whose height does not follow its width takes one resize; where
+                // it answers another height within the offer, at that height. A text component ignores a width it is
+                // given without a height, so a child holding none is read at the height offered.
+                val height = if (layoutHeight > 0) layoutHeight else constraints.maxHeight
+                val read = preferredExtentSizedTo(constraints.minWidth, height, maySizeStockChildren)
+                val fitted = constraints.constrainHeight(read.height)
+                if (maySizeStockChildren && fitted != height) {
+                    preferredExtentSizedTo(constraints.minWidth, fitted, maySizeStockChildren)
+                } else {
+                    read
+                }
             } else {
                 preferredExtent()
             }
@@ -68,7 +78,7 @@ internal fun ChildMeasurable.preferredExtentSizedTo(
 
 /**
  * What [read] returns with this child sized to the layout extent [width] by [height], its markup laid out at that width
- * first. The child keeps that size, which the layout pass that follows overwrites. No resize requests a layout pass.
+ * first. The child keeps that size until the layout pass that follows grants another. No resize requests a layout pass.
  */
 private inline fun <T> ChildMeasurable.sizedTo(
     width: Int,
