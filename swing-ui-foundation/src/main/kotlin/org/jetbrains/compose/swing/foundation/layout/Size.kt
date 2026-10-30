@@ -19,7 +19,7 @@
  *
  * | Swing adaptation | Purpose |
  * | --- | --- |
- * | Non-enforced height intrinsics retain the minimum-width offer | The query preserves the measurement offer. |
+ * | Height intrinsics offer the minimum width `measure` gives the child | The query preserves the measurement offer. |
  */
 
 // Every size modifier stays in this one file, as androidx foundation-layout's Size.kt keeps them, so the two
@@ -504,8 +504,7 @@ private class SizeNode(
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
             constraints.constrainHeight(
-                (if (enforceIncoming) measurable else measurable.offeredAt(minWidth, constraints))
-                    .minIntrinsicHeight(childWidth),
+                measurable.underMeasuredOffer(constraints).minIntrinsicHeight(childWidth),
             )
         }
     }
@@ -533,11 +532,19 @@ private class SizeNode(
         } else {
             val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
             constraints.constrainHeight(
-                (if (enforceIncoming) measurable else measurable.offeredAt(minWidth, constraints))
-                    .maxIntrinsicHeight(childWidth),
+                measurable.underMeasuredOffer(constraints).maxIntrinsicHeight(childWidth),
             )
         }
     }
+
+    /** This child under the minimum width [measure] gives it, so a height read sees the width placement uses. */
+    context(scope: IntrinsicMeasureScope)
+    private fun IntrinsicMeasurable.underMeasuredOffer(declared: Constraints): IntrinsicMeasurable =
+        if (enforceIncoming) {
+            withOfferedMinWidth(declared.minWidth.coerceAtLeast(scope.offeredMinWidth))
+        } else {
+            offeredAt(minWidth, declared)
+        }
 }
 
 /** Compose accepts negative Dp bounds and resolves them to zero before building its constraints. */
