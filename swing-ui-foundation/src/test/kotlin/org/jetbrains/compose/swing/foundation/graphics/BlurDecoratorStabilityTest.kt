@@ -1,6 +1,10 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import java.awt.Color
@@ -104,13 +108,26 @@ class BlurDecoratorStabilityTest {
         runComposeSwingTest {
             val blurs = listOf(1 to false, 2 to false, 8 to true)
             val hints = arrayOfNulls<Any>(blurs.size)
-            val canvases =
-                decoratedCanvases(
-                    SIZE,
-                    SIZE,
-                    blurs.size,
-                    decoration = { SwingModifier.blur(blurs[it].first) },
-                ) { hints[it] = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING) }
+            // drawBehind draws on hints of its own, so the content is read where it is painted as a whole.
+            setContent {
+                Column {
+                    for ((index, blur) in blurs.withIndex()) {
+                        SwingNode(
+                            factory = { DecoratedPanel().apply { isOpaque = false } },
+                            modifier =
+                                SwingModifier
+                                    .testTag("canvas $index")
+                                    .preferredSize(SIZE, SIZE)
+                                    .blur(blur.first)
+                                    .drawWithContent {
+                                        hints[index] = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
+                                        drawContent()
+                                    },
+                        )
+                    }
+                }
+            }
+            val canvases = List(blurs.size) { onNodeWithTag("canvas $it").fetch<JComponent>() }
 
             for ((index, canvas) in canvases.withIndex()) {
                 canvas.paintAtLayoutOrigin()

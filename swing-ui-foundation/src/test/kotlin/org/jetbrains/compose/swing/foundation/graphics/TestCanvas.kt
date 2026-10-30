@@ -38,8 +38,8 @@ internal inline fun renderImage(
 
 /**
  * Composes, in a column, [count] canvases of [width] by [height], each declaring the [decoration] built for its index
- * after its size and drawing [draw] for its index with the rendering hints of the graphics it is given. Returns the
- * canvases in order.
+ * after its size and drawing [draw] for its index in `drawBehind`, on the default rendering hints of `Canvas`. Returns
+ * the canvases in order.
  */
 internal fun ComposeSwingTest.decoratedCanvases(
     width: Int,

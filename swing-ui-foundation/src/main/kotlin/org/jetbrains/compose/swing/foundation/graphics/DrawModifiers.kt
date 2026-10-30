@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.DefaultCanvasRenderingHints
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.drawingOn
@@ -12,7 +13,8 @@ import java.awt.Graphics2D
 
 /**
  * Draws [onDraw] into the component's area before the content declared after this modifier. The block draws on
- * its own copy of the graphics, so nothing it sets on them affects the content.
+ * its own copy of the graphics, so nothing it sets on them affects the content. The block draws with
+ * [DefaultCanvasRenderingHints] unless it sets its own.
  * Use [drawWithContent] to transform or clip the content.
  *
  * Snapshot state read in [onDraw] repaints the component when it changes. The component must paint through
@@ -68,6 +70,7 @@ private class DrawBehindNode(
     override fun ContentDrawScope.draw() {
         val canvas = graphics.create() as Graphics2D
         try {
+            canvas.addRenderingHints(DefaultCanvasRenderingHints)
             drawingOn(canvas) { onDraw() }
         } finally {
             canvas.dispose()

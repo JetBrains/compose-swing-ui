@@ -27,7 +27,8 @@ import javax.swing.Scrollable
 import javax.swing.SwingConstants
 
 /**
- * Default rendering hints applied to a [Canvas] surface before [Canvas]'s `onDraw` runs.
+ * Default rendering hints applied to a [Canvas] surface before [Canvas]'s `onDraw` runs, and to the graphics a
+ * `drawBehind` block draws on.
  *
  * Enables antialiasing and pure stroke control so lines, arcs, circles, and curves are rendered
  * smoothly with sub-pixel precision.

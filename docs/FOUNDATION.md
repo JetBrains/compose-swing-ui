@@ -471,6 +471,7 @@ operations specific to Java2D.
 
 `SwingModifier.drawBehind { ... }` paints into a decorated component before the content declared after
 the modifier, without reserving space. A change the block makes to the graphics does not reach the content.
+The block draws with `DefaultCanvasRenderingHints` unless it sets its own.
 `SwingModifier.drawWithContent { ... }` exposes `drawContent()`
 so the block can choose where that content is painted. Both observe state read by the drawing block and
 require `Decoratable`.
