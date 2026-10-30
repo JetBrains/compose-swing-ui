@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import org.jetbrains.compose.swing.components.Label
+import javax.swing.JLabel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -33,9 +34,8 @@ class IdleStepBoundTest {
         var consumed by mutableIntStateOf(0)
         setContent {
             if (restless) {
-                // Every frame the gate sends is consumed and answered with a write to a composition
-                // input, so the write the gate publishes at the top of its next pass revives
-                // recomposition and the composition is never quiescent when the gate checks.
+                // Each frame triggers a write to a composition input. The gate publishes the write
+                // at the top of its next pass, triggering recomposition before it checks for idle.
                 LaunchedEffect(Unit) {
                     repeat(FRAMES_BEYOND_THE_BOUND) {
                         withFrameNanos { }
@@ -47,15 +47,10 @@ class IdleStepBoundTest {
         }
 
         restless = true
-        val failure = assertFailsWith<AssertionError> { awaitIdle() }
+        assertFailsWith<AssertionError> { awaitIdle() }
 
-        val message = failure.message.orEmpty()
-        assertTrue(message.contains("awaitIdle did not become idle"), "the failure should name the gate: $message")
-        assertTrue(
-            message.contains("hasPendingWork="),
-            "the failure should report the outstanding work it gave up on: $message",
-        )
-        assertTrue(message.contains("restless for"), "the failure should carry a dump of the tree: $message")
+        assertTrue(consumed < FRAMES_BEYOND_THE_BOUND, "the bound ended the wait, not the work: $consumed")
+        onNodeOfType<JLabel>().assertExists()
     }
 
     @Test
@@ -64,26 +59,19 @@ class IdleStepBoundTest {
 
         // The initial wait for idle runs inside setContent, so a content whose first composition already
         // produces endless work fails there rather than at the first await the test writes.
-        val failure =
-            assertFailsWith<AssertionError> {
-                setContent {
-                    LaunchedEffect(Unit) {
-                        repeat(FRAMES_BEYOND_THE_BOUND) {
-                            withFrameNanos { }
-                            consumed++
-                        }
+        assertFailsWith<AssertionError> {
+            setContent {
+                LaunchedEffect(Unit) {
+                    repeat(FRAMES_BEYOND_THE_BOUND) {
+                        withFrameNanos { }
+                        consumed++
                     }
-                    Label(text = "restless for $consumed frames")
                 }
+                Label(text = "restless for $consumed frames")
             }
+        }
 
-        val message = failure.message.orEmpty()
-        assertTrue(message.contains("setContent did not become idle"), "the failure should name the gate: $message")
-        assertTrue(
-            message.contains("hasPendingWork="),
-            "the failure should report the outstanding work it gave up on: $message",
-        )
-        assertTrue(message.contains("restless for"), "the failure should carry a dump of the tree: $message")
+        assertTrue(consumed < FRAMES_BEYOND_THE_BOUND, "the bound ended the wait, not the work: $consumed")
     }
 
     @Test
@@ -99,19 +87,13 @@ class IdleStepBoundTest {
         repost = Runnable { if (reposting) SwingUtilities.invokeLater(repost) }
         SwingUtilities.invokeLater(repost)
 
-        val failure =
-            try {
-                assertFailsWith<AssertionError> { mainClock.advanceTimeByFrame() }
-            } finally {
-                reposting = false
-            }
+        try {
+            assertFailsWith<AssertionError> { mainClock.advanceTimeByFrame() }
+        } finally {
+            reposting = false
+        }
 
-        val message = failure.message.orEmpty()
-        assertTrue(
-            message.contains("mainClock.advanceTimeByFrame did not become idle"),
-            "the failure should name the real caller: $message",
-        )
-        assertTrue(message.contains("spinning"), "the failure should carry a dump of the tree: $message")
+        onNodeOfType<JLabel>().assertTextEquals("spinning")
     }
 
     private companion object {

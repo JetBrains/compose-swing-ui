@@ -5,7 +5,7 @@ import java.awt.Window
 
 /**
  * A lazy handle to the set of realized windows matched by a window query. The match set is resolved
- * against the live set of realized windows each time it is needed, so it reflects windows appearing and
+ * against the current set of realized windows each time it is needed, so it reflects windows appearing and
  * disappearing across recomposition.
  *
  * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runComposeSwingTest]
@@ -43,8 +43,9 @@ public class SwingWindowInteractionCollection internal constructor(
     public fun fetchSize(): Int = resolveAll().size
 
     /**
-     * Resolves every matching window and returns them typed as [T], in creation order, for reading
-     * or driving each window's own API.
+     * Resolves every matching window and returns them typed as [T], in creation order. This is the
+     * last resort, for a call that requires the matched windows themselves or a subject that is the whole set. To
+     * read a value of one window, use [SwingWindowInteraction.assertProperty] or an assertion.
      *
      * @throws AssertionError if any matched window is not a [T].
      */

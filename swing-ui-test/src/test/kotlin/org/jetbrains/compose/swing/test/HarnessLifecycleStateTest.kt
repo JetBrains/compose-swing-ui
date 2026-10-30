@@ -20,15 +20,12 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
 /**
- * Behavioral tests for the lifecycle a test states to its content.
- *
- * A test's root stands in no window, so nothing about where it hangs can answer whether its content is
- * shown. The test says so itself, which is what makes work gated on the lifecycle - a collector, a
- * poller, an animation - reachable from a test at all.
+ * The root has no window, so its placement cannot tell whether the content is shown.
+ * The harness supplies the lifecycle state for collectors, pollers, and animations in that content.
  */
 class HarnessLifecycleStateTest {
     @Test
-    fun contentComposedByATestReadsTheStateThatTestStates() = runComposeSwingTest {
+    fun contentReadsTheHarnessLifecycleState() = runComposeSwingTest {
         var owner: LifecycleOwner? = null
         setContent {
             owner = LocalLifecycleOwner.current
@@ -59,7 +56,7 @@ class HarnessLifecycleStateTest {
     }
 
     @Test
-    fun nestedContentReadsTheHarnessOwnerAndLeavesItLiveWhenDisposed() = runComposeSwingTest {
+    fun nestedContentReadsTheHarnessOwnerAndLeavesItResumedWhenDisposed() = runComposeSwingTest {
         var rootOwner: LifecycleOwner? = null
         lateinit var parent: CompositionContext
         setContent {
@@ -97,7 +94,7 @@ class HarnessLifecycleStateTest {
             assertEquals(
                 Lifecycle.State.RESUMED,
                 owned.lifecycle.currentState,
-                "nested disposal leaves its borrowed owner live",
+                "nested disposal leaves its borrowed owner resumed",
             )
             onNodeWithText("root").assertExists()
         } finally {
@@ -106,7 +103,7 @@ class HarnessLifecycleStateTest {
     }
 
     @Test
-    fun aWindowComposedByATestStatesAnOwnerOfItsOwn() = runComposeSwingTest {
+    fun aWindowComposedByATestHasItsOwnLifecycleOwner() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var rootOwner: LifecycleOwner? = null
         var windowOwner: LifecycleOwner? = null
@@ -121,8 +118,7 @@ class HarnessLifecycleStateTest {
         assertNotSame(
             checkNotNull(rootOwner) { "the root content must have read an owner" },
             checkNotNull(windowOwner) { "the window content must have read an owner" },
-            "a window is a top-level window of its own, so its content answers for that window rather " +
-                "than for the state a test states to the content composed into its root",
+            "window content reads the window's lifecycle owner rather than the harness root's owner",
         )
     }
 }

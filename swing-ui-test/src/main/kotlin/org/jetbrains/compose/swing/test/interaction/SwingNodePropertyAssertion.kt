@@ -20,8 +20,8 @@ import java.awt.Component
  * appends [message], which tells several property assertions on the same node apart.
  *
  * Use this for a property the assertion vocabulary does not cover. A property with its own
- * assertion or matcher reads better through that. Reading several properties of one node reads
- * better through a single [SwingNodeInteraction.fetch].
+ * assertion or matcher reads better through that. [SwingNodeInteraction.fetch] is the last resort,
+ * for a call that requires the matched component itself or for its identity.
  *
  * @param expected the value [actual] must return, compared with `equals`.
  * @param message appended to the failure after both values; `null` by default.
@@ -40,4 +40,23 @@ public fun <T : Component, V> SwingNodeInteraction<T>.assertProperty(
         )
     }
     return this
+}
+
+/**
+ * Asserts that the matched node is an [R], and returns this interaction typed as [R] so the
+ * assertions and properties after it are written against [R]:
+ *
+ * ```
+ * onNodeWithText("Save").assertIsOfType<JButton>().assertProperty(true) { isDefaultButton }
+ * ```
+ *
+ * The failure names the query, the node's actual class and the expected type, e.g. `Node
+ * 'hasText("Save")' is a JLabel, expected a JButton.`
+ *
+ * @throws AssertionError if the query has no single target, or if the target is not an [R].
+ */
+public inline fun <reified R : Component> SwingNodeInteraction<*>.assertIsOfType(): SwingNodeInteraction<R> {
+    val typed = retype { it.castOrFail<R>("Node", matcherDescription) }
+    typed.fetch()
+    return typed
 }

@@ -12,6 +12,9 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.InputEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -54,7 +57,7 @@ class NodeTabInteractionTest {
 
         onNodeOfType<JTabbedPane>().performTabClick(2)
 
-        assertEquals(2, onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex, "the clicked tab is selected")
+        onNodeOfType<JTabbedPane>().assertProperty(2, "the clicked tab is selected") { selectedIndex }
         assertEquals(listOf(2), reported, "the selection the click made should reach the callback")
     }
 
@@ -94,7 +97,7 @@ class NodeTabInteractionTest {
 
         onNodeOfType<JTabbedPane>().performTabClick(1)
 
-        assertEquals(1, onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex, "the strip stays put")
+        onNodeOfType<JTabbedPane>().assertProperty(1, "the strip stays put") { selectedIndex }
         assertEquals(emptyList(), reported, "clicking the tab already selected reports nothing")
     }
 
@@ -110,7 +113,7 @@ class NodeTabInteractionTest {
 
         onNodeOfType<JTabbedPane>().performTabClick(1)
 
-        assertEquals(0, onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex, "the strip stays put")
+        onNodeOfType<JTabbedPane>().assertProperty(0, "the strip stays put") { selectedIndex }
         assertEquals(emptyList(), reported, "a disabled tab cannot be selected by clicking it")
     }
 
@@ -130,8 +133,8 @@ class NodeTabInteractionTest {
 
         onNodeOfType<JTabbedPane>().performTabClick(1)
 
-        assertEquals(0, onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex, "the strip stays put")
-        assertEquals(emptyList(), reported, "a disabled pane does not answer a click")
+        onNodeOfType<JTabbedPane>().assertProperty(0, "the strip stays put") { selectedIndex }
+        assertEquals(emptyList(), reported, "a disabled pane does not report a click")
     }
 
     @Test
@@ -158,7 +161,7 @@ class NodeTabInteractionTest {
         onNodeOfType<JTabbedPane>().performTabClick(1)
 
         assertEquals(1, selected, "the click should drive the caller's state")
-        assertEquals(1, onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex, "and settle the strip there")
+        onNodeOfType<JTabbedPane>().assertProperty(1, "and settle the strip there") { selectedIndex }
         onNodeWithText("showing tab 1").assertExists()
     }
 
@@ -186,11 +189,10 @@ class NodeTabInteractionTest {
         onNodeOfType<JTabbedPane>().performTabClick(1)
 
         assertEquals(listOf(1), reported, "the click should report the tab it hit")
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             2,
-            onNodeOfType<JTabbedPane>().fetch<JTabbedPane>().selectedIndex,
             "the strip should settle on the tab the caller declared",
-        )
+        ) { selectedIndex }
     }
 
     @Test
@@ -245,8 +247,9 @@ class NodeTabInteractionTest {
         )
     }
 
-    @Test
-    fun clickingAnIndexOutsideTheStripFailsReadably() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indicesOutsideTheStrip")
+    fun clickingAnIndexOutsideTheStripFailsReadably(index: Int) = runComposeSwingTest {
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = { }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
@@ -254,25 +257,10 @@ class NodeTabInteractionTest {
             }
         }
 
-        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTabbedPane>().performTabClick(2) }
+        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTabbedPane>().performTabClick(index) }
         val message = failure.message.orEmpty()
         assertTrue(message.contains("has 2 tab(s)"), "the failure should quantify the strip: $message")
-        assertTrue(message.contains("index 2"), "the failure should name the index asked for: $message")
-    }
-
-    @Test
-    fun clickingAnIndexBelowTheStripFailsReadably() = runComposeSwingTest {
-        setContent {
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { }, modifier = roomForTheStrip) {
-                Label("1", SwingModifier.tab("One"))
-                Label("2", SwingModifier.tab("Two"))
-            }
-        }
-
-        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTabbedPane>().performTabClick(-1) }
-        val message = failure.message.orEmpty()
-        assertTrue(message.contains("has 2 tab(s)"), "the failure should quantify the strip: $message")
-        assertTrue(message.contains("index -1"), "the failure should name the index asked for: $message")
+        assertTrue(message.contains("index $index"), "the failure should name the index asked for: $message")
     }
 
     @Test
@@ -309,12 +297,18 @@ class NodeTabInteractionTest {
         assertTrue(message.contains("into the visible run"), "the failure should say what to do: $message")
     }
 
-    private companion object {
+    companion object {
         // The harness root lays a child out at its preferred size, which is not necessarily wide enough
         // for a tabbed pane's whole tab strip; a tab the strip does not show has no position to click.
-        val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
+        private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
 
         // Comfortably more tabs than one run of the strip shows at that width.
-        const val TABS_BEYOND_ONE_RUN: Int = 40
+        private const val TABS_BEYOND_ONE_RUN: Int = 40
+
+        @JvmStatic
+        fun indicesOutsideTheStrip(): List<Named<Int>> = listOf(
+            Named.of("below the strip", -1),
+            Named.of("past the strip", 2),
+        )
     }
 }

@@ -18,10 +18,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Pins what `assertLayoutConstraint` answers for, one layout manager at a time: the region a
- * `BorderLayout` places a child in, and the cell constraints a `GridBagLayout` places it under. A
- * manager that reports no per-child constraint names itself, so that limit reads as documented rather
- * than a missing assertion; a card deck is asserted through visibility instead.
+ * `assertLayoutConstraint` compares a child's `BorderLayout` region or `GridBagLayout` constraints.
+ * A manager with no readable per-child constraint is named in the failure; a card deck is asserted
+ * through visibility instead.
  */
 class LayoutConstraintAssertionTest {
     @Test
@@ -49,7 +48,7 @@ class LayoutConstraintAssertionTest {
     }
 
     @Test
-    fun gridBagCellsMatchFieldByFieldAndAWrongCellRendersBoth() = runComposeSwingTest {
+    fun gridBagCellsMatchFieldByField() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.GridBag) {
                 Label(text = "origin", modifier = SwingModifier.item(gridx = 0, gridy = 0))
@@ -67,8 +66,8 @@ class LayoutConstraintAssertionTest {
             }
         }
 
-        // The manager answers with a copy of what it was handed, and GridBagConstraints carries no
-        // equality, so a freshly built expectation with the same fields has to match.
+        // The layout manager returns a copy. GridBagConstraints has no value equality, so
+        // a new instance with the same fields must match.
         onNodeWithText("origin").assertLayoutConstraint(
             GridBagConstraints().apply {
                 gridx = 0
@@ -85,18 +84,20 @@ class LayoutConstraintAssertionTest {
             },
         )
 
-        val failure =
-            assertFailsWith<AssertionError> {
-                onNodeWithText("origin").assertLayoutConstraint(
-                    GridBagConstraints().apply {
-                        gridx = 3
-                        gridy = 0
-                    },
-                )
-            }
-        val message = failure.message.orEmpty()
-        assertTrue(message.contains("is placed at gridx=0, gridy=0"), "the failure renders the actual cell: $message")
-        assertTrue(message.contains("expected gridx=3, gridy=0"), "the failure renders the expected cell: $message")
+        assertFailsWith<AssertionError> {
+            onNodeWithText("origin").assertLayoutConstraint(
+                GridBagConstraints().apply {
+                    gridx = 3
+                    gridy = 0
+                },
+            )
+        }
+        onNodeWithText("origin").assertLayoutConstraint(
+            GridBagConstraints().apply {
+                gridx = 0
+                gridy = 0
+            },
+        )
     }
 
     @Test

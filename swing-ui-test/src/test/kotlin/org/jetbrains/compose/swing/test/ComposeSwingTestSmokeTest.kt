@@ -13,12 +13,12 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.MotionDurationScale
 import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import java.awt.BorderLayout
 import java.awt.Container
 import java.util.concurrent.Executors
-import javax.swing.JLabel
 import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -117,8 +117,7 @@ class ComposeSwingTestSmokeTest {
     @Test
     fun textFieldIsOfType() = runComposeSwingTest {
         setContent { TextField(value = "x", onValueChange = { }) }
-        val matches = root.findMatching(SwingMatcher.isOfType<JTextField>())
-        assertEquals(1, matches.size)
+        onAllNodes(SwingMatcher.isOfType<JTextField>()).assertCountEquals(1)
     }
 
     @Test
@@ -127,7 +126,7 @@ class ComposeSwingTestSmokeTest {
 
         assertTrue(root.isDisplayable, "the root is displayable, so an invalidation travels up to it")
         assertFalse(root.isShowing, "the root stands in no window, so it never shows")
-        assertFalse(onNodeWithText("x").fetch<JLabel>().isShowing, "and nothing under it shows either")
+        onNodeWithText("x").assertProperty(false, "and nothing under it shows either") { isShowing }
         assertTrue(root.isFocusCycleRoot, "the root is the root of its focus cycle, as a window is")
     }
 

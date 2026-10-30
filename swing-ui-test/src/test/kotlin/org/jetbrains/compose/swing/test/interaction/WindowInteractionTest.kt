@@ -27,7 +27,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Validates the window-query surface of the harness: [ComposeSwingTest.onWindow]/[ComposeSwingTest.onAllWindows]
@@ -54,7 +53,7 @@ class WindowInteractionTest {
         assertSame(
             frame,
             onWindowWithTitle("shown-window").fetch<JFrame>(),
-            "each resolution should return the same live frame",
+            "each resolution should return the same frame",
         )
     }
 
@@ -227,10 +226,6 @@ class WindowInteractionTest {
         // A dialog show is applied on its own event-dispatch turn; awaitIdle returns only after that
         // turn has run, so the realized dialog is already showing here and enters the match set.
         onWindow().assertIsVisible()
-        assertTrue(
-            onWindow().fetch<JDialog>().isVisible,
-            "the realized dialog must be visible once awaitIdle returns",
-        )
     }
 
     @Test

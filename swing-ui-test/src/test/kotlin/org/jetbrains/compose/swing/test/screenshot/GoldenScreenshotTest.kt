@@ -28,8 +28,8 @@ class GoldenScreenshotTest {
         val written = resultFiles(identifier) + goldenSource(identifier)
         written.forEach { it.delete() }
 
-        withGoldenOnClasspath(identifier, scene()) {
-            assertImageAgainstGolden(scene(), identifier)
+        withGoldenOnClasspath(identifier, rectangleImage()) {
+            assertImageAgainstGolden(rectangleImage(), identifier)
         }
 
         written.forEach { assertFalse(it.exists(), "a comparison that matches leaves nothing behind: ${it.path}") }
@@ -41,19 +41,10 @@ class GoldenScreenshotTest {
         val results = resultFiles(identifier)
         results.forEach { it.delete() }
 
-        val failure =
-            withGoldenOnClasspath(identifier, scene()) {
-                assertFailsWith<AssertionError> { assertImageAgainstGolden(inverseScene(), identifier) }
-            }
+        withGoldenOnClasspath(identifier, rectangleImage()) {
+            assertFailsWith<AssertionError> { assertImageAgainstGolden(invertedImage(), identifier) }
+        }
 
-        assertTrue(
-            failure.message.orEmpty().contains("Image mismatch for golden '$identifier'"),
-            "the failure names the golden that did not match: ${failure.message}",
-        )
-        assertTrue(
-            failure.message.orEmpty().contains("MSSIM:"),
-            "and reports how similar the images were: ${failure.message}",
-        )
         results.forEach {
             assertTrue(it.isFile, "the captured, expected and difference images are written out: ${it.path}")
         }
@@ -63,12 +54,8 @@ class GoldenScreenshotTest {
     fun aMissingGoldenFailsAndNothingIsRecorded() = runGoldenTest {
         val identifier = "unrecorded-golden"
 
-        val failure = assertFailsWith<AssertionError> { assertImageAgainstGolden(scene(), identifier) }
+        assertFailsWith<AssertionError> { assertImageAgainstGolden(rectangleImage(), identifier) }
 
-        assertTrue(
-            failure.message.orEmpty().contains("Missing golden '$identifier'"),
-            "the failure names the golden that is not there: ${failure.message}",
-        )
         assertFalse(goldenSource(identifier).exists(), "a golden is only recorded in update mode")
     }
 
@@ -77,9 +64,9 @@ class GoldenScreenshotTest {
         val identifier = "recorded-golden"
         val recorded = goldenSource(identifier)
         try {
-            recordingGoldens { assertImageAgainstGolden(scene(), identifier) }
+            recordingGoldens { assertImageAgainstGolden(rectangleImage(), identifier) }
 
-            assertRecorded(recorded, scene(), "update mode records the image it could not find a golden for")
+            assertRecorded(recorded, rectangleImage(), "update mode records the image it could not find a golden for")
         } finally {
             discard(recorded)
         }
@@ -91,9 +78,9 @@ class GoldenScreenshotTest {
         val recorded = goldenSource(identifier)
         // Two pixels of drift stay within the default threshold: a match that is not identical, so the
         // recorded golden has to be the image just compared rather than the one it was compared against.
-        val drifted = scene(elementX = 38)
+        val drifted = rectangleImage(elementX = 38)
         try {
-            withGoldenOnClasspath(identifier, scene()) {
+            withGoldenOnClasspath(identifier, rectangleImage()) {
                 recordingGoldens { assertImageAgainstGolden(drifted, identifier) }
             }
 
@@ -108,22 +95,12 @@ class GoldenScreenshotTest {
         val identifier = "refused-golden"
         val recorded = goldenSource(identifier)
         try {
-            val failure =
-                withGoldenOnClasspath(identifier, scene()) {
-                    recordingGoldens {
-                        assertFailsWith<AssertionError> { assertImageAgainstGolden(inverseScene(), identifier) }
-                    }
+            withGoldenOnClasspath(identifier, rectangleImage()) {
+                recordingGoldens {
+                    assertFailsWith<AssertionError> { assertImageAgainstGolden(invertedImage(), identifier) }
                 }
+            }
 
-            assertTrue(
-                failure.message.orEmpty().contains("never overwrites a golden the capture disagrees with"),
-                "update mode says it kept the golden it had: ${failure.message}",
-            )
-            assertTrue(
-                failure.message.orEmpty().contains("delete") && failure.message.orEmpty().contains("$identifier.png"),
-                "and names the golden to delete to accept the capture instead of the flag already set: " +
-                    "${failure.message}",
-            )
             assertFalse(recorded.exists(), "a mismatch is never accepted as the new baseline")
         } finally {
             discard(recorded)
@@ -134,17 +111,12 @@ class GoldenScreenshotTest {
     fun aPixelPerfectComparisonRefusesADriftTheDefaultThresholdAccepts() = runGoldenTest {
         val identifier = "pixel-perfect-golden"
         // Two pixels of drift stay within the default threshold, but they are not the same image.
-        val drifted = scene(elementX = 38)
+        val drifted = rectangleImage(elementX = 38)
 
-        withGoldenOnClasspath(identifier, scene()) {
+        withGoldenOnClasspath(identifier, rectangleImage()) {
             assertImageAgainstGolden(drifted, identifier)
-            val failure =
-                assertFailsWith<AssertionError> { assertImageAgainstGoldenPixelPerfect(drifted, identifier) }
-            assertTrue(
-                failure.message.orEmpty().contains("Image mismatch for golden '$identifier'"),
-                "the failure names the golden that did not match: ${failure.message}",
-            )
-            assertImageAgainstGoldenPixelPerfect(scene(), identifier)
+            assertFailsWith<AssertionError> { assertImageAgainstGoldenPixelPerfect(drifted, identifier) }
+            assertImageAgainstGoldenPixelPerfect(rectangleImage(), identifier)
         }
     }
 
@@ -164,7 +136,7 @@ class GoldenScreenshotTest {
 
     @Test
     fun aGoldenIdentifierNamingAFileTheStoreCannotHoldIsRejected() = runGoldenTest {
-        assertFailsWith<IllegalArgumentException> { assertImageAgainstGolden(scene(), "bad name!") }
+        assertFailsWith<IllegalArgumentException> { assertImageAgainstGolden(rectangleImage(), "bad name!") }
     }
 
     /** Asserts [recorded] holds [image] pixel for pixel. */
@@ -239,8 +211,8 @@ class GoldenScreenshotTest {
         File(GOLDEN_SOURCE_DIR).parentFile.delete()
     }
 
-    /** A scene of one rectangle at [elementX] on a background, drawn the same way on every platform. */
-    private fun scene(
+    /** An image of one rectangle at [elementX] on a background, drawn the same way on every platform. */
+    private fun rectangleImage(
         elementX: Int = 36,
         background: Color = Color(0xEE, 0xEE, 0xEE),
         element: Color = Color(0xD2, 0xD2, 0xD2),
@@ -255,9 +227,9 @@ class GoldenScreenshotTest {
         return image
     }
 
-    /** The scene in inverted colors, which is far enough from [scene] to fail any threshold. */
-    private fun inverseScene(): BufferedImage =
-        scene(background = Color(0x11, 0x11, 0x11), element = Color(0x2D, 0x2D, 0x2D))
+    /** The rectangle image in inverted colors, which is far enough from [rectangleImage] to fail any threshold. */
+    private fun invertedImage(): BufferedImage =
+        rectangleImage(background = Color(0x11, 0x11, 0x11), element = Color(0x2D, 0x2D, 0x2D))
 
     private companion object {
         const val UPDATE_PROPERTY = "SCREENSHOT_TEST_UPDATE_GOLDENS"

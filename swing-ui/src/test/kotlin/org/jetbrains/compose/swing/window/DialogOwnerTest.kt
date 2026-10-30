@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -14,8 +15,6 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -43,11 +42,8 @@ class DialogOwnerTest {
                 Dialog(onCloseRequest = {}, owner = named, title = "dialog-owned-by-name", visible = false) {}
             }
 
-            assertSame(
-                named,
-                onWindowWithTitle("dialog-owned-by-name").fetch<JDialog>().owner,
-                "a dialog must be owned by the window it names",
-            )
+            onWindowWithTitle("dialog-owned-by-name")
+                .assertProperty(named, "a dialog must be owned by the window it names") { owner }
         } finally {
             named.dispose()
         }
@@ -66,16 +62,14 @@ class DialogOwnerTest {
             }
 
             val host = onWindowWithTitle("dialog-owner-host").fetch<JFrame>()
-            assertSame(
+            onWindowWithTitle("dialog-owned-elsewhere").assertProperty(
                 named,
-                onWindowWithTitle("dialog-owned-elsewhere").fetch<JDialog>().owner,
                 "a dialog naming its owner must be left alone by the window it is composed in",
-            )
-            assertSame(
+            ) { owner }
+            onWindowWithTitle("dialog-owned-by-host").assertProperty(
                 host,
-                onWindowWithTitle("dialog-owned-by-host").fetch<JDialog>().owner,
                 "a dialog naming no owner must be owned by the window it is composed in",
-            )
+            ) { owner }
         } finally {
             named.dispose()
         }
@@ -98,22 +92,25 @@ class DialogOwnerTest {
 
             val dialog = onWindowWithTitle("dialog-reowned-by-name")
             val realized = dialog.fetch<JDialog>()
-            assertSame(first, realized.owner, "the dialog must be owned by the window the declaration names")
+            dialog.assertProperty(first, "the dialog must be owned by the window the declaration names") {
+                this.owner
+            }
 
             owner = second
             awaitIdle()
 
             val reowned = dialog.fetch<JDialog>()
-            assertSame(second, reowned.owner, "the dialog must be owned by the window the recomposition names")
+            dialog.assertProperty(second, "the dialog must be owned by the window the recomposition names") {
+                this.owner
+            }
             assertFalse(realized.isDisplayable, "the dialog the owner change replaced must be released")
 
             owner = null
             awaitIdle()
 
-            assertNull(
-                dialog.fetch<JDialog>().owner,
-                "a dialog naming no owner, composed under no window, must be ownerless",
-            )
+            dialog.assertProperty(null, "a dialog naming no owner, composed under no window, must be ownerless") {
+                this.owner
+            }
             assertFalse(reowned.isDisplayable, "the dialog the withdrawn owner replaced must be released")
         } finally {
             first.dispose()
@@ -175,7 +172,8 @@ class DialogOwnerTest {
             }
 
             val realized = onWindowWithTitle("dialog-transient").fetch<JDialog>()
-            assertSame(named, realized.owner, "the dialog must be owned by the window it names")
+            onWindowWithTitle("dialog-transient")
+                .assertProperty(named, "the dialog must be owned by the window it names") { owner }
 
             composed = false
             awaitIdle()

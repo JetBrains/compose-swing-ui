@@ -82,7 +82,9 @@ public final class org/jetbrains/compose/swing/test/SwingMatcher$Companion {
 
 public final class org/jetbrains/compose/swing/test/interaction/InteractionTestKt {
 	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static final fun assertTreeMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun assertTreeMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
@@ -166,6 +168,7 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInter
 	public final fun assertExists ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public final fun assertIsNotVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public final fun assertIsVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public final fun fetch ()Ljava/awt/Window;
 	public final fun getMatcherDescription ()Ljava/lang/String;
 	public final fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public final fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
@@ -177,6 +180,7 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInter
 	public final fun onNodeWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun resolve ()Ljava/awt/Window;
+	public final fun retype (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 }
 
 public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection {

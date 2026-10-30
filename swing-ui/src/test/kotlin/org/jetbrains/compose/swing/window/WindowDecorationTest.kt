@@ -4,6 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onWindowOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -20,7 +23,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests covering the platform decorations of a [Window] and a [Dialog]: a peer declared
@@ -42,14 +44,14 @@ class WindowDecorationTest {
             Window(onCloseRequest = {}, title = "decorated-window-test", visible = false) {}
             Window(onCloseRequest = {}, title = "undecorated-window-test", visible = false, undecorated = true) {}
         }
-        assertFalse(
-            onWindowWithTitle("decorated-window-test").fetch<JFrame>().isUndecorated,
+        onWindowWithTitle("decorated-window-test").assertIsOfType<JFrame>().assertProperty(
+            false,
             "a window that does not declare undecorated must realize with its platform decorations",
-        )
-        assertTrue(
-            onWindowWithTitle("undecorated-window-test").fetch<JFrame>().isUndecorated,
+        ) { isUndecorated }
+        onWindowWithTitle("undecorated-window-test").assertIsOfType<JFrame>().assertProperty(
+            true,
             "a window declared undecorated must realize without its platform decorations",
-        )
+        ) { isUndecorated }
     }
 
     @Test
@@ -59,14 +61,14 @@ class WindowDecorationTest {
             Dialog(onCloseRequest = {}, title = "decorated-dialog-test", visible = false) {}
             Dialog(onCloseRequest = {}, title = "undecorated-dialog-test", visible = false, undecorated = true) {}
         }
-        assertFalse(
-            onWindowWithTitle("decorated-dialog-test").fetch<JDialog>().isUndecorated,
+        onWindowWithTitle("decorated-dialog-test").assertIsOfType<JDialog>().assertProperty(
+            false,
             "a dialog that does not declare undecorated must realize with its platform decorations",
-        )
-        assertTrue(
-            onWindowWithTitle("undecorated-dialog-test").fetch<JDialog>().isUndecorated,
+        ) { isUndecorated }
+        onWindowWithTitle("undecorated-dialog-test").assertIsOfType<JDialog>().assertProperty(
+            true,
             "a dialog declared undecorated must realize without its platform decorations",
-        )
+        ) { isUndecorated }
     }
 
     @Test
@@ -84,18 +86,21 @@ class WindowDecorationTest {
                 Label(text = "window-content")
             }
         }
-        val window = onWindowWithTitle("undecorated-reactive-window-test")
-        val realized = window.fetch<JFrame>()
-        assertTrue(realized.isUndecorated, "the window must realize undecorated while undecorated is declared true")
+        val window = onWindowOfType<JFrame>()
+        val realized = window.fetch()
+        window.assertProperty(
+            true,
+            "the window must realize undecorated while undecorated is declared true",
+        ) { isUndecorated }
 
         undecorated = false
         awaitIdle()
 
-        val decorated = window.fetch<JFrame>()
-        assertFalse(
-            decorated.isUndecorated,
+        val decorated = window.fetch()
+        window.assertProperty(
+            false,
             "the realized window must carry its platform decorations once undecorated recomposes to false",
-        )
+        ) { isUndecorated }
         assertFalse(realized.isDisplayable, "the window the change replaced must be released")
         awaitWindowStandsStill(decorated)
         assertReaches(
@@ -108,10 +113,10 @@ class WindowDecorationTest {
         undecorated = true
         awaitIdle()
 
-        assertTrue(
-            window.fetch<JFrame>().isUndecorated,
+        window.assertProperty(
+            true,
             "the realized window must drop its decorations again once undecorated recomposes back to true",
-        )
+        ) { isUndecorated }
         assertFalse(decorated.isDisplayable, "the window the change back replaced must be released")
     }
 
@@ -130,18 +135,21 @@ class WindowDecorationTest {
                 Label(text = "dialog-content")
             }
         }
-        val dialog = onWindowWithTitle("undecorated-reactive-dialog-test")
-        val realized = dialog.fetch<JDialog>()
-        assertTrue(realized.isUndecorated, "the dialog must realize undecorated while undecorated is declared true")
+        val dialog = onWindowOfType<JDialog>()
+        val realized = dialog.fetch()
+        dialog.assertProperty(
+            true,
+            "the dialog must realize undecorated while undecorated is declared true",
+        ) { isUndecorated }
 
         undecorated = false
         awaitIdle()
 
-        val decorated = dialog.fetch<JDialog>()
-        assertFalse(
-            decorated.isUndecorated,
+        val decorated = dialog.fetch()
+        dialog.assertProperty(
+            false,
             "the realized dialog must carry its platform decorations once undecorated recomposes to false",
-        )
+        ) { isUndecorated }
         assertFalse(realized.isDisplayable, "the dialog the change replaced must be released")
         awaitWindowStandsStill(decorated)
         assertReaches(
@@ -154,10 +162,10 @@ class WindowDecorationTest {
         undecorated = true
         awaitIdle()
 
-        assertTrue(
-            dialog.fetch<JDialog>().isUndecorated,
+        dialog.assertProperty(
+            true,
             "the realized dialog must drop its decorations again once undecorated recomposes back to true",
-        )
+        ) { isUndecorated }
         assertFalse(decorated.isDisplayable, "the dialog the change back replaced must be released")
     }
 

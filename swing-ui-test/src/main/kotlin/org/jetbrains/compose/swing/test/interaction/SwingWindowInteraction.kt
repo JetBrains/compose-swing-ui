@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("InteractionTestKt")
+
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.annotations.Nls
@@ -15,7 +18,7 @@ import javax.swing.RootPaneContainer
 
 /**
  * A lazy handle to the single top-level window targeted by a window query. The target is resolved
- * against the live set of realized windows each time it is needed, so it always reflects windows
+ * against the current set of realized windows each time it is needed, so it always reflects windows
  * appearing and disappearing across recomposition.
  *
  * A window matches while its native peer is realized, whether or not it is currently shown, so a
@@ -32,13 +35,18 @@ import javax.swing.RootPaneContainer
  * onWindowWithTitle("Settings").onNodeWithText("Apply").assertIsEnabled()
  * ```
  *
+ * [T] is the window type the query names: `onWindowOfType<JFrame>()` targets a `JFrame`, and every
+ * step that keeps targeting the same window keeps that type. A query that names no type targets a
+ * [Window], and a narrower type is named at the [fetch] that needs it.
+ *
  * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runComposeSwingTest]
  * body, which runs on the EDT.
  */
-public class SwingWindowInteraction internal constructor(
+public class SwingWindowInteraction<out T : Window> internal constructor(
     private val test: ComposeSwingTest,
     private val matcher: SwingMatcher,
     private val description: String,
+    private val asWindow: (Window) -> T,
 ) {
     private fun resolveOrNull(): Window? {
         val matches = collectMatches()
@@ -65,6 +73,14 @@ public class SwingWindowInteraction internal constructor(
         }
     }
 
+    /**
+     * This same query, targeting the same window, handled as one that names window type [R]. [asWindow]
+     * establishes that the match is an [R], and is what [fetch] resolves the window through.
+     */
+    @PublishedApi
+    internal fun <R : Window> retype(asWindow: (Window) -> R): SwingWindowInteraction<R> =
+        SwingWindowInteraction(test, matcher, description, asWindow)
+
     /** The single source of the "expected exactly one realized window" ambiguity failure. */
     private fun throwAmbiguous(matched: Int): Nothing =
         throw AssertionError(
@@ -75,16 +91,27 @@ public class SwingWindowInteraction internal constructor(
     private fun collectMatches(): List<Window> = realizedWindows().filter(matcher::matches)
 
     /**
-     * Resolves the matched window and returns it typed as [T], for driving the window's own API
-     * directly (e.g. a `JFrame`'s extended state, a `JDialog`'s modality):
+     * Resolves the matched window and returns it typed as [T]. This is the last resort, for a call
+     * only the matched window itself takes (e.g. a `JFrame`'s extended state) or for its identity.
+     * To read a value, use [assertProperty] or an assertion.
+     *
+     * @throws AssertionError if no single window matches.
+     */
+    public fun fetch(): T = asWindow(resolve())
+
+    /**
+     * Resolves the matched window and returns it typed as [R], for a query that named no type of its
+     * own, or that named a wider one than the window to be driven. Like [fetch], it is the last resort;
+     * [assertProperty] or an assertion reads a value.
      *
      * ```
      * val frame = onWindow().fetch<JFrame>()
      * ```
      *
-     * @throws AssertionError if no single window matches, or if the matched window is not a [T].
+     * @throws AssertionError if no single window matches, or if the matched window is not an [R].
      */
-    public inline fun <reified T : Window> fetch(): T = resolve().castOrFail("Window", matcherDescription)
+    @JvmName("fetchOfType")
+    public inline fun <reified R : Window> fetch(): R = resolve().castOrFail("Window", matcherDescription)
 
     /** Human-readable description of this interaction's query, for [fetch] failure messages. */
     @PublishedApi
@@ -94,7 +121,7 @@ public class SwingWindowInteraction internal constructor(
     // region assertions
 
     /** Asserts that exactly one realized window matches. Returns this interaction for chaining. */
-    public fun assertExists(): SwingWindowInteraction {
+    public fun assertExists(): SwingWindowInteraction<T> {
         resolve()
         return this
     }
@@ -111,12 +138,12 @@ public class SwingWindowInteraction internal constructor(
     }
 
     /** Asserts the matched window is visible. */
-    public fun assertIsVisible(): SwingWindowInteraction = assertVisibleState(true)
+    public fun assertIsVisible(): SwingWindowInteraction<T> = assertVisibleState(true)
 
     /** Asserts the matched window is not visible. */
-    public fun assertIsNotVisible(): SwingWindowInteraction = assertVisibleState(false)
+    public fun assertIsNotVisible(): SwingWindowInteraction<T> = assertVisibleState(false)
 
-    private fun assertVisibleState(expected: Boolean): SwingWindowInteraction {
+    private fun assertVisibleState(expected: Boolean): SwingWindowInteraction<T> {
         val actual = resolve().isVisible
         if (actual != expected) {
             throw AssertionError(
@@ -228,6 +255,63 @@ public class SwingWindowInteraction internal constructor(
      * cast holds for the peers content queries target.
      */
     private fun declaredContent(): List<Container> = (resolve() as RootPaneContainer).rootPane.windowContent()
+}
+
+/**
+ * Asserts that the value [actual] reads off the matched window equals [expected], and returns this
+ * interaction for chaining.
+ *
+ * [actual] reads the resolved window, typed as the query named it, so any property a window exposes
+ * can be asserted on directly:
+ *
+ * ```
+ * onWindowWithTitle("Settings").assertProperty(true) { isAlwaysOnTop }
+ * ```
+ *
+ * The failure names the query and both values, e.g. `Window 'hasTitle("Settings")' property was false,
+ * expected true.` It appends [message], which tells several property assertions on the same window
+ * apart.
+ *
+ * Use this for a property the window assertions do not cover. A property with its own assertion reads
+ * better through that. [SwingWindowInteraction.fetch] is the last resort, for a call on the matched
+ * window itself or for its identity.
+ *
+ * @param expected the value [actual] must return, compared with `equals`.
+ * @param message appended to the failure after both values; `null` by default.
+ * @param actual the property to read, evaluated against the window the query resolves at this call.
+ */
+public fun <T : Window, V> SwingWindowInteraction<T>.assertProperty(
+    expected: V,
+    message: String? = null,
+    actual: T.() -> V,
+): SwingWindowInteraction<T> {
+    val value = fetch().actual()
+    if (value != expected) {
+        throw AssertionError(
+            "Window '$matcherDescription' property was $value, expected $expected." +
+                message?.let { " $it" }.orEmpty(),
+        )
+    }
+    return this
+}
+
+/**
+ * Asserts that the matched window is an [R], and returns this interaction typed as [R] so the
+ * assertions and properties after it are written against [R]:
+ *
+ * ```
+ * onWindowWithTitle("Settings").assertIsOfType<JFrame>().assertProperty(false) { isUndecorated }
+ * ```
+ *
+ * The failure names the query, the window's actual class and the expected type, e.g. `Window
+ * 'hasTitle("Settings")' is a JDialog, expected a JFrame.`
+ *
+ * @throws AssertionError if the query has no single target, or if the target is not an [R].
+ */
+public inline fun <reified R : Window> SwingWindowInteraction<*>.assertIsOfType(): SwingWindowInteraction<R> {
+    val typed = retype { it.castOrFail<R>("Window", matcherDescription) }
+    typed.fetch()
+    return typed
 }
 
 /**

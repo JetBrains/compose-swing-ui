@@ -9,9 +9,12 @@ import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Point
+import java.util.stream.Stream
 import javax.swing.JButton
-import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
@@ -20,46 +23,66 @@ import kotlin.test.assertEquals
  * means - which half of a slider was clicked, which tab, which row.
  */
 class NodeInputPositionTest {
-    @Test
-    fun aGestureGivenNoPositionLandsInTheMiddleOfTheNode() = runComposeSwingTest {
-        val points = mutableListOf<Point>()
-        setContent { PositionReportingButton { points += it } }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("gesturesGivenNoPosition")
+    fun aGestureGivenNoPositionLandsInTheMiddleOfTheNode(perform: suspend SwingNodeInteraction<JButton>.() -> Unit) =
+        runComposeSwingTest {
+            val points = mutableListOf<Point>()
+            setContent { PositionReportingButton { points += it } }
 
-        onNodeOfType<JButton>().performMousePress()
-        onNodeOfType<JButton>().performMouseRelease()
-        onNodeOfType<JButton>().performClick()
-        onNodeOfType<JButton>().performContextClick()
-        onNodeOfType<JButton>().performMouseEnter()
-        onNodeOfType<JButton>().performMouseExit()
-        onNodeOfType<JButton>().performMouseWheel(rotation = 1)
+            onNodeOfType<JButton>().perform()
 
-        val button = onNodeOfType<JButton>().fetch<JButton>()
-        assertEquals(
-            listOf(Point(button.width / 2, button.height / 2)),
-            points.distinct(),
-            "every gesture given no position must land in the middle of the node",
+            assertEquals(
+                setOf(Point(60, 15)),
+                points.toSet(),
+                "a gesture given no position must land in the middle of the node",
+            )
+        }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("gesturesAimedAtAPoint")
+    fun aGestureLandsOnThePointItIsAimedAt(perform: suspend SwingNodeInteraction<JButton>.() -> Unit) =
+        runComposeSwingTest {
+            val points = mutableListOf<Point>()
+            setContent { PositionReportingButton { points += it } }
+
+            onNodeOfType<JButton>().perform()
+
+            assertEquals(
+                setOf(AIMED_AT),
+                points.toSet(),
+                "a gesture must land on the point it names, in the node's own coordinates",
+            )
+        }
+
+    companion object {
+        private val AIMED_AT = Point(3, 4)
+
+        @JvmStatic
+        fun gesturesGivenNoPosition(): Stream<Named<suspend SwingNodeInteraction<JButton>.() -> Unit>> = Stream.of(
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("press") { performMousePress() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("release") { performMouseRelease() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("click") { performClick() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("context click") { performContextClick() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("enter") { performMouseEnter() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("exit") { performMouseExit() },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("wheel") { performMouseWheel(rotation = 1) },
         )
-    }
 
-    @Test
-    fun aGestureLandsOnThePointItIsAimedAt() = runComposeSwingTest {
-        val points = mutableListOf<Point>()
-        setContent { PositionReportingButton { points += it } }
-
-        val aimedAt = Point(3, 4)
-        onNodeOfType<JButton>().performMousePress(aimedAt)
-        onNodeOfType<JButton>().performMouseRelease(aimedAt)
-        onNodeOfType<JButton>().performClick(aimedAt)
-        onNodeOfType<JButton>().performContextClick(aimedAt)
-        onNodeOfType<JButton>().performMouseEnter(aimedAt)
-        onNodeOfType<JButton>().performMouseExit(aimedAt)
-        onNodeOfType<JButton>().performMouseMove(aimedAt)
-        onNodeOfType<JButton>().performMouseWheel(rotation = 1, position = aimedAt)
-
-        assertEquals(
-            listOf(aimedAt),
-            points.distinct(),
-            "every gesture must land on the point it names, in the node's own coordinates",
+        @JvmStatic
+        fun gesturesAimedAtAPoint(): Stream<Named<suspend SwingNodeInteraction<JButton>.() -> Unit>> = Stream.of(
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("press") { performMousePress(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("release") { performMouseRelease(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("click") { performClick(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("context click") {
+                performContextClick(AIMED_AT)
+            },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("enter") { performMouseEnter(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("exit") { performMouseExit(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("move") { performMouseMove(AIMED_AT) },
+            Named.of<suspend SwingNodeInteraction<JButton>.() -> Unit>("wheel") {
+                performMouseWheel(rotation = 1, position = AIMED_AT)
+            },
         )
     }
 }

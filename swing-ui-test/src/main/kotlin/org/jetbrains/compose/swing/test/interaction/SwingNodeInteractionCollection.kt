@@ -9,7 +9,7 @@ import java.awt.Container
 
 /**
  * A lazy handle to the set of components matched by a query. The match set is resolved against the
- * live AWT tree each time it is needed, so it reflects the current tree.
+ * current AWT tree each time it is needed, so it reflects the current tree.
  *
  * [T] is the component type the query names - `onAllNodesOfType<JLabel>()` matches `JLabel`s - and
  * every step that keeps matching the same set keeps it, so [fetchAll] and the single-node handles
@@ -44,7 +44,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
 
     /**
      * Returns a collection of the matches that also satisfy [matcher]. Like every interaction, the
-     * returned handle re-resolves against the live tree on each use, so it tracks recomposition.
+     * returned handle re-resolves against the current tree on each use, so it tracks recomposition.
      *
      * Composing a structural matcher scopes a tree-wide query to one subtree:
      *
@@ -65,7 +65,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
 
     /**
      * Returns a lazy handle to the single match that also satisfies [matcher]; it fails on use when
-     * the filtered set does not hold exactly one node.
+     * the filtered set does not contain exactly one node.
      *
      * ```
      * onAllNodesOfType<JCheckBox>().filterToOne(SwingMatcher.isSelected()).assertExists()
@@ -86,7 +86,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
 
     /**
      * Returns a lazy handle to the match at [index], in depth-first pre-order. Like every
-     * interaction, the handle re-resolves against the live tree on each use, so it tracks matches
+     * interaction, the handle re-resolves against the current tree on each use, so it tracks matches
      * added or removed by recomposition; it fails on use when fewer than `index + 1` nodes match.
      *
      * ```
@@ -115,7 +115,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
 
     /**
      * Returns a lazy handle to the last match, in depth-first pre-order. The handle re-resolves
-     * against the live tree on each use, so it tracks the current last match across recomposition;
+     * against the current tree on each use, so it tracks the current last match across recomposition;
      * it fails on use when nothing matches.
      */
     public fun onLast(): SwingNodeInteraction<T> =
@@ -189,8 +189,10 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
 
     /**
      * Resolves every matching component and returns them as the [T] the query named, in depth-first
-     * pre-order, for reading or driving each component's own API (e.g. a `JList`'s model, a
-     * `JSplitPane`'s divider). A query that named the type does not name it again:
+     * pre-order. This is the last resort, for a call that requires the matched components themselves or a subject
+     * that is the whole set (e.g. the texts every row settled on). To read a value of one node, use
+     * [SwingNodeInteraction.assertProperty], a matcher or an assertion. A query that named the type
+     * does not name it again:
      *
      * ```
      * val labels = onAllNodesOfType<JLabel>().fetchAll()
@@ -201,7 +203,8 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
     /**
      * Resolves every matching component and returns them typed as [R], in depth-first pre-order, for
      * a query that named no type of its own - or that named a wider one than the components to be
-     * driven.
+     * driven. Like [fetchAll], it is the last resort: [SwingNodeInteraction.assertProperty], a matcher
+     * or an assertion reads a value.
      *
      * @throws AssertionError if any matched node is not an [R].
      */

@@ -14,7 +14,7 @@ import java.awt.KeyboardFocusManager
 
 /**
  * A lazy handle to the single component targeted by a query. The target is resolved against the
- * live AWT tree each time it is needed, so it always reflects the current tree after recomposition.
+ * current AWT tree each time it is needed, so it always reflects the current tree after recomposition.
  *
  * [T] is the component type the query names: `onNodeOfType<JTable>()` targets a `JTable`, and every
  * step that keeps targeting the same node keeps that type, so [fetch] returns it without being told
@@ -79,9 +79,10 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
             "${if (matched == 0) "none" else "$matched"}."
 
     /**
-     * Resolves the matched component and returns it as the [T] the query named, for driving the
-     * component's own API directly (e.g. a `JTable`'s model, a `JTree`'s selection, a `JList`'s
-     * model). A query that named the type does not name it again:
+     * Resolves the matched component and returns it as the [T] the query named. This is the last
+     * resort, for a call that requires the matched component itself (e.g. a `JTable`'s model, a `JTree`'s
+     * selection) or for its identity. To read a value, use [assertProperty], a matcher or an
+     * assertion. A query that named the type does not name it again:
      *
      * ```
      * val table = onNodeOfType<JTable>().fetch()
@@ -93,10 +94,13 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
 
     /**
      * Resolves the matched component and returns it typed as [R], for a query that named no type of
-     * its own, or that named a wider one than the component to be driven.
+     * its own, or that named a wider one than the component to be driven. Like [fetch], it is the
+     * last resort; [assertProperty], a matcher or an assertion reads a value.
      *
      * ```
-     * onNodeWithText("Save").fetch<JButton>().isDefaultCapable
+     * val save = onNodeWithText("Save").fetch<JButton>()
+     * onNodeWithText("Reload").performClick()
+     * assertSame(save, onNodeWithText("Save").fetch<JButton>())
      * ```
      *
      * @throws AssertionError if the query has no single target, or if the target is not an [R].
@@ -330,7 +334,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     private fun assertFocusOwnership(expected: Boolean): SwingNodeInteraction<T> {
         val component = resolve()
         if (component.isFocusOwner != expected) {
-            // Naming who holds focus instead is what makes either direction of the failure actionable:
+            // Naming the current focus owner makes either direction of the failure actionable:
             // the node itself when it was expected not to, and some other component - or nothing at all
             // - when it was expected to.
             val owner: Component? = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner

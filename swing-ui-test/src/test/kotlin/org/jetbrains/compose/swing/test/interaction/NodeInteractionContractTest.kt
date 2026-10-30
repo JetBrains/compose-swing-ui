@@ -20,7 +20,6 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.TransferHandler
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -194,18 +193,16 @@ class NodeInteractionContractTest {
         setContent { TextField(state = rememberDocumentState("seed")) }
 
         onNodeOfType<JTextField>().performTextInput("-more")
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             "seed-more",
-            onNodeOfType<JTextField>().fetch<JTextField>().text,
             "text input should append to the field's current content",
-        )
+        ) { text }
 
         onNodeOfType<JTextField>().performTextReplacement("fresh")
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             "fresh",
-            onNodeOfType<JTextField>().fetch<JTextField>().text,
             "text replacement should overwrite the field's whole content",
-        )
+        ) { text }
     }
 
     @Test
@@ -271,12 +268,8 @@ class NodeInteractionContractTest {
             onNodeWithName("outer")
                 .onDescendants()
                 .filter(SwingMatcher.isOfType<JPanel>())
-                .fetchAll<JPanel>()
-        assertEquals(
-            listOf("inner"),
-            scoped.map { it.name },
-            "onDescendants should yield the node's descendants, never the node",
-        )
+        scoped.assertCountEquals(1)
+        scoped.assertAny(SwingMatcher.hasName("inner"))
     }
 
     @Test

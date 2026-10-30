@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JDialog
 import javax.swing.JFrame
-import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -29,7 +28,7 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Pins the failure contracts of the window-query surface and the remaining window-scoped finders.
  *
- * A window query resolves against the live set of realized windows, so its failures must say which
+ * A window query resolves against the current set of realized windows, so its failures must say which
  * windows were realized instead - the only diagnostic a downstream consumer has when a window query
  * misses. Cases that realize a top-level peer declare their display requirement and are skipped in
  * headless environments; the no-window cases run everywhere.
@@ -146,16 +145,8 @@ class WindowInteractionContractTest {
         }
 
         val window = onWindowWithTitle("scoped")
-        assertEquals(
-            "inside",
-            window.onNodeWithName("inside-name").fetch<JLabel>().text,
-            "a window-scoped name query should resolve inside that window",
-        )
-        assertEquals(
-            "inside",
-            window.onNodeWithTag("shared-tag").fetch<JLabel>().text,
-            "a window-scoped tag query should resolve inside that window",
-        )
+        window.onNodeWithName("inside-name").assertTextEquals("inside")
+        window.onNodeWithTag("shared-tag").assertTextEquals("inside")
         // The tag is shared with a node under the harness root, which the window scope excludes.
         window.onAllNodesWithTag("shared-tag").assertCountEquals(1)
         window.onNodeWithName("outside-name").assertDoesNotExist()

@@ -231,7 +231,7 @@ class ScreenshotTest {
         }
     }
 
-    /** An image of the scene size filled with [color] and nothing else. */
+    /** An 88 by 25 image filled with [color] and nothing else. */
     private fun filled(color: Color): BufferedImage {
         val image = BufferedImage(88, 25, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
@@ -243,7 +243,7 @@ class ScreenshotTest {
 
     /**
      * Renders a small button-like image with a single low-contrast element positioned at
-     * [elementX]. Rendering the same scene twice with element positions a couple of pixels apart
+     * [elementX]. Rendering the image twice with element positions a couple of pixels apart
      * models "one UI element moved slightly": the change is structurally small (MSSIM stays above
      * the default threshold) yet not pixel-identical (the strict matcher still flags it).
      */

@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * Pins what the text gestures carry. [performTyping] delivers keystrokes, so the component's own key
@@ -28,11 +27,10 @@ class NodeTypingTextTest {
         val text = "café / café / שלום / 日本語 / a😀b"
         onNodeOfType<JTextField>().performTyping(text)
 
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             text,
-            onNodeOfType<JTextField>().fetch<JTextField>().text,
             "typing must carry the text through the editor unchanged, whatever plane or script it is in",
-        )
+        ) { this.text }
     }
 
     @Test
@@ -43,11 +41,10 @@ class NodeTypingTextTest {
         // keystroke reaches the document.
         onNodeOfType<JTextField>().performTyping("a\tb\nc")
 
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             "abc",
-            onNodeOfType<JTextField>().fetch<JTextField>().text,
             "a key the component binds an action to runs it rather than inserting its character",
-        )
+        ) { text }
     }
 
     @Test
@@ -58,11 +55,10 @@ class NodeTypingTextTest {
         // land. What a keystroke does is the component's business, here as it is for a user.
         onNodeOfType<JTextArea>().performTyping("a\tb\nc")
 
-        assertEquals(
+        onNodeOfType<JTextArea>().assertProperty(
             "a\tb\nc",
-            onNodeOfType<JTextArea>().fetch<JTextArea>().text,
             "a text area types the tab and the newline a single-line field runs a binding for",
-        )
+        ) { text }
     }
 
     @Test
@@ -73,11 +69,10 @@ class NodeTypingTextTest {
         // still applies its own rules, and a single-line field keeps no newline.
         onNodeOfType<JTextField>().performTextPaste("a\tb\nc")
 
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             "a\tb c",
-            onNodeOfType<JTextField>().fetch<JTextField>().text,
             "a paste carries the tab and the field replaces the newline with a space",
-        )
+        ) { text }
     }
 
     @Test
@@ -90,11 +85,10 @@ class NodeTypingTextTest {
         onNodeOfType<JTextArea>().fetch<JTextArea>().text = "one\ttwo\nthree"
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTextArea>().assertProperty(
             "one\ttwo\nthree",
-            onNodeOfType<JTextArea>().fetch<JTextArea>().text,
-            "a write straight to the component stands where the caller adopts it",
-        )
+            "a write straight to the component is kept when the caller adopts it",
+        ) { text }
     }
 
     @Test
@@ -105,22 +99,21 @@ class NodeTypingTextTest {
         onNodeOfType<JTextArea>().fetch<JTextArea>().selectAll()
         onNodeOfType<JTextArea>().performTextPaste("z")
 
-        assertEquals(
+        onNodeOfType<JTextArea>().assertProperty(
             "z",
-            onNodeOfType<JTextArea>().fetch<JTextArea>().text,
             "a paste lands over whatever is selected",
-        )
+        ) { text }
     }
 }
 
-/** An area that adopts every edit, and holds the lines a keystroke cannot put there. */
+/** Adopts edits, including lines that keystrokes cannot insert. */
 @Composable
 private fun AdoptingArea() {
     var typed by remember { mutableStateOf("") }
     TextArea(value = typed, onValueChange = { typed = it })
 }
 
-/** A field that adopts every edit, so what the editor accepted is what the field is left holding. */
+/** Adopts every edit the editor accepts. */
 @Composable
 private fun AdoptingField() {
     var typed by remember { mutableStateOf("") }

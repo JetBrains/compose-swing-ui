@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * Behavioral coverage for [SwingNodeInteractionCollection], the multi-match handle returned by
  * [ComposeSwingTest.onAllNodesWithText]. The collection is lazy: it re-resolves its match set against the
- * live AWT tree each time it is queried, so the same handle reflects components added or removed by
+ * current AWT tree each time it is queried, so the same handle reflects components added or removed by
  * recomposition. These tests pin that re-resolution, the zero-match case, narrowing with
  * [SwingNodeInteractionCollection.filter] / [SwingNodeInteractionCollection.filterToOne], the
  * over-the-set assertions, and that each of them fails readably when the tree does not match.
@@ -115,14 +115,12 @@ class NodeCollectionInteractionTest {
         }
         // The tree-wide query sees all three labels; filtering on the named ancestor keeps only the
         // two that descend from it.
-        assertEquals(3, onAllNodesOfType<JLabel>().fetchSize(), "the tree-wide query should see all three labels")
+        onAllNodesOfType<JLabel>().assertCountEquals(3)
 
         val scoped = onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasName("inside")))
-        assertEquals(
-            listOf("alpha", "beta"),
-            scoped.fetchAll<JLabel>().map { it.text },
-            "the ancestor filter should keep only the subtree's two labels",
-        )
+        scoped.assertCountEquals(2)
+        scoped[0].assertTextEquals("alpha")
+        scoped[1].assertTextEquals("beta")
     }
 
     @Test
@@ -143,7 +141,7 @@ class NodeCollectionInteractionTest {
         awaitIdle()
 
         filtered.assertCountEquals(1)
-        assertEquals("row-1", one.fetch<JLabel>().name, "filterToOne should resolve the newly composed node")
+        one.assertProperty("row-1", "filterToOne should resolve the newly composed node") { name }
     }
 
     @Test
@@ -174,7 +172,7 @@ class NodeCollectionInteractionTest {
                 Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
             }
         }
-        onAllNodesOfType<JButton>().filter(SwingMatcher.isEnabled()).assertAll(SwingMatcher.isEnabled())
+        onAllNodesOfType<JButton>().assertAll(SwingMatcher.hasText("o", substring = true))
         // An empty match set has nothing that violates the matcher, so it satisfies assertAll.
         onAllNodesWithText("absent").assertAll(SwingMatcher.isEnabled())
 
@@ -223,8 +221,8 @@ class NodeCollectionInteractionTest {
         }
         val rows = onAllNodesWithText("row")
         rows[0].assertExists()
-        assertEquals("row-1", rows[1].fetch<JLabel>().name, "index 1 should target the second match in tree order")
-        assertEquals("row-2", rows[2].fetch<JLabel>().name, "index 2 should target the third match in tree order")
+        rows[1].assertProperty("row-1", "index 1 should target the second match in tree order") { name }
+        rows[2].assertProperty("row-2", "index 2 should target the third match in tree order") { name }
     }
 
     @Test
@@ -252,16 +250,15 @@ class NodeCollectionInteractionTest {
             }
         }
         val collection = onAllNodesWithText("row")
-        assertEquals("row-0", collection.onFirst().fetch<JLabel>().name, "onFirst should target the first match")
-        assertEquals("row-1", collection.onLast().fetch<JLabel>().name, "onLast should target the last match")
+        collection.onFirst().assertProperty("row-0", "onFirst should target the first match") { name }
+        collection.onLast().assertProperty("row-1", "onLast should target the last match") { name }
 
         rows = 4
         awaitIdle()
-        assertEquals(
+        collection.onLast().assertProperty(
             "row-3",
-            collection.onLast().fetch<JLabel>().name,
             "onLast should re-resolve to the new last match after recomposition adds rows",
-        )
+        ) { name }
 
         rows = 0
         awaitIdle()
@@ -281,8 +278,8 @@ class NodeCollectionInteractionTest {
             }
         }
         val scoped = onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasName("inside")))
-        assertEquals("alpha", scoped.onFirst().fetch<JLabel>().text, "indexing should apply after the filter")
-        assertEquals("beta", scoped[1].fetch<JLabel>().text, "indexing should apply after the filter")
+        scoped.onFirst().assertProperty("alpha", "indexing should apply after the filter") { text }
+        scoped[1].assertProperty("beta", "indexing should apply after the filter") { text }
         assertFailsWith<AssertionError> { scoped[2].assertExists() }
     }
 
@@ -295,7 +292,7 @@ class NodeCollectionInteractionTest {
             }
         }
         // The same handle is captured once and re-queried after each state change; it tracks the
-        // live tree rather than a snapshot taken when it was created.
+        // current tree rather than a snapshot taken when it was created.
         val collection = onAllNodesWithText("row")
         assertEquals(1, collection.fetchSize(), "the held collection should start with the single row")
 

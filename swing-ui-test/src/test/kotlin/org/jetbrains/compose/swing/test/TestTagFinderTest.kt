@@ -9,9 +9,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import javax.swing.JLabel
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * Behavioral coverage for the `SwingModifier.testTag` modifier and the harness finders that read it:
@@ -29,8 +27,7 @@ class TestTagFinderTest {
             }
         }
 
-        val tagged = onNodeWithTag("target").fetch<JLabel>()
-        assertEquals("first", tagged.text)
+        onNodeWithTag("target").assertTextEquals("first")
     }
 
     @Test
@@ -40,8 +37,8 @@ class TestTagFinderTest {
         }
 
         // The tag and the name are separate keys: finding by one does not match the other's value.
-        assertEquals("lbl", onNodeWithTag("the-tag").fetch<JLabel>().text, "the tag key should resolve the label")
-        assertEquals("lbl", onNodeWithName("the-name").fetch<JLabel>().text, "the name key should resolve the label")
+        onNodeWithTag("the-tag").assertTextEquals("lbl")
+        onNodeWithName("the-name").assertTextEquals("lbl")
         onNodeWithTag("the-name").assertDoesNotExist()
         onNodeWithName("the-tag").assertDoesNotExist()
     }
@@ -58,8 +55,8 @@ class TestTagFinderTest {
         }
 
         onAllNodesWithTag("row").assertCountEquals(2)
-        assertEquals(1, onAllNodesWithTag("other").fetchSize(), "the single \"other\"-tagged node should match once")
-        assertEquals(0, onAllNodesWithTag("absent").fetchSize(), "an absent tag should match nothing")
+        onAllNodesWithTag("other").assertCountEquals(1)
+        onAllNodesWithTag("absent").assertCountEquals(0)
     }
 
     @Test

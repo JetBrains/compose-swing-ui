@@ -37,6 +37,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Toolkit
+import java.awt.Window
 import java.awt.event.ComponentEvent
 import java.awt.event.InvocationEvent
 import java.awt.event.PaintEvent
@@ -293,7 +294,7 @@ public interface ComposeSwingTest {
      *   in its content.
      * @return a handle that fails on use unless exactly one realized window matches.
      */
-    public fun onWindow(matcher: SwingMatcher): SwingWindowInteraction
+    public fun onWindow(matcher: SwingMatcher): SwingWindowInteraction<Window>
 
     /**
      * Finds all currently realized windows matching [matcher] (see [onWindow] for the match set).
@@ -308,7 +309,8 @@ public interface ComposeSwingTest {
  * Finds the single node of type [T]. Convenience for `onNode(SwingMatcher.isOfType<T>())`.
  *
  * The returned interaction carries [T], so the node is fetched without naming the type a second
- * time:
+ * time. [SwingNodeInteraction.fetch] is the last resort: to read a value, use
+ * [org.jetbrains.compose.swing.test.interaction.assertProperty], a matcher or an assertion.
  *
  * ```
  * val table = onNodeOfType<JTable>().fetch()
@@ -323,7 +325,8 @@ public inline fun <reified T : Component> ComposeSwingTest.onNodeOfType(): Swing
  * Finds all nodes of type [T]. Convenience for `onAllNodes(SwingMatcher.isOfType<T>())`.
  *
  * The returned collection carries [T], so its nodes are fetched without naming the type a second
- * time.
+ * time. [SwingNodeInteractionCollection.fetchAll] is the last resort, for a subject that is the whole
+ * set rather than one node.
  */
 public inline fun <reified T : Component> ComposeSwingTest.onAllNodesOfType(): SwingNodeInteractionCollection<T> {
     val matcher = SwingMatcher.isOfType<T>()
@@ -332,14 +335,17 @@ public inline fun <reified T : Component> ComposeSwingTest.onAllNodesOfType(): S
 
 /**
  * Finds the single realized window (see [ComposeSwingTest.onWindow]). Convenience for the
- * common one-window composition:
+ * common one-window composition. [SwingWindowInteraction.fetch] is the last resort: to read a value,
+ * use [org.jetbrains.compose.swing.test.interaction.assertProperty] or an assertion.
+ *
+ * Name a narrower window type at [SwingWindowInteraction.fetch]:
  *
  * ```
  * setContent { Window(onCloseRequest = {}, title = "Main") { ... } }
  * val frame = onWindow().fetch<JFrame>()
  * ```
  */
-public fun ComposeSwingTest.onWindow(): SwingWindowInteraction = onWindow(SwingMatcher.any())
+public fun ComposeSwingTest.onWindow(): SwingWindowInteraction<Window> = onWindow(SwingMatcher.any())
 
 /**
  * Finds the single realized window titled [title]. Convenience for
@@ -348,8 +354,27 @@ public fun ComposeSwingTest.onWindow(): SwingWindowInteraction = onWindow(SwingM
  * @param title the exact title, as a frame or dialog reports it.
  * @return a handle that fails on use unless exactly one realized window carries the title.
  */
-public fun ComposeSwingTest.onWindowWithTitle(title: @Nls String): SwingWindowInteraction =
+public fun ComposeSwingTest.onWindowWithTitle(title: @Nls String): SwingWindowInteraction<Window> =
     onWindow(SwingMatcher.hasTitle(title))
+
+/**
+ * Finds the single realized window of type [T]. Convenience for `onWindow(SwingMatcher.isOfType<T>())`.
+ *
+ * The returned interaction carries [T], so a property of the window is read without naming the type a
+ * second time. [SwingWindowInteraction.fetch] is the last resort: to read a value, use
+ * [org.jetbrains.compose.swing.test.interaction.assertProperty] or an assertion.
+ *
+ * ```
+ * setContent { Window(onCloseRequest = {}, title = "Main") { ... } }
+ * onWindowOfType<JFrame>().assertProperty(JFrame.NORMAL) { extendedState }
+ * ```
+ *
+ * @return a handle that fails on use unless exactly one realized window is a [T].
+ */
+public inline fun <reified T : Window> ComposeSwingTest.onWindowOfType(): SwingWindowInteraction<T> {
+    val matcher = SwingMatcher.isOfType<T>()
+    return onWindow(matcher).retype { it.castOrFail<T>("Window", matcher.description) }
+}
 
 /**
  * Finds all realized windows (see [ComposeSwingTest.onWindow]).
@@ -708,7 +733,7 @@ private class ComposeSwingTestImpl(
 
     /**
      * One pass of every gate: sends [frameDeltaNanos] as a frame when given, then drains the event
-     * dispatch thread and lays [root] out - see [drainQueue]. Answers whether the queue was drained.
+     * dispatch thread and lays [root] out - see [drainQueue]. Returns whether the queue was drained.
      */
     private fun step(frameDeltaNanos: Long?): Boolean {
         if (frameDeltaNanos != null) sendFrame(frameDeltaNanos)
@@ -892,8 +917,8 @@ private class ComposeSwingTestImpl(
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 
-    override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction =
-        SwingWindowInteraction(this, matcher, description = matcher.description)
+    override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction<Window> =
+        SwingWindowInteraction(this, matcher, description = matcher.description, asWindow = { it })
 
     override fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection =
         SwingWindowInteractionCollection(matcher)

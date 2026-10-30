@@ -188,24 +188,49 @@ onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
 
 <!--- KNIT example-testing-fragment-06.kt -->
 
-`fetch<T>()` hands back the live component itself. Its purpose is the comparison only the component
-can answer: that the widget settled on the value the composition declared, or that the same instance
-survived a recomposition:
+To read a value, use `assertProperty(expected) { ... }`, a matcher or a named assertion. `assertProperty` reads one property off the matched component, typed as the query named it, and its failure names the query and both values:
 
 ```kotlin
 import javax.swing.JList
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 
-val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
-assertEquals(2, list.selectedIndex, "the declared selection is the one the widget holds")
+onNodeOfType<JList<*>>().assertProperty(2) { selectedIndex }
 ```
 
 <!--- CLEAR -->
 
-`fetchAll()` does the same for a collection: every match, as the type the query named, in depth-first
-pre-order. Reach for it where the subject is the whole set rather than one component — the texts every
-row settled on, the order they are in — which a single `fetch<T>()` cannot answer. A query that named
-no type of its own, or a wider one than the components to be driven, names the type at the call
-instead, `fetchAll<T>()`, and fails if any match is not a `T`:
+A node found by text, name or tag is narrowed to a type with `assertIsOfType<R>()`. It fails unless the node is an `R`, naming the query, the node's actual class and the expected type, and returns the interaction typed as `R`, so the assertions and properties after it are written against `R`:
+
+```kotlin
+import javax.swing.JButton
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+
+onNodeWithText("Save").assertIsOfType<JButton>().assertProperty(true) { isDefaultButton }
+```
+
+A window found by title is narrowed the same way with `assertIsOfType<R>()`, which fails unless the window is an `R`:
+
+```kotlin
+onWindowWithTitle("Main").assertIsOfType<JFrame>().assertProperty(false) { isUndecorated }
+```
+
+<!--- CLEAR -->
+
+`fetch<T>()` is the last resort. It returns the matched component itself, for a call that only the component takes or for its identity, such as that the same instance survived a recomposition:
+
+```kotlin
+import javax.swing.JList
+import kotlin.test.assertSame
+
+val before = onNodeOfType<JList<*>>().fetch()
+onNodeWithTag("reload").performClick()
+assertSame(before, onNodeOfType<JList<*>>().fetch(), "the list was replaced")
+```
+
+<!--- CLEAR -->
+
+`fetchAll()` does the same for a collection: every match, as the type the query named, in depth-first pre-order. Like `fetch<T>()`, it is the last resort, for a subject that is the whole set rather than one component: the texts every row settled on, the order they are in. A query that named no type of its own, or a wider one than the components to be driven, names the type at the call instead, `fetchAll<T>()`, and fails if any match is not a `T`:
 
 ```kotlin
 import javax.swing.JLabel
@@ -218,8 +243,7 @@ assertEquals(listOf("first", "second"), rows.map { it.text })
 
 A window collection has the typed form too, returning the realized windows in creation order.
 
-Prefer an assertion or a matcher wherever one covers the property, and reach for `fetch<T>()` where
-the Swing side of the contract is itself the subject.
+A window interaction has the same `assertProperty`, reading a property of the window as the type the query named: `onWindowOfType<JFrame>()` reads `JFrame` properties without naming the type again. Use an assertion, a matcher or `assertProperty` wherever one covers the value, and `fetch<T>()` only where none does.
 
 ### Menus
 
@@ -298,11 +322,7 @@ onNodeWithTag("amount").performTextReplacement("42")
 onNodeWithText("Save").performClick()
 ```
 
-The typing gestures deliver real keystrokes, so the component's own key bindings decide what each one
-does: a tab types into a text area and traverses focus in a single-line field, exactly as it does for a
-user. `performTextPaste` runs no binding, so it carries content a component's keys will not produce.
-Where no gesture produces what a test needs, `fetch()` hands back the widget to write to directly,
-which exercises nothing about input handling.
+The typing gestures deliver real keystrokes, so the component's own key bindings decide what each one does: a tab types into a text area and traverses focus in a single-line field, exactly as it does for a user. `performTextPaste` runs no binding, so it carries content a component's keys will not produce. Where no gesture produces what a test needs, `fetch()` as the last resort hands back the widget to write to directly, which exercises nothing about input handling.
 
 <!--- KNIT example-testing-fragment-07.kt -->
 
@@ -421,13 +441,12 @@ no display and runs everywhere else.
 Window finders resolve against every window currently realized in the test JVM, whether or not it
 is shown:
 
-- `onWindow()` — the single realized window.
-- `onWindowWithTitle(title)` — match by window title.
-- `onWindow(matcher)` / `onAllWindows(matcher)` — match with a `SwingMatcher` (e.g. `hasTitle`).
+- `onWindow()`: the single realized window.
+- `onWindowWithTitle(title)`: match by window title.
+- `onWindowOfType<T>()`: match the single realized window of type `T`, such as `JFrame` or `JDialog`.
+- `onWindow(matcher)` / `onAllWindows(matcher)`: match with a `SwingMatcher` (e.g. `hasTitle`).
 
-A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `assertIsVisible()` /
-`assertIsNotVisible()`, the typed `fetch<T>()` for the realized `JFrame`/`JDialog`, and the node
-finders scoped to that window's content pane and menu bar:
+A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `assertIsVisible()` / `assertIsNotVisible()`, `assertProperty(expected) { ... }` for any other property of the window, read as the type the query named, the typed `fetch<T>()` as the last resort for the realized `JFrame`/`JDialog`, and the node finders scoped to that window's content pane and menu bar:
 
 <!--- INCLUDE .*testing-case-03.*
 import org.jetbrains.compose.swing.test.onWindowWithTitle

@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onParent
 import java.awt.BorderLayout
@@ -385,7 +386,11 @@ class ComponentTreeEquivalenceTest {
     @Test
     fun twoLabelsCarryingDifferentIconsOfTheSameClassAndSizeAreEquivalent() = runComposeSwingTest {
         val reference = JLabel("hi").apply { icon = ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)) }
-        val actual = JLabel("hi").apply { icon = ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)) }
+        val actual =
+            JLabel("hi").apply {
+                icon =
+                    ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB).apply { setRGB(0, 0, Color.RED.rgb) })
+            }
 
         assertComponentTreesEquivalent(reference, actual)
     }
@@ -519,7 +524,7 @@ class ComponentTreeEquivalenceTest {
         val node = onNodeOfType<JButton>()
         node.assertTreeMatches(reference)
 
-        assertEquals(node.fetch().size, reference.size)
+        node.assertProperty(reference.size) { size }
     }
 
     @Test
