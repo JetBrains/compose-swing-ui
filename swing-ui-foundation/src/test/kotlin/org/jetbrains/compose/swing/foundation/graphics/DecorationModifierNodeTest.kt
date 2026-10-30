@@ -72,6 +72,17 @@ class DecorationModifierNodeTest {
         }
 
     @Test
+    fun aStepPassedAsADecoratorIsRefusedAsItIsDeclared() {
+        val failure = assertFailsWith<IllegalArgumentException> { SwingModifier.decoration(StepNode()) }
+
+        assertEquals(
+            "org.jetbrains.compose.swing.foundation.graphics.StepNode is a decoration step, and only its element " +
+                "attaches it. Declare that element through decoration.",
+            failure.message,
+        )
+    }
+
+    @Test
     fun theOutsetsAStepReportsOnceItsElementIsAppliedIsReserved() =
         runComposeSwingTest {
             setContent {

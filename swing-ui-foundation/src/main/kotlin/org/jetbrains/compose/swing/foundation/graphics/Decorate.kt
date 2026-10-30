@@ -19,8 +19,13 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  *
  * @param decorator what wraps the component's painting inside everything declared before it.
  * @return this chain with the decorator declared on it.
+ * @throws IllegalArgumentException if [decorator] is a [DecorationModifierNode]. Declare the element that creates the
+ *   node instead.
  */
-public fun SwingModifier.decoration(decorator: Decorator): SwingModifier = decoration(DecoratorElement(decorator))
+public fun SwingModifier.decoration(decorator: Decorator): SwingModifier {
+    decorator.requireNotDecorationNode()
+    return decoration(DecoratorElement(decorator))
+}
 
 /**
  * Declares [element], whose [DecorationModifierNode] is one step of the component's decoration, such as a

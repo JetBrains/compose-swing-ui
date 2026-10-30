@@ -610,12 +610,12 @@ the changed area only. With the default, `false`, it repaints the whole child. A
 scales its content keeps `false`.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
-`ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
-observed, and a change repaints the component without laying it out again. Decoration nodes set `shouldAutoInvalidate`
-to `true`, so element updates refresh `outsets` and `isOpaque`. Draw nodes keep it `false` because their metadata is
-fixed, and request their own repaint. Outside element updates, a node that changes a plain field it paints from calls
-`invalidateDraw()`, or `invalidateDecoration()` where its `outsets` or `isOpaque` changed. A `LayoutModifierNode`
-paints at its own box through its `decorator`.
+`ContentDrawScope`, and declares its element through the same `decoration` function; a decoration node passed as a
+decorator is refused, so declare the element. State read in `draw()` is observed, and a change repaints the component
+without laying it out again. Decoration nodes set `shouldAutoInvalidate` to `true`, so element updates refresh `outsets`
+and `isOpaque`. Draw nodes keep it `false` because their metadata is fixed, and request their own repaint. Outside
+element updates, a node that changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()`
+where its `outsets` or `isOpaque` changed. A `LayoutModifierNode` paints at its own box through its `decorator`.
 
 A step that reuses a drawing across paints calls `obtainImageLayer()` before it attaches, such as in a property
 initializer. In `paint`, it returns when `layer.drawCached(graphics, area)` returns `true`. Otherwise it calls

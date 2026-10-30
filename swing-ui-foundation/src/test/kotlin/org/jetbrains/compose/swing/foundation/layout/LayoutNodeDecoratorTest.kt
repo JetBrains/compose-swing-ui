@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
+import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.Fill
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -17,6 +18,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
+import java.awt.Component
 import java.awt.Container
 import java.awt.Graphics2D
 import java.awt.Insets
@@ -266,6 +268,22 @@ class LayoutNodeDecoratorTest {
                 onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
                 "a detached node's decorator paints no more",
             )
+        }
+
+    @Test
+    fun aDecorationStepSetAsADecoratorIsRefusedAndTheDecoratorStays() =
+        runComposeSwingTest {
+            val created = NodeCell()
+            decoratedChild { SwingModifier.then(FillingLayoutNodeElement(Color.GREEN, created)) }
+
+            val failure = assertFailsWith<IllegalArgumentException> { created.node.decorator = StepAsDecorator() }
+
+            assertEquals(
+                "org.jetbrains.compose.swing.foundation.layout.StepAsDecorator is a decoration step, and only its " +
+                    "element attaches it. Declare that element through decoration.",
+                failure.message,
+            )
+            assertEquals(Color.GREEN.rgb, onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1))
         }
 
     @Test
@@ -547,6 +565,15 @@ private class RecordingPanel : DecoratedPanel() {
         invalidations++
         super.invalidate()
     }
+}
+
+private class StepAsDecorator : DecorationModifierNode<Component>() {
+    override fun paint(
+        graphics: Graphics2D,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) = content(graphics, width, height)
 }
 
 /** The node a [FillingLayoutNodeElement] created, as a test holding the modifier reaches it. */

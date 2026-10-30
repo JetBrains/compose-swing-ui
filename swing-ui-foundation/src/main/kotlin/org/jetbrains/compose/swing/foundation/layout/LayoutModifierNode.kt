@@ -1,9 +1,11 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.declaredNodes
 import org.jetbrains.compose.swing.foundation.graphics.publishDecoration
+import org.jetbrains.compose.swing.foundation.graphics.requireNotDecorationNode
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
@@ -244,10 +246,13 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
      * @throws IllegalStateException if set while the node is not attached, if set to a decorator while the
      *   component is not a [Decoratable], or if set to a decorator while the node places its content with a
      *   layer. A decorator set before the component's container has received the node fails as it does.
+     * @throws IllegalArgumentException if set to a [DecorationModifierNode]. Declare the element that creates the node
+     *   instead.
      */
     public var decorator: Decorator?
         get() = decorationStep.takeIf { it !== layerOrNull }
         set(value) {
+            value?.requireNotDecorationNode()
             val step = decorationStep
             if (step != null && step === layerOrNull) {
                 check(value == null) {

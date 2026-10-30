@@ -20,7 +20,8 @@ import java.awt.Shape
  * Write one as a `data class` so it compares structurally: a modifier chain is rebuilt on every
  * recomposition of the enclosing scope, and a decorator that cannot be compared repaints every pass.
  *
- * A decorator that keeps state across paints, such as an offscreen [ImageLayer], is a [DecorationModifierNode].
+ * A decorator that keeps state across paints, such as an offscreen [ImageLayer], is a [DecorationModifierNode],
+ * declared through the element that creates it.
  */
 public fun interface Decorator {
     /**

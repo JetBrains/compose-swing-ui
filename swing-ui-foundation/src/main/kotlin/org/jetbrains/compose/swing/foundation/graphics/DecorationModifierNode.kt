@@ -247,6 +247,14 @@ public abstract class DecorationModifierNode<T : Component> :
     }
 }
 
+/** Refuses a [DecorationModifierNode] where a plain [Decorator] is declared, since nothing would attach it. */
+internal fun Decorator.requireNotDecorationNode() {
+    require(this !is DecorationModifierNode<*>) {
+        "${javaClass.name} is a decoration step, and only its element attaches it. " +
+            "Declare that element through decoration."
+    }
+}
+
 /** The nodes declared on this node's component, in declaration order. */
 internal fun SwingModifier.Node.declaredNodes(): List<SwingModifier.Node> {
     val nodes = ArrayList<SwingModifier.Node>()
