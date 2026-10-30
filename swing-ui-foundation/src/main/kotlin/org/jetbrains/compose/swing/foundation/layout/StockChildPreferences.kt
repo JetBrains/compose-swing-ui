@@ -87,17 +87,18 @@ private inline fun <T> ChildMeasurable.sizedTo(
 
 /**
  * The width used to read this stock child's preferences, under an offer from [minWidth] to [maxWidth]: the width it
- * holds where the offer is unbounded, a fixed offer's width, and otherwise the width it prefers, held to the offer, as
- * androidx reads a leaf at the width its own layout takes.
+ * holds where the offer is unbounded, a fixed offer's width, and otherwise the width of [preference], held to the
+ * offer, as androidx reads a leaf at the width its own layout takes.
  */
-private fun ChildMeasurable.widthForPreferences(
+private inline fun ChildMeasurable.widthForPreferences(
     minWidth: Int,
     maxWidth: Int,
+    preference: () -> Dimension = { preferredExtent() },
 ): Int =
     when {
         maxWidth == Constraints.Infinity -> layoutWidth
         minWidth == maxWidth -> maxWidth
-        else -> preferredExtent().width.coerceIn(minWidth, maxWidth)
+        else -> preference().width.coerceIn(minWidth, maxWidth)
     }
 
 /**
@@ -107,14 +108,13 @@ private fun ChildMeasurable.widthForPreferences(
  * its width before reading its preferred height, where a layout pass lays its container out next and the child holds
  * another width, which that offer leaves bounded, it is sized to that width at the height it holds, or the height it
  * prefers where it holds none, and read there. At a positive held width, a permitted read of an invalid child asks for
- * the baseline before the preferred height so newly installed markup is laid out. The child is resized only for another
- * width. Where it returns another height, it is sized to that height and read again,
- * so the placement that follows does not resize it. Such a resize drops the preferred size Swing holds for it. A
- * measure that runs before a descendant whose height follows its width reflows on its own, as an animation frame does,
- * would then read the height for the descendant's new width and lay it out a second time. The child keeps that size but
- * is not laid out at it: only that pass lays it out, at a width that may differ. Otherwise it returns a result at the
- * size it
- * holds, as `getPreferredSize()` does.
+ * the baseline before its first preferred size, so newly installed markup is laid out. A preferred size read for the
+ * width also gives the height. The child is resized only for another width. Where it returns another height, it is
+ * sized to that height and read again, so the placement that follows does not resize it. Such a resize drops the
+ * preferred size Swing holds for it. A measure that runs before a descendant whose height follows its width reflows on
+ * its own, as an animation frame does, would then read the height for the descendant's new width and lay it out a
+ * second time. The child keeps that size but is not laid out at it: only that pass lays it out, at a width that may
+ * differ. Otherwise it returns a result at the size it holds, as `getPreferredSize()` does.
  */
 private fun ChildMeasurable.stockHeightAt(
     minWidth: Int,
@@ -122,24 +122,25 @@ private fun ChildMeasurable.stockHeightAt(
     mode: MeasureMode,
     maySizeStockChildren: Boolean,
 ): Int {
-    val width = widthForPreferences(minWidth, maxWidth)
+    val refresh = layoutWidth > 0 && maySizeStockChildren && !component.isValid
+
+    fun read() =
+        if (refresh) {
+            layoutBaseline(layoutWidth, layoutHeight)
+            layoutPreferredSize.also { this.preferred = it }
+        } else {
+            preferredExtent()
+        }
+
+    var widthRead: Dimension? = null
+    val width = widthForPreferences(minWidth, maxWidth) { read().also { widthRead = it } }
 
     // A text component lays its text out at the width it holds only when its preferred size is read or it is painted,
     // and returns a result
     // its minimum from that layout, so the minimum is read after the preferred size.
     fun sizePreference(preferred: Dimension) = if (mode == MeasureMode.Minimum) layoutMinimumSize else preferred
 
-    val refreshHeldWidth = width > 0 && width == layoutWidth && maySizeStockChildren && !component.isValid
-    if (refreshHeldWidth) layoutBaseline(width, layoutHeight)
-    if (width == layoutWidth || !maySizeStockChildren) {
-        val preferred =
-            if (refreshHeldWidth) {
-                layoutPreferredSize.also { this.preferred = it }
-            } else {
-                preferredExtent()
-            }
-        return sizePreference(preferred).height
-    }
+    if (width == layoutWidth || !maySizeStockChildren) return sizePreference(widthRead ?: read()).height
     val height = if (layoutHeight > 0) layoutHeight else preferredExtent().height
     val preferred = sizedTo(width, height) { layoutPreferredSize }
     val kept = if (preferred.height == height) preferred else sizedTo(width, preferred.height) { layoutPreferredSize }
