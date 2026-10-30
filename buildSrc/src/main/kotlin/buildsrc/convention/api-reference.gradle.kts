@@ -33,6 +33,6 @@ dependencies {
     // exposes the module's documentation to the aggregation. Modules without it, the samples among
     // them, expose nothing and stay out of the site.
     subprojects.forEach { module ->
-        module.plugins.withId("buildsrc.convention.publishing") { dokka(module) }
+        module.plugins.withId("buildsrc.convention.publishing") { dokka(project(module.path)) }
     }
 }
