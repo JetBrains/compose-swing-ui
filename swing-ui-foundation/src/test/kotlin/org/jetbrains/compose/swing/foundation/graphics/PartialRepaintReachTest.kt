@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.scale
 import org.jetbrains.compose.swing.foundation.layout.Box
@@ -39,7 +40,7 @@ class PartialRepaintReachTest {
         // The steps mirror the 200 wide card, so the pixel the leaf draws at x = 10 lands at x = 189.
         val painted = SwingUtilities.convertRectangle(fixture.card, Rectangle(189, 20, 1, 1), fixture.outer)
         val image = onNodeWithTag("outer").captureToImage()
-        assertEquals(Color.RED.rgb, image.getRGB(painted.x, painted.y), name)
+        image.assertPixelColor(Color.RED, painted.x, painted.y, name)
 
         val grown = fixture.repaintOfDirtyPixel()
 
@@ -55,7 +56,7 @@ class PartialRepaintReachTest {
         val fixture = composeShadowedCardInOuterBox(decorate)
         assertEquals(Insets(0, 0, 0, 1), fixture.card.paintOutsets, "$name: the card paints past its layout bounds")
         val image = onNodeWithTag("outer").captureToImage()
-        assertEquals(Color.RED.rgb, image.getRGB(fixture.dirty.x, fixture.dirty.y), "$name: the leaf's pixel stays put")
+        image.assertPixelColor(Color.RED, fixture.dirty.x, fixture.dirty.y, "$name: the leaf's pixel stays put")
 
         val grown = fixture.repaintOfDirtyPixel()
 
@@ -149,7 +150,7 @@ class PartialRepaintReachTest {
             }
 
             val image = onNodeWithTag("leaf").captureToImage()
-            assertEquals(Color.RED.rgb, image.getRGB(10, 10))
+            image.assertPixelColor(Color.RED, 10, 10)
         }
 
     private object Mirror : Decorator {

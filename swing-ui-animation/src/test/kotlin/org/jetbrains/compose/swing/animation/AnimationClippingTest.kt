@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.tween
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -145,9 +146,10 @@ class AnimationClippingTest {
 
             val host = onNodeWithTag(HOST).fetch<JComponent>()
             val point = Point(host.insets.left + 10, host.insets.top + 20)
-            assertEquals(
-                Color.RED.rgb,
-                host.captureToImage().getRGB(point.x, point.y),
+            host.captureToImage().assertPixelColor(
+                Color.RED,
+                point.x,
+                point.y,
                 "host=${host.bounds}, insets=${host.insets}, point=$point",
             )
         }
@@ -184,9 +186,10 @@ class AnimationClippingTest {
 
             val host = onNodeWithTag(HOST).fetch<JComponent>()
             val point = Point(host.insets.left + 10, host.insets.top + 20)
-            assertEquals(
-                Color.BLUE.rgb,
-                host.captureToImage().getRGB(point.x, point.y),
+            host.captureToImage().assertPixelColor(
+                Color.BLUE,
+                point.x,
+                point.y,
                 "host=${host.bounds}, insets=${host.insets}, point=$point",
             )
         }
@@ -390,8 +393,8 @@ class AnimationClippingTest {
         val image = outer.captureToImage()
         val inside = SwingUtilities.convertPoint(host, insideHost, outer)
         val outside = SwingUtilities.convertPoint(host, belowHost, outer)
-        assertEquals(Color.RED.rgb, image.getRGB(inside.x, inside.y), "inside=$inside, content=$contentBounds")
-        assertEquals(Color.BLUE.rgb, image.getRGB(outside.x, outside.y), "outside=$outside, content=$contentBounds")
+        image.assertPixelColor(Color.RED, inside.x, inside.y, "inside=$inside, content=$contentBounds")
+        image.assertPixelColor(Color.BLUE, outside.x, outside.y, "outside=$outside, content=$contentBounds")
     }
 
     private fun ComposeSwingTest.assertBelowPixel(
@@ -400,9 +403,10 @@ class AnimationClippingTest {
     ) {
         val below = onNodeWithTag(BELOW).fetch<JComponent>()
         val point = SwingUtilities.convertPoint(below, Point(below.width / 2, y), root)
-        assertEquals(
-            expected.rgb,
-            captureToImage().getRGB(point.x, point.y),
+        captureToImage().assertPixelColor(
+            expected,
+            point.x,
+            point.y,
             "below=${below.bounds}, point=$point",
         )
     }
@@ -412,9 +416,10 @@ class AnimationClippingTest {
         y: Int = 20,
     ) {
         val host = onNodeWithTag(HOST).fetch<JComponent>()
-        assertEquals(
-            expected.rgb,
-            host.captureToImage().getRGB(host.insets.left + 10, host.insets.top + y),
+        host.captureToImage().assertPixelColor(
+            expected,
+            host.insets.left + 10,
+            host.insets.top + y,
             "host=${host.bounds}, insets=${host.insets}",
         )
     }

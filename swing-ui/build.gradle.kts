@@ -49,6 +49,7 @@ dependencies {
     testFixturesCompileOnly(kotlin("compiler-embeddable"))
     testImplementation(kotlin("test"))
     testImplementation(libs.mockk)
+    testImplementation(libs.junitJupiterParams)
     testImplementation(project(":swing-ui-test"))
 }
 

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics.drawscope
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.LoadingImage
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
@@ -155,8 +156,8 @@ class DrawScopeTest {
                     )
                 })
 
-            assertEquals(Color.WHITE.rgb, image.getRGB(20, 20), "the outline leaves the inside alone")
-            assertEquals(Color.BLUE.rgb, image.getRGB(5, 5), "the outline runs along the bounds")
+            image.assertPixelColor(Color.WHITE, 20, 20, "the outline leaves the inside alone")
+            image.assertPixelColor(Color.BLUE, 5, 5, "the outline runs along the bounds")
         }
 
     @Test
@@ -168,8 +169,8 @@ class DrawScopeTest {
                     drawCircle(Color.GREEN, radius = 10f, centerX = 20f, centerY = 20f)
                 })
 
-            assertEquals(Color.GREEN.rgb, image.getRGB(20, 20), "the circle is filled")
-            assertEquals(Color.WHITE.rgb, image.getRGB(0, 0), "outside the circle is untouched")
+            image.assertPixelColor(Color.GREEN, 20, 20, "the circle is filled")
+            image.assertPixelColor(Color.WHITE, 0, 0, "outside the circle is untouched")
         }
 
     @Test
@@ -181,8 +182,8 @@ class DrawScopeTest {
                     drawLine(Color.YELLOW, 0f, 20f, 40f, 20f, strokeWidth = 3f)
                 })
 
-            assertEquals(Color.YELLOW.rgb, image.getRGB(20, 20), "the line is drawn")
-            assertEquals(Color.BLACK.rgb, image.getRGB(20, 0), "off the line is untouched")
+            image.assertPixelColor(Color.YELLOW, 20, 20, "the line is drawn")
+            image.assertPixelColor(Color.BLACK, 20, 0, "off the line is untouched")
         }
 
     @Test
@@ -202,8 +203,8 @@ class DrawScopeTest {
                     )
                 })
 
-            assertEquals(Color.RED.rgb, image.getRGB(20, 20), "the body is filled")
-            assertEquals(Color.WHITE.rgb, image.getRGB(2, 2), "a corner arc of radius 10 leaves this pixel out")
+            image.assertPixelColor(Color.RED, 20, 20, "the body is filled")
+            image.assertPixelColor(Color.WHITE, 2, 2, "a corner arc of radius 10 leaves this pixel out")
         }
 
     @Test
@@ -215,8 +216,8 @@ class DrawScopeTest {
                     drawOval(Color.MAGENTA, x = 0f, y = 0f, width = 40f, height = 20f)
                 })
 
-            assertEquals(Color.MAGENTA.rgb, image.getRGB(20, 10), "the oval's center is filled")
-            assertEquals(Color.WHITE.rgb, image.getRGB(0, 0), "outside the oval is untouched")
+            image.assertPixelColor(Color.MAGENTA, 20, 10, "the oval's center is filled")
+            image.assertPixelColor(Color.WHITE, 0, 0, "outside the oval is untouched")
         }
 
     @Test
@@ -236,10 +237,10 @@ class DrawScopeTest {
                     },
                 )
 
-            assertEquals(Color.CYAN.rgb, wedge.getRGB(30, 30), "a quarter from 3 o'clock turns down to 6 o'clock")
-            assertEquals(Color.WHITE.rgb, wedge.getRGB(30, 10), "and leaves the quarter above 3 o'clock alone")
-            assertEquals(Color.RED.rgb, open.getRGB(4, 12), "a quarter from 9 o'clock turns up to 12 o'clock")
-            assertEquals(Color.WHITE.rgb, open.getRGB(17, 17), "an open arc does not close through the center")
+            wedge.assertPixelColor(Color.CYAN, 30, 30, "a quarter from 3 o'clock turns down to 6 o'clock")
+            wedge.assertPixelColor(Color.WHITE, 30, 10, "and leaves the quarter above 3 o'clock alone")
+            open.assertPixelColor(Color.RED, 4, 12, "a quarter from 9 o'clock turns up to 12 o'clock")
+            open.assertPixelColor(Color.WHITE, 17, 17, "an open arc does not close through the center")
         }
 
     @Test
@@ -259,8 +260,8 @@ class DrawScopeTest {
                     drawPath(path, Color.ORANGE)
                 })
 
-            assertEquals(Color.ORANGE.rgb, image.getRGB(20, 15), "inside the triangle")
-            assertEquals(Color.WHITE.rgb, image.getRGB(5, 5), "outside the triangle")
+            image.assertPixelColor(Color.ORANGE, 20, 15, "inside the triangle")
+            image.assertPixelColor(Color.WHITE, 5, 5, "outside the triangle")
         }
 
     @Test
@@ -534,9 +535,9 @@ class DrawScopeTest {
                 )
 
             drawn.forEachIndexed { index, image ->
-                assertEquals(Color.RED.rgb, image.getRGB(20, 20), "draw $index covers the center")
-                assertEquals(Color.RED.rgb, image.getRGB(20, 1), "draw $index reaches the top edge")
-                assertEquals(0, image.getRGB(0, 0), "draw $index leaves the corner blank")
+                image.assertPixelColor(Color.RED, 20, 20, "draw $index covers the center")
+                image.assertPixelColor(Color.RED, 20, 1, "draw $index reaches the top edge")
+                image.assertPixelColor(Color(0, true), 0, 0, "draw $index leaves the corner blank")
             }
         }
 
@@ -567,10 +568,10 @@ class DrawScopeTest {
                     drawLine(Color.RED, x1 = 10f, y1 = 10f, x2 = 30f, y2 = 10f, strokeWidth = 4f)
                 })
 
-            assertEquals(Color.RED.rgb, image.getRGB(10, 10), "the cap starts exactly at the line's end")
-            assertEquals(Color.RED.rgb, image.getRGB(29, 10), "and reaches the other end")
-            assertEquals(0, image.getRGB(8, 10), "a square cap would have painted past the end")
-            assertEquals(0, image.getRGB(31, 10), "on either side")
+            image.assertPixelColor(Color.RED, 10, 10, "the cap starts exactly at the line's end")
+            image.assertPixelColor(Color.RED, 29, 10, "and reaches the other end")
+            image.assertPixelColor(Color(0, true), 8, 10, "a square cap would have painted past the end")
+            image.assertPixelColor(Color(0, true), 31, 10, "on either side")
         }
 
     @Test

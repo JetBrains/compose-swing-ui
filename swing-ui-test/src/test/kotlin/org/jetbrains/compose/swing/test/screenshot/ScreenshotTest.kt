@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test.screenshot
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -56,7 +57,7 @@ class ScreenshotTest {
 
         assertEquals(120, image.width, "the image is as wide as the component")
         assertEquals(40, image.height, "the image is as tall as the component")
-        assertEquals(Color.RED.rgb, image.getRGB(10, 10), "the component's own painting is captured")
+        image.assertPixelColor(Color.RED, 10, 10, "the component's own painting is captured")
     }
 
     @Test

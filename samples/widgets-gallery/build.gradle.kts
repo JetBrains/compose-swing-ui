@@ -13,6 +13,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))
+    testImplementation(testFixtures(project(":swing-ui")))
 }
 
 application {

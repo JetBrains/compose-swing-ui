@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics.drawscope
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedBox
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -106,8 +107,8 @@ class DrawTransformTest {
 
             val image = onNodeWithTag("box").captureToImage()
 
-            assertEquals(0, image.getRGB(4, 4), "the content moves with the inset origin")
-            assertEquals(Color.RED.rgb, image.getRGB(30, 30), "the content paints at its own size, past the inset box")
+            image.assertPixelColor(Color(0, true), 4, 4, "the content moves with the inset origin")
+            image.assertPixelColor(Color.RED, 30, 30, "the content paints at its own size, past the inset box")
         }
 
     @Test

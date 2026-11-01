@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import java.awt.AlphaComposite
@@ -37,7 +38,7 @@ class ImageLayerRenderEffectTest {
         for ((x, y) in listOf(0 to 0, 0 to middle, middle to 0, FRAME - 1 to FRAME - 1)) {
             assertEquals(0xFF, painted.getRGB(x, y) ushr 24, "A clamped edge stays opaque at $x, $y.")
         }
-        assertRedAt(painted, middle, middle, "The middle, out of the blur's reach, keeps its color.")
+        painted.assertPixelColor(Color.RED, middle, middle, "The middle, out of the blur's reach, keeps its color.")
     }
 
     @Test
@@ -192,7 +193,7 @@ class ImageLayerRenderEffectTest {
             ((acrossStripe shr 16) and 0xFF) < 0x10 && (acrossStripe and 0xFF) > 0xF0,
             "Nothing spreads down into the stripe. Pixel was 0x${Integer.toHexString(acrossStripe)}.",
         )
-        assertRedAt(acrossOnly, middle, STRIPE, "Nothing spreads down out of the stripe.")
+        acrossOnly.assertPixelColor(Color.RED, middle, STRIPE, "Nothing spreads down out of the stripe.")
 
         layer.renderEffect = BlurEffect(radiusX = 0f, radiusY = 4f)
         val downOnly = renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) }
@@ -202,7 +203,7 @@ class ImageLayerRenderEffectTest {
             ((downStripe shr 16) and 0xFF) < 0x10 && (downStripe and 0xFF) > 0xF0,
             "Nothing spreads across into the stripe. Pixel was 0x${Integer.toHexString(downStripe)}.",
         )
-        assertRedAt(downOnly, STRIPE, middle, "Nothing spreads across out of the stripe.")
+        downOnly.assertPixelColor(Color.RED, STRIPE, middle, "Nothing spreads across out of the stripe.")
     }
 
     @Test
@@ -410,7 +411,7 @@ class ImageLayerRenderEffectTest {
                 )
             for ((x, argb) in expected) {
                 for (pixel in x * scale until (x + 1) * scale) {
-                    assertEquals(argb, painted.getRGB(pixel, middle), "Pixel $pixel across at scale $scale.")
+                    painted.assertPixelColor(Color(argb, true), pixel, middle, "Pixel $pixel across at scale $scale.")
                 }
             }
         }

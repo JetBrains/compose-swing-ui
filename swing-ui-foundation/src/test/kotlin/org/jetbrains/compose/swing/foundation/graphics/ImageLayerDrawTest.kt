@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
@@ -99,7 +100,7 @@ class ImageLayerDrawTest {
                 "alpha 0.5f draws the recording at half opacity, but the destination alpha was " +
                     "0x${Integer.toHexString(translucent.getRGB(1, 1) ushr 24)}.",
             )
-            assertEquals(0, invisible.getRGB(1, 1), "alpha 0f draws nothing.")
+            invisible.assertPixelColor(Color(0, true), 1, 1, "alpha 0f draws nothing.")
         }
 
     @Test
@@ -219,10 +220,15 @@ class ImageLayerDrawTest {
 
             // About the center, x = 4, the square spans 20 + 4 -/+ SQUARE * 4 / 2: x in [8, 40). About the origin it
             // would span [20, 52).
-            assertRedAt(destination, 10, 1, "scaleX stretches the drawing to the left of its center as well.")
-            assertRedAt(destination, 38, 1, "scaleX stretches the drawing to the right of its center.")
-            assertEquals(0, destination.getRGB(44, 1), "A stretch about the origin would reach here.")
-            assertEquals(0, destination.getRGB(22, SQUARE + 2), "scaleX leaves the vertical extent alone.")
+            destination.assertPixelColor(
+                Color.RED,
+                10,
+                1,
+                "scaleX stretches the drawing to the left of its center as well.",
+            )
+            destination.assertPixelColor(Color.RED, 38, 1, "scaleX stretches the drawing to the right of its center.")
+            destination.assertPixelColor(Color(0, true), 44, 1, "A stretch about the origin would reach here.")
+            destination.assertPixelColor(Color(0, true), 22, SQUARE + 2, "scaleX leaves the vertical extent alone.")
         }
 
     @Test
@@ -234,10 +240,10 @@ class ImageLayerDrawTest {
 
             val destination = renderImage(64, 48) { layer.draw(it, y = 20) }
 
-            assertRedAt(destination, 1, 10, "scaleY stretches the drawing above its center as well.")
-            assertRedAt(destination, 1, 38, "scaleY stretches the drawing below its center.")
-            assertEquals(0, destination.getRGB(1, 44), "A stretch about the origin would reach here.")
-            assertEquals(0, destination.getRGB(SQUARE + 2, 22), "scaleY leaves the horizontal extent alone.")
+            destination.assertPixelColor(Color.RED, 1, 10, "scaleY stretches the drawing above its center as well.")
+            destination.assertPixelColor(Color.RED, 1, 38, "scaleY stretches the drawing below its center.")
+            destination.assertPixelColor(Color(0, true), 1, 44, "A stretch about the origin would reach here.")
+            destination.assertPixelColor(Color(0, true), SQUARE + 2, 22, "scaleY leaves the horizontal extent alone.")
         }
 
     @Test
@@ -250,8 +256,8 @@ class ImageLayerDrawTest {
 
             val destination = renderImage(64, 48) { layer.draw(it, x = 20) }
 
-            assertRedAt(destination, 50, 1, "About the origin, the stretch reaches x = 20 + SQUARE * 4.")
-            assertEquals(0, destination.getRGB(10, 1), "About the origin, nothing is stretched left of it.")
+            destination.assertPixelColor(Color.RED, 50, 1, "About the origin, the stretch reaches x = 20 + SQUARE * 4.")
+            destination.assertPixelColor(Color(0, true), 10, 1, "About the origin, nothing is stretched left of it.")
         }
 
     @Test
@@ -319,18 +325,20 @@ class ImageLayerDrawTest {
 
             val destination = renderImage(64, 48) { layer.draw(it, x = 4, y = 0) }
 
-            assertEquals(
-                Color.RED.rgb,
-                destination.getRGB(26, 14),
-                "The drawing lands at x + translationX, y + translationY.",
-            )
-            assertEquals(
-                0,
-                destination.getRGB(22, 14),
+            destination.assertPixelColor(Color.RED, 26, 14, "The drawing lands at x + translationX, y + translationY.")
+            destination.assertPixelColor(
+                Color(0, true),
+                22,
+                14,
                 "draw's x adds to translationX rather than being replaced by it.",
             )
-            assertEquals(0, destination.getRGB(26, 1), "translationY moved the drawing down out of this row.")
-            assertEquals(0, destination.getRGB(1, 14), "translationX moved the drawing right out of this column.")
+            destination.assertPixelColor(Color(0, true), 26, 1, "translationY moved the drawing down out of this row.")
+            destination.assertPixelColor(
+                Color(0, true),
+                1,
+                14,
+                "translationX moved the drawing right out of this column.",
+            )
         }
 
     @Test
@@ -345,10 +353,16 @@ class ImageLayerDrawTest {
 
             // A clockwise quarter turn about the top-left corner sweeps the square into the quadrant left of that
             // corner: x in (32 - SQUARE, 32]. A counter-clockwise one would sweep it above the destination.
-            assertRedAt(destination, 28, 3, "rotationZ turns the drawing a clockwise quarter at 90 degrees.")
-            assertEquals(
-                0,
-                destination.getRGB(36, 3),
+            destination.assertPixelColor(
+                Color.RED,
+                28,
+                3,
+                "rotationZ turns the drawing a clockwise quarter at 90 degrees.",
+            )
+            destination.assertPixelColor(
+                Color(0, true),
+                36,
+                3,
                 "The rotated drawing vacates the ground an unrotated one covers.",
             )
         }
@@ -366,10 +380,10 @@ class ImageLayerDrawTest {
             val destination = renderImage(64, 48) { layer.draw(it, x = 20, y = 20) }
 
             // Turned a quarter about its center, (28, 22), the 16 x 4 bar stands upright: x in [26, 30), y in [14, 30).
-            assertRedAt(destination, 28, 16, "The turned bar reaches above its center.")
-            assertRedAt(destination, 28, 28, "The turned bar reaches below its center.")
-            assertEquals(0, destination.getRGB(22, 22), "The turned bar vacates its left end.")
-            assertEquals(0, destination.getRGB(34, 22), "The turned bar vacates its right end.")
+            destination.assertPixelColor(Color.RED, 28, 16, "The turned bar reaches above its center.")
+            destination.assertPixelColor(Color.RED, 28, 28, "The turned bar reaches below its center.")
+            destination.assertPixelColor(Color(0, true), 22, 22, "The turned bar vacates its left end.")
+            destination.assertPixelColor(Color(0, true), 34, 22, "The turned bar vacates its right end.")
         }
 
     @Test
@@ -385,8 +399,13 @@ class ImageLayerDrawTest {
 
             // Stretched across first, then turned a quarter, the square runs down the height: x in (32 - SQUARE, 32],
             // y in [0, SQUARE * 3). Turned first and stretched after, it would run across: x in (32 - SQUARE * 3, 32].
-            assertRedAt(destination, 28, 20, "The quarter turn carries the stretch down the height.")
-            assertEquals(0, destination.getRGB(12, 4), "A stretch applied after the turn would reach across to here.")
+            destination.assertPixelColor(Color.RED, 28, 20, "The quarter turn carries the stretch down the height.")
+            destination.assertPixelColor(
+                Color(0, true),
+                12,
+                4,
+                "A stretch applied after the turn would reach across to here.",
+            )
         }
 
     @Test

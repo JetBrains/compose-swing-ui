@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -41,10 +42,10 @@ class ImageLayerAlignedRecordingTest {
 
             assertEquals(Dimension(7, 8), layer.size, "the recording covers the device pixels of the clip's bounds")
             // The destination is translated by (0.3, 0.6), so the clip covers device pixels 4..9 by 5..10.
-            assertEquals(Color.RED.rgb, image.getRGB(6, 7), "inside the clip")
-            assertEquals(0, image.getRGB(2, 7), "left of the clip")
-            assertEquals(0, image.getRGB(12, 7), "right of the clip")
-            assertEquals(0, image.getRGB(6, 2), "above the clip")
+            image.assertPixelColor(Color.RED, 6, 7, "inside the clip")
+            image.assertPixelColor(Color(0, true), 2, 7, "left of the clip")
+            image.assertPixelColor(Color(0, true), 12, 7, "right of the clip")
+            image.assertPixelColor(Color(0, true), 6, 2, "above the clip")
         }
 
     @Test
@@ -68,7 +69,7 @@ class ImageLayerAlignedRecordingTest {
 
             val shown = paint(scale = 1.0) { graphics -> recordAndDraw(layer, graphics, Color.RED) }
 
-            assertEquals(Color.RED.rgb, shown.getRGB(10, 10), "the next paint records and draws its own content")
+            shown.assertPixelColor(Color.RED, 10, 10, "the next paint records and draws its own content")
         }
 
     @Test

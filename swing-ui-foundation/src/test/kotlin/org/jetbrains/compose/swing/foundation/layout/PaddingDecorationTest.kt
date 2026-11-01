@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.CircleShape
@@ -53,8 +54,8 @@ class PaddingDecorationTest {
             )
             assertEquals(Insets(0, 0, 0, 0), card.insets, "the background paints at the component's box")
             val painted = onNodeWithTag("outer").captureToImage()
-            assertEquals(0, painted.getRGB(1, 1), "the padding space is left unpainted")
-            assertEquals(Color.RED.rgb, painted.getRGB(10, 10), "the background fills the component")
+            painted.assertPixelColor(Color(0, true), 1, 1, "the padding space is left unpainted")
+            painted.assertPixelColor(Color.RED, 10, 10, "the background fills the component")
         }
 
     @Test
@@ -85,9 +86,9 @@ class PaddingDecorationTest {
                 Dimension(painted.width, painted.height),
                 "the capture holds the component and its padding ring",
             )
-            assertEquals(Color.RED.rgb, painted.getRGB(1, 1), "the background paints over the padding outsets")
-            assertEquals(Color.RED.rgb, painted.getRGB(34, 34), "on every side")
-            assertEquals(Color.RED.rgb, painted.getRGB(18, 18), "and over the component")
+            painted.assertPixelColor(Color.RED, 1, 1, "the background paints over the padding outsets")
+            painted.assertPixelColor(Color.RED, 34, 34, "on every side")
+            painted.assertPixelColor(Color.RED, 18, 18, "and over the component")
         }
 
     @Test
@@ -113,9 +114,9 @@ class PaddingDecorationTest {
                 "both paddings place the component",
             )
             val painted = onNodeWithTag("outer").captureToImage()
-            assertEquals(0, painted.getRGB(2, 2), "the first padding is left clear")
-            assertEquals(Color.RED.rgb, painted.getRGB(6, 6), "the red background paints over the second padding")
-            assertEquals(Color.BLUE.rgb, painted.getRGB(14, 14), "the blue one paints at the component's box")
+            painted.assertPixelColor(Color(0, true), 2, 2, "the first padding is left clear")
+            painted.assertPixelColor(Color.RED, 6, 6, "the red background paints over the second padding")
+            painted.assertPixelColor(Color.BLUE, 14, 14, "the blue one paints at the component's box")
         }
 
     @Test
@@ -136,9 +137,9 @@ class PaddingDecorationTest {
             }
 
             val painted = onNodeWithTag("outer").captureToImage()
-            assertEquals(Color.RED.rgb, painted.getRGB(9, 9), "the clip cuts the component's corner, not the ring")
-            assertEquals(Color.BLUE.rgb, painted.getRGB(18, 18), "the circle fills the component's box")
-            assertEquals(Color.RED.rgb, painted.getRGB(1, 1), "the ring is outside the clip")
+            painted.assertPixelColor(Color.RED, 9, 9, "the clip cuts the component's corner, not the ring")
+            painted.assertPixelColor(Color.BLUE, 18, 18, "the circle fills the component's box")
+            painted.assertPixelColor(Color.RED, 1, 1, "the ring is outside the clip")
         }
 
     @Test
@@ -164,7 +165,7 @@ class PaddingDecorationTest {
             )
             val painted = onNodeWithTag("outer").captureToImage()
             assertEquals(Dimension(116, 116), Dimension(painted.width, painted.height), "the slot holds the padding")
-            assertEquals(Color.RED.rgb, painted.getRGB(1, 1), "the background fills the whole slot")
+            painted.assertPixelColor(Color.RED, 1, 1, "the background fills the whole slot")
         }
 
     @Test
@@ -182,7 +183,7 @@ class PaddingDecorationTest {
                 Dimension(painted.width, painted.height),
                 "the canvas's slot is the padding alone",
             )
-            assertEquals(Color.RED.rgb, painted.getRGB(1, 1), "the background paints over the padding")
+            painted.assertPixelColor(Color.RED, 1, 1, "the background paints over the padding")
         }
 
     @Test
@@ -230,11 +231,9 @@ class PaddingDecorationTest {
                 card.layoutBounds,
                 "the component stays where it is",
             )
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag("outer").captureToImage().getRGB(1, 1),
-                "the background paints over the ring",
-            )
+            onNodeWithTag(
+                "outer",
+            ).captureToImage().assertPixelColor(Color.RED, 1, 1, "the background paints over the ring")
 
             decorated = false
             awaitIdle()
@@ -243,9 +242,12 @@ class PaddingDecorationTest {
                 card.decoration.paintOutsets(),
                 "the paint outsets leave with the decoration",
             )
-            assertEquals(
-                0,
-                onNodeWithTag("outer").captureToImage().getRGB(1, 1),
+            onNodeWithTag(
+                "outer",
+            ).captureToImage().assertPixelColor(
+                Color(0, true),
+                1,
+                1,
                 "the ring is left clear once the decoration leaves",
             )
             assertEquals(listOf(Dimension(20, 20)), sizes, "the component is never resized")
@@ -302,11 +304,9 @@ class PaddingDecorationTest {
                 card.decoration.paintOutsets(),
                 "the paint outsets follow the changed padding",
             )
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag("outer").captureToImage().getRGB(5, 5),
-                "the background paints over the wider ring",
-            )
+            onNodeWithTag(
+                "outer",
+            ).captureToImage().assertPixelColor(Color.RED, 5, 5, "the background paints over the wider ring")
         }
 
     @Test
@@ -348,9 +348,9 @@ class PaddingDecorationTest {
 
             assertFalse(onNodeWithTag("card").fetch<ConstrainedPanel>().isOpaque, "the ring is only partly covered")
             val painted = onNodeWithTag("outer").captureToImage()
-            assertEquals(Color.BLUE.rgb, painted.getRGB(0, 0), "the border runs along the padding's box")
-            assertEquals(0, painted.getRGB(4, 4), "the component's own background stays off the ring")
-            assertEquals(Color.GREEN.rgb, painted.getRGB(18, 18), "and fills the layout bounds inside the ring")
+            painted.assertPixelColor(Color.BLUE, 0, 0, "the border runs along the padding's box")
+            painted.assertPixelColor(Color(0, true), 4, 4, "the component's own background stays off the ring")
+            painted.assertPixelColor(Color.GREEN, 18, 18, "and fills the layout bounds inside the ring")
         }
 
     @Test
@@ -384,13 +384,13 @@ class PaddingDecorationTest {
             awaitIdle()
             assertEquals(ring, card.decoration.paintOutsets(), "the ring declared again takes its outsets back")
             assertEquals(ring, card.insets, "and the insets carry it again")
-            assertEquals(Color.BLUE.rgb, onNodeWithTag("outer").captureToImage().getRGB(0, 0), "the ring is painted")
+            onNodeWithTag("outer").captureToImage().assertPixelColor(Color.BLUE, 0, 0, "the ring is painted")
 
             ringed = false
             awaitIdle()
             assertEquals(none, card.decoration.paintOutsets(), "the paint outsets leave with the ring again")
             assertEquals(none, card.insets, "and so do the insets")
-            assertEquals(0, onNodeWithTag("outer").captureToImage().getRGB(0, 0), "no ring is painted")
+            onNodeWithTag("outer").captureToImage().assertPixelColor(Color(0, true), 0, 0, "no ring is painted")
         }
 }
 

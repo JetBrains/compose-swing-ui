@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
@@ -66,7 +67,7 @@ class ComposedModifierTest {
 
         declared = true
         awaitIdle()
-        assertEquals(Color.RED.rgb, onNodeWithTag("composed").captureToImage().getRGB(16, 16))
+        onNodeWithTag("composed").captureToImage().assertPixelColor(Color.RED, 16, 16)
 
         declared = false
         awaitIdle()

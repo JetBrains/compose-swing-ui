@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.decoration
@@ -54,7 +55,7 @@ class DecoratorPaintBoundsTest {
             val boxed = onNodeWithTag("boxed").fetch<JComponent>()
             assertEquals(Insets(6, 6, 6, 6), (direct as Decoratable).decoration.paintOutsets())
             assertEquals(Insets(8, 8, 8, 8), (boxed as Decoratable).decoration.paintOutsets())
-            assertEquals(Color.RED.rgb, direct.captureToImage().getRGB(0, 0))
-            assertEquals(Color.RED.rgb, boxed.captureToImage().getRGB(0, 0))
+            direct.captureToImage().assertPixelColor(Color.RED, 0, 0)
+            boxed.captureToImage().assertPixelColor(Color.RED, 0, 0)
         }
 }

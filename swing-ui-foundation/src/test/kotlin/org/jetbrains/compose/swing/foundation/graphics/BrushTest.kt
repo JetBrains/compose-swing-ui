@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import java.awt.Color
 import java.awt.LinearGradientPaint
 import java.awt.MultipleGradientPaint
@@ -241,8 +242,8 @@ class BrushTest {
                 ),
             )
 
-        assertEquals(Color.RED.rgb, painted.getRGB(45, 0), "before the edge the first color holds")
-        assertEquals(Color.BLUE.rgb, painted.getRGB(55, 0), "past the edge the stop moved onto it takes over")
+        painted.assertPixelColor(Color.RED, 45, 0, "before the edge the first color holds")
+        painted.assertPixelColor(Color.BLUE, 55, 0, "past the edge the stop moved onto it takes over")
     }
 
     @Test
@@ -260,16 +261,17 @@ class BrushTest {
         val backwards = paintAcross(Brush.verticalGradient(1f to Color.RED, 0f to Color.BLUE))
 
         // Java2D samples a pixel at its left edge, where the first pixel sits on the edge between the two stops.
-        assertEquals(Color.GREEN.rgb, atStart.getRGB(10, 0), "the later of two stops at 0f starts the gradient")
+        atStart.assertPixelColor(Color.GREEN, 10, 0, "the later of two stops at 0f starts the gradient")
         // Java2D's last lookup entry stops one step short of the last stop's color.
         val corner = Color(atEnd.getRGB(0, 0))
         assertTrue(
             corner.red == 0 && corner.green <= 1 && corner.blue >= 0xFE,
             "past the last of two stops at 1f its color holds, but the corner was $corner",
         )
-        assertEquals(
-            Color.RED.rgb,
-            backwards.getRGB(0, 0),
+        backwards.assertPixelColor(
+            Color.RED,
+            0,
+            0,
             "a stop at 0f after one at 1f sits on it, so the first color holds across the whole gradient",
         )
     }

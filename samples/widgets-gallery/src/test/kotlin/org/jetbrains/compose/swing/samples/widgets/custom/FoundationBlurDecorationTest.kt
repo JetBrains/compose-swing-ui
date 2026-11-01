@@ -1,10 +1,12 @@
 package org.jetbrains.compose.swing.samples.widgets.custom
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JSlider
 import kotlin.test.Test
@@ -42,9 +44,10 @@ class FoundationBlurDecorationTest {
                     sharp.getRGB(sharpBounds.x + x, sharpY) ushr 24,
                     "the sharp border/surface sample was not opaque at $x",
                 )
-                assertEquals(
-                    expected,
-                    blurred.getRGB(blurredBounds.x + x, blurredY),
+                blurred.assertPixelColor(
+                    Color(expected, true),
+                    blurredBounds.x + x,
+                    blurredY,
                     "the blurred logical content pixel at $x",
                 )
             }

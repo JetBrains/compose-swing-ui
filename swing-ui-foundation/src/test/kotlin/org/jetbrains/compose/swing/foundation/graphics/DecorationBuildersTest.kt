@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -34,12 +35,18 @@ class DecorationBuildersTest {
         runComposeSwingTest {
             val painted = stage().paint({ SwingModifier.clip(CircleShape) }, fill(Color.RED))
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
+            painted.assertPixelColor(
+                Color.RED,
+                STAGE_SIZE / 2,
+                STAGE_SIZE / 2,
                 "The content should paint inside the circle.",
             )
-            assertEquals(0, painted.getRGB(0, 0), "A corner lies outside the circle and should stay unpainted.")
+            painted.assertPixelColor(
+                Color(0, true),
+                0,
+                0,
+                "A corner lies outside the circle and should stay unpainted.",
+            )
         }
 
     @Test
@@ -54,12 +61,13 @@ class DecorationBuildersTest {
                 soft.hasPartialCoverage(),
                 "An antialiased cut keeps a pixel its outline half covers, half over.",
             )
-            assertEquals(
-                Color.RED.rgb,
-                soft.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
+            soft.assertPixelColor(
+                Color.RED,
+                STAGE_SIZE / 2,
+                STAGE_SIZE / 2,
                 "What lies well inside the outline is untouched.",
             )
-            assertEquals(0, soft.getRGB(0, 0), "What lies well outside it is still cut away.")
+            soft.assertPixelColor(Color(0, true), 0, 0, "What lies well outside it is still cut away.")
         }
 
     @Test
@@ -108,8 +116,8 @@ class DecorationBuildersTest {
                     graphics.fill(Color.RED, 0, 0, 10, 10)
                 }
 
-            assertEquals(Color.RED.rgb, painted.getRGB(5, 5), "The content paints over the background.")
-            assertEquals(Color.BLUE.rgb, painted.getRGB(50, 50), "The background fills everything the content leaves.")
+            painted.assertPixelColor(Color.RED, 5, 5, "The content paints over the background.")
+            painted.assertPixelColor(Color.BLUE, 50, 50, "The background fills everything the content leaves.")
         }
 
     @Test
@@ -117,17 +125,14 @@ class DecorationBuildersTest {
         runComposeSwingTest {
             val painted = stage().paint({ SwingModifier.border(2, Color.BLUE) }, fill(Color.RED))
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(0, STAGE_SIZE / 2),
+            painted.assertPixelColor(
+                Color.BLUE,
+                0,
+                STAGE_SIZE / 2,
                 "The border is painted after the content, so an opaque fill cannot wipe it.",
             )
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(1, STAGE_SIZE / 2),
-                "The border is as thick as it was declared.",
-            )
-            assertEquals(Color.RED.rgb, painted.getRGB(2, STAGE_SIZE / 2), "The border stops at its declared width.")
+            painted.assertPixelColor(Color.BLUE, 1, STAGE_SIZE / 2, "The border is as thick as it was declared.")
+            painted.assertPixelColor(Color.RED, 2, STAGE_SIZE / 2, "The border stops at its declared width.")
         }
 
     @Test
@@ -356,7 +361,7 @@ class DecorationBuildersTest {
                 "The halo is partly transparent just outside the fill.",
             )
             assertTrue(painted.opacityAt(margin, side / 2) in 1..0xFE, "The fill's own edge is softened.")
-            assertEquals(Color.RED.rgb, painted.getRGB(side / 2, side / 2), "The middle of the fill stays solid.")
+            painted.assertPixelColor(Color.RED, side / 2, side / 2, "The middle of the fill stays solid.")
         }
 
     @Test
@@ -397,11 +402,7 @@ class DecorationBuildersTest {
                 decoration.paintOutsets(),
                 "An unoffset shadow reserves the whole reach of its blur on every side.",
             )
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
-                "What casts the shadow paints over it.",
-            )
+            painted.assertPixelColor(Color.RED, STAGE_SIZE / 2, STAGE_SIZE / 2, "What casts the shadow paints over it.")
             assertTrue(painted.opacityAt(reach - 1, STAGE_SIZE / 2) > 0, "The shadow is cast into what it reserved.")
             assertFalse(decoration.isOpaque(panel), "A shadow leaves the area around what casts it partly covered.")
         }

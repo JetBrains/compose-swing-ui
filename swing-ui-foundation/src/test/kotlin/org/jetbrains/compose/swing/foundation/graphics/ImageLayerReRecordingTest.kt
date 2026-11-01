@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -52,10 +53,11 @@ class ImageLayerReRecordingTest {
             }
 
             val destination = renderImage(SQUARE * 4, SQUARE * 4) { layer.draw(it) }
-            assertEquals(Color.BLUE.rgb, destination.getRGB(1, 1), "The newest recording is drawn at scale $scale.")
-            assertEquals(
-                0,
-                destination.getRGB(SQUARE - 2, 1),
+            destination.assertPixelColor(Color.BLUE, 1, 1, "The newest recording is drawn at scale $scale.")
+            destination.assertPixelColor(
+                Color(0, true),
+                SQUARE - 2,
+                1,
                 "Nothing of an earlier recording at the same size is left where the newest drew nothing, " +
                     "at scale $scale.",
             )
@@ -212,8 +214,8 @@ class ImageLayerReRecordingTest {
 
         assertEquals(Dimension(SQUARE, SQUARE), layer.size, "size is the newest recording's.")
         val destination = renderImage(SQUARE * 4, SQUARE * 4) { layer.draw(it) }
-        assertEquals(Color.RED.rgb, destination.getRGB(SQUARE - 1, SQUARE - 1), "The newest recording is drawn.")
-        assertEquals(0, destination.getRGB(SQUARE + 1, SQUARE + 1), "Nothing is drawn past the newest size.")
+        destination.assertPixelColor(Color.RED, SQUARE - 1, SQUARE - 1, "The newest recording is drawn.")
+        destination.assertPixelColor(Color(0, true), SQUARE + 1, SQUARE + 1, "Nothing is drawn past the newest size.")
     }
 
     @Test
@@ -230,14 +232,11 @@ class ImageLayerReRecordingTest {
         }
 
         val destination = renderImage(SQUARE * 4, SQUARE * 4) { layer.draw(it) }
-        assertEquals(
-            Color.RED.rgb,
-            destination.getRGB(1, 1),
-            "The outer recording keeps what it drew before the inner one.",
-        )
-        assertEquals(
-            Color.BLUE.rgb,
-            destination.getRGB(SQUARE - 2, 1),
+        destination.assertPixelColor(Color.RED, 1, 1, "The outer recording keeps what it drew before the inner one.")
+        destination.assertPixelColor(
+            Color.BLUE,
+            SQUARE - 2,
+            1,
             "The inner recording is drawn into the outer one, and the outer one is what the layer holds.",
         )
     }
