@@ -68,7 +68,6 @@ class TableStateTest {
         assertEquals(emptyList(), table.selectedRows.toList(), "a state naming no row selects none")
 
         state.selectedRowIndices = setOf(0, 2)
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

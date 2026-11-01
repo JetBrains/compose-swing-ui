@@ -141,7 +141,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(2, container.componentCount, "the content being left was dropped before its exit ran")
             // Swing paints the highest index first, so index 0 lands on top.
             assertEquals("b", container.contentText(0), "the arriving content did not paint over the one it replaces")
@@ -175,7 +175,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals("a", container.contentText(0), "the z-index did not sort above the composed order")
         }
 
@@ -195,7 +195,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(1, container.componentCount, "two states with one content key were composed twice")
             assertEquals("b", container.contentText(0), "the content did not follow the state it shares a key with")
         }
@@ -233,11 +233,8 @@ class AnimatedContentTest {
                     withFrameMillis { assertTrue(transition.isRunning) }
                 }
             }
-            awaitIdle()
             mainClock.advanceTimeByFrame()
-            awaitIdle()
             mainClock.advanceTimeByFrame()
-            awaitIdle()
             mainClock.autoAdvance = true
             awaitIdle()
             // Check that save worked
@@ -268,7 +265,7 @@ class AnimatedContentTest {
             state = "b"
             val widths =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     container.preferredSize.width
                 }
             assertTrue(widths.any { it in 41..159 }, "the container's size jumped rather than traveled: $widths")
@@ -283,7 +280,7 @@ class AnimatedContentTest {
             state = "a"
             val widthsBack =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     container.preferredSize.width
                 }
             assertTrue(
@@ -356,7 +353,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(1, container.componentCount, "the content key the last recomposition declared was not used")
         }
 
@@ -486,7 +483,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(container.contentAlpha(0) < 1f, "the enter the last recomposition declared did not run")
         }
 
@@ -550,7 +547,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             page = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(2, body.componentCount, "the first container did not run the state change")
             assertEquals(2, footer.componentCount, "the second container did not run the same state change")
             assertEquals("body b", body.contentText(0))
@@ -572,7 +569,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             // Index 0 is the hit-test overlay the scale adds; the arriving and leaving contents follow it.
             assertEquals("b", container.contentText(1))
@@ -603,7 +600,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(FRAMES_PAST_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_PAST_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertEquals(2, container.componentCount, "the held content was dropped as its own exit finished")
             assertEquals("a", container.contentText(1), "the content held over is not the one being left")
 
@@ -630,7 +627,7 @@ class AnimatedContentTest {
             state = "b"
             // The same frame count the held content survives, which is what makes that test's assertion
             // about holding rather than about an exit that has not run out yet.
-            repeat(FRAMES_PAST_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_PAST_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertEquals(1, container.componentCount, "the content being left stood past the end of its exit")
             assertEquals("b", container.contentText(0))
         }
@@ -653,7 +650,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(FRAMES_PAST_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_PAST_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertEquals(2, container.componentCount, "the held content was dropped as its own exit finished")
             assertEquals("a", container.contentText(1))
         }
@@ -669,7 +666,7 @@ class AnimatedContentTest {
      * The offset is sampled two frames in: the arriving content is measured one pass after it is
      * mounted, and the slide has nothing to be set up from until then.
      */
-    private suspend fun ComposeSwingTest.slideIntoContainerOffset(
+    private fun ComposeSwingTest.slideIntoContainerOffset(
         orientation: ComponentOrientation,
         initialOffset: (offsetForFullSlide: Int) -> Int = { it },
     ): Int {
@@ -692,7 +689,7 @@ class AnimatedContentTest {
 
         mainClock.autoAdvance = false
         state = "b"
-        repeat(2) { driveOneFrame() }
+        repeat(2) { mainClock.advanceTimeByFrame() }
         assertEquals("b", container.contentText(0))
         // The content being left exits at once, so the arriving content stands alone at the leading edge but for its
         // slide.
@@ -722,7 +719,7 @@ class AnimatedContentTest {
             )
         }
 
-    private suspend fun ComposeSwingTest.slideOutOfContainerOffset(
+    private fun ComposeSwingTest.slideOutOfContainerOffset(
         towards: AnimatedContentTransitionScope.SlideDirection,
         orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
         contentAlignment: Alignment = Alignment.TopStart,
@@ -752,7 +749,7 @@ class AnimatedContentTest {
 
         mainClock.autoAdvance = false
         state = "b"
-        repeat(FRAMES_PAST_THE_EXIT) { driveOneFrame() }
+        repeat(FRAMES_PAST_THE_EXIT) { mainClock.advanceTimeByFrame() }
         // The content being left was composed first, so it stands behind the arriving one.
         assertEquals("a", container.contentText(1), "the content being left was dropped before its slide settled")
         // Both contents are placed at the alignment inside the room the larger one needs, so the slide is what sets
@@ -780,7 +777,7 @@ class AnimatedContentTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertEquals(
                 2,
                 container.componentCount,

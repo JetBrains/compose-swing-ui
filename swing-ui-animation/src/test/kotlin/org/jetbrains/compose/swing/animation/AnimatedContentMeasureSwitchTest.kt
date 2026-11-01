@@ -43,7 +43,7 @@ class AnimatedContentMeasureSwitchTest {
             }
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val container = onNodeWithTag("animation").fetch<JComponent>()
             val measurable = container as Constrainable
             measurable.measure(Constraints(maxWidth = 360, maxHeight = 240))
@@ -80,7 +80,7 @@ class AnimatedContentMeasureSwitchTest {
             }
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val container = onNodeWithTag("animation").fetch<JComponent>()
             val measurable = container as Constrainable
             measurable.measure(Constraints(maxWidth = 360, maxHeight = 240))

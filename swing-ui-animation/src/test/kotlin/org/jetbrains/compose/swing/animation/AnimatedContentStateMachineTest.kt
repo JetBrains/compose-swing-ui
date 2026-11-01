@@ -59,14 +59,14 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(8) { driveOneFrame() }
+            repeat(8) { mainClock.advanceTimeByFrame() }
             val partway = leaving.paintedAlpha()
             assertTrue(partway < 0.9f, "precondition: the exit was under way, it stood at $partway")
 
             state = "a"
             val alphas =
                 List(6) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     leaving.paintedAlpha()
                 }
             assertSame(
@@ -112,7 +112,7 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(8) { driveOneFrame() }
+            repeat(8) { mainClock.advanceTimeByFrame() }
 
             assertTrue(
                 Dimension(NARROW_WIDTH, BODY_HEIGHT) to Dimension(WIDE_WIDTH, BODY_HEIGHT) in asked,
@@ -143,7 +143,7 @@ class AnimatedContentStateMachineTest {
             state = "b"
             val widths =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     animatedContainer().fetch().preferredSize.width
                 }
 
@@ -173,7 +173,7 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertEquals(
                 Dimension(57, BODY_HEIGHT),
                 animatedContainer().fetch().size,
@@ -213,7 +213,7 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val container = animatedContainer().onChild()
             assertEquals(
                 Dimension(57, BODY_HEIGHT),
@@ -274,7 +274,7 @@ class AnimatedContentStateMachineTest {
         state = to
         val sizes =
             List(8) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 eachFrame()
                 Dimension(container.fetch().size)
             }
@@ -303,10 +303,10 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(30) { driveOneFrame() }
+            repeat(30) { mainClock.advanceTimeByFrame() }
             val leaf = onNodeOfType<GrowingLeaf>()
             leaf.assertProperty(ROOM_WIDTH, "the content grows to the room its parent offers and no further") { width }
-            repeat(5) { driveOneFrame() }
+            repeat(5) { mainClock.advanceTimeByFrame() }
 
             leaf.assertProperty(ROOM_WIDTH, "the content holds still once the transition ended") { width }
         }
@@ -341,7 +341,7 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             // The default enter's scale is mid-travel, so a hit-test overlay stands alongside both contents.
             animatedContainer().onChildren().assertCountEquals(3)
             animatedContainer().assertProperty(
@@ -393,15 +393,15 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
             animatedContainer().onChildren().assertCountEquals(1)
 
             state = "a"
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val returning = panelShowing("a").fetch()
             val offsets =
                 List(4) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     returning.x
                 }
             assertTrue(
@@ -442,7 +442,7 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val fixed = panelShowing("b").fetch<Container>()
             val placed = fixed.getComponent(0).location
             assertFixedWhileSliding(fixed, placed)
@@ -476,7 +476,7 @@ class AnimatedContentStateMachineTest {
             state = "b"
             val widths =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     animatedContainer().fetch().preferredSize.width
                 }
 
@@ -515,7 +515,7 @@ class AnimatedContentStateMachineTest {
                 }
             }
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 1,
                 assertNotNull(scope, "the transition spec was never read").targetSizeMap.size,
@@ -524,7 +524,7 @@ class AnimatedContentStateMachineTest {
 
             for (next in 1..5) {
                 state = next
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
             }
             val kept = assertNotNull(scope, "the transition spec was never read").targetSizeMap.size
             assertTrue(
@@ -538,13 +538,13 @@ class AnimatedContentStateMachineTest {
      * Asserts that the content standing in [fixed], whose half of the transition moves it nowhere, holds
      * the place at [placed] over the frames a sliding sibling visibly travels.
      */
-    private suspend fun ComposeSwingTest.assertFixedWhileSliding(
+    private fun ComposeSwingTest.assertFixedWhileSliding(
         fixed: Container,
         placed: Point,
     ) {
         val sliding = mutableListOf<Int>()
         repeat(6) {
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             sliding += panelShowing("a").fetch().x
             assertSame(fixed, panelShowing("b").fetch(), "the content the interruption left in place was rebuilt")
             panelShowing("b").assertProperty(

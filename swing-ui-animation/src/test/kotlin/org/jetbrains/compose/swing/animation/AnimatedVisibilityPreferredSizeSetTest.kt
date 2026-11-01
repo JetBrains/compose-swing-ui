@@ -43,7 +43,7 @@ class AnimatedVisibilityPreferredSizeSetTest {
         ) {
             val offsets =
                 List(10) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     onNodeWithTag("below").fetch().y
                 }
             val moving = offsets.dropWhile { it == 0 }

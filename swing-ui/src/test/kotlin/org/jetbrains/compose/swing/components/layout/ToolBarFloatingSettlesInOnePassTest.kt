@@ -49,7 +49,6 @@ class ToolBarFloatingSettlesInOnePassTest {
 
             mainClock.autoAdvance = false
             shown = true
-            awaitIdle()
             mainClock.advanceTimeByFrame()
 
             val bar = assertNotNull(toolBarIn(frame), "the pass declaring the bar should mount it")

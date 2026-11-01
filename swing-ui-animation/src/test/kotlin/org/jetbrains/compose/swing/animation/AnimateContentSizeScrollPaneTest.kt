@@ -59,7 +59,7 @@ class AnimateContentSizeScrollPaneTest {
             repeat(2) {
                 onNodeWithText("More").performClick()
                 // A few frames leave each animation running well short of the size it aims at.
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
             }
             mainClock.autoAdvance = true
             awaitIdle()

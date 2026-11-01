@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.samples.widgets.navigation
 
 import org.jetbrains.compose.swing.samples.widgets.ShowcaseShell
-import org.jetbrains.compose.swing.samples.widgets.animation.driveFramesIntoTheTransition
 import org.jetbrains.compose.swing.samples.widgets.onSectionList
 import org.jetbrains.compose.swing.samples.widgets.showcaseSections
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -80,7 +79,7 @@ class ShowcaseShellNavigationTest {
 
             mainClock.autoAdvance = false
             onNodeWithText("Hide sidebar").performClick()
-            driveFramesIntoTheTransition()
+            mainClock.advanceTimeUntil { onSectionList().fetch<Component>().animatedContainer().width < shownWidth }
             val midwayWidth = onSectionList().fetch<Component>().animatedContainer().width
             assertTrue(midwayWidth in 1 until shownWidth, "the sidebar jumped straight to nothing: $midwayWidth")
 

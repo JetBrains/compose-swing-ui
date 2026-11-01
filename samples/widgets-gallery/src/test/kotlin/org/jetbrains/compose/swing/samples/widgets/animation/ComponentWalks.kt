@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.samples.widgets.animation
 
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Component
 import java.awt.Container
 import java.awt.Insets
@@ -35,14 +34,3 @@ internal fun Component.xInRoot(root: Component): Int {
     val outsets = page.paintOutsets().left - page.parent.paintOutsets().left
     return SwingUtilities.convertPoint(parent, location, root).x + outsets
 }
-
-/**
- * Runs the frames a reading is taken on. A medium-low stiffness spring is nowhere near its target this
- * early, so what the animation puts on screen is still plainly apart from where it settles.
- */
-internal suspend fun ComposeSwingTest.driveFramesIntoTheTransition() =
-    repeat(3) {
-        awaitIdle()
-        mainClock.advanceTimeByFrame()
-        awaitIdle()
-    }

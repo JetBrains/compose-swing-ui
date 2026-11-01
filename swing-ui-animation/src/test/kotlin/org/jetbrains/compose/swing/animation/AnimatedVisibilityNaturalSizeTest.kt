@@ -49,11 +49,11 @@ class AnimatedVisibilityNaturalSizeTest {
             setContent { Region(parent, visible, change.enter) }
             mainClock.autoAdvance = false
             visible = true
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertWithinAssignedBounds(parent, "while entering")
             if (change.resizesParent) {
                 parent = Dimension(PARENT.width + 20, PARENT.height)
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
                 assertWithinAssignedBounds(parent, "after the parent resized")
             }
             assertSettledAt(parent)
@@ -76,14 +76,14 @@ class AnimatedVisibilityNaturalSizeTest {
             }
             mainClock.autoAdvance = false
             visible = true
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             onNodeWithTag(CONTENT).assertProperty(PARENT, "a fade-only enter changes no size") { size }
 
             mainClock.autoAdvance = true
             awaitIdle()
             mainClock.autoAdvance = false
             visible = false
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertWithinAssignedBounds(PARENT, "while exiting")
         }
 
@@ -94,11 +94,11 @@ class AnimatedVisibilityNaturalSizeTest {
             setContent { Region(PARENT, visible, expandIn(tween(LONG)), fadeOut(tween(2 * LONG))) }
             mainClock.autoAdvance = false
             visible = true
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             visible = false
             val fadeFrames = 2 * LONG / FRAME_MILLIS
             repeat(fadeFrames + 3) { frame ->
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 val present = onAllNodesWithTag(CONTENT).fetchSize() > 0
                 if (frame < fadeFrames - 6) assertTrue(present, "frame $frame: the fade has not ended")
                 if (present) {
@@ -125,10 +125,10 @@ class AnimatedVisibilityNaturalSizeTest {
 
         mainClock.autoAdvance = false
         visible = false
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         assertWithinAssignedBounds(PARENT, "while exiting")
         visible = true
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         onNodeWithTag(CONTENT).assertProperty(PARENT, "re-entry keeps the content within assigned bounds") { size }
 
         mainClock.autoAdvance = true
@@ -145,12 +145,12 @@ class AnimatedVisibilityNaturalSizeTest {
                 exit = fadeOut(tween(2 * LONG)),
             ) { scene ->
                 scene.visible = true
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
                 scene.visible = false
-                repeat(LONG / FRAME_MILLIS + 3) { driveOneFrame() }
+                repeat(LONG / FRAME_MILLIS + 3) { mainClock.advanceTimeByFrame() }
                 assertEquals(listOf(PARENT), scene.sizes, "actual size remains the parent's assigned region")
                 scene.visible = true
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
                 assertEquals(listOf(PARENT), scene.sizes, "the interrupted transition keeps assigned content size")
                 mainClock.autoAdvance = true
                 awaitIdle()
@@ -169,9 +169,9 @@ class AnimatedVisibilityNaturalSizeTest {
             ) { scene ->
                 assertEquals(listOf(PARENT), scene.sizes, "settled content fits the parent's space")
                 scene.visible = false
-                repeat(LONG / 2 / FRAME_MILLIS) { driveOneFrame() }
+                repeat(LONG / 2 / FRAME_MILLIS) { mainClock.advanceTimeByFrame() }
                 scene.visible = true
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
                 assertEquals(listOf(PARENT), scene.sizes, "the interrupted transition keeps assigned content size")
                 mainClock.autoAdvance = true
                 awaitIdle()
@@ -190,9 +190,9 @@ class AnimatedVisibilityNaturalSizeTest {
                 exit = shrinkOut(tween(LONG)),
             ) { scene ->
                 scene.visible = true
-                repeat(3) { driveOneFrame() }
+                repeat(3) { mainClock.advanceTimeByFrame() }
                 scene.parent = narrowed
-                repeat(2 * LONG / FRAME_MILLIS + 3) { driveOneFrame() }
+                repeat(2 * LONG / FRAME_MILLIS + 3) { mainClock.advanceTimeByFrame() }
             }
 
         assertEquals(listOf(PARENT, narrowed), sizes, "actual content follows assigned bounds during the fade")
@@ -214,7 +214,7 @@ class AnimatedVisibilityNaturalSizeTest {
                 }
             }
             mainClock.autoAdvance = false
-            repeat(2 * LONG / FRAME_MILLIS - 3) { driveOneFrame() }
+            repeat(2 * LONG / FRAME_MILLIS - 3) { mainClock.advanceTimeByFrame() }
             assertEquals(listOf(PARENT), sizes, "the exit keeps actual content at its assigned size")
         }
 
@@ -239,7 +239,7 @@ class AnimatedVisibilityNaturalSizeTest {
             mainClock.autoAdvance = false
             shown = true
             repeat(TRANSITION_MILLIS / FRAME_MILLIS + 4) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 onNodeWithTag(CONTENT).assertProperty(100, "the entering content is capped on every frame") { width }
             }
         }

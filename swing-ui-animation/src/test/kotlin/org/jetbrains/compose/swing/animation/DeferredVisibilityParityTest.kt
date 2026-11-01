@@ -192,7 +192,7 @@ class DeferredVisibilityParityTest {
             state.animateTo(true)
             advanceTimeBy(50)
             assertEquals(EnterExitState.PreEnter, childState)
-            repeat(70) { driveOneFrame() }
+            repeat(70) { mainClock.advanceTimeByFrame() }
             assertEquals(EnterExitState.Visible, childState)
         }
 
@@ -267,13 +267,13 @@ class DeferredVisibilityParityTest {
             }
             mainClock.autoAdvance = false
             state.animateTo(true)
-            repeat(5) { driveOneFrame() }
+            repeat(5) { mainClock.advanceTimeByFrame() }
             val sizeBeforeDeferredExit = animatedSize.width
             assertTrue(sizeBeforeDeferredExit > 0)
 
             state.defer(false)
-            repeat(3) { driveOneFrame() }
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val sizeWhileExitIsHeld = animatedSize.width
             assertTrue(
                 sizeWhileExitIsHeld > sizeBeforeDeferredExit,
@@ -281,14 +281,14 @@ class DeferredVisibilityParityTest {
             )
 
             state.animateTo(false)
-            repeat(5) { driveOneFrame() }
+            repeat(5) { mainClock.advanceTimeByFrame() }
             val sizeBeforeExit = animatedSize.width
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 animatedSize.width < sizeBeforeExit,
                 "the size did not decrease after the exit gate opened",
             )
-            repeat(70) { driveOneFrame() }
+            repeat(70) { mainClock.advanceTimeByFrame() }
             assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
         }
 
@@ -322,7 +322,7 @@ class DeferredVisibilityParityTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             assertEquals(fullWidth / 2, deferredContainer().paintedWidth())
         }
 
@@ -355,7 +355,7 @@ class DeferredVisibilityParityTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             assertEquals(10, paintedDeferredContentLeft())
         }
 
@@ -383,16 +383,16 @@ class DeferredVisibilityParityTest {
 
             mainClock.autoAdvance = false
             state.defer(false)
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             previewScale = 0.5f
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(fullWidth / 2, deferredContainer().paintedWidth())
 
             state.animateTo(false)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             val width = deferredContainer().paintedWidth()
             assertTrue(width in 1 until fullWidth / 2, "the exit did not carry the preview scale down: $width")
-            repeat(70) { driveOneFrame() }
+            repeat(70) { mainClock.advanceTimeByFrame() }
             assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
         }
 
@@ -420,17 +420,17 @@ class DeferredVisibilityParityTest {
             state.defer(true)
             awaitIdle()
             previewOffset = 10
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(DEFERRED_BLOCK_WIDTH + 10, paintedDeferredContentLeft())
 
             mainClock.autoAdvance = false
             state.animateTo(true)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 paintedDeferredContentLeft() in 1 until DEFERRED_BLOCK_WIDTH + 10,
                 "the enter did not carry the preview offset in: ${paintedDeferredContentLeft()}",
             )
-            repeat(70) { driveOneFrame() }
+            repeat(70) { mainClock.advanceTimeByFrame() }
             assertEquals(0, paintedDeferredContentLeft())
         }
 
@@ -456,17 +456,17 @@ class DeferredVisibilityParityTest {
             }
             mainClock.autoAdvance = false
             state.animateTo(true)
-            repeat(30) { driveOneFrame() }
+            repeat(30) { mainClock.advanceTimeByFrame() }
             val widthDuringEnter = deferredContainer().paintedWidth()
             assertTrue(widthDuringEnter in 1 until 100)
 
             previewScale = 0.5f
             state.defer(false)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val widthWithPreview = deferredContainer().paintedWidth()
             assertTrue(widthWithPreview < widthDuringEnter)
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val widthOnNextFrame = deferredContainer().paintedWidth()
             assertTrue(
                 widthOnNextFrame > widthWithPreview,
@@ -500,26 +500,26 @@ class DeferredVisibilityParityTest {
 
             state.defer(false)
             previewScale = 0.5f
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             assertEquals(fullWidth / 2, deferredContainer().paintedWidth())
 
             state.animateTo(false)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             val widthDuringExit = deferredContainer().paintedWidth()
             assertEquals(fullWidth / 2, widthDuringExit)
 
             applyScalePreview = false
             state.defer(true)
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             val widthAfterSecondPreview = deferredContainer().paintedWidth()
             state.animateTo(true)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 widthAfterSecondPreview < fullWidth * 0.9f,
                 "the scale snapped to full size after the second preview: " +
                     "$widthDuringExit -> $widthAfterSecondPreview of $fullWidth",
             )
-            repeat(70) { driveOneFrame() }
+            repeat(70) { mainClock.advanceTimeByFrame() }
             assertEquals(fullWidth, deferredContainer().paintedWidth())
         }
 
@@ -548,20 +548,20 @@ class DeferredVisibilityParityTest {
 
             state.defer(false)
             previewScale = 0.8f
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals((fullWidth * 0.8f).toInt(), deferredContainer().paintedWidth())
 
             state.animateTo(false)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             advanceTimeBy(500)
             val widthBeforeInterruption = deferredContainer().paintedWidth()
             assertEquals(fullWidth * 0.4f, widthBeforeInterruption.toFloat(), 5f)
 
             state.animateTo(true)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val widthAfterInterruption = deferredContainer().paintedWidth()
             assertEquals(widthBeforeInterruption.toFloat(), widthAfterInterruption.toFloat(), 5f)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             assertTrue(deferredContainer().paintedWidth() > widthAfterInterruption)
             mainClock.autoAdvance = true
             awaitIdle()
@@ -589,11 +589,11 @@ class DeferredVisibilityParityTest {
             mainClock.autoAdvance = false
 
             state.defer(false)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(10, paintedDeferredContentLeft())
             velocity = Point2D.Float(2000f, 0f)
             state.animateTo(false)
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val xWithVelocity = paintedDeferredContentLeft()
 
             mainClock.autoAdvance = true
@@ -602,10 +602,10 @@ class DeferredVisibilityParityTest {
             mainClock.autoAdvance = false
             velocity = Point2D.Float()
             state.defer(false)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(10, paintedDeferredContentLeft())
             state.animateTo(false)
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val xWithoutVelocity = paintedDeferredContentLeft()
             assertTrue(
                 xWithVelocity > xWithoutVelocity,
@@ -638,14 +638,14 @@ class DeferredVisibilityParityTest {
 
             state.defer(false)
             previewScale = 0.8f
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(fullWidth * 0.8f, deferredContainer().paintedWidth().toFloat(), 1f)
 
             state.animateTo(true)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val widthAfterInterruption = deferredContainer().paintedWidth()
             assertEquals((fullWidth * 0.8f).toInt(), widthAfterInterruption)
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             assertTrue(deferredContainer().paintedWidth() > widthAfterInterruption)
             mainClock.autoAdvance = true
             awaitIdle()

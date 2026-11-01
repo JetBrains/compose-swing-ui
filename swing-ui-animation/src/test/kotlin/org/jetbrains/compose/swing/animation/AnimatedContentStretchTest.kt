@@ -110,7 +110,7 @@ internal class AnimatedContentStretchTest {
             mainClock.autoAdvance = false
             state = "b"
             // The exit ends within these frames and the enter outlasts them.
-            repeat(20) { driveOneFrame() }
+            repeat(20) { mainClock.advanceTimeByFrame() }
 
             val leaving = onNodeWithText("a").fetch().parent
             val arriving = onNodeWithText("b").fetch().parent

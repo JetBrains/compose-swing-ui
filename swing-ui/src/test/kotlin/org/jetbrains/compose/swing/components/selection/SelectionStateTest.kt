@@ -59,7 +59,6 @@ class SelectionStateTest {
         assertEquals(emptyList<Int>(), list.selectedIndices.toList(), "a state naming no row selects none")
 
         state.selectedIndices = setOf(0, 2)
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -157,7 +156,6 @@ class SelectionStateTest {
 
         state.expandedPaths = setOf(emptyList(), listOf(0))
         state.selectedPaths = setOf(listOf(0, 0))
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertTrue(

@@ -526,15 +526,7 @@ awaitIdle()
 onNodeOfType<JLabel>().assertTextEquals("halfway")
 ```
 
-With `autoAdvance` off, `awaitIdle()` — and `waitUntil { … }` with it — drains pending recomposition,
-snapshot and event-dispatch work but produces no frame of its own, so it returns on exactly the state
-a frame would have moved past.
-`advanceTimeByFrame()` sends one frame; `advanceTimeBy(duration)` steps in whole frames until
-`currentTime` has advanced by at least `duration`, or delivers the whole span as a single frame with
-`ignoreFrameDuration = true`; `advanceTimeUntil { … }` sends frames until a condition holds, failing
-once it has advanced past its `timeout` of composition time. `frameDuration` is one frame of a 60Hz
-display — the step every frame the harness sends advances composition time by, not the host display's
-refresh rate.
+With `autoAdvance` off, `awaitIdle()` — and `waitUntil { … }` with it — drains pending recomposition, snapshot and event-dispatch work but produces no frame of its own, so it returns on exactly the state a frame would have moved past. `advanceTimeByFrame()` sends one frame at the normal cadence. `advanceTimeByFrame(duration)` sends one frame after the given duration. Earlier state writes are applied by that frame. `advanceTimeBy(duration)` rounds up to whole frame durations by default. With `ignoreFrameDuration = true`, it advances by exactly the given duration while sending frames at the normal cadence. Earlier writes are applied by the first frame sent. `advanceTimeUntil { ... }` sends frames until a condition holds, failing once it reaches its timeout. `frameDuration` is one frame of a 60Hz display. Coroutine delays use real time.
 
 An animation that never ends, such as one built on `rememberInfiniteTransition` or an `infiniteRepeatable`
 spec, is cancelled at its first frame while `autoAdvance` is on, because a gate waiting for it to become

@@ -164,7 +164,7 @@ class AnimatedVisibilityStockParentSizeTest {
         }
         mainClock.autoAdvance = false
         shown = true
-        repeat((RESIZE_MILLIS.milliseconds / mainClock.frameDuration).toInt() + 1) { driveOneFrame() }
+        repeat((RESIZE_MILLIS.milliseconds / mainClock.frameDuration).toInt() + 1) { mainClock.advanceTimeByFrame() }
         awaitIdle()
 
         onNodeWithTag(CONTAINER).assertProperty(

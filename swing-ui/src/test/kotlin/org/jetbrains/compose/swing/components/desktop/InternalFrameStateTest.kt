@@ -74,7 +74,6 @@ class InternalFrameStateTest {
         // The frame's geometry is read where the frame is composed, so a write into the state invalidates
         // that one scope and the pass it provokes is what places the frame.
         state.bounds = Rectangle(40, 50, 250, 150)
-        awaitIdle()
         mainClock.advanceTimeByFrame()
         assertEquals(
             Rectangle(40, 50, 250, 150),
@@ -84,7 +83,6 @@ class InternalFrameStateTest {
 
         state.x = 5
         state.height = 90
-        awaitIdle()
         mainClock.advanceTimeByFrame()
         assertEquals(
             Rectangle(5, 50, 250, 90),

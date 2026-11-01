@@ -95,7 +95,6 @@ class TreeExpansionTest {
 
         // Every node the state leaves out collapses again: the expansion is set, not only added to.
         state.expandedPaths = setOf(emptyList(), listOf(0))
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertTrue(

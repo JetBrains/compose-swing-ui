@@ -117,25 +117,19 @@ internal fun ComposeSwingTest.layOutAgain(child: Component) {
     root.validate()
 }
 
-/** Advances the clock by [duration] in a single frame, and waits for the work that frame started. */
-internal suspend fun ComposeSwingTest.advanceOneFrameBy(duration: Duration) {
-    mainClock.advanceTimeBy(duration, ignoreFrameDuration = true)
-    awaitIdle()
-}
-
 /**
  * Asserts what holds 1 ms before [deadline], a composition time, and what holds at it.
  *
  * [stillRunning] states the first and [ended] the second.
  */
-internal suspend fun ComposeSwingTest.assertEndsAt(
+internal fun ComposeSwingTest.assertEndsAt(
     deadline: Duration,
     stillRunning: () -> Unit,
     ended: () -> Unit,
 ) {
-    advanceOneFrameBy(deadline - 1.milliseconds - mainClock.currentTime)
+    mainClock.advanceTimeByFrame(deadline - 1.milliseconds - mainClock.currentTime)
     stillRunning()
-    advanceOneFrameBy(1.milliseconds)
+    mainClock.advanceTimeByFrame(1.milliseconds)
     ended()
 }
 
@@ -175,11 +169,11 @@ internal suspend fun ComposeSwingTest.assertRetargetedCurve(
 ) {
     val body = onNodeWithTag("body").fetch<JLabel>()
     resizeBeforeFrame(body, growingSizes(layouts))
-    driveOneFrame()
+    mainClock.advanceTimeByFrame()
     val firstFrame = mainClock.currentTime
-    advanceOneFrameBy(300.milliseconds)
+    mainClock.advanceTimeByFrame(300.milliseconds)
     val target = body.preferredSize
-    advanceOneFrameBy(380.milliseconds)
+    mainClock.advanceTimeByFrame(380.milliseconds)
     assertEquals(
         (startWidth + (target.width - startWidth) * 0.68f).roundToInt(),
         allocatedWidth(),
@@ -216,7 +210,7 @@ private fun <S> historyAcrossFrames(
             resizeOnNextFrame.Install()
         }
         changed = true
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val child = onNodeWithTag("body").fetch<JLabel>()
         body = child
         val beforeFirstFrame = observe()
@@ -229,15 +223,15 @@ private fun <S> historyAcrossFrames(
             )
         }
         history += observe()
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         history += observe()
         for (sizes in resizes.perFrame) {
             resizeOnNextFrame.sizes = sizes
-            advanceOneFrameBy(300.milliseconds)
+            mainClock.advanceTimeByFrame(300.milliseconds)
             history += observe()
         }
         for (elapsed in listOf(1, 199, 200, 200, 200, 199, 1, 200, 200, 200)) {
-            advanceOneFrameBy(elapsed.milliseconds)
+            mainClock.advanceTimeByFrame(elapsed.milliseconds)
             history += observe()
         }
     }
@@ -268,15 +262,15 @@ private fun <S> historyBeforePlacement(
             resizeOnNextFrame.Install()
         }
         changed = true
-        repeat(2) { driveOneFrame() }
+        repeat(2) { mainClock.advanceTimeByFrame() }
         body = onNodeWithTag("body").fetch<JLabel>()
         for (sizes in resizes.perFrame) {
             resizeOnNextFrame.sizes = sizes
-            advanceOneFrameBy(300.milliseconds)
+            mainClock.advanceTimeByFrame(300.milliseconds)
             history += observe()
         }
         repeat(8) {
-            advanceOneFrameBy(200.milliseconds)
+            mainClock.advanceTimeByFrame(200.milliseconds)
             history += observe()
         }
     }

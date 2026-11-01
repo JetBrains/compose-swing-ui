@@ -57,10 +57,10 @@ class AnimatedContentNaturalSizeTest {
         }
         mainClock.autoAdvance = false
         state = "block"
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         if (replacement.interruptedByFade) state = "other"
         if (replacement.widensParent) parentWidth += PARENT.width / 4
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
 
         val assigned = Dimension(parentWidth, PARENT.height)
         assertWithinAssignedBounds(assigned, "while the replacement runs")
@@ -88,7 +88,7 @@ class AnimatedContentNaturalSizeTest {
             mainClock.autoAdvance = false
             val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
             state = "block"
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             val interrupted = container.preferredSize
             val other = contentSizes.getValue("other")
             assertTrue(
@@ -99,7 +99,7 @@ class AnimatedContentNaturalSizeTest {
             state = "other"
             val requests = mutableListOf<Dimension>()
             repeat(4) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 requests += container.preferredSize
             }
 

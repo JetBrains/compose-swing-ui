@@ -308,7 +308,6 @@ class SplitPaneBehaviorTest {
         assertEquals(120, pane.dividerLocation, "the divider should start at the controlled location")
 
         location = 200
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

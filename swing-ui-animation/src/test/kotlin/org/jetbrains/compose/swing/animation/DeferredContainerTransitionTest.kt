@@ -200,9 +200,9 @@ class DeferredContainerTransitionTest {
             // the one the announced change names and not the one the running segment does.
             mainClock.autoAdvance = false
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             state.defer("a")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertTrue(
                 "b" to "a" in announced,
@@ -247,7 +247,7 @@ class DeferredContainerTransitionTest {
 
             mainClock.autoAdvance = false
             state.animateTo("c")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 2,
                 onAllNodesWithTag("deferredVisibility").fetchAll().size,
@@ -265,7 +265,7 @@ class DeferredContainerTransitionTest {
             // The settled transition dropped the hold, so a later change composes nothing the phase named.
             mainClock.autoAdvance = false
             state.animateTo("a")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 1,
                 onAllNodesWithTag("deferredVisibility").fetchAll().size,
@@ -287,11 +287,11 @@ class DeferredContainerTransitionTest {
 
             mainClock.autoAdvance = false
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(2, container.componentCount, "the content of the target state was not composed")
 
             state.defer("c")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 3,
                 container.componentCount,
@@ -325,7 +325,7 @@ class DeferredContainerTransitionTest {
 
             mainClock.autoAdvance = false
             state.animateTo("b")
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val announcing = container.width
             assertTrue(
                 announcing in WIDTHS.getValue("a") + 1 until WIDTHS.getValue("b"),
@@ -335,7 +335,7 @@ class DeferredContainerTransitionTest {
             // The phase leaves the transition standing still, and the size it was traveling towards is
             // the size of the state it is animating to and not of the state the phase announces.
             state.defer("c")
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 container.width > announcing,
                 "the announced state stopped the size the running transition was traveling towards, " +

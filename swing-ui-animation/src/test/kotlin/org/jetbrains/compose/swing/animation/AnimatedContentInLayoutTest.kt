@@ -94,7 +94,7 @@ class AnimatedContentInLayoutTest {
 
         mainClock.autoAdvance = false
         state = "large"
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(parent.expected, onNodeWithTag("large-half-fill").fetch().size, parent.claim)
     }
@@ -127,7 +127,7 @@ class AnimatedContentInLayoutTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             val animated = onNodeWithTag("animated").fetch<Container>()
             val content = onNodeWithTag("content-b").fetch<JComponent>()
@@ -207,8 +207,8 @@ class AnimatedContentInLayoutTest {
 
         mainClock.autoAdvance = false
         state = "b"
-        driveOneFrame()
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(expected, boundsIn(stockParent, "content-a"), "the exiting content mid-transition")
         if (container == "AnimatedContent") {

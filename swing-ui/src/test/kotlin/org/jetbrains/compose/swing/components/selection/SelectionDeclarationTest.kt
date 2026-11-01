@@ -393,7 +393,6 @@ class SelectionDeclarationTest {
         assertEquals(listOf("pear"), tree.selectedLabels(), "the user's choice reaches the widget")
 
         label = "second"
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -418,7 +417,6 @@ class SelectionDeclarationTest {
         assertEquals(listOf("apple"), tree.selectedLabels(), "the tree opens on the node it first names")
 
         selection = setOf(listOf(1))
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

@@ -37,35 +37,42 @@ public sealed interface MainTestClock {
      */
     public var autoAdvance: Boolean
 
-    /** The composition time reached by the frames sent so far, whichever call sent them. */
+    /** The current composition time. */
     public val currentTime: Duration
 
     /**
-     * The duration a single frame advances [currentTime] by: one frame of a 60Hz display, whichever
-     * gate sent it - not the host display's refresh rate.
+     * The normal frame interval, equal to one frame of a 60Hz display.
      */
     public val frameDuration: Duration
 
     /**
-     * Sends one frame, advancing [currentTime] by [frameDuration], and returns once the frame's
-     * effects have propagated as far as they can without another one.
+     * Sends one frame at the normal frame cadence, advancing [currentTime] by [frameDuration], and
+     * returns once the frame's effects have propagated as far as they can without another one. Earlier state writes are
+     * recomposed and applied by this frame.
      */
     public fun advanceTimeByFrame()
 
     /**
+     * Sends one frame after [duration] has elapsed on the clock. Earlier state writes are recomposed
+     * and applied by this frame.
+     *
+     * @param duration the composition time to add before sending the frame.
+     * @throws IllegalArgumentException if [duration] is negative or not finite.
+     */
+    public fun advanceTimeByFrame(duration: Duration)
+
+    /**
      * Advances [currentTime] by [duration].
      *
-     * Steps in [frameDuration] increments, sending one frame per step, until [currentTime] has
-     * advanced by at least [duration] - so the final step can land past the target by less than a
-     * frame. Set [ignoreFrameDuration] to deliver the whole [duration] in a single frame instead.
+     * Advances in [frameDuration] increments by default, rounding [duration] up to a whole frame.
+     * When [ignoreFrameDuration] is true, advances by exactly [duration] instead. Frames are sent
+     * at the normal frame cadence. Earlier state writes are recomposed and applied by the first frame.
+     * Coroutine delays use real time.
      *
-     * @param duration the composition time to add; nothing waits in real time for it to pass.
-     * @param ignoreFrameDuration `true` delivers [duration] as a single frame, which lands
-     *   [currentTime] exactly on the target rather than up to a frame past it; `false` by default.
-     * @throws IllegalArgumentException if [duration] is negative or not finite. Composition time only
-     * moves forward by a duration frames can actually step through: the frames a composition is sent
-     * carry a monotonically rising time, and [Duration.INFINITE] (or a `NaN` duration) has no frame
-     * count that reaches it.
+     * @param duration the composition time to add.
+     * @param ignoreFrameDuration true advances by exactly [duration] instead of rounding up to whole frames;
+     * frames still go out at the normal cadence; false by default.
+     * @throws IllegalArgumentException if [duration] is negative or not finite.
      */
     public fun advanceTimeBy(
         duration: Duration,
@@ -95,6 +102,8 @@ public class ComposeTimeoutException(
 /**
  * @param currentTimeNanos reads the shared frame-time counter every frame this clock or the harness's
  * own gates advance.
+ * @param lastFrameTimeNanos reads the time of the most recently sent frame.
+ * @param advanceTime advances the clock without sending a frame.
  * @param runFrame publishes pending snapshot writes, advances the shared frame-time counter by
  * the given number of nanoseconds, sends the result as a frame, and - without suspending - blocks
  * until the frame's effects have propagated as far as they can without another one: recomposed and
@@ -110,6 +119,8 @@ public class ComposeTimeoutException(
  */
 internal class MainTestClockImpl(
     private val currentTimeNanos: () -> Long,
+    private val lastFrameTimeNanos: () -> Long,
+    private val advanceTime: (Long) -> Unit,
     private val runFrame: (deltaNanos: Long, caller: String) -> Unit,
     private val diagnostics: () -> String,
     private val throwFailure: () -> Unit,
@@ -122,21 +133,50 @@ internal class MainTestClockImpl(
     override val frameDuration: Duration = FRAME_DURATION
 
     override fun advanceTimeByFrame() {
-        runFrame(frameDuration.inWholeNanoseconds, "mainClock.advanceTimeByFrame")
+        advanceOnFrameCadence(frameDuration.inWholeNanoseconds, "mainClock.advanceTimeByFrame")
+    }
+
+    override fun advanceTimeByFrame(duration: Duration) {
+        requireValidDuration(duration)
+        runFrame(duration.inWholeNanoseconds, "mainClock.advanceTimeByFrame")
     }
 
     override fun advanceTimeBy(
         duration: Duration,
         ignoreFrameDuration: Boolean,
     ) {
+        requireValidDuration(duration)
+        val frameNanos = frameDuration.inWholeNanoseconds
+        val durationNanos = duration.inWholeNanoseconds
+        val roundedNanos =
+            if (ignoreFrameDuration || durationNanos % frameNanos == 0L) {
+                durationNanos
+            } else {
+                durationNanos + frameNanos - durationNanos % frameNanos
+            }
+        advanceOnFrameCadence(roundedNanos, "mainClock.advanceTimeBy")
+    }
+
+    private fun advanceOnFrameCadence(
+        nanos: Long,
+        caller: String,
+    ) {
+        val frameNanos = frameDuration.inWholeNanoseconds
+        var remaining = nanos
+        while (remaining > 0) {
+            val untilFrame = frameNanos - (currentTimeNanos() - lastFrameTimeNanos())
+            if (remaining < untilFrame) {
+                advanceTime(remaining)
+                return
+            }
+            runFrame(untilFrame, caller)
+            remaining -= untilFrame
+        }
+    }
+
+    private fun requireValidDuration(duration: Duration) {
         require(duration.isFinite() && !duration.isNegative()) {
             "Cannot advance composition time by a duration that is negative or not finite: $duration."
-        }
-        if (ignoreFrameDuration) {
-            runFrame(duration.inWholeNanoseconds, "mainClock.advanceTimeBy")
-        } else {
-            val target = currentTime + duration
-            while (currentTime < target) advanceTimeByFrame()
         }
     }
 
@@ -160,8 +200,8 @@ internal class MainTestClockImpl(
 
     internal companion object {
         /**
-         * One frame of a 60Hz display, the step every frame the harness sends advances composition
-         * time by. Only its monotonic progression matters to frame-driven effects.
+         * The default frame interval, equal to one frame of a 60Hz display.
+         * Only its monotonic progression matters to frame-driven effects.
          */
         val FRAME_DURATION: Duration = 1.seconds / 60
     }

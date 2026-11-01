@@ -13,11 +13,16 @@ import org.jetbrains.compose.swing.animation.core.infiniteRepeatable
 import org.jetbrains.compose.swing.animation.core.rememberInfiniteTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -29,6 +34,119 @@ import kotlin.time.Duration.Companion.seconds
  * autoAdvance is turned off - while the explicit-advance API is what is left to move either forward.
  */
 class MainTestClockTest {
+    @ParameterizedTest
+    @MethodSource("frameAdvances")
+    fun earlierWritesReachTheFrame(case: FrameAdvance) = runComposeSwingTest {
+        var text by mutableStateOf("before")
+        val frames = mutableListOf<Long>()
+        mainClock.autoAdvance = false
+        setContent {
+            Label(text = text)
+            LaunchedEffect(Unit) {
+                while (true) withFrameNanos { frames.add(it) }
+            }
+        }
+        val start = mainClock.currentTime
+        val duration = case.step(mainClock)
+
+        for (value in listOf("first", "second")) {
+            text = value
+            case.advance(mainClock, duration)
+            onNodeWithText(value).assertExists()
+            assertEquals(mainClock.currentTime.inWholeNanoseconds, frames.last())
+        }
+        assertEquals(
+            listOf((start + duration).inWholeNanoseconds, (start + duration * 2).inWholeNanoseconds),
+            frames,
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cadenceAdvances")
+    fun advancesKeepFrameCadence(
+        ignoreFrameDuration: Boolean,
+        framesAfterExactAdvance: Int,
+    ) = runComposeSwingTest {
+        val frames = mutableListOf<Long>()
+        mainClock.autoAdvance = false
+        setContent {
+            LaunchedEffect(Unit) {
+                while (true) withFrameNanos { frames.add(it) }
+            }
+        }
+        val start = mainClock.currentTime
+        mainClock.advanceTimeBy(mainClock.frameDuration * FRAME_STEPS, ignoreFrameDuration)
+        assertEquals(
+            (1..FRAME_STEPS).map { (start + mainClock.frameDuration * it).inWholeNanoseconds },
+            frames,
+        )
+        assertEquals(start + mainClock.frameDuration * FRAME_STEPS, mainClock.currentTime)
+
+        mainClock.advanceTimeBy(1.milliseconds, ignoreFrameDuration = true)
+        assertEquals(FRAME_STEPS, frames.size)
+        assertEquals(start + mainClock.frameDuration * FRAME_STEPS + 1.milliseconds, mainClock.currentTime)
+
+        mainClock.advanceTimeBy(mainClock.frameDuration * framesAfterExactAdvance, ignoreFrameDuration)
+        assertEquals(
+            (1..(FRAME_STEPS + framesAfterExactAdvance)).map {
+                (start + mainClock.frameDuration * it).inWholeNanoseconds
+            },
+            frames,
+        )
+        assertEquals(
+            start + mainClock.frameDuration * (FRAME_STEPS + framesAfterExactAdvance) + 1.milliseconds,
+            mainClock.currentTime,
+        )
+    }
+
+    @ParameterizedTest
+    @MethodSource("oneFrameAdvances")
+    fun aOneFrameAdvanceAfterAnExactPartialAdvanceKeepsTheFrameCadence(advance: (MainTestClock) -> Unit) =
+        runComposeSwingTest {
+            val frames = mutableListOf<Long>()
+            mainClock.autoAdvance = false
+            setContent {
+                LaunchedEffect(Unit) {
+                    while (true) withFrameNanos { frames.add(it) }
+                }
+            }
+            val start = mainClock.currentTime
+            mainClock.advanceTimeBy(1.milliseconds, ignoreFrameDuration = true)
+
+            advance(mainClock)
+
+            assertEquals(listOf((start + mainClock.frameDuration).inWholeNanoseconds), frames)
+            assertEquals(start + mainClock.frameDuration + 1.milliseconds, mainClock.currentTime)
+        }
+
+    @Test
+    fun aDefaultNonIntegralAdvanceRoundsUpToOneFrame() = runComposeSwingTest {
+        val frames = mutableListOf<Long>()
+        mainClock.autoAdvance = false
+        setContent {
+            LaunchedEffect(Unit) {
+                while (true) withFrameNanos { frames.add(it) }
+            }
+        }
+        val start = mainClock.currentTime
+
+        mainClock.advanceTimeBy(1.milliseconds)
+
+        assertEquals(listOf((start + mainClock.frameDuration).inWholeNanoseconds), frames)
+        assertEquals(start + mainClock.frameDuration, mainClock.currentTime)
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidAdvances")
+    fun advancesRejectInvalidDurations(advance: (MainTestClock) -> Unit) = runComposeSwingTest {
+        setContent { Label(text = "content") }
+        mainClock.autoAdvance = false
+        val start = mainClock.currentTime
+
+        assertFailsWith<IllegalArgumentException> { advance(mainClock) }
+        assertEquals(start, mainClock.currentTime, "a rejected advance must leave composition time where it was")
+    }
+
     @Test
     fun mainClockDefaultsToAutoAdvanceOnAndToOneFrameOfASixtyHertzDisplay() = runComposeSwingTest {
         setContent { Label(text = "content") }
@@ -57,51 +175,6 @@ class MainTestClockTest {
         mainClock.advanceTimeByFrame()
 
         assertEquals(start + mainClock.frameDuration, mainClock.currentTime)
-    }
-
-    @Test
-    fun advanceTimeByRejectsANegativeDuration() = runComposeSwingTest {
-        setContent { Label(text = "content") }
-        mainClock.autoAdvance = false
-        val start = mainClock.currentTime
-
-        // Either form would otherwise drive the frame counter backwards or silently do nothing.
-        val stepped = assertFailsWith<IllegalArgumentException> { mainClock.advanceTimeBy(-mainClock.frameDuration) }
-        val single =
-            assertFailsWith<IllegalArgumentException> {
-                mainClock.advanceTimeBy(-mainClock.frameDuration, ignoreFrameDuration = true)
-            }
-
-        for (failure in listOf(stepped, single)) {
-            assertTrue(
-                failure.message.orEmpty().contains((-mainClock.frameDuration).toString()),
-                "the failure should name the duration it rejected: ${failure.message}",
-            )
-        }
-        assertEquals(start, mainClock.currentTime, "a rejected advance must leave composition time where it was")
-    }
-
-    @Test
-    fun advanceTimeByRejectsAnInfiniteDuration() = runComposeSwingTest {
-        setContent { Label(text = "content") }
-        mainClock.autoAdvance = false
-        val start = mainClock.currentTime
-
-        // Duration.INFINITE has no frame count that reaches it - it would overflow the frame counter
-        // (stepped) or hang the EDT computing a single infinite-length frame (ignoreFrameDuration).
-        val stepped = assertFailsWith<IllegalArgumentException> { mainClock.advanceTimeBy(Duration.INFINITE) }
-        val single =
-            assertFailsWith<IllegalArgumentException> {
-                mainClock.advanceTimeBy(Duration.INFINITE, ignoreFrameDuration = true)
-            }
-
-        for (failure in listOf(stepped, single)) {
-            assertTrue(
-                failure.message.orEmpty().contains(Duration.INFINITE.toString()),
-                "the failure should name the duration it rejected: ${failure.message}",
-            )
-        }
-        assertEquals(start, mainClock.currentTime, "a rejected advance must leave composition time where it was")
     }
 
     @Test
@@ -147,59 +220,6 @@ class MainTestClockTest {
         mainClock.advanceTimeByFrame()
         awaitIdle()
         onNodeWithText("revealed").assertExists()
-    }
-
-    @Test
-    fun advanceTimeByFrameAdvancesCurrentTimeByExactlyOneFrameDuration() = runComposeSwingTest {
-        setContent { Label(text = "content") }
-        mainClock.autoAdvance = false
-        val start = mainClock.currentTime
-
-        mainClock.advanceTimeByFrame()
-
-        assertEquals(start + mainClock.frameDuration, mainClock.currentTime)
-    }
-
-    @Test
-    fun advanceTimeByStepsThroughFrameDurationIncrements() = runComposeSwingTest {
-        var framesConsumed = 0
-        mainClock.autoAdvance = false
-        setContent {
-            LaunchedEffect(Unit) {
-                while (true) {
-                    withFrameNanos { }
-                    framesConsumed++
-                }
-            }
-        }
-
-        mainClock.advanceTimeBy(mainClock.frameDuration * FRAME_STEPS)
-        awaitIdle()
-
-        assertEquals(FRAME_STEPS, framesConsumed, "advanceTimeBy must send one frame per frameDuration increment")
-    }
-
-    @Test
-    fun advanceTimeByWithIgnoreFrameDurationSendsExactlyOneFrame() = runComposeSwingTest {
-        var framesConsumed = 0
-        mainClock.autoAdvance = false
-        setContent {
-            LaunchedEffect(Unit) {
-                repeat(FRAME_STEPS) {
-                    withFrameNanos { }
-                    framesConsumed++
-                }
-            }
-        }
-
-        mainClock.advanceTimeBy(mainClock.frameDuration * FRAME_STEPS, ignoreFrameDuration = true)
-        awaitIdle()
-
-        assertEquals(
-            1,
-            framesConsumed,
-            "ignoreFrameDuration must deliver the whole duration in a single frame, not one frame per step",
-        )
     }
 
     @Test
@@ -384,18 +404,62 @@ class MainTestClockTest {
         )
     }
 
-    private companion object {
-        // More than one, so a case that only advanced a single frame would still fail.
-        const val FRAME_STEPS = 3
+    class FrameAdvance(
+        val step: (MainTestClock) -> Duration,
+        val advance: (MainTestClock, Duration) -> Unit,
+    )
 
-        const val ANIMATION_START_VALUE = 0f
-        const val ANIMATION_TARGET_VALUE = 100f
+    companion object {
+        @JvmStatic
+        fun frameAdvances(): List<Named<FrameAdvance>> = listOf(
+            Named.of("frame", FrameAdvance({ it.frameDuration }, { clock, _ -> clock.advanceTimeByFrame() })),
+            Named.of("rounded", FrameAdvance({ it.frameDuration }, { clock, step -> clock.advanceTimeBy(step) })),
+            Named.of(
+                "delayed frame",
+                FrameAdvance({ 100.milliseconds }, { clock, step -> clock.advanceTimeByFrame(step) }),
+            ),
+            Named.of(
+                "zero-delay frame",
+                FrameAdvance({ Duration.ZERO }, { clock, step -> clock.advanceTimeByFrame(step) }),
+            ),
+        )
+
+        @JvmStatic
+        fun oneFrameAdvances(): List<Named<(MainTestClock) -> Unit>> = listOf(
+            Named.of("frame", { clock -> clock.advanceTimeByFrame() }),
+            Named.of("rounded", { clock -> clock.advanceTimeBy(clock.frameDuration) }),
+        )
+
+        @JvmStatic
+        fun cadenceAdvances(): List<Arguments> = listOf(
+            Arguments.of(Named.of("rounded", false), 1),
+            Arguments.of(Named.of("exact", true), 2),
+        )
+
+        @JvmStatic
+        fun invalidAdvances(): List<Named<(MainTestClock) -> Unit>> =
+            listOf((-1).milliseconds, Duration.INFINITE).flatMap { duration ->
+                listOf<Named<(MainTestClock) -> Unit>>(
+                    Named.of("rounded, $duration", { clock -> clock.advanceTimeBy(duration) }),
+                    Named.of(
+                        "exact, $duration",
+                        { clock -> clock.advanceTimeBy(duration, ignoreFrameDuration = true) },
+                    ),
+                    Named.of("delayed frame, $duration", { clock -> clock.advanceTimeByFrame(duration) }),
+                )
+            }
+
+        // More than one, so a case that only advanced a single frame would still fail.
+        private const val FRAME_STEPS = 3
+
+        private const val ANIMATION_START_VALUE = 0f
+        private const val ANIMATION_TARGET_VALUE = 100f
 
         // Long enough that two frames land well short of it, leaving a clear mid-flight value to assert on.
-        const val ANIMATION_DURATION_MILLIS = 80
+        private const val ANIMATION_DURATION_MILLIS = 80
 
         // More frames than the animation's own duration could possibly need, so this reaches
         // completion regardless of how many frames were already spent driving it mid-flight.
-        const val ANIMATION_COMPLETION_FRAME_MARGIN = 10
+        private const val ANIMATION_COMPLETION_FRAME_MARGIN = 10
     }
 }

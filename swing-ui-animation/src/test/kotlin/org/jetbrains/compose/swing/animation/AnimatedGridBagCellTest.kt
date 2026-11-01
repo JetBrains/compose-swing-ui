@@ -201,7 +201,7 @@ class AnimatedGridBagCellTest {
                 val fitted = mutableListOf<Pair<Dimension, Dimension>>()
                 val frames =
                     List(2 * TRANSITION_MILLIS / 16 + 2) { frame ->
-                        driveOneFrame()
+                        mainClock.advanceTimeByFrame()
                         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
                         if (kind == "expandIn" && frame == 2) {
                             assertEquals(AtCellWidth.height, (container as Constrainable).minIntrinsicHeight(WIDTH))
@@ -255,8 +255,7 @@ class AnimatedGridBagCellTest {
                 awaitIdle()
                 width = InNarrowedCell.width
                 // Applying the new width moves no time, so the animated width remains the wider one.
-                mainClock.advanceTimeBy(Duration.ZERO, ignoreFrameDuration = true)
-                awaitIdle()
+                mainClock.advanceTimeByFrame(Duration.ZERO)
                 cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
                 val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
                 val content = onNodeWithTag(CONTENT).fetch<JComponent>()
@@ -322,7 +321,7 @@ class AnimatedGridBagCellTest {
      * Drives an expand in a `GridBagLayout` cell that narrows a quarter of the way through it, and returns the trace
      * of the run with the number of the frame the cell narrowed at.
      */
-    private suspend fun ComposeSwingTest.expandInACellNarrowedPartWay(): Pair<Trace, Int> {
+    private fun ComposeSwingTest.expandInACellNarrowedPartWay(): Pair<Trace, Int> {
         val trace = Trace()
         val panel = TracingPanel(trace)
         val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
@@ -356,13 +355,13 @@ class AnimatedGridBagCellTest {
     /**
      * Records in [trace] the size frame [frame] paints the container at, and the size the container completes it at.
      */
-    private suspend fun ComposeSwingTest.drivePaintedFrame(
+    private fun ComposeSwingTest.drivePaintedFrame(
         trace: Trace,
         panel: TracingPanel,
         frame: Int,
     ) {
         trace.frame = frame
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
         panel.watched = container
         captureToImage()

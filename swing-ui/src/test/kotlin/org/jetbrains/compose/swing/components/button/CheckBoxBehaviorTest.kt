@@ -78,12 +78,10 @@ class CheckBoxBehaviorTest {
         assertTrue(box.isSelected, "the box should open on the checked state it first declares")
 
         checked = false
-        awaitIdle()
         mainClock.advanceTimeByFrame()
         assertFalse(box.isSelected, "the pass declaring the box clear should leave it clear, not still checked")
 
         checked = true
-        awaitIdle()
         mainClock.advanceTimeByFrame()
         assertTrue(box.isSelected, "the pass declaring the box checked again should leave it checked, not clear")
     }

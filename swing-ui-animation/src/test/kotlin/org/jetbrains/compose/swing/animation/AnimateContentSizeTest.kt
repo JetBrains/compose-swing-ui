@@ -67,7 +67,7 @@ class AnimateContentSizeTest {
             }
             val widths =
                 List(FRAMES_SAMPLED) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     layoutRow()
                     sibling.x
                 }
@@ -95,7 +95,7 @@ class AnimateContentSizeTest {
             expanded = true
             val widths =
                 List(FRAMES_SAMPLED) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     layoutRow()
                     sibling.x
                 }
@@ -130,7 +130,7 @@ class AnimateContentSizeTest {
             }
             mainClock.autoAdvance = false
             expanded = true
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
             layoutRow()
             val traveled = sibling.x
             assertTrue(traveled in (COLLAPSED.width + 1) until EXPANDED.width - 2, "the width is mid-travel: $traveled")
@@ -213,7 +213,7 @@ class AnimateContentSizeTest {
 
             mainClock.autoAdvance = false
             expanded = true
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
             layoutRow()
             assertTrue(sibling.x < EXPANDED.width, "precondition: the size was still traveling: ${sibling.x}")
 
@@ -237,7 +237,7 @@ class AnimateContentSizeTest {
      * Where a container aligning its content at the bottom end places it frame by frame while the content shrinks,
      * in a row laid out under [orientation]: the box is the row slot between the container's edge and its sibling.
      */
-    private suspend fun ComposeSwingTest.shrinkingSlots(orientation: ComponentOrientation): List<Slot> {
+    private fun ComposeSwingTest.shrinkingSlots(orientation: ComponentOrientation): List<Slot> {
         var expanded by mutableStateOf(true)
         setContent {
             Row(modifier = SwingModifier.testTag(ROW).componentOrientation(orientation)) {
@@ -251,7 +251,7 @@ class AnimateContentSizeTest {
         mainClock.autoAdvance = false
         expanded = false
         return List(FRAMES_SAMPLED) {
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             layoutRow()
             val container = onNodeWithTag(CONTAINER).fetch()
             if (orientation.isLeftToRight) {
@@ -343,7 +343,7 @@ class AnimateContentSizeTest {
             expanded = true
             val widths =
                 List(FRAMES_SAMPLED) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     layoutRow()
                     sibling.x
                 }
@@ -381,7 +381,7 @@ class AnimateContentSizeTest {
 
             mainClock.autoAdvance = false
             size = EXPANDED
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
             layoutRow()
             val partway = sibling.x
             assertTrue(
@@ -390,7 +390,7 @@ class AnimateContentSizeTest {
             )
 
             size = FURTHER
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
             layoutRow()
             assertTrue(
                 sibling.x > partway,
@@ -433,9 +433,9 @@ class AnimateContentSizeTest {
 
             mainClock.autoAdvance = false
             size = EXPANDED
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
             size = FURTHER
-            repeat(FRAMES_INTO_THE_ANIMATION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_ANIMATION) { mainClock.advanceTimeByFrame() }
 
             mainClock.autoAdvance = true
             awaitIdle()
@@ -464,7 +464,7 @@ class AnimateContentSizeTest {
             expanded = true
             val partway =
                 List(FRAMES_INTO_THE_ANIMATION) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     layoutRow()
                     sibling.x
                 }.last()
@@ -500,7 +500,7 @@ class AnimateContentSizeTest {
             expanded = true
             val widths =
                 List(FRAMES_SAMPLED) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     // A validate cycle a foreign container would run: ask the preferred size, the minimum
                     // size, and only then lay out. An intrinsic hook that is not pass-through would start a
                     // second, competing animation here on every one of these frames.
@@ -557,7 +557,7 @@ class AnimateContentSizeTest {
                     row.preferredSize
                     row.minimumSize
                     layoutRow()
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     container.width
                 }
             mainClock.autoAdvance = true
@@ -601,7 +601,7 @@ class AnimateContentSizeTest {
             expanded = true
             val widths =
                 List(FRAMES_SAMPLED) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     row.preferredSize
                     row.minimumSize
                     layoutRow()
@@ -643,11 +643,11 @@ class AnimateContentSizeTest {
             mainClock.autoAdvance = false
             expanded = true
             // The recomposition and the frame that starts the animation, which measure more than once.
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             val frames =
                 List(FRAMES_SAMPLED) {
                     val measuresBefore = probe.measures
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     repeat(2) {
                         row.preferredSize
                         row.minimumSize

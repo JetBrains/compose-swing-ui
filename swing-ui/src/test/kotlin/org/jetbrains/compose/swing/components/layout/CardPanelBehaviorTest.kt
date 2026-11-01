@@ -89,7 +89,6 @@ class CardPanelBehaviorTest {
 
         // The card the declaration below names is the one on top at the end of the pass carrying it.
         selected = "second"
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertShownCard(shown = "second", hidden = listOf("first"))
@@ -113,7 +112,6 @@ class CardPanelBehaviorTest {
         // panel's own update block has run. The card and the key naming it are declared together, so the
         // single frame carrying both has to end with that card on top.
         grown = true
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertShownCard(shown = "third", hidden = listOf("first", "second"))

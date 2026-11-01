@@ -63,11 +63,9 @@ class AnimationModifierUpstreamParityTest {
             mainClock.autoAdvance = false
 
             expanded.value = true
-            driveOneFrame()
-            driveOneFrame()
-            awaitIdle()
-            mainClock.advanceTimeBy(80.milliseconds, ignoreFrameDuration = true)
-            awaitIdle()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame(80.milliseconds)
             layoutRootRow()
             assertEquals(150, onNodeWithTag("first-width").fetch<JComponent>().x)
             assertEquals(150, onNodeWithTag("first-height").fetch<JComponent>().y)

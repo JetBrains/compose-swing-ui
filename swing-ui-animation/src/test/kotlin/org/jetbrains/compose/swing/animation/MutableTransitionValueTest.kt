@@ -57,7 +57,7 @@ class MutableTransitionValueTest {
             awaitIdle()
             mainClock.autoAdvance = false
             visible = !case.startsVisible
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             onNodeWithTag("content").assertProperty(case.startBounds, "starts with the callback's returned geometry") {
                 bounds
             }
@@ -66,7 +66,7 @@ class MutableTransitionValueTest {
                 "starts at the full size or the returned initial size",
             ) { size }
             mainClock.advanceTimeBy(500.milliseconds)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             case.midway(this)
             mainClock.advanceTimeBy(1700.milliseconds)
             awaitIdle()
@@ -124,11 +124,11 @@ class MutableTransitionValueTest {
             awaitIdle()
             mainClock.autoAdvance = false
             visible = true
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             visible = false
 
             repeat(6) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 container().assertProperty(
                     onNodeWithTag("control").fetch().bounds,
                     "mutating the size matches a fresh size while the exit travels",

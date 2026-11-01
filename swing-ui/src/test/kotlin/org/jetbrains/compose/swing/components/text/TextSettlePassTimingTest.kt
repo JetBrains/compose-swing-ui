@@ -79,7 +79,6 @@ class TextSettlePassTimingTest {
 
         // The edit and the caller's answer to it both reach the frame below, so one pass carries them.
         field.type("!")
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -111,7 +110,6 @@ class TextSettlePassTimingTest {
         // The caller answers the edit with a value of its own: the field is settled on that answer, not
         // put back on the declaration that stood before the edit.
         field.type("!")
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

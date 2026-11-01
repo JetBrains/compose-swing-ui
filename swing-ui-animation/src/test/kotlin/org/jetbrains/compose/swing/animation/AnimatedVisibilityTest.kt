@@ -47,19 +47,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * Publishes whatever the test just wrote, sends one frame, and settles on what that frame produced.
- *
- * A state write made from the test body reaches the composition only once it is published, and the
- * composition applies what it recomposes only on a frame, so a test driving an animation frame by frame
- * takes all three steps in this order.
- */
-internal suspend fun ComposeSwingTest.driveOneFrame() {
-    awaitIdle()
-    mainClock.advanceTimeByFrame()
-    awaitIdle()
-}
-
 /** The container an unscoped [AnimatedVisibility] mounts as the root's first child. */
 internal fun ComposeSwingTest.animatedContainer(): SwingNodeInteraction<Component> = onRoot().onChild()
 
@@ -115,7 +102,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(1, root.componentCount, "the content left before its exit ran")
 
             mainClock.autoAdvance = true
@@ -140,14 +127,14 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val partway = animatedContainer().paintedAlpha()
             assertTrue(partway < 1f, "the exit was under way, alpha was $partway")
 
             visible = true
             val alphas =
                 List(6) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     animatedContainer().paintedAlpha()
                 }
             assertSame(exiting, animatedContainer().fetch(), "the interrupted container was rebuilt")
@@ -180,15 +167,15 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(6) { driveOneFrame() }
+            repeat(6) { mainClock.advanceTimeByFrame() }
             val partway = animatedContainer().paintedWidth()
             assertTrue(partway < BLOCK_WIDTH, "precondition: the scale was under way, it painted $partway wide")
 
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             exit = fadeOut(animationSpec = tween(320))
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             val width = animatedContainer().paintedWidth()
             assertTrue(
@@ -214,7 +201,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             assertTrue(animatedContainer().paintedAlpha() < 1f, "the enter the last recomposition declared did not run")
         }
 
@@ -234,7 +221,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertEquals(1, root.componentCount)
             assertTrue(animatedContainer().paintedAlpha() < 1f, "the exit the last recomposition declared did not run")
         }
@@ -255,7 +242,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 Dimension(BLOCK_WIDTH / 2, BLOCK_HEIGHT),
                 animatedContainer().fetch().preferredSize,
@@ -281,11 +268,11 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             val alphaBefore = animatedContainer().paintedAlpha()
             val compositionsBefore = contentCompositions
 
-            repeat(5) { driveOneFrame() }
+            repeat(5) { mainClock.advanceTimeByFrame() }
             assertTrue(animatedContainer().paintedAlpha() > alphaBefore, "the fade did not advance")
             assertEquals(
                 compositionsBefore,
@@ -305,7 +292,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val box = animatedContainer().fetch().preferredSize
             assertTrue(box.width in 1 until BLOCK_WIDTH, "the default enter did not expand: $box")
             assertTrue(animatedContainer().paintedAlpha() < 1f, "the default enter did not fade")
@@ -333,7 +320,7 @@ class AnimatedVisibilityTest {
             visible = false
             val frames =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     val size = Dimension(container.preferredSize)
                     size.width to if (size.width > 0 && size.height > 0) animatedContainer().paintedAlpha() else 0f
                 }
@@ -375,7 +362,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             page = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 2,
                 onRoot().onChild().fetch<Container>().componentCount,
@@ -383,7 +370,7 @@ class AnimatedVisibilityTest {
             )
             val alphas =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     onRoot().onChild().onChildAt(0).paintedAlpha() to onRoot().onChild().onChildAt(1).paintedAlpha()
                 }
             assertTrue(
@@ -417,7 +404,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertEquals(1, root.componentCount, "the content left while its own animation still ran")
 
             mainClock.autoAdvance = true
@@ -458,11 +445,11 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertSame(window.onNodeWithTag("after").fetch(), next(), "traversal stopped in the exiting content")
 
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertSame(window.onNodeWithTag("inside").fetch(), next(), "content entering again stayed out of traversal")
         }
 
@@ -495,9 +482,9 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertSame(b, root.focusTraversalPolicy.getComponentAfter(root, a), "a reversed exit reordered the tab")
         }
 
@@ -520,12 +507,12 @@ class AnimatedVisibilityTest {
                 }
             }
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val entering = animatedContainer().paintedAlpha()
             assertTrue(entering < 1f, "a state that starts invisible settled in place instead of entering: $entering")
 
             generation = 1
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val snapped = animatedContainer().paintedAlpha()
             assertEquals(1f, snapped, "a state whose initial state is its target animated instead of snapping")
         }
@@ -543,7 +530,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertEquals(1, root.componentCount, "the container left before the exit of its part had finished")
 
             mainClock.autoAdvance = true
@@ -567,7 +554,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             val names = shared.animations.map { it.label }
             assertTrue(
@@ -592,7 +579,7 @@ class AnimatedVisibilityTest {
             visible = true
             val sizes =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     animatedContainer().paintedWidth()
                 }
 
@@ -612,7 +599,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             val entering = animatedContainer().paintedAlpha()
             assertTrue(entering < 1f, "the part settled in place instead of entering: $entering")
 
@@ -651,7 +638,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 Dimension(30, 60),
                 animatedContainer().fetch().preferredSize,
@@ -714,7 +701,7 @@ class AnimatedVisibilityTest {
 
             mainClock.autoAdvance = false
             innerVisible = false
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             assertEquals(1, outer.componentCount, "precondition: the nested container was still shrinking")
             outerVisible = false
             mainClock.autoAdvance = true
@@ -841,10 +828,10 @@ class AnimatedVisibilityInLayoutTest {
      * along the layout's axis, how far the sibling after the container stands from the one before it, and across it,
      * the extent the container is laid out at.
      */
-    private suspend fun ComposeSwingTest.slotsWhileAnimating(settlingFrames: Int): List<Dimension> {
-        repeat(settlingFrames) { driveOneFrame() }
+    private fun ComposeSwingTest.slotsWhileAnimating(settlingFrames: Int): List<Dimension> {
+        repeat(settlingFrames) { mainClock.advanceTimeByFrame() }
         return List(5) {
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val first = onNodeWithText("first").fetch()
             val last = onNodeWithText("last").fetch()
             val container = onNodeWithText("body").fetch().parent
@@ -904,11 +891,11 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_PAST_THE_SHORT_SPEC) { driveOneFrame() }
+            repeat(FRAMES_PAST_THE_SHORT_SPEC) { mainClock.advanceTimeByFrame() }
             assertEquals(1f, animatedContainer().paintedAlpha(), "the enter ran under a spec longer than it was given")
 
             visible = false
-            repeat(FRAMES_PAST_THE_SHORT_SPEC) { driveOneFrame() }
+            repeat(FRAMES_PAST_THE_SHORT_SPEC) { mainClock.advanceTimeByFrame() }
             assertEquals(1, root.componentCount)
             val alpha = animatedContainer().paintedAlpha()
             assertTrue(alpha < 1f, "the exit ran under a spec shorter than the one it was given: $alpha")
@@ -927,12 +914,12 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(8) { driveOneFrame() }
+            repeat(8) { mainClock.advanceTimeByFrame() }
             val partway = animatedContainer().paintedAlpha()
             assertTrue(partway < 0.9f, "precondition: the fade was under way, it stood at $partway")
 
             exit = ExitTransition.None
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val returning = animatedContainer().paintedAlpha()
             assertTrue(
                 returning in partway..0.99f,
@@ -963,7 +950,7 @@ class AnimatedVisibilityStateMachineTest {
             // that first sees it.
             exit = fadeOut(animationSpec = tween(320))
             visible = false
-            repeat(8) { driveOneFrame() }
+            repeat(8) { mainClock.advanceTimeByFrame() }
 
             assertTrue(
                 animatedContainer().paintedAlpha() < 1f,
@@ -997,7 +984,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(
                 Dimension(40, 40),
                 animatedContainer().fetch().preferredSize,
@@ -1025,7 +1012,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             // The column lists its children in the reverse of the order they were composed in.
             val column = root.getComponent(0) as Container
@@ -1061,7 +1048,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             // The column lists its children in the reverse of the order they were composed in.
             val column = root.getComponent(0) as Container
@@ -1095,7 +1082,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
             val panel = animatedContainer().fetch<Container>().getComponent(0) as Container
             val expanding = panel.size
             assertEquals(
@@ -1105,7 +1092,7 @@ class AnimatedVisibilityStateMachineTest {
             )
 
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val leaving = panel.size
             assertTrue(leaving.width < 80, "precondition: the box was still short of the content: $leaving")
             assertEquals(
@@ -1133,7 +1120,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             for ((index, anchor) in ANCHORS.withIndex()) {
                 val panel = root.getComponent(index) as Container
@@ -1165,7 +1152,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             for ((index, anchor) in ANCHORS.withIndex()) {
                 val panel = root.getComponent(index) as Container
@@ -1195,7 +1182,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
             val panel = animatedContainer().fetch<Container>()
             val expanding = panel.size
             assertTrue(expanding.width in 1..79, "precondition: the expand was under way: $expanding")
@@ -1206,7 +1193,7 @@ class AnimatedVisibilityStateMachineTest {
             )
 
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val leaving = panel.size
             assertTrue(leaving.width < 80, "precondition: the box was still short of the content: $leaving")
             assertEquals(
@@ -1231,7 +1218,7 @@ class AnimatedVisibilityStateMachineTest {
             visible = false
             val counts =
                 List(4) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     root.componentCount
                 }
             assertEquals(
@@ -1273,12 +1260,12 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(8) { driveOneFrame() }
+            repeat(8) { mainClock.advanceTimeByFrame() }
             val partway = animatedContainer().paintedAlpha()
             assertTrue(partway in 0.1f..0.9f, "precondition: the fade was under way, it stood at $partway")
 
             enter = EnterTransition.None
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val carried = animatedContainer().paintedAlpha()
             assertTrue(
                 carried in partway..0.99f,
@@ -1308,7 +1295,7 @@ class AnimatedVisibilityStateMachineTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val unveiling = scrim()
             assertTrue(
                 unveiling.red > 0 && unveiling.alpha in 1..254,
@@ -1318,7 +1305,7 @@ class AnimatedVisibilityStateMachineTest {
             visible = false
             val scrims =
                 List(6) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     scrim()
                 }
             assertTrue(

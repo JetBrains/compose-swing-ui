@@ -52,7 +52,6 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
         // The tab and the selection naming it are declared together, so a single frame carries both.
         grown = true
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -98,7 +97,6 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
 
         moved = true
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -149,7 +147,6 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
 
         grown = true
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -189,7 +186,6 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
 
         items = listOf("one", "three")
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(2, pane.tabCount)
@@ -222,7 +218,6 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
 
         items = listOf("one", "three", "two")
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(1, pane.selectedIndex)

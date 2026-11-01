@@ -93,7 +93,7 @@ class AnimatedVisibilityContainerTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES_INTO_THE_SIZE_CHANGE) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 assertContentReachesBelow("frame $it")
                 assertBelowUncovered("frame $it")
             }
@@ -113,7 +113,7 @@ class AnimatedVisibilityContainerTest {
         }
 
     /** The container's paint outsets partway into an enter that scales the content up from twice its size. */
-    private suspend fun ComposeSwingTest.scaledExpandPaintOutsets(clip: Boolean): Insets {
+    private fun ComposeSwingTest.scaledExpandPaintOutsets(clip: Boolean): Insets {
         var visible by mutableStateOf(false)
         setContent {
             Column {
@@ -129,7 +129,7 @@ class AnimatedVisibilityContainerTest {
         }
         mainClock.autoAdvance = false
         visible = true
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         return (onNodeWithTag(CONTAINER).fetch() as Decoratable).decoration.paintOutsets()
     }
 
@@ -157,7 +157,7 @@ class AnimatedVisibilityContainerTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(7) { driveOneFrame() }
+            repeat(7) { mainClock.advanceTimeByFrame() }
             child.clips.clear()
 
             // What the repaint manager runs for a repaint the child asks for, as a hover does.
@@ -190,7 +190,7 @@ class AnimatedVisibilityContainerTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             assertHalfBlueOverOpaqueRed(Color(onNodeWithTag(FADED).captureToImage().getRGB(SAMPLE, SAMPLE), true))
         }
 
@@ -211,7 +211,7 @@ class AnimatedVisibilityContainerTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             assertHalfBlueOverOpaqueRed(Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE), true))
         }
 
@@ -236,7 +236,7 @@ class AnimatedVisibilityContainerTest {
             visible = true
             val frames =
                 List(FRAMES_INTO_THE_SIZE_CHANGE) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     val bounds = onNodeWithTag(CONTAINER).fetch().bounds
                     // The content stands at the region's origin, whatever its width: sample inside it.
                     val alpha = if (bounds.height > 1) onNodeWithTag(CONTAINER).paintedAlpha(1, 1) else 0f
@@ -273,7 +273,7 @@ class AnimatedVisibilityContainerTest {
             val view = { onNodeOfType<JScrollPane>().fetch().viewport.view }
             val frames =
                 List(FRAMES_INTO_THE_SIZE_CHANGE) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     val shown = view()?.size
                     val alpha =
                         if (shown != null && shown.width > 1 && shown.height > 1) {
@@ -314,7 +314,7 @@ class AnimatedVisibilityContainerTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             val container = onNodeWithTag(CONTAINER).fetch()
             val content = (container as Container).getComponent(0)
@@ -351,7 +351,7 @@ class AnimatedVisibilityContainerTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
 
             for (tag in listOf("box", "row", "column")) {
                 val container = onNodeWithTag(tag).fetch<Container>()
@@ -407,7 +407,7 @@ class AnimatedVisibilityContainerTest {
         if (!shownAtFirst) {
             mainClock.autoAdvance = false
             visible = true
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
         }
         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
         val label = onNodeWithTag(CONTENT).fetch<JComponent>()
@@ -494,7 +494,7 @@ class AnimatedVisibilityContainerTest {
      * A fade out of a ratio label whose minimum is 320 wide, in a stock parent that is narrowed from 320 to 160 once
      * the fade is under way.
      */
-    private suspend fun ComposeSwingTest.fadeOutUnderNarrowedStockParent() {
+    private fun ComposeSwingTest.fadeOutUnderNarrowedStockParent() {
         var visible by mutableStateOf(true)
         var parentWidth by mutableStateOf(320)
         setContent {
@@ -521,9 +521,9 @@ class AnimatedVisibilityContainerTest {
 
         mainClock.autoAdvance = false
         visible = false
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         parentWidth = 160
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
     }
 
     @ParameterizedTest(name = "{0}")
@@ -549,7 +549,7 @@ class AnimatedVisibilityContainerTest {
 
         mainClock.autoAdvance = false
         visible = true
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
 
         onNodeWithTag(CONTAINER).assertProperty(
             160,

@@ -46,7 +46,7 @@ class ScrollStateScrollTest {
         val pane = paneWithRoomToScroll()
         val state = pane.state
         val first = pane.scope.launch { state.scroll { stepDownEveryFrame(state) } }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val stood = state.y
         assertEquals(20, stood, "the first block must have moved the pane before it is taken over")
 
@@ -65,7 +65,7 @@ class ScrollStateScrollTest {
             "and the scroll that took it holds it while the one it was taken from unwinds",
         )
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(stood, startedAt, "the block that took over must start from where the one before it stood")
         assertEquals(stood + 20, state.y, "and move the pane on from there")
     }
@@ -90,7 +90,7 @@ class ScrollStateScrollTest {
                     }
                 }
             }
-        repeat(asked.size) { driveOneFrame() }
+        repeat(asked.size) { mainClock.advanceTimeByFrame() }
 
         assertEquals(
             listOf(0, 0, max, max, max),
@@ -117,13 +117,13 @@ class ScrollStateScrollTest {
                     stepDownEveryFrame(state)
                 }
             }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val max = state.maxY
         assertEquals(max, state.y, "the block must have carried the pane to the end of its content")
         assertTrue(state.isScrollInProgress, "and must still be holding the position")
 
         pane.contentHeight = 400 - 100
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
 
         val shortened = state.maxY
         assertTrue(shortened < max, "the content that shrank must leave less room to scroll")
@@ -137,7 +137,7 @@ class ScrollStateScrollTest {
         val pane = paneWithRoomToScroll()
         val state = pane.state
         val job = pane.scope.launch { state.scroll { stepDownEveryFrame(state) } }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(20, state.y, "the block must be moving the pane when the user takes over")
 
         onNodeOfType<JScrollPane>().performMouseWheel(rotation = 3)
@@ -147,7 +147,7 @@ class ScrollStateScrollTest {
         assertTrue(job.isCancelled, "the user's own scrolling must have ended the block")
         assertFalse(state.isScrollInProgress, "so no scroll is in progress any more")
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(scrolledTo, state.y, "and the pane must stay where the user's scrolling left it")
     }
 
@@ -161,7 +161,7 @@ class ScrollStateScrollTest {
         val pane = paneWithRoomToScroll()
         val state = pane.state
         val job = pane.scope.launch { state.scroll { stepDownEveryFrame(state) } }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(20, state.y, "the block must be moving the pane when the position is assigned")
 
         state.y = 0
@@ -169,7 +169,7 @@ class ScrollStateScrollTest {
 
         assertTrue(job.isCancelled, "assigning the position must have ended the block")
         assertFalse(state.isScrollInProgress, "so no scroll is in progress any more")
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(0, state.y, "and the pane must stay at the position it was assigned")
     }
 
@@ -178,20 +178,20 @@ class ScrollStateScrollTest {
         val pane = paneWithRoomToScroll()
         val state = pane.state
         val job = pane.scope.launch { state.scroll { stepDownEveryFrame(state) } }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(20, state.y, "the block must be moving the pane when the content is resized")
 
         // Narrowing the content leaves the pane standing where it is: there is no position to correct, so
         // nothing the block did not do has happened to the position.
         pane.contentWidth = 300 - 100
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(300 - 100, state.viewWidth, "the content the block moves must have resized")
         assertFalse(job.isCancelled, "resizing content that does not move the pane must leave the block alone")
         assertTrue(state.isScrollInProgress, "so the scroll must still be in progress")
 
         val stood = state.y
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(stood + 20, state.y, "and the block must go on moving the pane")
     }
 
@@ -213,7 +213,7 @@ class ScrollStateScrollTest {
                 }
             }
         }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(listOf("third"), ran, "the pane must be moved by the last caller's block and no other")
         assertEquals(20, pane.state.y, "which is the block that moved it")
@@ -272,7 +272,7 @@ class ScrollStateScrollTest {
                     caught = cancellation
                 }
             }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
 
         state.y = 0
         awaitIdle()
@@ -299,7 +299,7 @@ class ScrollStateScrollTest {
         awaitIdle()
         assertTrue(state.isScrollInProgress, "a block that has taken the position is a scroll in progress")
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertTrue(job.isCompleted, "the block must have run to its end")
         assertFalse(job.isCancelled, "on its own terms")
         assertEquals(20, state.y, "having moved the pane")
@@ -340,14 +340,14 @@ class ScrollStateScrollTest {
                     }
                 }
             }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertEquals(0, state.y, "a move against content with no room to scroll must land at the top")
 
         pane.contentHeight = 400
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertTrue(state.maxY > 0, "the content that grew under the block must leave room to scroll")
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertFalse(job.isCancelled, "content growing without moving the pane must leave the block alone")
         assertEquals(state.maxY, state.y, "and the block's next move must reach the end of the content it has")
     }
@@ -366,10 +366,10 @@ class ScrollStateScrollTest {
                     scrollTo(0, 20)
                 }
             }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertIs<IllegalStateException>(refusal, "a scroll from inside a block of the same state must be refused")
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertTrue(job.isCompleted, "the outer block must have run to its end")
         assertFalse(job.isCancelled, "a refused call takes nothing from the block that made it")
         assertEquals(20, state.y, "and the outer block's move must still reach the pane")
@@ -408,11 +408,11 @@ class ScrollStateScrollTest {
                     scrollTo(0, 20)
                 }
             }
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertIs<IllegalStateException>(refusal, "a scroll must be refused by a block of its own state at any depth")
         assertTrue(betweenTheTwoFinished, "the second state's block the refused call was made in must run on")
 
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         assertTrue(job.isCompleted, "the outer block must have run to its end")
         assertFalse(job.isCancelled, "a refused call takes nothing from the blocks it was made inside")
         assertEquals(20, state.y, "and the outer block's move must still reach the position")
@@ -518,16 +518,6 @@ private class Pane(
     lateinit var scope: CoroutineScope
     var contentWidth by mutableIntStateOf(contentWidth)
     var contentHeight by mutableIntStateOf(contentHeight)
-}
-
-/**
- * Sends the one frame a block driven by hand is waiting for, settling what is already pending before it
- * and what the frame starts after it, so the block stands exactly one move further on.
- */
-private suspend fun ComposeSwingTest.driveOneFrame() {
-    awaitIdle()
-    mainClock.advanceTimeByFrame()
-    awaitIdle()
 }
 
 /**

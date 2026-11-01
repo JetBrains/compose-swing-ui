@@ -56,7 +56,6 @@ class SettleOncePerApplyPassTest : TracedTest() {
         slider.value = CHANGED
         declared = REDECLARED
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -90,7 +89,6 @@ class SettleOncePerApplyPassTest : TracedTest() {
         // The user's change alone reaches the first pass, so it settles against the standing declaration.
         slider.value = CHANGED
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -108,7 +106,6 @@ class SettleOncePerApplyPassTest : TracedTest() {
 
         // The new declaration reaches a pass of its own, which settles the widget a second time.
         declared = REDECLARED
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

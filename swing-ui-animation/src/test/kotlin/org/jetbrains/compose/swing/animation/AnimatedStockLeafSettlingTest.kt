@@ -57,8 +57,8 @@ class AnimatedStockLeafSettlingTest {
         }
         mainClock.autoAdvance = false
         entered = true
-        driveOneFrame()
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
         val content = onNodeWithTag(CONTENT).fetch<JComponent>()
         cyclesUntilStable(container)

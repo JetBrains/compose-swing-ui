@@ -50,7 +50,6 @@ class ComboBoxSelectionFeedbackTest {
         mainClock.autoAdvance = false
 
         selection = "blue"
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals("blue", combo.selectedItem, "the pass declaring the selection should leave the combo box on it")

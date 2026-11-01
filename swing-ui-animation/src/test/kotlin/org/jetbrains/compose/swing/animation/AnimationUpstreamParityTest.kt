@@ -102,10 +102,9 @@ class AnimationUpstreamParityTest {
 
             mainClock.autoAdvance = false
             startExit = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(contentPresent, "content left at the inclusive frame boundary")
-            mainClock.advanceTimeBy(1.milliseconds, ignoreFrameDuration = true)
-            awaitIdle()
+            mainClock.advanceTimeByFrame(1.milliseconds)
 
             assertFalse(contentPresent, "content remained after the non-inclusive frame boundary")
         }
@@ -119,13 +118,13 @@ class AnimationUpstreamParityTest {
             mainClock.autoAdvance = false
             awaitIdle()
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertSlideEnter { visibilityTransition }
             val content = animatedContainer().fetch<Container>().getComponent(0)
 
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(EnterExitState.PostExit, requireNotNull(visibilityTransition).targetState)
             assertSlideExit(visibilityTransition = { visibilityTransition }, content = content)
             assertEquals(0, root.componentCount)
@@ -154,7 +153,7 @@ class AnimationUpstreamParityTest {
             mainClock.autoAdvance = false
             awaitIdle()
             visible = true
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             requireNotNull(visibilityTransition)
 
             var frame = 0
@@ -164,7 +163,7 @@ class AnimationUpstreamParityTest {
                     currentTransition,
                     enterEasing.transform((currentTransition.playTimeNanos / 1_000_000f / 500f).coerceIn(0f, 1f)),
                 )
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 if (requireNotNull(visibilityTransition).currentState == EnterExitState.Visible) break
                 frame++
             }
@@ -175,7 +174,7 @@ class AnimationUpstreamParityTest {
             )
             assertScaleRaster(requireNotNull(visibilityTransition), 1f)
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(EnterExitState.PostExit, requireNotNull(visibilityTransition).targetState)
             frame = 0
             while (frame < 20) {
@@ -183,7 +182,7 @@ class AnimationUpstreamParityTest {
                 val fraction =
                     exitEasing.transform((currentTransition.playTimeNanos / 1_000_000f / 300f).coerceIn(0f, 1f))
                 assertScaleRaster(currentTransition, 1f - fraction)
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 if (requireNotNull(visibilityTransition).currentState == EnterExitState.PostExit) break
                 frame++
             }
@@ -212,7 +211,7 @@ class AnimationUpstreamParityTest {
             mainClock.autoAdvance = false
 
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             advanceAnimationTimeBy(80)
             val interruptedColor = veilColor
             assertEquals(0.5f, interruptedColor.alpha / 255f, 0.02f)
@@ -222,7 +221,7 @@ class AnimationUpstreamParityTest {
 
             enterTransition = EnterTransition.None
             exitTransition = ExitTransition.None
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertEquals(interruptedColor.red, veilColor.red)
             assertEquals(interruptedColor.green, veilColor.green)
             assertEquals(interruptedColor.blue, veilColor.blue)
@@ -249,8 +248,8 @@ class AnimationUpstreamParityTest {
             }
             awaitIdle()
             visible = false
-            driveOneFrame()
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
 
             for (playTimeMillis in 0..160 step 16) {
                 val transition = requireNotNull(visibilityTransition)
@@ -326,16 +325,16 @@ class AnimationUpstreamParityTest {
             mainClock.autoAdvance = false
 
             visible = false
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             advanceAnimationTimeBy(80)
 
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             advanceAnimationTimeBy(40)
 
             exitTransition = fadeOut()
             visible = false
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             advanceAnimationTimeBy(80)
             assertTrue(hasVeilAnimation, "the old veil was dropped when direction changed")
 
@@ -393,9 +392,9 @@ private fun SlideVisibilityContent(
     }
 }
 
-private suspend fun ComposeSwingTest.assertSlideEnter(transition: () -> Transition<EnterExitState>?) {
+private fun ComposeSwingTest.assertSlideEnter(transition: () -> Transition<EnterExitState>?) {
     for (frame in 0 until 12) {
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val currentTransition = requireNotNull(transition())
         val content = animatedContainer().fetch<Container>().getComponent(0)
         assertEquals(Dimension(100, 100), animatedContainer().fetch().preferredSize)
@@ -411,12 +410,12 @@ private suspend fun ComposeSwingTest.assertSlideEnter(transition: () -> Transiti
     assertEquals(EnterExitState.Visible, requireNotNull(transition()).currentState, "the enter exceeded its duration")
 }
 
-private suspend fun ComposeSwingTest.assertSlideExit(
+private fun ComposeSwingTest.assertSlideExit(
     visibilityTransition: () -> Transition<EnterExitState>?,
     content: Component,
 ) {
     for (frame in 0 until 12) {
-        driveOneFrame()
+        mainClock.advanceTimeByFrame()
         val currentTransition = requireNotNull(visibilityTransition())
         if (currentTransition.currentState == EnterExitState.PostExit) {
             assertEquals(Point(-10, 20), content.location)

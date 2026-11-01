@@ -111,7 +111,6 @@ class ValueComponentsTest {
         assertEquals(10, slider.value, "the slider should start at the initial value")
 
         value = 75
-        awaitIdle()
         mainClock.advanceTimeByFrame()
         assertEquals(75, slider.value, "the pass declaring the value should leave the slider on it")
     }

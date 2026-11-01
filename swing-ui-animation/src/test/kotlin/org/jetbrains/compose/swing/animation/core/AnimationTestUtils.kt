@@ -188,22 +188,15 @@ internal val Point2DVectorConverter: TwoWayConverter<Point2D, AnimationVector2D>
     )
 
 /**
- * The frame length AndroidX's own `MainTestClock` steps by, which the values upstream's
- * frame-stepped tests assert are computed from. The harness clock steps one frame of a 60Hz display
- * (16.67ms) instead, so a ported test drives frames of this length through
- * [MainTestClock.advanceTimeBy] rather than through [MainTestClock.advanceTimeByFrame].
+ * The frame length AndroidX's MainTestClock steps by, which upstream's frame-stepped expectations are
+ * computed from; the harness clock steps [MainTestClock.frameDuration] instead.
  */
 internal const val UpstreamFrameMillis: Int = 16
 
 /**
  * Sends one upstream-length frame, the port of `rule.mainClock.advanceTimeByFrame()`.
- *
- * The [ComposeSwingTest.awaitIdle] first is what makes the frame land on the work a preceding write
- * from the test body queued: with `mainClock.autoAdvance` off, a snapshot write reaches the
- * recomposer only once the event dispatch thread has been drained, and a frame sent before that
- * drain finds nothing waiting on it and is spent for nothing.
  */
-internal suspend fun ComposeSwingTest.advanceTimeByFrame() {
+internal fun ComposeSwingTest.advanceTimeByFrame() {
     advanceTimeBy(UpstreamFrameMillis)
 }
 
@@ -211,9 +204,8 @@ internal suspend fun ComposeSwingTest.advanceTimeByFrame() {
  * Sends upstream-length frames until [millis] of composition time have passed, the port of
  * `rule.mainClock.advanceTimeBy(millis)`.
  */
-internal suspend fun ComposeSwingTest.advanceTimeBy(millis: Int) {
-    awaitIdle()
+internal fun ComposeSwingTest.advanceTimeBy(millis: Int) {
     repeat((millis + UpstreamFrameMillis - 1) / UpstreamFrameMillis) {
-        mainClock.advanceTimeBy(UpstreamFrameMillis.milliseconds, ignoreFrameDuration = true)
+        mainClock.advanceTimeByFrame(UpstreamFrameMillis.milliseconds)
     }
 }

@@ -139,7 +139,7 @@ class DeferredTransformHandoffTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            repeat(FRAMES_INTO_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertEquals(
                 PHASE_OFFSET,
                 paintedDeferredContentLeft(),
@@ -173,7 +173,7 @@ class DeferredTransformHandoffTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            repeat(FRAMES_INTO_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertEquals(
                 HALF_SCALE_EDGE,
                 paintedLeftEdge(),
@@ -209,7 +209,7 @@ class DeferredTransformHandoffTest {
             // phase left is where the content stands as the transition takes it back.
             mainClock.autoAdvance = false
             state.animateTo(true)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 paintedDeferredContentLeft() in (PHASE_OFFSET - 2)..PHASE_OFFSET,
                 "the content jumped as the transition took the phase over, to ${paintedDeferredContentLeft()}",
@@ -247,13 +247,13 @@ class DeferredTransformHandoffTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            repeat(FRAMES_INTO_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
 
             // A second phase over the running exit, declaring no offset of its own: what the first phase
             // wrote is kept, so the content stays where it stood rather than dropping back.
             driving = false
             state.defer(true)
-            repeat(FRAMES_INTO_THE_EXIT) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 paintedDeferredContentLeft() >= PHASE_OFFSET,
                 "the content snapped back as the second phase took over, to ${paintedDeferredContentLeft()}",

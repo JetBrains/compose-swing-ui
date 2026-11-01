@@ -73,8 +73,7 @@ class AnimateContentSizeAndColorCardsTest {
             // mid-flight instead of on an animation that only just started.
             mainClock.autoAdvance = false
             onNodeWithText("More details").performClick()
-            awaitIdle()
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val firstTargetHeight = label.requestedContainerHeight()
             assertTrue(firstTargetHeight > before, "the first click did not request a taller container")
             val heldHeight = before + report.y - beforeReportY
@@ -86,7 +85,7 @@ class AnimateContentSizeAndColorCardsTest {
             onNodeWithText("More details").performClick()
             // Frames stay held across the retarget, so each one is measured the way a window measures it
             // rather than run out in one go.
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
 
             // Only the second animation reports: the first is retargeted before it runs out.
             mainClock.autoAdvance = true

@@ -46,7 +46,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertStockPanelPaint(CONTENT)
         }
@@ -61,7 +61,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             state = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertStockPanelPaint(CONTENT_B)
         }
@@ -73,7 +73,7 @@ class AnimationClippingTest {
             setContent { ConstrainedHost { UnscopedVisibility(visible, clip = false) } }
             mainClock.autoAdvance = false
             visible = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertHostPixel(Color.RED, y = 30)
         }
@@ -85,7 +85,7 @@ class AnimationClippingTest {
             setContent { ConstrainedHost { UnscopedVisibility(visible) } }
             mainClock.autoAdvance = false
             visible = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertHostPixel(Color.BLUE, y = 30)
         }
@@ -97,7 +97,7 @@ class AnimationClippingTest {
             setContent { ConstrainedHost { UnscopedContent(state, clip = false) } }
             mainClock.autoAdvance = false
             state = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertHostPixel(Color.RED, y = 30)
         }
@@ -109,7 +109,7 @@ class AnimationClippingTest {
             setContent { ConstrainedHost { UnscopedContent(state, clip = true) } }
             mainClock.autoAdvance = false
             state = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertHostPixel(Color.BLUE, y = 30)
         }
@@ -142,7 +142,7 @@ class AnimationClippingTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             val host = onNodeWithTag(HOST).fetch<JComponent>()
             val point = Point(host.insets.left + 10, host.insets.top + 20)
@@ -182,7 +182,7 @@ class AnimationClippingTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             val host = onNodeWithTag(HOST).fetch<JComponent>()
             val point = Point(host.insets.left + 10, host.insets.top + 20)
@@ -213,7 +213,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             visible = true
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT)
             assertBelowPixel(Color.RED)
@@ -238,7 +238,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             visible = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT)
             assertBelowPixel(Color.BLUE)
@@ -264,7 +264,7 @@ class AnimationClippingTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT)
             assertBelowPixel(Color.RED, y = 0)
@@ -290,7 +290,7 @@ class AnimationClippingTest {
 
             mainClock.autoAdvance = false
             visible = false
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT)
             assertBelowPixel(Color.BLUE, y = 0)
@@ -315,7 +315,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             state = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT_B)
             assertBelowPixel(Color.RED)
@@ -340,7 +340,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             state = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT_B)
             assertBelowPixel(Color.BLUE)
@@ -365,7 +365,7 @@ class AnimationClippingTest {
             }
             mainClock.autoAdvance = false
             state = true
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             assertContentOverlapsBelow(CONTENT_B)
             assertEquals(

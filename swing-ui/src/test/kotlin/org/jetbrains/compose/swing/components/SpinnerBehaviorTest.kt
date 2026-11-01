@@ -473,7 +473,6 @@ class SpinnerBehaviorTest {
 
         mainClock.autoAdvance = false
         stateValue = 9
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         val spinner = onNodeOfType<JSpinner>().fetch()

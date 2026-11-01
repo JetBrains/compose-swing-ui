@@ -29,7 +29,7 @@ class AnimatedVisibilityCardsTest {
 
             mainClock.autoAdvance = false
             onNodeWithText("Show order details").performClick()
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val midway = trailingLine.y
 
             mainClock.autoAdvance = true
@@ -71,7 +71,7 @@ class AnimatedVisibilityCardsTest {
 
             mainClock.autoAdvance = false
             onNodeWithText("Show order actions").performClick()
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val root = onRoot().fetch()
             val review = onNodeWithText("Review order").fetch<Component>()
             val tracking = onNodeWithText("View tracking").fetch<Component>()
@@ -110,7 +110,7 @@ class AnimatedVisibilityCardsTest {
 
             mainClock.autoAdvance = false
             onNodeWithText("Reveal both panels").performClick()
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val (content, margin) = veiledRectangles()
             val running = captureToImage()
 
@@ -138,7 +138,7 @@ class AnimatedVisibilityCardsTest {
             onNodeWithText("Scrim covers the whole box").performClick()
             mainClock.autoAdvance = false
             onNodeWithText("Reveal both panels").performClick()
-            driveFramesIntoTheTransition()
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val (_, margin) = veiledRectangles()
             val running = captureToImage()
 

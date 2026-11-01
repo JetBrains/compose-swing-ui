@@ -81,7 +81,7 @@ class AnimatedPaintingTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             val panel = animatedContainer().fetch()
             val held = panel.paintScaled(DEVICE_SCALE)
             val pivotX = panel.width / 2.0
@@ -162,7 +162,7 @@ class AnimatedPaintingTest {
 
         mainClock.autoAdvance = false
         visible = true
-        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+        repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
         val entering = paintedPivot()
 
         if (runEnterOut) {
@@ -171,7 +171,7 @@ class AnimatedPaintingTest {
             mainClock.autoAdvance = false
         }
         visible = false
-        repeat(FRAMES_INTO_THE_EXIT) { driveOneFrame() }
+        repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
         return entering to paintedPivot()
     }
 
@@ -210,7 +210,7 @@ class AnimatedPaintingTest {
      * once: an exit that animates nothing finishes on the frame it starts and the content it leaves is
      * disposed before anything can be read off it.
      */
-    private suspend fun ComposeSwingTest.arrivingOverLeaving(arrivingZIndex: Float): Int {
+    private fun ComposeSwingTest.arrivingOverLeaving(arrivingZIndex: Float): Int {
         var state by mutableStateOf("a")
         setContent {
             AnimatedContent(
@@ -229,7 +229,7 @@ class AnimatedPaintingTest {
 
         mainClock.autoAdvance = false
         state = "b"
-        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+        repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
         val container = root.getComponent(0) as Container
         assertEquals(2, container.componentCount, "one of the two contents was gone before it was painted")
         return onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE)
@@ -258,7 +258,7 @@ class AnimatedPaintingTest {
 
         mainClock.autoAdvance = false
         visible = true
-        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+        repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
         val faded = rendered(animatedContainer().fetch())
 
         mainClock.autoAdvance = true

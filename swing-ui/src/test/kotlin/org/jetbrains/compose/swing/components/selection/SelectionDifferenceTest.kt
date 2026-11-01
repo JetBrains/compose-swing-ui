@@ -108,7 +108,6 @@ class SelectionDifferenceTest {
 
         val table = onNodeOfType<JTable>().fetch()
         selection = setOf(1, 2, 5)
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
@@ -128,7 +127,6 @@ class SelectionDifferenceTest {
 
         val list = onNodeOfType<JList<*>>().fetch()
         selection = setOf(1, 2, 5)
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(

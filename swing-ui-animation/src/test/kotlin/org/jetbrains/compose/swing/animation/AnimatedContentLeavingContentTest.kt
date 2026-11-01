@@ -31,7 +31,7 @@ class AnimatedContentLeavingContentTest {
             mainClock.autoAdvance = false
             state = "b"
             // Three 60 Hz frames advance at most 50 ms into the default 90 ms exit.
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
 
             val leaving = onNodeWithText("a").fetch()
             // The default enter is delayed past these frames, so only the content being left shows here.

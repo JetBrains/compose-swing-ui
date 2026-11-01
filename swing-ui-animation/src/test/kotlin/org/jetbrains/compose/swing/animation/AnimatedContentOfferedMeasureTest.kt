@@ -49,7 +49,7 @@ class AnimatedContentOfferedMeasureTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
             val constrainable = container as Constrainable

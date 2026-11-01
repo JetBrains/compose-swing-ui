@@ -95,7 +95,7 @@ class DeferredTransformTest {
             mainClock.autoAdvance = false
             state.animateTo(true)
             // The first frames publish the write and start the animation; the offset moves on the next.
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 paintedDeferredContentLeft() > DEFERRED_BLOCK_WIDTH / 2,
                 "the offset started from rest instead of the velocity it was released with, " +
@@ -264,7 +264,7 @@ class DeferredTransformTest {
 
             mainClock.autoAdvance = false
             state.animateTo(true)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 paintedDeferredContentLeft() in 1 until DEFERRED_BLOCK_WIDTH,
                 "the content jumped back as the transition took over, to ${paintedDeferredContentLeft()}",
@@ -301,7 +301,7 @@ class DeferredTransformTest {
 
             mainClock.autoAdvance = false
             state.animateTo(false)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 sampledContent().alpha <= HELD_OPACITY,
                 "the content jumped back to full opacity as the exit took over, to ${sampledContent().alpha}",
@@ -397,7 +397,7 @@ class DeferredTransformTest {
 
             mainClock.autoAdvance = false
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 announcedContent().x in 1 until DEFERRED_BLOCK_WIDTH,
                 "the announced content jumped back as the transition took over, to ${announcedContent().x}",

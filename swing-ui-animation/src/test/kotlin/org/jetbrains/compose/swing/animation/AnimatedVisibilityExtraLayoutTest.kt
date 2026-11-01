@@ -52,9 +52,9 @@ class AnimatedVisibilityExtraLayoutTest {
             }
             val body = onNodeWithTag("body").fetch<JLabel>()
             repeat(layouts) { layOutAgain(body) }
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val firstFrame = mainClock.currentTime
-            advanceOneFrameBy(680.milliseconds)
+            mainClock.advanceTimeByFrame(680.milliseconds)
             onAllNodesWithTag("animation").assertCountEquals(1)
             assertEndsAt(
                 firstFrame + 1000.milliseconds,

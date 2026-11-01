@@ -22,11 +22,11 @@ import kotlin.test.assertTrue
  * Sends fade frames to the fading [container] below [parent], and fails unless each one repaints the container,
  * advances the fade and leaves the layout above the container valid.
  */
-private suspend fun ComposeSwingTest.assertFadeFramesOnlyRepaint(
+private fun ComposeSwingTest.assertFadeFramesOnlyRepaint(
     parent: InvalidationRecordingPanel,
     container: SwingNodeInteraction<Component>,
 ) {
-    repeat(2) { driveOneFrame() }
+    repeat(2) { mainClock.advanceTimeByFrame() }
     val component = container.fetch<JComponent>()
     // A paint is what reads the fade, so only a container painted once repaints on the next frame.
     var alpha = container.paintedAlpha()
@@ -34,7 +34,7 @@ private suspend fun ComposeSwingTest.assertFadeFramesOnlyRepaint(
         parent.invalidations = 0
         repeat(3) {
             val repaintsBefore = repaints.repaintsOf(component)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(repaints.repaintsOf(component) > repaintsBefore, "fade frame $it did not repaint the container")
             val alphaBefore = alpha
             alpha = container.paintedAlpha()

@@ -161,7 +161,7 @@ class AnimatedScrollableTest {
 
             mainClock.autoAdvance = false
             state = 1
-            repeat(FRAMES_INTO_THE_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_THE_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             // The default enter's scale is mid-travel, so a hit-test overlay stands alongside both contents.
             assertEquals(3, view.componentCount, "precondition: both contents stand in the container")

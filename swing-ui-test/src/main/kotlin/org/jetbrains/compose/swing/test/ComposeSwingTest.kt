@@ -556,6 +556,8 @@ private class ComposeSwingTestImpl(
     override val mainClock: MainTestClock =
         MainTestClockImpl(
             currentTimeNanos = { frameTimeNanos },
+            lastFrameTimeNanos = { lastFrameTimeNanos },
+            advanceTime = { frameTimeNanos += it },
             runFrame = ::runFrame,
             diagnostics = { root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote() },
             throwFailure = ::throwUncaughtFailure,
@@ -564,6 +566,7 @@ private class ComposeSwingTestImpl(
     private var disposeHandle: DisposableHandle? = null
     private var contentSet = false
     private var frameTimeNanos = 0L
+    private var lastFrameTimeNanos = 0L
 
     /**
      * The failure that ended recomposition, once one has. Applying a composition's changes runs code the
@@ -708,6 +711,7 @@ private class ComposeSwingTestImpl(
         deltaNanos: Long,
         caller: String,
     ) {
+        runUntil(caller, nextFrame = { null }, done = ::composedOrAwaitingFrame)
         var frame: Long? = deltaNanos
         runUntil(caller, nextFrame = { frame.also { frame = null } }, done = ::composedOrAwaitingFrame)
     }
@@ -748,6 +752,7 @@ private class ComposeSwingTestImpl(
     private fun sendFrame(deltaNanos: Long) {
         Snapshot.sendApplyNotifications()
         frameTimeNanos += deltaNanos
+        lastFrameTimeNanos = frameTimeNanos
         clock.sendFrame(frameTimeNanos)
     }
 

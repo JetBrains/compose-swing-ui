@@ -100,7 +100,7 @@ class AnimatedContentGeometryTest {
      * One container per case is composed side by side, all driven by the same state, so a single
      * transition answers for the whole crossing.
      */
-    private suspend fun ComposeSwingTest.slideIn(cases: List<SlideCase>): List<Point> {
+    private fun ComposeSwingTest.slideIn(cases: List<SlideCase>): List<Point> {
         var state by mutableStateOf("a")
         setContent {
             for (case in cases) {
@@ -122,7 +122,7 @@ class AnimatedContentGeometryTest {
         state = "b"
         // The arriving content is measured one pass after it is mounted and the slide is set up from that
         // measurement; the spec holds its initial offset far longer than the frames that takes.
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         // The slide is where the content stands past the place the alignment gives it in the container.
         return cases.mapIndexed { index, case ->
             val container = root.getComponent(index) as Container

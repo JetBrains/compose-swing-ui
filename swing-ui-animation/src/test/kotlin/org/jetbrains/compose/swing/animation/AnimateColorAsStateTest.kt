@@ -51,7 +51,7 @@ class AnimateColorAsStateTest {
 
             mainClock.autoAdvance = false
             target = Color.WHITE
-            repeat(FRAMES_PART_WAY) { driveOneFrame() }
+            repeat(FRAMES_PART_WAY) { mainClock.advanceTimeByFrame() }
             assertTrue(arrivals.isEmpty(), "the listener was called while the color was still on its way")
 
             mainClock.autoAdvance = true
@@ -91,7 +91,7 @@ class AnimateColorAsStateTest {
             target = Color.WHITE
             val frames =
                 List(FRAMES_INTO_THE_RAMP) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     byDefault.value to bySpring.value
                 }
             assertTrue(
@@ -174,7 +174,7 @@ class AnimateColorAsStateTest {
             var reachedTarget = false
             var turnedBack = false
             repeat(30) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 val lightness = pulse.value.red
                 if (lightness >= 250) reachedTarget = true
                 if (reachedTarget && lightness <= 10) turnedBack = true
@@ -203,7 +203,7 @@ class AnimateColorAsStateTest {
     private suspend fun ComposeSwingTest.assertRampsBlackToWhite(label: JLabel) {
         val seen =
             List(FRAMES_INTO_THE_RAMP) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 label.background.red
             }
         assertEquals(seen.sorted(), seen, "the ramp did not climb frame by frame: $seen")

@@ -84,13 +84,13 @@ class DeferredContentParityTest {
 
             mainClock.autoAdvance = false
             state.defer("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(listOf("b", "a"), animated.contentTexts())
             assertEquals(0f, animated.contentAlpha(0), "the pending content entered before readiness")
             assertEquals(1f, animated.contentAlpha(1), "the outgoing content exited before readiness")
 
             state.animateTo("b")
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertTrue(animated.contentAlpha(0) > 0f, "the content did not enter when the gate opened")
             assertTrue(animated.contentAlpha(1) < 1f, "the content did not start exiting when the gate opened")
 
@@ -116,7 +116,7 @@ class DeferredContentParityTest {
 
             mainClock.autoAdvance = false
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(listOf("b", "a"), animated.contentTexts())
 
@@ -160,14 +160,14 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
 
             state.animateTo("b")
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val beforeFlap = animated.width
             assertTrue(beforeFlap in 41 until 160, "precondition: size had not started travelling: $beforeFlap")
 
             state.defer("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val heldAtFlap = animated.width
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertTrue(
                 animated.width > heldAtFlap,
@@ -220,23 +220,23 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
 
             state.animateTo("b")
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             val beforePreparation = animated.width
             assertTrue(beforePreparation > 40, "precondition: A to B had not started: $beforePreparation")
 
             state.defer("c")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val afterPreparation = animated.width
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(
                 animated.width > afterPreparation,
                 "the unready C interrupted the running A to B size animation: $afterPreparation -> ${animated.width}",
             )
 
             state.animateTo("c")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val beforeReadyInterruption = animated.width
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             assertTrue(
                 animated.width < beforeReadyInterruption,
                 "the ready C did not interrupt the size animation towards B: " +
@@ -261,11 +261,11 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
 
             state.animateTo("b")
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertTrue(animated.contentTexts().containsAll(setOf("a", "b")))
 
             state.defer("c")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertTrue(animated.contentTexts().containsAll(setOf("a", "b", "c")), "C was not composed for preparation")
             state.animateTo("c")
@@ -311,10 +311,10 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
 
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(emptyList(), seen)
             state.defer("a")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(listOf("b" to "a"), seen)
         }
@@ -373,9 +373,9 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
             previewing = 1
             state.defer("b")
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
             previewOffset = 50
-            repeat(2) { driveOneFrame() }
+            repeat(2) { mainClock.advanceTimeByFrame() }
 
             val entering = animated.contentPanel(0)
             val leaving = animated.contentPanel(1)
@@ -386,9 +386,9 @@ class DeferredContentParityTest {
 
             previewing = 0
             state.animateTo("b")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             mainClock.advanceTimeBy(80.milliseconds)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertTrue(entering.x in 1 until 250, "enter did not travel from preview offset 250: ${entering.x}")
             assertTrue(leaving.x < -50 && leaving.x > -200, "exit did not travel from preview offset -50: ${leaving.x}")
@@ -396,7 +396,7 @@ class DeferredContentParityTest {
             assertTrue(leaving.y in 1 until 100, "exit y did not return from preview offset 100: ${leaving.y}")
 
             mainClock.advanceTimeBy(1000.milliseconds)
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             mainClock.autoAdvance = true
             awaitIdle()
             assertEquals(0, entering.x)
@@ -433,13 +433,13 @@ class DeferredContentParityTest {
             mainClock.autoAdvance = false
             state.defer("b")
             previewScale = 80
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             awaitIdle()
             val widthDuringPreview = animated.contentPaintedWidth(animated.contentIndex("a"))
             assertEquals(80.0, widthDuringPreview.toDouble(), 1.0)
 
             state.animateTo("a")
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val widthAfterInterrupt = animated.contentPaintedWidth(animated.contentIndex("a"))
             assertEquals(
                 80.0,

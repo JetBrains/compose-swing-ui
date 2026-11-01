@@ -53,13 +53,8 @@ class DeferredChildIndexSpaceTimingTest : TracedTest() {
         val movable = onNodeWithText("Movable").fetch()
         assertSame(movable, pane.leftComponent, "the child should start on the side it first names")
 
-        // The idle gate publishes the write and leaves the recomposition it invalidates parked at the
-        // frame it is waiting for, without sending one. The frame that follows then carries the whole
-        // move and the turn the pass schedules the walk on, so the walk reads the child where the pass
-        // left it rather than mid-move.
         onFirstSide = false
         tracer.clear()
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertSame(movable, pane.rightComponent, "the child should stand on the side it now names")

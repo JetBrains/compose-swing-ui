@@ -199,7 +199,7 @@ class EnterExitTransitionTest {
      * The fade holds its initial opacity for the whole test, so what is captured is the value the factory
      * was handed rather than a sample of a curve.
      */
-    private suspend fun ComposeSwingTest.fadedPixel(initialAlpha: Float): Int {
+    private fun ComposeSwingTest.fadedPixel(initialAlpha: Float): Int {
         var visible by mutableStateOf(false)
         setContent {
             AnimatedVisibility(
@@ -220,7 +220,7 @@ class EnterExitTransitionTest {
 
         mainClock.autoAdvance = false
         visible = true
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
         return animatedContainer().captureToImage().getRGB(2, 2)
     }
 }

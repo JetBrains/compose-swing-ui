@@ -81,7 +81,7 @@ class AnimatedVisibilityFadeReuseTest {
             val fixture = FadeFixture()
             mountFade(parent, fixture)
             fixture.visible = false
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val container = fixture.container
             container.paintUnder(Rectangle(0, 0, 20, 20))
 
@@ -118,12 +118,12 @@ class AnimatedVisibilityFadeReuseTest {
         awaitIdle()
         mainClock.autoAdvance = false
         active = true
-        repeat(warmUpFrames) { driveOneFrame() }
+        repeat(warmUpFrames) { mainClock.advanceTimeByFrame() }
 
         repeat(14) { index ->
             paints = 0
             frameNumber.intValue = index + 1
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(1, paints, "$name frame $index paints the layers in one pass")
         }
     }

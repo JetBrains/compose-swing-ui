@@ -225,7 +225,7 @@ private fun unsettledAfterNarrowing(
                 resized.clear()
                 textAreas.forEach { it.resetCounts() }
                 // A held clock needs a frame to apply the new width, and the animation must not move with it.
-                if (transitionTime != null) mainClock.advanceTimeBy(Duration.ZERO, ignoreFrameDuration = true)
+                if (transitionTime != null) mainClock.advanceTimeByFrame(Duration.ZERO)
                 awaitIdle()
                 problems += repeatedResizes(held, resized, width)
                 cyclesUntilStable(container)

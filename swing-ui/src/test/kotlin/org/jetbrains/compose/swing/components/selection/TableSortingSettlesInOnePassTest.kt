@@ -54,7 +54,6 @@ class TableSortingSettlesInOnePassTest : TracedTest() {
         )
 
         sortable = false
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertNull(

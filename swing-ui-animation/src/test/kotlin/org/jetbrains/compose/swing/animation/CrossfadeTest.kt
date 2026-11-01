@@ -92,17 +92,17 @@ class CrossfadeTest {
                 }
             }
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             mainClock.advanceTimeBy(duration.milliseconds)
             showFirst = false
             mainClock.advanceTimeBy(duration.milliseconds)
-            driveOneFrame()
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
 
             showFirst = true
             mainClock.advanceTimeBy(duration.milliseconds)
-            driveOneFrame()
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(1, counter1)
             assertEquals(2, counter2)
@@ -144,8 +144,8 @@ class CrossfadeTest {
                 }
             }
 
-            driveOneFrame()
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
             assertTrue(isRunning, "the different content key did not start a transition")
             assertEquals(1, currentState)
             assertEquals(-1, observedTargetState)
@@ -177,7 +177,7 @@ class CrossfadeTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             assertEquals(
                 setOf("a", "b"),
                 crossfade.texts(),
@@ -212,7 +212,7 @@ class CrossfadeTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(3) { driveOneFrame() }
+            repeat(3) { mainClock.advanceTimeByFrame() }
             val interrupted = crossfade.panelOf("b")
             val alphaAtInterruption = interrupted.paintedAlpha()
             assertTrue(alphaAtInterruption < 0.5f, "the crossfade had already settled, alpha was $alphaAtInterruption")
@@ -222,7 +222,7 @@ class CrossfadeTest {
             state = "c"
             val alphas =
                 List(4) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     crossfade.panelOf("b").paintedAlpha()
                 }
             assertTrue(
@@ -255,7 +255,7 @@ class CrossfadeTest {
             state = "b"
             val widths =
                 List(8) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     crossfade.preferredSize.width
                 }
             assertTrue(
@@ -352,7 +352,7 @@ class CrossfadeTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertEquals(1, crossfade.componentCount, "two states with one content key were composed twice")
             assertEquals(setOf("b"), crossfade.texts(), "the content did not follow the state it shares a key with")
         }

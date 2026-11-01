@@ -32,7 +32,7 @@ class AnimationOverloadSelectionTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             val rightSibling = onNodeWithTag(RIGHT).fetch()
             assertTrue(
@@ -60,7 +60,7 @@ class AnimationOverloadSelectionTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             val belowSibling = onNodeWithTag(BELOW).fetch()
             assertEquals(0, belowSibling.x, "the column changed the cross-axis position: ${belowSibling.bounds}")
@@ -93,7 +93,7 @@ class AnimationOverloadSelectionTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             val rightSibling = onNodeWithTag(RIGHT).fetch()
             val belowSibling = onNodeWithTag(BELOW).fetch()
@@ -124,7 +124,7 @@ class AnimationOverloadSelectionTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             val preferredSize = onNodeWithTag(CONTAINER).fetch().preferredSize
             assertTrue(preferredSize.width in 1 until BODY_WIDTH, "the panel child did not report its animated width")
@@ -165,7 +165,7 @@ class AnimationOverloadSelectionTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_INTO_TRANSITION) { driveOneFrame() }
+            repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
             val container = onNodeWithTag(CONTAINER).fetch()
             assertTrue(container.isVisible, "the extracted composable did not mount its top-level container")

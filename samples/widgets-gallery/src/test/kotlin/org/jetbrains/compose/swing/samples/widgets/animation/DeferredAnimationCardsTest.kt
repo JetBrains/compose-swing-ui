@@ -101,9 +101,6 @@ class DeferredAnimationCardsTest {
             onNodeWithText("Transfer #7716 · Ready").assertDoesNotExist()
 
             onNodeWithText("Cancel").performClick()
-            mainClock.autoAdvance = false
-            driveFramesIntoTheTransition()
-            mainClock.autoAdvance = true
             awaitIdle()
             onNodeWithText("Transfer #7716 · Ready").assertDoesNotExist()
             onNodeWithText("Show again").assertExists()

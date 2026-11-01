@@ -58,7 +58,7 @@ class FillContainerTest {
         mainClock.autoAdvance = false
         shown = false
         // Enough frames for the transition to be under way, and few enough that it has not finished.
-        repeat(3) { driveOneFrame() }
+        repeat(3) { mainClock.advanceTimeByFrame() }
 
         assertTrue(case.underway(filled), "the transition was not under way yet")
         assertEquals(0 until FILLED_EXTENT, case.axis.span(filled), "the shrink took the filled extent with it")

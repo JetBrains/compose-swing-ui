@@ -149,7 +149,7 @@ internal suspend fun ComposeSwingTest.mountFade(
 
 /** Drives one frame and delivers the paints and repaint requests it caused. */
 internal suspend fun ComposeSwingTest.driveFrame() {
-    driveOneFrame()
+    mainClock.advanceTimeByFrame()
     awaitEventsDelivered()
 }
 

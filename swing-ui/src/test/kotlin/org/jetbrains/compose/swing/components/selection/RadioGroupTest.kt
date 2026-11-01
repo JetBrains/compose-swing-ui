@@ -136,7 +136,6 @@ class RadioGroupTest {
         onNodeWithText("Small").assert(isSelected())
 
         selectedIndex = 2
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         val selected = onAllNodesOfType<JRadioButton>().fetchAll().map { it.isSelected }

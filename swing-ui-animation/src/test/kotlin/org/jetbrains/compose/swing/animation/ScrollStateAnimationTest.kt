@@ -73,7 +73,7 @@ class ScrollStateAnimationTest {
             val job = fixture.launchScroll { animateScrollTo(y = target) }
             val path = mutableListOf<Int>()
             while (!job.isCompleted && path.size < FRAME_BUDGET) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 path += state.y
             }
 
@@ -203,7 +203,7 @@ class ScrollStateAnimationTest {
             assertTrue(state.isScrollInProgress, "the animation holds the position before its first frame")
             assertEquals(Point(0, 0), viewportPosition(), "no movement happens before a frame")
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(target, viewportPosition(), "the supplied snap spec reaches both coordinates in one frame")
             assertTrue(job.isCompleted, "the snap animation completes on that frame")
@@ -221,7 +221,7 @@ class ScrollStateAnimationTest {
             awaitIdle()
             assertEquals(Point(0, 0), viewportPosition(), "the delta waits for its first frame")
 
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(Point(10, 20), viewportPosition(), "the supplied snap spec moves both axes in one frame")
             assertEquals(Point(10, 20), consumed, "the completed call returns both consumed distances")
@@ -259,7 +259,7 @@ class ScrollStateAnimationTest {
             job.cancel()
             awaitIdle()
             val stopped = viewportPosition()
-            repeat(5) { driveOneFrame() }
+            repeat(5) { mainClock.advanceTimeByFrame() }
 
             assertTrue(job.isCancelled, "the caller remains cancelled")
             assertFalse(state.isScrollInProgress, "cancellation releases the position")
@@ -284,7 +284,6 @@ class ScrollStateAnimationTest {
             assertEquals(0, state.y, "the scroll has taken the position but has had no frame to move on")
 
             mainClock.advanceTimeByFrame()
-            awaitIdle()
             assertEquals(target, state.y, "one frame must carry a scroll with no duration all the way")
             assertTrue(job.isCompleted, "and end it there")
         }
@@ -354,7 +353,7 @@ private class ScrollFixture(
  * Composes a pane smaller than its content on both axes, so there is room to scroll each way, and
  * settles it on one frame so the viewport's metrics are the laid-out ones.
  */
-private suspend fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
+private fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
     var state: ScrollState? = null
     var scope: CoroutineScope? = null
     setContent {
@@ -365,7 +364,7 @@ private suspend fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
             Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
         }
     }
-    driveOneFrame()
+    mainClock.advanceTimeByFrame()
     val fixture =
         ScrollFixture(
             state ?: error("the scroll pane did not compose"),

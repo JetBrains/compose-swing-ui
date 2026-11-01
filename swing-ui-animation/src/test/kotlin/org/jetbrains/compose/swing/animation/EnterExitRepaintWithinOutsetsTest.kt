@@ -44,7 +44,7 @@ class EnterExitRepaintWithinOutsetsTest {
         awaitIdle()
         mainClock.autoAdvance = false
         visible = !visible
-        repeat(4) { driveOneFrame() }
+        repeat(4) { mainClock.advanceTimeByFrame() }
 
         val host = onNodeWithTag("host").fetch<ConstrainedPanel>()
         val leaf = onNodeWithTag("leaf").fetch<JComponent>()

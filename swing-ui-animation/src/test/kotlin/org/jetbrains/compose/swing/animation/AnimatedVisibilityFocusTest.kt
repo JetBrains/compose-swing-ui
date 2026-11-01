@@ -93,7 +93,7 @@ class AnimatedVisibilityFocusTest {
             mainClock.autoAdvance = false
             reportingFocusOwner(owner) {
                 visible = false
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
             }
 
             assertEquals(
@@ -122,7 +122,7 @@ class AnimatedVisibilityFocusTest {
             mainClock.autoAdvance = false
             reportingFocusOwner(owner) {
                 visible = false
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
             }
 
             assertEquals(

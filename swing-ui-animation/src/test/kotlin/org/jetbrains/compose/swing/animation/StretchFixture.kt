@@ -370,7 +370,7 @@ internal object Stretch {
             shown = true
             var paintedSize: Dimension? = null
             repeat(frames) { frame ->
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 val animation = onNodeWithTag(CONTAINER).fetch<JComponent>()
                 val allocatedSize = Dimension(animation.size)
                 val corrections = cyclesUntilStable(animation)
@@ -434,7 +434,7 @@ internal fun runEnteringScene(
     setContent { scene(visible) }
     mainClock.autoAdvance = false
     visible = true
-    repeat(frames) { driveOneFrame() }
+    repeat(frames) { mainClock.advanceTimeByFrame() }
     assertions()
 }
 

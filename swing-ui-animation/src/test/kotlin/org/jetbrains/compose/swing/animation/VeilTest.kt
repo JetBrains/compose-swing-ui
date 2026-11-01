@@ -40,7 +40,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             val veiled = Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE))
 
             mainClock.autoAdvance = true
@@ -63,7 +63,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             val veiled = animatedContainer().captureToImage()
 
             assertImagesPixelPerfect(filled(veiled.width, veiled.height, DefaultScrim), veiled)
@@ -99,7 +99,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             val clearing = sampledVeil()
 
             assertEqualsSorted(clearing)
@@ -118,7 +118,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = false
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
 
             assertEquals(
                 Content,
@@ -143,7 +143,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
 
             assertEquals(
                 0,
@@ -168,7 +168,7 @@ class VeilTest {
 
             mainClock.autoAdvance = false
             visible = true
-            repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+            repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
             val entering = sampledVeil()
 
             mainClock.autoAdvance = true
@@ -188,7 +188,7 @@ class VeilTest {
      * The panel is declared larger than the content it holds, so the two rectangles a veil can cover are
      * different rectangles and the point below falls inside only one of them.
      */
-    private suspend fun ComposeSwingTest.veiledBeyondContent(matchParentSize: Boolean): Boolean {
+    private fun ComposeSwingTest.veiledBeyondContent(matchParentSize: Boolean): Boolean {
         var visible by mutableStateOf(false)
         setContent {
             AnimatedVisibility(
@@ -203,15 +203,15 @@ class VeilTest {
 
         mainClock.autoAdvance = false
         visible = true
-        repeat(FRAMES_TO_MEASURE) { driveOneFrame() }
+        repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
         val panel = animatedContainer().captureToImage()
         return Color(panel.getRGB(60, 30), true).alpha != 0
     }
 
     /** How much of the content shows through the veil, one reading per frame over the frames sampled. */
-    private suspend fun ComposeSwingTest.sampledVeil(): List<Int> =
+    private fun ComposeSwingTest.sampledVeil(): List<Int> =
         List(6) {
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE)).blue
         }
 }

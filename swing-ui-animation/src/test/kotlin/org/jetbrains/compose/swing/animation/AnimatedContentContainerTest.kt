@@ -54,7 +54,7 @@ class AnimatedContentContainerTest {
             state = "b"
             val offsets =
                 List(10) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     onNodeWithTag(SIBLING).fetch().x
                 }
             assertTrue(
@@ -86,14 +86,14 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertEquals(Dimension(45, 22), container.size, "the size stood part-way when the third state arrived")
             arguments.clear()
             state = "c"
 
             val sizes =
                 List(10) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     Dimension(container.size)
                 }
             val standing = Dimension(45, 22)
@@ -123,7 +123,7 @@ class AnimatedContentContainerTest {
                 arguments.all { (_, targetSize) -> targetSize == Dimension(120, 60) || targetSize == Dimension(0, 0) },
                 "the size transform was asked toward a size other than the measured target: $arguments",
             )
-            repeat(30) { driveOneFrame() }
+            repeat(30) { mainClock.advanceTimeByFrame() }
             assertEquals(Dimension(120, 60), container.size, "the interrupted transition settled at its content size")
         }
 
@@ -144,7 +144,7 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            repeat(4) { driveOneFrame() }
+            repeat(4) { mainClock.advanceTimeByFrame() }
             assertEquals(Dimension(40, 20) to Dimension(200, 100), received.first(), "the measured sizes it received")
             assertEquals(Dimension(45, 22), container.size, "the callback moved the traveling size")
             retained.forEach { (initialSize, targetSize) ->
@@ -179,7 +179,7 @@ class AnimatedContentContainerTest {
             state = "b"
             val widths =
                 List(10) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     onNodeWithTag(CONTAINER).fetch().width
                 }
             assertEquals(List(10) { 200 }, widths, "the row did not ask for the arriving size")
@@ -207,7 +207,7 @@ class AnimatedContentContainerTest {
             mainClock.autoAdvance = false
             state = "b"
             // A frame whose layout never settles fails here rather than returning.
-            repeat(10) { driveOneFrame() }
+            repeat(10) { mainClock.advanceTimeByFrame() }
 
             mainClock.autoAdvance = true
             awaitIdle()
@@ -244,7 +244,7 @@ class AnimatedContentContainerTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(10) {
-                driveOneFrame()
+                mainClock.advanceTimeByFrame()
                 val below = onNodeWithTag(BELOW).fetch()
                 val content = onNodeWithTag("content b").fetch()
                 val contentBounds = SwingUtilities.convertRectangle(content.parent, content.bounds, root)
@@ -283,7 +283,7 @@ class AnimatedContentContainerTest {
             state = "b"
             val heights =
                 List(10) {
-                    driveOneFrame()
+                    mainClock.advanceTimeByFrame()
                     onNodeWithTag(CONTAINER).fetch().height
                 }
             assertTrue(heights.any { it in 21 until 80 }, "the region did not travel frame by frame: $heights")
@@ -333,7 +333,7 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = false
             state = "b"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             val fieldB = window.onNodeWithTag("field b").fetch()
             assertSame(fieldB, next(before), "a tab did not land in the content arriving")
             assertSame(
@@ -344,7 +344,7 @@ class AnimatedContentContainerTest {
             assertSame(before, previous(fieldB), "a shift+tab from the content arriving did not leave the container")
 
             state = "a"
-            driveOneFrame()
+            mainClock.advanceTimeByFrame()
             assertSame(
                 window.onNodeWithTag("field a").fetch(),
                 next(before),

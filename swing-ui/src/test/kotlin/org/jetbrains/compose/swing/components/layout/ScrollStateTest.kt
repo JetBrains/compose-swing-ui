@@ -425,7 +425,6 @@ class ScrollStateTest {
         // The state a pane binds to is a declared parameter, so the pass that declares another one is the
         // pass that must move the pane onto it.
         useSecond = true
-        awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
