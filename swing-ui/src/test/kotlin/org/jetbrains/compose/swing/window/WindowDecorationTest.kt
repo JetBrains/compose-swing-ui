@@ -102,7 +102,6 @@ class WindowDecorationTest {
             "the realized window must carry its platform decorations once undecorated recomposes to false",
         ) { isUndecorated }
         assertFalse(realized.isDisplayable, "the window the change replaced must be released")
-        awaitWindowStandsStill(decorated)
         assertReaches(
             Dimension(320, 240),
             "the size held in the state must be applied to the window that replaces the released one",
@@ -151,7 +150,6 @@ class WindowDecorationTest {
             "the realized dialog must carry its platform decorations once undecorated recomposes to false",
         ) { isUndecorated }
         assertFalse(realized.isDisplayable, "the dialog the change replaced must be released")
-        awaitWindowStandsStill(decorated)
         assertReaches(
             Dimension(320, 240),
             "the size held in the state must be applied to the dialog that replaces the released one",
@@ -184,7 +182,6 @@ class WindowDecorationTest {
         }
         val window = onWindowWithTitle("position-replacement-test")
         val realized = window.fetch<JFrame>()
-        awaitWindowStandsStill(realized)
         assertReaches(Point(140, 90), "the window must realize at the position the state holds") { realized.location }
 
         undecorated = false
@@ -213,7 +210,6 @@ class WindowDecorationTest {
         }
         val dialog = onWindowWithTitle("dialog-position-replacement-test")
         val realized = dialog.fetch<JDialog>()
-        awaitWindowStandsStill(realized)
         assertReaches(Point(160, 110), "the dialog must realize at the position the state holds") { realized.location }
 
         undecorated = false
@@ -254,12 +250,10 @@ class WindowDecorationTest {
 
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { replacement.extendedState == Frame.MAXIMIZED_BOTH }
-        assertEquals(
+        assertReaches(
             Frame.MAXIMIZED_BOTH,
-            replacement.extendedState,
             "the extended state held in the state must be applied to the window that replaces the released one",
-        )
+        ) { replacement.extendedState }
     }
 
     @Test
@@ -314,14 +308,12 @@ class WindowDecorationTest {
 
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
-        awaitWindowStandsStill(replacement)
+        assertReaches(Dimension(320, 240)) { replacement.size }
         replacement.size = Dimension(640, 480)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
-        assertEquals(
+        assertReaches(
             Dimension(640, 480),
-            state.size,
             "a resize of the replacement window must be written back into the state",
-        )
+        ) { state.size }
     }
 
     @Test
@@ -350,11 +342,9 @@ class WindowDecorationTest {
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
         replacement.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.extendedState == Frame.MAXIMIZED_BOTH }
-        assertEquals(
+        assertReaches(
             Frame.MAXIMIZED_BOTH,
-            state.extendedState,
             "a maximize of the replacement window must be written back into the state",
-        )
+        ) { state.extendedState }
     }
 }

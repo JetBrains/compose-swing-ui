@@ -5,16 +5,28 @@ package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.ComposeTimeoutException
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.dumpTrees
 import org.jetbrains.compose.swing.test.findMatchingIncludingSelf
+import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dialog
 import java.awt.Frame
+import java.awt.Toolkit
 import java.awt.Window
+import java.awt.event.AWTEventListener
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
+import java.awt.event.PaintEvent
 import javax.swing.JRootPane
 import javax.swing.RootPaneContainer
+import javax.swing.SwingUtilities
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * A lazy handle to the single top-level window targeted by a window query. The target is resolved
@@ -117,6 +129,66 @@ public class SwingWindowInteraction<out T : Window> internal constructor(
     @PublishedApi
     internal val matcherDescription: String
         get() = description
+
+    /**
+     * Suspends until the window system has sent this window no move, resize or paint event for
+     * [quietPeriod], and returns this interaction. Use it before recording what a window paints.
+     *
+     * To read or change geometry, wait for the expected value with
+     * [org.jetbrains.compose.swing.test.ComposeSwingTest.waitUntil] instead.
+     *
+     * Both durations use wall-clock time. The composition clock does not advance during the wait.
+     *
+     * @param quietPeriod how long the window must go without a move, resize or paint event.
+     * @param timeout the wall-clock deadline after which a window that keeps receiving them fails the wait.
+     * @throws IllegalArgumentException if [quietPeriod] is not shorter than [timeout].
+     * @throws AssertionError if the query does not match exactly one realized window.
+     * @throws org.jetbrains.compose.swing.test.ComposeTimeoutException if [timeout] expires first.
+     */
+    public suspend fun awaitWindowSystemIdle(
+        quietPeriod: Duration = 250.milliseconds,
+        timeout: Duration = 10.seconds,
+    ): SwingWindowInteraction<T> {
+        require(quietPeriod < timeout) { "quietPeriod ($quietPeriod) must be shorter than timeout ($timeout)" }
+        val window = resolve()
+        var lastEvent = TimeSource.Monotonic.markNow()
+        val reshapes =
+            object : ComponentAdapter() {
+                override fun componentResized(event: ComponentEvent) {
+                    lastEvent = TimeSource.Monotonic.markNow()
+                }
+
+                override fun componentMoved(event: ComponentEvent) {
+                    lastEvent = TimeSource.Monotonic.markNow()
+                }
+            }
+        val paintEvents =
+            AWTEventListener { event ->
+                val source = event.source
+                if (event is PaintEvent && source is Component && SwingUtilities.isDescendingFrom(source, window)) {
+                    lastEvent = TimeSource.Monotonic.markNow()
+                }
+            }
+        val toolkit = Toolkit.getDefaultToolkit()
+        window.addComponentListener(reshapes)
+        toolkit.addAWTEventListener(paintEvents, AWTEvent.PAINT_EVENT_MASK)
+        try {
+            val deadline = TimeSource.Monotonic.markNow() + timeout
+            while (lastEvent.elapsedNow() < quietPeriod) {
+                test.awaitEventsDelivered()
+                if (deadline.hasPassedNow()) {
+                    throw ComposeTimeoutException(
+                        "Window '$description' still received a move, resize or paint event within $quietPeriod " +
+                            "after $timeout.\n${describeWindow(window)}",
+                    )
+                }
+            }
+        } finally {
+            toolkit.removeAWTEventListener(paintEvents)
+            window.removeComponentListener(reshapes)
+        }
+        return this
+    }
 
     // region assertions
 

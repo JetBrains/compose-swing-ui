@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import java.awt.AlphaComposite
@@ -23,15 +24,10 @@ import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Rectangle
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 enum class FadeParent(
     val modifier: SwingModifier = SwingModifier,
@@ -142,7 +138,7 @@ internal suspend fun ComposeSwingTest.mountFade(
             Window(onCloseRequest = {}, title = "fade", state = WindowState(size = Dimension(400, 300))) { fade() }
         }
         awaitIdle()
-        awaitStandingStill(SwingUtilities.getWindowAncestor(fixture.host))
+        onWindowWithTitle("fade").awaitWindowSystemIdle()
     } else {
         setContent(fade)
         awaitIdle()
@@ -155,26 +151,6 @@ internal suspend fun ComposeSwingTest.mountFade(
 internal suspend fun ComposeSwingTest.driveFrame() {
     driveOneFrame()
     awaitEventsDelivered()
-}
-
-private suspend fun ComposeSwingTest.awaitStandingStill(window: Component) {
-    var lastReshape = System.nanoTime()
-    val listener =
-        object : ComponentAdapter() {
-            override fun componentResized(event: ComponentEvent) {
-                lastReshape = System.nanoTime()
-            }
-
-            override fun componentMoved(event: ComponentEvent) {
-                lastReshape = System.nanoTime()
-            }
-        }
-    window.addComponentListener(listener)
-    try {
-        waitUntil(timeout = 10.seconds) { System.nanoTime() - lastReshape >= 250.milliseconds.inWholeNanoseconds }
-    } finally {
-        window.removeComponentListener(listener)
-    }
 }
 
 private fun dominantChannel(color: Color): Int = listOf(color.red, color.green, color.blue).let { it.indexOf(it.max()) }

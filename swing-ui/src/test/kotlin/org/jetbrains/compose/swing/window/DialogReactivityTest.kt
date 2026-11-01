@@ -157,7 +157,6 @@ class DialogReactivityTest {
             ) {}
         }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(
             Dimension(320, 240),
             "a declared size below the declared minimum size must be raised to that minimum",
@@ -304,7 +303,6 @@ class DialogReactivityTest {
 
             val replacement = dialog.fetch<JDialog>()
             assertNotSame(realized, replacement, "an owner change must realize a replacement dialog")
-            awaitWindowStandsStill(replacement)
             assertReaches(
                 Dimension(360, 260),
                 "the size held in the state must be applied to the dialog that replaces the released one",
@@ -312,12 +310,10 @@ class DialogReactivityTest {
             dialog.onNodeWithText("dialog-reowned-content").assertExists()
 
             replacement.size = Dimension(520, 420)
-            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(520, 420) }
-            assertEquals(
+            assertReaches(
                 Dimension(520, 420),
-                state.size,
                 "a resize of the replacement dialog must be written back into the state",
-            )
+            ) { state.size }
         } finally {
             candidateOwner.dispose()
         }

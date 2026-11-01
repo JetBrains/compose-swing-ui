@@ -168,6 +168,8 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInter
 	public final fun assertExists ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public final fun assertIsNotVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public final fun assertIsVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public final fun awaitWindowSystemIdle-NqJ4yvY (JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun awaitWindowSystemIdle-NqJ4yvY$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;JJLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun fetch ()Ljava/awt/Window;
 	public final fun getMatcherDescription ()Ljava/lang/String;
 	public final fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;

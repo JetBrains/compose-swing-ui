@@ -36,7 +36,6 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        awaitWindowStandsStill(frame)
         assertReaches(
             "a window with no explicit size must pack to its preferred size",
             { frame.preferredSize },
@@ -60,7 +59,6 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(
             "a dialog with no explicit size must pack to its preferred size",
             { dialog.preferredSize },
@@ -84,7 +82,6 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        awaitWindowStandsStill(frame)
         assertReaches(
             Dimension(420, 300),
             "an explicit size must be applied verbatim rather than packed to content",
@@ -101,7 +98,6 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(
             Dimension(360, 240),
             "an explicit size must be applied verbatim rather than packed to content",
@@ -118,13 +114,10 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
-        awaitWindowStandsStill(frame)
-        assertEquals(
-            frame.size,
-            state.size,
-            "the realized packed size must flow back into the two-way state",
-        )
+        assertReaches("a window with no explicit size must pack to its preferred size", { frame.preferredSize }) {
+            frame.size
+        }
+        assertReaches("the realized packed size must flow back into the two-way state", { frame.size }) { state.size }
         assertTrue(state.width > 0 && state.height > 0, "the written-back size must be non-zero")
     }
 
@@ -138,25 +131,25 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
-        awaitWindowStandsStill(frame)
+        assertReaches(
+            "a window with no explicit size must pack to its preferred size",
+            { frame.preferredSize },
+        ) { frame.size }
+        assertReaches("the packed size must flow back into the two-way state", { frame.size }) { state.size }
         val packed = frame.size
 
         // The window system leaves the window at a size of the user's, which reaches the state.
         val resizedByTheUser = Dimension(packed.width + 160, packed.height + 120)
         frame.resizeTo(resizedByTheUser)
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == resizedByTheUser }
-        awaitWindowStandsStill(frame)
 
         // Sizing to the content is the same declaration written 0 by 0, so declaring it over the size
         // the user left is a change again and fits the window back to what it holds.
         state.size = Dimension(0, 0)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == packed }
-        assertEquals(
+        assertReaches(
             packed,
-            frame.size,
             "declaring no size over a size the user left must fit the window to its content again",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -170,8 +163,11 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
-        awaitWindowStandsStill(frame)
+        assertReaches(
+            "a window with no explicit size must pack to its preferred size",
+            { frame.preferredSize },
+        ) { frame.size }
+        assertReaches("the packed size must flow back into the two-way state", { frame.size }) { state.size }
         val packed = frame.size
 
         var resizeEvents = 0

@@ -33,25 +33,22 @@ class WindowStateHoistingTest {
         var state by mutableStateOf(first)
         setContent { Window(onCloseRequest = {}, state = state, title = "window-state-swap-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        awaitWindowStandsStill(frame)
-        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the geometry of the declared state")
+        assertReaches(
+            Dimension(320, 240),
+            "the frame must realize with the geometry of the declared state",
+        ) { frame.size }
 
         state = second
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
-        assertEquals(
+        assertReaches(
             Dimension(480, 360),
-            frame.size,
             "the frame must take the geometry of the state the recomposition declared",
-        )
+        ) { frame.size }
 
-        awaitWindowStandsStill(frame)
         state = first
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(320, 240) }
-        assertEquals(
+        assertReaches(
             Dimension(320, 240),
-            frame.size,
             "the frame must take the geometry of the state a further recomposition declares back",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -62,19 +59,16 @@ class WindowStateHoistingTest {
         var state by mutableStateOf(first)
         setContent { Window(onCloseRequest = {}, state = state, title = "window-state-swap-write-back-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        awaitWindowStandsStill(frame)
+        assertReaches(Dimension(320, 240)) { frame.size }
 
         state = second
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
-        awaitWindowStandsStill(frame)
 
         frame.size = Dimension(640, 480)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.size == Dimension(640, 480) }
-        assertEquals(
+        assertReaches(
             Dimension(640, 480),
-            second.size,
             "a resize must be written back into the state the window currently reads",
-        )
+        ) { second.size }
         assertEquals(
             Dimension(320, 240),
             first.size,
@@ -99,12 +93,10 @@ class WindowStateHoistingTest {
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
 
         frame.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.extendedState == Frame.MAXIMIZED_BOTH }
-        assertEquals(
+        assertReaches(
             Frame.MAXIMIZED_BOTH,
-            second.extendedState,
             "a maximize must be written back into the state the window currently reads",
-        )
+        ) { second.extendedState }
         assertEquals(
             Frame.NORMAL,
             first.extendedState,
@@ -120,29 +112,22 @@ class WindowStateHoistingTest {
         var state by mutableStateOf(first)
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-state-swap-test") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
-        assertEquals(
+        assertReaches(
             Dimension(360, 260),
-            dialog.size,
             "the dialog must realize with the geometry of the declared state",
-        )
+        ) { dialog.size }
 
         state = second
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
-        assertEquals(
+        assertReaches(
             Dimension(520, 420),
-            dialog.size,
             "the dialog must take the geometry of the state the recomposition declared",
-        )
+        ) { dialog.size }
 
-        awaitWindowStandsStill(dialog)
         state = first
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(360, 260) }
-        assertEquals(
+        assertReaches(
             Dimension(360, 260),
-            dialog.size,
             "the dialog must take the geometry of the state a further recomposition declares back",
-        )
+        ) { dialog.size }
     }
 
     @Test
@@ -153,19 +138,16 @@ class WindowStateHoistingTest {
         var state by mutableStateOf(first)
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-state-swap-write-back-test") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
+        assertReaches(Dimension(360, 260)) { dialog.size }
 
         state = second
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
-        awaitWindowStandsStill(dialog)
 
         dialog.size = Dimension(640, 480)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.size == Dimension(640, 480) }
-        assertEquals(
+        assertReaches(
             Dimension(640, 480),
-            second.size,
             "a resize must be written back into the state the dialog currently reads",
-        )
+        ) { second.size }
         assertEquals(
             Dimension(360, 260),
             first.size,

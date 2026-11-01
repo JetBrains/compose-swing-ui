@@ -475,6 +475,8 @@ fun settingsWindowShowsItsContent() = runComposeSwingTest {
 A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
 change plus `awaitIdle()` the realized dialog already reflects the declared visibility.
 
+Use `window.awaitWindowSystemIdle()` before recording what a real window paints. It waits until the window has had no move, resize or paint event for its quiet period, 250 milliseconds by default, and fails if events keep arriving past its timeout, 10 seconds by default. Both are wall-clock durations. The composition idle gate does not wait for window-system events. For an expected size or position, use `waitUntil` on that value.
+
 A heavyweight AWT component that needs a native peer to work (for example `java.awt.Canvas` or
 `java.awt.Button`) is tested the same way: compose it under a `Window { }` the test owns, so it gets a
 real peer, instead of under the harness root, which never shows.

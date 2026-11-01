@@ -28,9 +28,8 @@ class DialogGeometryTest {
         val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-initial-geometry") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(Dimension(360, 260)) { dialog.size }
-        assertEquals(Point(140, 90), dialog.location)
+        assertReaches(Point(140, 90)) { dialog.location }
     }
 
     @Test
@@ -41,25 +40,19 @@ class DialogGeometryTest {
         val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-position-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(Point(140, 90), "the dialog must realize at the position the state holds") { dialog.location }
         // Moving a realized dialog is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
         state.position = WindowPosition.Absolute(240, 170)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.location == Point(240, 170) }
-        assertEquals(
+        assertReaches(
             Point(240, 170),
-            dialog.location,
             "the dialog must move to the position the state takes after the first apply",
-        )
-        awaitWindowStandsStill(dialog)
+        ) { dialog.location }
         state.position = WindowPosition.Absolute(140, 90)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.location == Point(140, 90) }
-        assertEquals(
+        assertReaches(
             Point(140, 90),
-            dialog.location,
             "the dialog must move back to a position the state returns to",
-        )
+        ) { dialog.location }
     }
 
     @Test
@@ -68,13 +61,11 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(Dimension(360, 260)) { dialog.size }
         state.size = Dimension(520, 420)
         // Applying size to the peer is an asynchronous native resize; wait for the dialog to reach the
         // target rather than assert right after the compose frame that requests it.
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
-        assertEquals(Dimension(520, 420), dialog.size)
+        assertReaches(Dimension(520, 420)) { dialog.size }
     }
 
     @Test
@@ -83,15 +74,12 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-width-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
         state.width = 520
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 260) }
-        assertEquals(
+        assertReaches(
             Dimension(520, 260),
-            dialog.size,
             "assigning width must resize the realized dialog, leaving its height unchanged",
-        )
+        ) { dialog.size }
     }
 
     @Test
@@ -100,15 +88,12 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-height-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
         assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
         state.height = 420
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(360, 420) }
-        assertEquals(
+        assertReaches(
             Dimension(360, 420),
-            dialog.size,
             "assigning height must resize the realized dialog, leaving its width unchanged",
-        )
+        ) { dialog.size }
     }
 
     @Test
@@ -120,7 +105,8 @@ class DialogGeometryTest {
             valuesTakenDuring({ state.size }) {
                 setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-framed") {} }
                 dialog = onWindow().fetch<JDialog>()
-                awaitWindowStandsStill(dialog)
+                assertReaches(Dimension(320, 240)) { dialog.size }
+                onWindow().awaitWindowSystemIdle()
             }
         assertEquals(listOf(Dimension(320, 240)), sizes, "the state must hold the declared size throughout")
         assertEquals(Dimension(320, 240), dialog.size, "the dialog must keep the size the state declares")
@@ -137,7 +123,8 @@ class DialogGeometryTest {
                 dialog = onWindow().fetch<JDialog>()
                 state.width = 500
                 awaitIdle()
-                awaitWindowStandsStill(dialog)
+                assertReaches(Dimension(500, 240)) { dialog.size }
+                onWindow().awaitWindowSystemIdle()
             }
         assertEquals(
             listOf(Dimension(320, 240), Dimension(500, 240)),
@@ -154,7 +141,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = title) {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         state.size.setSize(520, 420)
         title = "dialog-size-copy-inert-updated"
         awaitIdle()
@@ -178,7 +165,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-detached-copy") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         // A Dimension read from the state is a detached copy ([java.awt.Component.getSize]
         // semantics): mutating it in place drives nothing, so a follow-up assignment of the same
         // values is a genuine change and must resize the dialog.
@@ -187,19 +174,10 @@ class DialogGeometryTest {
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
-            dialog.size == Dimension(520, 420) && state.size == Dimension(520, 420)
-        }
-        assertEquals(
-            Dimension(520, 420),
-            dialog.size,
-            "assigning size must resize the dialog even after a read Dimension copy was mutated to equal values",
-        )
-        assertEquals(
-            Dimension(520, 420),
-            state.size,
-            "the state must reflect the assigned size",
-        )
+        assertReaches(
+            Dimension(520, 420) to Dimension(520, 420),
+            "assigning size must resize the dialog and update state even after a read Dimension copy was mutated",
+        ) { dialog.size to state.size }
     }
 
     @Test
@@ -208,10 +186,9 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-user-resize") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         dialog.size = Dimension(640, 480)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
-        assertEquals(Dimension(640, 480), state.size)
+        assertReaches(Dimension(640, 480)) { state.size }
     }
 
     @Test
@@ -236,16 +213,12 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-no-feedback-loop") {} }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         dialog.size = Dimension(640, 480)
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
-            dialog.size == Dimension(640, 480) && state.size == Dimension(640, 480)
-        }
-        assertEquals(Dimension(640, 480), dialog.size)
-        assertEquals(Dimension(640, 480), state.size)
+        assertReaches(Dimension(640, 480) to Dimension(640, 480)) { dialog.size to state.size }
     }
 
     @Test

@@ -93,7 +93,7 @@ class WindowMenuBarTest {
             }
 
         // The window grows again once its menu bar is laid out.
-        awaitWindowStandsStill(onWindowWithTitle("menu-bar-parity").fetch<JFrame>())
+        onWindowWithTitle("menu-bar-parity").awaitWindowSystemIdle()
         onWindowWithTitle("menu-bar-parity")
             .onNode(SwingMatcher.isOfType<JMenuBar>())
             .assertTreeMatches(reference)
@@ -466,7 +466,7 @@ class WindowMenuBarTest {
         // The selection a click on a menu title leaves behind, which holds its pulldown open. The window
         // is never shown, so the pulldown stays off screen while the selection stands.
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-removed").fetch<JFrame>())
+        onWindowWithTitle("menu-bar-open-removed").awaitWindowSystemIdle()
         selection.selectedPath = arrayOf<MenuElement>(bar, edit, edit.popupMenu)
         awaitIdle()
         assertTrue(edit.isSelected, "the open menu should be the selected one before it is removed")
@@ -505,7 +505,7 @@ class WindowMenuBarTest {
         val export = file.getItem(1) as JMenu
         // The selection standing while the user is in the submenu of an open menu.
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-submenu").fetch<JFrame>())
+        onWindowWithTitle("menu-bar-open-submenu").awaitWindowSystemIdle()
         selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu, export, export.popupMenu)
         awaitIdle()
 
@@ -535,7 +535,7 @@ class WindowMenuBarTest {
         val bar = frame.jMenuBar
         val file = bar.getMenu(0)
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-withdrawn").fetch<JFrame>())
+        onWindowWithTitle("menu-bar-open-withdrawn").awaitWindowSystemIdle()
         selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu)
         awaitIdle()
 
@@ -574,7 +574,7 @@ class WindowMenuBarTest {
 
             val frame = onWindowWithTitle("menu-bar-open-elsewhere").fetch<JFrame>()
             val composedBar = frame.jMenuBar
-            awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-elsewhere").fetch<JFrame>())
+            onWindowWithTitle("menu-bar-open-elsewhere").awaitWindowSystemIdle()
             selection.selectedPath = outsidePath.toTypedArray()
             awaitIdle()
             assertEquals(
@@ -656,7 +656,7 @@ class WindowMenuBarTest {
         val help = bar.getMenu(2)
         val openPath = listOf<MenuElement>(bar, help, help.popupMenu)
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-moved").fetch<JFrame>())
+        onWindowWithTitle("menu-bar-open-moved").awaitWindowSystemIdle()
         selection.selectedPath = openPath.toTypedArray()
         awaitIdle()
         assertEquals(openPath, selection.selectedPath.toList(), "the last menu should be the open one before it moves")

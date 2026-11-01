@@ -38,9 +38,8 @@ class WindowStateSeedTest {
             Window(onCloseRequest = {}, state = state, title = "window-state-seed-test") {}
         }
         val frame = onWindow().fetch<JFrame>()
-        awaitWindowStandsStill(frame)
-        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the seeded size")
-        assertEquals(Point(120, 80), frame.location, "the frame must realize at the seeded position")
+        assertReaches(Dimension(320, 240), "the frame must realize with the seeded size") { frame.size }
+        assertReaches(Point(120, 80), "the frame must realize at the seeded position") { frame.location }
 
         // The placement the frame settled at, which the seed change must leave alone even where the
         // window manager adjusted it.
@@ -57,12 +56,10 @@ class WindowStateSeedTest {
         assertEquals(placement, frame.location, "a later seed must not move the frame")
 
         state.size = Dimension(500, 400)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 400) }
-        assertEquals(
+        assertReaches(
             Dimension(500, 400),
-            frame.size,
             "the remembered state, not the seed, is what resizes the frame",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -110,9 +107,8 @@ class WindowStateSeedTest {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-state-seed-test") {}
         }
         val dialog = onWindow().fetch<JDialog>()
-        awaitWindowStandsStill(dialog)
-        assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the seeded size")
-        assertEquals(Point(140, 90), dialog.location, "the dialog must realize at the seeded position")
+        assertReaches(Dimension(360, 260), "the dialog must realize with the seeded size") { dialog.size }
+        assertReaches(Point(140, 90), "the dialog must realize at the seeded position") { dialog.location }
 
         // The placement the dialog settled at, which the seed change must leave alone even where the
         // window manager adjusted it.
@@ -129,11 +125,9 @@ class WindowStateSeedTest {
         assertEquals(placement, dialog.location, "a later seed must not move the dialog")
 
         state.size = Dimension(520, 420)
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
-        assertEquals(
+        assertReaches(
             Dimension(520, 420),
-            dialog.size,
             "the remembered state, not the seed, is what resizes the dialog",
-        )
+        ) { dialog.size }
     }
 }
