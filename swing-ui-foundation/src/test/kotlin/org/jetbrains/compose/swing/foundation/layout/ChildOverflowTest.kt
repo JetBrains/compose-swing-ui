@@ -23,6 +23,9 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.click
+import org.jetbrains.compose.swing.test.interaction.performMouseInput
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -314,19 +317,20 @@ class ChildOverflowTest {
                     }
                 }
             }
-            val row = windowNode("row")
+            val rowNode = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("row")
+            val row = rowNode.fetch<JComponent>()
 
             // 4 past the row's left edge, inside its shadow and 16 into the widget.
-            fun past() = SwingUtilities.convertPoint(row, row.paintOutsets.left - 4, row.paintOutsets.top + 20, frame())
+            fun past() = Point(row.paintOutsets.left - 4, row.paintOutsets.top + 20)
 
-            click(past())
+            rowNode.performMouseInput { click(past()) }
             assertEquals(1, presses, "a press past the row reaches the widget")
 
             for (each in listOf("alpha", "clip", "clipToBounds", "decorator")) {
                 cut = each
                 awaitIdle()
                 assertTrue(row.paintOutsets.left > 4, "$each: the shadow keeps a band past the row's edge")
-                click(past())
+                rowNode.performMouseInput { click(past()) }
                 assertEquals(1, presses, "$each: a press where the row cuts the widget away misses it")
             }
         }
@@ -363,15 +367,15 @@ class ChildOverflowTest {
                     }
                 }
             }
-            val row = windowNode("row")
+            val rowNode = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("row")
+            val row = rowNode.fetch<JComponent>()
 
-            fun past(distance: Int) =
-                SwingUtilities.convertPoint(row, row.paintOutsets.left - distance, row.paintOutsets.top + 20, frame())
+            fun past(distance: Int) = Point(row.paintOutsets.left - distance, row.paintOutsets.top + 20)
 
             assertTrue(row.paintOutsets.left > 12, "the shadow keeps a band past the padded box")
-            click(past(4))
+            rowNode.performMouseInput { click(past(4)) }
             assertEquals(1, presses, "a press inside the padded box reaches the widget")
-            click(past(12))
+            rowNode.performMouseInput { click(past(12)) }
             assertEquals(1, presses, "a press past the padded box, where the clip cuts the widget away, misses it")
         }
 

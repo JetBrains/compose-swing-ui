@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.ComposeSwingTestImpl
 import org.jetbrains.compose.swing.test.ComposeTimeoutException
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.dumpTrees
@@ -55,7 +55,7 @@ import kotlin.time.TimeSource
  * body, which runs on the EDT.
  */
 public class SwingWindowInteraction<out T : Window> internal constructor(
-    private val test: ComposeSwingTest,
+    private val test: ComposeSwingTestImpl,
     private val matcher: SwingMatcher,
     private val description: String,
     private val asWindow: (Window) -> T,

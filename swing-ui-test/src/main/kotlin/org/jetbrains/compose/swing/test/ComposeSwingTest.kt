@@ -24,6 +24,7 @@ import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
 import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.core.setLifecycleOwner
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.MouseState
 import org.jetbrains.compose.swing.test.interaction.NodePick
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteractionCollection
@@ -471,11 +472,13 @@ private class PaintPriorityTask(
     override fun dispatch() = task()
 }
 
-private class ComposeSwingTestImpl(
+internal class ComposeSwingTestImpl(
     rootSize: Dimension,
     effectContext: CoroutineContext,
 ) : ComposeSwingTest,
     AutoCloseable {
+    internal val mouseState = MouseState()
+
     override val root: JComponent =
         TestRootPanel().apply {
             // The root stands in no window, so nothing else gives it a size to lay its children out in.
@@ -900,7 +903,13 @@ private class ComposeSwingTestImpl(
     override fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
     override fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component> =
-        SwingNodeInteraction(this, matcher.description, { listOf(root) }, NodePick.Single, { it }) {
+        SwingNodeInteraction(
+            this,
+            matcher.description,
+            { listOf(root) },
+            NodePick.Single,
+            { it },
+        ) {
             root.findMatchingIncludingSelf(matcher)
         }
 
@@ -913,17 +922,33 @@ private class ComposeSwingTestImpl(
         onAllNodes(SwingMatcher.hasTestTag(tag))
 
     override fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
-        SwingNodeInteractionCollection(this, matcher.description, { listOf(root) }, { it }) {
+        SwingNodeInteractionCollection(
+            this,
+            matcher.description,
+            { listOf(root) },
+            { it },
+        ) {
             root.findMatchingIncludingSelf(matcher)
         }
 
     override fun onRoot(): SwingNodeInteraction<Component> =
-        SwingNodeInteraction(this, "root", { listOf(root) }, NodePick.Single, { it }) {
+        SwingNodeInteraction(
+            this,
+            "root",
+            { listOf(root) },
+            NodePick.Single,
+            { it },
+        ) {
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 
     override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction<Window> =
-        SwingWindowInteraction(this, matcher, description = matcher.description, asWindow = { it })
+        SwingWindowInteraction(
+            this,
+            matcher,
+            description = matcher.description,
+            asWindow = { it },
+        )
 
     override fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection =
         SwingWindowInteractionCollection(matcher)

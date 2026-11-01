@@ -24,7 +24,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.click
+import org.jetbrains.compose.swing.test.interaction.performMouseInput
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Component
@@ -35,6 +37,7 @@ import java.awt.GraphicsEnvironment
 import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -239,15 +242,17 @@ class PaintOutsetsDeclarationTest {
                     }
                 }
             }
-            val row = windowNode("row")
-            val band = SwingUtilities.convertPoint(row, row.paintOutsets.left - 2, 10, frame())
+            val rowNode = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("row")
+            val row = rowNode.fetch<JComponent>()
+            val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
+            val band = SwingUtilities.convertPoint(row, row.paintOutsets.left - 2, 10, frame)
 
-            click(band)
+            rowNode.performMouseInput { click(SwingUtilities.convertPoint(frame, band, row)) }
             assertEquals(1, presses, "a press on the band past the row reaches the field")
 
             clipped = true
             awaitIdle()
-            click(band)
+            rowNode.performMouseInput { click(SwingUtilities.convertPoint(frame, band, row)) }
             assertEquals(1, presses, "a press the row's clip cuts away misses")
         }
 
@@ -274,17 +279,14 @@ class PaintOutsetsDeclarationTest {
                     }
                 }
             }
-            click(bottomOf("upper"))
+            val field = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("upper")
+            val component = field.fetch<JComponent>()
+            field.performMouseInput { click(Point(component.width / 2, component.height - 2)) }
             spacing = 2 * LINE
             awaitIdle()
-            click(bottomOf("upper"))
+            field.performMouseInput { click(Point(component.width / 2, component.height - 2)) }
             assertEquals(listOf("lower", "upper"), pressed, "the later field is on top where they overlap")
         }
-
-    private fun ComposeSwingTest.bottomOf(tag: String): Point {
-        val field = windowNode(tag)
-        return SwingUtilities.convertPoint(field, field.width / 2, field.height - 2, frame())
-    }
 }
 
 /** A declaration only an [OwnElementsLayout] parent reads. */

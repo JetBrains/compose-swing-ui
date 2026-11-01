@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.ComposeSwingTestImpl
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.ancestorPathTo
 import org.jetbrains.compose.swing.test.describeComponent
@@ -26,7 +26,7 @@ import java.awt.KeyboardFocusManager
  * Resolution fails with a readable tree dump when the query does not resolve to a single component.
  */
 public class SwingNodeInteraction<out T : Component> internal constructor(
-    internal val test: ComposeSwingTest,
+    internal val test: ComposeSwingTestImpl,
     internal val description: String,
     internal val roots: () -> List<Container>,
     private val pick: NodePick,

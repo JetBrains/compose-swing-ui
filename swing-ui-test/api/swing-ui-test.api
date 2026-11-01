@@ -88,6 +88,10 @@ public final class org/jetbrains/compose/swing/test/interaction/InteractionTestK
 	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static final fun assertTreeMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun assertTreeMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun click (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;Ljava/awt/Point;I)V
+	public static synthetic fun click$default (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;Ljava/awt/Point;IILjava/lang/Object;)V
+	public static final fun contextClick (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;Ljava/awt/Point;)V
+	public static synthetic fun contextClick$default (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;Ljava/awt/Point;ILjava/lang/Object;)V
 	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public static final fun onChild (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static final fun onChildAt (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
@@ -114,6 +118,7 @@ public final class org/jetbrains/compose/swing/test/interaction/InteractionTestK
 	public static synthetic fun performMouseEnter$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun performMouseExit (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun performMouseExit$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseInput (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun performMouseMove (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun performMousePress (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun performMousePress$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -127,6 +132,16 @@ public final class org/jetbrains/compose/swing/test/interaction/InteractionTestK
 	public static final fun performTextPaste (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun performTextReplacement (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun performTyping (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class org/jetbrains/compose/swing/test/interaction/MouseInjectionScope {
+	public abstract fun getCenter ()Ljava/awt/Point;
+	public abstract fun moveTo (Ljava/awt/Point;)V
+	public abstract fun press (I)V
+	public static synthetic fun press$default (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;IILjava/lang/Object;)V
+	public abstract fun release (I)V
+	public static synthetic fun release$default (Lorg/jetbrains/compose/swing/test/interaction/MouseInjectionScope;IILjava/lang/Object;)V
+	public abstract fun scroll (I)V
 }
 
 public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInteraction {

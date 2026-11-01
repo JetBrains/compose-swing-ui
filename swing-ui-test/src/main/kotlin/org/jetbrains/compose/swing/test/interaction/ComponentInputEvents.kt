@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.intellij.lang.annotations.MagicConstant
+import org.jetbrains.compose.swing.platform.hostOs
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.KeyboardFocusManager
@@ -133,21 +134,7 @@ internal fun Component.deliverMouseWheel(
     rotation: Int,
     position: Point,
 ) {
-    deliverEvent(
-        MouseWheelEvent(
-            this,
-            MouseEvent.MOUSE_WHEEL,
-            System.currentTimeMillis(),
-            0,
-            position.x,
-            position.y,
-            0,
-            false,
-            MouseWheelEvent.WHEEL_UNIT_SCROLL,
-            WHEEL_SCROLL_UNITS,
-            rotation,
-        ),
-    )
+    deliverEvent(mouseWheelEvent(rotation, position))
 }
 
 /**
@@ -216,7 +203,7 @@ internal fun Component.deliverKeyTyped(character: Char) {
 internal val Component.center: Point get() = Point(width / 2, height / 2)
 
 /** A mouse event of [id] at [position] on this component, shaped the way the toolkit delivers one. */
-private fun Component.mouseEvent(
+internal fun Component.mouseEvent(
     id: Int,
     position: Point,
     modifiersEx: Int,
@@ -238,7 +225,7 @@ private fun Component.mouseEvent(
  * What a mouse event carries besides its position: which button it is about, the running count of the
  * click it belongs to, and whether the platform reads it as the gesture that opens a context menu.
  */
-private class MouseGesture(
+internal class MouseGesture(
     val button: Int = MouseEvent.BUTTON1,
     val clicks: Int = 1,
     val popupTrigger: Boolean = false,
@@ -246,6 +233,28 @@ private class MouseGesture(
 
 /** The units one wheel notch scrolls, which is the toolkit's own default. */
 private const val WHEEL_SCROLL_UNITS: Int = 3
+
+internal val popupTriggerEventId: Int =
+    if (hostOs.isWindows) MouseEvent.MOUSE_RELEASED else MouseEvent.MOUSE_PRESSED
+
+internal fun Component.mouseWheelEvent(
+    rotation: Int,
+    position: Point,
+    modifiersEx: Int = 0,
+): MouseWheelEvent =
+    MouseWheelEvent(
+        this,
+        MouseEvent.MOUSE_WHEEL,
+        System.currentTimeMillis(),
+        modifiersEx,
+        position.x,
+        position.y,
+        0,
+        false,
+        MouseWheelEvent.WHEEL_UNIT_SCROLL,
+        WHEEL_SCROLL_UNITS,
+        rotation,
+    )
 
 /** A key event of [id] for [keyCode] and [keyChar], shaped the way the toolkit delivers one. */
 private fun Component.keyEvent(

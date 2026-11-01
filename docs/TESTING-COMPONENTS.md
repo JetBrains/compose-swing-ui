@@ -328,6 +328,21 @@ The typing gestures deliver real keystrokes, so the component's own key bindings
 
 Accessible actions also wait for idle. Use `performAccessibleAction(description)` to invoke the action with that `AccessibleAction` description (such as `AccessibleAction.CLICK` or `INCREMENT`), `performSetValue(value)` to set an accessible value, and `performAddSelection(index)` to select an accessible child. Selection is checked immediately; settlement can restore the declared selection.
 
+### Mouse input through a window
+
+`performMouseInput { ... }` posts mouse events through the matched node's showing window, using positions in the node's coordinates. Swing routes each event to its target. The pointer position and held buttons carry over between calls. Use `moveTo`, `press`, `release`, and `scroll` to build a gesture, or `click` and `contextClick` for complete clicks. `performClick` delivers events directly to the matched node.
+
+```kotlin
+val node = onNodeWithTag("canvas")
+node.performMouseInput {
+    moveTo(center)
+    press()
+}
+node.performMouseInput { release() }
+```
+
+<!--- KNIT example-testing-fragment-08.kt -->
+
 ### Tabs
 
 A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
@@ -340,7 +355,7 @@ has no position to click; the action says so rather than landing on nothing.
 onNodeOfType<JTabbedPane>().performTabClick(2)
 ```
 
-<!--- KNIT example-testing-fragment-08.kt -->
+<!--- KNIT example-testing-fragment-09.kt -->
 
 ### Focus
 
@@ -361,7 +376,7 @@ onNodeWithTag("amount").performFocusLost()
 onNodeWithTag("amount").assertTextEquals("42.00")
 ```
 
-<!--- KNIT example-testing-fragment-09.kt -->
+<!--- KNIT example-testing-fragment-10.kt -->
 
 ## Callback failures
 

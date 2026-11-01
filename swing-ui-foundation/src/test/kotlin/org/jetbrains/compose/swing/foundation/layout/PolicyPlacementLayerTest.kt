@@ -20,6 +20,8 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.click
+import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -35,12 +37,9 @@ import java.awt.GraphicsEnvironment
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
-import java.awt.event.InputEvent
-import java.awt.event.MouseEvent
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import kotlin.math.floor
 import kotlin.test.Test
@@ -226,20 +225,22 @@ class PolicyPlacementLayerTest {
                     )
                 }
             }
-            val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
-            val canvas = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG)
+            val canvas = node.fetch<JComponent>()
             val outsets = (canvas as Decoratable).decoration.paintOutsets()
-            val layoutOrigin = SwingUtilities.convertPoint(canvas, outsets.left, outsets.top, frame)
+            val layoutOrigin = Point(outsets.left, outsets.top)
             val turn =
                 TransformOrigin.Center.createTransform(Rectangle2D.Double(0.0, 0.0, 100.0, 100.0), 1f, 1f, 45f)
             val painted = turn.transform(Point2D.Double(6.0, 6.0), null)
 
-            press(frame, Point(layoutOrigin.x + floor(painted.x).toInt(), layoutOrigin.y + floor(painted.y).toInt()))
+            node.performMouseInput {
+                click(Point(layoutOrigin.x + floor(painted.x).toInt(), layoutOrigin.y + floor(painted.y).toInt()))
+            }
             assertEquals(1, presses.size, "a press inside the turned outline must hit")
             val unturned = Point(6 + outsets.left, 6 + outsets.top)
             assertTrue(presses.single().distance(unturned) <= 1.5, "the press lands at $unturned: ${presses.single()}")
 
-            press(frame, Point(layoutOrigin.x + 4, layoutOrigin.y + 4))
+            node.performMouseInput { click(Point(layoutOrigin.x + 4, layoutOrigin.y + 4)) }
             assertEquals(1, presses.size, "a press inside only the unturned box must miss")
         }
 
@@ -675,15 +676,6 @@ private fun LayeredChild(
             },
         modifier = modifier,
     )
-}
-
-/** A primary-button press and release at [at], in [frame]'s coordinates. */
-private suspend fun ComposeSwingTest.press(
-    frame: JFrame,
-    at: Point,
-) {
-    sendMouse(frame, MouseEvent.MOUSE_PRESSED, at, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1)
-    sendMouse(frame, MouseEvent.MOUSE_RELEASED, at, 0, MouseEvent.BUTTON1)
 }
 
 private fun ComposeSwingTest.layeredOutsets(): Insets =

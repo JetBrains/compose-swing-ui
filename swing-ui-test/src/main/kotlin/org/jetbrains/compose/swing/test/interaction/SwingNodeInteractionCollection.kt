@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.test.interaction
 
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.ComposeSwingTestImpl
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.describeComponent
 import org.jetbrains.compose.swing.test.dumpTrees
@@ -20,7 +20,7 @@ import java.awt.Container
  * body, which runs on the EDT.
  */
 public class SwingNodeInteractionCollection<out T : Component> internal constructor(
-    internal val test: ComposeSwingTest,
+    internal val test: ComposeSwingTestImpl,
     internal val description: String,
     internal val roots: () -> List<Container>,
     private val asNode: (Component) -> T,

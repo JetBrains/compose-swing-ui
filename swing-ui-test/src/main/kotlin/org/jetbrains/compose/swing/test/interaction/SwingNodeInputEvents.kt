@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.test.interaction
 import kotlinx.coroutines.yield
 import org.intellij.lang.annotations.MagicConstant
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.platform.hostOs
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Point
@@ -86,8 +85,8 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseRelease(
  * throughout, which is how a shift- or control-click extends a selection. The platform's context-menu
  * gesture is [performContextClick], which carries the popup trigger a secondary click alone does not.
  *
- * A click lands where a user's click would land. Aimed outside the node's bounds, or at a node that has
- * no size because nothing laid it out, the UI resolves it to nothing and the node does not react.
+ * The event goes directly to the node without searching for the component under the pointer.
+ * Use [performMouseInput] to search through a showing window.
  *
  * @param position the point every event of the click carries, so press, release and click all land
  *   together.
@@ -130,7 +129,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
             MouseEvent.BUTTON3,
             clicks = 1,
             modifiers = 0,
-            popupTriggerOn = if (hostOs.isWindows) MouseEvent.MOUSE_RELEASED else MouseEvent.MOUSE_PRESSED,
+            popupTriggerOn = popupTriggerEventId,
         )
     }
 
