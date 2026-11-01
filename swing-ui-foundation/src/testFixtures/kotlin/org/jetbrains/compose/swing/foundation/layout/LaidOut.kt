@@ -36,20 +36,20 @@ public class LaidOut(
 }
 
 /**
- * Lays [scene] out in the center of a border panel and reads where it placed the components tagged [containerTag] and
+ * Lays [content] out in the center of a border panel and reads where it placed the components tagged [containerTag] and
  * [leafTag]; the leaf needs its [size] height.
  */
 public fun laidOut(
     size: IntrinsicSize,
     containerTag: String,
     leafTag: String,
-    scene: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ): LaidOut {
     lateinit var laidOut: LaidOut
     runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width = 400, height = 600)) {
-                Column(modifier = SwingModifier.center()) { scene() }
+                Column(modifier = SwingModifier.center()) { content() }
             }
         }
         awaitIdle()

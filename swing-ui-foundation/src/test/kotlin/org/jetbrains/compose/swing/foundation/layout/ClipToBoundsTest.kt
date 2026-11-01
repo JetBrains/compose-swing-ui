@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -68,9 +69,10 @@ class ClipToBoundsTest {
                 "the sampled overflow pixel must still sit inside the clipped child's own real bounds"
             }
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(clip.x + clip.width / 2, clip.y + clip.height / 2),
+            painted.assertPixelColor(
+                Color.RED,
+                clip.x + clip.width / 2,
+                clip.y + clip.height / 2,
                 "inside the box the chain reports, the real content still paints as normal",
             )
             assertEquals(
@@ -134,7 +136,7 @@ class ClipToBoundsTest {
         }
 
     @Test
-    fun aClippedChildAnswersABaselineQuery() =
+    fun aClippedChildKeepsItsContentsBaseline() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = containerModifier(CHILD_WIDTH * 2, CHILD_HEIGHT * 2)) {
@@ -177,9 +179,9 @@ class ClipToBoundsTest {
 
             val painted = onNodeWithTag("clipped").captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(10, 10), "inside both clips")
-            assertEquals(0, painted.getRGB(25, 10), "inside the inner clip only")
-            assertEquals(0, painted.getRGB(10, 25), "inside the outer clip only")
+            painted.assertPixelColor(Color.RED, 10, 10, "inside both clips")
+            painted.assertPixelColor(Color(0, true), 25, 10, "inside the inner clip only")
+            painted.assertPixelColor(Color(0, true), 10, 25, "inside the outer clip only")
         }
 
     /** A child repainting on its own is painted from its clipped container, inside the clip. */

@@ -2,7 +2,6 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.CompositionLocal
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.compositionLocalWithComputedDefaultOf
 import androidx.compose.runtime.getValue
@@ -11,7 +10,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -20,10 +18,15 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.currentValueOf
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import javax.swing.JComponent
@@ -57,7 +60,98 @@ private val LocalUnrelated = compositionLocalOf { "default" }
  */
 class CompositionLocalConsumerLayoutNodeTest {
     @Test
-    fun aMeasureReadingAChangedLocalLaysTheComponentOutAgain() = assertMeasureFollows(LocalWidth)
+    fun aMeasureReadingAChangedLocalLaysTheComponentOutAgain() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val panel = JPanel()
+            val probe = LocalProbe()
+            var width by mutableStateOf(20)
+            setWindowContent {
+                CompositionLocalProvider(LocalWidth provides width) {
+                    Row {
+                        SwingNode(
+                            factory = { panel },
+                            modifier = SwingModifier then LocalReadingElement(probe, LocalWidth),
+                        )
+                    }
+                }
+            }
+            assertEquals(20, panel.width, "the node must measure the child at the first local's width")
+
+            width = 40
+            awaitIdle()
+
+            assertEquals(40, panel.width, "and at the changed local's width after the change")
+        }
+
+    /**
+     * Swing resizes a 100 wide container to 120 and validates it alone, while a placement it reads changes to 5.
+     * The parent then offers [offer]: the container's width, 120, or the 100 it was measured for. The container is
+     * placed once per entry of [placedWidths], each time at that width with a result made for that same width, and
+     * its child lands at the center of that width, (width - 10) / 2, plus the changed 5, which is [expectedX].
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("offers")
+    fun aPlacementReadingAChangedLocalUsesAResultMadeForItsWidth(
+        offer: Int,
+        placedWidths: List<Int>,
+        expectedX: Int,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val liveX = mutableIntStateOf(0)
+        var container: JComponent? = null
+        var parentOffer = 100
+        // The container's width at each placement, beside the width the placed result was made for.
+        val placements = mutableListOf<Pair<Int, Int>>()
+        val policy =
+            MeasurePolicy { measurables, constraints ->
+                val placeable = measurables.single().measure(Constraints())
+                val width = constraints.constrainWidth(100)
+                val height = constraints.constrainHeight(placeable.height)
+                layout(width, height) {
+                    container?.let { placements += it.width to width }
+                    // Centered in the width this result is made for, so the x names that width.
+                    placeable.place((width - placeable.width) / 2, 0)
+                }
+            }
+        val parentPolicy =
+            MeasurePolicy { measurables, _ ->
+                val offered = Constraints(parentOffer, parentOffer, 0, Constraints.Infinity)
+                val placeable = measurables.single().measure(offered)
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+        setWindowContent {
+            // A state read behind a local, so a change reaches a placement without a recomposition.
+            val x = remember { compositionLocalWithComputedDefaultOf { liveX.intValue } }
+            Layout(measurePolicy = parentPolicy) {
+                Layout(measurePolicy = policy, modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier.testTag("child") then LocalReadingElement(width = null, x = x),
+                    )
+                }
+            }
+        }
+        val panel = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+        container = panel
+        assertEquals(100, panel.width, "the parent must size the container to the result's width")
+
+        parentOffer = offer
+        panel.setSize(120, panel.height)
+        panel.validate()
+        liveX.intValue = 5
+        awaitIdle()
+
+        assertEquals(
+            placedWidths.map { it to it },
+            placements,
+            "a placement must not use a result made for another width",
+        )
+        assertEquals(offer, panel.width, "the parent must size the container to its offer")
+        onWindowWithTitle(WINDOW_TITLE)
+            .onNodeWithTag("child")
+            .assertProperty(expectedX, "and the changed local's x must be placed") { x }
+    }
 
     @Test
     fun aMeasureReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
@@ -94,15 +188,41 @@ class CompositionLocalConsumerLayoutNodeTest {
         }
 
     @Test
-    fun aPlacementReadingAChangedLocalPlacesAgainWithoutMeasuringAgain() = assertPlacementFollows(LocalX)
+    fun aPlacementReadingAChangedLocalPlacesAgainWithoutMeasuringAgain() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val probe = LocalProbe()
+            val panel = JPanel()
+            var x by mutableStateOf(0)
+            setWindowContent {
+                CompositionLocalProvider(LocalX provides x) {
+                    // A parent policy measures the Row, so the Row's layout pass settles on that measure. The panel
+                    // moves past the Row's layout bounds, so each move fits the Row's paint outsets too.
+                    Box {
+                        Row {
+                            SwingNode(
+                                factory = { panel },
+                                modifier = SwingModifier then LocalReadingElement(probe, width = null, x = LocalX),
+                            )
+                        }
+                    }
+                }
+            }
+            // Settles what the window's first passes leave, so the counts below start from a layout that places
+            // again without measuring.
+            x = 3
+            awaitIdle()
+            assertEquals(3, panel.x, "the node must place the child at the first local's x")
+            val measures = probe.measures
+            val placements = probe.placements
 
-    @Test
-    fun aPlacementReadingAChangedLocalNeverPlacesAResultMadeForAnotherWidth() =
-        assertPlacementFollowsResize(offer = 100, placedWidths = listOf(100, 100), expectedX = 50)
+            x = 7
+            awaitIdle()
 
-    @Test
-    fun aPlacementReadingAChangedLocalIsPlacedWhenTheParentOffersTheWidthSwingAlreadySet() =
-        assertPlacementFollowsResize(offer = 120, placedWidths = listOf(120), expectedX = 60)
+            assertEquals(7, panel.x, "and at the changed local's x after the change")
+            assertEquals(measures, probe.measures, "a placement read must not measure again")
+            assertEquals(placements + 1, probe.placements, "a placement read must place once again")
+        }
 
     @Test
     fun aPlacementReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
@@ -143,7 +263,40 @@ class CompositionLocalConsumerLayoutNodeTest {
         }
 
     @Test
-    fun aLayerBlockReadingAChangedLocalRunsAgainWithoutMeasuringOrPlacingAgain() = assertLayerFollows(LocalAlpha)
+    fun aLayerBlockReadingAChangedLocalRunsAgainWithoutMeasuringOrPlacingAgain() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val probe = LocalProbe()
+            var alpha by mutableStateOf(1f)
+            setWindowContent {
+                CompositionLocalProvider(LocalAlpha provides alpha) {
+                    // A layer needs a component that paints through a decoration, which a Box is.
+                    Box {
+                        Row {
+                            Box(
+                                modifier =
+                                    SwingModifier then
+                                        LocalReadingElement(probe, width = null, x = null, LocalAlpha),
+                            )
+                        }
+                    }
+                }
+            }
+            // Settles what the window's first passes leave, as the placement test does.
+            alpha = 0.8f
+            awaitIdle()
+            val measures = probe.measures
+            val placements = probe.placements
+            val layerRuns = probe.layerRuns
+
+            alpha = 0.5f
+            awaitIdle()
+
+            assertEquals(0.5f, probe.lastAlpha, "the layer block must read the changed alpha local")
+            assertEquals(measures, probe.measures, "a layer read must not measure again")
+            assertEquals(placements, probe.placements, "a layer read must not place again")
+            assertEquals(layerRuns + 1, probe.layerRuns, "a layer read must run the layer block once again")
+        }
 
     @Test
     fun aLayerBlockReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
@@ -264,160 +417,14 @@ class CompositionLocalConsumerLayoutNodeTest {
             assertFailsWith<IllegalStateException> { node.currentValueOf(LocalWidth) }
         }
 
-    private fun assertMeasureFollows(local: ProvidableCompositionLocal<Int>) =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val panel = JPanel()
-            val probe = LocalProbe()
-            var width by mutableStateOf(20)
-            setWindowContent {
-                CompositionLocalProvider(local provides width) {
-                    Row {
-                        SwingNode(factory = { panel }, modifier = SwingModifier then LocalReadingElement(probe, local))
-                    }
-                }
-            }
-            assertEquals(20, panel.width, "the node must measure the child at the first local's width")
-
-            width = 40
-            awaitIdle()
-
-            assertEquals(40, panel.width, "and at the changed local's width after the change")
-        }
-
-    /**
-     * Swing resizes a 100 wide container to 120 and validates it alone, while a placement it reads changes to 5.
-     * The parent then offers [offer]: the container's width, 120, or the 100 it was measured for. The container is
-     * placed once per entry of [placedWidths], each time at that width with a result made for that same width, and
-     * its child lands at the center of that width, (width - 10) / 2, plus the changed 5, which is [expectedX].
-     */
-    private fun assertPlacementFollowsResize(
-        offer: Int,
-        placedWidths: List<Int>,
-        expectedX: Int,
-    ) = runComposeSwingTest {
-        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val liveX = mutableIntStateOf(0)
-        var container: JComponent? = null
-        var parentOffer = 100
-        // The container's width at each placement, beside the width the placed result was made for.
-        val placements = mutableListOf<Pair<Int, Int>>()
-        val policy =
-            MeasurePolicy { measurables, constraints ->
-                val placeable = measurables.single().measure(Constraints())
-                val width = constraints.constrainWidth(100)
-                val height = constraints.constrainHeight(placeable.height)
-                layout(width, height) {
-                    container?.let { placements += it.width to width }
-                    // Centered in the width this result is made for, so the x names that width.
-                    placeable.place((width - placeable.width) / 2, 0)
-                }
-            }
-        val parentPolicy =
-            MeasurePolicy { measurables, _ ->
-                val offered = Constraints(parentOffer, parentOffer, 0, Constraints.Infinity)
-                val placeable = measurables.single().measure(offered)
-                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-            }
-        setWindowContent {
-            // A state read behind a local, so a change reaches a placement without a recomposition.
-            val x = remember { compositionLocalWithComputedDefaultOf { liveX.intValue } }
-            Layout(measurePolicy = parentPolicy) {
-                Layout(measurePolicy = policy, modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SwingNode(
-                        factory = { JPanel() },
-                        modifier = SwingModifier then LocalReadingElement(width = null, x = x),
-                    )
-                }
-            }
-        }
-        val panel = windowContainer()
-        container = panel
-        val child = panel.getComponent(0)
-        assertEquals(100, panel.width, "the parent must size the container to the result's width")
-
-        parentOffer = offer
-        panel.setSize(120, panel.height)
-        panel.validate()
-        liveX.intValue = 5
-        Snapshot.sendApplyNotifications()
-        awaitIdle()
-
-        assertEquals(
-            placedWidths.map { it to it },
-            placements,
-            "a placement must not use a result made for another width",
-        )
-        assertEquals(offer, panel.width, "the parent must size the container to its offer")
-        assertEquals(expectedX, child.x, "and the changed local's x must be placed")
+    companion object {
+        @JvmStatic
+        fun offers(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("an offer of another width", 100), listOf(100, 100), 50),
+                Arguments.of(Named.of("an offer of the width Swing already set", 120), listOf(120), 60),
+            )
     }
-
-    private fun assertPlacementFollows(local: ProvidableCompositionLocal<Int>) =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val probe = LocalProbe()
-            val panel = JPanel()
-            var x by mutableStateOf(0)
-            setWindowContent {
-                CompositionLocalProvider(local provides x) {
-                    // A parent policy measures the Row, so the Row's layout pass settles on that measure. The panel
-                    // moves past the Row's layout bounds, so each move fits the Row's paint outsets too.
-                    Box {
-                        Row {
-                            SwingNode(
-                                factory = { panel },
-                                modifier = SwingModifier then LocalReadingElement(probe, width = null, x = local),
-                            )
-                        }
-                    }
-                }
-            }
-            // Settles what the window's first passes leave, so the counts below start from a layout that places
-            // again without measuring.
-            x = 3
-            awaitIdle()
-            assertEquals(3, panel.x, "the node must place the child at the first local's x")
-            val measures = probe.measures
-            val placements = probe.placements
-
-            x = 7
-            awaitIdle()
-
-            assertEquals(7, panel.x, "and at the changed local's x after the change")
-            assertEquals(measures, probe.measures, "a placement read must not measure again")
-            assertEquals(placements + 1, probe.placements, "a placement read must place once again")
-        }
-
-    private fun assertLayerFollows(local: ProvidableCompositionLocal<Float>) =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val probe = LocalProbe()
-            var alpha by mutableStateOf(1f)
-            setWindowContent {
-                CompositionLocalProvider(local provides alpha) {
-                    // A layer needs a component that paints through a decoration, which a Box is.
-                    Box {
-                        Row {
-                            Box(modifier = SwingModifier then LocalReadingElement(probe, width = null, x = null, local))
-                        }
-                    }
-                }
-            }
-            // Settles what the window's first passes leave, as the placement test does.
-            alpha = 0.8f
-            awaitIdle()
-            val measures = probe.measures
-            val placements = probe.placements
-            val layerRuns = probe.layerRuns
-
-            alpha = 0.5f
-            awaitIdle()
-
-            assertEquals(0.5f, probe.lastAlpha, "the layer block must read the changed alpha local")
-            assertEquals(measures, probe.measures, "a layer read must not measure again")
-            assertEquals(placements, probe.placements, "a layer read must not place again")
-            assertEquals(layerRuns + 1, probe.layerRuns, "a layer read must run the layer block once again")
-        }
 }
 
 /** What a [LocalReadingNode] saw: itself, how many times each of its passes ran, and the alpha it last read. */

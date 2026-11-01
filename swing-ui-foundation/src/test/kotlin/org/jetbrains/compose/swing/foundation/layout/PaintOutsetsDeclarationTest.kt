@@ -5,6 +5,10 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.clearMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -24,6 +28,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -42,7 +47,6 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -54,7 +58,12 @@ class PaintOutsetsDeclarationTest {
     @Test
     fun aProvidedValueReachesEveryFieldOfTheSubtreeUntilWithdrawn() =
         runComposeSwingTest {
-            val value = RecordingPaintOutsets(PaintOutsets.FullInsets)
+            val value =
+                mockk<PaintOutsets> {
+                    every { outsetsOf(any(), any(), any()) } answers {
+                        PaintOutsets.FullInsets.outsetsOf(firstArg(), secondArg(), thirdArg())
+                    }
+                }
             var provided by mutableStateOf<PaintOutsets?>(value)
             setContent {
                 Column {
@@ -72,33 +81,29 @@ class PaintOutsetsDeclarationTest {
             val nested = onNodeWithTag("nested").fetch<JComponent>()
             assertEquals(-LINE, first.layoutBounds.x)
             assertEquals(-LINE, nested.layoutBounds.x)
-            assertEquals(
+            onNodeWithTag("masked").assertProperty(0, "a nested provides null keeps the full bounds") { layoutBounds.x }
+            onNodeWithTag("outside").assertProperty(
                 0,
-                onNodeWithTag("masked").fetch().layoutBounds.x,
-                "a nested provides null keeps the full bounds",
-            )
-            assertEquals(
-                0,
-                onNodeWithTag("outside").fetch().layoutBounds.x,
                 "a sibling outside the provision is unchanged",
-            )
+            ) { layoutBounds.x }
 
-            value.asked.clear()
+            clearMocks(value, answers = false)
             first.revalidate()
             nested.revalidate()
             awaitIdle()
-            assertTrue(value.asked.containsAll(listOf(first, nested)), "each layout asks the value about its fields")
+            verify { value.outsetsOf(first, any(), any()) }
+            verify { value.outsetsOf(nested, any(), any()) }
 
             provided = null
             awaitIdle()
 
             assertEquals(0, first.layoutBounds.x, "a withdrawn value leaves the full bounds")
             assertEquals(0, nested.layoutBounds.x, "in a nested row too")
-            value.asked.clear()
+            clearMocks(value, answers = false)
             first.revalidate()
             nested.revalidate()
             awaitIdle()
-            assertEquals(emptySet(), value.asked, "a withdrawn value is asked about no component")
+            verify(exactly = 0) { value.outsetsOf(any(), any(), any()) }
         }
 
     @Test
@@ -173,7 +178,12 @@ class PaintOutsetsDeclarationTest {
     @Test
     fun anExplicitValueReplacesTheProvidedOneAtItsOwnPosition() =
         runComposeSwingTest {
-            val provided = RecordingPaintOutsets(TwoPixels)
+            val provided =
+                mockk<PaintOutsets> {
+                    every { outsetsOf(any(), any(), any()) } answers {
+                        TwoPixels.outsetsOf(firstArg(), secondArg(), thirdArg())
+                    }
+                }
             setContent {
                 ProvideComponentDefaults(DefaultPaintOutsets provides provided) {
                     Column {
@@ -183,14 +193,13 @@ class PaintOutsetsDeclarationTest {
                     }
                 }
             }
-            val label = onNodeWithTag("label").fetch()
             val inheriting = onNodeWithTag("inheriting").fetch<JComponent>()
             val field = onNodeWithTag("field").fetch<JComponent>()
-            assertEquals(label.x, inheriting.x + 2, "a field declaring nothing takes the provided value")
-            assertEquals(label.x, field.x + LINE, "counted once, the explicit value")
+            assertEquals(-2, inheriting.x, "a field declaring nothing takes the provided value")
+            assertEquals(-LINE, field.x, "counted once, the explicit value")
             assertEquals(200 + 2 * LINE, field.width, "inside the width, where it is declared")
-            assertTrue(inheriting in provided.asked, "the provided value is asked about the field that inherits it")
-            assertFalse(field in provided.asked, "and never about the one declaring its own")
+            verify { provided.outsetsOf(inheriting, any(), any()) }
+            verify(exactly = 0) { provided.outsetsOf(field, any(), any()) }
         }
 
     @Test

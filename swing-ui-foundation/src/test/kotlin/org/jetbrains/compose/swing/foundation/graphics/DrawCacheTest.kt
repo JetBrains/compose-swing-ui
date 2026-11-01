@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -510,23 +511,16 @@ class DrawCacheTest {
     }
 }
 
-/** Fails unless [kept] shows what [capture] paints fresh, within one level per channel, a pixel in from the edges. */
 internal fun JComponent.assertKeptShowsWhatFreshDoes(
     kept: BufferedImage,
     capture: () -> BufferedImage,
 ) {
     repaint()
-    val fresh = capture()
-    val interior = Rectangle(1, 1, kept.width - 2, kept.height - 2)
-    val difference =
-        kept
-            .getSubimage(interior.x, interior.y, interior.width, interior.height)
-            .channelDifference(fresh.getSubimage(interior.x, interior.y, interior.width, interior.height))
-    assertTrue(difference <= 1, "the kept frame differs from the fresh one by $difference levels inside the interior")
+    assertImagesPixelPerfect(kept, capture())
 }
 
 // Alpha is not compared, because a layer's alpha changes it.
-internal fun BufferedImage.assertShows(
+private fun BufferedImage.assertShows(
     color: Color,
     x: Int,
     y: Int,
@@ -534,7 +528,7 @@ internal fun BufferedImage.assertShows(
 ) {
     val shown = Color(getRGB(x, y), true)
     val difference = maxOf(abs(shown.red - color.red), abs(shown.green - color.green), abs(shown.blue - color.blue))
-    assertTrue(shown.alpha > 0 && difference <= 2, "$what shows $shown at ($x, $y), but the current version is $color")
+    assertTrue(shown.alpha > 0 && difference == 0, "$what shows $shown at ($x, $y), but the current version is $color")
 }
 
 private fun BufferedImage.assertShowsCurrentVersion(

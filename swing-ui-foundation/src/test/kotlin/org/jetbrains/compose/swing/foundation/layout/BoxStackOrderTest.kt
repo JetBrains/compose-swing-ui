@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -17,17 +18,22 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.repaintsDuring
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Color
 import java.awt.Component
+import java.awt.Container
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -50,9 +56,10 @@ class BoxStackOrderTest {
 
             val painted = onNodeWithTag(CONTAINER_TAG).captureToImage()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            painted.assertPixelColor(
+                Color.BLUE,
+                CHILD_WIDTH / 2,
+                CHILD_HEIGHT / 2,
                 "the last child declared must paint over the ones before it",
             )
         }
@@ -72,13 +79,15 @@ class BoxStackOrderTest {
                 }
             }
 
-            val pressed = SwingUtilities.getDeepestComponentAt(box(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
-
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 "child 1",
-                (pressed as JLabel).text,
                 "a press where two children overlap must reach the last one declared, the one painted on top",
-            )
+            ) {
+                assertIs<JLabel>(
+                    SwingUtilities.getDeepestComponentAt(this, CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                    "expected the hit component to be a label",
+                ).text
+            }
         }
 
     @Test
@@ -111,13 +120,13 @@ class BoxStackOrderTest {
                 "the children left must keep the order they are declared in",
             )
 
-            val (a, d, c) = stackedChildren()
+            val (a, d, c) = stackedChildren<Component>()
             declared = listOf("c", "a", "d")
             awaitIdle()
 
             assertEquals(
                 listOf(c, a, d),
-                stackedChildren(),
+                stackedChildren<Component>(),
                 "a child that moves must carry its own component to where it is now declared",
             )
         }
@@ -134,9 +143,10 @@ class BoxStackOrderTest {
 
             val painted = onNodeWithTag(CONTAINER_TAG).captureToImage()
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            painted.assertPixelColor(
+                Color.RED,
+                CHILD_WIDTH / 2,
+                CHILD_HEIGHT / 2,
                 "the child declaring the larger zIndex must paint over one declared after it",
             )
         }
@@ -151,13 +161,15 @@ class BoxStackOrderTest {
                 }
             }
 
-            val pressed = SwingUtilities.getDeepestComponentAt(box(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
-
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 "child 0",
-                (pressed as JLabel).text,
                 "a press where the children overlap must reach the one declaring the larger zIndex",
-            )
+            ) {
+                assertIs<JLabel>(
+                    SwingUtilities.getDeepestComponentAt(this, CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                    "expected the hit component to be a label",
+                ).text
+            }
         }
 
     @Test
@@ -232,14 +244,14 @@ class BoxStackOrderTest {
                 }
             }
 
-            val (a, b) = stackedChildren()
+            val (a, b) = stackedChildren<Component>()
 
             lifted = true
             awaitIdle()
 
             assertEquals(
                 listOf(b, a),
-                stackedChildren(),
+                stackedChildren<Component>(),
                 "a child whose zIndex rises must be carried over its sibling, and carry its own component there",
             )
 
@@ -248,7 +260,7 @@ class BoxStackOrderTest {
 
             assertEquals(
                 listOf(a, b),
-                stackedChildren(),
+                stackedChildren<Component>(),
                 "and must go back under that sibling where the zIndex it declares drops again",
             )
         }
@@ -322,9 +334,14 @@ class BoxStackOrderTest {
     fun aChildRemovedIsTheOneTheBoxGivesUp() =
         runComposeSwingTest {
             var declared by mutableStateOf(listOf("a", "b"))
+            val created = mutableMapOf<String, AlikeChild>()
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    for (name in declared) key(name) { SwingNode(factory = { AlikeChild() }) }
+                    for (name in declared) {
+                        key(name) {
+                            SwingNode(factory = { AlikeChild().also { created[name] = it } })
+                        }
+                    }
                 }
             }
 
@@ -333,12 +350,11 @@ class BoxStackOrderTest {
             declared = listOf("a", "c")
             awaitIdle()
 
-            assertEquals(
-                2,
-                box().componentCount,
+            onNodeWithTag(CONTAINER_TAG).assertIsOfType<Container>().assertProperty(
+                listOf("a", "c"),
                 "the box must give up the child it dropped rather than one equal to it, and take no " +
                     "dropped child back into the stack",
-            )
+            ) { components.reversed().map { child -> created.entries.single { it.value === child }.key } }
         }
 
     @Test
@@ -352,7 +368,7 @@ class BoxStackOrderTest {
                 }
             }
 
-            val container = box()
+            val container = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             withRecordedRepaints { recorded ->
                 lifted = true
                 awaitIdle()
@@ -433,7 +449,7 @@ class BoxStackOrderTest {
 }
 
 /**
- * Adds two children to [box] - one declaring a zIndex over the other - lays the box out, and answers them
+ * Adds two children to [box] - one declaring a zIndex over the other - lays the box out, and reports them
  * in the order the component array must hold them, the top of the stack first.
  */
 private fun liftedPairAddedTo(box: ConstrainedPanel): Pair<Component, Component> {
@@ -483,7 +499,7 @@ private class DeclarationRecordingOverlapPolicy : MeasurePolicy {
 }
 
 /** The text of each child of the box, from the bottom of its stack up. */
-private fun ComposeSwingTest.stackedChildText(): List<String> = stackedChildren().map { (it as JLabel).text }
+private fun ComposeSwingTest.stackedChildText(): List<String> = stackedChildren<JLabel>().map { it.text }
 
 /**
  * A child painting [color] over the whole of its bounds and drawing nothing else, so every pixel it

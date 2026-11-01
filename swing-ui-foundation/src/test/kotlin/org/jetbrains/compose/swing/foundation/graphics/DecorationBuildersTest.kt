@@ -4,6 +4,11 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.Insets
@@ -135,22 +140,21 @@ class DecorationBuildersTest {
             painted.assertPixelColor(Color.RED, 2, STAGE_SIZE / 2, "The border stops at its declared width.")
         }
 
-    @Test
-    fun aBorderWithNoWidthPaintsNothing() =
-        runComposeSwingTest {
-            val stage = stage()
-            val content = fill(Color.RED)
-            val unbordered = stage.paint(content = content)
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("borderWidthsAndShapes")
+    fun aBorderWithNoWidthPaintsNothing(
+        width: Int,
+        shape: Shape,
+    ) = runComposeSwingTest {
+        val stage = stage()
+        val content = fill(Color.RED)
+        val unbordered = stage.paint(content = content)
 
-            for (width in listOf(0, -5)) {
-                for (shape in listOf(RectangleShape, CircleShape)) {
-                    assertImagesPixelPerfect(
-                        unbordered,
-                        stage.paint({ SwingModifier.border(width, Color.BLUE, shape) }, content),
-                    )
-                }
-            }
-        }
+        assertImagesPixelPerfect(
+            unbordered,
+            stage.paint({ SwingModifier.border(width, Color.BLUE, shape) }, content),
+        )
+    }
 
     @Test
     fun aBorderThickerThanTheAreaFillsIt() =
@@ -293,8 +297,7 @@ class DecorationBuildersTest {
             val half = stage.paint({ SwingModifier.background(Brush.of(Color.BLUE), alpha = 0.5f) }, PaintsNothing)
             val none = stage.paint({ SwingModifier.background(Brush.of(Color.BLUE), alpha = 0f) }, PaintsNothing)
 
-            assertEquals(Color.BLUE.rgb, half.getRGB(5, 5) or 0xFF000000.toInt(), "An alpha changes the coverage.")
-            assertTrue(half.opacityAt(5, 5) in 127..128, "Half the alpha covers half.")
+            half.assertPixelColor(Color(0, 0, 255, 128), 5, 5, "An alpha changes the coverage.")
             assertImagesPixelPerfect(stage.paint(content = PaintsNothing), none)
         }
 
@@ -364,21 +367,20 @@ class DecorationBuildersTest {
             painted.assertPixelColor(Color.RED, side / 2, side / 2, "The middle of the fill stays solid.")
         }
 
-    @Test
-    fun aBlurOfNoRadiusDecoratesNothing() =
+    @ParameterizedTest
+    @ValueSource(ints = [0, -1])
+    fun aBlurOfNoRadiusDecoratesNothing(radius: Int) =
         runComposeSwingTest {
             val stage = stage()
-            for (radius in listOf(0, -1)) {
-                val panel = stage.declare({ SwingModifier.blur(radius) })
-                val decoration = panel.decoration
-                assertFalse(decoration.isDecorated, "There is nothing to spread over no distance.")
-                assertTrue(decoration.isOpaque(panel))
-                assertEquals(
-                    Insets(0, 0, 0, 0),
-                    decoration.paintOutsets(),
-                    "A blur of no radius reserves no paint outsets.",
-                )
-            }
+            val panel = stage.declare({ SwingModifier.blur(radius) })
+            val decoration = panel.decoration
+            assertFalse(decoration.isDecorated, "There is nothing to spread over no distance.")
+            assertTrue(decoration.isOpaque(panel))
+            assertEquals(
+                Insets(0, 0, 0, 0),
+                decoration.paintOutsets(),
+                "A blur of no radius reserves no paint outsets.",
+            )
         }
 
     @Test
@@ -470,19 +472,13 @@ class DecorationBuildersTest {
             )
         }
 
-    @Test
-    fun aClipOrShadowLeftNoAreaPaintsNothing() =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("emptyClipOrShadowChains")
+    fun aClipOrShadowLeftNoAreaPaintsNothing(chain: () -> SwingModifier) =
         runComposeSwingTest {
             val stage = stage()
             val empty = stage.paint(content = PaintsNothing)
-            for (squeezed in listOf(Within(STAGE_SIZE, 0), Within(0, STAGE_SIZE))) {
-                val chains =
-                    listOf<() -> SwingModifier>(
-                        { SwingModifier.decoration(squeezed).clip(CircleShape, antialias = true) },
-                        { SwingModifier.decoration(squeezed).shadow(1, Color.BLACK) },
-                    )
-                for (chain in chains) assertImagesPixelPerfect(empty, stage.paint(chain, fill(Color.RED)))
-            }
+            assertImagesPixelPerfect(empty, stage.paint(chain, fill(Color.RED)))
         }
 
     @Test
@@ -591,9 +587,46 @@ class DecorationBuildersTest {
     private fun BufferedImage.hasPartialCoverage(): Boolean =
         (0 until height).any { y -> (0 until width).any { x -> opacityAt(x, y) in 1..0xFE } }
 
-    private companion object {
+    companion object {
+        @JvmStatic
+        fun emptyClipOrShadowChains(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of(
+                        "clip with no height",
+                        { SwingModifier.decoration(Within(STAGE_SIZE, 0)).clip(CircleShape, antialias = true) },
+                    ),
+                ),
+                Arguments.of(
+                    Named.of(
+                        "clip with no width",
+                        { SwingModifier.decoration(Within(0, STAGE_SIZE)).clip(CircleShape, antialias = true) },
+                    ),
+                ),
+                Arguments.of(
+                    Named.of(
+                        "shadow with no height",
+                        { SwingModifier.decoration(Within(STAGE_SIZE, 0)).shadow(1, Color.BLACK) },
+                    ),
+                ),
+                Arguments.of(
+                    Named.of(
+                        "shadow with no width",
+                        { SwingModifier.decoration(Within(0, STAGE_SIZE)).shadow(1, Color.BLACK) },
+                    ),
+                ),
+            )
+
+        @JvmStatic
+        fun borderWidthsAndShapes(): List<Arguments> =
+            listOf(0, -5).flatMap { width ->
+                listOf("rectangle" to RectangleShape, "circle" to CircleShape).map { (name, shape) ->
+                    Arguments.of(width, Named.of(name, shape))
+                }
+            }
+
         /** The upper-right half of the area, an outline that is neither a rectangle nor a rounded one. */
-        val Triangle =
+        private val Triangle =
             Shape {
                 width,
                 height,
@@ -602,7 +635,7 @@ class DecorationBuildersTest {
             }
 
         /** The closed outline through the points at [xy], given as x and y in turn. */
-        fun polygon(vararg xy: Float): AwtShape =
+        private fun polygon(vararg xy: Float): AwtShape =
             Path2D.Float().apply {
                 moveTo(xy[0], xy[1])
                 for (index in 2 until xy.size step 2) lineTo(xy[index], xy[index + 1])

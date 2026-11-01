@@ -21,7 +21,7 @@ import kotlin.test.assertNull
 @ExtendWith(ComposedPanels::class)
 class IntrinsicModifierTest {
     @Test
-    fun intrinsicWidthAndHeightReplaceBothSameAxisIntrinsicAnswers() =
+    fun intrinsicWidthAndHeightReplaceBothSameAxisIntrinsicResults() =
         runSwingTest {
             val minimumWidth = measurableWith(layoutChainOf { SwingModifier.width(IntrinsicSize.Min) })
             val maximumHeight = measurableWith(layoutChainOf { SwingModifier.height(IntrinsicSize.Max) })
@@ -34,7 +34,7 @@ class IntrinsicModifierTest {
             assertEquals(
                 MINIMUM_WIDTH,
                 minimumWidth.maxIntrinsicWidth(Int.MAX_VALUE),
-                "and make both width questions answer that exact selected extent",
+                "and make both width queries return that exact selected extent",
             )
             assertEquals(
                 PREFERRED_HEIGHT,
@@ -44,7 +44,7 @@ class IntrinsicModifierTest {
             assertEquals(
                 PREFERRED_HEIGHT,
                 maximumHeight.maxIntrinsicHeight(Int.MAX_VALUE),
-                "and make both height questions answer that exact selected extent",
+                "and make both height queries return that exact selected extent",
             )
         }
 
@@ -64,12 +64,12 @@ class IntrinsicModifierTest {
         assertEquals(
             listOf(IntrinsicSize.Min, IntrinsicSize.Max, IntrinsicSize.Max, IntrinsicSize.Min),
             declarations.map { (modifier) -> modifier.lastElement().declaredValues["intrinsicSize"] },
-            "each must report the intrinsic answer it selects",
+            "each must report the intrinsic result it selects",
         )
     }
 
     @Test
-    fun intrinsicWidthAndHeightPassTheCrossAxisQuestionsThrough() =
+    fun intrinsicWidthAndHeightPassTheCrossAxisQueriesThrough() =
         runSwingTest {
             val width = measurableWith(layoutChainOf { SwingModifier.width(IntrinsicSize.Max).aspectRatio(1f) })
             val height = measurableWith(layoutChainOf { SwingModifier.height(IntrinsicSize.Max).aspectRatio(1f) })
@@ -77,25 +77,25 @@ class IntrinsicModifierTest {
             assertEquals(
                 200,
                 width.minIntrinsicHeight(200),
-                "an intrinsic width must pass the height questions through",
+                "an intrinsic width must pass the height queries through",
             )
-            assertEquals(200, width.maxIntrinsicHeight(200), "and answer both with what the content answers")
+            assertEquals(200, width.maxIntrinsicHeight(200), "and return both as what the content returns")
             assertEquals(
                 200,
                 height.minIntrinsicWidth(200),
-                "an intrinsic height must pass the width questions through",
+                "an intrinsic height must pass the width queries through",
             )
-            assertEquals(200, height.maxIntrinsicWidth(200), "and answer both with what the content answers")
+            assertEquals(200, height.maxIntrinsicWidth(200), "and return both as what the content returns")
         }
 
     @Test
-    fun unmodifiedMeasurableAnswersIntrinsics() =
+    fun unmodifiedMeasurableServesIntrinsics() =
         runSwingTest {
             val unmodified = measurableWith(emptyList())
             assertEquals(
                 MINIMUM_WIDTH,
                 unmodified.minIntrinsicWidth(Int.MAX_VALUE),
-                "an unmodified measurable must answer its minimum width query with the child's raw minimum width",
+                "an unmodified measurable must serve its minimum width query with the child's raw minimum width",
             )
             assertEquals(
                 PREFERRED_WIDTH,
@@ -258,7 +258,7 @@ class IntrinsicModifierTest {
             assertEquals(
                 PREFERRED_WIDTH,
                 fixed.maxIntrinsicWidth(Int.MAX_VALUE),
-                "the default intrinsic measurable must answer with the child's raw preferred width, not the fixed 30",
+                "the default intrinsic measurable must return the child's raw preferred width, not the fixed 30",
             )
             assertEquals(
                 PREFERRED_HEIGHT,
@@ -274,7 +274,7 @@ class IntrinsicModifierTest {
                     _,
                     _,
                     ->
-                    error("an intrinsic question must not measure")
+                    error("an intrinsic query must not measure")
                 },
                 null,
             )

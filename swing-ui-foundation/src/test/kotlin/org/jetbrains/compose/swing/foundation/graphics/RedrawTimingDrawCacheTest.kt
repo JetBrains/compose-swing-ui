@@ -4,13 +4,13 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.foundation.graphics.RedrawTimingDrawCacheTest.Nesting
 import org.jetbrains.compose.swing.foundation.layout.Column
-import org.jetbrains.compose.swing.foundation.layout.frame
+import org.jetbrains.compose.swing.foundation.layout.WINDOW_TITLE
 import org.jetbrains.compose.swing.foundation.layout.setWindowContent
-import org.jetbrains.compose.swing.foundation.layout.windowNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -27,6 +27,7 @@ import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JPanel
 import kotlin.concurrent.thread
 import kotlin.test.Test
@@ -457,7 +458,7 @@ private suspend fun ComposeSwingTest.showFixture(
     around: SwingModifier = SwingModifier,
 ): WindowFixture {
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-    val tapStep = TapStep()
+    val tapElement = TapElement()
     val outerStep = CachingStep()
     val innerStep = CachingStep()
     val labels = decorated?.let(::listOf) ?: List(labelCount) { CountingLabel() }
@@ -467,7 +468,7 @@ private suspend fun ComposeSwingTest.showFixture(
             SwingModifier
                 .testTag("container")
                 .then(around)
-                .then(tapStep)
+                .then(tapElement)
                 .then(outerStep)
                 .then(secondStep)
         if (decorated != null) {
@@ -476,12 +477,12 @@ private suspend fun ComposeSwingTest.showFixture(
             NestedLabels(nesting, labels, innerStep, modifier = steps)
         }
     }
-    val frame = frame()
+    val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
     frame.focusableWindowState = false
     awaitIdle()
     assumeTrue(frame.isShowing, "requires a window system that shows the window")
-    val container = windowNode("container")
-    val tap = tapStep.created.single()
+    val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("container").fetch<JComponent>()
+    val tap = tapElement.created.single()
     waitUntil(timeout = 10.seconds) {
         container.isValid && tap.covers(Rectangle(0, 0, container.width, container.height))
     }

@@ -100,9 +100,9 @@ public val DefaultLeaves: Map<String, @Composable (SwingModifier) -> Unit> =
  * there. With a [transitionTime] each narrowing is checked that far into the animation; without one, after it finishes.
  *
  * [widthFromLeafHeight] are containers whose preferred width depends on a leaf's height at an unbounded width, as a
- * `Column` does for an aspect-ratio leaf. Under these slots, a stock leaf answers at the width it holds, so each width
- * change can change the result and keep the container from settling. The test's `Constrainable` answers that query
- * independently of its held bounds.
+ * `Column` does for an aspect-ratio leaf. Under these slots, a stock leaf reports at the width it holds, so each width
+ * change can change the result and keep the container from settling. The test's `Constrainable` returns a size for
+ * that query independently of its held bounds.
  */
 public fun assertPreferencesSettle(
     containers: Map<String, ContainerContent>,
@@ -149,7 +149,7 @@ public fun assertPreferencesSettle(
 
                                         override fun minIntrinsicHeight(width: Int): Int = maxIntrinsicHeight(width)
 
-                                        // Intrinsic answers vary with width without changing this component's bounds.
+                                        // Intrinsic heights vary with width without changing this component's bounds.
                                         override fun maxIntrinsicHeight(width: Int): Int {
                                             val lineHeight = 20
                                             if (width == Constraints.Infinity) return lineHeight

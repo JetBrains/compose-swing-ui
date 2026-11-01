@@ -5,12 +5,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.KeyReadingElement
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -19,6 +21,7 @@ import java.awt.Dimension
 import java.awt.Insets
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /** Behavioral tests for what a recomposed decoration shortcut does: reads the new values in place, or rebuilds. */
@@ -50,11 +53,10 @@ class DecorationModifierRecompositionTest {
             awaitIdle()
 
             val reach = blurOutsets(6)
-            assertEquals(
+            onNodeWithTag("decorated-panel").assertProperty(
                 Insets(reach - 3, reach - 3, reach + 3, reach + 3),
-                (onNodeWithTag("decorated-panel").fetch() as Decoratable).decoration.paintOutsets(),
                 "The outsets follows the new radius and offsets.",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
             val painted = onNodeWithTag("decorated-panel").captureToImage()
             val cast = Color(painted.getRGB(reach - 3 + 64 + 1, reach - 3 + 32), true)
             assertTrue(cast.alpha > 0 && cast.green > cast.red, "The shadow is cast in the new color: $cast")
@@ -83,11 +85,9 @@ class DecorationModifierRecompositionTest {
             color = Color.BLUE
             awaitIdle()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("decorated-panel").captureToImage().getRGB(32, 32),
-                "The new brush paints.",
-            )
+            onNodeWithTag(
+                "decorated-panel",
+            ).captureToImage().assertPixelColor(Color.BLUE, 32, 32, "The new brush paints.")
             assertEquals(keyReads, keyed.keyReads, "A new brush is written in place, leaving the modifier undiffed.")
         }
 
@@ -116,11 +116,10 @@ class DecorationModifierRecompositionTest {
             awaitIdle()
 
             val reach = blurOutsets(6)
-            assertEquals(
+            onNodeWithTag("decorated-panel").assertProperty(
                 Insets(reach, reach, reach, reach),
-                (onNodeWithTag("decorated-panel").fetch() as Decoratable).decoration.paintOutsets(),
                 "The decoration takes the new radius's outsets.",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
             assertEquals(keyReads, keyed.keyReads, "A new radius is written in place, leaving the modifier undiffed.")
         }
 
@@ -146,11 +145,10 @@ class DecorationModifierRecompositionTest {
             awaitIdle()
 
             val reach = blurOutsets(6)
-            assertEquals(
+            onNodeWithTag("decorated-panel").assertProperty(
                 Insets(reach, reach, reach, reach),
-                (onNodeWithTag("decorated-panel").fetch() as Decoratable).decoration.paintOutsets(),
                 "The outsets follows the new radius.",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
         }
 
     @Test
@@ -178,7 +176,7 @@ class DecorationModifierRecompositionTest {
             awaitIdle()
 
             val painted = onNodeWithTag("decorated-panel").captureToImage()
-            assertEquals(0, painted.getRGB(0, 0), "The corner lies outside the new circle and is cut away.")
+            painted.assertPixelColor(Color(0, true), 0, 0, "The corner lies outside the new circle and is cut away.")
             assertTrue(
                 (painted.getRGB(9, 9) ushr 24) in 1..254,
                 "A pixel the circle's edge crosses is kept in part once the clip is antialiased.",

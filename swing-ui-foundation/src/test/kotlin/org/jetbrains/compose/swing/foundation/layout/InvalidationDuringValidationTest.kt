@@ -16,7 +16,12 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -29,16 +34,16 @@ import kotlin.test.assertEquals
 
 /**
  * A validation marks a container valid as it ends, so an invalidation made while a validation runs is laid out by a
- * validation after it: a changed read behind an answer, and a layout node's `invalidateMeasurement` and
- * `invalidatePlacement`. A request the running pass already answers is dropped, as androidx drops it.
+ * validation after it: a changed read behind a returned value, and a layout node's `invalidateMeasurement` and
+ * `invalidatePlacement`. A request the running pass already covers is dropped, as androidx drops it.
  */
 class InvalidationDuringValidationTest {
     /**
      * The panel's preferred size is set, so its layout asks the container's once, as it lays it out. The policy
-     * applies a snapshot as it answers, which reports the change at once.
+     * applies a snapshot as it returns the size, which reports the change at once.
      */
     @Test
-    fun aReadChangedAsTheContainerAnswersASizeQueryIsSizedWith() =
+    fun aReadChangedAsTheContainerIsAskedASizeQueryIsSizedWith() =
         runComposeSwingTest {
             var extent by mutableIntStateOf(40)
             var changesAsAsked = false
@@ -197,7 +202,7 @@ class InvalidationDuringValidationTest {
             awaitIdle()
 
             assertEquals(Dimension(40, 20), host.size, "as wide as the second cell")
-            assertEquals(20, onNodeWithTag("below").fetch().layoutBounds.y, "the box is placed below the host")
+            onNodeWithTag("below").assertProperty(20, "the box is placed below the host") { layoutBounds.y }
         }
 
     /**
@@ -319,7 +324,6 @@ class InvalidationDuringValidationTest {
             val writer = OffsetWriter()
             setContent { MeasuredByAnOffsetWrittenTwoLevelsBelow(writer, requests) { width } }
             val middle = onNodeWithTag("middle").fetch<JComponent>()
-            val inner = onNodeWithTag("inner").fetch<JComponent>()
             assertEquals(Rectangle(0, 0, 100, 20), middle.layoutBounds)
 
             width = WRITTEN
@@ -328,7 +332,7 @@ class InvalidationDuringValidationTest {
 
             assertEquals(false, writer.reentered, "the inner placement block ran to its end before it was run again")
             assertEquals(Rectangle(0, 0, 100 + WRITTEN, 20), middle.layoutBounds, "measured by the offset written")
-            assertEquals(Rectangle(STEP, 0, WRITTEN, 20), inner.layoutBounds)
+            onNodeWithTag("inner").assertProperty(Rectangle(STEP, 0, WRITTEN, 20)) { layoutBounds }
         }
 
     /**
@@ -380,8 +384,8 @@ class InvalidationDuringValidationTest {
                 }
             }
 
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "placed by the step taken")
-            assertEquals(20 + STEP, onNodeWithTag("next").fetch().layoutBounds.x, "and measured with it")
+            onNodeWithTag("box").assertProperty(STEP, "placed by the step taken") { layoutBounds.x }
+            onNodeWithTag("next").assertProperty(20 + STEP, "and measured with it") { layoutBounds.x }
         }
 
     @Test
@@ -405,7 +409,7 @@ class InvalidationDuringValidationTest {
      * measuring, drops the request the intrinsic query passes up to it.
      */
     @Test
-    fun aMeasurementInvalidatedAsTheNodeAnswersTheMeasureBlockOfTheContainerIsTheMeasureOfThatPass() =
+    fun aMeasurementInvalidatedAsTheNodeIsAskedByTheMeasureBlockOfTheContainerIsTheMeasureOfThatPass() =
         runComposeSwingTest {
             val requests = Requests(measurement = true)
             var asked = 0
@@ -432,7 +436,7 @@ class InvalidationDuringValidationTest {
 
             assertEquals(measures + 2, requests.measures, "measured for the width asked and by the pass, once each")
             assertEquals(20, asked, "the width asked before the step was taken stands")
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "laid out with the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "laid out with the step taken") { layoutBounds.x }
         }
 
     /**
@@ -466,13 +470,13 @@ class InvalidationDuringValidationTest {
                     modifier = containerModifier(200, 100),
                 )
             }
-            assertEquals(20, onNodeWithTag("next").fetch().layoutBounds.x)
+            onNodeWithTag("next").assertProperty(20) { layoutBounds.x }
 
             requestsAfterMeasure = true
             onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().revalidate()
             awaitIdle()
 
-            assertEquals(20 + STEP, onNodeWithTag("next").fetch().layoutBounds.x, "placed after the widened component")
+            onNodeWithTag("next").assertProperty(20 + STEP, "placed after the widened component") { layoutBounds.x }
         }
 
     @Test
@@ -511,7 +515,7 @@ class InvalidationDuringValidationTest {
             awaitIdle()
 
             assertEquals(placements + 1, requests.placements, "placed once by the pass")
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "by the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "by the step taken") { layoutBounds.x }
         }
 
     @Test
@@ -545,13 +549,13 @@ class InvalidationDuringValidationTest {
                     Box(modifier = SwingModifier.size(sibling, 20))
                 }
             }
-            assertEquals(0, onNodeWithTag("box").fetch().layoutBounds.x)
+            onNodeWithTag("box").assertProperty(0) { layoutBounds.x }
 
             requests.fromMeasure = 1
             sibling = 30
             awaitIdle()
 
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "placed by the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "placed by the step taken") { layoutBounds.x }
         }
 
     /** As above for a measurement, which the measure of the box that the row runs does not lay out. */
@@ -568,13 +572,13 @@ class InvalidationDuringValidationTest {
                     Box(modifier = SwingModifier.size(sibling, 20))
                 }
             }
-            assertEquals(0, onNodeWithTag("box").fetch().layoutBounds.x)
+            onNodeWithTag("box").assertProperty(0) { layoutBounds.x }
 
             requests.fromMeasure = 1
             sibling = 30
             awaitIdle()
 
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "laid out with the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "laid out with the step taken") { layoutBounds.x }
         }
 
     /**
@@ -604,13 +608,13 @@ class InvalidationDuringValidationTest {
                     modifier = containerModifier(200, 100),
                 )
             }
-            assertEquals(0, onNodeWithTag("box").fetch().layoutBounds.x)
+            onNodeWithTag("box").assertProperty(0) { layoutBounds.x }
 
             requestsBeforeMeasure = true
             onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().revalidate()
             awaitIdle()
 
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "laid out with the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "laid out with the step taken") { layoutBounds.x }
         }
 
     /**
@@ -620,7 +624,7 @@ class InvalidationDuringValidationTest {
      * the request the intrinsic query passes up to it, so the size it took from the query stands.
      */
     @Test
-    fun aMeasurementInvalidatedAsTheNodeAnswersASizeQueryIsTheMeasureOfThePassThatFollows() =
+    fun aMeasurementInvalidatedAsTheNodeIsAskedASizeQueryIsTheMeasureOfThePassThatFollows() =
         runComposeSwingTest {
             val requests = Requests(measurement = true)
             setContent { RowUnderFlowLayout(RequestingElement(requests)) }
@@ -632,8 +636,9 @@ class InvalidationDuringValidationTest {
             awaitIdle()
 
             assertEquals(Dimension(20, 20), row.size, "the size asked before the step was taken stands")
-            val placedAt = onNodeWithTag("box").fetch().layoutBounds.x
-            assertEquals(STEP / 2, placedAt, "laid out with the step taken, centered in the row")
+            onNodeWithTag("box").assertProperty(STEP / 2, "laid out with the step taken, centered in the row") {
+                layoutBounds.x
+            }
         }
 
     /**
@@ -641,7 +646,7 @@ class InvalidationDuringValidationTest {
      * size query on, and the row's pass places the component.
      */
     @Test
-    fun aPlacementInvalidatedAsTheNodeAnswersASizeQueryIsThePlacementOfThePassThatFollows() =
+    fun aPlacementInvalidatedAsTheNodeIsAskedASizeQueryIsThePlacementOfThePassThatFollows() =
         runComposeSwingTest {
             val requests = Requests(measurement = false)
             setContent { RowUnderFlowLayout(RequestingElement(requests)) }
@@ -652,13 +657,14 @@ class InvalidationDuringValidationTest {
             awaitIdle()
 
             assertEquals(Dimension(20, 20), row.size, "the size asked before the step was taken stands")
-            val placedAt = onNodeWithTag("box").fetch().layoutBounds.x
-            assertEquals(STEP / 2, placedAt, "placed by the step taken, centered in the row")
+            onNodeWithTag("box").assertProperty(STEP / 2, "placed by the step taken, centered in the row") {
+                layoutBounds.x
+            }
         }
 
     /** The row is valid and nothing lays it out after the query: the test asks its minimum size, which nothing uses. */
     @Test
-    fun aMeasurementInvalidatedAsTheNodeAnswersASizeQueryNoLayoutFollowsIsMeasuredAgain() =
+    fun aMeasurementInvalidatedAsTheNodeIsAskedASizeQueryNoLayoutFollowsIsMeasuredAgain() =
         runComposeSwingTest {
             val requests = Requests(measurement = true)
             setContent { RowUnderFlowLayout(RequestingElement(requests)) }
@@ -674,7 +680,7 @@ class InvalidationDuringValidationTest {
 
     /** The size query holds the tree lock, so placement follows after the query returns. */
     @Test
-    fun aPlacementInvalidatedAsTheNodeAnswersASizeQueryOfAValidContainerIsPlacedAfterValidation() =
+    fun aPlacementInvalidatedAsTheNodeIsAskedASizeQueryOfAValidContainerIsPlacedAfterValidation() =
         runComposeSwingTest {
             val requests = Requests(measurement = false)
             setContent { RowUnderFlowLayout(RequestingElement(requests)) }
@@ -682,10 +688,10 @@ class InvalidationDuringValidationTest {
 
             requests.fromMeasure = 1
             row.minimumSize
-            assertEquals(0, onNodeWithTag("box").fetch().layoutBounds.x, "placement waits for the tree lock")
+            onNodeWithTag("box").assertProperty(0, "placement waits for the tree lock") { layoutBounds.x }
             awaitIdle()
 
-            assertEquals(STEP, onNodeWithTag("box").fetch().layoutBounds.x, "placed by the step taken")
+            onNodeWithTag("box").assertProperty(STEP, "placed by the step taken") { layoutBounds.x }
             assertEquals(Dimension(20, 20), row.size)
         }
 
@@ -696,7 +702,7 @@ class InvalidationDuringValidationTest {
      * before it.
      */
     @Test
-    fun aMeasurementInvalidatedAsTheNodeAnswersASizeQueryAfterTheContainerWasMeasuredIsMeasuredAgain() =
+    fun aMeasurementInvalidatedAsTheNodeIsAskedASizeQueryAfterTheContainerWasMeasuredIsMeasuredAgain() =
         runComposeSwingTest {
             val requests = Requests(measurement = true)
             var requestsAsAsked = false
@@ -732,35 +738,30 @@ class InvalidationDuringValidationTest {
         }
 
     /** The panel's layout asks the row's preferred size in each validation, which runs the node's `measure`. */
-    @Test
-    fun aNodeInvalidatingItsMeasurementOnEveryMeasureUnderASizeQueryIsLaidOutByItsLastMeasure() =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("requestKinds")
+    fun aNodeInvalidatingOnEveryMeasureUnderASizeQueryIsLaidOutByItsLastMeasure(measurement: Boolean) =
         runComposeSwingTest {
-            val requests = Requests(measurement = true)
+            val requests = Requests(measurement = measurement)
             setContent { RowUnderFlowLayout(RequestingOnEveryMeasureElement(requests)) }
 
             onNodeWithTag("row").fetch<JComponent>().revalidate()
             awaitIdle()
 
-            assertEquals(requests.measures, onNodeWithTag("box").fetch().layoutBounds.x, "placed by its last measure")
+            onNodeWithTag("box").assertProperty(requests.measures, "placed by its last measure") { layoutBounds.x }
         }
 
-    @Test
-    fun aNodeInvalidatingItsPlacementOnEveryMeasureUnderASizeQueryIsLaidOutByItsLastMeasure() =
-        runComposeSwingTest {
-            val requests = Requests(measurement = false)
-            setContent { RowUnderFlowLayout(RequestingOnEveryMeasureElement(requests)) }
-
-            onNodeWithTag("row").fetch<JComponent>().revalidate()
-            awaitIdle()
-
-            assertEquals(requests.measures, onNodeWithTag("box").fetch().layoutBounds.x, "placed by its last measure")
-        }
+    companion object {
+        @JvmStatic
+        fun requestKinds(): List<Arguments> =
+            listOf(Arguments.of(Named.of("measurement", true)), Arguments.of(Named.of("placement", false)))
+    }
 }
 
 /** How far a [RequestingNode] moves and widens its content with each request it makes. */
 private const val STEP = 10
 
-/** How many requests a node makes where one more than the pass answers would show. */
+/** How many requests a node makes where one more than the pass covers would show. */
 private const val REQUESTS = 3
 
 /** What [writingAsItPlaces] writes. */
@@ -792,7 +793,7 @@ private fun RowUnderFlowLayout(requesting: LayoutModifierNodeElement<*>) {
 
 /**
  * A [CellHost] rendering a cell of width 20 and then one of width 40 through one composition. A cell the host
- * validated stays valid in its `CellRendererPane`, and answers the size it holds until it is invalidated.
+ * validated stays valid in its `CellRendererPane`, and reports the size it holds until it is invalidated.
  */
 @Composable
 private fun HostOfTwoCells() {
@@ -840,7 +841,7 @@ private fun PlacedByAnOffsetWrittenBelow(
 
 /**
  * A container measuring its one child, the middle container, by a least width of 100 plus the offset [writer] writes,
- * in its placement block. The middle container measures the inner one by the least width [width] answers, in its
+ * in its placement block. The middle container measures the inner one by the least width [width] returns, in its
  * placement block; the inner one is laid out by [writer] and holds the node [requests] makes.
  */
 @Composable

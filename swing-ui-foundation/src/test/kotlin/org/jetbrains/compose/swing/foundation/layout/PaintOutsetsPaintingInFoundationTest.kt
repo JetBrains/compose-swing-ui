@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -42,7 +43,6 @@ import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import org.jetbrains.compose.swing.modifier.appearance.background as componentBackground
 
 /** The ground a container's paint outsets show, the opacity it reports, and what a clip or a fade keeps out of them. */
 class PaintOutsetsPaintingInFoundationTest {
@@ -72,12 +72,11 @@ class PaintOutsetsPaintingInFoundationTest {
             card.assertProperty(false, "and a look and feel update leaves it unset") { isOpaque }
 
             val image = onNodeWithTag("card").captureToImage()
-            val outsets = panel.paintOutsets
-            val layout = Rectangle(outsets.left, outsets.top, 20, 20)
+            val layout = Rectangle(4, 4, 20, 20)
             val overBlack = image.over(Color.BLACK)
             val overWhite = image.over(Color.WHITE)
             assertEquals(
-                Rectangle(0, 0, image.width, image.height),
+                Rectangle(0, 0, 28, 28),
                 differingPixelBounds(overBlack, overWhite),
                 "the outsets shows the ground",
             )
@@ -115,7 +114,7 @@ class PaintOutsetsPaintingInFoundationTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("card").opaque(true).componentBackground(Color.WHITE)) {
+                    Box(modifier = SwingModifier.testTag("card").opaque(true).background(Color.WHITE)) {
                         Box(
                             modifier =
                                 SwingModifier

@@ -94,7 +94,7 @@ private class DecoratedBaselinePanel(
 
 /** The bounds the container under test assigned each of its children, in declaration order. */
 internal fun ComposeSwingTest.childBounds(): List<Rectangle> =
-    container().childrenInDeclarationOrder().map {
+    onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().childrenInDeclarationOrder().map {
         it.bounds
     }
 

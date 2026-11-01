@@ -3,6 +3,10 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Graphics2D
@@ -206,58 +210,55 @@ class ImageLayerRenderEffectTest {
         downOnly.assertPixelColor(Color.RED, STRIPE, middle, "Nothing spreads across out of the stripe.")
     }
 
-    @Test
-    fun aZeroOrNegativeRadiusLeavesTheRecordingSharp() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sharpRadii")
+    fun aZeroOrNegativeRadiusLeavesTheRecordingSharp(radius: Float) {
         val layer = ImageLayer()
         layer.record(FRAME, FRAME) { graphics -> graphics.paintFrame() }
         val sharp = renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) }
 
-        for (radius in listOf(0f, -1f)) {
-            layer.renderEffect = BlurEffect(radius, edgeTreatment = TileMode.Decal)
-            assertImagesPixelPerfect(sharp, renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) })
-        }
+        layer.renderEffect = BlurEffect(radius, edgeTreatment = TileMode.Decal)
+        assertImagesPixelPerfect(sharp, renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) })
     }
 
-    @Test
-    fun anyPositiveRadiusSpreadsTheRecordingHoweverSlightly() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("spreadingRadii")
+    fun anyPositiveRadiusSpreadsTheRecordingHoweverSlightly(radius: Float) {
         // Skia's radius-to-sigma mapping adds a constant, so even a radius near zero blurs a little.
         val layer = ImageLayer()
         layer.record(FRAME, FRAME) { graphics -> graphics.paintFrame() }
         val sharp = renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) }
 
-        for (radius in listOf(Float.MIN_VALUE, 0.4f)) {
-            layer.renderEffect = BlurEffect(radius, edgeTreatment = TileMode.Decal)
-            val blurred = renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) }
-            assertNotNull(differingPixelBounds(sharp, blurred), "A radius of $radius spreads the recording.")
-        }
+        layer.renderEffect = BlurEffect(radius, edgeTreatment = TileMode.Decal)
+        val blurred = renderImage(FRAME, FRAME) { graphics -> layer.draw(graphics) }
+        assertNotNull(differingPixelBounds(sharp, blurred), "A radius of $radius spreads the recording.")
     }
 
-    @Test
-    fun anOpDrawsInPlaceOfTheRecordingAtEachScale() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("scales")
+    fun anOpDrawsInPlaceOfTheRecordingAtEachScale(scale: Int) {
         val inverted = ShortArray(256) { (255 - it).toShort() }
         val kept = ShortArray(256) { it.toShort() }
         val invert = LookupOp(ShortLookupTable(0, arrayOf(inverted, inverted, inverted, kept)), null)
         assertEquals(invert.asRenderEffect(), invert.asRenderEffect(), "Effects made from the same op are equal.")
-        for (scale in 1..2) {
-            val layer = ImageLayer()
-            layer.recordSquare(scale = scale.toDouble())
-            layer.renderEffect = invert.asRenderEffect()
+        val layer = ImageLayer()
+        layer.recordSquare(scale = scale.toDouble())
+        layer.renderEffect = invert.asRenderEffect()
 
-            val side = SQUARE * scale
-            val painted =
-                renderImage(side, side) { graphics ->
-                    graphics.scale(scale.toDouble(), scale.toDouble())
-                    layer.draw(graphics)
-                }
-
-            val expected = BufferedImage(side, side, BufferedImage.TYPE_INT_ARGB)
-            expected.createGraphics().apply {
-                color = Color(0xFF00FFFF.toInt(), true)
-                fillRect(0, 0, side, side)
-                dispose()
+        val side = SQUARE * scale
+        val painted =
+            renderImage(side, side) { graphics ->
+                graphics.scale(scale.toDouble(), scale.toDouble())
+                layer.draw(graphics)
             }
-            assertImagesPixelPerfect(expected, painted)
+
+        val expected = BufferedImage(side, side, BufferedImage.TYPE_INT_ARGB)
+        expected.createGraphics().apply {
+            color = Color(0xFF00FFFF.toInt(), true)
+            fillRect(0, 0, side, side)
+            dispose()
         }
+        assertImagesPixelPerfect(expected, painted)
     }
 
     @Test
@@ -371,48 +372,47 @@ class ImageLayerRenderEffectTest {
         assertImagesPixelPerfect(fresh, redrawn)
     }
 
-    @Test
-    fun anEffectDrawsWhatItSpreadsPastTheRecordingInItsOutsets() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("scales")
+    fun anEffectDrawsWhatItSpreadsPastTheRecordingInItsOutsets(scale: Int) {
         // Adds opaque green to every pixel: a transparent one turns green and the red square turns yellow.
         val backdrop = RescaleOp(floatArrayOf(1f, 1f, 1f, 1f), floatArrayOf(0f, 255f, 0f, 255f), null)
-        for (scale in 1..2) {
-            val scales = mutableListOf<Double>()
-            val effect =
-                object : RenderEffect {
-                    override fun createOp(scale: Double): BufferedImageOp = backdrop.also { scales += scale }
+        val scales = mutableListOf<Double>()
+        val effect =
+            object : RenderEffect {
+                override fun createOp(scale: Double): BufferedImageOp = backdrop.also { scales += scale }
 
-                    override fun outsets(scale: Double): Insets {
-                        val reach = (2 * scale).toInt()
-                        return Insets(reach, reach, reach, reach)
-                    }
+                override fun outsets(scale: Double): Insets {
+                    val reach = (2 * scale).toInt()
+                    return Insets(reach, reach, reach, reach)
                 }
-            val layer = ImageLayer()
-            layer.recordSquare(scale = scale.toDouble())
-            layer.renderEffect = effect
+            }
+        val layer = ImageLayer()
+        layer.recordSquare(scale = scale.toDouble())
+        layer.renderEffect = effect
 
-            val painted =
-                renderImage(SQUARE * 3 * scale, SQUARE * 3 * scale) { graphics ->
-                    graphics.scale(scale.toDouble(), scale.toDouble())
-                    layer.draw(graphics, SQUARE, SQUARE)
-                }
+        val painted =
+            renderImage(SQUARE * 3 * scale, SQUARE * 3 * scale) { graphics ->
+                graphics.scale(scale.toDouble(), scale.toDouble())
+                layer.draw(graphics, SQUARE, SQUARE)
+            }
 
-            assertEquals(listOf(scale.toDouble()), scales, "The op is made once, for the recording's scale.")
-            val middle = (SQUARE + SQUARE / 2) * scale
-            val expected =
-                listOf(
-                    SQUARE - 3 to 0,
-                    SQUARE - 2 to 0xFF00FF00.toInt(),
-                    SQUARE - 1 to 0xFF00FF00.toInt(),
-                    SQUARE to 0xFFFFFF00.toInt(),
-                    SQUARE * 2 - 1 to 0xFFFFFF00.toInt(),
-                    SQUARE * 2 to 0xFF00FF00.toInt(),
-                    SQUARE * 2 + 1 to 0xFF00FF00.toInt(),
-                    SQUARE * 2 + 2 to 0,
-                )
-            for ((x, argb) in expected) {
-                for (pixel in x * scale until (x + 1) * scale) {
-                    painted.assertPixelColor(Color(argb, true), pixel, middle, "Pixel $pixel across at scale $scale.")
-                }
+        assertEquals(listOf(scale.toDouble()), scales, "The op is made once, for the recording's scale.")
+        val middle = (SQUARE + SQUARE / 2) * scale
+        val expected =
+            listOf(
+                SQUARE - 3 to 0,
+                SQUARE - 2 to 0xFF00FF00.toInt(),
+                SQUARE - 1 to 0xFF00FF00.toInt(),
+                SQUARE to 0xFFFFFF00.toInt(),
+                SQUARE * 2 - 1 to 0xFFFFFF00.toInt(),
+                SQUARE * 2 to 0xFF00FF00.toInt(),
+                SQUARE * 2 + 1 to 0xFF00FF00.toInt(),
+                SQUARE * 2 + 2 to 0,
+            )
+        for ((x, argb) in expected) {
+            for (pixel in x * scale until (x + 1) * scale) {
+                painted.assertPixelColor(Color(argb, true), pixel, middle, "Pixel $pixel across at scale $scale.")
             }
         }
     }
@@ -450,6 +450,19 @@ class ImageLayerRenderEffectTest {
             val argb = image.getRGB(x, y)
             ((argb shr 16) and 0xFF) in MIXED && (argb and 0xFF) in MIXED
         }
+
+    companion object {
+        @JvmStatic
+        fun sharpRadii(): List<Arguments> =
+            listOf(Arguments.of(Named.of("zero", 0f)), Arguments.of(Named.of("negative", -1f)))
+
+        @JvmStatic
+        fun spreadingRadii(): List<Arguments> =
+            listOf(Arguments.of(Named.of("Float.MIN_VALUE", Float.MIN_VALUE)), Arguments.of(Named.of("0.4", 0.4f)))
+
+        @JvmStatic
+        fun scales(): List<Arguments> = listOf(Arguments.of(Named.of("1x", 1)), Arguments.of(Named.of("2x", 2)))
+    }
 }
 
 /** The side of the recording the frame and halves are painted across. */

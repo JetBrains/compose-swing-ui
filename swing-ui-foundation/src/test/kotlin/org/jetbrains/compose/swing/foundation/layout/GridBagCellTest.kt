@@ -13,9 +13,13 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Dimension
 import java.awt.GridBagConstraints
@@ -31,54 +35,58 @@ import kotlin.test.assertSame
  * sizes, and lays a cell with no width or no height out at zero by zero.
  */
 class GridBagCellTest {
-    @Test
-    fun aContainerInACellShortOfRoomTakesTheHeightForTheCellWidthWhereItsContentIsFlatAtItsMinimumWidth() {
-        // The label has no minimum size, so its ratio has no height at its minimum width.
-        val slots: Map<String, Slot> =
-            mapOf(
-                "GridBagLayout fill HORIZONTAL" to
-                    swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL"),
-                "GridBagLayout fill HORIZONTAL in a panel of fixed size" to { width, subject ->
-                    Panel(PanelLayout.Flow()) {
-                        Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(width, 600)) {
-                            subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
-                        }
-                    }
-                },
-            )
-        val placements: Map<String, ConstrainedScope.() -> SwingModifier> =
-            mapOf(
-                "at a ratio" to { SwingModifier.aspectRatio(16f / 9f) },
-                "filling the width at a ratio" to { SwingModifier.fillMaxWidth().aspectRatio(16f / 9f) },
-            )
-        for ((slotName, slot) in slots) {
-            for ((placementName, placement) in placements) {
-                runComposeSwingTest {
-                    setContent {
-                        slot(320) { modifier ->
-                            Box(modifier = modifier.testTag("box")) {
-                                Label("", modifier = placement().testTag("label").preferredSize(2 * 320, 600))
+    companion object {
+        @JvmStatic
+        fun cellCases(): List<Arguments> {
+            // The label has no minimum size, so its ratio has no height at its minimum width.
+            val slots: Map<String, Slot> =
+                mapOf(
+                    "GridBagLayout fill HORIZONTAL" to
+                        swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL"),
+                    "GridBagLayout fill HORIZONTAL in a panel of fixed size" to { width, subject ->
+                        Panel(PanelLayout.Flow()) {
+                            Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(width, 600)) {
+                                subject(SwingModifier.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
                             }
                         }
-                    }
-                    val box = onNodeWithTag("box").fetch<JComponent>()
-                    val label = onNodeWithTag("label").fetch<JComponent>()
-                    settleWithPaint()
-                    val minimumWidth = label.preferredSize.width
-                    val expectedMinimumHeight = (minimumWidth * 9f / 16f).roundToInt()
-                    val expectedContentHeight = (box.width * 9f / 16f).roundToInt()
-                    assertEquals(
-                        Dimension(320, expectedMinimumHeight),
-                        box.size,
-                        "$slotName, $placementName: minimum height uses natural preferred width",
-                    )
-                    assertEquals(
-                        Dimension(box.width, expectedContentHeight),
-                        label.size,
-                        "$slotName, $placementName: content follows its actual width",
-                    )
+                    },
+                )
+            val placements: Map<String, ConstrainedScope.() -> SwingModifier> =
+                mapOf(
+                    "at a ratio" to { SwingModifier.aspectRatio(16f / 9f) },
+                    "filling the width at a ratio" to { SwingModifier.fillMaxWidth().aspectRatio(16f / 9f) },
+                )
+            return slots.flatMap { (slotName, slot) ->
+                placements.map { (placementName, placement) ->
+                    Arguments.of(Named.of(slotName, slot), Named.of(placementName, placement))
                 }
             }
+        }
+    }
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("cellCases")
+    fun aContainerInACellShortOfRoomTakesTheHeightForTheCellWidthWhereItsContentIsFlatAtItsMinimumWidth(
+        slot: Slot,
+        placement: ConstrainedScope.() -> SwingModifier,
+    ) {
+        runComposeSwingTest {
+            setContent {
+                slot(320) { modifier ->
+                    Box(modifier = modifier.testTag("box")) {
+                        Label("", modifier = placement().testTag("label").preferredSize(2 * 320, 600))
+                    }
+                }
+            }
+            settleWithPaint()
+            onNodeWithTag("box").assertIsOfType<JComponent>().assertProperty(
+                Dimension(320, 360),
+                "minimum height uses natural preferred width",
+            ) { size }
+            onNodeWithTag("label").assertIsOfType<JComponent>().assertProperty(
+                Dimension(320, 180),
+                "content follows its actual width",
+            ) { size }
         }
     }
 
@@ -136,16 +144,16 @@ class GridBagCellTest {
                 step = next
                 awaitIdle()
                 if (next == 1) {
-                    val box = onNodeWithTag("box").fetch<JComponent>()
-                    assertEquals(0, box.width, "precondition: the cell zeroes the box")
+                    onNodeWithTag("box").assertProperty(0, "precondition: the cell zeroes the box") { this.width }
                 }
             }
-            val box = onNodeWithTag("box").fetch<JComponent>()
             val label = onNodeWithTag("label").fetch<JComponent>()
-            val expectedMinimumHeight = (label.preferredSize.width * 9f / 16f).roundToInt()
-            assertEquals(Dimension(320, expectedMinimumHeight), box.size, "minimum height uses natural preferred width")
+            onNodeWithTag("box").assertProperty(
+                Dimension(320, 360),
+                "minimum height uses natural preferred width",
+            ) { size }
             assertEquals(
-                Dimension(box.width, (box.width * 9f / 16f).roundToInt()),
+                Dimension(320, 180),
                 label.size,
                 "content follows the width the cell grants",
             )
@@ -185,11 +193,9 @@ class GridBagCellTest {
                 awaitIdle()
             }
             val subject = onNodeWithTag("box").fetch<JComponent>()
-            val expected = Dimension(320 / 2, (320 / 2 * 9f / 16f).roundToInt())
-            val earlierPreferredWidth = 320 / 4
-            val earlierNaturalHeight = (earlierPreferredWidth * 9f / 16f).roundToInt()
+            val expected = Dimension(160, 90)
             assertEquals(
-                Dimension(expected.width, earlierNaturalHeight),
+                Dimension(160, 45),
                 subject.size,
                 "${if (native) "native" else "Foundation"}: first grant uses the earlier width",
             )
@@ -250,7 +256,7 @@ class GridBagCellTest {
             component.parent.revalidate()
             root.validate()
             awaitIdle()
-            val expected = Dimension(320 / 2, (320 / 2 * 9f / 16f).roundToInt())
+            val expected = Dimension(160, 90)
             onNodeWithTag("box").assertProperty(expected, "the parent validates at the preferred width") { size }
             if (!native) onNodeWithTag("label").assertProperty(expected) { size }
         }
@@ -284,10 +290,8 @@ private fun assertPreferredWidthStages(
     component: JComponent,
     native: Boolean,
 ) {
-    val earlierPreferredWidth = 320 / 4
-    val earlierNaturalHeight = (earlierPreferredWidth * 9f / 16f).roundToInt()
     assertEquals(
-        Dimension(320 / 2, earlierNaturalHeight),
+        Dimension(160, 45),
         component.size,
         "${if (native) "native" else "Foundation"}: first grant uses the earlier width",
     )

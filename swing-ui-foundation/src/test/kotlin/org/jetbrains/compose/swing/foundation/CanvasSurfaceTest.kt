@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -13,7 +14,9 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -46,25 +49,20 @@ class CanvasSurfaceTest {
                 }
             }
 
-            val canvas = onNodeWithTag("canvas").fetch<JComponent>()
             val painted = onNodeWithTag("canvas").captureToImage()
 
-            assertEquals(
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("canvas")).assertProperty(
                 Insets(8, 8, 8, 8),
-                canvas.insets,
                 "The border is reserved on every side.",
-            )
-            assertEquals(
-                0,
-                painted.getRGB(1, 1),
+            ) { insets }
+            painted.assertPixelColor(
+                Color(0, true),
+                1,
+                1,
                 "A surface paints inside its insets, as a widget paints inside its border. Filling the " +
                     "width and height it is handed must not reach what the border reserved.",
             )
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(32, 24),
-                "What is left inside the reservation is the drawing's.",
-            )
+            painted.assertPixelColor(Color.RED, 32, 24, "What is left inside the reservation is the drawing's.")
         }
 
     @Test
@@ -84,8 +82,8 @@ class CanvasSurfaceTest {
 
             val painted = onNodeWithTag("canvas").captureToImage()
 
-            assertEquals(0, painted.getRGB(1, 1), "a drawing reaching into the border must not paint there")
-            assertEquals(Color.RED.rgb, painted.getRGB(8, 8), "inside the border, the drawing shows")
+            painted.assertPixelColor(Color(0, true), 1, 1, "a drawing reaching into the border must not paint there")
+            painted.assertPixelColor(Color.RED, 8, 8, "inside the border, the drawing shows")
         }
 
     @Test
@@ -107,10 +105,11 @@ class CanvasSurfaceTest {
 
             val painted = onNodeWithTag("canvas").captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(32, 24), "the drawing should show")
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(1, 1),
+            painted.assertPixelColor(Color.RED, 32, 24, "the drawing should show")
+            painted.assertPixelColor(
+                Color.BLUE,
+                1,
+                1,
                 "the border paints after onDraw, with none of the composite or transform onDraw left set",
             )
         }
@@ -132,7 +131,7 @@ class CanvasSurfaceTest {
 
             val painted = onNodeWithTag("canvas").captureToImage()
 
-            assertEquals(Color.BLUE.rgb, painted.getRGB(1, 1), "the border paints in the composite onDraw found")
+            painted.assertPixelColor(Color.BLUE, 1, 1, "the border paints in the composite onDraw found")
         }
 
     @Test
@@ -200,7 +199,7 @@ class CanvasSurfaceTest {
         }
 
     @Test
-    fun anUnsizedCanvasAnswersItsInsetsAsPreferredSize() =
+    fun anUnsizedCanvasReportsItsInsetsAsPreferredSize() =
         runComposeSwingTest {
             setContent {
                 Canvas(modifier = SwingModifier.testTag("bare")) { }
@@ -281,7 +280,6 @@ class CanvasSurfaceTest {
             val canvas = onNodeWithTag("canvas").fetch<JComponent>()
             val outsets = canvas.paintOutsets
             check(outsets.left > 0 && outsets.top > 0) { "the shadow must take outsets: $outsets" }
-
             assertEquals(
                 Dimension(outsets.left + outsets.right, outsets.top + outsets.bottom),
                 canvas.minimumSize,

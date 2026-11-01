@@ -21,6 +21,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -29,6 +33,7 @@ import javax.swing.JSplitPane
 import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -54,8 +59,8 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(Dimension(50, 30), containerMinimumSize())
-            assertEquals(Dimension(160, 80), containerPreferredSize())
+            onNodeWithTag(CONTAINER_TAG).assertProperty(Dimension(50, 30)) { minimumSize }
+            onNodeWithTag(CONTAINER_TAG).assertProperty(Dimension(160, 80)) { preferredSize }
         }
 
     @Test
@@ -70,7 +75,7 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(Dimension(50, 30), containerMinimumSize())
+            onNodeWithTag(CONTAINER_TAG).assertProperty(Dimension(50, 30)) { minimumSize }
         }
 
     @Test
@@ -83,7 +88,7 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(Dimension(30, 30), containerMinimumSize())
+            onNodeWithTag(CONTAINER_TAG).assertProperty(Dimension(30, 30)) { minimumSize }
         }
 
     @Test
@@ -96,7 +101,7 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(Dimension(50, 30), containerMinimumSize())
+            onNodeWithTag(CONTAINER_TAG).assertProperty(Dimension(50, 30)) { minimumSize }
         }
 
     @Test
@@ -108,11 +113,10 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(50, 40),
-                containerPreferredSize(),
                 "a box must not ask for more than its non-matching child explicitly accepts",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -124,11 +128,10 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(2, 1),
-                containerPreferredSize(),
                 "a child one unit wide and weighted 2f needs one rounded unit per weight unit, so its row asks for two",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -143,9 +146,9 @@ class IntrinsicTest {
             }
             counting.forget()
 
-            containerPreferredSize()
-            containerMinimumSize()
-
+            val container = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            container.preferredSize
+            container.minimumSize
             assertEquals(
                 0,
                 counting.measured,
@@ -174,38 +177,38 @@ class IntrinsicTest {
             )
         }
 
-    @Test
-    fun intrinsicQueriesAndLayoutUseDifferentPolicyEntryPoints() {
-        for (queryOnly in listOf(true, false)) {
-            runComposeSwingTest {
-                var measured = 0
-                var intrinsicHeight = 0
-                val policy =
-                    IntrinsicQueryPolicy(
-                        measuring =
-                            MeasurePolicy { _, _ ->
-                                measured++
-                                layout(0, 0) {}
-                            },
-                    ) { _, _, _ ->
-                        intrinsicHeight++
-                        0
-                    }
-                setContent {
-                    Column(
-                        modifier = if (queryOnly) SwingModifier.testTag(CONTAINER_TAG) else containerModifier(200, 200),
-                    ) { Layout(measurePolicy = policy) }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("queryCases")
+    fun intrinsicQueriesAndLayoutUseDifferentPolicyEntryPoints(queryOnly: Boolean) {
+        runComposeSwingTest {
+            var measured = 0
+            var intrinsicHeight = 0
+            val policy =
+                IntrinsicQueryPolicy(
+                    measuring =
+                        MeasurePolicy { _, _ ->
+                            measured++
+                            layout(0, 0) {}
+                        },
+                ) { _, _, _ ->
+                    intrinsicHeight++
+                    0
                 }
-                if (queryOnly) {
-                    measured = 0
-                    intrinsicHeight = 0
-                    containerPreferredSize()
-                    containerMinimumSize()
-                    assertEquals(0, measured, "intrinsic queries must not measure a nested container")
-                    assertTrue(intrinsicHeight > 0, "the nested container performs its own intrinsic reads")
-                } else {
-                    assertTrue(measured > 0, "a layout pass performs a constrained query")
-                }
+            setContent {
+                Column(
+                    modifier = if (queryOnly) SwingModifier.testTag(CONTAINER_TAG) else containerModifier(200, 200),
+                ) { Layout(measurePolicy = policy) }
+            }
+            if (queryOnly) {
+                measured = 0
+                intrinsicHeight = 0
+                val container = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+                container.preferredSize
+                container.minimumSize
+                assertEquals(0, measured, "queryOnly=$queryOnly: intrinsic queries must not measure a nested container")
+                assertTrue(intrinsicHeight > 0, "the nested container performs its own intrinsic reads")
+            } else {
+                assertTrue(measured > 0, "a layout pass performs a constrained query")
             }
         }
     }
@@ -261,35 +264,33 @@ class IntrinsicTest {
             ) { bounds }
         }
 
-    @Test
-    fun aRowReadsAnUnweightedChildsHeightAtItsMaxIntrinsicWidthAsAndroidxRowColumnImplDoes() {
-        for (size in IntrinsicSize.entries) {
-            runComposeSwingTest {
-                setContent {
-                    CenteredColumn(400) {
-                        Box(modifier = SwingModifier.width(320).height(size)) {
-                            Row {
-                                Column(modifier = SwingModifier.padding(4)) {
-                                    Label(
-                                        "Preview",
-                                        modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(2f),
-                                    )
-                                }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("intrinsicSizes")
+    fun aRowReadsAnUnweightedChildsHeightAtItsMaxIntrinsicWidthAsAndroidxRowColumnImplDoes(size: IntrinsicSize) {
+        runComposeSwingTest {
+            setContent {
+                CenteredColumn(400) {
+                    Box(modifier = SwingModifier.width(320).height(size)) {
+                        Row {
+                            Column(modifier = SwingModifier.padding(4)) {
+                                Label(
+                                    "Preview",
+                                    modifier = SwingModifier.testTag("label").fillMaxWidth().aspectRatio(2f),
+                                )
                             }
                         }
-                        Label("After", modifier = SwingModifier.testTag("after"))
                     }
+                    Label("After", modifier = SwingModifier.testTag("after"))
                 }
-                val labelHeight = onNodeWithTag("label").fetch<JComponent>().preferredSize.height
-
-                assertEquals(
-                    labelHeight + 8,
-                    onNodeWithTag("after").fetch<JComponent>().y,
-                    "$size: androidx RowColumnImpl's intrinsicCrossAxisSize reads the unweighted column's height at " +
-                        "its max intrinsic width, twice the label's height of $labelHeight, so the box is that " +
-                        "height plus the padding rather than the ratio's height at the 320 it offers",
-                )
             }
+            val labelHeight = onNodeWithTag("label").fetch<JComponent>().preferredSize.height
+
+            onNodeWithTag("after").assertProperty(
+                labelHeight + 8,
+                "$size: androidx RowColumnImpl's intrinsicCrossAxisSize reads the unweighted column's height at " +
+                    "its max intrinsic width, twice the label's height of $labelHeight, so the box is that " +
+                    "height plus the padding rather than the ratio's height at the 320 it offers",
+            ) { y }
         }
     }
 
@@ -310,32 +311,31 @@ class IntrinsicTest {
             ) { bounds }
         }
 
-    @Test
-    fun aLayoutModifierQueryingADefaultHookNarrowerThanTheOfferReportsThatSize() {
-        for (size in IntrinsicSize.entries) {
-            runComposeSwingTest {
-                setContent {
-                    CenteredColumn(320) {
-                        Box(modifier = SwingModifier.testTag("box").fillMaxWidth().height(size)) {
-                            TextArea(
-                                WRAPPING_TEXT,
-                                {},
-                                SwingModifier.testTag("text").fillMaxWidth() then HorizontalInsetElement,
-                                lineWrap = true,
-                                wrapStyleWord = true,
-                            )
-                        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("intrinsicSizes")
+    fun aLayoutModifierQueryingADefaultHookNarrowerThanTheOfferReportsThatSize(size: IntrinsicSize) {
+        runComposeSwingTest {
+            setContent {
+                CenteredColumn(320) {
+                    Box(modifier = SwingModifier.testTag("box").fillMaxWidth().height(size)) {
+                        TextArea(
+                            WRAPPING_TEXT,
+                            {},
+                            SwingModifier.testTag("text").fillMaxWidth() then HorizontalInsetElement,
+                            lineWrap = true,
+                            wrapStyleWord = true,
+                        )
                     }
                 }
-                val text = onNodeWithTag("text").fetch<JTextArea>()
-                val atWidth = if (size == IntrinsicSize.Max) text.preferredSize else text.minimumSize
-
-                assertEquals(312, text.width, "$size: the area fills the box inside its inset")
-                onNodeWithTag("box").assertProperty(
-                    atWidth.height,
-                    "$size: the box takes the area's height at the width the inset reads a default hook at",
-                ) { height }
             }
+            val text = onNodeWithTag("text").fetch<JTextArea>()
+            val atWidth = if (size == IntrinsicSize.Max) text.preferredSize else text.minimumSize
+
+            assertEquals(312, text.width, "$size: the area fills the box inside its inset")
+            onNodeWithTag("box").assertProperty(
+                atWidth.height,
+                "$size: the box takes the area's height at the width the inset reads a default hook at",
+            ) { height }
         }
     }
 
@@ -409,11 +409,10 @@ class IntrinsicTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(HalfAsTallAsWide.WIDTH, HalfAsTallAsWide.WIDTH / 2),
-                containerPreferredSize(),
                 "the column prefers the leaf's intrinsic width, and the leaf's height at that width",
-            )
+            ) { preferredSize }
             assertEquals(
                 Rectangle(0, 0, HalfAsTallAsWide.WIDTH, HalfAsTallAsWide.WIDTH / 2),
                 leaf.bounds,
@@ -523,18 +522,15 @@ class IntrinsicTest {
                     }
                 }
             }
-            val box = onNodeWithTag("box").fetch<JComponent>() as Constrainable
-
-            assertEquals(
+            val box = onNodeWithTag("box")
+            box.assertProperty(
                 HalfAsTallAsWide.WIDTH / 2 + 6,
-                box.maxIntrinsicHeight(Constraints.Infinity),
                 "the content's height where nothing bounds its width, plus the border",
-            )
-            assertEquals(
+            ) { assertIs<Constrainable>(this).maxIntrinsicHeight(Constraints.Infinity) }
+            box.assertProperty(
                 HalfAsTallAsWide.WIDTH + 6,
-                box.maxIntrinsicWidth(Constraints.Infinity),
                 "the content's width where nothing bounds its height, plus the border",
-            )
+            ) { assertIs<Constrainable>(this).maxIntrinsicWidth(Constraints.Infinity) }
         }
 
     @Test
@@ -657,6 +653,14 @@ class IntrinsicTest {
                 "and the outer box, reading the nested one its height under that least width, is as tall",
             ) { height }
         }
+
+    companion object {
+        @JvmStatic
+        fun queryCases(): List<Arguments> = listOf(true, false).map { Arguments.of(Named.of("queryOnly=$it", it)) }
+
+        @JvmStatic
+        fun intrinsicSizes(): List<Arguments> = IntrinsicSize.entries.map { Arguments.of(Named.of(it.name, it)) }
+    }
 }
 
 /** A [Column] centered in a border panel [width] wide and 600 high. */

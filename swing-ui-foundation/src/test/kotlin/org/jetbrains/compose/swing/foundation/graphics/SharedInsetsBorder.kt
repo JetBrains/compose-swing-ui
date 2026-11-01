@@ -6,7 +6,7 @@ import java.awt.Insets
 import javax.swing.border.Border
 
 /**
- * A border answering with [own], one [Insets] it shares with every caller, as a border that is no `AbstractBorder`
+ * A border returning [own], one [Insets] it shares with every caller, as a border that is no `AbstractBorder`
  * may. It paints nothing.
  */
 internal class SharedInsetsBorder : Border {

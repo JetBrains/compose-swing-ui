@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -158,11 +159,10 @@ class RowColumnFillTest {
                 childBounds(),
                 "a filling child must stop at the maximum it declares, as a weighted child stops at its own",
             )
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 CROSS_EXTENT,
-                containerSize().width,
                 "the column keeps the width it was given, so the width its child refused stays empty",
-            )
+            ) { size.width }
         }
 
     @Test
@@ -314,11 +314,10 @@ class RowColumnFillTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, 2 * CHILD_HEIGHT),
-                containerPreferredSize(),
                 "a fill claims the width the column is given, so the column asks its parent for no more",
-            )
+            ) { preferredSize }
         }
 
     private companion object {

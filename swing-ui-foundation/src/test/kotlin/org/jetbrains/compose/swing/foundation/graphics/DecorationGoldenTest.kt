@@ -18,7 +18,7 @@ import kotlin.test.Test
  *
  * A decoration rasterizes through Java2D alone - shapes, fills and image filters over an authored
  * figure - so every host produces the same pixels and an exact match is the right comparison. The
- * scenes carry no text and no look-and-feel chrome, the two things whose rendering a host decides for
+ * fixtures carry no text and no look-and-feel chrome, the two things whose rendering a host decides for
  * itself, and each paints an opaque background so the capture holds no partial transparency for a PNG
  * round trip to round differently.
  *
@@ -60,7 +60,7 @@ class DecorationGoldenTest {
         }
 
     /**
-     * Captures a scene holding one decorated [figure] on an opaque ground and asserts it against the
+     * Captures a fixture holding one decorated [figure] on an opaque ground and asserts it against the
      * golden image named [goldenIdentifier].
      */
     private fun golden(
@@ -68,12 +68,12 @@ class DecorationGoldenTest {
         figure: (Graphics2D, Int, Int) -> Unit,
         decorate: SwingModifier.() -> SwingModifier,
     ) = runComposeSwingTest {
-        setContent { DecoratedBox { Scene(figure, decorate) } }
-        onNodeWithTag(SCENE).assertImageAgainstGoldenPixelPerfect(goldenIdentifier)
+        setContent { DecoratedBox { DecorationFixture(figure, decorate) } }
+        onNodeWithTag(FIXTURE).assertImageAgainstGoldenPixelPerfect(goldenIdentifier)
     }
 
     @Composable
-    private fun Scene(
+    private fun DecorationFixture(
         figure: (Graphics2D, Int, Int) -> Unit,
         decorate: SwingModifier.() -> SwingModifier,
     ) {
@@ -81,7 +81,7 @@ class DecorationGoldenTest {
             contentAlignment = Alignment.Center,
             modifier =
                 SwingModifier
-                    .testTag(SCENE)
+                    .testTag(FIXTURE)
                     .preferredSize(96, 96)
                     .background(Color.WHITE, RectangleShape),
         ) {
@@ -93,7 +93,7 @@ class DecorationGoldenTest {
     }
 
     private companion object {
-        const val SCENE = "decorated-scene"
+        const val FIXTURE = "decorated-fixture"
 
         /** Fills the whole area, so a decoration that cuts, rings or moves the figure has an edge to act on. */
         fun filled(

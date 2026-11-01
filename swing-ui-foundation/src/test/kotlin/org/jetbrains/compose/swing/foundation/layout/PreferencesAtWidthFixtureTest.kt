@@ -9,12 +9,9 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFailsWith
 
-private val FillingBox: Map<String, ContainerContent> =
-    mapOf(
-        "Box" to { modifier, leaf ->
-            Box(modifier = modifier) { leaf(SwingModifier.fillMaxWidth()) }
-        },
-    )
+internal val FillingBox: ContainerContent = { modifier, leaf ->
+    Box(modifier = modifier) { leaf(SwingModifier.fillMaxWidth()) }
+}
 
 class PreferencesAtWidthFixtureTest {
     @Test
@@ -27,7 +24,7 @@ class PreferencesAtWidthFixtureTest {
             )
         val failure =
             assertFailsWith<AssertionError> {
-                assertPreferencesSettle(FillingBox, slots = mapOf("BorderLayout NORTH" to leaf))
+                assertPreferencesSettle(mapOf("Box" to FillingBox), slots = mapOf("BorderLayout NORTH" to leaf))
             }
         assertContains(failure.message.orEmpty(), "JTextArea is given another width")
     }
@@ -36,7 +33,10 @@ class PreferencesAtWidthFixtureTest {
     fun aSlotNameOutsideThePreferenceSlotsFails() {
         val failure =
             assertFailsWith<IllegalArgumentException> {
-                assertPreferencesSettle(FillingBox, slots = mapOf("BorderLayout North" to DefaultLeaves))
+                assertPreferencesSettle(
+                    mapOf("Box" to FillingBox),
+                    slots = mapOf("BorderLayout North" to DefaultLeaves),
+                )
             }
         assertContains(failure.message.orEmpty(), "BorderLayout North")
     }

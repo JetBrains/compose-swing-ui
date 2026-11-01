@@ -16,10 +16,17 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
+import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -30,6 +37,7 @@ import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
+import java.util.stream.Stream
 import javax.swing.JComponent
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -43,47 +51,17 @@ import kotlin.test.assertTrue
  * repainting itself repaints the halo its container's decoration spreads its change into.
  */
 class PartialRepaintTest {
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaint() = assertShadowHalosMatch(scaleX = 1.0)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintAt125Percent() = assertShadowHalosMatch(scaleX = 1.25)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintAt150Percent() = assertShadowHalosMatch(scaleX = 1.5)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintAt200Percent() = assertShadowHalosMatch(scaleX = 2.0)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintAt300Percent() = assertShadowHalosMatch(scaleX = 3.0)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintMirrored() = assertShadowHalosMatch(scaleX = -1.0, scaleY = 1.0)
-
-    @Test
-    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaintAtUnequalScales() =
-        assertShadowHalosMatch(scaleX = 2.0, scaleY = 1.0)
-
-    @Test
-    fun theContentUnderAShadowPaintsAsItWouldAlone() = assertContentUnderShadowIsUnchanged(scale = 1.0)
-
-    @Test
-    fun theContentUnderAShadowPaintsAsItWouldAloneAt125Percent() = assertContentUnderShadowIsUnchanged(scale = 1.25)
-
-    @Test
-    fun theContentUnderAShadowPaintsAsItWouldAloneAt150Percent() = assertContentUnderShadowIsUnchanged(scale = 1.5)
-
-    @Test
-    fun theContentUnderAShadowPaintsAsItWouldAloneAt200Percent() = assertContentUnderShadowIsUnchanged(scale = 2.0)
-
-    private fun assertShadowHalosMatch(
+    @ParameterizedTest(name = "{0}, {2}")
+    @MethodSource("shadowHaloScales")
+    fun aRepaintOfOneShadowHaloStripMatchesAFullRepaint(
         scaleX: Double,
-        scaleY: Double = scaleX,
+        scaleY: Double,
+        freshCast: Boolean,
     ) = runComposeSwingTest {
         // A blur at full scale, one reduced to 1/4, one to 0.3, whose reduced pixel is not a whole number of logical
         // ones, and one to 0.28, which is not exact as a Double.
         val shadows = listOf(Triple(2, 1, -1), Triple(8, 5, -3), Triple(10, -4, 6), Triple(25, 3, 2))
+        var canvasDraws = 0
         val canvases =
             decoratedCanvases(
                 WIDTH,
@@ -92,16 +70,21 @@ class PartialRepaintTest {
                 decoration = {
                     shadows[it].let { (radius, x, y) -> SwingModifier.shadow(radius, Color(0, 0, 0, 160), x, y) }
                 },
-            ) { figure(graphics, width, height) }
+            ) {
+                canvasDraws++
+                figure(graphics, width, height)
+            }
         val named =
             shadows.zip(canvases) { (radius, offsetX, offsetY), canvas ->
                 "shadow radius $radius, offset ($offsetX, $offsetY)" to canvas
             }
 
+        val path = if (freshCast) "fresh cast" else "kept shadow"
         assertEquals(
             emptyList(),
-            mismatches(named, scaleX, scaleY),
-            "A repaint clipped to a halo strip differs from the full repaint at scale ($scaleX, $scaleY).",
+            mismatches(named, scaleX, scaleY, freshCast, draws = { canvasDraws }),
+            "The $path path of a repaint clipped to a halo strip differs from the full repaint at scale " +
+                "($scaleX, $scaleY).",
         )
     }
 
@@ -110,7 +93,9 @@ class PartialRepaintTest {
      * the shadowed canvas's bounds: Swing cuts a canvas at its own bounds, which at a fractional scale end inside a
      * pixel its figure half covers.
      */
-    private fun assertContentUnderShadowIsUnchanged(scale: Double) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("contentScales")
+    fun theContentUnderAShadowPaintsAsItWouldAlone(scale: Double) =
         runComposeSwingTest {
             val shadows = listOf(Triple(2, 1, -1), Triple(8, 3, 2), Triple(10, -4, 6), Triple(25, 3, 2))
             val canvases =
@@ -398,8 +383,10 @@ class PartialRepaintTest {
         decorated = true
         awaitIdle()
         val outsets = leaf.paintOutsets
-        val plainBoxHoldsTheLeaf = window.onNodeWithTag("plain").fetch<JComponent>().paintOutsets == Insets(0, 0, 0, 0)
-        assertEquals(padded, plainBoxHoldsTheLeaf, "the plain box has paint outsets only where the leaf paints past it")
+        window.onNodeWithTag("plain").assertIsOfType<JComponent>().assertProperty(
+            padded,
+            "the plain box has paint outsets only where the leaf paints past it",
+        ) { paintOutsets == Insets(0, 0, 0, 0) }
         repainted.clear()
 
         leaf.repaint(outsets.left + 30, outsets.top + 30, 1, 1)
@@ -453,12 +440,15 @@ class PartialRepaintTest {
 
     /**
      * The halo strips of each of [canvases] where a repaint clipped to the strip differs from a repaint of the whole
-     * canvas, both painted at [scaleX] by [scaleY], a negative scale mirroring the canvas.
+     * canvas, both painted at [scaleX] by [scaleY], a negative scale mirroring the canvas. Each strip is painted after
+     * a repaint of the canvas where [freshCast], and otherwise from the shadow the full repaint kept.
      */
     private fun mismatches(
         canvases: List<Pair<String, JComponent>>,
         scaleX: Double = 1.0,
         scaleY: Double = scaleX,
+        freshCast: Boolean = true,
+        draws: () -> Int = { 0 },
     ): List<String> =
         canvases.flatMap { (name, canvas) ->
             val width = ceil(canvas.width * abs(scaleX)).toInt()
@@ -473,17 +463,24 @@ class PartialRepaintTest {
                     if (scaleY < 0) height.toDouble() else 0.0,
                 )
             val full = canvas.paintOnto(width, height, transform)
+            val drawn = draws()
             haloStrips(canvas.paintOutsets).mapNotNull { (edge, strip) ->
-                // Without it, the shadow kept from the full repaint is drawn again and the strip is not cast at all.
-                canvas.repaint()
+                // A repaint drops the shadow kept from the full repaint, so the strip is cast anew.
+                if (freshCast) canvas.repaint()
                 val partial = canvas.paintOnto(width, height, transform, strip)
+                if (!freshCast) {
+                    assertEquals(
+                        drawn,
+                        draws(),
+                        "a partial paint draws the shadow kept from the full repaint instead of casting it again",
+                    )
+                }
                 val where = "$name, $edge halo $strip"
-                val pixels = devicePixels(transform, strip)
-                assertTrue(full.coverage(pixels) > 0, "The full repaint paints into the $where.")
-                // The blur reduces the content and enlarges it back. A recording that starts whole grid cells
-                // away computes the same sample positions from other coordinates, a rounding error apart,
-                // which can move a pixel by one level.
-                where.takeIf { partial.channelDifference(full, pixels) > 1 }
+                val area = deviceArea(transform, strip)
+                val fullArea = full.getSubimage(area.x, area.y, area.width, area.height)
+                val partialArea = partial.getSubimage(area.x, area.y, area.width, area.height)
+                assertTrue(fullArea.coverage() > 0, "The full repaint paints into the $where.")
+                where.takeIf { differingPixelBounds(fullArea, partialArea) != null }
             }
         }
 
@@ -514,21 +511,36 @@ class PartialRepaintTest {
     }
 
     /** The device pixels wholly inside [strip], in a canvas's coordinates, painted through [transform]. */
-    private fun devicePixels(
+    private fun deviceArea(
         transform: AffineTransform,
         strip: Rectangle,
-    ): List<Pair<Int, Int>> {
+    ): Rectangle {
         val device = transform.createTransformedShape(strip).bounds2D
-        val xs = ceil(device.minX).toInt() until floor(device.maxX).toInt()
-        val ys = ceil(device.minY).toInt() until floor(device.maxY).toInt()
-        return ys.flatMap { y -> xs.map { x -> x to y } }
+        val x0 = ceil(device.minX).toInt()
+        val x1 = floor(device.maxX).toInt()
+        val y0 = ceil(device.minY).toInt()
+        val y1 = floor(device.maxY).toInt()
+        return Rectangle(x0, y0, x1 - x0, y1 - y0)
     }
 
-    private fun BufferedImage.coverage(pixels: List<Pair<Int, Int>>): Long =
-        pixels.sumOf { (x, y) -> (getRGB(x, y) ushr 24).toLong() }
+    private fun BufferedImage.coverage(): Long =
+        (0 until height).sumOf { y -> (0 until width).sumOf { x -> (getRGB(x, y) ushr 24).toLong() } }
 
-    private companion object {
-        const val WIDTH = 41
-        const val HEIGHT = 29
+    companion object {
+        @JvmStatic
+        fun shadowHaloScales(): Stream<Arguments> =
+            listOf(1.0 to 1.0, 1.25 to 1.25, 1.5 to 1.5, 2.0 to 2.0, 3.0 to 3.0, -1.0 to 1.0, 2.0 to 1.0)
+                .flatMap { (scaleX, scaleY) ->
+                    listOf(Named.of("fresh cast", true), Named.of("kept shadow", false)).map { path ->
+                        Arguments.of(Named.of("shadow halo at scale ($scaleX, $scaleY)", scaleX), scaleY, path)
+                    }
+                }.stream()
+
+        @JvmStatic
+        fun contentScales(): Stream<Arguments> =
+            listOf(1.0, 1.25, 1.5, 2.0).map { Arguments.of(Named.of("content under shadow at scale $it", it)) }.stream()
+
+        private const val WIDTH = 41
+        private const val HEIGHT = 29
     }
 }

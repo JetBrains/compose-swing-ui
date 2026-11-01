@@ -11,6 +11,9 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JComponent
@@ -32,33 +35,27 @@ class CustomLayoutManagerParentTest {
     @Test
     fun preferredSizeQueriesAcrossWidthsUseTheCurrentWidth() =
         runComposeSwingTest {
-            val ratio = 8
             val layout = parentQueryingAtTwoWidths(grantsFirst = true)
-            setContentOf(layout) { ratio.toFloat() }
+            setContentOf(layout) { 8f }
             val content = onNodeWithTag("content").fetch<JComponent>()
 
-            for (width in listOf(320, 160, 320)) {
+            for ((width, height) in listOf(320 to 40, 160 to 20, 320 to 40)) {
                 content.setSize(width, content.height)
                 content.preferredSize = null
-                assertEquals(width / ratio, content.preferredSize.height, "preferred height at $width")
+                assertEquals(height, content.preferredSize.height, "preferred height at $width")
             }
         }
 
     @Test
     fun alternatingPreferenceReadsUseTheCurrentWidth() =
         runComposeSwingTest {
-            val ratio = 8
             val layout = parentQueryingAtTwoWidths()
-            setContentOf(layout) { ratio.toFloat() }
-            val content = onNodeWithTag("host").fetch<JComponent>().getComponent(0) as JComponent
-            for (width in listOf(320, 213, 320)) {
+            setContentOf(layout) { 8f }
+            val content = onNodeWithTag("content").fetch<JComponent>()
+            for ((width, height) in listOf(320 to 40, 213 to 27, 320 to 40)) {
                 content.setSize(width, content.height)
                 content.preferredSize = null
-                assertEquals(
-                    (width.toFloat() / ratio).roundToInt(),
-                    content.preferredSize.height,
-                    "preferred height at $width",
-                )
+                assertEquals(height, content.preferredSize.height, "preferred height at $width")
             }
         }
 
@@ -68,7 +65,7 @@ class CustomLayoutManagerParentTest {
             val ratio = 8
             val layout = parentQueryingAtTwoWidths(minimum = true)
             setContentOf(layout) { ratio.toFloat() }
-            val content = onNodeWithTag("host").fetch<JComponent>().getComponent(0) as JComponent
+            val content = onNodeWithTag("content").fetch<JComponent>()
             for (width in listOf(320, 213, 320)) {
                 content.setSize(width, content.height)
                 content.preferredSize = null
@@ -110,7 +107,7 @@ class CustomLayoutManagerParentTest {
             awaitIdle()
             assertEquals(320, content.width)
             content.preferredSize = null
-            assertEquals(content.width / ratio, content.preferredSize.height)
+            assertEquals(40, content.preferredSize.height)
             content.minimumSize = null
             val preferred = content.preferredSize
             val minimum = content.minimumSize
@@ -134,9 +131,8 @@ class CustomLayoutManagerParentTest {
 
             for (revalidations in 0..3) {
                 assertEquals(320 * 2 / 3, content.width, "revalidated $revalidations times: the granted width")
-                val atRatio = (content.width * 9f / 16f).roundToInt()
-                assertEquals(atRatio, content.height, "revalidated $revalidations times: the height for the width")
-                assertEquals(Dimension(content.width, atRatio), label.size, "revalidated $revalidations times: content")
+                assertEquals(120, content.height, "revalidated $revalidations times: the height for the width")
+                assertEquals(Dimension(213, 120), label.size, "revalidated $revalidations times: content")
                 assertEquals(0, cyclesUntilStable(content), "revalidated $revalidations times: a paint requests none")
                 host.revalidate()
                 awaitIdle()
@@ -180,57 +176,56 @@ class CustomLayoutManagerParentTest {
             }
         }
 
-    @Test
-    fun paintingDoesNotReconcileSizePreferencesForAStockParent() {
-        for (reads in listOf("minimum", "preferred", "both")) {
-            runComposeSwingTest {
-                val minimumWidths = mutableListOf<Int>()
-                val preferredWidths = mutableListOf<Int>()
-                val parent =
-                    ScriptedStockLayout(sizeOf = { Dimension(320, 600) }) { child, _ ->
-                        val minimum = if (reads != "preferred") child.minimumSize.height else 0
-                        val preferred = if (reads != "minimum") child.preferredSize.height else minimum
-                        child.setBounds(0, 0, grantedWidth ?: 160, preferred)
-                    }
-                val policy =
-                    ScriptedMeasurePolicy(
-                        minimumWidth = { 160 },
-                        preferredWidth = { 160 },
-                        minimumHeight = {
-                            minimumWidths += it
-                            it / 8
-                        },
-                        preferredHeight = {
-                            preferredWidths += it
-                            it / 4
-                        },
-                    )
-                setStockContent(JPanel(parent)) {
-                    Layout(policy, SwingModifier.testTag("content"))
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("readsCases")
+    fun paintingDoesNotReconcileSizePreferencesForAStockParent(reads: String) {
+        runComposeSwingTest {
+            val minimumWidths = mutableListOf<Int>()
+            val preferredWidths = mutableListOf<Int>()
+            val parent =
+                ScriptedStockLayout(sizeOf = { Dimension(320, 600) }) { child, _ ->
+                    val minimum = if (reads != "preferred") child.minimumSize.height else 0
+                    val preferred = if (reads != "minimum") child.preferredSize.height else minimum
+                    child.setBounds(0, 0, grantedWidth ?: 160, preferred)
                 }
-                val content = onNodeWithTag("content").fetch<JComponent>()
-                val initialHeight = if (reads == "minimum") 20 else 40
-                onNodeWithTag("content").assertProperty(Dimension(160, initialHeight)) { size }
-                assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: stable")
-
-                parent.grantedWidth = 240
-                onNodeWithTag("host").fetch<JComponent>().invalidate()
-                root.validate()
-                onNodeWithTag("content").assertProperty(Dimension(240, initialHeight)) { size }
-                val layoutsBeforePaint = parent.layouts
-                minimumWidths.clear()
-                preferredWidths.clear()
-                withRecordedRepaints { recorder ->
-                    onNodeWithTag("content").captureToImage()
-                    recorder.assertAskedForNoLayout(content, "$reads: paint does not query size preferences")
-                }
-                assertEquals(emptyList(), minimumWidths, "$reads: paint minimum height queries")
-                assertEquals(emptyList(), preferredWidths, "$reads: paint preferred height queries")
-                awaitIdle()
-                onNodeWithTag("content").assertProperty(Dimension(240, initialHeight)) { size }
-                assertEquals(layoutsBeforePaint, parent.layouts, "$reads: paint does not request validation")
-                assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: painted")
+            val policy =
+                ScriptedMeasurePolicy(
+                    minimumWidth = { 160 },
+                    preferredWidth = { 160 },
+                    minimumHeight = {
+                        minimumWidths += it
+                        it / 8
+                    },
+                    preferredHeight = {
+                        preferredWidths += it
+                        it / 4
+                    },
+                )
+            setStockContent(JPanel(parent)) {
+                Layout(policy, SwingModifier.testTag("content"))
             }
+            val content = onNodeWithTag("content").fetch<JComponent>()
+            val initialHeight = if (reads == "minimum") 20 else 40
+            onNodeWithTag("content").assertProperty(Dimension(160, initialHeight)) { size }
+            assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: stable")
+
+            parent.grantedWidth = 240
+            onNodeWithTag("host").fetch<JComponent>().invalidate()
+            root.validate()
+            onNodeWithTag("content").assertProperty(Dimension(240, initialHeight)) { size }
+            val layoutsBeforePaint = parent.layouts
+            minimumWidths.clear()
+            preferredWidths.clear()
+            withRecordedRepaints { recorder ->
+                onNodeWithTag("content").captureToImage()
+                recorder.assertAskedForNoLayout(content, "$reads: paint does not query size preferences")
+            }
+            assertEquals(emptyList(), minimumWidths, "$reads: paint minimum height queries")
+            assertEquals(emptyList(), preferredWidths, "$reads: paint preferred height queries")
+            awaitIdle()
+            onNodeWithTag("content").assertProperty(Dimension(240, initialHeight)) { size }
+            assertEquals(layoutsBeforePaint, parent.layouts, "$reads: paint does not request validation")
+            assertSettledPaints(content, minimumWidths, preferredWidths, "$reads: painted")
         }
     }
 
@@ -508,4 +503,9 @@ class CustomLayoutManagerParentTest {
         ScriptedStockLayout(sizeOf = { Dimension(200, 100) }) { child, _ ->
             child.setBounds(0, 0, 200, 100)
         }
+
+    companion object {
+        @JvmStatic
+        fun readsCases(): List<Arguments> = listOf("minimum", "preferred", "both").map { Arguments.of(it) }
+    }
 }

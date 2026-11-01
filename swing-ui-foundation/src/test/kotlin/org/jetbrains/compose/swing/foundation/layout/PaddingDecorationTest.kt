@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -75,11 +76,10 @@ class PaddingDecorationTest {
             )
             assertEquals(Insets(8, 8, 8, 8), card.decoration.paintOutsets(), "the ring is paint outsets")
             assertEquals(card.decoration.paintOutsets(), card.insets, "the insets report only the paint outsets")
-            assertEquals(
+            onNodeWithTag(CONTENT).assertProperty(
                 Rectangle(0, 0, 20, 20),
-                onNodeWithTag(CONTENT).fetch<ConstrainedPanel>().layoutBounds,
                 "the content starts at the component's origin",
-            )
+            ) { layoutBounds }
             val painted = onNodeWithTag("outer").captureToImage()
             assertEquals(
                 Dimension(36, 36),
@@ -108,11 +108,10 @@ class PaddingDecorationTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("card").assertProperty(
                 Rectangle(12, 12, 20, 20),
-                onNodeWithTag("card").fetch<ConstrainedPanel>().layoutBounds,
                 "both paddings place the component",
-            )
+            ) { layoutBounds }
             val painted = onNodeWithTag("outer").captureToImage()
             painted.assertPixelColor(Color(0, true), 2, 2, "the first padding is left clear")
             painted.assertPixelColor(Color.RED, 6, 6, "the red background paints over the second padding")
@@ -158,11 +157,10 @@ class PaddingDecorationTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("card").assertProperty(
                 Rectangle(8, 8, 100, 100),
-                onNodeWithTag("card").fetch<ConstrainedPanel>().layoutBounds,
                 "the size applies inside the padding",
-            )
+            ) { layoutBounds }
             val painted = onNodeWithTag("outer").captureToImage()
             assertEquals(Dimension(116, 116), Dimension(painted.width, painted.height), "the slot holds the padding")
             painted.assertPixelColor(Color.RED, 1, 1, "the background fills the whole slot")
@@ -346,7 +344,7 @@ class PaddingDecorationTest {
                 }
             }
 
-            assertFalse(onNodeWithTag("card").fetch<ConstrainedPanel>().isOpaque, "the ring is only partly covered")
+            onNodeWithTag("card").assertProperty(false, "the ring is only partly covered") { isOpaque }
             val painted = onNodeWithTag("outer").captureToImage()
             painted.assertPixelColor(Color.BLUE, 0, 0, "the border runs along the padding's box")
             painted.assertPixelColor(Color(0, true), 4, 4, "the component's own background stays off the ring")

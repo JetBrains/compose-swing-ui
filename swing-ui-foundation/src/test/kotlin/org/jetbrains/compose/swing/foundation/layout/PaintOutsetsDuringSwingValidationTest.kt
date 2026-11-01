@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Container
@@ -43,7 +44,6 @@ class PaintOutsetsDuringSwingValidationTest {
                 }
             }
             val parent = onNodeWithTag("parent").fetch<JComponent>()
-            val row = onNodeWithTag("row").fetch<JComponent>()
             val card = onNodeWithTag("card").fetch<JComponent>()
             assertEquals(Insets(4, 4, 4, 4), card.insets)
             flow.afterLayout = {
@@ -54,7 +54,7 @@ class PaintOutsetsDuringSwingValidationTest {
             awaitIdle()
             assertEquals(Insets(12, 12, 12, 12), card.insets)
             assertEquals(Dimension(144, 104), card.size)
-            assertEquals(Dimension(120, 80), row.size)
+            onNodeWithTag("row").assertProperty(Dimension(120, 80)) { size }
         }
 
     @Test

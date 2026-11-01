@@ -6,9 +6,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.ComponentOrientation
 import java.awt.Dimension
+import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,258 +24,42 @@ import kotlin.test.assertEquals
  * each child ends up at, which is what every test here reads back.
  *
  * The fixture children are three, one, and none, because an arrangement that shares space out between
- * children has to answer for the cases where there are no gaps to share it into.
+ * children has to report for the cases where there are no gaps to share it into.
  */
 class RowColumnArrangementTest {
-    @Test
-    fun topPacksTheChildrenAgainstTheTopOfTheColumn() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.Top) }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(
+        "columnEdgeAndCenterArrangements",
+        "columnDistributedSpaceArrangements",
+        "columnSpacedAndAlignedArrangements",
+    )
+    fun aColumnPlacesItsChildrenWhereItsArrangementSays(
+        arrangement: Arrangement.Vertical,
+        expected: List<Rectangle>,
+        message: String,
+    ) = runComposeSwingTest {
+        setContent { ArrangedColumn(arrangement) }
+        assertEquals(expected, childBounds(), message)
+    }
 
-            assertEquals(
-                columnRows(0, 40, 80),
-                childBounds(),
-                "Arrangement.Top must pack the children against the top, leaving the surplus below them",
-            )
-        }
-
-    @Test
-    fun bottomPacksTheChildrenAgainstTheBottomOfTheColumn() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.Bottom) }
-
-            assertEquals(
-                columnRows(180, 220, 260),
-                childBounds(),
-                "Arrangement.Bottom must pack the children against the bottom, leaving the surplus above them",
-            )
-        }
-
-    @Test
-    fun centerKeepsTheChildrenTogetherHalfwayDownTheColumn() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.Center) }
-
-            assertEquals(
-                columnRows(90, 130, 170),
-                childBounds(),
-                "Arrangement.Center must keep the children together with half the surplus on either side",
-            )
-        }
-
-    @Test
-    fun spaceBetweenSplitsTheSurplusIntoTheGapsBetweenChildren() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.SpaceBetween) }
-
-            assertEquals(
-                columnRows(0, 130, 260),
-                childBounds(),
-                "Arrangement.SpaceBetween must put the surplus between the children and none at the edges",
-            )
-        }
-
-    @Test
-    fun spaceAroundGivesEveryChildAGapOfItsOwn() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.SpaceAround) }
-
-            assertEquals(
-                columnRows(30, 130, 230),
-                childBounds(),
-                "Arrangement.SpaceAround must give each child an equal gap, halved where it meets an edge",
-            )
-        }
-
-    @Test
-    fun spaceEvenlySplitsTheSurplusIntoEqualGapsIncludingTheEdges() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.SpaceEvenly) }
-
-            assertEquals(
-                columnRows(45, 130, 215),
-                childBounds(),
-                "Arrangement.SpaceEvenly must make the gaps between the children and at both edges equal",
-            )
-        }
-
-    @Test
-    fun spacedByHoldsAFixedGapAndPacksTheGroupAgainstTheTop() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.spacedBy(GAP)) }
-
-            assertEquals(
-                columnRows(0, 50, 100),
-                childBounds(),
-                "Arrangement.spacedBy must hold its gap between the children and leave the surplus below them",
-            )
-        }
-
-    @Test
-    fun spacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.spacedBy(GAP, Alignment.Bottom)) }
-
-            assertEquals(
-                columnRows(160, 210, 260),
-                childBounds(),
-                "Arrangement.spacedBy must keep its gap and put the group as a whole where its alignment says",
-            )
-        }
-
-    @Test
-    fun alignedPlacesTheChildrenTogetherWhereItsAlignmentSays() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.aligned(Alignment.CenterVertically)) }
-
-            assertEquals(
-                columnRows(90, 130, 170),
-                childBounds(),
-                "Arrangement.aligned must keep the children edge to edge and place the group at its alignment",
-            )
-        }
-
-    @Test
-    fun startPacksTheChildrenAgainstTheLeadingEdgeOfTheRow() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Start) }
-
-            assertEquals(
-                rowCells(0, 50, 100),
-                childBounds(),
-                "Arrangement.Start must pack the children against the leading edge, leaving the surplus after",
-            )
-        }
-
-    @Test
-    fun startPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRow() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Start, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(250, 200, 150),
-                childBounds(),
-                "Arrangement.Start must pack the children against the row's leading edge, the right one " +
-                    "under a right-to-left orientation, leaving the surplus after them",
-            )
-        }
-
-    @Test
-    fun endPacksTheChildrenAgainstTheTrailingEdgeOfTheRow() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.End) }
-
-            assertEquals(
-                rowCells(150, 200, 250),
-                childBounds(),
-                "Arrangement.End must pack the children against the trailing edge, leaving the surplus before",
-            )
-        }
-
-    @Test
-    fun endPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRow() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.End, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(100, 50, 0),
-                childBounds(),
-                "Arrangement.End must pack the children against the row's trailing edge, the left one " +
-                    "under a right-to-left orientation, leaving the surplus before them",
-            )
-        }
-
-    @Test
-    fun aRowSplitsItsSurplusIntoTheGapsBetweenChildren() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.SpaceBetween) }
-
-            assertEquals(
-                rowCells(0, 125, 250),
-                childBounds(),
-                "an arrangement that serves either axis must share the surplus out along the row as well",
-            )
-        }
-
-    @Test
-    fun aRightToLeftRowSplitsItsSurplusIntoTheGapsBetweenChildrenInMirroredOrder() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.SpaceBetween, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(250, 125, 0),
-                childBounds(),
-                "Arrangement.SpaceBetween must share the surplus out between the children in their " +
-                    "declaration order read from the row's leading edge, the right one under a " +
-                    "right-to-left orientation",
-            )
-        }
-
-    @Test
-    fun aRowHoldsTheFixedGapItsArrangementDeclares() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.spacedBy(GAP)) }
-
-            assertEquals(
-                rowCells(0, 60, 120),
-                childBounds(),
-                "Arrangement.spacedBy must hold its gap between the children and leave the surplus after them",
-            )
-        }
-
-    @Test
-    fun aRowSpacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.spacedBy(GAP, Alignment.End)) }
-
-            assertEquals(
-                rowCells(130, 190, 250),
-                childBounds(),
-                "Arrangement.spacedBy must keep its gap and put the group as a whole where its horizontal " +
-                    "alignment says",
-            )
-        }
-
-    @Test
-    fun aRowAlignedPlacesTheChildrenTogetherWhereItsAlignmentSays() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.aligned(Alignment.CenterHorizontally)) }
-
-            assertEquals(
-                rowCells(75, 125, 175),
-                childBounds(),
-                "Arrangement.aligned must keep the children edge to edge and place the group at its " +
-                    "horizontal alignment",
-            )
-        }
-
-    @Test
-    fun aRightToLeftRowHoldsTheFixedGapItsArrangementDeclares() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.spacedBy(GAP), ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(250, 190, 130),
-                childBounds(),
-                "Arrangement.spacedBy must hold its gap between the children and pack the group against " +
-                    "the row's leading edge, the right one under a right-to-left orientation",
-            )
-        }
-
-    @Test
-    fun aRightToLeftRowSpacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven() =
-        runComposeSwingTest {
-            setContent {
-                ArrangedRow(Arrangement.spacedBy(GAP, Alignment.End), ComponentOrientation.RIGHT_TO_LEFT)
-            }
-
-            assertEquals(
-                rowCells(120, 60, 0),
-                childBounds(),
-                "Arrangement.spacedBy must keep its gap and put the group as a whole where its horizontal " +
-                    "alignment says, resolved against the row's right-to-left orientation",
-            )
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(
+        "rowStartAndEndArrangements",
+        "rowSpaceBetweenArrangements",
+        "rowSpacedAndAlignedArrangements",
+        "rowAbsoluteEdgeAndCenterArrangements",
+        "rowAbsoluteDistributedSpaceArrangements",
+        "rowAbsoluteSpacedAndAlignedArrangements",
+    )
+    fun aRowPlacesItsChildrenWhereItsArrangementSays(
+        arrangement: Arrangement.Horizontal,
+        orientation: ComponentOrientation,
+        expected: List<Rectangle>,
+        message: String,
+    ) = runComposeSwingTest {
+        setContent { ArrangedRow(arrangement, orientation) }
+        assertEquals(expected, childBounds(), message)
+    }
 
     @Test
     fun aLoneChildGoesWhereEachArrangementPutsIt() =
@@ -365,178 +155,6 @@ class RowColumnArrangementTest {
         }
 
     @Test
-    fun absoluteLeftPacksTheChildrenAgainstTheLeftEdge() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.Left) }
-
-            assertEquals(
-                rowCells(0, 50, 100),
-                childBounds(),
-                "Arrangement.Absolute.Left must pack the children against the left edge",
-            )
-        }
-
-    @Test
-    fun absoluteLeftPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRowToo() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.Left, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(0, 50, 100),
-                childBounds(),
-                "Arrangement.Absolute.Left must pack the children against the left edge even under a " +
-                    "right-to-left orientation, unlike the mirroring Arrangement.Start",
-            )
-        }
-
-    @Test
-    fun absoluteRightPacksTheChildrenAgainstTheRightEdge() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.Right) }
-
-            assertEquals(
-                rowCells(150, 200, 250),
-                childBounds(),
-                "Arrangement.Absolute.Right must pack the children against the right edge",
-            )
-        }
-
-    @Test
-    fun absoluteRightPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRowToo() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.Right, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(150, 200, 250),
-                childBounds(),
-                "Arrangement.Absolute.Right must pack the children against the right edge even under a " +
-                    "right-to-left orientation, unlike the mirroring Arrangement.End",
-            )
-        }
-
-    @Test
-    fun absoluteCenterCentersTheChildren() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.Center) }
-
-            assertEquals(
-                rowCells(75, 125, 175),
-                childBounds(),
-                "Arrangement.Absolute.Center must place the group halfway across the row",
-            )
-        }
-
-    @Test
-    fun absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrder() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.SpaceBetween) }
-
-            assertEquals(
-                rowCells(0, 125, 250),
-                childBounds(),
-                "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order",
-            )
-        }
-
-    @Test
-    fun absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrderOnARightToLeftRowToo() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.SpaceBetween, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(0, 125, 250),
-                childBounds(),
-                "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order even " +
-                    "under a right-to-left orientation, unlike the mirroring Arrangement.SpaceBetween",
-            )
-        }
-
-    @Test
-    fun absoluteSpaceAroundGivesEachChildAnEqualGap() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.SpaceAround) }
-
-            assertEquals(
-                rowCells(25, 125, 225),
-                childBounds(),
-                "Arrangement.Absolute.SpaceAround must give each child an equal gap",
-            )
-        }
-
-    @Test
-    fun absoluteSpaceEvenlySplitsTheSurplus() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.SpaceEvenly) }
-
-            assertEquals(
-                rowCells(38, 125, 213),
-                childBounds(),
-                "Arrangement.Absolute.SpaceEvenly must distribute equal gaps",
-            )
-        }
-
-    @Test
-    fun absoluteSpacedByPacksTheGroupAgainstTheLeftEdge() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.spacedBy(GAP)) }
-
-            assertEquals(
-                rowCells(0, 60, 120),
-                childBounds(),
-                "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge",
-            )
-        }
-
-    @Test
-    fun absoluteSpacedByPacksTheGroupAgainstTheLeftEdgeOfARightToLeftRowToo() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.spacedBy(GAP), ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                rowCells(0, 60, 120),
-                childBounds(),
-                "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge " +
-                    "even under a right-to-left orientation, unlike the mirroring Arrangement.spacedBy",
-            )
-        }
-
-    @Test
-    fun absoluteSpacedByWithAlignmentPlacesGroup() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.spacedBy(GAP, Alignment.End)) }
-
-            assertEquals(
-                rowCells(130, 190, 250),
-                childBounds(),
-                "Arrangement.Absolute.spacedBy with alignment must place the group where alignment says",
-            )
-        }
-
-    @Test
-    fun absoluteSpacedByVerticalPlacesGroupInColumn() =
-        runComposeSwingTest {
-            setContent { ArrangedColumn(Arrangement.Absolute.spacedBy(GAP, Alignment.Bottom)) }
-
-            assertEquals(
-                columnRows(160, 210, 260),
-                childBounds(),
-                "Arrangement.Absolute.spacedBy on vertical axis must place group at bottom",
-            )
-        }
-
-    @Test
-    fun absoluteAlignedPlacesChildrenTogether() =
-        runComposeSwingTest {
-            setContent { ArrangedRow(Arrangement.Absolute.aligned(Alignment.CenterHorizontally)) }
-
-            assertEquals(
-                rowCells(75, 125, 175),
-                childBounds(),
-                "Arrangement.Absolute.aligned must keep children edge to edge",
-            )
-        }
-
-    @Test
     fun anEmptyColumnPlacesNothingAndAsksForNoSpace() =
         runComposeSwingTest {
             setContent {
@@ -547,11 +165,10 @@ class RowColumnArrangementTest {
             }
 
             assertEquals(emptyList(), childBounds(), "a column with no children has nothing to place")
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(0, 0),
-                containerPreferredSize(),
                 "a column with no children must ask for no space of its own",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -565,11 +182,10 @@ class RowColumnArrangementTest {
             }
 
             assertEquals(emptyList(), childBounds(), "a row with no children has nothing to place")
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(0, 0),
-                containerPreferredSize(),
                 "a row with no children holds no gap, so it must ask for no space of its own",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -584,12 +200,306 @@ class RowColumnArrangementTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, CHILD_COUNT * CHILD_HEIGHT + GAP * (CHILD_COUNT - 1)),
-                containerPreferredSize(),
                 "a column must ask for its children's heights plus the gap its arrangement holds between them",
-            )
+            ) { preferredSize }
         }
+
+    companion object {
+        @JvmStatic
+        fun columnEdgeAndCenterArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("topPacksTheChildrenAgainstTheTopOfTheColumn", Arrangement.Top),
+                    columnRows(0, 40, 80),
+                    "Arrangement.Top must pack the children against the top, leaving the surplus below them",
+                ),
+                Arguments.of(
+                    Named.of("bottomPacksTheChildrenAgainstTheBottomOfTheColumn", Arrangement.Bottom),
+                    columnRows(180, 220, 260),
+                    "Arrangement.Bottom must pack the children against the bottom, leaving the surplus above them",
+                ),
+                Arguments.of(
+                    Named.of("centerKeepsTheChildrenTogetherHalfwayDownTheColumn", Arrangement.Center),
+                    columnRows(90, 130, 170),
+                    "Arrangement.Center must keep the children together with half the surplus on either side",
+                ),
+            )
+
+        @JvmStatic
+        fun columnDistributedSpaceArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("spaceBetweenSplitsTheSurplusIntoTheGapsBetweenChildren", Arrangement.SpaceBetween),
+                    columnRows(0, 130, 260),
+                    "Arrangement.SpaceBetween must put the surplus between the children and none at the edges",
+                ),
+                Arguments.of(
+                    Named.of("spaceAroundGivesEveryChildAGapOfItsOwn", Arrangement.SpaceAround),
+                    columnRows(30, 130, 230),
+                    "Arrangement.SpaceAround must give each child an equal gap, halved where it meets an edge",
+                ),
+                Arguments.of(
+                    Named.of("spaceEvenlySplitsTheSurplusIntoEqualGapsIncludingTheEdges", Arrangement.SpaceEvenly),
+                    columnRows(45, 130, 215),
+                    "Arrangement.SpaceEvenly must make the gaps between the children and at both edges equal",
+                ),
+            )
+
+        @JvmStatic
+        fun columnSpacedAndAlignedArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("spacedByHoldsAFixedGapAndPacksTheGroupAgainstTheTop", Arrangement.spacedBy(GAP)),
+                    columnRows(0, 50, 100),
+                    "Arrangement.spacedBy must hold its gap between the children and leave the surplus below them",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "spacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven",
+                        Arrangement.spacedBy(GAP, Alignment.Bottom),
+                    ),
+                    columnRows(160, 210, 260),
+                    "Arrangement.spacedBy must keep its gap and put the group as a whole where its alignment says",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "alignedPlacesTheChildrenTogetherWhereItsAlignmentSays",
+                        Arrangement.aligned(Alignment.CenterVertically),
+                    ),
+                    columnRows(90, 130, 170),
+                    "Arrangement.aligned must keep the children edge to edge and place the group at its alignment",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteSpacedByVerticalPlacesGroupInColumn",
+                        Arrangement.Absolute.spacedBy(GAP, Alignment.Bottom),
+                    ),
+                    columnRows(160, 210, 260),
+                    "Arrangement.Absolute.spacedBy on vertical axis must place group at bottom",
+                ),
+            )
+
+        @JvmStatic
+        fun rowStartAndEndArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("startPacksTheChildrenAgainstTheLeadingEdgeOfTheRow", Arrangement.Start),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 50, 100),
+                    "Arrangement.Start must pack the children against the leading edge, leaving the surplus after",
+                ),
+                Arguments.of(
+                    Named.of("startPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRow", Arrangement.Start),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(250, 200, 150),
+                    "Arrangement.Start must pack the children against the row's leading edge, the right one " +
+                        "under a right-to-left orientation, leaving the surplus after them",
+                ),
+                Arguments.of(
+                    Named.of("endPacksTheChildrenAgainstTheTrailingEdgeOfTheRow", Arrangement.End),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(150, 200, 250),
+                    "Arrangement.End must pack the children against the trailing edge, leaving the surplus before",
+                ),
+                Arguments.of(
+                    Named.of("endPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRow", Arrangement.End),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(100, 50, 0),
+                    "Arrangement.End must pack the children against the row's trailing edge, the left one " +
+                        "under a right-to-left orientation, leaving the surplus before them",
+                ),
+            )
+
+        @JvmStatic
+        fun rowSpaceBetweenArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("aRowSplitsItsSurplusIntoTheGapsBetweenChildren", Arrangement.SpaceBetween),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 125, 250),
+                    "an arrangement that serves either axis must share the surplus out along the row as well",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "aRightToLeftRowSplitsItsSurplusIntoTheGapsBetweenChildrenInMirroredOrder",
+                        Arrangement.SpaceBetween,
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(250, 125, 0),
+                    "Arrangement.SpaceBetween must share the surplus out between the children in their " +
+                        "declaration order read from the row's leading edge, the right one under a " +
+                        "right-to-left orientation",
+                ),
+            )
+
+        @JvmStatic
+        fun rowSpacedAndAlignedArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("aRowHoldsTheFixedGapItsArrangementDeclares", Arrangement.spacedBy(GAP)),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 60, 120),
+                    "Arrangement.spacedBy must hold its gap between the children and leave the surplus after them",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "aRowSpacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven",
+                        Arrangement.spacedBy(GAP, Alignment.End),
+                    ),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(130, 190, 250),
+                    "Arrangement.spacedBy must keep its gap and put the group as a whole where its horizontal " +
+                        "alignment says",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "aRowAlignedPlacesTheChildrenTogetherWhereItsAlignmentSays",
+                        Arrangement.aligned(Alignment.CenterHorizontally),
+                    ),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(75, 125, 175),
+                    "Arrangement.aligned must keep the children edge to edge and place the group at its " +
+                        "horizontal alignment",
+                ),
+                Arguments.of(
+                    Named.of("aRightToLeftRowHoldsTheFixedGapItsArrangementDeclares", Arrangement.spacedBy(GAP)),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(250, 190, 130),
+                    "Arrangement.spacedBy must hold its gap between the children and pack the group against " +
+                        "the row's leading edge, the right one under a right-to-left orientation",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "aRightToLeftRowSpacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven",
+                        Arrangement.spacedBy(GAP, Alignment.End),
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(120, 60, 0),
+                    "Arrangement.spacedBy must keep its gap and put the group as a whole where its horizontal " +
+                        "alignment says, resolved against the row's right-to-left orientation",
+                ),
+            )
+
+        @JvmStatic
+        fun rowAbsoluteEdgeAndCenterArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("absoluteLeftPacksTheChildrenAgainstTheLeftEdge", Arrangement.Absolute.Left),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 50, 100),
+                    "Arrangement.Absolute.Left must pack the children against the left edge",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteLeftPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRowToo",
+                        Arrangement.Absolute.Left,
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(0, 50, 100),
+                    "Arrangement.Absolute.Left must pack the children against the left edge even under a " +
+                        "right-to-left orientation, unlike the mirroring Arrangement.Start",
+                ),
+                Arguments.of(
+                    Named.of("absoluteRightPacksTheChildrenAgainstTheRightEdge", Arrangement.Absolute.Right),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(150, 200, 250),
+                    "Arrangement.Absolute.Right must pack the children against the right edge",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteRightPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRowToo",
+                        Arrangement.Absolute.Right,
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(150, 200, 250),
+                    "Arrangement.Absolute.Right must pack the children against the right edge even under a " +
+                        "right-to-left orientation, unlike the mirroring Arrangement.End",
+                ),
+                Arguments.of(
+                    Named.of("absoluteCenterCentersTheChildren", Arrangement.Absolute.Center),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(75, 125, 175),
+                    "Arrangement.Absolute.Center must place the group halfway across the row",
+                ),
+            )
+
+        @JvmStatic
+        fun rowAbsoluteDistributedSpaceArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of(
+                        "absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrder",
+                        Arrangement.Absolute.SpaceBetween,
+                    ),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 125, 250),
+                    "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrderOnARightToLeftRowToo",
+                        Arrangement.Absolute.SpaceBetween,
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(0, 125, 250),
+                    "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order even " +
+                        "under a right-to-left orientation, unlike the mirroring Arrangement.SpaceBetween",
+                ),
+                Arguments.of(
+                    Named.of("absoluteSpaceAroundGivesEachChildAnEqualGap", Arrangement.Absolute.SpaceAround),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(25, 125, 225),
+                    "Arrangement.Absolute.SpaceAround must give each child an equal gap",
+                ),
+                Arguments.of(
+                    Named.of("absoluteSpaceEvenlySplitsTheSurplus", Arrangement.Absolute.SpaceEvenly),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(38, 125, 213),
+                    "Arrangement.Absolute.SpaceEvenly must distribute equal gaps",
+                ),
+            )
+
+        @JvmStatic
+        fun rowAbsoluteSpacedAndAlignedArrangements(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("absoluteSpacedByPacksTheGroupAgainstTheLeftEdge", Arrangement.Absolute.spacedBy(GAP)),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(0, 60, 120),
+                    "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteSpacedByPacksTheGroupAgainstTheLeftEdgeOfARightToLeftRowToo",
+                        Arrangement.Absolute.spacedBy(GAP),
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    rowCells(0, 60, 120),
+                    "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge " +
+                        "even under a right-to-left orientation, unlike the mirroring Arrangement.spacedBy",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteSpacedByWithAlignmentPlacesGroup",
+                        Arrangement.Absolute.spacedBy(GAP, Alignment.End),
+                    ),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(130, 190, 250),
+                    "Arrangement.Absolute.spacedBy with alignment must place the group where alignment says",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "absoluteAlignedPlacesChildrenTogether",
+                        Arrangement.Absolute.aligned(Alignment.CenterHorizontally),
+                    ),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    rowCells(75, 125, 175),
+                    "Arrangement.Absolute.aligned must keep children edge to edge",
+                ),
+            )
+    }
 }
 
 /** The gap a `spacedBy` fixture holds between two adjacent children. */

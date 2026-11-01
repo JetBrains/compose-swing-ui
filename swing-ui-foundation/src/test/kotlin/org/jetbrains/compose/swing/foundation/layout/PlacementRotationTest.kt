@@ -10,22 +10,23 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
-import org.jetbrains.compose.swing.foundation.graphics.channelDifference
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
-import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
@@ -40,6 +41,7 @@ import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -82,7 +84,7 @@ class PlacementRotationTest {
                         for (clipped in listOf(false, true)) {
                             values = RotationValues(angle, scaleX, scaleY, pivot, clipped)
                             awaitIdle()
-                            val outsets = (layer as Decoratable).decoration.paintOutsets()
+                            val outsets = assertIs<Decoratable>(layer).decoration.paintOutsets()
                             val paintBounds = Rectangle(-outsets.left, -outsets.top, layer.width, layer.height)
                             assertEquals(values.paintBounds(), paintBounds, "$values paint bounds")
                             assertNull(
@@ -128,7 +130,7 @@ class PlacementRotationTest {
                     angle = next
                     awaitIdle()
                     assertTrue(
-                        next == 0f || (inner as Decoratable).decoration.paintOutsets() != Insets(0, 0, 0, 0),
+                        next == 0f || assertIs<Decoratable>(inner).decoration.paintOutsets() != Insets(0, 0, 0, 0),
                         "at $next the turn takes paint outsets",
                     )
                     assertEquals(placed, children.map { it.layoutBounds }, "at $next the children stay put")
@@ -204,7 +206,6 @@ class PlacementRotationTest {
                     }
                 }
             }
-            val row = onNodeWithTag("row").fetch<JComponent>()
             val layered = onNodeWithTag("layered").fetch<JComponent>()
             val inner = layered.getComponent(0)
             assertTrue(inner.isValidUpToTheValidateRoot(), "the realized tree must start valid")
@@ -213,310 +214,20 @@ class PlacementRotationTest {
             Snapshot.sendApplyNotifications()
 
             assertEquals(Rectangle(0, 0, 80, 40), layered.bounds, "the layered box grows by its paint outsets")
-            assertEquals(Rectangle(-20, 0, 80, 40), row.bounds, "the row grows to hold the child's paint outsets")
+            onNodeWithTag("row").assertProperty(
+                Rectangle(-20, 0, 80, 40),
+                "the row grows to hold the child's paint outsets",
+            ) { bounds }
             assertTrue(inner.isValidUpToTheValidateRoot(), "growing the paint outsets must invalidate nothing")
         }
-
-    /** The paint outsets of a scaled layer hold what a child overflowing its box paints, scaled with it. */
-    @Test
-    fun aScaledLayerHoldsTheScaledOverflowOfItsChild() =
-        runComposeSwingTest {
-            setContent {
-                Row {
-                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
-                        Box(modifier = SwingModifier.requiredSize(80, 40))
-                    }
-                }
-            }
-            assertEquals(
-                Rectangle(-10, 0, 60, 40),
-                onNodeWithTag("layered").fetch<JComponent>().bounds,
-                "the scaled layer's bounds hold the child's scaled overflow",
-            )
-        }
-
-    @Test
-    fun aScaledLayerGrowsForAChildThatStartsOverflowingWhileScaled() =
-        runComposeSwingTest {
-            var width by mutableIntStateOf(40)
-            setContent {
-                Row {
-                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
-                        Box(modifier = SwingModifier.requiredSize(width, 40))
-                    }
-                }
-            }
-            val layered = onNodeWithTag("layered").fetch<JComponent>()
-            assertEquals(Rectangle(0, 0, 40, 40), layered.bounds, "no overflow before the child grows")
-
-            width = 80
-            awaitIdle()
-
-            assertEquals(
-                Rectangle(-10, 0, 60, 40),
-                layered.bounds,
-                "the layer must grow once its child starts overflowing",
-            )
-        }
-
-    @Test
-    fun aScaledLayerShrinksBackOnceItsOverflowingChildIsRemoved() =
-        runComposeSwingTest {
-            var present by mutableStateOf(true)
-            setContent {
-                Row {
-                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
-                        if (present) Box(modifier = SwingModifier.requiredSize(80, 40))
-                    }
-                }
-            }
-            val layered = onNodeWithTag("layered").fetch<JComponent>()
-            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "the overflowing child grows the layer")
-
-            present = false
-            awaitIdle()
-            assertEquals(Rectangle(0, 0, 40, 40), layered.bounds, "removing the child must shrink the layer back")
-        }
-
-    @Test
-    fun aScaledLayerLeavesOutAChildItsPolicyLeavesUnplaced() =
-        runComposeSwingTest {
-            var place by mutableStateOf(true)
-            setContent {
-                Box {
-                    Layout(
-                        modifier = SwingModifier.testTag("layered").placementLayer { scaleX = 0.75f },
-                        content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
-                        measurePolicy = { measurables, _ ->
-                            val placeable = measurables.single().measure(Constraints())
-                            layout(40, 40) {
-                                if (place) placeable.place(-20, 0)
-                            }
-                        },
-                    )
-                }
-            }
-            val layered = onNodeWithTag("layered").fetch<JComponent>()
-            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "the placed overflowing child grows the layer")
-
-            place = false
-            awaitIdle()
-            assertEquals(
-                Rectangle(0, 0, 40, 40),
-                layered.bounds,
-                "a child the policy leaves unplaced must not grow the layer",
-            )
-
-            place = true
-            awaitIdle()
-            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "placing the child again must grow the layer again")
-        }
-
-    @Test
-    fun aScaledLayerHoldsTheOverflowOfAChildInsideAnotherScaledLayer() =
-        runComposeSwingTest {
-            setContent {
-                Row {
-                    Box(modifier = SwingModifier.testTag("outer").size(40, 40).placementLayer { scaleX = 1.5f }) {
-                        Box(modifier = SwingModifier.size(40, 40).placementLayer { scaleX = 0.75f }) {
-                            Box(modifier = SwingModifier.requiredSize(80, 40))
-                        }
-                    }
-                }
-            }
-            assertEquals(
-                Rectangle(-25, 0, 90, 40),
-                onNodeWithTag("outer").fetch<JComponent>().bounds,
-                "the outer layer holds the inner layer's scaled overflow, scaled again",
-            )
-        }
-
-    /**
-     * A Row, a Column and a custom layout each hold the scaled overflow of their child. Whether the child is centered
-     * under the container's constraints decides whether the overflow spreads evenly on both sides.
-     */
-    @Test
-    fun aScaledRowColumnAndCustomLayoutHoldTheScaledOverflowOfTheirChild() =
-        runComposeSwingTest {
-            setContent {
-                Box {
-                    Row(
-                        modifier = SwingModifier.testTag("row").preferredSize(40, 40).placementLayer { scaleX = 0.75f },
-                    ) {
-                        Box(modifier = SwingModifier.requiredSize(80, 40))
-                    }
-                }
-                Box {
-                    Column(
-                        modifier =
-                            SwingModifier
-                                .testTag("column")
-                                .preferredSize(40, 40)
-                                .placementLayer { scaleX = 0.75f },
-                    ) {
-                        Box(modifier = SwingModifier.requiredSize(80, 40))
-                    }
-                }
-                Box {
-                    Layout(
-                        modifier = SwingModifier.testTag("custom").placementLayer { scaleX = 0.75f },
-                        content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
-                        measurePolicy = { measurables, _ ->
-                            val placeable = measurables.single().measure(Constraints())
-                            layout(40, 40) { placeable.place(0, 0) }
-                        },
-                    )
-                }
-            }
-
-            assertEquals(
-                Insets(0, 10, 0, 10),
-                paintOutsetsOf("row"),
-                "the row must center the overflow of its single, constrained child",
-            )
-            assertEquals(Insets(0, 10, 0, 10), paintOutsetsOf("column"), "and the column must do the same")
-            assertEquals(
-                Insets(0, 0, 0, 25),
-                paintOutsetsOf("custom"),
-                "a policy placing an unconstrained child at its own offset must not center it",
-            )
-        }
-
-    @Test
-    fun aScaledLayerHoldsTheScaledShadowOfItsChild() =
-        runComposeSwingTest {
-            setContent {
-                Row {
-                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 2f }) {
-                        Canvas(
-                            modifier = SwingModifier.testTag("child").preferredSize(40, 40).shadow(4, Color.BLACK),
-                        ) {}
-                    }
-                }
-            }
-
-            assertEquals(Insets(14, 14, 14, 14), paintOutsetsOf("child"), "the shadow spreads 14 past each side")
-            assertEquals(
-                Insets(14, 48, 14, 48),
-                paintOutsetsOf("layered"),
-                "scaled by 2 about the box's center, the shadow's -14..54 spans -48..88; top and bottom stay unscaled",
-            )
-        }
-
-    @Test
-    fun aRightToLeftScaledLayerHoldsTheMirroredOverflowOfItsChild() =
-        runComposeSwingTest {
-            setContent {
-                for (orientation in listOf(ComponentOrientation.LEFT_TO_RIGHT, ComponentOrientation.RIGHT_TO_LEFT)) {
-                    Box {
-                        Layout(
-                            modifier =
-                                SwingModifier
-                                    .testTag(if (orientation.isLeftToRight) "leftToRight" else "rightToLeft")
-                                    .componentOrientation(orientation)
-                                    .placementLayer { scaleX = 0.75f },
-                            content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
-                            measurePolicy = { measurables, _ ->
-                                val placeable = measurables.single().measure(Constraints())
-                                layout(40, 40) { placeable.placeRelative(0, 0) }
-                            },
-                        )
-                    }
-                }
-            }
-
-            assertEquals(
-                Insets(0, 0, 0, 25),
-                paintOutsetsOf("leftToRight"),
-                "placed from the left, the child spans 0..80, scaled to 5..65",
-            )
-            assertEquals(
-                Insets(0, 25, 0, 0),
-                paintOutsetsOf("rightToLeft"),
-                "mirrored, the child spans -40..40, scaled to -25..35",
-            )
-        }
-
-    private fun ComposeSwingTest.paintOutsetsOf(tag: String): Insets =
-        (onNodeWithTag(tag).fetch<JComponent>() as Decoratable).decoration.paintOutsets()
-
-    /** A layer that both fades and scales its content paints the scaled overflow at the faded alpha. */
-    @Test
-    fun aFadingScaledLayerPaintsTheScaledOverflowOfItsChild() =
-        runComposeSwingTest {
-            setContent {
-                Row {
-                    Box(
-                        modifier =
-                            SwingModifier.testTag("layered").size(40, 40).placementLayer {
-                                scaleX = 0.75f
-                                alpha = 0.5f
-                            },
-                    ) {
-                        Canvas(modifier = SwingModifier.requiredSize(80, 40)) { drawRect(Color.RED) }
-                    }
-                }
-            }
-            assertEquals(
-                Rectangle(-10, 0, 60, 40),
-                onNodeWithTag("layered").fetch<JComponent>().bounds,
-                "a fading layer still holds the scaled overflow",
-            )
-
-            val image = onNodeWithTag("layered").captureToImage()
-            assertEquals(
-                List(3) { Color(255, 0, 0, 128).rgb },
-                listOf(2, 30, 57).map { image.getRGB(it, 20) },
-                "the overflow left of the box, the box and the overflow right of it must paint at half alpha",
-            )
-        }
-
-    /**
-     * A fade layer nested inside a scale layer paints the scaled overflow the outer layer takes paint outsets for,
-     * not only what falls inside its own box.
-     */
-    @Test
-    fun aFadeLayerNestedInAScaleLayerPaintsTheScaledOverflowOfItsChild() =
-        runComposeSwingTest {
-            setContent {
-                Row {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("layered")
-                                .size(40, 40)
-                                .placementLayer { scaleX = 0.75f }
-                                .placementLayer { alpha = 0.5f },
-                    ) {
-                        Canvas(modifier = SwingModifier.requiredSize(80, 40)) { drawRect(Color.RED) }
-                    }
-                }
-            }
-            assertEquals(
-                Rectangle(-10, 0, 60, 40),
-                onNodeWithTag("layered").fetch<JComponent>().bounds,
-                "a scale and a fade in separate layers hold the scaled overflow",
-            )
-
-            val image = onNodeWithTag("layered").captureToImage()
-            assertEquals(
-                List(3) { Color(255, 0, 0, 128).rgb },
-                listOf(2, 30, 57).map { image.getRGB(it, 20) },
-                "the overflow left of the box, the box and the overflow right of it must paint at half alpha",
-            )
-        }
-
-    @Test
-    fun aParentResizingAScaledChildLaysItOutAtTheNewSize() = assertResizedUnderALayer(clip = false)
-
-    @Test
-    fun aParentResizingAScaledAndClippedChildLaysItOutAtTheNewSize() = assertResizedUnderALayer(clip = true)
 
     /**
      * A parent that resizes a child placed with a layer lays that child out at its new layout size, whatever
      * the paint outsets the layer grows it by.
      */
-    private fun assertResizedUnderALayer(clip: Boolean) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("clips")
+    fun aParentResizingAScaledChildLaysItOutAtTheNewSize(clip: Boolean) =
         runComposeSwingTest {
             var width by mutableIntStateOf(40)
             setContent {
@@ -659,55 +370,71 @@ class PlacementRotationTest {
 
     /** A shadow declared inside a half-turned layer turns with the content, its offset included. */
     @Test
-    fun aShadowInsideAHalfTurnedLayerTurnsWithIt() = assertShadowTurnsWithTheLayer(quarterTurns = 2, 40, 24)
+    fun aShadowInsideAHalfTurnedLayerTurnsWithIt() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    MarkedCanvas(
+                        SwingModifier.testTag("upright").shadow(3, Color.BLACK, offsetX = 6, offsetY = 2),
+                        40,
+                        24,
+                    )
+                    MarkedCanvas(
+                        SwingModifier
+                            .testTag("turned")
+                            .placementLayer { rotationZ = 180f }
+                            .shadow(3, Color.BLACK, offsetX = 6, offsetY = 2),
+                        40,
+                        24,
+                    )
+                }
+            }
+            val upright = onNodeWithTag("upright").captureToImage()
+            val expected =
+                renderImage(upright.width, upright.height) {
+                    it.translate(upright.width / 2.0, upright.height / 2.0)
+                    it.rotate(Math.PI)
+                    it.translate(-upright.width / 2.0, -upright.height / 2.0)
+                    it.drawImage(upright, 0, 0, null)
+                }
+            val turned = onNodeWithTag("turned").captureToImage()
+
+            assertEquals(Dimension(expected.width, expected.height), Dimension(turned.width, turned.height))
+            assertImagesPixelPerfect(expected, turned)
+        }
 
     /** The same holds for a quarter turn, which carries each axis of the offset onto the other. */
     @Test
-    fun aShadowInsideAQuarterTurnedLayerTurnsWithIt() = assertShadowTurnsWithTheLayer(quarterTurns = 1, 32, 32)
-
-    /**
-     * Compares a canvas of [width] by [height] turned clockwise by [quarterTurns] under a shadow with the upright
-     * one turned alike. The blur runs along the device's axes and rounds toward the side it runs from, so a turned
-     * falloff pixel may differ by one level.
-     */
-    private fun assertShadowTurnsWithTheLayer(
-        quarterTurns: Int,
-        width: Int,
-        height: Int,
-    ) = runComposeSwingTest {
-        setContent {
-            Row {
-                MarkedCanvas(
-                    SwingModifier.testTag("upright").shadow(3, Color.BLACK, offsetX = 6, offsetY = 2),
-                    width,
-                    height,
-                )
-                MarkedCanvas(
-                    SwingModifier
-                        .testTag("turned")
-                        .placementLayer { rotationZ = 90f * quarterTurns }
-                        .shadow(3, Color.BLACK, offsetX = 6, offsetY = 2),
-                    width,
-                    height,
-                )
+    fun aShadowInsideAQuarterTurnedLayerTurnsWithIt() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Canvas(
+                        modifier =
+                            SwingModifier
+                                .testTag("reference")
+                                .shadow(3, Color.BLACK, offsetX = -2, offsetY = 6)
+                                .preferredSize(32, 32),
+                        renderingHints = null,
+                    ) {
+                        drawRect(Color.RED)
+                        drawRect(Color.BLUE, 22f, 4f, 6f, 10f)
+                    }
+                    MarkedCanvas(
+                        SwingModifier
+                            .testTag("turned")
+                            .placementLayer { rotationZ = 90f }
+                            .shadow(3, Color.BLACK, offsetX = 6, offsetY = 2),
+                        32,
+                        32,
+                    )
+                }
             }
+            assertImagesPixelPerfect(
+                onNodeWithTag("reference").captureToImage(),
+                onNodeWithTag("turned").captureToImage(),
+            )
         }
-        val upright = onNodeWithTag("upright").captureToImage()
-        val sideways = quarterTurns % 2 == 1
-        val expectedWidth = if (sideways) upright.height else upright.width
-        val expectedHeight = if (sideways) upright.width else upright.height
-        val expected =
-            renderImage(expectedWidth, expectedHeight) {
-                it.translate(expectedWidth / 2.0, expectedHeight / 2.0)
-                it.rotate(Math.PI / 2 * quarterTurns)
-                it.translate(-upright.width / 2.0, -upright.height / 2.0)
-                it.drawImage(upright, 0, 0, null)
-            }
-        val turned = onNodeWithTag("turned").captureToImage()
-
-        assertEquals(Dimension(expected.width, expected.height), Dimension(turned.width, turned.height))
-        assertTrue(turned.channelDifference(expected) <= 1, "a turned pixel differs by more than one level")
-    }
 
     @Test
     fun sharedMatrixMatchesIndependentCornerMathForNonzeroBoxes() {
@@ -724,6 +451,15 @@ class PlacementRotationTest {
                 }
             }
         }
+    }
+
+    companion object {
+        @JvmStatic
+        fun clips(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("scaled", false)),
+                Arguments.of(Named.of("scaled and clipped", true)),
+            )
     }
 }
 

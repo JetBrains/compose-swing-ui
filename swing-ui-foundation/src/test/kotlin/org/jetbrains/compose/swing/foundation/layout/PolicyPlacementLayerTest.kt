@@ -8,10 +8,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -20,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -44,61 +47,59 @@ import javax.swing.SwingUtilities
 import kotlin.math.floor
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** A [MeasurePolicy] placing a child with a layer, which wraps the child's whole decoration. */
 class PolicyPlacementLayerTest {
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("alphaEndpointCases")
-    fun alphaReadsAtTheEndpointsStartAFreshFade(endpoint: Float) =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val opacity = mutableFloatStateOf(0.5f)
-            var tint = Color.RED
-            var paints = 0
-            setWindowContent {
-                Row {
-                    Layout(
-                        content = {
-                            Canvas(SwingModifier.testTag("endpointContent")) {
-                                paints++
-                                graphics.color = tint
-                                graphics.fillRect(0, 0, width, height)
-                            }
-                        },
-                        measurePolicy = { measurables, _ ->
-                            val child = measurables.single().measure(Constraints.fixed(40, 40))
-                            layout(40, 40) { child.placeWithLayer(0, 0) { alpha = opacity.floatValue } }
-                        },
-                    )
-                }
-            }
-            val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("endpointContent")
-            val content = node.fetch<JComponent>()
-            content.paintImmediately(0, 0, content.width, content.height)
-            assertTrue(paints > 0, "the initial fade paints its content")
-
-            opacity.floatValue = endpoint
-            awaitIdle()
-            tint = Color.BLUE
-            val before = paints
-            opacity.floatValue = 0.5f
-            awaitIdle()
-
-            assertEquals(before + 1, paints, "the first frame after alpha $endpoint captures the new content")
-            val pixel = node.captureToImage().getRGB(20, 20)
-            assertEquals(128.0, (pixel ushr 24).toDouble(), 1.0, "the new fade uses its current alpha")
-            assertEquals(Color.BLUE.rgb and 0xFFFFFF, pixel and 0xFFFFFF, "the new fade shows the new content")
-        }
-
     companion object {
+        /**
+         * A faded child is repainted by the container, as the child's area in the container's coordinates, which
+         * children faded on one frame paint together. A scaled child repaints itself. The first scaled child makes the
+         * container add its glass pane, and Swing then asks the container to repaint the pane's previous bounds, which
+         * are empty.
+         */
         @JvmStatic
-        fun alphaEndpointCases(): List<Arguments> =
-            listOf(0f, 1f).map { endpoint ->
-                Arguments.of(Named.of("alpha reaches $endpoint before another fade", endpoint))
-            }
+        fun layerSharing(): List<Arguments> {
+            val child = Rectangle(0, 0, 40, 20)
+            val firstArea = Rectangle(0, 0, 40, 20)
+            val secondArea = Rectangle(40, 0, 40, 20)
+            val nothing = emptyList<Rectangle>()
+            val glassPaneArrival = listOf(Rectangle(0, 0, 0, 0))
+            val ownState = Named.of("each block reads a state of its own", LayerSharing(listOf(0, 1)))
+            val oneState = Named.of("both blocks read one state", LayerSharing(listOf(0, 0)))
+            val oneBlock = Named.of("both children place with one block", LayerSharing(listOf(0, 0), oneBlock = true))
+            val scaledChildren =
+                listOf(mapOf("child 0" to listOf(child), "child 1" to listOf(child), "container" to glassPaneArrival))
+            val fadedChildren =
+                listOf(mapOf("child 0" to nothing, "child 1" to nothing, "container" to listOf(firstArea, secondArea)))
+            return listOf(
+                Arguments.of(
+                    Named.of(LayerRead.ScaleX.name, LayerRead.ScaleX),
+                    1f,
+                    ownState,
+                    listOf(
+                        mapOf("child 0" to listOf(child), "child 1" to nothing, "container" to glassPaneArrival),
+                        mapOf("child 0" to nothing, "child 1" to listOf(child), "container" to nothing),
+                    ),
+                ),
+                Arguments.of(Named.of(LayerRead.ScaleX.name, LayerRead.ScaleX), 1f, oneState, scaledChildren),
+                Arguments.of(Named.of(LayerRead.ScaleX.name, LayerRead.ScaleX), 1f, oneBlock, scaledChildren),
+                Arguments.of(
+                    Named.of(LayerRead.Alpha.name, LayerRead.Alpha),
+                    0.8f,
+                    ownState,
+                    listOf(
+                        mapOf("child 0" to nothing, "child 1" to nothing, "container" to listOf(firstArea)),
+                        mapOf("child 0" to nothing, "child 1" to nothing, "container" to listOf(secondArea)),
+                    ),
+                ),
+                Arguments.of(Named.of(LayerRead.Alpha.name, LayerRead.Alpha), 0.8f, oneState, fadedChildren),
+                Arguments.of(Named.of(LayerRead.Alpha.name, LayerRead.Alpha), 0.8f, oneBlock, fadedChildren),
+            )
+        }
     }
 
     @Test
@@ -106,9 +107,8 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             setContent { LayeredChild { { alpha = 0.5f } } }
 
-            val pixel = onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(20, 10)
-            assertEquals(128.0, (pixel ushr 24).toDouble(), 1.0, "the background inside the layer fades")
-            assertEquals(Color.RED.rgb and 0xFFFFFF, pixel and 0xFFFFFF)
+            val image = onNodeWithTag(LAYERED_TAG).captureToImage()
+            image.assertPixelColor(Color(255, 0, 0, 128), 20, 10, "the background inside the layer fades")
         }
 
     /**
@@ -124,24 +124,26 @@ class PolicyPlacementLayerTest {
             var color by mutableStateOf(Color.RED)
             setContent { LayeredChild(paddingStart = 20, color = color) { QuarterTurn } }
 
-            assertEquals(
+            onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(10, 10, 10, 0),
-                layeredOutsets(),
                 "the turned box paints past the layout bounds above, below and before them",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
             val image = onNodeWithTag(LAYERED_TAG).captureToImage()
-            assertEquals(Color.RED.rgb, image.getRGB(5, 2), "the turned background paints above and before the child")
-            assertEquals(0, image.getRGB(25, 5), "the turned background leaves the child's top end unpainted")
+            image.assertPixelColor(Color.RED, 5, 2, "the turned background paints above and before the child")
+            image.assertPixelColor(Color(0, true), 25, 5, "the turned background leaves the child's top end unpainted")
 
             color = Color.BLUE
             awaitIdle()
 
-            assertEquals(Insets(10, 10, 10, 0), layeredOutsets(), "the changed background stays inside the layer")
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(5, 2),
-                "the changed background paints",
-            )
+            onNodeWithTag(LAYERED_TAG).assertProperty(
+                Insets(10, 10, 10, 0),
+                "the changed background stays inside the layer",
+            ) {
+                assertIs<Decoratable>(this).decoration.paintOutsets()
+            }
+            onNodeWithTag(
+                LAYERED_TAG,
+            ).captureToImage().assertPixelColor(Color.BLUE, 5, 2, "the changed background paints")
         }
 
     /** A quarter turn of the 40 by 20 child paints 10 past its layout bounds above and below. */
@@ -150,10 +152,20 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             setContent { LayeredChild { QuarterTurn } }
 
-            assertEquals(Insets(10, 0, 10, 0), layeredOutsets(), "the quarter-turned child takes 10 px above and below")
+            onNodeWithTag(LAYERED_TAG).assertProperty(
+                Insets(10, 0, 10, 0),
+                "the quarter-turned child takes 10 px above and below",
+            ) {
+                assertIs<Decoratable>(this).decoration.paintOutsets()
+            }
             val image = onNodeWithTag(LAYERED_TAG).captureToImage()
-            assertEquals(Color.RED.rgb, image.getRGB(20, 2), "the turned child paints above its layout bounds")
-            assertEquals(0, image.getRGB(2, 20), "the turned child leaves the ends of its layout bounds unpainted")
+            image.assertPixelColor(Color.RED, 20, 2, "the turned child paints above its layout bounds")
+            image.assertPixelColor(
+                Color(0, true),
+                2,
+                20,
+                "the turned child leaves the ends of its layout bounds unpainted",
+            )
         }
 
     /** An eighth turn of the 40 by 20 child takes the outsets of its turned corners, about the box's center. */
@@ -162,7 +174,12 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             setContent { LayeredChild { EighthTurn } }
 
-            assertEquals(Insets(12, 2, 12, 2), layeredOutsets(), "the eighth-turned corners take the outsets")
+            onNodeWithTag(LAYERED_TAG).assertProperty(
+                Insets(12, 2, 12, 2),
+                "the eighth-turned corners take the outsets",
+            ) {
+                assertIs<Decoratable>(this).decoration.paintOutsets()
+            }
         }
 
     /**
@@ -174,11 +191,10 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             setContent { LayeredChild(shadowRadius = 8) { ClipAndDouble } }
 
-            assertEquals(
+            onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(10, 20, 10, 20),
-                layeredOutsets(),
                 "the doubled box takes the outsets, and the shadow is clipped away",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
         }
 
     @Test
@@ -186,13 +202,23 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             var layered by mutableStateOf(true)
             setContent { LayeredChild { if (layered) QuarterTurn else null } }
-            assertEquals(Insets(10, 0, 10, 0), layeredOutsets(), "the quarter-turned child takes 10 px above and below")
+            onNodeWithTag(LAYERED_TAG).assertProperty(
+                Insets(10, 0, 10, 0),
+                "the quarter-turned child takes 10 px above and below",
+            ) {
+                assertIs<Decoratable>(this).decoration.paintOutsets()
+            }
 
             layered = false
             awaitIdle()
 
-            assertEquals(Insets(0, 0, 0, 0), layeredOutsets(), "the child placed plainly paints within its bounds")
-            assertEquals(Color.RED.rgb, onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(2, 10))
+            onNodeWithTag(LAYERED_TAG).assertProperty(
+                Insets(0, 0, 0, 0),
+                "the child placed plainly paints within its bounds",
+            ) {
+                assertIs<Decoratable>(this).decoration.paintOutsets()
+            }
+            onNodeWithTag(LAYERED_TAG).captureToImage().assertPixelColor(Color.RED, 2, 10)
         }
 
     /**
@@ -227,7 +253,7 @@ class PolicyPlacementLayerTest {
             }
             val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG)
             val canvas = node.fetch<JComponent>()
-            val outsets = (canvas as Decoratable).decoration.paintOutsets()
+            val outsets = assertIs<Decoratable>(canvas).decoration.paintOutsets()
             val layoutOrigin = Point(outsets.left, outsets.top)
             val turn =
                 TransformOrigin.Center.createTransform(Rectangle2D.Double(0.0, 0.0, 100.0, 100.0), 1f, 1f, 45f)
@@ -280,25 +306,21 @@ class PolicyPlacementLayerTest {
                     Box { leaf() }
                 }
             }
-            assertEquals(
+            onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(10, 0, 10, 0),
-                layeredOutsets(),
                 "the policy's quarter turn takes 10 px above and below",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
 
             underLayeredPolicy = false
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(0, 0, 0, 0),
-                layeredOutsets(),
                 "the child moved to a plain container must lose the layer",
-            )
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(2, 10),
-                "the child paints unturned in a plain container",
-            )
+            ) { assertIs<Decoratable>(this).decoration.paintOutsets() }
+            onNodeWithTag(
+                LAYERED_TAG,
+            ).captureToImage().assertPixelColor(Color.RED, 2, 10, "the child paints unturned in a plain container")
         }
 
     /**
@@ -330,12 +352,10 @@ class PolicyPlacementLayerTest {
                 )
             }
 
-            val layered = onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
-            assertEquals(
+            onNodeWithTag(LAYERED_TAG).assertProperty(
                 40 - 20,
-                layered.x,
                 "an offset of 0 from the leading edge sits flush with the right edge under a right-to-left parent",
-            )
+            ) { x }
             val pixel = onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(10, 10)
             assertEquals(128.0, (pixel ushr 24).toDouble(), 1.0, "the layer's alpha still applies once mirrored")
         }
@@ -367,27 +387,44 @@ class PolicyPlacementLayerTest {
         }
 
     /** A state read in the block repaints the child, and lays nothing out. */
-    @Test
-    fun aReadInAPolicyLayerBlockRepaintsTheChildWithoutInvalidating() =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("org.jetbrains.compose.swing.foundation.layout.PlacementLayerFadeFixtureKt#layerReads")
+    internal fun aReadInAPolicyLayerBlockRepaintsTheChildWithoutInvalidating(read: LayerRead) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val scale = mutableFloatStateOf(1f)
-            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
-            setWindowContent { LayeredChild(SwingModifier.testTag(CONTAINER_TAG)) { block } }
+            val value = mutableFloatStateOf(1f)
+            val paints = TapElement()
+            val block: PlacementLayerScope.() -> Unit = { read.write(this, value.floatValue) }
+            setWindowContent {
+                LayeredChild(
+                    SwingModifier.testTag(CONTAINER_TAG),
+                    childModifier = SwingModifier.then(paints),
+                ) { block }
+            }
             val child = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
-            val container = windowContainer()
+            val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             container.paintImmediately(0, 0, container.width, container.height)
             assertTrue(child.dirtyRegion().isEmpty, "the realized child must start painted")
+            val painted = paints.node.paints
 
-            assertDirtyRegionsDuring(child, listOf(Rectangle(0, 0, 40, 20)), "a changed read must repaint the child") {
-                scale.floatValue = 0.5f
+            if (read.redrawsRecording) {
+                value.floatValue = 0.5f
                 Snapshot.sendApplyNotifications()
+                awaitEventsDelivered()
+                assertTrue(paints.node.paints > painted, "the ${read.name} change did not redraw the layer")
+            } else {
+                assertDirtyRegionsDuring(
+                    child,
+                    listOf(Rectangle(0, 0, 40, 20)),
+                    "a changed ${read.name} read must repaint the child",
+                ) {
+                    value.floatValue = 0.5f
+                    Snapshot.sendApplyNotifications()
+                }
             }
             assertTrue(container.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
             awaitIdle()
-            val image = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).captureToImage()
-            assertEquals(Color.RED.rgb, image.getRGB(20, 10), "the scaled layer still paints its content")
-            assertEquals(0, image.getRGB(5, 10), "the scale leaves the edge transparent")
+            read.assertPainted(onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).captureToImage())
         }
 
     /**
@@ -402,7 +439,7 @@ class PolicyPlacementLayerTest {
             val block: PlacementLayerScope.() -> Unit = { rotationZ = rotation.floatValue }
             setWindowContent { LayeredChild(SwingModifier.testTag(CONTAINER_TAG)) { block } }
             val child = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
-            val container = windowContainer()
+            val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             container.paintImmediately(0, 0, container.width, container.height)
             assertTrue(child.dirtyRegion().isEmpty, "the realized child must start painted")
 
@@ -416,107 +453,81 @@ class PolicyPlacementLayerTest {
             }
         }
 
-    @Test
-    fun aReadInOneOfTwoPolicyLayerBlocksRepaintsOnlyItsChild() =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val scales = List(2) { mutableFloatStateOf(1f) }
-            val blocks: List<PlacementLayerScope.() -> Unit> = scales.map { state -> { scaleX = state.floatValue } }
-            var placements = 0
-            setWindowContent {
-                Layout(
-                    content = {
-                        repeat(2) {
-                            Box(modifier = SwingModifier.testTag("$LAYERED_TAG$it").background(Brush.of(Color.RED)))
-                        }
-                    },
-                    measurePolicy =
-                        MeasurePolicy { measurables, _ ->
-                            val placeables = measurables.map { it.measure(Constraints.fixed(40, 20)) }
-                            layout(80, 20) {
-                                placements++
-                                placeables.forEachIndexed { index, placeable ->
-                                    placeable.placeWithLayer(40 * index, 0, layerBlock = blocks[index])
-                                }
-                            }
-                        },
-                    modifier = SwingModifier.testTag(CONTAINER_TAG),
-                )
-            }
-            val window = onWindowWithTitle(WINDOW_TITLE)
-            val children = List(2) { window.onNodeWithTag("$LAYERED_TAG$it").fetch<JComponent>() }
-            val container = windowContainer()
-            placements = 0
-
-            scales.forEachIndexed { changed, scale ->
-                container.paintImmediately(0, 0, container.width, container.height)
-                val asked =
-                    withRecordedRepaints {
-                        scale.floatValue = 0.5f
-                        Snapshot.sendApplyNotifications()
-                        it
+    /**
+     * Two children placed with layers whose blocks read a state of their own or one state they share, from [from]. A
+     * change of a state to 0.5 makes each component [expected] names for that state ask for exactly the regions it
+     * lists, in the component's own coordinates, repaints the children reading the state at the new value, and
+     * places nothing again.
+     */
+    @ParameterizedTest(name = "{0}, {2}")
+    @MethodSource("layerSharing")
+    internal fun aReadInPolicyLayerBlocksRepaintsOnlyTheChildrenReadingIt(
+        read: LayerRead,
+        from: Float,
+        sharing: LayerSharing,
+        expected: List<Map<String, List<Rectangle>>>,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val stateOfChild = sharing.stateOfChild
+        val states = List(stateOfChild.max() + 1) { mutableFloatStateOf(from) }
+        val blocks: List<PlacementLayerScope.() -> Unit> =
+            stateOfChild.map { state -> { read.write(this, states[state].floatValue) } }
+        val placedWith = if (sharing.oneBlock) List(blocks.size) { blocks.first() } else blocks
+        var placements = 0
+        setWindowContent {
+            Layout(
+                content = {
+                    repeat(2) {
+                        Box(modifier = SwingModifier.testTag("$LAYERED_TAG$it").background(Brush.of(Color.RED)))
                     }
-
-                children.forEachIndexed { index, child ->
-                    assertEquals(
-                        if (index == changed) listOf(Rectangle(0, 0, 40, 20)) else emptyList(),
-                        asked.dirtyRegionsOf(child),
-                        "a read in the block of child $changed repaints that child alone, not child $index",
-                    )
-                }
-                awaitIdle()
-                val pixel = window.onNodeWithTag("$LAYERED_TAG$changed").captureToImage().getRGB(20, 10)
-                assertEquals(Color.RED.rgb, pixel, "child $changed still paints at the new scale")
-                val edge = window.onNodeWithTag("$LAYERED_TAG$changed").captureToImage().getRGB(5, 10)
-                assertEquals(0, edge, "child $changed leaves the edge transparent at the new scale")
-            }
-            assertEquals(0, placements, "a read in a layer block places no child again")
-        }
-
-    @Test
-    fun alphaReadsChangingTwoPolicyLayersQueueBothRepaints() =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val opacity = mutableFloatStateOf(0.8f)
-            val block: PlacementLayerScope.() -> Unit = { alpha = opacity.floatValue }
-            setWindowContent {
-                Layout(
-                    content = {
-                        repeat(2) {
-                            Box(SwingModifier.testTag("$LAYERED_TAG$it").background(Brush.of(Color.RED)))
+                },
+                measurePolicy =
+                    MeasurePolicy { measurables, _ ->
+                        val placeables = measurables.map { it.measure(Constraints.fixed(40, 20)) }
+                        layout(80, 20) {
+                            placements++
+                            placeables.forEachIndexed { index, placeable ->
+                                placeable.placeWithLayer(40 * index, 0, layerBlock = placedWith[index])
+                            }
                         }
                     },
-                    measurePolicy =
-                        MeasurePolicy { measurables, _ ->
-                            val placeables = measurables.map { it.measure(Constraints.fixed(40, 20)) }
-                            layout(80, 20) {
-                                placeables.forEachIndexed { index, placeable ->
-                                    placeable.placeWithLayer(40 * index, 0, layerBlock = block)
-                                }
-                            }
-                        },
-                    modifier = SwingModifier.testTag(CONTAINER_TAG),
+                modifier = SwingModifier.testTag(CONTAINER_TAG),
+            )
+        }
+        val window = onWindowWithTitle(WINDOW_TITLE)
+        val children = List(2) { window.onNodeWithTag("$LAYERED_TAG$it").fetch<JComponent>() }
+        val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+        val components = mapOf("child 0" to children[0], "child 1" to children[1], "container" to container)
+        placements = 0
+
+        states.forEachIndexed { changed, state ->
+            container.paintImmediately(0, 0, container.width, container.height)
+            val reading = children.indices.filter { stateOfChild[it] == changed }
+            val asked =
+                withRecordedRepaints {
+                    state.floatValue = 0.5f
+                    Snapshot.sendApplyNotifications()
+                    it
+                }
+
+            expected[changed].forEach { (name, regions) ->
+                assertEquals(
+                    regions,
+                    asked.dirtyRegionsOf(components.getValue(name)),
+                    "a read of state $changed repaints the children reading it: the $name asks for these regions",
                 )
             }
-            val window = onWindowWithTitle(WINDOW_TITLE)
-            val children = List(2) { window.onNodeWithTag("$LAYERED_TAG$it").fetch<JComponent>() }
-            val container = windowContainer()
-            container.paintImmediately(0, 0, container.width, container.height)
-
-            assertDirtyRegionsDuring(
-                container,
-                listOf(Rectangle(0, 0, 40, 20), Rectangle(40, 0, 40, 20)),
-                "a shared alpha read must queue each changed child's repaint",
-            ) {
-                opacity.floatValue = 0.5f
-                Snapshot.sendApplyNotifications()
-            }
-            children.indices.forEach { index ->
-                val pixel = window.onNodeWithTag("$LAYERED_TAG$index").captureToImage().getRGB(20, 10)
-                assertEquals(128.0, (pixel ushr 24).toDouble(), 1.0, "every layer uses the updated alpha")
-                assertEquals(Color.RED.rgb and 0xFFFFFF, pixel and 0xFFFFFF, "the updated layer still paints red")
-            }
+            awaitIdle()
+            for (index in reading) read.assertPainted(window.onNodeWithTag("$LAYERED_TAG$index").captureToImage())
         }
+        assertEquals(0, placements, "a read in a layer block places no child again")
+    }
+
+    /** Which state each of two children's layer blocks reads, and whether they place with one block between them. */
+    internal data class LayerSharing(
+        val stateOfChild: List<Int>,
+        val oneBlock: Boolean = false,
+    )
 
     /**
      * A rotation read only in the layer block turns the child's hit-testing with its painting: the container then
@@ -628,9 +639,10 @@ private fun TurnedTwin(
 private fun ComposeSwingTest.twinGeometry(tag: String): String {
     val container = onNodeWithTag(tag).fetch<JComponent>()
     val child = onNodeWithTag(tag + "Child").fetch<JComponent>()
-    val outsets = (container as Decoratable).decoration.paintOutsets()
+    val outsets = assertIs<Decoratable>(container).decoration.paintOutsets()
     return buildString {
-        appendLine("${container.size} $outsets ${child.bounds} ${(child as Decoratable).decoration.paintOutsets()}")
+        val childOutsets = assertIs<Decoratable>(child).decoration.paintOutsets()
+        appendLine("${container.size} $outsets ${child.bounds} $childOutsets")
         for (y in 0 until 200 step 10) {
             for (x in 0 until 200 step 10) {
                 val found = SwingUtilities.getDeepestComponentAt(container, x + outsets.left, y + outsets.top)
@@ -658,11 +670,12 @@ private fun LayeredChild(
     paddingStart: Int = 0,
     color: Color = Color.RED,
     shadowRadius: Int = 0,
+    childModifier: SwingModifier = SwingModifier,
     layerOf: () -> (PlacementLayerScope.() -> Unit)?,
 ) {
     Layout(
         content = {
-            var declared = SwingModifier.testTag(LAYERED_TAG).background(Brush.of(color))
+            var declared = childModifier.testTag(LAYERED_TAG).background(Brush.of(color))
             if (shadowRadius > 0) declared = declared.shadow(shadowRadius, Color.BLACK)
             Box(modifier = if (paddingStart == 0) declared else declared.padding(start = paddingStart))
         },
@@ -677,9 +690,6 @@ private fun LayeredChild(
         modifier = modifier,
     )
 }
-
-private fun ComposeSwingTest.layeredOutsets(): Insets =
-    (onNodeWithTag(LAYERED_TAG).fetch() as Decoratable).decoration.paintOutsets()
 
 private val QuarterTurn: PlacementLayerScope.() -> Unit = { rotationZ = 90f }
 

@@ -59,14 +59,14 @@ class UnplacedContainerReportTest {
             leafSize = 20
             awaitIdle()
 
-            assertEquals(10, onNodeOfType<JLabel>().fetch().width, "the inner Box lays nothing out")
+            onNodeOfType<JLabel>().assertProperty(10, "the inner Box lays nothing out") { width }
             assertEquals(emptyList(), placements, "its child must report no placement")
             assertEquals(emptyList(), sizes, "its child must report no size")
 
             placed = true
             awaitIdle()
 
-            assertEquals(20, onNodeOfType<JLabel>().fetch().width, "placed again, the inner Box lays out its child")
+            onNodeOfType<JLabel>().assertProperty(20, "placed again, the inner Box lays out its child") { width }
             assertEquals(listOf(Rectangle(0, 0, 20, 20)), placements, "placed again, the child reports its placement")
             assertEquals(listOf(Dimension(20, 20)), sizes, "placed again, the child reports the size it took")
         }

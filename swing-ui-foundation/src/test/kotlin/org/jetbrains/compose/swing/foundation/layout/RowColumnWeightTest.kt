@@ -149,11 +149,10 @@ class RowColumnWeightTest {
                 childBounds(),
                 "a weighted child must stop at the maximum it declares, leaving the rest of its share empty",
             )
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 400,
-                containerSize().height,
                 "the column keeps the height it was given, so the height its child refused stays empty",
-            )
+            ) { size.height }
         }
 
     @Test
@@ -197,11 +196,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(30, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "a row must not ask for width its unweighted child explicitly refuses",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -213,11 +211,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, 30),
-                containerPreferredSize(),
                 "a column must not ask for height its unweighted child explicitly refuses",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -229,11 +226,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, 30),
-                containerPreferredSize(),
                 "a row must not ask for height its unweighted child explicitly refuses",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -245,11 +241,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(30, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "a column must not ask for width its unweighted child explicitly refuses",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -268,12 +263,11 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(3, 30),
-                containerPreferredSize(),
                 "a row must ask for the feasible 3px by 30px ratio size its weighted, cross-filled child " +
                     "resolves from its 10px by 30px maximum offer",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(Rectangle(0, 0, 3, 30)),
                 childBounds(),
@@ -297,11 +291,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(10, 30),
-                containerSize(),
                 "the parent must keep the row at the exact 10px by 30px extent it imposed",
-            )
+            ) { size }
             assertEquals(
                 listOf(
                     Rectangle(
@@ -422,11 +415,10 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(120, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "a row asking for its own width must hold the width its weighted spacer asks for",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
@@ -449,12 +441,11 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH + CHILD_WIDTH + CHILD_WIDTH * 2, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "the child weighted 1f asks for 50px of a width split one share to two, so the two " +
                     "weighted children need 150px between them",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
@@ -476,12 +467,11 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(80, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "a row must ask for the width its weighted child can occupy, not the wider width that child " +
                     "prefers and its maximum refuses",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
@@ -516,12 +506,11 @@ class RowColumnWeightTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(0, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "two weights clamped from infinity each round their sub-pixel one-unit width to zero before " +
                     "the finite total scales it, as AndroidX's intrinsic rounding order requires",
-            )
+            ) { preferredSize }
         }
 
     @Test

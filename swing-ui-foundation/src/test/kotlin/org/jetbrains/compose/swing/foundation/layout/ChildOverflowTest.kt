@@ -3,16 +3,17 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.alpha
+import org.jetbrains.compose.swing.foundation.graphics.assertPartialRepaintMatchesWhole
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.clip
 import org.jetbrains.compose.swing.foundation.graphics.decoration
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
-import org.jetbrains.compose.swing.foundation.graphics.levelsOffAWholeRepaint
 import org.jetbrains.compose.swing.foundation.graphics.paintOnto
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -23,6 +24,8 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -70,10 +73,10 @@ class ChildOverflowTest {
                     }
                 }
             }
-            assertEquals(Insets(6, 0, 0, 0), onNodeWithTag("top").fetch<JComponent>().paintOutsets)
-            assertEquals(Insets(0, 6, 0, 0), onNodeWithTag("left").fetch<JComponent>().paintOutsets)
-            assertEquals(Insets(0, 0, 6, 0), onNodeWithTag("bottom").fetch<JComponent>().paintOutsets)
-            assertEquals(Insets(0, 0, 0, 6), onNodeWithTag("right").fetch<JComponent>().paintOutsets)
+            onNodeWithTag("top").assertIsOfType<JComponent>().assertProperty(Insets(6, 0, 0, 0)) { paintOutsets }
+            onNodeWithTag("left").assertIsOfType<JComponent>().assertProperty(Insets(0, 6, 0, 0)) { paintOutsets }
+            onNodeWithTag("bottom").assertIsOfType<JComponent>().assertProperty(Insets(0, 0, 6, 0)) { paintOutsets }
+            onNodeWithTag("right").assertIsOfType<JComponent>().assertProperty(Insets(0, 0, 0, 6)) { paintOutsets }
         }
 
     @Test
@@ -98,7 +101,7 @@ class ChildOverflowTest {
             val spilled = Point(box.layoutBounds.x - 4, 20)
             assertTrue(box.paintOutsets.left >= 8, "the shadow's outsets take in the child's overflow")
             assertFalse(box.isOpaque, "the parent shows under the shadow")
-            assertEquals(Color.BLUE.rgb, onNodeWithTag("row").captureToImage().getRGB(spilled.x, spilled.y))
+            onNodeWithTag("row").captureToImage().assertPixelColor(Color.BLUE, spilled.x, spilled.y)
 
             shadowed = false
             awaitIdle()
@@ -106,15 +109,13 @@ class ChildOverflowTest {
             assertEquals(Insets(8, 8, 8, 8), box.paintOutsets, "the child's overflow alone takes outsets")
             assertFalse(box.isOpaque, "the parent still shows past the box")
             assertEquals(Rectangle(12, -8, 56, 56), box.bounds)
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("row").captureToImage().getRGB(spilled.x, spilled.y),
-                "the child paints past the box",
-            )
+            onNodeWithTag(
+                "row",
+            ).captureToImage().assertPixelColor(Color.BLUE, spilled.x, spilled.y, "the child paints past the box")
         }
 
     /**
-     * A plain widget placed past its row's edge paints there, and the row set opaque answers not opaque. Hidden, it
+     * A plain widget placed past its row's edge paints there, and the row set opaque reports not opaque. Hidden, it
      * takes no outsets.
      */
     @Test
@@ -136,11 +137,9 @@ class ChildOverflowTest {
             assertEquals(Insets(0, 10, 0, 0), row.paintOutsets, "the widget's overflow takes outsets")
             assertEquals(Rectangle(10, 20, 30, 20), row.bounds, "around the layout bounds the padding placed")
             assertFalse(row.isOpaque, "the parent shows past the row")
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("root").captureToImage().getRGB(15, 30),
-                "the widget paints past the row",
-            )
+            onNodeWithTag(
+                "root",
+            ).captureToImage().assertPixelColor(Color.BLUE, 15, 30, "the widget paints past the row")
 
             visible = false
             awaitIdle()
@@ -213,7 +212,10 @@ class ChildOverflowTest {
                     }
                 }
             }
-            assertEquals(Insets(0, 10, 0, 0), windowNode("column").paintOutsets, "the column holds the widget")
+            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("column").assertIsOfType<JComponent>().assertProperty(
+                Insets(0, 10, 0, 0),
+                "the column holds the widget",
+            ) { paintOutsets }
             widget.clips.clear()
             painted.clear()
 
@@ -256,8 +258,11 @@ class ChildOverflowTest {
             }
             decorated = true
             awaitIdle()
-            assertEquals(Insets(0, 10, 0, 0), windowNode("inner").paintOutsets, "the inner box holds the widget")
-            val root = windowNode("root")
+            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("inner").assertIsOfType<JComponent>().assertProperty(
+                Insets(0, 10, 0, 0),
+                "the inner box holds the widget",
+            ) { paintOutsets }
+            val root = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("root").fetch<JComponent>()
             val before = root.paintOnto(root.width, root.height)
             painted.clear()
 
@@ -265,10 +270,10 @@ class ChildOverflowTest {
             widget.paintImmediately(0, 0, 5, 5)
 
             assertEquals(listOf(Rectangle(-10, 0, 5, 5)), painted, "the decorated box paints the widget's area alone")
-            val box = windowNode("decorated")
+            val box = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("decorated").fetch<JComponent>()
             val origin = SwingUtilities.convertPoint(box, box.paintOutsets.left, box.paintOutsets.top, root)
             val areas = painted.map { Rectangle(it).apply { translate(origin.x, origin.y) } }
-            assertEquals(0, root.levelsOffAWholeRepaint(before, areas), "the window shows a repaint of all of it")
+            root.assertPartialRepaintMatchesWhole(before, areas)
         }
 
     /** Fills the area [paintImmediately] names in these tests, from its origin 5 by 5, while [marked]. */
@@ -393,7 +398,7 @@ class ChildOverflowTest {
                 }
             }
 
-            assertEquals(Insets(0, 0, 0, 0), onNodeWithTag("row").fetch<JComponent>().paintOutsets)
+            onNodeWithTag("row").assertIsOfType<JComponent>().assertProperty(Insets(0, 0, 0, 0)) { paintOutsets }
         }
 }
 

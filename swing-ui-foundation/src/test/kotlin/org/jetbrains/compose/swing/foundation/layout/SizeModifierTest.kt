@@ -274,7 +274,7 @@ class SizeModifierTest {
     /**
      * androidx `Size.kt:800-807` coerces `minWidth` into `0..maxWidth` before checking whether the result names
      * the unspecified sentinel, so an `Int.MAX_VALUE` minimum above a finite maximum is coerced down to that
-     * maximum and kept, not answered as zero.
+     * maximum and kept, not reported as zero.
      */
     @Test
     fun widthInCoercesAnOutOfRangeMinimumIntoRangeBeforeItChecksForTheUnboundedSentinel() =
@@ -317,7 +317,7 @@ class SizeModifierTest {
 
     /**
      * androidx `Size.kt:877-878` asks the child for its intrinsic width at the incoming height, unchanged by a
-     * preferred `heightIn` bounding only its own maximum height. `AspectRatio.kt:127-128` answers that width as
+     * preferred `heightIn` bounding only its own maximum height. `AspectRatio.kt:127-128` reports that width as
      * the incoming height times the ratio.
      */
     @Test
@@ -343,16 +343,16 @@ class SizeModifierTest {
 
     /**
      * androidx `Size.kt:916-917` asks the child for its intrinsic height at the incoming width, held to a
-     * required `requiredWidthIn`'s own bounds. `AspectRatio.kt:157-158` answers that height as the width
+     * required `requiredWidthIn`'s own bounds. `AspectRatio.kt:157-158` reports that height as the width
      * divided by the ratio.
      */
     @Test
     fun requiredWidthInAsksTheChildForItsMaxIntrinsicHeightAtTheIncomingWidth() =
         runComposeSwingTest {
-            var maxIntrinsicHeight = -1
+            var maxIntrinsicHeights = emptyList<Int>()
             setContent {
                 Layout(measurePolicy = { measurables, _ ->
-                    maxIntrinsicHeight = measurables[0].maxIntrinsicHeight(100)
+                    maxIntrinsicHeights = listOf(100, 400).map { measurables[0].maxIntrinsicHeight(it) }
                     layout(0, 0) {}
                 }) {
                     SwingNode(
@@ -363,8 +363,8 @@ class SizeModifierTest {
             }
 
             assertEquals(
-                50,
-                maxIntrinsicHeight,
+                listOf(50, 100),
+                maxIntrinsicHeights,
                 "a required widthIn must hold the incoming width to its own bounds before asking the child",
             )
         }

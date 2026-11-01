@@ -2,13 +2,12 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** A layout modifier written as a lambda measures and places the child it is declared on. */
@@ -29,11 +28,10 @@ class LayoutModifierLambdaTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH + 10, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "the row must ask for the extent the lambda reports, not the extent the child asks for",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(Rectangle(10, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 childBounds(),
@@ -58,12 +56,11 @@ class LayoutModifierLambdaTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("child").assertProperty(
                 Dimension(0, 0),
-                onNodeWithTag("child").fetch<Component>().size,
                 "the unplaced child must be left at a zero size",
-            )
-            assertFalse(onNodeWithTag("child").fetch<Component>().isVisible, "the unplaced child must be hidden")
+            ) { size }
+            onNodeWithTag("child").assertProperty(false, "the unplaced child must be hidden") { isVisible }
         }
 
     /** A lambda declared on a child its container measures but does not place measures, and places nothing. */

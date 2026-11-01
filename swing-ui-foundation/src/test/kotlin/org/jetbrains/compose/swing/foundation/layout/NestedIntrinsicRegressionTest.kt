@@ -6,9 +6,13 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
-import java.awt.Component
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.BorderFactory
@@ -71,14 +75,20 @@ class NestedIntrinsicRegressionTest {
             assertEquals(listOf(1, 2, 3, 4, 1, 2, 3, 4), sizes)
             assertEquals(20, child.x)
             child.preferredSize
-            for (state in states) {
+            val settled =
+                listOf(
+                    listOf(2, 2, 3, 4, 2, 2, 3, 4) to 22,
+                    listOf(2, 3, 3, 4, 2, 3, 3, 4) to 24,
+                    listOf(2, 3, 4, 4, 2, 3, 4, 4) to 26,
+                    listOf(2, 3, 4, 5, 2, 3, 4, 5) to 28,
+                )
+            for ((state, expected) in states.zip(settled)) {
                 val before = measurements
                 state.intValue++
                 awaitIdle()
-                val expected = states.map { it.intValue }
                 assertTrue(measurements > before, "each intrinsic read invalidates the parent measurement")
-                assertEquals(expected + expected, sizes)
-                assertEquals(sizes.sum(), child.x)
+                assertEquals(expected.first, sizes)
+                assertEquals(expected.second, child.x)
                 assertEquals(Dimension(345, 123), child.preferredSize)
             }
         }
@@ -246,63 +256,62 @@ class NestedIntrinsicRegressionTest {
             assertEquals(bounds, listOf(child.bounds, descendant.bounds))
         }
 
-    @Test
-    fun twoFiniteArgumentsKeepBothParentMeasurementDependencies() {
-        for (hook in 0..3) {
-            runComposeSwingTest {
-                val first = mutableIntStateOf(11)
-                val second = mutableIntStateOf(17)
-                var measurements = 0
-                var intrinsicSizes = emptyList<Int>()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("hookCases")
+    fun twoFiniteArgumentsKeepBothParentMeasurementDependencies(hook: Int) {
+        runComposeSwingTest {
+            val first = mutableIntStateOf(11)
+            val second = mutableIntStateOf(17)
+            var measurements = 0
+            var intrinsicSizes = emptyList<Int>()
 
-                val childPolicy =
-                    IntrinsicQueryPolicy { _, _, opposite ->
-                        when (opposite) {
-                            40 -> first.intValue
-                            80 -> second.intValue
-                            else -> 0
-                        }
-                    }
-                val horizontal = hook < 2
-                val parentPolicy =
-                    MeasurePolicy { children, constraints ->
-                        measurements++
-                        val child = children.single()
-                        intrinsicSizes = listOf(query(child, hook, 40), query(child, hook, 80))
-                        val offset = intrinsicSizes.sum()
-                        val placeable = child.measure(Constraints.fixed(1, 1))
-                        layout(constraints.constrainWidth(200), constraints.constrainHeight(200)) {
-                            placeable.place(if (horizontal) offset else 0, if (horizontal) 0 else offset)
-                        }
-                    }
-                setContent {
-                    Layout(parentPolicy, SwingModifier.preferredSize(200, 200)) {
-                        Layout(childPolicy, SwingModifier.testTag("nested"))
+            val childPolicy =
+                IntrinsicQueryPolicy { _, _, opposite ->
+                    when (opposite) {
+                        40 -> first.intValue
+                        80 -> second.intValue
+                        else -> 0
                     }
                 }
-                val child = onNodeWithTag("nested").fetch<Component>()
-                assertEquals(
-                    listOf(11, 17),
-                    intrinsicSizes,
-                    "hook $hook: both finite arguments must reach the child policy.",
-                )
-                assertEquals(if (horizontal) Rectangle(28, 0, 1, 1) else Rectangle(0, 28, 1, 1), child.bounds)
-                val before = measurements
+            val horizontal = hook < 2
+            val parentPolicy =
+                MeasurePolicy { children, constraints ->
+                    measurements++
+                    val child = children.single()
+                    intrinsicSizes = listOf(query(child, hook, 40), query(child, hook, 80))
+                    val offset = intrinsicSizes.sum()
+                    val placeable = child.measure(Constraints.fixed(1, 1))
+                    layout(constraints.constrainWidth(200), constraints.constrainHeight(200)) {
+                        placeable.place(if (horizontal) offset else 0, if (horizontal) 0 else offset)
+                    }
+                }
+            setContent {
+                Layout(parentPolicy, SwingModifier.preferredSize(200, 200)) {
+                    Layout(childPolicy, SwingModifier.testTag("nested"))
+                }
+            }
+            assertEquals(
+                listOf(11, 17),
+                intrinsicSizes,
+                "hook $hook: both finite arguments must reach the child policy.",
+            )
+            onNodeWithTag("nested").assertProperty(
+                if (horizontal) Rectangle(28, 0, 1, 1) else Rectangle(0, 28, 1, 1),
+            ) { bounds }
+            val before = measurements
+            awaitIdle()
+            assertEquals(before, measurements, "hook $hook: an unchanged parent must keep its measured result.")
+            val changes = listOf(Triple(first to 23, listOf(23, 17), 40), Triple(second to 29, listOf(23, 29), 52))
+            for ((change, expected, offset) in changes) {
+                val (state, value) = change
+                val previouslyMeasured = measurements
+                state.intValue = value
                 awaitIdle()
-                assertEquals(before, measurements, "hook $hook: an unchanged parent must keep its measured result.")
-                for ((state, value) in listOf(first to 23, second to 29)) {
-                    val previouslyMeasured = measurements
-                    state.intValue = value
-                    awaitIdle()
-                    assertTrue(measurements > previouslyMeasured, "hook $hook: each argument retains its dependency")
-                    val expected = listOf(first.intValue, second.intValue)
-                    assertEquals(expected, intrinsicSizes, "hook $hook: the parent reads both arguments again")
-                    val offset = expected.sum()
-                    assertEquals(
-                        if (horizontal) Rectangle(offset, 0, 1, 1) else Rectangle(0, offset, 1, 1),
-                        child.bounds,
-                    )
-                }
+                assertTrue(measurements > previouslyMeasured, "hook $hook: each argument retains its dependency")
+                assertEquals(expected, intrinsicSizes, "hook $hook: the parent reads both arguments again")
+                onNodeWithTag("nested").assertProperty(
+                    if (horizontal) Rectangle(offset, 0, 1, 1) else Rectangle(0, offset, 1, 1),
+                ) { bounds }
             }
         }
     }
@@ -390,12 +399,22 @@ class NestedIntrinsicRegressionTest {
                     assertTrue(child in recorder.relayouts, "Every finite hook must retain its own reads.")
                 }
                 assertEquals(
-                    List(4) { if (it <= hook) 41 else 40 },
+                    listOf(
+                        listOf(41, 40, 40, 40),
+                        listOf(41, 41, 40, 40),
+                        listOf(41, 41, 41, 40),
+                        listOf(41, 41, 41, 41),
+                    )[hook],
                     reports(),
                     "hook $hook reports its changed read and the hooks before it keep theirs",
                 )
             }
         }
+
+    companion object {
+        @JvmStatic
+        fun hookCases(): List<Arguments> = (0..3).map { Arguments.of(Named.of("hook $it", it)) }
+    }
 }
 
 private fun query(
@@ -422,7 +441,7 @@ private fun intrinsicSizes(
     )
 
 /**
- * Measures with [measuring] and answers each of the four intrinsic queries with [querySize]. It leaves
+ * Measures with [measuring] and reports each of the four intrinsic queries with [querySize]. It leaves
  * `measureAtAssignedSize` and `preferredSize` to the interface defaults, which reach the overridden intrinsics.
  */
 internal class IntrinsicQueryPolicy(

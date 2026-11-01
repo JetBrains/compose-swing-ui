@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -42,11 +43,10 @@ class RowColumnSurplusTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(IMPOSED_CROSS, IMPOSED_MAIN),
-                containerSize(),
                 "the center region must impose its own height on the column, giving it height to spare",
-            )
+            ) { size }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CROSS_EXTENT, FIRST_EXTENT),
@@ -77,11 +77,10 @@ class RowColumnSurplusTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(IMPOSED_MAIN, IMPOSED_CROSS),
-                containerSize(),
                 "the center region must impose its own width on the row, giving it width to spare",
-            )
+            ) { size }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, FIRST_EXTENT, CROSS_EXTENT),

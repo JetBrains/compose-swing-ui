@@ -44,7 +44,7 @@ import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.foundation.Canvas as FoundationCanvas
 
 /** A shadow or blur on a background keeps its image until a content change is reported. */
-class StaticBackgroundEffectTest {
+class CachedShadowBlurTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("effectsHostsAndSequences")
     fun aPaintShowsTheCurrentContentAndPaintsItOnlyAfterAChange(
@@ -97,14 +97,13 @@ class StaticBackgroundEffectTest {
             text = "two"
             awaitIdle()
             val edited = editor.areaIn(stack, Rectangle(editor.size))
-            val levelsOff = stack.levelsOffAWholeRepaint(before, listOf(edited))
+            stack.assertPartialRepaintMatchesWhole(before, listOf(edited))
 
             assertEquals(
                 painted,
                 contentPaints,
                 "A caret blinking and text changing over a static ${effect.name} background paint its content again.",
             )
-            assertTrue(levelsOff <= 1, "Repainting the text area alone is $levelsOff levels off the whole stack.")
         }
 
     // A recording discarded once drawn counts as drawn: that paint asks for a repaint, whose paint records again.
@@ -304,34 +303,34 @@ internal class EffectFixture(
 
 private fun ComposeSwingTest.setUpFixture(
     effect: BackgroundEffect,
-    host: StaticBackgroundEffectTest.EffectHost,
+    host: CachedShadowBlurTest.EffectHost,
 ): EffectFixture {
     val probe = Probe()
     setContent {
         Row {
             val subject = SwingModifier.effectBackground(effect).testTag("subject")
             when (host) {
-                StaticBackgroundEffectTest.EffectHost.Box -> Box(subject.drawBehind(probe.draw))
-                StaticBackgroundEffectTest.EffectHost.Canvas -> FoundationCanvas(subject, onDraw = probe.draw)
+                CachedShadowBlurTest.EffectHost.Box -> Box(subject.drawBehind(probe.draw))
+                CachedShadowBlurTest.EffectHost.Canvas -> FoundationCanvas(subject, onDraw = probe.draw)
             }
         }
     }
     return EffectFixture(onNodeWithTag("subject").fetch<JComponent>(), probe)
 }
 
-private fun ComposeSwingTest.setUpLostSurfaceFixture(step: StaticBackgroundEffectTest.LostSurfaceStep): EffectFixture {
+private fun ComposeSwingTest.setUpLostSurfaceFixture(step: CachedShadowBlurTest.LostSurfaceStep): EffectFixture {
     val probe = Probe()
     // Below 1, so the fade keeps a recording from the first paint.
-    val opacity = mutableFloatStateOf(if (step == StaticBackgroundEffectTest.LostSurfaceStep.Fade) 0.8f else 1f)
+    val opacity = mutableFloatStateOf(if (step == CachedShadowBlurTest.LostSurfaceStep.Fade) 0.8f else 1f)
     setContent {
         Row {
             when (step) {
-                StaticBackgroundEffectTest.LostSurfaceStep.Shadow -> {
+                CachedShadowBlurTest.LostSurfaceStep.Shadow -> {
                     val subject = SwingModifier.effectBackground(BackgroundEffect.Shadow)
                     Box(subject.testTag("subject").drawBehind(probe.draw))
                 }
 
-                StaticBackgroundEffectTest.LostSurfaceStep.Fade -> {
+                CachedShadowBlurTest.LostSurfaceStep.Fade -> {
                     SwingNode(
                         factory = { DecoratedPanel().apply { isOpaque = false } },
                         modifier =

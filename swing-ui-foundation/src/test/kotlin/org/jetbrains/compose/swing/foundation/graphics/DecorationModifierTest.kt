@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.foundation.layout.Box
@@ -18,6 +19,7 @@ import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -68,15 +70,17 @@ class DecorationModifierTest {
             val clipOutside = onNodeWithTag("decorated-panel").captureToImage()
             val backgroundOutside = onNodeWithTag("reversed-panel").captureToImage()
 
-            assertEquals(
+            clipOutside.assertPixelColor(
+                Color(0, true),
                 0,
-                clipOutside.getRGB(0, 0),
+                0,
                 "A clip declared first is outermost, and elements of other kinds standing between the two " +
                     "change nothing: the chain is still the clip around the background.",
             )
-            assertEquals(
-                Color.BLUE.rgb,
-                backgroundOutside.getRGB(0, 0),
+            backgroundOutside.assertPixelColor(
+                Color.BLUE,
+                0,
+                0,
                 "Declared the other way round the background is outermost and fills the corners.",
             )
         }
@@ -105,18 +109,22 @@ class DecorationModifierTest {
                     }
                 }
             }
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("decorated-panel").captureToImage().getRGB(0, 0),
+            onNodeWithTag(
+                "decorated-panel",
+            ).captureToImage().assertPixelColor(
+                Color.BLUE,
+                0,
+                0,
                 "With no clip declared the background fills the corners.",
             )
 
             clipFirst = true
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag("decorated-panel").captureToImage().assertPixelColor(
+                Color(0, true),
                 0,
-                onNodeWithTag("decorated-panel").captureToImage().getRGB(0, 0),
+                0,
                 "A decoration taking the place a listener held stands where it is declared - before the " +
                     "background - rather than after the declarations that were already standing.",
             )
@@ -193,21 +201,25 @@ class DecorationModifierTest {
                                     "decorated-panel",
                                 ).spill(Insets(outsets, outsets, outsets, outsets)),
                     ) {
-                        Label(text = "child", modifier = SwingModifier.testTag("decorated-child"))
+                        Label(text = "child", modifier = SwingModifier.testTag("decorated-child").preferredSize(40, 20))
                     }
                 }
             }
             val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
-            val child = onNodeWithTag("decorated-child").fetch<JComponent>()
-            assertEquals(3, child.x, "The children start inside the outsets the first steps take.")
-            val layoutSize = Dimension(panel.width - 6, panel.height - 6)
+            onNodeWithTag("decorated-child").assertProperty(
+                3,
+                "The children start inside the outsets the first steps take.",
+            ) { x }
             withRecordedRepaints { recorder ->
                 outsets = 6
                 awaitIdle()
 
-                assertEquals(6, child.x, "The children shift to stay inside the outsets the new steps take.")
+                onNodeWithTag("decorated-child").assertProperty(
+                    6,
+                    "The children shift to stay inside the outsets the new steps take.",
+                ) { x }
                 assertEquals(
-                    Dimension(layoutSize.width + 12, layoutSize.height + 12),
+                    Dimension(52, 32),
                     panel.size,
                     "The bounds grow around the layout bounds the Box placed.",
                 )
@@ -250,18 +262,19 @@ class DecorationModifierTest {
                     DecoratedFlowPanel(modifier = clip.fill(Color.BLUE)) { Label(text = "child") }
                 }
             }
-            assertEquals(
-                0,
-                onNodeWithTag("decorated-panel").captureToImage().getRGB(0, 0),
-                "The clip stands while it is declared.",
-            )
+            onNodeWithTag(
+                "decorated-panel",
+            ).captureToImage().assertPixelColor(Color(0, true), 0, 0, "The clip stands while it is declared.")
 
             clipped = false
             awaitIdle()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("decorated-panel").captureToImage().getRGB(0, 0),
+            onNodeWithTag(
+                "decorated-panel",
+            ).captureToImage().assertPixelColor(
+                Color.BLUE,
+                0,
+                0,
                 "A declaration that leaves the chain takes its own decoration with it and leaves the rest standing.",
             )
         }

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -52,11 +53,9 @@ class ImageLayerTest {
             assertEquals(0f, layer.translationY, "translationY defaults to 0f.")
             assertEquals(0f, layer.rotationZ, "rotationZ defaults to 0f.")
             assertEquals(null, layer.pivotOffset, "pivotOffset defaults to the center.")
-            assertEquals(
-                0,
-                renderImage(64, 48) { layer.draw(it) }.getRGB(1, 1),
-                "An empty layer draws nothing, leaving the destination untouched.",
-            )
+            renderImage(64, 48) {
+                layer.draw(it)
+            }.assertPixelColor(Color(0, true), 1, 1, "An empty layer draws nothing, leaving the destination untouched.")
         }
 
     @Test
@@ -79,20 +78,12 @@ class ImageLayerTest {
 
             val destination = renderImage(64, 48) { layer.draw(it, x = 2, y = 1) }
 
-            assertEquals(
-                Color.RED.rgb,
-                destination.getRGB(2, 1),
-                "The recording's origin lands at the x, y draw was given.",
-            )
-            assertEquals(
-                Color.RED.rgb,
-                destination.getRGB(9, 8),
-                "The recording covers its full size from that origin.",
-            )
-            assertEquals(0, destination.getRGB(1, 1), "Nothing is drawn left of the origin.")
-            assertEquals(0, destination.getRGB(2, 0), "Nothing is drawn above the origin.")
-            assertEquals(0, destination.getRGB(10, 1), "Nothing is drawn right of the recording.")
-            assertEquals(0, destination.getRGB(2, 9), "Nothing is drawn below the recording.")
+            destination.assertPixelColor(Color.RED, 2, 1, "The recording's origin lands at the x, y draw was given.")
+            destination.assertPixelColor(Color.RED, 9, 8, "The recording covers its full size from that origin.")
+            destination.assertPixelColor(Color(0, true), 1, 1, "Nothing is drawn left of the origin.")
+            destination.assertPixelColor(Color(0, true), 2, 0, "Nothing is drawn above the origin.")
+            destination.assertPixelColor(Color(0, true), 10, 1, "Nothing is drawn right of the recording.")
+            destination.assertPixelColor(Color(0, true), 2, 9, "Nothing is drawn below the recording.")
         }
 
     @Test
@@ -109,10 +100,16 @@ class ImageLayerTest {
             assertEquals(BufferedImage.TYPE_INT_ARGB, recorded.type, "The buffer is TYPE_INT_ARGB.")
 
             val destination = renderImage(64, 48) { layer.draw(it) }
-            assertRedAt(destination, SQUARE - 2, SQUARE - 2, "A scaled recording still occupies its logical size.")
-            assertEquals(
-                0,
-                destination.getRGB(SQUARE + 2, 1),
+            destination.assertPixelColor(
+                Color.RED,
+                SQUARE - 2,
+                SQUARE - 2,
+                "A scaled recording still occupies its logical size.",
+            )
+            destination.assertPixelColor(
+                Color(0, true),
+                SQUARE + 2,
+                1,
                 "A scaled recording covers no more ground than its size.",
             )
         }
@@ -169,11 +166,7 @@ class ImageLayerTest {
 
             assertEquals(Dimension(20, 10), layer.size, "A capture is sized by the bounds the component carries.")
             assertEquals(bounds, child.bounds, "A capture lays nothing out, so a child keeps the bounds it carried.")
-            assertEquals(
-                Color.RED.rgb,
-                layer.toBufferedImage().getRGB(18, 8),
-                "A capture holds the component's own pixels.",
-            )
+            layer.toBufferedImage().assertPixelColor(Color.RED, 18, 8, "A capture holds the component's own pixels.")
         }
 
     @Test
@@ -185,27 +178,25 @@ class ImageLayerTest {
             val copy = layer.toBufferedImage()
             copy.setRGB(0, 0, Color.BLUE.rgb)
 
-            assertEquals(
-                Color.RED.rgb,
-                renderImage(64, 48) { layer.draw(it) }.getRGB(0, 0),
-                "Mutating the returned image must not change what the layer draws.",
-            )
+            renderImage(64, 48) {
+                layer.draw(it)
+            }.assertPixelColor(Color.RED, 0, 0, "Mutating the returned image must not change what the layer draws.")
 
             layer.release()
 
-            assertEquals(Color.BLUE.rgb, copy.getRGB(0, 0), "release must not touch an image already handed out.")
-            assertEquals(Color.RED.rgb, copy.getRGB(1, 1), "release must not touch an image already handed out.")
+            copy.assertPixelColor(Color.BLUE, 0, 0, "release must not touch an image already handed out.")
+            copy.assertPixelColor(Color.RED, 1, 1, "release must not touch an image already handed out.")
         }
 
     @Test
-    fun sizeAnswersWithAFreshDimension() =
+    fun sizeReturnsAFreshDimension() =
         runComposeSwingTest {
             val layer = ImageLayer()
             layer.recordSquare()
 
             layer.size.width = 99
 
-            assertEquals(SQUARE, layer.size.width, "Each read of size answers with a fresh Dimension.")
+            assertEquals(SQUARE, layer.size.width, "Each read of size returns a fresh Dimension.")
         }
 
     @Test
@@ -221,12 +212,8 @@ class ImageLayerTest {
 
             assertEquals(Dimension(SQUARE * 2, SQUARE), layer.size, "A layer holds one recording: the newest.")
             val destination = renderImage(64, 48) { layer.draw(it) }
-            assertEquals(Color.BLUE.rgb, destination.getRGB(1, 1), "The newest recording is what is drawn.")
-            assertEquals(
-                Color.BLUE.rgb,
-                destination.getRGB(SQUARE + 2, 1),
-                "The newest recording is drawn at its own size.",
-            )
+            destination.assertPixelColor(Color.BLUE, 1, 1, "The newest recording is what is drawn.")
+            destination.assertPixelColor(Color.BLUE, SQUARE + 2, 1, "The newest recording is drawn at its own size.")
         }
 
     @Test
@@ -242,11 +229,10 @@ class ImageLayerTest {
 
             assertEquals("boom", failure.message, "The block's own failure reaches the caller as it is.")
             assertEquals(Dimension(SQUARE, SQUARE), layer.size, "A failed recording leaves the previous size standing.")
-            assertEquals(
-                Color.RED.rgb,
-                renderImage(64, 48) { layer.draw(it) }.getRGB(1, 1),
-                "The previous recording is still drawn.",
-            )
+            renderImage(
+                64,
+                48,
+            ) { layer.draw(it) }.assertPixelColor(Color.RED, 1, 1, "The previous recording is still drawn.")
         }
 
     @Test
@@ -262,11 +248,10 @@ class ImageLayerTest {
             assertFalse(layer.hasContent, "A released layer holds no recording.")
             assertEquals(Dimension(0, 0), layer.size, "A released layer has no size.")
             assertEquals(0.5f, layer.alpha, "release leaves the transforms as they stand.")
-            assertEquals(
-                0,
-                renderImage(64, 48) { layer.draw(it) }.getRGB(1, 1),
-                "A released layer draws nothing.",
-            )
+            renderImage(
+                64,
+                48,
+            ) { layer.draw(it) }.assertPixelColor(Color(0, true), 1, 1, "A released layer draws nothing.")
             assertFailsWith<IllegalStateException>("A released layer has no pixels to hand back.") {
                 layer.toBufferedImage()
             }
@@ -275,11 +260,10 @@ class ImageLayerTest {
             layer.recordSquare(color = Color.BLUE)
 
             assertTrue(layer.hasContent, "release is a reset: the layer records again.")
-            assertEquals(
-                Color.BLUE.rgb,
-                renderImage(64, 48) { layer.draw(it) }.getRGB(1, 1),
-                "The layer draws what it recorded after.",
-            )
+            renderImage(
+                64,
+                48,
+            ) { layer.draw(it) }.assertPixelColor(Color.BLUE, 1, 1, "The layer draws what it recorded after.")
         }
 
     @Test
@@ -311,31 +295,46 @@ class ImageLayerTest {
     fun recordingRefusesANonPositiveSize() =
         runComposeSwingTest {
             val layer = ImageLayer()
+            layer.recordSquare()
 
             assertNames("width", assertFailsWith<IllegalArgumentException> { layer.record(0, SQUARE) { } })
             assertNames("width", assertFailsWith<IllegalArgumentException> { layer.record(-1, SQUARE) { } })
             assertNames("height", assertFailsWith<IllegalArgumentException> { layer.record(SQUARE, 0) { } })
             assertNames("height", assertFailsWith<IllegalArgumentException> { layer.record(SQUARE, -1) { } })
-            assertFalse(layer.hasContent, "A refused recording leaves the layer as it was.")
+            assertEquals(Dimension(SQUARE, SQUARE), layer.size, "A refused recording leaves the layer as it was.")
+            layer.toBufferedImage().assertPixelColor(
+                Color.RED,
+                SQUARE / 2,
+                SQUARE / 2,
+                "A refused recording keeps what was recorded.",
+            )
         }
 
     @Test
     fun recordingRefusesANonPositiveScale() =
         runComposeSwingTest {
             val layer = ImageLayer()
+            layer.recordSquare()
             val panel = JPanel()
             panel.setSize(SQUARE, SQUARE)
 
             assertNames("scale", assertFailsWith<IllegalArgumentException> { layer.record(SQUARE, SQUARE, 0.0) { } })
             assertNames("scale", assertFailsWith<IllegalArgumentException> { layer.record(SQUARE, SQUARE, -1.0) { } })
             assertNames("scale", assertFailsWith<IllegalArgumentException> { layer.record(panel, scale = 0.0) })
-            assertFalse(layer.hasContent, "A refused recording leaves the layer as it was.")
+            assertEquals(Dimension(SQUARE, SQUARE), layer.size, "A refused recording leaves the layer as it was.")
+            layer.toBufferedImage().assertPixelColor(
+                Color.RED,
+                SQUARE / 2,
+                SQUARE / 2,
+                "A refused recording keeps what was recorded.",
+            )
         }
 
     @Test
     fun recordingRefusesAnEmptyComponent() =
         runComposeSwingTest {
             val layer = ImageLayer()
+            layer.recordSquare()
             val flat = JPanel()
             flat.setSize(SQUARE, 0)
             val thin = JPanel()
@@ -354,7 +353,13 @@ class ImageLayerTest {
             for (failure in listOf(empty, noHeight, noWidth)) {
                 assertNames("size the component first", failure)
             }
-            assertFalse(layer.hasContent, "A refused capture leaves the layer as it was.")
+            assertEquals(Dimension(SQUARE, SQUARE), layer.size, "A refused capture leaves the layer as it was.")
+            layer.toBufferedImage().assertPixelColor(
+                Color.RED,
+                SQUARE / 2,
+                SQUARE / 2,
+                "A refused capture keeps what was recorded.",
+            )
         }
 
     @Test
@@ -433,13 +438,13 @@ class ImageLayerTest {
         layer.recordSquare(screen)
         val kept = screen.surface(SQUARE, SQUARE)
         layer.draw(kept.graphics)
-        assertEquals(Color.RED.rgb, kept.pixels.getRGB(1, 1), "A recording the device keeps is drawn.")
+        kept.pixels.assertPixelColor(Color.RED, 1, 1, "A recording the device keeps is drawn.")
 
         screen.surfaces.single().lost = true
         val destination = screen.surface(SQUARE, SQUARE)
         layer.draw(destination.graphics)
 
-        assertEquals(0, destination.pixels.getRGB(1, 1), "A recording the device discarded draws nothing.")
+        destination.pixels.assertPixelColor(Color(0, true), 1, 1, "A recording the device discarded draws nothing.")
     }
 
     @Test

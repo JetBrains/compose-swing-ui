@@ -17,13 +17,17 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -39,6 +43,7 @@ import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -101,14 +106,14 @@ class HeightFollowsWidthTest {
                     verticalScrollBar.isVisible
                 }
                 val bounds = component.bounds
-                val answers = mutableListOf<Int>()
+                val results = mutableListOf<Int>()
                 repeat(4) { changeIndex ->
                     change.intValue++
                     awaitIdle()
                     component.preferredSize = null
-                    val answer = component.preferredSize.height
-                    answers += answer
-                    assertEquals(expectedWidth.atRatio, answer, "$changing: finite preferred height at current width")
+                    val result = component.preferredSize.height
+                    results += result
+                    assertEquals(expectedWidth.atRatio, result, "$changing: finite preferred height at current width")
                     assertEquals(bounds, component.bounds, "$changing: size queries keep the viewport grant")
                     withRecordedRepaints { recorder ->
                         component.captureToImage()
@@ -122,7 +127,7 @@ class HeightFollowsWidthTest {
                 }
                 assertEquals(
                     List(4) { expectedWidth.atRatio },
-                    answers,
+                    results,
                     "$changing: query results have no width history",
                 )
             }
@@ -171,7 +176,7 @@ class HeightFollowsWidthTest {
                         onNodeWithTag("view").assertProperty(
                             bounds,
                             "$name: view bounds after change $index",
-                        ) { bounds }
+                        ) { this.bounds }
                         onNodeOfType<JScrollPane>().assertProperty(scrolls, "$name: scrollbar after change $index") {
                             verticalScrollBar.isVisible
                         }
@@ -195,13 +200,13 @@ class HeightFollowsWidthTest {
             box.size,
             "$history, native=$native: the first parent grant uses the natural preferred width",
         )
-        (box.parent as JComponent).revalidate()
+        assertIs<JComponent>(box.parent).revalidate()
         root.validate()
         awaitIdle()
         assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "$history, native=$native: current width")
         fixture.fills = false
         if (history == "queried release") box.preferredSize
-        (box.parent as JComponent).revalidate()
+        assertIs<JComponent>(box.parent).revalidate()
         root.validate()
         awaitIdle()
         assertEquals(
@@ -209,7 +214,7 @@ class HeightFollowsWidthTest {
             box.size,
             "$history, native=$native: the next parent query uses its current width before releasing the grant",
         )
-        (box.parent as JComponent).revalidate()
+        assertIs<JComponent>(box.parent).revalidate()
         root.validate()
         awaitIdle()
         assertEquals(
@@ -231,20 +236,20 @@ class HeightFollowsWidthTest {
                 box.size,
                 "native=$native: the first parent grant uses the natural preferred width",
             )
-            (box.parent as JComponent).revalidate()
+            assertIs<JComponent>(box.parent).revalidate()
             root.validate()
             awaitIdle()
             assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "native=$native: current width")
             fixture.width.intValue = WIDTH / 2
             awaitIdle()
-            (box.parent as JComponent).revalidate()
+            assertIs<JComponent>(box.parent).revalidate()
             root.validate()
             awaitIdle()
             assertEquals(Dimension(WIDTH / 2, (WIDTH / 2).atRatio), box.size, "narrow height after explicit validation")
             fixture.width.intValue = WIDTH
             awaitIdle()
             assertEquals(WIDTH, box.width, "restored grant")
-            (box.parent as JComponent).revalidate()
+            assertIs<JComponent>(box.parent).revalidate()
             root.validate()
             awaitIdle()
             assertEquals(Dimension(WIDTH, WIDTH.atRatio), box.size, "restored height after explicit validation")
@@ -318,213 +323,54 @@ class HeightFollowsWidthTest {
         for (kind in listOf("HTML Label", "HTML EditorPane")) assertWrappingScenario(kind, "Column", "CENTER")
     }
 
-    private fun assertWrappingScenario(
-        kind: String,
-        shape: String,
-        parent: String,
-    ) {
-        val case = WrappingCase(kind, shape, parent)
-        val name = case.name
-        val slot =
-            (swingParentSlots(emptyList()) + ("CENTER" to borderLayoutSlot(BorderLayout.CENTER))).getValue(parent)
-        runComposeSwingTest {
-            var width by mutableIntStateOf(
-                if (parent == "CENTER" && kind != "unbounded TextArea") WIDTH + 80 else WIDTH,
-            )
-            var measures = 0
-            setContent {
-                WrappingScene(case, width, slot) { measures++ }
-            }
-            val host = onNodeWithTag("host").fetch<JComponent>()
-            val text = onNodeWithTag("text").fetch<JComponent>()
-            val offers =
-                when {
-                    kind == "Ratio" -> (0..5).map { WIDTH - 20 * it }
-                    parent == "CENTER" && kind != "unbounded TextArea" -> listOf(width, WIDTH)
-                    else -> listOf(width)
-                }
-            for (offered in offers) {
-                withRecordedRepaints { recorder ->
-                    width = offered
-                    awaitIdle()
-                    assertFalse(host in recorder.relayouts, "$name: no corrective validation")
-                }
-                assertInitialWrappingBounds(case, offered, host, text)
-                val bounds = text.bounds
-                val passes = measures
-                withRecordedRepaints { recorder ->
-                    settleWithPaint()
-                    recorder.assertAskedForNoLayout(host, "$name: paint")
-                }
-                assertEquals(bounds, text.bounds, "$name: paint preserves bounds")
-                assertEquals(passes, measures, "$name: paint measures nothing")
-                if (kind == "Ratio") {
-                    val expected = Dimension(offered, offered.atRatio)
-                    assertEquals(expected, host.size, "$name: unchanged after paint")
-                    if (shape == "nested Box") {
-                        onNodeWithTag("box").assertProperty(expected, "$name: box after paint") { size }
-                    }
-                    assertEquals(0, cyclesUntilStable(host), "$name: no descendant correction")
-                }
-                if (kind in listOf("TextArea", "HTML Label", "HTML EditorPane")) {
-                    assertEquals(
-                        onNodeWithTag("referenceHost").fetch<JComponent>().getComponent(0).size,
-                        text.size,
-                        "$name: raw Swing size at $offered",
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun WrappingScene(
-        case: WrappingCase,
-        width: Int,
-        slot: Slot,
-        onMeasure: () -> Unit,
-    ) {
-        Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(2 * width, 600)) {
-            if (case.kind == "Ratio") {
-                Panel(PanelLayout.Border()) {
-                    Label("Preview", modifier = SwingModifier.north())
-                }
-            } else {
-                slot(width) { modifier ->
-                    SwingNode(
-                        factory = { nativeWrappingReference(case.kind) },
-                        modifier = modifier.testTag("referenceHost"),
-                    )
-                }
-            }
-            slot(width) { modifier ->
-                WrappingContainer(case.shape, modifier.testTag("host")) {
-                    val grant =
-                        when (case.kind) {
-                            "unbounded TextArea" -> SwingModifier.wrapContentWidth(unbounded = true)
-                            "Ratio" -> SwingModifier.fillMaxWidth().aspectRatio(16f / 9f)
-                            else -> SwingModifier.fillMaxWidth()
-                        }
-                    if (case.kind == "Ratio") {
-                        Label("Preview", modifier = grant.testTag("text").countingMeasures { onMeasure() })
-                    } else {
-                        WrappingTexts.getValue(if (case.kind == "unbounded TextArea") "TextArea" else case.kind)(
-                            grant.testTag("text").countingMeasures { onMeasure() },
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun nativeWrappingReference(kind: String): JPanel {
-        val reference =
-            when (kind) {
-                "HTML Label" -> JLabel("<html>$WRAPPING_TEXT</html>")
-                "HTML EditorPane" -> JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>")
-                else -> wrappingTextArea()
-            }
-        return object : JPanel(BorderLayout()) {
-            override fun doLayout() {
-                reference.setSize(width - insets.left - insets.right, height)
-                reference.getBaseline(reference.width, reference.height)
-                super.doLayout()
-            }
-        }.apply { add(reference, BorderLayout.NORTH) }
-    }
-
-    private fun ComposeSwingTest.assertInitialWrappingBounds(
-        case: WrappingCase,
-        width: Int,
-        host: JComponent,
-        text: JComponent,
-    ) {
-        val (kind, shape, parent) = case
-        val name = case.name
-        if (kind == "Ratio") {
-            val expected = Dimension(width, width.atRatio)
-            assertEquals(expected, host.size, "$name: container at $width")
-            assertEquals(Rectangle(Point(), expected), text.bounds, "$name: actual child at $width")
-            if (shape == "Box") {
-                host.preferredSize = null
-                host.minimumSize = null
-                val preferred = host.preferredSize
-                val minimum = host.minimumSize
-                assertEquals(
-                    preferred.width.atRatio,
-                    minimum.height,
-                    "$name: minimum height at natural preferred width",
-                )
-            }
-        } else if (kind == "unbounded TextArea") {
-            assertEquals(text.preferredSize, text.size, "$name: first validation at its preferred size")
-        } else {
-            assertWrapped(text, "$name: first validation at $width")
-            if (parent != "CENTER") assertEquals(text.height, host.height, "$name: host holds wrapped height")
-        }
-        if (shape == "nested Box") {
-            assertEquals(text.size, host.size, "$name: column holds the nested box")
-            onNodeWithTag("box").assertProperty(text.size, name) { size }
-        }
-        if (parent == "FlowLayout") assertEquals(text.size, host.size, "$name: preferred size grant")
-    }
-
-    private data class WrappingCase(
-        val kind: String,
-        val shape: String,
-        val parent: String,
-    ) {
-        val name: String get() = "$kind, $shape, $parent"
-    }
-
     @Test
     fun aWrappingTextAreaOfferedAnUnboundedWidthTakesTheHeightForTheWidthItTakesInOneValidation() {
         assertWrappingScenario("unbounded TextArea", "Column", "CENTER")
     }
 
-    @Test
-    fun wrappingChildrenSharingARowTakeTheirWrappedHeightInOneValidation() {
-        for (baseline in listOf(false, true)) {
-            runComposeSwingTest {
-                var width by mutableIntStateOf(if (baseline) WIDTH else WIDTH + 80)
-                setContent {
-                    borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
-                        Column(modifier = modifier) {
-                            Row(modifier = SwingModifier.testTag("row")) {
-                                val alignment = if (baseline) SwingModifier.alignByBaseline() else SwingModifier
-                                WrappingTexts.getValue(if (baseline) "HTML Label" else "TextArea")(
-                                    alignment.testTag("text").weight(1f),
-                                )
-                                Label("Side", modifier = alignment.testTag("side"))
-                            }
-                            if (!baseline) Label("After", modifier = SwingModifier.testTag("after"))
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("baselineCases")
+    fun wrappingChildrenSharingARowTakeTheirWrappedHeightInOneValidation(baseline: Boolean) {
+        runComposeSwingTest {
+            var width by mutableIntStateOf(if (baseline) WIDTH else WIDTH + 80)
+            setContent {
+                borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
+                    Column(modifier = modifier) {
+                        Row(modifier = SwingModifier.testTag("row")) {
+                            val alignment = if (baseline) SwingModifier.alignByBaseline() else SwingModifier
+                            WrappingTexts.getValue(if (baseline) "HTML Label" else "TextArea")(
+                                alignment.testTag("text").weight(1f),
+                            )
+                            Label("Side", modifier = alignment.testTag("side"))
                         }
+                        if (!baseline) Label("After", modifier = SwingModifier.testTag("after"))
                     }
                 }
-                val text = onNodeWithTag("text").fetch<JComponent>()
-                val row = onNodeWithTag("row").fetch<JComponent>()
-                assertWrapped(text, "the first validation, baseline=$baseline")
-                val bounds = text.bounds
+            }
+            val text = onNodeWithTag("text").fetch<JComponent>()
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            assertWrapped(text, "the first validation, baseline=$baseline")
+            val bounds = text.bounds
+            settleWithPaint()
+            if (baseline) {
                 settleWithPaint()
-                if (baseline) {
-                    settleWithPaint()
-                    assertEquals(bounds, text.bounds, "the paints that follow lay nothing out again")
-                } else {
-                    withRecordedRepaints { recorder ->
-                        width = WIDTH
-                        awaitIdle()
-                        assertFalse(row in recorder.relayouts, "the row requests no validation of its own")
-                    }
-                    val side = onNodeWithTag("side").fetch<JComponent>()
-                    assertEquals(WIDTH - side.width, text.width, "the weighted area takes what the label leaves")
-                    assertWrapped(text, "a single validation")
-                    assertEquals(text.height, row.height, "the row holds the area")
-                    assertEquals(
-                        text.height,
-                        onNodeWithTag("after").fetch<JComponent>().y,
-                        "the column places what follows below the wrapped area",
-                    )
+                assertEquals(bounds, text.bounds, "the paints that follow lay nothing out again")
+            } else {
+                withRecordedRepaints { recorder ->
+                    width = WIDTH
+                    awaitIdle()
+                    assertFalse(row in recorder.relayouts, "the row requests no validation of its own")
                 }
+                onNodeWithTag("side").assertProperty(
+                    WIDTH - text.width,
+                    "the weighted area takes what the label leaves",
+                ) { this.width }
+                assertWrapped(text, "a single validation")
+                assertEquals(text.height, row.height, "the row holds the area")
+                onNodeWithTag("after").assertProperty(
+                    text.height,
+                    "the column places what follows below the wrapped area",
+                ) { y }
             }
         }
     }
@@ -574,45 +420,46 @@ class HeightFollowsWidthTest {
         }
     }
 
-    @Test
-    fun aWrappingTextAreaInValidContainersNestedInOneItsParentNarrowsTakesItsWrappedHeightInOneValidation() {
-        for (readsIntrinsicHeight in listOf(false, true)) {
-            val name = if (readsIntrinsicHeight) "the outer box read its intrinsic height" else "the boxes measured"
-            runComposeSwingTest {
-                var width by mutableIntStateOf(WIDTH)
-                setContent {
-                    borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
-                        Column(modifier = modifier.testTag("column")) {
-                            val outer =
-                                if (readsIntrinsicHeight) SwingModifier.height(IntrinsicSize.Max) else SwingModifier
-                            Box(modifier = outer.testTag("outer")) {
-                                Box(modifier = SwingModifier.testTag("inner")) {
-                                    WrappingTexts.getValue("TextArea")(SwingModifier.testTag("text").fillMaxWidth())
-                                }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("intrinsicHeightCases")
+    fun aWrappingTextAreaInValidContainersNestedInOneItsParentNarrowsTakesItsWrappedHeightInOneValidation(
+        readsIntrinsicHeight: Boolean,
+    ) {
+        val name = if (readsIntrinsicHeight) "the outer box read its intrinsic height" else "the boxes measured"
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            setContent {
+                borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
+                    Column(modifier = modifier.testTag("column")) {
+                        val outer =
+                            if (readsIntrinsicHeight) SwingModifier.height(IntrinsicSize.Max) else SwingModifier
+                        Box(modifier = outer.testTag("outer")) {
+                            Box(modifier = SwingModifier.testTag("inner")) {
+                                WrappingTexts.getValue("TextArea")(SwingModifier.testTag("text").fillMaxWidth())
                             }
                         }
                     }
                 }
-                val text = onNodeWithTag("text").fetch<JTextArea>()
-                val wide = text.height
-
-                val containers =
-                    listOf("column", "outer", "inner").associateWith { onNodeWithTag(it).fetch<JComponent>() }
-                withRecordedRepaints { recorder ->
-                    width = WIDTH / 2
-                    awaitIdle()
-                    assertEquals(
-                        emptyList(),
-                        containers.filterValues { it in recorder.relayouts }.keys.toList(),
-                        "$name: the boxes, resizing the area as the column lays them out, request no layout pass",
-                    )
-                }
-
-                assertEquals(WIDTH / 2, text.width, "$name: the area takes the narrower width")
-                assertWrapped(text, "$name: the validation that narrows its containers")
-                assertTrue(text.height > wide, "$name: into more lines than it took at the wider width")
-                assertEquals(text.height, containers.getValue("inner").height, "$name: the inner box holds the area")
             }
+            val text = onNodeWithTag("text").fetch<JTextArea>()
+            val wide = text.height
+
+            val containers =
+                listOf("column", "outer", "inner").associateWith { onNodeWithTag(it).fetch<JComponent>() }
+            withRecordedRepaints { recorder ->
+                width = WIDTH / 2
+                awaitIdle()
+                assertEquals(
+                    emptyList(),
+                    containers.filterValues { it in recorder.relayouts }.keys.toList(),
+                    "$name: the boxes, resizing the area as the column lays them out, request no layout pass",
+                )
+            }
+
+            assertEquals(WIDTH / 2, text.width, "$name: the area takes the narrower width")
+            assertWrapped(text, "$name: the validation that narrows its containers")
+            assertTrue(text.height > wide, "$name: into more lines than it took at the wider width")
+            assertEquals(text.height, containers.getValue("inner").height, "$name: the inner box holds the area")
         }
     }
 
@@ -660,54 +507,222 @@ class HeightFollowsWidthTest {
         }
     }
 
-    @Composable
-    private fun WrappingContainer(
-        shape: String,
-        modifier: SwingModifier,
-        content: @Composable ConstrainedScope.() -> Unit,
-    ) {
-        when (shape) {
-            "Column" -> {
-                Column(modifier = modifier, content = content)
-            }
+    companion object {
+        @JvmStatic
+        fun baselineCases(): List<Arguments> = listOf(false, true).map { Arguments.of(Named.of("baseline=$it", it)) }
 
-            "Box" -> {
-                Box(modifier = modifier, content = content)
-            }
+        @JvmStatic
+        fun intrinsicHeightCases(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("the boxes measured", false)),
+                Arguments.of(Named.of("the outer box read its intrinsic height", true)),
+            )
+    }
+}
 
-            "nested Box" -> {
-                Column(modifier = modifier) {
-                    Box(modifier = SwingModifier.testTag("box"), content = content)
+private fun assertWrappingScenario(
+    kind: String,
+    shape: String,
+    parent: String,
+) {
+    val case = HeightFollowsWidthCase(kind, shape, parent)
+    val name = case.name
+    val slot =
+        (swingParentSlots(emptyList()) + ("CENTER" to borderLayoutSlot(BorderLayout.CENTER))).getValue(parent)
+    runComposeSwingTest {
+        var width by mutableIntStateOf(
+            if (parent == "CENTER" && kind != "unbounded TextArea") WIDTH + 80 else WIDTH,
+        )
+        var measures = 0
+        setContent {
+            WrappingFixture(case, width, slot) { measures++ }
+        }
+        val host = onNodeWithTag("host").fetch<JComponent>()
+        val text = onNodeWithTag("text").fetch<JComponent>()
+        val offers =
+            when {
+                kind == "Ratio" -> (0..5).map { WIDTH - 20 * it }
+                parent == "CENTER" && kind != "unbounded TextArea" -> listOf(width, WIDTH)
+                else -> listOf(width)
+            }
+        for (offered in offers) {
+            withRecordedRepaints { recorder ->
+                width = offered
+                awaitIdle()
+                assertFalse(host in recorder.relayouts, "$name: no corrective validation")
+            }
+            assertInitialWrappingBounds(case, offered, host, text)
+            val bounds = text.bounds
+            val passes = measures
+            withRecordedRepaints { recorder ->
+                settleWithPaint()
+                recorder.assertAskedForNoLayout(host, "$name: paint")
+            }
+            assertEquals(bounds, text.bounds, "$name: paint preserves bounds")
+            assertEquals(passes, measures, "$name: paint measures nothing")
+            if (kind == "Ratio") {
+                val expected = Dimension(offered, offered.atRatio)
+                assertEquals(expected, host.size, "$name: unchanged after paint")
+                if (shape == "nested Box") {
+                    onNodeWithTag("box").assertProperty(expected, "$name: box after paint") { size }
                 }
+                assertEquals(0, cyclesUntilStable(host), "$name: no descendant correction")
             }
-
-            "Layout" -> {
-                Layout(modifier = modifier, content = content, measurePolicy = { measurables, constraints ->
-                    val child =
-                        measurables.single().measure(
-                            Constraints(constraints.maxWidth, constraints.maxWidth, 0, constraints.maxHeight),
-                        )
-                    layout(child.width, child.height) { child.place(0, 0) }
-                })
-            }
-
-            else -> {
-                error("Unknown container: $shape")
+            if (kind in listOf("TextArea", "HTML Label", "HTML EditorPane")) {
+                onNodeWithTag("referenceHost").assertIsOfType<JComponent>().assertProperty(
+                    text.size,
+                    "$name: raw Swing size at $offered",
+                ) { getComponent(0).size }
             }
         }
     }
+}
 
-    @Composable
-    context(scope: ConstrainedScope)
-    private fun RatioLabel(modifier: SwingModifier) {
-        Label("Preview", modifier = modifier.aspectRatio(16f / 9f))
-    }
-
-    private companion object {
-        /** The height a 16:9 view takes at this width. */
-        val Int.atRatio: Int get() = (this * 9f / 16f).roundToInt()
+@Composable
+private fun WrappingFixture(
+    case: HeightFollowsWidthCase,
+    width: Int,
+    slot: Slot,
+    onMeasure: () -> Unit,
+) {
+    Panel(PanelLayout.Grid(), modifier = SwingModifier.preferredSize(2 * width, 600)) {
+        if (case.kind == "Ratio") {
+            Panel(PanelLayout.Border()) {
+                Label("Preview", modifier = SwingModifier.north())
+            }
+        } else {
+            slot(width) { modifier ->
+                SwingNode(
+                    factory = { nativeWrappingReference(case.kind) },
+                    modifier = modifier.testTag("referenceHost"),
+                )
+            }
+        }
+        slot(width) { modifier ->
+            WrappingContainer(case.shape, modifier.testTag("host")) {
+                val grant =
+                    when (case.kind) {
+                        "unbounded TextArea" -> SwingModifier.wrapContentWidth(unbounded = true)
+                        "Ratio" -> SwingModifier.fillMaxWidth().aspectRatio(16f / 9f)
+                        else -> SwingModifier.fillMaxWidth()
+                    }
+                if (case.kind == "Ratio") {
+                    Label("Preview", modifier = grant.testTag("text").countingMeasures { onMeasure() })
+                } else {
+                    WrappingTexts.getValue(if (case.kind == "unbounded TextArea") "TextArea" else case.kind)(
+                        grant.testTag("text").countingMeasures { onMeasure() },
+                    )
+                }
+            }
+        }
     }
 }
+
+private fun nativeWrappingReference(kind: String): JPanel {
+    val reference =
+        when (kind) {
+            "HTML Label" -> JLabel("<html>$WRAPPING_TEXT</html>")
+            "HTML EditorPane" -> JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>")
+            else -> wrappingTextArea()
+        }
+    return object : JPanel(BorderLayout()) {
+        override fun doLayout() {
+            reference.setSize(width - insets.left - insets.right, height)
+            reference.getBaseline(reference.width, reference.height)
+            super.doLayout()
+        }
+    }.apply { add(reference, BorderLayout.NORTH) }
+}
+
+private fun ComposeSwingTest.assertInitialWrappingBounds(
+    case: HeightFollowsWidthCase,
+    width: Int,
+    host: JComponent,
+    text: JComponent,
+) {
+    val (kind, shape, parent) = case
+    val name = case.name
+    if (kind == "Ratio") {
+        val expected = Dimension(width, width.atRatio)
+        assertEquals(expected, host.size, "$name: container at $width")
+        assertEquals(Rectangle(Point(), expected), text.bounds, "$name: actual child at $width")
+        if (shape == "Box") {
+            host.preferredSize = null
+            host.minimumSize = null
+            val preferred = host.preferredSize
+            val minimum = host.minimumSize
+            assertEquals(
+                preferred.width.atRatio,
+                minimum.height,
+                "$name: minimum height at natural preferred width",
+            )
+        }
+    } else if (kind == "unbounded TextArea") {
+        assertEquals(text.preferredSize, text.size, "$name: first validation at its preferred size")
+    } else {
+        assertWrapped(text, "$name: first validation at $width")
+        if (parent != "CENTER") assertEquals(text.height, host.height, "$name: host holds wrapped height")
+    }
+    if (shape == "nested Box") {
+        assertEquals(text.size, host.size, "$name: column holds the nested box")
+        onNodeWithTag("box").assertProperty(text.size, name) { size }
+    }
+    if (parent == "FlowLayout") assertEquals(text.size, host.size, "$name: preferred size grant")
+}
+
+private data class HeightFollowsWidthCase(
+    val kind: String,
+    val shape: String,
+    val parent: String,
+) {
+    val name: String get() = "$kind, $shape, $parent"
+}
+
+@Composable
+private fun WrappingContainer(
+    shape: String,
+    modifier: SwingModifier,
+    content: @Composable ConstrainedScope.() -> Unit,
+) {
+    when (shape) {
+        "Column" -> {
+            Column(modifier = modifier, content = content)
+        }
+
+        "Box" -> {
+            Box(modifier = modifier, content = content)
+        }
+
+        "nested Box" -> {
+            Column(modifier = modifier) {
+                Box(modifier = SwingModifier.testTag("box"), content = content)
+            }
+        }
+
+        "Layout" -> {
+            Layout(modifier = modifier, content = content, measurePolicy = { measurables, constraints ->
+                val child =
+                    measurables.single().measure(
+                        Constraints(constraints.maxWidth, constraints.maxWidth, 0, constraints.maxHeight),
+                    )
+                layout(child.width, child.height) { child.place(0, 0) }
+            })
+        }
+
+        else -> {
+            error("Unknown container: $shape")
+        }
+    }
+}
+
+@Composable
+context(scope: ConstrainedScope)
+private fun RatioLabel(modifier: SwingModifier) {
+    Label("Preview", modifier = modifier.aspectRatio(16f / 9f))
+}
+
+/** The height a 16:9 view takes at this width. */
+private val Int.atRatio: Int get() = (this * 9f / 16f).roundToInt()
 
 /** Paints the tree and lets the validation any paint requests run, as a window's next frame would. */
 internal suspend fun ComposeSwingTest.settleWithPaint() {

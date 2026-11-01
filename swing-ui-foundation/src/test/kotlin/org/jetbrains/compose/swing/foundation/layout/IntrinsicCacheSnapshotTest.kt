@@ -53,7 +53,7 @@ class IntrinsicCacheSnapshotTest {
             state.intValue = 31
             Snapshot.sendApplyNotifications()
             assertEquals(warmCalls, calls, "hook $hook must not run its policy during snapshot apply")
-            assertEquals(31, panel.query(hook), "hook $hook answers the next query with fresh state")
+            assertEquals(31, panel.query(hook), "hook $hook returns fresh state to the next query")
             assertEquals(warmCalls + 1, calls, "hook $hook computes the fresh result once")
         }
 
@@ -96,7 +96,7 @@ class IntrinsicCacheSnapshotTest {
             awaitIdle()
             assertTrue(panel.isValid, "hook $hook settles the queued EDT invalidation")
             val callsAfterIdle = calls.get()
-            assertEquals(31, panel.query(hook), "hook $hook answers the next EDT query with fresh state")
+            assertEquals(31, panel.query(hook), "hook $hook returns fresh state to the next EDT query")
             assertTrue(calls.get() <= callsAfterIdle + 1, "hook $hook computes at most once for the fresh query")
             val freshCalls = calls.get()
             assertEquals(31, panel.query(hook), "hook $hook repeats the fresh EDT query")
@@ -127,7 +127,7 @@ class IntrinsicCacheSnapshotTest {
             assertTrue(panel.isValid, "hook $hook starts with valid geometry")
             assertEquals(97, panel.query(hook, 80), "hook $hook warms the first extent")
             val warmCalls = calls
-            assertEquals(112, panel.query(hook, 95), "hook $hook answers the changed extent")
+            assertEquals(112, panel.query(hook, 95), "hook $hook returns the changed extent")
             assertEquals(warmCalls + 1, calls, "hook $hook computes the changed extent once")
             assertEquals(112, panel.query(hook, 95), "hook $hook repeats the changed extent")
             assertEquals(warmCalls + 1, calls, "hook $hook reuses the changed extent")
@@ -167,16 +167,16 @@ class IntrinsicCacheSnapshotTest {
         )
         assertEquals(warmCalls + 1, fixture.firstCalls, "hook $hook restores the first extent's dependency once")
         assertEquals(callsBeforeSecondQuery + 1, fixture.secondCalls, "hook $hook computes the second extent once")
-        assertEquals(40, child.x, "hook $hook places with both intrinsic answers")
+        assertEquals(40, child.x, "hook $hook places with both intrinsic results")
         val measurementsBeforeChange = fixture.measurements
 
         fixture.firstState.intValue = 31
         awaitIdle()
         assertTrue(
             fixture.measurements > measurementsBeforeChange,
-            "hook $hook keeps the first answer's parent dependency",
+            "hook $hook keeps the first result's parent dependency",
         )
-        assertEquals(54, child.x, "hook $hook places with the changed first answer")
+        assertEquals(54, child.x, "hook $hook places with the changed first result")
     }
 
     @ParameterizedTest(name = "hook={0}")

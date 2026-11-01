@@ -6,6 +6,7 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -13,6 +14,7 @@ import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
 import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
+import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -25,11 +27,15 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
+import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -39,6 +45,7 @@ import java.awt.Rectangle
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.border.AbstractBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -123,17 +130,15 @@ class PaintOutsetsDecoratedTest {
     fun underFullInsetsTheLayoutBoxIsTheContentArea() =
         runComposeSwingTest {
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 Column(modifier = SwingModifier.testTag("column")) {
                     ShadowedCard("card", SwingModifier.paintOutsets(PaintOutsets.FullInsets))
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val shadow = onNodeWithTag("reference").fetch<JComponent>().paintOutsets.left
-            assertNotEquals(0, shadow, "the shadow reaches past the layout bounds")
-            val all = 3 + shadow
+            val reach = blurOutsets(8)
+            val all = 3 + reach
             assertEquals(Insets(all, all, all, all), card.insets, "the border and the shadow")
-            assertEquals(Dimension(120, 80), onNodeWithTag("column").fetch().size, "the column holds the content area")
+            onNodeWithTag("column").assertProperty(Dimension(120, 80), "the column holds the content area") { size }
             assertEquals(
                 Rectangle(-all, -all, 120 + 2 * all, 80 + 2 * all),
                 card.bounds,
@@ -145,7 +150,6 @@ class PaintOutsetsDecoratedTest {
     fun underNoneTheShadowTakesSpaceUnderAFoundationParent() =
         runComposeSwingTest {
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 Column(modifier = SwingModifier.testTag("column")) {
                     Box(modifier = SwingModifier.fillMaxWidth().height(10))
                     ShadowedCard(
@@ -156,26 +160,24 @@ class PaintOutsetsDecoratedTest {
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val shadow = onNodeWithTag("reference").fetch<JComponent>().paintOutsets.left
-            assertNotEquals(0, shadow, "the shadow reaches past the layout bounds")
-            val all = 3 + shadow
+            val reach = blurOutsets(8)
+            val all = 3 + reach
             assertEquals(Insets(all, all, all, all), card.insets, "the border and the shadow")
             assertEquals(
                 Rectangle(0, 10, 120 + 2 * all, 80 + 2 * all),
                 card.bounds,
                 "the box is the bounds: the content and the insets",
             )
-            assertEquals(card.bounds, card.layoutBounds.apply { grow(shadow, shadow) }, "the shadow is inside the box")
-            assertEquals(10 + card.height, onNodeWithTag("next").fetch().y, "the neighbor below starts below it")
+            assertEquals(Rectangle(reach, 10 + reach, 126, 86), card.layoutBounds, "the shadow is inside the box")
+            onNodeWithTag("next").assertProperty(10 + card.height, "the neighbor below starts below it") { y }
             val image = onNodeWithTag("column").captureToImage()
-            assertNotEquals(0, image.getRGB(card.width / 2, 10 + shadow - 2), "the shadow paints inside the box")
+            assertNotEquals(0, image.getRGB(card.width / 2, 10 + reach - 2), "the shadow paints inside the box")
         }
 
     @Test
     fun underNoneTheShadowTakesSpaceUnderASwingParent() =
         runComposeSwingTest {
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 SwingNode(
                     factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) },
                     modifier = SwingModifier.testTag("panel").background(Color.WHITE).opaque(true),
@@ -187,16 +189,20 @@ class PaintOutsetsDecoratedTest {
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val shadowOutsets = onNodeWithTag("reference").fetch<JComponent>().paintOutsets
-            assertEquals(shadowOutsets, card.paintOutsets, "the whole shadow, as a Foundation parent gives")
-            val all = 3 + shadowOutsets.left
+            val reach = blurOutsets(8)
+            val all = 3 + reach
+            assertEquals(
+                Insets(reach, reach, reach, reach),
+                card.paintOutsets,
+                "the whole shadow, as a Foundation parent gives",
+            )
             assertEquals(Insets(all, all, all, all), card.insets, "the border and the whole shadow")
             assertEquals(Dimension(120 + 2 * all, 80 + 2 * all), card.preferredSize)
-            assertEquals(card.preferredSize, card.size)
+            assertEquals(Dimension(120 + 2 * all, 80 + 2 * all), card.size)
             val image = onNodeWithTag("panel").captureToImage()
             assertNotEquals(
                 Color.WHITE.rgb,
-                image.getRGB(card.x + all - 4, card.y + card.height / 2),
+                image.getRGB(card.x + reach - 1, card.y + card.height / 2),
                 "the shadow paints",
             )
         }
@@ -222,8 +228,8 @@ class PaintOutsetsDecoratedTest {
                 assertEquals(Insets(0, 0, 0, 0), card.paintOutsets, "$each")
                 val image = onNodeWithTag("panel").captureToImage()
                 val middle = card.y + card.height / 2
-                assertEquals(Color.BLUE.rgb, image.getRGB(card.x, middle), "$each: the card paints up to its bounds")
-                assertEquals(Color.WHITE.rgb, image.getRGB(card.x - 2, middle), "$each: its shadow is clipped there")
+                image.assertPixelColor(Color.BLUE, card.x, middle, "$each: the card paints up to its bounds")
+                image.assertPixelColor(Color.WHITE, card.x - 2, middle, "$each: its shadow is clipped there")
             }
         }
 
@@ -232,33 +238,35 @@ class PaintOutsetsDecoratedTest {
         runComposeSwingTest {
             var value by mutableStateOf(PaintOutsets.Decoration)
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) {
                     ShadowedCard("card", SwingModifier.paintOutsets(value))
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val shadow = onNodeWithTag("reference").fetch<JComponent>().paintOutsets.left
-            val values = listOf(PaintOutsets.Decoration to 0, PaintOutsets.None to shadow, PaintOutsets.Decoration to 0)
-            for ((each, inLayout) in values) {
+            val all = 3 + blurOutsets(8)
+            val values =
+                listOf(
+                    Triple(PaintOutsets.Decoration, 3, Dimension(126, 86)),
+                    Triple(PaintOutsets.None, all, Dimension(120 + 2 * all, 80 + 2 * all)),
+                    Triple(PaintOutsets.Decoration, 3, Dimension(126, 86)),
+                )
+            for ((each, all, size) in values) {
                 value = each
                 awaitIdle()
-                val all = 3 + inLayout
                 assertEquals(Insets(all, all, all, all), card.insets, "$each: the border and the shadow in layout")
-                assertEquals(Dimension(120 + 2 * all, 80 + 2 * all), card.size, "$each")
+                assertEquals(size, card.size, "$each")
             }
         }
 
     /**
-     * A value that answers otherwise once the container's insets or look and feel change, which revalidates it, sizes
+     * A value that reports otherwise once the container's insets or look and feel change, which revalidates it, sizes
      * it again at the end of that validation.
      */
     @Test
-    fun aValueAnsweringOtherwiseUnderASwingParentResizesAFoundationContainer() =
+    fun aValueReportingOtherwiseUnderASwingParentResizesAFoundationContainer() =
         runComposeSwingTest {
-            val value = AnsweringValue(named = Int.MAX_VALUE)
+            val value = ReportingValue(named = Int.MAX_VALUE)
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) {
                     Box(
                         modifier =
@@ -279,7 +287,7 @@ class PaintOutsetsDecoratedTest {
             box.revalidate()
             awaitIdle()
 
-            val all = 3 + onNodeWithTag("reference").fetch<JComponent>().paintOutsets.left
+            val all = 3 + blurOutsets(8)
             assertEquals(Insets(all, all, all, all), box.insets, "the border and the whole shadow")
             assertEquals(Dimension(120 + 2 * all, 80 + 2 * all), box.size)
         }
@@ -291,12 +299,10 @@ class PaintOutsetsDecoratedTest {
             var inColumn by mutableStateOf(true)
             val card = movableContentOf { ShadowedCard("card", SwingModifier.paintOutsets(value)) }
             setContent {
-                Column { ShadowedCard("reference", SwingModifier) }
                 Column { if (inColumn) card() }
                 SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 10, 10)) }) { if (!inColumn) card() }
             }
             val moved = onNodeWithTag("card").fetch<JComponent>()
-            val all = 3 + onNodeWithTag("reference").fetch<JComponent>().paintOutsets.left
 
             value = PaintOutsets.None
             awaitIdle()
@@ -305,6 +311,7 @@ class PaintOutsetsDecoratedTest {
 
             assertSame(moved, onNodeWithTag("card").fetch())
             assertTrue(moved.parent.layout is FlowLayout)
+            val all = 3 + blurOutsets(8)
             assertEquals(Insets(all, all, all, all), moved.insets, "the border and the shadow in layout")
         }
 
@@ -321,18 +328,15 @@ class PaintOutsetsDecoratedTest {
                     ShadowedCard("swing", SwingModifier.paintOutsets(TwoPixels))
                 }
             }
-            val foundation = onNodeWithTag("foundation").fetch<JComponent>()
-            val shadow = foundation.paintOutsets.left
-            val inLayout = shadow - 2
-            assertEquals(
-                Rectangle(inLayout, inLayout, 126, 86),
-                foundation.layoutBounds,
+            val reach = blurOutsets(8)
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("foundation")).assertProperty(
+                Rectangle(reach - 2, reach - 2, 126, 86),
                 "under a Foundation parent the box is the bounds less 2 px on each side",
-            )
-            assertEquals(86 + 2 * inLayout, onNodeWithTag("next").fetch().layoutBounds.y)
+            ) { layoutBounds }
+            onNodeWithTag("next").assertProperty(86 + 2 * (reach - 2)) { layoutBounds.y }
 
             val swing = onNodeWithTag("swing").fetch<JComponent>()
-            val all = 3 + inLayout
+            val all = 3 + reach - 2
             assertEquals(Insets(all, all, all, all), swing.insets, "the border and the shadow less 2 px")
             assertEquals(Dimension(120 + 2 * all, 80 + 2 * all), swing.size)
         }
@@ -450,7 +454,14 @@ class PaintOutsetsDecoratedTest {
                     ShadowedCard("swing", SwingModifier.paintOutsets(value), radius)
                 }
             }
-            for (each in listOf(PaintOutsets.Decoration, PaintOutsets.FullInsets, TestFocusRing, PaintOutsets.None)) {
+            val cases =
+                listOf(
+                    PaintOutsets.Decoration to 0,
+                    PaintOutsets.FullInsets to 0,
+                    TestFocusRing to 0,
+                    PaintOutsets.None to 1,
+                )
+            for ((each, expected) in cases) {
                 value = each
                 awaitIdle()
                 measures = 0
@@ -459,7 +470,6 @@ class PaintOutsetsDecoratedTest {
                 radius++
                 awaitIdle()
 
-                val expected = if (each == PaintOutsets.None) 1 else 0
                 assertEquals(expected, measures, "$each: measures under a Foundation parent")
                 assertEquals(expected, layout.passes, "$each: layouts under a Swing parent")
             }
@@ -483,8 +493,8 @@ class PaintOutsetsDecoratedTest {
             for (each in listOf(null, PaintOutsets.Decoration, PaintOutsets.None, PaintOutsets.FullInsets)) {
                 value = each
                 awaitIdle()
-                assertEquals(Rectangle(0, 0, 120, 80), onNodeOfType<AwtCard>().fetch().layoutBounds, "$each")
-                assertEquals(80, onNodeWithTag("next").fetch().layoutBounds.y, "$each: the shadow takes no space")
+                onNodeOfType<AwtCard>().assertProperty(Rectangle(0, 0, 120, 80), "$each") { layoutBounds }
+                onNodeWithTag("next").assertProperty(80, "$each: the shadow takes no space") { layoutBounds.y }
             }
         }
 
@@ -542,8 +552,8 @@ private fun ShadowedCard(
     )
 }
 
-/** Names [named] on every side, an answer a test changes as a look and feel would. */
-private class AnsweringValue(
+/** Reports [named] on every side, a value a test changes as a look and feel would. */
+private class ReportingValue(
     var named: Int,
 ) : PaintOutsets {
     override fun outsetsOf(
@@ -612,9 +622,10 @@ private class Buttons(
         )
         val image = row.captureToImage()
         for ((button, box) in listOf("stock" to stockBox, "shadowed" to shadowBox)) {
-            assertEquals(
-                Color.RED.rgb,
-                image.getRGB(origin.left + box.x + RING, origin.top + box.y + box.height / 2),
+            image.assertPixelColor(
+                Color.RED,
+                origin.left + box.x + RING,
+                origin.top + box.y + box.height / 2,
                 "$name: the $button button's line",
             )
         }
@@ -629,4 +640,73 @@ private class CountingFlowLayout : FlowLayout(LEADING, 10, 10) {
         passes++
         super.layoutContainer(target)
     }
+}
+
+/** A decoration's outsets plus a 2 px focus ring, as an app's value for a look and feel with one. */
+private object TestFocusRing : PaintOutsets {
+    override fun outsetsOf(
+        component: JComponent,
+        insets: Insets,
+        decorationOutsets: Insets,
+    ): Insets {
+        val d = decorationOutsets
+        return Insets(d.top + RING, d.left + RING, d.bottom + RING, d.right + RING)
+    }
+}
+
+/**
+ * A border of a margin, a 1 px line and outside it a [RING] px focus ring, painted only while focused: the shape of a
+ * look and feel's text field or button border. The line is [RING] px in from the rectangle it is given.
+ */
+private class RingBorder(
+    private val color: Color,
+) : AbstractBorder() {
+    override fun getBorderInsets(
+        c: Component,
+        insets: Insets,
+    ): Insets {
+        insets.set(RING + 1 + 2, RING + 1 + 14, RING + 1 + 2, RING + 1 + 14)
+        return insets
+    }
+
+    override fun paintBorder(
+        c: Component,
+        g: Graphics,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) {
+        g.color = color
+        g.drawRect(x + RING, y + RING, width - 2 * RING - 1, height - 2 * RING - 1)
+    }
+}
+
+/** A button painting through its decoration, written to the recipe; its UI delegate sizes it from its insets. */
+private class ShadowButton(
+    text: String,
+) : JButton(text),
+    Decoratable {
+    override var decoration: Decoration = Decoration.None
+
+    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
+
+    override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
+
+    override fun paintBorder(g: Graphics) {
+        val box = decoration.localLayoutBounds(this)
+        border?.paintBorder(this, g, box.x, box.y, box.width, box.height)
+    }
+
+    override fun getInsets(): Insets = decoration.insets(super.getInsets())
+
+    override fun getInsets(insets: Insets?): Insets =
+        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
+
+    override fun contains(
+        x: Int,
+        y: Int,
+    ): Boolean = decoration.contains(this, x, y)
+
+    override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
 }

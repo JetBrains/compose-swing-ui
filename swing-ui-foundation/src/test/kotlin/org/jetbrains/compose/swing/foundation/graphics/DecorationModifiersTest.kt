@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.lastElement
@@ -14,6 +15,9 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -60,8 +64,8 @@ class DecorationModifiersTest {
 
             val painted = onNodeWithTag("decorated-panel").captureToImage()
 
-            assertEquals(Color.BLUE.rgb, painted.getRGB(32, 32), "The brush fills what the clip leaves.")
-            assertEquals(0, painted.getRGB(0, 0), "A corner lies outside the circle and stays unpainted.")
+            painted.assertPixelColor(Color.BLUE, 32, 32, "The brush fills what the clip leaves.")
+            painted.assertPixelColor(Color(0, true), 0, 0, "A corner lies outside the circle and stays unpainted.")
         }
 
     @Test
@@ -115,15 +119,17 @@ class DecorationModifiersTest {
                 }
             }
 
-            val faded = onNodeWithTag("decorated-panel").fetch<JComponent>()
             val painted = onNodeWithTag("decorated-panel").captureToImage()
 
             assertTrue(painted.getRGB(32, 32) ushr 24 in 127..128, "Half opacity should cover half.")
-            assertFalse(faded.isOpaque, "A faded component lets what is behind it show through.")
-            assertTrue(
-                onNodeWithTag("reversed-panel").fetch<JComponent>().isOpaque,
+            onNodeWithTag("decorated-panel").assertProperty(
+                false,
+                "A faded component lets what is behind it show through.",
+            ) { isOpaque }
+            onNodeWithTag("reversed-panel").assertProperty(
+                true,
                 "A decoration that keeps covering the area leaves the component opaque.",
-            )
+            ) { isOpaque }
         }
 
     @Test
@@ -144,17 +150,15 @@ class DecorationModifiersTest {
                 }
             }
 
-            val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
             val painted = onNodeWithTag("decorated-panel").captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(0, 0), "The stroke runs inside the component's edge.")
-            assertEquals(0, painted.getRGB(32, 32), "The stroke is an outline, not a fill.")
-            assertEquals(
+            painted.assertPixelColor(Color.RED, 0, 0, "The stroke runs inside the component's edge.")
+            painted.assertPixelColor(Color(0, true), 32, 32, "The stroke is an outline, not a fill.")
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("decorated-panel")).assertProperty(
                 Insets(0, 0, 0, 0),
-                panel.insets,
                 "A border decoration paints over the content rather than taking pixels off it, which is what " +
                     "the border slot does.",
-            )
+            ) { insets }
         }
 
     @Test
@@ -267,8 +271,8 @@ class DecorationModifiersTest {
 
             val painted = onNodeWithTag("decorated-panel").captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(0, 0), "The stroke is filled with the brush.")
-            assertEquals(0, painted.getRGB(32, 32), "The stroke is an outline, not a fill.")
+            painted.assertPixelColor(Color.RED, 0, 0, "The stroke is filled with the brush.")
+            painted.assertPixelColor(Color(0, true), 32, 32, "The stroke is an outline, not a fill.")
         }
 
     @Test
@@ -330,10 +334,11 @@ class DecorationModifiersTest {
             awaitIdle()
             val wide = onNodeWithTag("decorated-panel").captureToImage()
 
-            assertEquals(0, wide.getRGB(126, 2), "The corner lies outside the ellipse and is cut away.")
-            assertEquals(
-                Color.BLUE.rgb,
-                wide.getRGB(100, 32),
+            wide.assertPixelColor(Color(0, true), 126, 2, "The corner lies outside the ellipse and is cut away.")
+            wide.assertPixelColor(
+                Color.BLUE,
+                100,
+                32,
                 "The outline is resolved at the size the component stands at, so the wide component is cut to the " +
                     "ellipse spanning its width.",
             )
@@ -368,7 +373,7 @@ class DecorationModifiersTest {
     }
 
     @Test
-    fun noDecorationChangesTheSizeOfWhatItDecoratesOrWhereItAnswers() =
+    fun noDecorationChangesTheSizeOfWhatItDecoratesOrWhereItReactsToTheMouse() =
         runComposeSwingTest {
             setContent {
                 Box {
@@ -399,7 +404,7 @@ class DecorationModifiersTest {
             assertSame(
                 child,
                 SwingUtilities.getDeepestComponentAt(decorated, child.x + 1, child.y + 1),
-                "The content answers the mouse where it is painted, whatever is declared around it.",
+                "The content reacts to the mouse where it is painted, whatever is declared around it.",
             )
         }
 

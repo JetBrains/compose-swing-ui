@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -18,12 +19,14 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
 import java.awt.Component
 import java.awt.GraphicsEnvironment
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -51,9 +54,10 @@ class PlacementZIndexTest {
             }
 
             val container = onNodeWithTag(CONTAINER_TAG)
-            assertEquals(
-                Color.RED.rgb,
-                container.captureToImage().getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            container.captureToImage().assertPixelColor(
+                Color.RED,
+                CHILD_WIDTH / 2,
+                CHILD_HEIGHT / 2,
                 "the child placed at the larger zIndex must paint over the one declared after it",
             )
             assertEquals(
@@ -106,9 +110,10 @@ class PlacementZIndexTest {
             }
 
             val container = onNodeWithTag(CONTAINER_TAG)
-            assertEquals(
-                Color.RED.rgb,
-                container.captureToImage().getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            container.captureToImage().assertPixelColor(
+                Color.RED,
+                CHILD_WIDTH / 2,
+                CHILD_HEIGHT / 2,
                 "the child a layer lifts must paint over the one declared after it",
             )
             assertEquals(
@@ -133,9 +138,10 @@ class PlacementZIndexTest {
             }
 
             val container = onNodeWithTag(CONTAINER_TAG)
-            assertEquals(
-                Color.RED.rgb,
-                container.captureToImage().getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            container.captureToImage().assertPixelColor(
+                Color.RED,
+                CHILD_WIDTH / 2,
+                CHILD_HEIGHT / 2,
                 "the child placed with a layer at the larger zIndex must paint over the one declared after it",
             )
             assertEquals(
@@ -161,7 +167,7 @@ class PlacementZIndexTest {
 
             assertEquals(
                 listOf("child b", "child a"),
-                stackedChildren().map { (it as JLabel).text },
+                stackedChildren<JLabel>().map { it.text },
                 "0.6 placed plus 0.6 declared must lift child a over child b placed at 1.0",
             )
         }
@@ -180,7 +186,7 @@ class PlacementZIndexTest {
                 SideEffect { compositions++ }
                 Box { InsetOverlappingChildren { index -> if (index == 0) lifted else 0f } }
             }
-            val container = windowContainer()
+            val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val (first, second) = container.components.reversed()
             assertTrue(container.isValidUpToTheValidateRoot(), "the realized container must start valid")
             val compositionsBefore = compositions
@@ -208,7 +214,7 @@ class PlacementZIndexTest {
             setWindowContent {
                 Box { InsetOverlappingChildren { index -> if (index == 0) lifted else 0f } }
             }
-            val container = windowContainer()
+            val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val stacked = container.components.toList()
 
             lifted = 1f

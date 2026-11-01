@@ -351,7 +351,7 @@ class ForwardedIntrinsicsTest {
                 )
 
         /**
-         * Lays [scene], whose container reads its [size] intrinsic height, out without and with forwarding code, and
+         * Lays [layout], whose container reads its [size] intrinsic height, out without and with forwarding code, and
          * asserts both place the container and the leaf alike, that the container is as tall as the leaf plus the
          * [trailing] extent the forwarding adds below it, that the leaf takes its [size] height at its width, and that
          * a container leaf's content keeps its ratio inside the leaf.
@@ -360,10 +360,10 @@ class ForwardedIntrinsicsTest {
             case: String,
             size: IntrinsicSize,
             trailing: Int,
-            scene: @Composable ColumnScope.(forwarded: Boolean) -> Unit,
+            layout: @Composable ColumnScope.(forwarded: Boolean) -> Unit,
         ) {
-            val builtIn = laidOut(size, CONTAINER_TAG, LEAF_TAG) { scene(false) }
-            val forwarded = laidOut(size, CONTAINER_TAG, LEAF_TAG) { scene(true) }
+            val builtIn = laidOut(size, CONTAINER_TAG, LEAF_TAG) { layout(false) }
+            val forwarded = laidOut(size, CONTAINER_TAG, LEAF_TAG) { layout(true) }
 
             assertEquals(builtIn, forwarded, "$case: the tree lays out as it does without the forwarding code")
             assertEquals(

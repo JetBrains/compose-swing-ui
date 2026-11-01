@@ -13,6 +13,10 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.SwingUtilities
@@ -88,47 +92,45 @@ class BaselineAtWidthTest {
         }
     }
 
-    @Test
-    fun aRowAlignsAStockChildByTheBaselineItHasAtTheWidthItIsGranted() {
-        val routes = listOf("alignByBaseline", "alignBy reading the baseline", "alignByBaseline of a Box holding it")
-        for ((kind, leaf) in WrappingTexts) {
-            for (route in routes) {
-                runComposeSwingTest {
-                    var width by mutableIntStateOf(400)
-                    setContent {
-                        val slot = SwingModifier.preferredSize(400 * 2, SLOT_HEIGHT)
-                        Panel(PanelLayout.Border(), modifier = slot) {
-                            Row(modifier = SwingModifier.center().testTag("row")) {
-                                val sized = SwingModifier.testTag("leaf").width(width).height(100)
-                                when (route) {
-                                    "alignByBaseline" -> leaf(sized.alignByBaseline())
-                                    "alignBy reading the baseline" -> leaf(sized.alignBy { it[FirstBaseline] })
-                                    else -> Box(modifier = SwingModifier.alignByBaseline()) { leaf(sized) }
-                                }
-                                Label("Side", modifier = SwingModifier.testTag("side").alignByBaseline())
-                            }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("baselineCases")
+    fun aRowAlignsAStockChildByTheBaselineItHasAtTheWidthItIsGranted(
+        leaf: @Composable (SwingModifier) -> Unit,
+        route: String,
+    ) {
+        runComposeSwingTest {
+            var width by mutableIntStateOf(400)
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400 * 2, SLOT_HEIGHT)) {
+                    Row(modifier = SwingModifier.center().testTag("row")) {
+                        val sized = SwingModifier.testTag("leaf").width(width).height(100)
+                        when (route) {
+                            "alignByBaseline" -> leaf(sized.alignByBaseline())
+                            "alignBy reading the baseline" -> leaf(sized.alignBy { it[FirstBaseline] })
+                            else -> Box(modifier = SwingModifier.alignByBaseline()) { leaf(sized) }
                         }
-                    }
-                    val row = onNodeWithTag("row").fetch<JComponent>()
-                    val text = onNodeWithTag("leaf").fetch<JComponent>()
-                    val side = onNodeWithTag("side").fetch<JComponent>()
-                    for (granted in listOf(400, 400 / 2, 400)) {
-                        width = granted
-                        awaitIdle()
-
-                        val name = "$kind, $route, granted $granted wide"
-                        assertEquals(granted, text.width, "$name: the width granted")
-                        val settled = text.settledBaseline()
-                        val sideBaseline = side.settledBaseline()
-                        val line = maxOf(settled, sideBaseline)
-                        assertEquals(
-                            if (settled < 0) 0 else line - settled,
-                            text.topIn(row),
-                            "$name: the text sits where its baseline at that width puts it",
-                        )
-                        assertEquals(line - sideBaseline, side.topIn(row), "$name: the side label sits on that line")
+                        Label("Side", modifier = SwingModifier.testTag("side").alignByBaseline())
                     }
                 }
+            }
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            val text = onNodeWithTag("leaf").fetch<JComponent>()
+            val side = onNodeWithTag("side").fetch<JComponent>()
+            for (granted in listOf(400, 400 / 2, 400)) {
+                width = granted
+                awaitIdle()
+
+                val at = "$route, granted $granted wide"
+                assertEquals(granted, text.width, "$at: the width granted")
+                val settled = text.settledBaseline()
+                val sideBaseline = side.settledBaseline()
+                val line = maxOf(settled, sideBaseline)
+                assertEquals(
+                    if (settled < 0) 0 else line - settled,
+                    text.topIn(row),
+                    "$at: the text sits where its baseline at that width puts it",
+                )
+                assertEquals(line - sideBaseline, side.topIn(row), "$at: the side label sits on that line")
             }
         }
     }
@@ -173,6 +175,15 @@ class BaselineAtWidthTest {
             assertEquals(150 * 2, label.width, "the label is placed at the new width")
             assertTrue(label.baselineReads > 0, "the baseline reads when the width changes")
         }
+
+    companion object {
+        @JvmStatic
+        fun baselineCases(): List<Arguments> =
+            WrappingTexts.flatMap { (kind, leaf) ->
+                listOf("alignByBaseline", "alignBy reading the baseline", "alignByBaseline of a Box holding it")
+                    .map { route -> Arguments.of(Named.of("$kind, $route", leaf), route) }
+            }
+    }
 }
 
 private fun baselineReads(

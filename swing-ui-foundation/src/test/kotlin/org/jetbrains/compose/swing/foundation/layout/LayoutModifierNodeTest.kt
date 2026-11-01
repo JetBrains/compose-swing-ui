@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Dimension
@@ -155,7 +156,7 @@ class LayoutModifierNodeTest {
 
             row.preferredSize
             row.minimumSize
-            assertEquals(0, measures, "a size query answers through the node's intrinsic hooks")
+            assertEquals(0, measures, "a size query goes through the node's intrinsic hooks")
 
             row.validate()
             assertTrue(measures > 0, "a layout pass measures the node")
@@ -190,12 +191,12 @@ class LayoutModifierNodeTest {
                 row.preferredSize,
                 "the row must hold the baseline the node's intrinsicPlaceable pass-through reads from the child",
             )
-            assertEquals(0, measures, "a size query must answer through the node's intrinsic hooks")
+            assertEquals(0, measures, "a size query must go through the node's intrinsic hooks")
         }
 
-    /** A node that overrides no intrinsic hook answers a size query through its own `measure`, as androidx's does. */
+    /** A node that overrides no intrinsic hook serves a size query through its own `measure`, as androidx's does. */
     @Test
-    fun aLayoutModifierNodesSizeQueriesAnswerThroughItsOwnMeasure() =
+    fun aLayoutModifierNodesSizeQueriesGoThroughItsOwnMeasure() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
@@ -203,11 +204,10 @@ class LayoutModifierNodeTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(2 * CHILD_WIDTH, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "the row must ask for the width the node's measure reports",
-            )
+            ) { preferredSize }
         }
 }
 
@@ -242,7 +242,7 @@ private class FixedBaselinePanel(
     ): Int = baseline
 }
 
-/** Counts each run of the node's `measure`; its intrinsic hooks answer without running it. */
+/** Counts each run of the node's `measure`; its intrinsic hooks return without running it. */
 internal fun SwingModifier.countingMeasures(onMeasure: () -> Unit): SwingModifier =
     this then MeasureCountingElement(onMeasure)
 

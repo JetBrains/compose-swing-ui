@@ -10,6 +10,10 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.params.ParameterizedTest
@@ -26,39 +30,40 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Each answer a [Layout] caches keeps the reads behind it observed while another answer is computed again:
+ * Each result a [Layout] caches keeps the reads behind it observed while another result is computed again:
  * the preferred and minimum sizes, the measure the parent lays out with, the extent the container settles
  * on, and its placement.
  */
-class LayoutAnswerObservationTest {
+class LayoutReadObservationTest {
     /**
      * Swing caches the preferred and the minimum size apart, so each keeps its own reads: asking for the
-     * minimum size for the first time, after the preferred size was answered under an earlier snapshot,
+     * minimum size for the first time, after the preferred size was reported under an earlier snapshot,
      * leaves the preferred-size read observed.
      */
     @Test
     fun aPreferredSizeReadStaysObservedAfterTheMinimumSizeIsAsked() =
         runWindowTest {
+            val window = onWindowWithTitle(WINDOW_TITLE)
             val preferredRead = mutableIntStateOf(0)
             val minimumRead = mutableIntStateOf(0)
             val unrelated = mutableIntStateOf(0)
-            val counts = QuestionCounts()
+            val counts = mutableListOf<PolicyOperation>()
             setStockParentContainer(
-                counts.questionReadingPolicy(
+                counts.queryReadingPolicy(
                     PolicyOperation.Preferred reads { preferredRead.intValue },
                     PolicyOperation.Minimum reads { minimumRead.intValue },
                 ),
             )
-            val container = windowContainer()
-            assertTrue(counts.of(PolicyOperation.Preferred) > 0, "the parent must have asked for the preferred size")
-            assertEquals(0, counts.of(PolicyOperation.Minimum), "nothing may have asked for the minimum size yet")
+            val container = window.onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            assertTrue(PolicyOperation.Preferred in counts)
+            assertEquals(0, counts.count { it == PolicyOperation.Minimum })
 
             // Moves the global snapshot forward, so the next observeReads replaces reads recorded under an
             // earlier snapshot even when nothing else applied one in between.
             unrelated.intValue = 1
             Snapshot.sendApplyNotifications()
             container.minimumSize
-            assertEquals(1, counts.of(PolicyOperation.Minimum))
+            assertEquals(1, counts.count { it == PolicyOperation.Minimum })
 
             assertReadStillObserved(container, preferredRead, "the preferred-size read must still be observed")
         }
@@ -69,88 +74,81 @@ class LayoutAnswerObservationTest {
      */
     @ParameterizedTest
     @EnumSource(PolicyOperation::class, names = ["Preferred", "Minimum"])
-    fun aSizeReadStaysObservedAfterTheParentMeasuresAgain(question: PolicyOperation) =
+    fun aSizeReadStaysObservedAfterTheParentMeasuresAgain(query: PolicyOperation) =
         runWindowTest {
+            val window = onWindowWithTitle(WINDOW_TITLE)
             val sizeRead = mutableIntStateOf(0)
             val parentPass = mutableIntStateOf(0)
-            val counts = QuestionCounts()
+            val counts = mutableListOf<PolicyOperation>()
             setMeasuredContainer(
-                counts.questionReadingPolicy(question reads { sizeRead.intValue }),
+                counts.queryReadingPolicy(query reads { sizeRead.intValue }),
                 parentRead = { parentPass.intValue },
             )
-            val container = windowContainer()
-            container.ask(question)
-            val sizeAsked = counts.of(question)
-            val measuredAsked = counts.of(PolicyOperation.Loose)
-            assertTrue(sizeAsked > 0, "the $question size must have been answered")
+            val container = window.onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            container.ask(query)
+            assertTrue(query in counts)
+            counts.clear()
 
             parentPass.intValue = 1
             awaitIdle()
-            assertTrue(
-                counts.of(PolicyOperation.Loose) > measuredAsked,
-                "the parent must have measured the container again",
-            )
-            assertEquals(sizeAsked, counts.of(question), "the $question size must have stayed cached")
+            assertTrue(PolicyOperation.Loose in counts)
+            assertEquals(0, counts.count { it == query })
 
-            assertReadStillObserved(container, sizeRead, "the $question-size read must still be observed")
+            assertReadStillObserved(container, sizeRead, "the $query-size read must still be observed")
         }
 
     /** A standalone offer stays observed after the stock parent lays the container out at its assigned bounds. */
     @Test
     fun aMeasureReadStaysObservedAfterTheContainerSettlesAgain() =
         runWindowTest {
+            val window = onWindowWithTitle(WINDOW_TITLE)
             val measureRead = mutableIntStateOf(0)
             val settleRead = mutableIntStateOf(0)
-            val counts = QuestionCounts()
+            val counts = mutableListOf<PolicyOperation>()
             setStockParentContainer(
-                counts.questionReadingPolicy(
+                counts.queryReadingPolicy(
                     PolicyOperation.Loose reads { measureRead.intValue },
                     PolicyOperation.Settle reads { settleRead.intValue },
                 ),
             )
-            val container = windowContainer() as ConstrainedPanel
+            val container = window.onNodeWithTag(CONTAINER_TAG).fetch<ConstrainedPanel>()
             // An offer smaller than the container, so the layout pass cannot reuse the measure it yields.
             container.measure(Constraints(maxWidth = CHILD_WIDTH / 2, maxHeight = CHILD_HEIGHT / 2))
-            val measuredAsked = counts.of(PolicyOperation.Loose)
-            val settledAsked = counts.of(PolicyOperation.Settle)
+            counts.clear()
 
             container.doLayout()
-            assertTrue(counts.of(PolicyOperation.Settle) > settledAsked, "the layout pass must have settled afresh")
-            assertEquals(
-                measuredAsked,
-                counts.of(PolicyOperation.Loose),
-                "the stock parent must not repeat the explicit offer",
-            )
+            assertTrue(PolicyOperation.Settle in counts)
+            assertEquals(0, counts.count { it == PolicyOperation.Loose })
 
             assertReadStillObserved(container, measureRead, "the read behind the explicit offer must still be observed")
         }
 
-    /** A placement replay keeps the read behind an earlier answer observed. */
+    /** A placement replay keeps the read behind an earlier result observed. */
     @ParameterizedTest
     @EnumSource(PolicyOperation::class, names = ["Preferred", "Settle"])
-    fun aReadStaysObservedAfterAPlacementReplay(question: PolicyOperation) =
+    fun aReadStaysObservedAfterAPlacementReplay(query: PolicyOperation) =
         runWindowTest {
+            val window = onWindowWithTitle(WINDOW_TITLE)
             val resultRead = mutableIntStateOf(0)
             var offset by mutableIntStateOf(0)
-            val counts = QuestionCounts()
+            val counts = mutableListOf<PolicyOperation>()
             setStockParentContainer(
-                counts.questionReadingPolicy(
-                    question reads { resultRead.intValue },
+                counts.queryReadingPolicy(
+                    query reads { resultRead.intValue },
                     PolicyOperation.Place reads { offset },
                 ),
             )
-            val container = windowContainer()
-            assertTrue(counts.of(PolicyOperation.Settle) > 0, "the container must have settled afresh")
-            val settledAsked = counts.of(PolicyOperation.Settle)
-            val placedAsked = counts.of(PolicyOperation.Place)
+            val container = window.onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            assertTrue(PolicyOperation.Settle in counts)
+            counts.clear()
 
             offset = 1
             Snapshot.sendApplyNotifications()
-            assertTrue(counts.of(PolicyOperation.Place) > placedAsked, "the placement must have replayed")
+            assertTrue(PolicyOperation.Place in counts)
             awaitIdle()
-            assertEquals(settledAsked, counts.of(PolicyOperation.Settle), "the replay must not settle again")
+            assertEquals(0, counts.count { it == PolicyOperation.Settle })
 
-            assertReadStillObserved(container, resultRead, "the $question read must still be observed")
+            assertReadStillObserved(container, resultRead, "the $query read must still be observed")
         }
 
     /**
@@ -160,6 +158,7 @@ class LayoutAnswerObservationTest {
     @Test
     fun aPlacementReplayThatResizesAChildLaysThatChildOut() =
         runWindowTest {
+            val window = onWindowWithTitle(WINDOW_TITLE)
             var wide by mutableStateOf(false)
             setWindowContent {
                 Layout(
@@ -178,22 +177,25 @@ class LayoutAnswerObservationTest {
                     modifier = containerModifier(200, 300),
                 )
             }
-            assertEquals(listOf(Rectangle(0, 0, 30, CHILD_HEIGHT)), windowRowChildBounds())
+            window.onNodeWithTag(CONTAINER_TAG).onChild().assertIsOfType<Container>().assertProperty(
+                listOf(Rectangle(0, 0, 30, CHILD_HEIGHT)),
+            ) { components.map { it.bounds } }
 
             wide = true
             Snapshot.sendApplyNotifications()
 
-            assertEquals(
+            window.onNodeWithTag(CONTAINER_TAG).onChild().assertIsOfType<Container>().assertProperty(
                 listOf(Rectangle(0, 0, 60, CHILD_HEIGHT)),
-                windowRowChildBounds(),
                 "the widened row must lay its weighted child out at the new width",
-            )
-            assertTrue(windowContainer().isValidUpToTheValidateRoot(), "the replay must leave the tree valid")
+            ) { components.map { it.bounds } }
+            window.onNodeWithTag(CONTAINER_TAG).assertProperty(true, "the replay must leave the tree valid") {
+                isValidUpToTheValidateRoot()
+            }
         }
 }
 
 /**
- * The questions [questionReadingPolicy] counts: Swing's preferred and minimum size queries, a measure under an
+ * The queries [queryReadingPolicy] counts: Swing's preferred and minimum size queries, a measure under an
  * offer, a settle at the bounds a stock parent assigned, and a run of the placement block.
  */
 enum class PolicyOperation {
@@ -204,32 +206,21 @@ enum class PolicyOperation {
     Place,
 }
 
-/** How often each [PolicyOperation] has been asked. */
-private class QuestionCounts {
-    private val counts = IntArray(PolicyOperation.entries.size)
-
-    fun of(question: PolicyOperation): Int = counts[question.ordinal]
-
-    fun record(question: PolicyOperation) {
-        counts[question.ordinal]++
-    }
-}
-
-/** Pairs this question with the [read] its policy makes each time it is asked. */
+/** Pairs this query with the [read] its policy makes each time it is asked. */
 private infix fun PolicyOperation.reads(read: () -> Unit): Pair<PolicyOperation, () -> Unit> = this to read
 
 /**
- * One child at the fixture child's size, counting in this receiver each question it is asked and running the
- * read [operationReads] names for that question.
+ * One child at the fixture child's size, counting in this receiver each query it is asked and running the
+ * read [operationReads] names for that query.
  */
-private fun QuestionCounts.questionReadingPolicy(
+private fun MutableList<PolicyOperation>.queryReadingPolicy(
     vararg operationReads: Pair<PolicyOperation, () -> Unit>,
 ): MeasurePolicy {
     val readsByOperation = operationReads.toMap()
     return object : MeasurePolicy {
-        private fun answer(question: PolicyOperation) {
-            record(question)
-            readsByOperation[question]?.invoke()
+        private fun report(query: PolicyOperation) {
+            add(query)
+            readsByOperation[query]?.invoke()
         }
 
         private fun MeasureScope.childLaidOut(
@@ -239,7 +230,7 @@ private fun QuestionCounts.questionReadingPolicy(
         ): MeasureResult {
             val placeable = measurables.single().measure(Constraints(maxWidth = CHILD_WIDTH, maxHeight = CHILD_HEIGHT))
             return layout(width, height) {
-                answer(PolicyOperation.Place)
+                report(PolicyOperation.Place)
                 placeable.place(0, 0)
             }
         }
@@ -248,7 +239,7 @@ private fun QuestionCounts.questionReadingPolicy(
             measurables: List<Measurable>,
             constraints: Constraints,
         ): MeasureResult {
-            answer(PolicyOperation.Loose)
+            report(PolicyOperation.Loose)
             return childLaidOut(
                 measurables,
                 constraints.constrainWidth(CHILD_WIDTH),
@@ -261,7 +252,7 @@ private fun QuestionCounts.questionReadingPolicy(
             width: Int,
             height: Int,
         ): MeasureResult {
-            answer(PolicyOperation.Settle)
+            report(PolicyOperation.Settle)
             return childLaidOut(measurables, width, height)
         }
 
@@ -269,7 +260,7 @@ private fun QuestionCounts.questionReadingPolicy(
             measurables: List<IntrinsicMeasurable>,
             height: Int,
         ): Int {
-            answer(PolicyOperation.Preferred)
+            report(PolicyOperation.Preferred)
             return CHILD_WIDTH
         }
 
@@ -282,7 +273,7 @@ private fun QuestionCounts.questionReadingPolicy(
             measurables: List<IntrinsicMeasurable>,
             height: Int,
         ): Int {
-            answer(PolicyOperation.Minimum)
+            report(PolicyOperation.Minimum)
             return 0
         }
 
@@ -340,12 +331,12 @@ private suspend fun ComposeSwingTest.setMeasuredContainer(
     }
 }
 
-/** Asks this component the Swing size query [question] names. */
-private fun JComponent.ask(question: PolicyOperation) {
-    when (question) {
+/** Asks this component the Swing size query [query] names. */
+private fun JComponent.ask(query: PolicyOperation) {
+    when (query) {
         PolicyOperation.Preferred -> preferredSize
         PolicyOperation.Minimum -> minimumSize
-        else -> throw IllegalArgumentException("$question is not a Swing size query")
+        else -> throw IllegalArgumentException("$query is not a Swing size query")
     }
 }
 
@@ -365,7 +356,3 @@ private fun assertReadStillObserved(
 
     assertFalse(container.isValid, message)
 }
-
-/** The bounds the row nested in the container under test assigned its children. */
-private fun ComposeSwingTest.windowRowChildBounds(): List<Rectangle> =
-    (windowContainer().getComponent(0) as Container).components.map { it.bounds }

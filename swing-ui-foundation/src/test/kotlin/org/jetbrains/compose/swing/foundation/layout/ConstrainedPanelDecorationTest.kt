@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
@@ -12,9 +13,11 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -29,7 +32,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import org.jetbrains.compose.swing.modifier.appearance.background as swingBackground
 
 /**
  * [Row], [Column] and [Box] are decorated components: each paints the decoration its modifier declares under the
@@ -46,15 +48,16 @@ class ConstrainedPanelDecorationTest {
                             .testTag("box")
                             .preferredSize(Dimension(64, 48))
                             .opaque(true)
-                            .swingBackground(Color.RED),
+                            .background(Color.RED),
                 )
             }
 
             val painted = onNodeWithTag("box").captureToImage()
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(32, 24),
+            painted.assertPixelColor(
+                Color.RED,
+                32,
+                24,
                 "an opaque constrained panel must paint its Swing background on the initial pass",
             )
         }
@@ -71,7 +74,7 @@ class ConstrainedPanelDecorationTest {
                                 .testTag("box")
                                 .preferredSize(Dimension(64, 48))
                                 .opaque(true)
-                                .swingBackground(Color.RED)
+                                .background(Color.RED)
                                 .clipToBounds(),
                     )
                 }
@@ -79,7 +82,7 @@ class ConstrainedPanelDecorationTest {
 
             val painted = onNodeWithTag("box").captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(32, 24), "the clip keeps the background inside the box")
+            painted.assertPixelColor(Color.RED, 32, 24, "the clip keeps the background inside the box")
         }
 
     @Test
@@ -99,9 +102,10 @@ class ConstrainedPanelDecorationTest {
 
             val painted = onNodeWithTag("box").captureToImage()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(32, 24),
+            painted.assertPixelColor(
+                Color.BLUE,
+                32,
+                24,
                 "the background the modifier declares must fill the box, the same way it fills any other " +
                     "Decoratable",
             )
@@ -128,9 +132,10 @@ class ConstrainedPanelDecorationTest {
 
             val painted = onNodeWithTag("box").captureToImage()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(32, 24),
+            painted.assertPixelColor(
+                Color.BLUE,
+                32,
+                24,
                 "the background the modifier declares must fill the box even though the Panel around it offers " +
                     "no Row, Column or Box scope",
             )
@@ -194,7 +199,7 @@ class ConstrainedPanelDecorationTest {
         }
 
     @Test
-    fun aSizeSetOnABoxAnswersAsSetWhileTheBoundsItIsGivenGrowByTheDecorationsOutsets() =
+    fun aSizeSetOnABoxIsKeptAsSetWhileTheBoundsItIsGivenGrowByTheDecorationsOutsets() =
         runComposeSwingTest {
             setContent {
                 Box {
@@ -208,14 +213,13 @@ class ConstrainedPanelDecorationTest {
                 }
             }
 
-            val box = onNodeWithTag("box").fetch<JComponent>()
+            val box = onNodeWithTag("box")
 
-            assertEquals(Dimension(64, 48), box.preferredSize, "a size set on the box answers as set")
-            assertEquals(
+            box.assertProperty(Dimension(64, 48), "a size set on the box is kept as set") { preferredSize }
+            box.assertProperty(
                 Dimension(64 + 2 * blurOutsets(8), 48 + 2 * blurOutsets(8)),
-                box.size,
                 "the bounds its Foundation parent gives it grow by the outsets the shadow needs around the content",
-            )
+            ) { size }
         }
 
     @Test
@@ -231,9 +235,9 @@ class ConstrainedPanelDecorationTest {
             }
             val reused = Insets(1, 1, 1, 1)
 
-            val answered = onNodeWithTag("box").fetch<JComponent>().getInsets(reused)
+            val result = onNodeWithTag("box").fetch<JComponent>().getInsets(reused)
 
-            assertSame(reused, answered, "the box must answer with the insets it is handed")
+            assertSame(reused, result, "the box must return the insets it is handed")
             assertEquals(Insets(8, 8, 8, 8), reused, "the paint outsets must be filled in")
         }
 }

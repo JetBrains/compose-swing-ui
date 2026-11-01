@@ -4,6 +4,10 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics2D
@@ -23,11 +27,31 @@ import kotlin.test.assertFalse
  * it as one image.
  */
 class ImageLayerAlignedRecordingTest {
-    @Test
-    fun anAlignedRecordingDrawsThePixelsPaintingDirectlyLeavesAt1x() = assertAlignedMatchesDirect(scale = 1.0)
+    /**
+     * Antialiased squares at sub-pixel offsets, recorded aligned and drawn back, leave every pixel exactly as painting
+     * them directly does.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("scales")
+    fun anAlignedRecordingDrawsThePixelsPaintingDirectlyLeavesAtEachScale(scale: Double) =
+        runComposeSwingTest {
+            val layer = ImageLayer()
+            val squares: (Graphics2D) -> Unit = { graphics ->
+                graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                graphics.color = Color.RED
+                graphics.fill(Rectangle2D.Double(2.25, 2.25, 10.5, 10.5))
+                graphics.color = Color.BLUE
+                graphics.fill(Rectangle2D.Double(7.75, 7.75, 10.5, 10.5))
+            }
+            val direct = paint(scale) { squares(it) }
+            val aligned =
+                paint(scale) { graphics ->
+                    layer.record(graphics, SIZE, SIZE, squares)
+                    layer.draw(graphics)
+                }
 
-    @Test
-    fun anAlignedRecordingDrawsThePixelsPaintingDirectlyLeavesAt2x() = assertAlignedMatchesDirect(scale = 2.0)
+            assertImagesPixelPerfect(direct, aligned)
+        }
 
     @Test
     fun anAlignedRecordingPaintsOnlyInsideTheDestinationClip() =
@@ -89,9 +113,7 @@ class ImageLayerAlignedRecordingTest {
                     layer.draw(graphics)
                 }
 
-            val overlap = image.getRGB(10, 10)
-            assertEquals(Color.BLUE.rgb and 0xFFFFFF, overlap and 0xFFFFFF, "the lower square does not show through")
-            assertEquals(128.0, (overlap ushr 24).toDouble(), 1.0, "the overlap is at the layer's alpha")
+            image.assertPixelColor(Color(0, 0, 255, 128), 10, 10, "the lower square does not show through")
         }
 
     @Test
@@ -179,30 +201,6 @@ class ImageLayerAlignedRecordingTest {
         assertImagesPixelPerfect(fresh.toBufferedImage(), layer.toBufferedImage())
     }
 
-    /**
-     * Antialiased squares at sub-pixel offsets, recorded aligned and drawn back, leave every pixel exactly as painting
-     * them directly does.
-     */
-    private fun assertAlignedMatchesDirect(scale: Double) =
-        runComposeSwingTest {
-            val layer = ImageLayer()
-            val squares: (Graphics2D) -> Unit = { graphics ->
-                graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                graphics.color = Color.RED
-                graphics.fill(Rectangle2D.Double(2.25, 2.25, 10.5, 10.5))
-                graphics.color = Color.BLUE
-                graphics.fill(Rectangle2D.Double(7.75, 7.75, 10.5, 10.5))
-            }
-            val direct = paint(scale) { squares(it) }
-            val aligned =
-                paint(scale) { graphics ->
-                    layer.record(graphics, SIZE, SIZE, squares)
-                    layer.draw(graphics)
-                }
-
-            assertImagesPixelPerfect(direct, aligned)
-        }
-
     private fun recordAndDraw(
         layer: ImageLayer,
         graphics: Graphics2D,
@@ -226,7 +224,10 @@ class ImageLayerAlignedRecordingTest {
             block(graphics)
         }
 
-    private companion object {
-        const val SIZE = 20
+    companion object {
+        private const val SIZE = 20
+
+        @JvmStatic
+        fun scales(): List<Arguments> = listOf(Arguments.of(Named.of("1x", 1.0)), Arguments.of(Named.of("2x", 2.0)))
     }
 }

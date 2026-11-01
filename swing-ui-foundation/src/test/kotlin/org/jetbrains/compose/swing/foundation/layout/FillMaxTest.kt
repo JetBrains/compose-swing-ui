@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -150,11 +151,10 @@ class FillMaxTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "an intrinsic query offers no bounded maximum, so fillMaxSize must keep the preferred extent",
-            )
+            ) { preferredSize }
         }
 
     @Test

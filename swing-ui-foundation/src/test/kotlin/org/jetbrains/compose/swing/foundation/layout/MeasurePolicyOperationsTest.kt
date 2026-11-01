@@ -281,8 +281,8 @@ private fun layOutAtTheOfferedExtent(panel: ConstrainedPanel) {
 }
 
 /**
- * A policy whose `measure` appends "offer" to [calls] and answers 80 by 60, and whose `measureAtAssignedSize` appends
- * "bounds" and answers the assigned extent.
+ * A policy whose `measure` appends "offer" to [calls] and returns 80 by 60, and whose `measureAtAssignedSize` appends
+ * "bounds" and returns the assigned extent.
  */
 private fun recordingOperations(calls: MutableList<String>): MeasurePolicy =
     object : MeasurePolicy {
@@ -305,7 +305,7 @@ private fun recordingOperations(calls: MutableList<String>): MeasurePolicy =
     }
 
 /**
- * A policy that measures 10 by 10 and answers [size] as its preferred size, appending each width it is asked at to
+ * A policy that measures 10 by 10 and returns [size] as its preferred size, appending each width it is asked at to
  * [askedAt].
  */
 private fun preferring(

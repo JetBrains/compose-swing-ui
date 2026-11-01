@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -10,6 +11,10 @@ import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.BorderLayout
@@ -50,9 +55,10 @@ class DecoratedTest {
 
             val painted = onNodeWithTag("panel").captureToImage()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(63, 63),
+            painted.assertPixelColor(
+                Color.BLUE,
+                63,
+                63,
                 "The background the decoration declares should fill the container.",
             )
         }
@@ -77,14 +83,11 @@ class DecoratedTest {
 
             val painted = onNodeWithTag("panel").captureToImage()
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(32, 32),
-                "The child paints inside the shape.",
-            )
-            assertEquals(
+            painted.assertPixelColor(Color.RED, 32, 32, "The child paints inside the shape.")
+            painted.assertPixelColor(
+                Color(0, true),
                 0,
-                painted.getRGB(0, 0),
+                0,
                 "A clip is applied before the children are painted, so a child overflowing the shape is cut at it.",
             )
         }
@@ -105,27 +108,28 @@ class DecoratedTest {
                 }
             }
             val panel = onNodeWithTag("panel").fetch<JComponent>()
-            val child = onNodeWithTag("child").fetch<JComponent>()
 
             assertEquals(Insets(6, 8, 10, 12), panel.insets, "The insets carry the border and the outsets.")
             assertEquals(Insets(6, 8, 10, 12), panel.getInsets(Insets(0, 0, 0, 0)), "Both overloads add the same.")
             assertEquals(
                 Dimension(64, 64),
                 panel.preferredSize,
-                "A preferred size set on the component answers as set.",
+                "A preferred size set on the component reads back as set.",
             )
             assertEquals(Dimension(70, 68), panel.size, "The bounds grow by the outsets around the layout bounds.")
-            assertEquals(
+            onNodeWithTag("child").assertProperty(
                 Rectangle(8, 6, 50, 52),
-                child.bounds,
                 "The child is laid out inside the insets, the outsets included.",
-            )
+            ) { bounds }
 
             decoration = listOf(Fill(Color.BLUE))
             awaitIdle()
             assertEquals(Insets(5, 6, 7, 8), panel.insets, "Changed steps replace what the old ones added.")
             assertEquals(Dimension(64, 64), panel.size, "Steps adding no outsets leave the bounds at the layout size.")
-            assertEquals(Rectangle(6, 5, 50, 52), child.bounds, "The child moves back inside the border's insets.")
+            onNodeWithTag("child").assertProperty(
+                Rectangle(6, 5, 50, 52),
+                "The child moves back inside the border's insets.",
+            ) { bounds }
 
             decoration = emptyList()
             awaitIdle()
@@ -137,8 +141,11 @@ class DecoratedTest {
                 "Removed steps leave getInsets filling the Insets it is handed.",
             )
             assertEquals(Insets(5, 6, 7, 8), reused, "The handed Insets holds what the border reserves.")
-            assertEquals(Dimension(64, 64), panel.preferredSize, "The set preferred size still answers as set.")
-            assertEquals(Rectangle(6, 5, 50, 52), child.bounds, "The child stays inside the border's insets.")
+            assertEquals(Dimension(64, 64), panel.preferredSize, "The set preferred size still reads back as set.")
+            onNodeWithTag("child").assertProperty(
+                Rectangle(6, 5, 50, 52),
+                "The child stays inside the border's insets.",
+            ) { bounds }
         }
 
     @Test
@@ -185,10 +192,11 @@ class DecoratedTest {
 
             val painted = onNodeWithTag("panel").captureToImage()
 
-            assertEquals(0, painted.getRGB(3, 3), "The paint outsets are left to the decoration.")
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(4, 4),
+            painted.assertPixelColor(Color(0, true), 3, 3, "The paint outsets are left to the decoration.")
+            painted.assertPixelColor(
+                Color.RED,
+                4,
+                4,
                 "The child paints where the layout put it: the steps hand the component's own painting a " +
                     "graphics in the component's coordinates, so the outsets are not applied twice.",
             )
@@ -212,11 +220,11 @@ class DecoratedTest {
                 }
             }
 
-            assertTrue(
-                onNodeWithTag("panel").fetch<DecoratedPanel>().isPaintingOrigin(),
+            onNodeWithTag("panel").assertIsOfType<DecoratedPanel>().assertProperty(
+                true,
                 "A decorated container is the painting origin, so a child repainting alone is cut by the clip " +
                     "rather than painted around it.",
-            )
+            ) { isPaintingOrigin() }
         }
 
     @Test
@@ -235,18 +243,15 @@ class DecoratedTest {
                     )
                 }
             }
-            val component = onNodeWithTag("panel").fetch<JComponent>()
-
             val painted = onNodeWithTag("panel").captureToImage()
 
-            assertEquals(Insets(4, 4, 4, 4), component.insets, "The component reports the outsets its steps declare.")
-            assertEquals(0, painted.getRGB(0, 0), "The steps paint their fill inside the paint outsets.")
-            assertEquals(Color.BLUE.rgb, painted.getRGB(5, 5), "The steps paint under what the component paints.")
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(32, 32),
-                "The component paints in its own coordinates, over the steps.",
-            )
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("panel")).assertProperty(
+                Insets(4, 4, 4, 4),
+                "The component reports the outsets its steps declare.",
+            ) { insets }
+            painted.assertPixelColor(Color(0, true), 0, 0, "The steps paint their fill inside the paint outsets.")
+            painted.assertPixelColor(Color.BLUE, 5, 5, "The steps paint under what the component paints.")
+            painted.assertPixelColor(Color.RED, 32, 32, "The component paints in its own coordinates, over the steps.")
         }
 
     /** A `Decoratable` panel that paints through its decoration, painting one red square of its own. */
@@ -262,7 +267,7 @@ class DecoratedTest {
     }
 
     @Test
-    fun paintOutsetsAnswersACopyTheCallerMayChange() =
+    fun paintOutsetsReturnsACopyTheCallerMayChange() =
         runComposeSwingTest {
             setContent {
                 Box {

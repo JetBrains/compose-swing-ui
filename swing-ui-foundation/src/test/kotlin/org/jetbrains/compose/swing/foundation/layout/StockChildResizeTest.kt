@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -14,10 +15,14 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -44,80 +49,102 @@ import kotlin.test.assertTrue
  * layout pass.
  */
 class StockChildResizeTest {
-    @Test
-    fun aDecoratedWrappingTextAreaTakesItsWrappedHeightInsideItsPaintOutsetsInTheValidationThatGrantsItsWidth() {
-        val heightModifiers: Map<String, ConstrainedScope.() -> SwingModifier> =
-            mapOf(
-                "measured" to { SwingModifier },
-                "read its intrinsic height" to { SwingModifier.height(IntrinsicSize.Max) },
-            )
-        for ((name, heightModifier) in heightModifiers) {
-            runComposeSwingTest {
-                var width by mutableIntStateOf(WIDTH + 80)
-                setContent {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
-                        Column(modifier = SwingModifier.center().testTag("column")) {
-                            Box(modifier = heightModifier().fillMaxWidth()) {
-                                SwingNode(
-                                    factory = { DecoratedTextArea(WRAPPING_TEXT) },
-                                    modifier = SwingModifier.testTag("text").fillMaxWidth().shadow(16, Color.BLACK),
-                                )
-                            }
+    companion object {
+        @JvmStatic
+        fun heightModifiers(): List<Arguments> {
+            val heightModifiers: Map<String, ConstrainedScope.() -> SwingModifier> =
+                mapOf(
+                    "measured" to { SwingModifier },
+                    "read its intrinsic height" to { SwingModifier.height(IntrinsicSize.Max) },
+                )
+            return heightModifiers.map { (name, modifier) -> Arguments.of(name, modifier) }
+        }
+
+        @JvmStatic
+        fun wrappingTexts(): List<Arguments> = WrappingTexts.map { (kind, leaf) -> Arguments.of(kind, leaf) }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("heightModifiers")
+    fun aDecoratedWrappingTextAreaTakesItsWrappedHeightInsideItsPaintOutsetsInTheValidationThatGrantsItsWidth(
+        name: String,
+        heightModifier: ConstrainedScope.() -> SwingModifier,
+    ) {
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH + 80)
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+                    Column(modifier = SwingModifier.center().testTag("column")) {
+                        Box(modifier = heightModifier().fillMaxWidth()) {
+                            SwingNode(
+                                factory = { DecoratedTextArea(WRAPPING_TEXT) },
+                                modifier = SwingModifier.testTag("text").fillMaxWidth().shadow(16, Color.BLACK),
+                            )
                         }
                     }
                 }
-                settleWithPaint()
-                val wide = onNodeWithTag("text").fetch<JComponent>().height
-                val column = onNodeWithTag("column").fetch<JComponent>()
-                withRecordedRepaints { recorder ->
-                    width = WIDTH / 2
-                    awaitIdle()
-                    assertFalse(column in recorder.relayouts, "$name: the column requests no validation of its own")
-                }
-                val text = onNodeWithTag("text").fetch<DecoratedTextArea>()
-
-                assertEquals(
-                    WIDTH / 2,
-                    text.decoration.localLayoutBounds(text).width,
-                    "$name: the area's layout bounds fill the narrower width",
-                )
-                assertWrapped(text, "$name: a single validation")
-                assertTrue(text.height > wide, "$name: into more lines than it took at the wider width")
             }
+            settleWithPaint()
+            val wide = onNodeWithTag("text").fetch<JComponent>().height
+            val column = onNodeWithTag("column").fetch<JComponent>()
+            withRecordedRepaints { recorder ->
+                width = WIDTH / 2
+                awaitIdle()
+                assertFalse(column in recorder.relayouts, "$name: the column requests no validation of its own")
+            }
+            val text = onNodeWithTag("text").assertIsOfType<DecoratedTextArea>()
+            text.assertProperty(WIDTH / 2, "$name: the area's layout bounds fill the narrower width") {
+                decoration.localLayoutBounds(this).width
+            }
+            text.assertProperty(true, "$name: a single validation wraps the text into several lines") {
+                height - insets.top - insets.bottom > getFontMetrics(font).height
+            }
+            text.assertProperty(true, "$name: a single validation lays the text out at its preferred height") {
+                preferredSize.height == height
+            }
+            text.assertProperty(true, "$name: into more lines than it took at the wider width") { height > wide }
         }
     }
 
-    @Test
-    fun wrappingTextAValidContainerResizesForItsPreferredSizeRequestsNoLayoutPass() {
-        for ((kind, wrapping) in WrappingTexts) {
-            runComposeSwingTest {
-                var side by mutableStateOf("Side")
-                setContent {
-                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
-                        Column(modifier = SwingModifier.center()) {
-                            Row(modifier = SwingModifier.testTag("row").height(IntrinsicSize.Max)) {
-                                Box(modifier = SwingModifier.testTag("box")) {
-                                    wrapping(SwingModifier.testTag("text").fillMaxWidth())
-                                }
-                                Label(side)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("wrappingTexts")
+    fun wrappingTextAValidContainerResizesForItsPreferredSizeRequestsNoLayoutPass(
+        kind: String,
+        wrapping: @Composable (SwingModifier) -> Unit,
+    ) {
+        runComposeSwingTest {
+            var side by mutableStateOf("Side")
+            setContent {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                    Column(modifier = SwingModifier.center()) {
+                        Row(modifier = SwingModifier.testTag("row").height(IntrinsicSize.Max)) {
+                            Box(modifier = SwingModifier.testTag("box")) {
+                                wrapping(SwingModifier.testTag("text").fillMaxWidth())
                             }
+                            Label(side)
                         }
                     }
                 }
-                settleWithPaint()
-                val row = onNodeWithTag("row").fetch<JComponent>()
-                val box = onNodeWithTag("box").fetch<JComponent>()
+            }
+            settleWithPaint()
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            val box = onNodeWithTag("box").fetch<JComponent>()
 
-                withRecordedRepaints { recorder ->
-                    side = "Other"
-                    awaitIdle()
-                    assertFalse(
-                        row in recorder.relayouts || box in recorder.relayouts,
-                        "$kind: the row reads the box's preferred size, which resizes the text, and neither requests " +
-                            "a layout pass",
-                    )
-                }
-                assertWrapped(onNodeWithTag("text").fetch<JComponent>(), "$kind: the validation")
+            withRecordedRepaints { recorder ->
+                side = "Other"
+                awaitIdle()
+                assertFalse(
+                    row in recorder.relayouts || box in recorder.relayouts,
+                    "$kind: the row reads the box's preferred size, which resizes the text, and neither requests " +
+                        "a layout pass",
+                )
+            }
+            val text = onNodeWithTag("text").assertIsOfType<JComponent>()
+            text.assertProperty(true, "$kind: the validation wraps the text into several lines") {
+                height - insets.top - insets.bottom > getFontMetrics(font).height
+            }
+            text.assertProperty(true, "$kind: the validation lays the text out at its preferred height") {
+                preferredSize.height == height
             }
         }
     }

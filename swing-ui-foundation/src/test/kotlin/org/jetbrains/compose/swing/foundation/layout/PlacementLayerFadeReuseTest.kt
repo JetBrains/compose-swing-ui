@@ -4,16 +4,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
+import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.TapNode
-import org.jetbrains.compose.swing.foundation.graphics.TapStep
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -32,6 +36,7 @@ import java.awt.image.BufferedImage
 import javax.swing.DefaultDesktopManager
 import javax.swing.JComponent
 import javax.swing.JDesktopPane
+import javax.swing.JFrame
 import javax.swing.JInternalFrame
 import javax.swing.JScrollPane
 import javax.swing.JViewport
@@ -92,7 +97,7 @@ class PlacementLayerFadeReuseTest {
         if (event.reuses) assertEquals(painted, fixture.paints, "a ${event.name} painted the content again")
         frames.content.repaint()
 
-        assertKeptMatchesFresh(kept, onNodeWithTag("content").captureToImage(), fixture, effect.reach)
+        assertKeptMatchesFresh(kept, onNodeWithTag("content").captureToImage(), fixture)
     }
 
     @Test
@@ -147,7 +152,7 @@ class PlacementLayerFadeReuseTest {
         }
 
         assertEquals(painted, fixture.paints, "the layer redraws painted the content")
-        assertShownMatchesFresh(fixture, tap.node, effect.reach)
+        assertShownMatchesFresh(fixture, tap.node)
     }
 
     @ExclusiveWindowSystem
@@ -214,6 +219,53 @@ class PlacementLayerFadeReuseTest {
 
     @ExclusiveWindowSystem
     @ParameterizedTest(name = "{0}, {1}, {2}")
+    @MethodSource("twoLayerCases")
+    internal fun twoLayersChangingInOneFramePaintOnce(
+        containerLayer: Boolean,
+        leaf: FadeLeaf,
+        oneState: Boolean,
+    ) = runComposeSwingTest {
+        val fixture = FadeFixture()
+        val second = mutableFloatStateOf(0.9f)
+        val tap = TapElement()
+        val captures = TapElement()
+        val effect = if (containerLayer) FadeEffect.ContainerLayer else FadeEffect.ModifierLayer
+        fixture.contentModifier =
+            SwingModifier
+                .shadow(8, Color(0, 0, 0, 150))
+                .then(captures)
+                .placementLayer { alpha = if (oneState) fixture.alpha else second.floatValue }
+        showWindow {
+            FadeContent(
+                fixture,
+                effect,
+                tap = tap,
+                leaf = leaf,
+            )
+        }
+        waitUntil { tap.created.isNotEmpty() && tap.node.paints > 0 }
+        second.floatValue = 0.8f
+        fadeTo(fixture, 0.8f)
+        val painted = fixture.paints
+
+        for (alpha in listOf(0.7f, 0.6f, 0.5f)) {
+            val frames = tap.node.paints
+            val captured = captures.node.paints
+            second.floatValue = alpha
+            fadeTo(fixture, alpha)
+            assertEquals(frames + 1, tap.node.paints, "the frame to $alpha painted the leaf more than once")
+            assertEquals(
+                captured + 1,
+                captures.node.paints,
+                "the frame to $alpha captured the shadow's content more than once",
+            )
+        }
+
+        assertEquals(painted, fixture.paints, "the layer redraws painted the content")
+    }
+
+    @ExclusiveWindowSystem
+    @ParameterizedTest(name = "{0}, {1}, {2}")
     @MethodSource("childRepaints")
     fun aChildRepaintAroundALayerRedrawShowsTheNewContent(
         containerLayer: Boolean,
@@ -226,13 +278,13 @@ class PlacementLayerFadeReuseTest {
         fadeTo(fixture, 0.8f)
 
         fixture.bumpPlain()
-        windowNode("content").repaint()
-        if (withAncestor) windowNode("root").repaint()
+        onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("content").fetch<JComponent>().repaint()
+        if (withAncestor) onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("root").fetch<JComponent>().repaint()
         if (!inTheCycle) waitUntil(timeout = 10.seconds) { tap.node.shown().shows(fixture.color) }
         fadeTo(fixture, 0.5f)
 
         waitUntil(timeout = 10.seconds) { tap.node.shown().shows(fixture.color) }
-        assertShownMatchesFresh(fixture, tap.node, effect.reach)
+        assertShownMatchesFresh(fixture, tap.node)
     }
 
     @ExclusiveWindowSystem
@@ -285,7 +337,7 @@ class PlacementLayerFadeReuseTest {
 
             viewport.viewPosition = Point(0, FADE_SIDE / 2)
             assertTrue(graphicsTaken > before, "the viewport must take graphics for a window blit")
-            frame().validate()
+            onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>().validate()
             val afterBlit = paints
             fixture.alpha = 0.5f
             awaitIdle()
@@ -301,7 +353,7 @@ class PlacementLayerFadeReuseTest {
             val fixture = FadeFixture()
             showWindow { FadeContent(fixture, FadeEffect.ModifierLayer) }
             waitUntil(timeout = 10.seconds) { fixture.paints > 0 }
-            val component = windowNode("content")
+            val component = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("content").fetch<JComponent>()
             val painted = fixture.paints
 
             withRecordedRepaints { recorded ->
@@ -404,7 +456,7 @@ class PlacementLayerFadeReuseTest {
     private suspend fun ComposeSwingTest.showWindow(content: @Composable () -> Unit) {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setWindowContent(content)
-        val frame = frame()
+        val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
         frame.focusableWindowState = false
         awaitIdle()
         assumeTrue(frame.isShowing, "requires a window system that shows the window")
@@ -415,8 +467,8 @@ class PlacementLayerFadeReuseTest {
         effect: FadeEffect,
         side: Int = FADE_SIDE,
         child: (@Composable () -> Unit)? = null,
-    ): TapStep {
-        val tap = TapStep()
+    ): TapElement {
+        val tap = TapElement()
         showWindow { FadeContent(fixture, effect, tap = tap, side = side, child = child) }
         waitUntil(timeout = 10.seconds) { tap.created.isNotEmpty() && tap.node.paints > 0 }
         return tap
@@ -425,17 +477,92 @@ class PlacementLayerFadeReuseTest {
     private suspend fun ComposeSwingTest.assertShownMatchesFresh(
         fixture: FadeFixture,
         tap: TapNode,
-        reach: Int,
     ) {
         val kept = tap.shown()
         val frames = tap.paints
-        windowNode("content").repaint()
+        onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("content").fetch<JComponent>().repaint()
         waitUntil(timeout = 10.seconds) { tap.paints > frames }
         awaitIdle()
-        assertKeptMatchesFresh(kept, tap.shown(), fixture, reach)
+        assertKeptMatchesFresh(kept, tap.shown(), fixture)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("alphaEndpointCases")
+    fun alphaReadsAtTheEndpointsStartAFreshFade(
+        content: @Composable (SwingModifier, SwingModifier, PlacementLayerScope.() -> Unit) -> Unit,
+        endpoint: Float,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val opacity = mutableFloatStateOf(0.5f)
+        var tint = Color.RED
+        var paints = 0
+        setWindowContent {
+            Row {
+                content(
+                    SwingModifier.testTag("endpointContent").preferredSize(40, 40),
+                    SwingModifier.drawBehind {
+                        paints++
+                        graphics.color = tint
+                        graphics.fillRect(0, 0, width, height)
+                    },
+                ) { alpha = opacity.floatValue }
+            }
+        }
+        val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("endpointContent")
+        val component = node.fetch<JComponent>()
+        component.paintImmediately(0, 0, component.width, component.height)
+        assertTrue(paints > 0, "the initial fade paints its content")
+
+        opacity.floatValue = endpoint
+        awaitIdle()
+        tint = Color.BLUE
+        paints = 0
+        opacity.floatValue = 0.5f
+        awaitIdle()
+
+        assertEquals(1, paints, "the first frame after alpha $endpoint captures the new content")
+        val image = node.captureToImage()
+        image.assertPixelColor(Color(0, 0, 255, 128), 20, 20, "the new fade shows the new content")
     }
 
     companion object {
+        @JvmStatic
+        fun alphaEndpointCases(): List<Arguments> =
+            listOf<Pair<String, @Composable (SwingModifier, SwingModifier, PlacementLayerScope.() -> Unit) -> Unit>>(
+                "Box" to { before, after, layer -> Box(before.placementLayer(layer).then(after)) },
+                "Canvas" to { before, after, layer -> Canvas(before.placementLayer(layer).then(after)) {} },
+                "policy placeWithLayer" to { before, after, layer ->
+                    Layout(
+                        content = { Canvas(before.then(after)) {} },
+                        measurePolicy = { measurables, _ ->
+                            val child = measurables.single().measure(Constraints.fixed(40, 40))
+                            layout(40, 40) { child.placeWithLayer(0, 0, layerBlock = layer) }
+                        },
+                    )
+                },
+            ).flatMap { (name, content) ->
+                listOf(0f, 1f).map { endpoint ->
+                    Arguments.of(Named.of("$name alpha reaches $endpoint before another fade", content), endpoint)
+                }
+            }
+
+        @JvmStatic
+        fun twoLayerCases(): List<Arguments> =
+            listOf(
+                Triple(false, FadeLeaf.NodeLeaf, true),
+                Triple(false, FadeLeaf.NodeLeaf, false),
+                Triple(false, FadeLeaf.CanvasLeaf, true),
+                Triple(false, FadeLeaf.CanvasChild, true),
+                Triple(true, FadeLeaf.NodeLeaf, true),
+                Triple(true, FadeLeaf.CanvasChild, true),
+            ).map { (container, leaf, oneState) ->
+                Arguments.of(
+                    Named.of(if (container) "container layer" else "modifier layer", container),
+                    Named.of(leaf.name, leaf),
+                    Named.of(if (oneState) "one state" else "two states", oneState),
+                )
+            }
+
         @JvmStatic
         fun keptFrames(): List<Arguments> =
             FadeEffect.entries.flatMap { effect ->

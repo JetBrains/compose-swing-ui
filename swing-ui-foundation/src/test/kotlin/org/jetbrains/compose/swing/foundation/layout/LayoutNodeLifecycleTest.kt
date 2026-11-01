@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Component
@@ -20,7 +22,6 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** The nodes a [Layout] attaches to its panel follow the attach lifecycle of the chain they are part of. */
@@ -70,13 +71,19 @@ class LayoutNodeLifecycleTest {
             generation = 1
             awaitIdle()
             assertEquals(listOf("onAttach 7x9", "onDetach 7x9", "onAttach 7x9"), sizes)
-            val container = windowContainer()
-            assertTrue(container.isValidUpToTheValidateRoot(), "the container is valid after the key change")
+            val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
+            container.assertProperty(
+                true,
+                "the container is valid after the key change",
+            ) { isValidUpToTheValidateRoot() }
 
             width = 8
             Snapshot.sendApplyNotifications()
 
-            assertFalse(container.isValid, "a read behind a measurement made while attaching must stay observed")
+            container.assertProperty(
+                false,
+                "a read behind a measurement made while attaching must stay observed",
+            ) { isValid }
         }
 
     /** Mounting runs the policy once, in the container's own layout pass, and observes that pass's reads. */
@@ -101,7 +108,10 @@ class LayoutNodeLifecycleTest {
             width = 8
             Snapshot.sendApplyNotifications()
 
-            assertFalse(windowContainer().isValid, "the read that pass made must be observed")
+            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).assertProperty(
+                false,
+                "the read that pass made must be observed",
+            ) { isValid }
         }
 
     /**
@@ -137,7 +147,10 @@ class LayoutNodeLifecycleTest {
             gap = 1
             Snapshot.sendApplyNotifications()
 
-            assertFalse(windowContainer().isValid, "the settle read must stay observed across the key change")
+            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).assertProperty(
+                false,
+                "the settle read must stay observed across the key change",
+            ) { isValid }
         }
 
     /**
@@ -165,14 +178,14 @@ class LayoutNodeLifecycleTest {
 
             assertEquals(paintsBefore, child.paints, "the nodes attaching again must not repaint the container")
 
-            windowContainer().repaint()
+            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().repaint()
             awaitIdle()
 
             assertTrue(child.paints > paintsBefore, "a repaint of the container must paint the child")
         }
 }
 
-/** Records the preferred size its component, a [Layout]'s panel, answers as the node attaches and detaches. */
+/** Records the preferred size its component, a [Layout]'s panel, returns as the node attaches and detaches. */
 private class MeasuringElement(
     private val sizes: MutableList<String>,
 ) : SwingModifier.NodeElement<Component, MeasuringNode>() {
@@ -198,7 +211,7 @@ private class MeasuringNode(
         sizes += "onDetach ${measure()}"
     }
 
-    /** Asks the panel's layout manager, past Swing's cache and invalidating nothing, so the policy answers. */
+    /** Asks the panel's layout manager, past Swing's cache and invalidating nothing, so the policy computes it. */
     private fun measure(): String {
         val panel = component as Container
         val size = panel.layout.preferredLayoutSize(panel)

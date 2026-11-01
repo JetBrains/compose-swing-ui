@@ -1,14 +1,22 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Rectangle
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 
 /**
@@ -16,56 +24,42 @@ import kotlin.test.assertSame
  * two passes over one container and asserts the second is not placed by state the first one left behind.
  */
 class RowColumnPassReuseTest {
-    @Test
-    fun aConfiguredRowReusesItsMeasurePolicyAcrossRecompositions() =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("configuredContainers")
+    internal fun aConfiguredContainerKeepsItsArrangementWhenARecompositionAddsAChild(case: ConfiguredContainer) =
         runComposeSwingTest {
             var count by mutableStateOf(1)
             setContent {
-                Row(
-                    modifier = containerModifier(300, 100),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    repeat(count) { SizedChild(it) }
-                }
+                val childCount = count
+                case.container { repeat(childCount) { SizedChild(it) } }
             }
-            val row = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-            val initialPolicy = row.layout as MeasurePolicyLayout
+            val container = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            val initialPolicy =
+                assertIs<MeasurePolicyLayout>(container.layout, "expected the measure policy layout").policy
+            val children = onNodeWithTag(CONTAINER_TAG).onChildren()
+            children.assertCountEquals(case.before.size)
+            case.before.forEachIndexed { index, expected ->
+                onNodeWithText("child $index").assertProperty(
+                    expected,
+                    "${case.name}: child $index before recomposition",
+                ) { bounds }
+            }
 
             count = 2
             awaitIdle()
 
             assertSame(
-                initialPolicy.policy,
-                row.layout.let { it as MeasurePolicyLayout }.policy,
-                "an unchanged Row configuration must keep its remembered measure policy",
+                initialPolicy,
+                assertIs<MeasurePolicyLayout>(container.layout, "expected the measure policy layout").policy,
+                "an unchanged ${case.name} configuration must keep its remembered measure policy",
             )
-        }
-
-    @Test
-    fun aConfiguredColumnReusesItsMeasurePolicyAcrossRecompositions() =
-        runComposeSwingTest {
-            var count by mutableStateOf(1)
-            setContent {
-                Column(
-                    modifier = containerModifier(100, 300),
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = Alignment.End,
-                ) {
-                    repeat(count) { SizedChild(it) }
-                }
+            children.assertCountEquals(case.after.size)
+            case.after.forEachIndexed { index, expected ->
+                onNodeWithText("child $index").assertProperty(
+                    expected,
+                    "${case.name}: child $index after recomposition",
+                ) { bounds }
             }
-            val column = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-            val initialPolicy = column.layout as MeasurePolicyLayout
-
-            count = 2
-            awaitIdle()
-
-            assertSame(
-                initialPolicy.policy,
-                column.layout.let { it as MeasurePolicyLayout }.policy,
-                "an unchanged Column configuration must keep its remembered measure policy",
-            )
         }
 
     @Test
@@ -163,7 +157,54 @@ class RowColumnPassReuseTest {
                 "an offset this pass never wrote must be zero, not the offset the pass before it wrote",
             )
         }
+
+    companion object {
+        @JvmStatic
+        fun configuredContainers(): List<Arguments> =
+            listOf(
+                ConfiguredContainer(
+                    name = "Row",
+                    container = { content ->
+                        Row(
+                            modifier = containerModifier(300, 100),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.Bottom,
+                        ) { content() }
+                    },
+                    before = listOf(Rectangle(250, 60, CHILD_WIDTH, CHILD_HEIGHT)),
+                    after =
+                        listOf(
+                            Rectangle(200, 60, CHILD_WIDTH, CHILD_HEIGHT),
+                            Rectangle(250, 60, CHILD_WIDTH, CHILD_HEIGHT),
+                        ),
+                ),
+                ConfiguredContainer(
+                    name = "Column",
+                    container = { content ->
+                        Column(
+                            modifier = containerModifier(100, 300),
+                            verticalArrangement = Arrangement.Bottom,
+                            horizontalAlignment = Alignment.End,
+                        ) { content() }
+                    },
+                    before = listOf(Rectangle(50, 260, CHILD_WIDTH, CHILD_HEIGHT)),
+                    after =
+                        listOf(
+                            Rectangle(50, 220, CHILD_WIDTH, CHILD_HEIGHT),
+                            Rectangle(50, 260, CHILD_WIDTH, CHILD_HEIGHT),
+                        ),
+                ),
+            ).map { Arguments.of(Named.of(it.name, it)) }
+    }
 }
+
+/** A container with an arrangement and alignment of its own, and where one child and then two are placed in it. */
+internal class ConfiguredContainer(
+    val name: String,
+    val container: @Composable (@Composable () -> Unit) -> Unit,
+    val before: List<Rectangle>,
+    val after: List<Rectangle>,
+)
 
 /** The gap [GatedArrangement] leaves between children while it is placing them. */
 private const val STEP = 60

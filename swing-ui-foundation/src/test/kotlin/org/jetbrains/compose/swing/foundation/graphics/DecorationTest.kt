@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -7,6 +8,9 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -94,11 +98,7 @@ class DecorationTest {
         runComposeSwingTest {
             val painted = paint { graphics, width, height -> graphics.fill(Color.RED, 0, 0, width, height) }
 
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(0, 0),
-                "Without steps the content is handed the graphics untouched.",
-            )
+            painted.assertPixelColor(Color.RED, 0, 0, "Without steps the content is handed the graphics untouched.")
         }
 
     @Test
@@ -109,14 +109,16 @@ class DecorationTest {
             val (clipOutside, backgroundOutside) =
                 paintEach(listOf(listOf(Cut(), Fill(Color.BLUE)), listOf(Fill(Color.BLUE), Cut())), content)
 
-            assertEquals(
+            clipOutside.assertPixelColor(
+                Color(0, true),
                 0,
-                clipOutside.getRGB(0, 0),
+                0,
                 "A clip declared first is outermost, so the background it wraps is cut with the content.",
             )
-            assertEquals(
-                Color.BLUE.rgb,
-                backgroundOutside.getRGB(0, 0),
+            backgroundOutside.assertPixelColor(
+                Color.BLUE,
+                0,
+                0,
                 "A background declared first is outermost, so it fills the corners the clip inside it cuts.",
             )
         }
@@ -137,14 +139,15 @@ class DecorationTest {
                     )
                 }
             }
-            val panel = onNodeWithTag("panel").fetch<JComponent>()
 
-            assertEquals(Insets(11, 22, 33, 44), panel.paintOutsets, "The steps add around the content what each adds.")
-            assertEquals(
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("panel")).assertProperty(
                 Insets(11, 22, 33, 44),
-                panel.insets,
+                "The steps add around the content what each adds.",
+            ) { paintOutsets }
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("panel")).assertProperty(
+                Insets(11, 22, 33, 44),
                 "The insets carry the paint outsets, as a look and feel reports a focus ring.",
-            )
+            ) { insets }
         }
 
     @Test
@@ -155,9 +158,10 @@ class DecorationTest {
                     graphics.fill(Color.RED, 0, 0, width, height)
                 }
 
-            assertEquals(
-                Color.RED.rgb.inv() or (0xFF shl 24),
-                painted.getRGB(SIZE / 2, SIZE / 2),
+            painted.assertPixelColor(
+                Color(Color.RED.rgb.inv() or (0xFF shl 24), true),
+                SIZE / 2,
+                SIZE / 2,
                 "The content paints where the decorator sends it, so a decorator that alters the raster it " +
                     "handed over shows the altered pixels.",
             )
@@ -171,15 +175,17 @@ class DecorationTest {
                     graphics.fill(Color.RED, width / 4, height / 4, width / 2, height / 2)
                 }
 
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(0, SIZE / 2),
+            painted.assertPixelColor(
+                Color.BLUE,
+                0,
+                SIZE / 2,
                 "A clip a decorator set on its own graphics does not reach the decorator that handed it over, even " +
                     "one painting after its content.",
             )
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(SIZE / 2, SIZE / 2),
+            painted.assertPixelColor(
+                Color.RED,
+                SIZE / 2,
+                SIZE / 2,
                 "A decorator's graphics is its own and is disposed after it.",
             )
         }
@@ -224,13 +230,13 @@ class DecorationTest {
             val painted = onNodeWithTag("outer").fetch<JComponent>().paintOnto(SIZE, SIZE)
 
             assertEquals(SIZE / 2 to SIZE / 2, nestedSize, "The nested paint hands its content its own size.")
-            assertEquals(Color.BLUE.rgb, nested.getRGB(0, 0), "The nested paint runs its own content.")
+            nested.assertPixelColor(Color.BLUE, 0, 0, "The nested paint runs its own content.")
             assertEquals(
                 listOf(SIZE to SIZE, SIZE to SIZE),
                 outerSizes,
                 "After the nested paint returns, the outer paint runs its own content at its own size again.",
             )
-            assertEquals(Color.RED.rgb, painted.getRGB(4, 4), "The outer content paints over the outer raster.")
+            painted.assertPixelColor(Color.RED, 4, 4, "The outer content paints over the outer raster.")
         }
 
     /** A [DecoratedPanel] painting [content] at its own size, in place of its own painting. */

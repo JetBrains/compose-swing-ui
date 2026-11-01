@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForNoLayout
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -25,11 +26,15 @@ import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -48,6 +53,7 @@ import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -100,7 +106,7 @@ class SwingParentBoundaryTest {
                     "the panel paints",
                 )
             assertEquals(allotted, allotted.union(painted), "nothing paints outside the allotment")
-            assertEquals(Color.BLUE.rgb, image.getRGB(0, allotted.height / 2), "the overflow paints up to it")
+            image.assertPixelColor(Color.BLUE, 0, allotted.height / 2, "the overflow paints up to it")
 
             measures = 0
             panel.revalidate()
@@ -369,7 +375,7 @@ class SwingParentBoundaryTest {
 
             assertEquals(
                 164,
-                (box as Constrainable).maxIntrinsicHeight(324),
+                assertIs<Constrainable>(box, "expected a constrainable box").maxIntrinsicHeight(324),
                 "the box returns its content's height at the width inside its border, plus the border",
             )
             assertEquals(324, box.maxIntrinsicWidth(164), "and its content's width at the height inside it")
@@ -428,77 +434,80 @@ class SwingParentBoundaryTest {
             ) { size }
         }
 
-    @Test
-    fun aStockParentGatheringItsChildrensSizesSurvivesAnInvalidationThePreferenceReadCauses() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stockParentCases")
+    fun aStockParentGatheringItsChildrensSizesSurvivesAnInvalidationThePreferenceReadCauses(
+        name: String,
+        layout: (JPanel) -> LayoutManager,
+        holder: @Composable (SwingModifier, @Composable () -> Unit) -> Unit,
+    ) {
         val text = "A text area that wraps its lines sizes its view while its size is read. ".repeat(6)
-        assertStockParentSurvivesContainerContent {
+        assertStockParentSurvivesContainerContent(name, layout, holder) {
             SwingNode(factory = { JTextArea(text).apply { lineWrap = true } })
         }
     }
 
-    @Test
-    fun aStockParentSurvivesAChildThatRevalidatesWhileItsSizePreferencesAreRead() =
-        assertStockParentSurvivesContainerContent {
-            SwingNode(factory = { SizeQueryCause { revalidate() } })
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stockParentCases")
+    fun aStockParentSurvivesAChildThatRevalidatesWhileItsSizePreferencesAreRead(
+        name: String,
+        layout: (JPanel) -> LayoutManager,
+        holder: @Composable (SwingModifier, @Composable () -> Unit) -> Unit,
+    ) = assertStockParentSurvivesContainerContent(name, layout, holder) {
+        SwingNode(factory = { SizeQueryCause { revalidate() } })
+    }
 
-    @Test
-    fun aStockParentSurvivesAChildThatInvalidatesWhileItsSizePreferencesAreRead() =
-        assertStockParentSurvivesContainerContent {
-            SwingNode(factory = { SizeQueryCause { invalidate() } })
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stockParentCases")
+    fun aStockParentSurvivesAChildThatInvalidatesWhileItsSizePreferencesAreRead(
+        name: String,
+        layout: (JPanel) -> LayoutManager,
+        holder: @Composable (SwingModifier, @Composable () -> Unit) -> Unit,
+    ) = assertStockParentSurvivesContainerContent(name, layout, holder) {
+        SwingNode(factory = { SizeQueryCause { invalidate() } })
+    }
 
     /**
      * Holds [content] in a container whose size a stock parent of each layout reads, and resizes the stock parent:
      * it is valid afterwards, and lays the container out at the width it grants.
      */
-    private fun assertStockParentSurvivesContainerContent(content: @Composable () -> Unit) {
-        val layouts =
-            mapOf<String, (JPanel) -> LayoutManager>(
-                "BoxLayout X_AXIS" to { BoxLayout(it, BoxLayout.X_AXIS) },
-                "BoxLayout Y_AXIS" to { BoxLayout(it, BoxLayout.Y_AXIS) },
-                "OverlayLayout" to { OverlayLayout(it) },
-            )
-        val holders =
-            mapOf<String, @Composable (SwingModifier, @Composable () -> Unit) -> Unit>(
-                "a Column in a Box" to { modifier, held -> Box(modifier = modifier) { Column { held() } } },
-                "a Box holding a Column in a Box" to { modifier, held ->
-                    Box(modifier = modifier) { Box { Column { held() } } }
-                },
-            )
-        for ((layoutName, layout) in layouts) {
-            for ((holderName, holder) in holders) {
-                runComposeSwingTest {
-                    var width by mutableIntStateOf(300)
-                    setContent {
-                        SwingNode(
-                            factory = { JPanel(BorderLayout()) },
-                            modifier = SwingModifier.preferredSize(width, 240),
-                        ) {
-                            SwingNode(
-                                factory = { JPanel().apply { this.layout = layout(this) } },
-                                modifier = SwingModifier.testTag("stock"),
-                            ) {
-                                holder(SwingModifier.testTag("container"), content)
-                            }
-                        }
-                    }
-                    val stock = onNodeWithTag("stock").fetch<JComponent>()
-                    val container = onNodeWithTag("container").fetch<JComponent>()
-                    for (resized in listOf(420, 200)) {
-                        width = resized
-                        awaitIdle()
-                        val at = "$layoutName, $holderName, width $resized"
-                        assertEquals(resized, stock.width, "$at: the stock parent is resized")
-                        assertEquals(
-                            resized,
-                            container.width,
-                            "$at: the stock parent lays out the container whose preferences it read",
-                        )
-                        assertTrue(stock.isValid, "$at: the stock parent is valid")
-                        assertTrue(container.isValid, "$at: the container whose preferences it read is valid")
+    private fun assertStockParentSurvivesContainerContent(
+        name: String,
+        layout: (JPanel) -> LayoutManager,
+        holder: @Composable (SwingModifier, @Composable () -> Unit) -> Unit,
+        content: @Composable () -> Unit,
+    ) {
+        runComposeSwingTest {
+            var width by mutableIntStateOf(300)
+            setContent {
+                SwingNode(
+                    factory = { JPanel(BorderLayout()) },
+                    modifier = SwingModifier.preferredSize(width, 240),
+                ) {
+                    SwingNode(
+                        factory = { JPanel().apply { this.layout = layout(this) } },
+                        modifier = SwingModifier.testTag("stock"),
+                    ) {
+                        holder(SwingModifier.testTag("container"), content)
                     }
                 }
+            }
+            for (resized in listOf(420, 200)) {
+                width = resized
+                awaitIdle()
+                val at = "$name, width $resized"
+                onNodeWithTag("stock")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(resized, "$at: the stock parent is resized") { this.width }
+                onNodeWithTag("container").assertIsOfType<JComponent>().assertProperty(
+                    resized,
+                    "$at: the stock parent lays out the container whose preferences it read",
+                ) { this.width }
+                onNodeWithTag("stock").assertProperty(true, "$at: the stock parent is valid") { isValid }
+                onNodeWithTag("container").assertProperty(
+                    true,
+                    "$at: the container whose preferences it read is valid",
+                ) { isValid }
             }
         }
     }
@@ -563,30 +572,57 @@ class SwingParentBoundaryTest {
             }
         }
 
-    @Test
-    fun aContainerLaidOutAtItsPreferredWidthHasItsMinimumHeightThere() {
-        val parents: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
-            mapOf(
-                "a flow layout, which lays the box out at the width it prefers" to
-                    { box -> Panel(PanelLayout.Flow()) { box() } },
-                "a parent that has laid nothing out, so the box holds no width" to
-                    { box -> SwingNode(factory = { JPanel(null) }) { box() } },
-            )
-        for ((name, parent) in parents) {
-            runComposeSwingTest {
-                setContent {
-                    parent { Layout(measurePolicy = ConstantAreaPolicy, modifier = SwingModifier.testTag("box")) }
-                }
-
-                onNodeWithTag("box").assertProperty(
-                    100,
-                    "$name: the minimum height is the one at the width of 200 the box prefers, not at its minimum 50",
-                ) { minimumSize.height }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parents")
+    fun aContainerLaidOutAtItsPreferredWidthHasItsMinimumHeightThere(
+        name: String,
+        parent: @Composable (@Composable () -> Unit) -> Unit,
+    ) {
+        runComposeSwingTest {
+            setContent {
+                parent { Layout(measurePolicy = ConstantAreaPolicy, modifier = SwingModifier.testTag("box")) }
             }
+
+            onNodeWithTag("box").assertProperty(
+                100,
+                "$name: the minimum height is the one at the width of 200 the box prefers, not at its minimum 50",
+            ) { minimumSize.height }
         }
     }
 
     private companion object {
+        @JvmStatic
+        fun stockParentCases(): List<Arguments> {
+            val layouts =
+                mapOf<String, (JPanel) -> LayoutManager>(
+                    "BoxLayout X_AXIS" to { BoxLayout(it, BoxLayout.X_AXIS) },
+                    "BoxLayout Y_AXIS" to { BoxLayout(it, BoxLayout.Y_AXIS) },
+                    "OverlayLayout" to { OverlayLayout(it) },
+                )
+            val holders =
+                mapOf<String, @Composable (SwingModifier, @Composable () -> Unit) -> Unit>(
+                    "a Column in a Box" to { modifier, held -> Box(modifier = modifier) { Column { held() } } },
+                    "a Box holding a Column in a Box" to { modifier, held ->
+                        Box(modifier = modifier) { Box { Column { held() } } }
+                    },
+                )
+            return layouts.flatMap { (layoutName, layout) ->
+                holders.map { (holderName, holder) -> Arguments.of("$layoutName, $holderName", layout, holder) }
+            }
+        }
+
+        @JvmStatic
+        fun parents(): List<Arguments> {
+            val parents: Map<String, @Composable (@Composable () -> Unit) -> Unit> =
+                mapOf(
+                    "a flow layout, which lays the box out at the width it prefers" to
+                        { box -> Panel(PanelLayout.Flow()) { box() } },
+                    "a parent that has laid nothing out, so the box holds no width" to
+                        { box -> SwingNode(factory = { JPanel(null) }) { box() } },
+                )
+            return parents.map { (name, parent) -> Arguments.of(name, parent) }
+        }
+
         const val RATIO = 16f / 9f
 
         fun atRatio(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
@@ -620,7 +656,8 @@ private class InvalidatingHeightForWidthLayout : LayoutManager {
     override fun layoutContainer(parent: Container) {
         val child = parent.getComponent(0)
         if (child.width != parent.width) child.invalidate()
-        child.setBounds(0, 0, parent.width, (child as Constrainable).maxIntrinsicHeight(parent.width))
+        val constrainable = assertIs<Constrainable>(child, "expected a constrainable child")
+        child.setBounds(0, 0, parent.width, constrainable.maxIntrinsicHeight(parent.width))
     }
 
     override fun preferredLayoutSize(parent: Container): Dimension = parent.getComponent(0).preferredSize

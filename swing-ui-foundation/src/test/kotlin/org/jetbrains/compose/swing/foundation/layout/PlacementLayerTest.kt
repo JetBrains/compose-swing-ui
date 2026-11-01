@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -7,10 +8,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
+import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.background
+import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -24,6 +28,10 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.ComponentOrientation
@@ -43,11 +51,63 @@ import kotlin.test.assertTrue
 
 /** Behavioral tests for a layout modifier placing its content with a layer. */
 class PlacementLayerTest {
-    @Test
-    fun aFadePaintsTheContentAsOneImageAtTheDeclaredAlphaOnTheSamePixelsAt1x() = assertFadeIsOneImage(scale = 1.0)
+    /**
+     * Two overlapping squares faded as one image hide the lower one where they overlap, and the whole is the
+     * unfaded image drawn at the declared alpha - including the antialiased edges of squares placed at a
+     * sub-pixel offset, which a buffer off the destination's pixel grid would move.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("fadeScaleCases")
+    fun aFadePaintsTheContentAsOneImageAtTheDeclaredAlphaOnTheSamePixels(scale: Double) =
+        runComposeSwingTest {
+            setCanvases("plain" to SwingModifier, "layered" to SwingModifier.placementLayer { alpha = 0.5f }) { g ->
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g.color = Color.RED
+                g.fill(Rectangle2D.Double(2.25, 2.25, 10.5, 10.5))
+                g.color = Color.BLUE
+                g.fill(Rectangle2D.Double(7.75, 7.75, 10.5, 10.5))
+            }
+            val unfaded = paintTagged("plain", scale = scale)
+            val faded = paintTagged("layered", scale = scale)
 
-    @Test
-    fun aFadePaintsTheContentAsOneImageAtTheDeclaredAlphaOnTheSamePixelsAt2x() = assertFadeIsOneImage(scale = 2.0)
+            val expected =
+                renderImage(unfaded.width, unfaded.height) {
+                    it.composite = AlphaComposite.SrcOver.derive(0.5f)
+                    it.drawImage(unfaded, 0, 0, null)
+                }
+            assertImagesPixelPerfect(expected, faded)
+            val overlap = (10 * scale).toInt()
+            faded.assertPixelColor(Color(0, 0, 255, 128), overlap, overlap, "the lower square is hidden")
+        }
+
+    companion object {
+        @JvmStatic
+        fun placementReads(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("an absolute placement", false)),
+                Arguments.of(Named.of("a relative placement", true)),
+            )
+
+        @JvmStatic
+        fun fadeScaleCases(): List<Arguments> =
+            listOf(1.0, 2.0).map { scale -> Arguments.of(Named.of("fade at scale $scale", scale)) }
+
+        @JvmStatic
+        fun contentReads(): List<Arguments> =
+            listOf<Pair<String, @Composable (SwingModifier, () -> Unit) -> Unit>>(
+                "Box" to { modifier, onPaint ->
+                    Box(modifier.background(Brush.of(Color.RED)).drawBehind { onPaint() })
+                },
+                "Canvas, which observes its block's reads itself" to { modifier, onPaint ->
+                    Canvas(modifier) {
+                        onPaint()
+                        drawRect(Color.RED)
+                    }
+                },
+            ).flatMap { (name, content) ->
+                LayerRead.entries.map { read -> Arguments.of(Named.of(name, content), Named.of(read.name, read)) }
+            }
+    }
 
     @Test
     fun aFadeMultipliesIntoTheAlphaTheGraphicsAlreadyCarries() =
@@ -71,7 +131,7 @@ class PlacementLayerTest {
             val faded = paintTagged("layered", setUp = { clipRect(0, 0, 10, 20) })
 
             assertEquals(128.0, faded.alphaAt(10 / 2, 10), 1.0)
-            assertEquals(0, faded.getRGB(10 + 2, 10))
+            faded.assertPixelColor(Color(0, true), 10 + 2, 10)
         }
 
     @Test
@@ -107,11 +167,21 @@ class PlacementLayerTest {
                 })
 
             assertFalse(painted, "clipped-away or flattened content never paints")
-            assertEquals(0, clippedAway.getRGB(10, 10), "a clip rect right of the layer paints nothing")
-            assertEquals(0, clippedAwayBelow.getRGB(10, 10), "a clip rect below the layer paints nothing")
-            assertEquals(0, clippedByTheLayer.getRGB(10, 10), "the layer's own clip paints nothing outside its box")
-            assertEquals(0, flattened.getRGB(10, 10), "an area flattened to zero width paints nothing")
-            assertEquals(0, flattenedVertically.getRGB(10, 10), "an area flattened to zero height paints nothing")
+            clippedAway.assertPixelColor(Color(0, true), 10, 10, "a clip rect right of the layer paints nothing")
+            clippedAwayBelow.assertPixelColor(Color(0, true), 10, 10, "a clip rect below the layer paints nothing")
+            clippedByTheLayer.assertPixelColor(
+                Color(0, true),
+                10,
+                10,
+                "the layer's own clip paints nothing outside its box",
+            )
+            flattened.assertPixelColor(Color(0, true), 10, 10, "an area flattened to zero width paints nothing")
+            flattenedVertically.assertPixelColor(
+                Color(0, true),
+                10,
+                10,
+                "an area flattened to zero height paints nothing",
+            )
         }
 
     @Test
@@ -126,7 +196,7 @@ class PlacementLayerTest {
                         .then(PlacementReadOffsetElement(boxOffset, -1)),
             )
 
-            assertEquals(Color.RED.rgb, paintTagged("layered").getRGB(2, 2))
+            paintTagged("layered").assertPixelColor(Color.RED, 2, 2)
         }
 
     @Test
@@ -134,13 +204,13 @@ class PlacementLayerTest {
         runComposeSwingTest {
             setLayeredSquares("above" to { alpha = 2f }, "below" to { alpha = -1f }, "nan" to { alpha = Float.NaN })
 
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag("above").captureToImage().getRGB(20, 20),
-                "an alpha above one paints unfaded",
-            )
-            assertEquals(0, onNodeWithTag("below").captureToImage().getRGB(20, 20), "a negative alpha paints nothing")
-            assertEquals(0, onNodeWithTag("nan").captureToImage().getRGB(20, 20), "a NaN alpha paints nothing")
+            onNodeWithTag(
+                "above",
+            ).captureToImage().assertPixelColor(Color.RED, 20, 20, "an alpha above one paints unfaded")
+            onNodeWithTag(
+                "below",
+            ).captureToImage().assertPixelColor(Color(0, true), 20, 20, "a negative alpha paints nothing")
+            onNodeWithTag("nan").captureToImage().assertPixelColor(Color(0, true), 20, 20, "a NaN alpha paints nothing")
         }
 
     @Test
@@ -148,8 +218,8 @@ class PlacementLayerTest {
         runComposeSwingTest {
             setLayeredSquares("x" to { scaleX = 0f }, "y" to { scaleY = 0f })
 
-            assertEquals(0, onNodeWithTag("x").captureToImage().getRGB(20, 20))
-            assertEquals(0, onNodeWithTag("y").captureToImage().getRGB(20, 20))
+            onNodeWithTag("x").captureToImage().assertPixelColor(Color(0, true), 20, 20)
+            onNodeWithTag("y").captureToImage().assertPixelColor(Color(0, true), 20, 20)
         }
 
     @Test
@@ -170,17 +240,17 @@ class PlacementLayerTest {
             )
 
             val centered = onNodeWithTag("centered").captureToImage()
-            assertEquals(0, centered.getRGB(1, 1), "a shrink around the center leaves the corner")
-            assertEquals(Color.RED.rgb, centered.getRGB(20, 20))
+            centered.assertPixelColor(Color(0, true), 1, 1, "a shrink around the center leaves the corner")
+            centered.assertPixelColor(Color.RED, 20, 20)
             val topLeft = onNodeWithTag("topLeft").captureToImage()
-            assertEquals(Color.RED.rgb, topLeft.getRGB(1, 1))
-            assertEquals(0, topLeft.getRGB(40 - 2, 40 - 2))
+            topLeft.assertPixelColor(Color.RED, 1, 1)
+            topLeft.assertPixelColor(Color(0, true), 40 - 2, 40 - 2)
             val horizontal = onNodeWithTag("horizontal").captureToImage()
-            assertEquals(0, horizontal.getRGB(1, 20))
-            assertEquals(Color.RED.rgb, horizontal.getRGB(20, 1))
+            horizontal.assertPixelColor(Color(0, true), 1, 20)
+            horizontal.assertPixelColor(Color.RED, 20, 1)
             val vertical = onNodeWithTag("vertical").captureToImage()
-            assertEquals(0, vertical.getRGB(20, 1))
-            assertEquals(Color.RED.rgb, vertical.getRGB(1, 20))
+            vertical.assertPixelColor(Color(0, true), 20, 1)
+            vertical.assertPixelColor(Color.RED, 1, 20)
         }
 
     @Test
@@ -198,12 +268,18 @@ class PlacementLayerTest {
                 }
             }
 
-            val pixel = onNodeWithTag("layered").captureToImage().getRGB(10 / 2, 10 / 2)
+            val image = onNodeWithTag("layered").captureToImage()
 
-            assertEquals(128.0, (pixel ushr 24).toDouble(), 1.0, "the subtree fades at the declared alpha")
             assertEquals(
-                Color.BLUE.rgb and 0xFFFFFF,
-                pixel and 0xFFFFFF,
+                128.0,
+                (image.getRGB(10 / 2, 10 / 2) ushr 24).toDouble(),
+                1.0,
+                "the subtree fades at the declared alpha",
+            )
+            image.assertPixelColor(
+                Color(0, 0, 255, 128),
+                10 / 2,
+                10 / 2,
                 "the lower child is hidden under the upper one",
             )
         }
@@ -232,7 +308,7 @@ class PlacementLayerTest {
                 }
             }
 
-            assertEquals(Color.RED.rgb, onNodeWithTag("before").captureToImage().getRGB(10, 10))
+            onNodeWithTag("before").captureToImage().assertPixelColor(Color.RED, 10, 10)
             val after = onNodeWithTag("after").captureToImage().getRGB(10, 10)
             assertEquals(128.0, (after ushr 24).toDouble(), 1.0)
         }
@@ -256,80 +332,62 @@ class PlacementLayerTest {
 
             color = Color.BLUE
             awaitIdle()
-            val changed = onNodeWithTag("layered").captureToImage().getRGB(10, 10)
-            assertEquals(128.0, (changed ushr 24).toDouble(), 1.0, "the layer still fades")
-            assertEquals(Color.BLUE.rgb and 0xFFFFFF, changed and 0xFFFFFF)
+            val changed = onNodeWithTag("layered").captureToImage()
+            changed.assertPixelColor(Color(0, 0, 255, 128), 10, 10, "the layer still fades")
 
             layered = false
             awaitIdle()
-            assertEquals(Color.BLUE.rgb, onNodeWithTag("layered").captureToImage().getRGB(10, 10))
+            onNodeWithTag("layered").captureToImage().assertPixelColor(Color.BLUE, 10, 10)
         }
 
     /**
      * A state read in a layer block is a read of the component's paint: its change repaints the component,
-     * invalidates nothing, and the next paint shows the new value.
+     * invalidates nothing, and the next paint shows the new value. A layer on a component that is not a [Layout]'s
+     * panel observes its block's reads itself.
      */
-    @Test
-    fun aReadInALayerBlockRepaintsWithoutLayingOutAgain() =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val scale = mutableFloatStateOf(1f)
-            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
-            setWindowContent {
-                Row {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag(CONTAINER_TAG)
-                                .preferredSize(40, 40)
-                                .placementLayer(block)
-                                .background(Brush.of(Color.RED)),
-                    )
-                }
+    @ParameterizedTest(name = "{0} reading {1}")
+    @MethodSource("contentReads")
+    internal fun aReadInALayerBlockRepaintsWithoutLayingOutAgain(
+        content: @Composable (SwingModifier, () -> Unit) -> Unit,
+        read: LayerRead,
+    ) = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val value = mutableFloatStateOf(1f)
+        val paints = TapElement()
+        val block: PlacementLayerScope.() -> Unit = { read.write(this, value.floatValue) }
+        setWindowContent {
+            Row {
+                content(
+                    SwingModifier
+                        .testTag(CONTAINER_TAG)
+                        .preferredSize(40, 40)
+                        .placementLayer(block)
+                        .then(paints),
+                ) {}
             }
-            val box = windowContainer()
-            val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
-            assertEquals(Color.RED.rgb, node.captureToImage().getRGB(10, 10))
-            box.paintImmediately(0, 0, box.width, box.height)
-            assertTrue(box.isValidUpToTheValidateRoot(), "the realized box must start valid")
+        }
+        val component = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+        val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
+        node.captureToImage().assertPixelColor(Color.RED, 10, 10)
+        component.paintImmediately(0, 0, component.width, component.height)
+        assertTrue(component.isValidUpToTheValidateRoot(), "the realized component must start valid")
+        val painted = paints.node.paints
 
-            assertDirtyRegionsDuring(box, listOf(Rectangle(0, 0, 40, 40)), "a changed read must repaint") {
-                scale.floatValue = 0.5f
+        if (read.redrawsRecording) {
+            value.floatValue = 0.5f
+            Snapshot.sendApplyNotifications()
+            awaitEventsDelivered()
+            assertTrue(paints.node.paints > painted, "the ${read.name} change did not redraw the layer")
+        } else {
+            assertDirtyRegionsDuring(component, listOf(Rectangle(0, 0, 40, 40)), "a changed ${read.name} read") {
+                value.floatValue = 0.5f
                 Snapshot.sendApplyNotifications()
             }
-            assertTrue(box.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
-            awaitIdle()
-            node.captureToImage().assertScaledRed()
         }
-
-    /** A layer on a component that is not a [Layout]'s panel observes its block's reads itself. */
-    @Test
-    fun aReadInALayerBlockOnACanvasRepaintsWithoutLayingOutAgain() =
-        runComposeSwingTest {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val scale = mutableFloatStateOf(1f)
-            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
-            setWindowContent {
-                Row {
-                    Canvas(
-                        modifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(40, 40).placementLayer(block),
-                    ) { drawRect(Color.RED) }
-                }
-            }
-            val canvas = windowContainer()
-            val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
-            assertEquals(Color.RED.rgb, node.captureToImage().getRGB(10, 10))
-            canvas.paintImmediately(0, 0, canvas.width, canvas.height)
-            assertTrue(canvas.isValidUpToTheValidateRoot(), "the realized canvas must start valid")
-
-            assertDirtyRegionsDuring(canvas, listOf(Rectangle(0, 0, 40, 40)), "a changed read must repaint") {
-                scale.floatValue = 0.5f
-                Snapshot.sendApplyNotifications()
-            }
-            assertTrue(canvas.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
-            awaitIdle()
-            node.captureToImage().assertScaledRed()
-        }
+        assertTrue(component.isValidUpToTheValidateRoot(), "a layer read must not invalidate anything")
+        awaitIdle()
+        read.assertPainted(node.captureToImage())
+    }
 
     @Test
     fun aFadeReusesItsCompositeUntilTheAlphaOrTheGraphicsCompositeChanges() =
@@ -385,7 +443,7 @@ class PlacementLayerTest {
                     )
                 }
             }
-            val row = windowContainer()
+            val row = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val layered = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").fetch<JComponent>()
             row.paintImmediately(0, 0, row.width, row.height)
 
@@ -420,7 +478,7 @@ class PlacementLayerTest {
                     )
                 }
             }
-            val row = windowContainer()
+            val row = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val layered = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").fetch<JComponent>()
             val placed = layered.bounds
             val repaintManager = RepaintManager.currentManager(layered)
@@ -431,11 +489,11 @@ class PlacementLayerTest {
             Snapshot.sendApplyNotifications()
 
             assertEquals(placed, layered.bounds, "the content cancels the layer's move")
-            assertEquals(Rectangle(0, 0, layered.width, layered.height), layered.dirtyRegion(), "a moved box repaints")
+            assertEquals(Rectangle(0, 0, 40, 40), layered.dirtyRegion(), "a moved box repaints")
             assertTrue(row.dirtyRegion().isEmpty, "only the component repaints: ${row.dirtyRegion()}")
             assertTrue(layered.isValidUpToTheValidateRoot(), "a moved box must not invalidate anything")
             val image = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").captureToImage()
-            assertEquals(0, image.getRGB(1, 10), "the clip follows the moved box")
+            image.assertPixelColor(Color(0, true), 1, 10, "the clip follows the moved box")
             assertEquals(128.0, image.alphaAt(20 + 1, 10), 1.0, "the content fades inside the moved box")
         }
 
@@ -460,12 +518,12 @@ class PlacementLayerTest {
             layer.value = null
             awaitIdle()
 
-            assertEquals(Color.RED.rgb, onNodeWithTag("layered").captureToImage().getRGB(10, 10))
+            onNodeWithTag("layered").captureToImage().assertPixelColor(Color.RED, 10, 10)
         }
 
     /**
      * A node placed without a layer clears the layer's decorator, or the component stays a painting origin and
-     * non-opaque. No other decoration is declared here, so the layer is the only thing either answer can come from.
+     * non-opaque. No other decoration is declared here, so the layer is the only thing either reading can come from.
      */
     @Test
     fun aNodeThatStopsPlacingWithALayerClearsTheLayerDecorator() =
@@ -519,13 +577,15 @@ class PlacementLayerTest {
                 }
             }
 
-            val layered = onNodeWithTag("layered").fetch<JComponent>()
-            assertEquals(40 * 2 - 10, layered.x, "the content sits at the trailing edge of the row and of its layer")
-            assertEquals(Color.RED.rgb, onNodeWithTag("layered").captureToImage().getRGB(10 / 2, 10 / 2))
+            onNodeWithTag("layered").assertProperty(
+                40 * 2 - 10,
+                "the content sits at the trailing edge of the row and of its layer",
+            ) { this.x }
+            onNodeWithTag("layered").captureToImage().assertPixelColor(Color.RED, 10 / 2, 10 / 2)
         }
 
     @Test
-    fun aPlacementWithALayerAnswersABaselineQuery() =
+    fun aPlacementWithALayerReportsItsContentsBaseline() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = containerModifier(CHILD_WIDTH * CHILD_COUNT, CHILD_HEIGHT * 2)) {
@@ -546,19 +606,14 @@ class PlacementLayerTest {
             )
         }
 
-    @Test
-    fun aPlacementThatTakesChangesOrDropsItsLayerRepaintsOnlyTheComponent() = assertLayerChangesRepaintOnly(false)
-
-    @Test
-    fun aRelativePlacementThatTakesChangesOrDropsItsLayerRepaintsOnlyTheComponent() =
-        assertLayerChangesRepaintOnly(true)
-
     /**
      * A placement read that first places with a layer, hands it a new block instance, or places without it, at
      * unchanged bounds, repaints the component, invalidates nothing and leaves its container clean; the pixels
      * follow.
      */
-    private fun assertLayerChangesRepaintOnly(relative: Boolean) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("placementReads")
+    fun aPlacementThatTakesChangesOrDropsItsLayerRepaintsOnlyTheComponent(relative: Boolean) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val block = mutableStateOf<(PlacementLayerScope.() -> Unit)?>(null)
@@ -574,7 +629,7 @@ class PlacementLayerTest {
                     )
                 }
             }
-            val row = windowContainer()
+            val row = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered")
             val layered = node.fetch<JComponent>()
             val placed = layered.bounds
@@ -590,7 +645,7 @@ class PlacementLayerTest {
                 Snapshot.sendApplyNotifications()
 
                 assertEquals(placed, layered.bounds)
-                assertEquals(Rectangle(0, 0, placed.width, placed.height), layered.dirtyRegion(), "repaints")
+                assertEquals(Rectangle(0, 0, 40, 40), layered.dirtyRegion(), "repaints")
                 assertTrue(row.dirtyRegion().isEmpty, "only the component repaints: ${row.dirtyRegion()}")
                 assertTrue(layered.isValidUpToTheValidateRoot(), "a layer change must not invalidate anything")
                 assertEquals(expectedAlpha, node.captureToImage().alphaAt(10, 10), 1.0)
@@ -619,7 +674,7 @@ class PlacementLayerTest {
             faded = false
             awaitIdle()
 
-            assertEquals(Color.RED.rgb, onNodeWithTag("layered").captureToImage().getRGB(10, 10))
+            onNodeWithTag("layered").captureToImage().assertPixelColor(Color.RED, 10, 10)
         }
 
     /** Composes a red 40-pixel square for each pair, tagged by its first and placed with its second layer. */
@@ -644,38 +699,6 @@ class PlacementLayerTest {
         x: Int,
         y: Int,
     ): Double = (getRGB(x, y) ushr 24).toDouble()
-
-    /**
-     * Two overlapping squares faded as one image hide the lower one where they overlap, and the whole is the
-     * unfaded image drawn at the declared alpha - including the antialiased edges of squares placed at a
-     * sub-pixel offset, which a buffer off the destination's pixel grid would move.
-     */
-    private fun assertFadeIsOneImage(scale: Double) =
-        runComposeSwingTest {
-            setCanvases("plain" to SwingModifier, "layered" to SwingModifier.placementLayer { alpha = 0.5f }) { g ->
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                g.color = Color.RED
-                g.fill(Rectangle2D.Double(2.25, 2.25, 10.5, 10.5))
-                g.color = Color.BLUE
-                g.fill(Rectangle2D.Double(7.75, 7.75, 10.5, 10.5))
-            }
-            val unfaded = paintTagged("plain", scale = scale)
-            val faded = paintTagged("layered", scale = scale)
-
-            assertImagesPixelPerfect(
-                renderImage(unfaded.width, unfaded.height) {
-                    it.composite = AlphaComposite.SrcOver.derive(0.5f)
-                    it.drawImage(unfaded, 0, 0, null)
-                },
-                faded,
-            )
-            val overlap = (10 * scale).toInt()
-            assertEquals(
-                Color.BLUE.rgb and 0xFFFFFF,
-                faded.getRGB(overlap, overlap) and 0xFFFFFF,
-                "the lower square is hidden",
-            )
-        }
 
     /**
      * Composes a 20-pixel canvas for each pair, tagged by its first and modified by its second, drawing [content],
@@ -782,9 +805,4 @@ private class PlacementReadOffsetNode(
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) { placeable.place(sign * offset.value, 0) }
     }
-}
-
-private fun BufferedImage.assertScaledRed() {
-    assertEquals(Color.RED.rgb, getRGB(20, 10), "the scaled layer still paints its content")
-    assertEquals(0, getRGB(5, 10), "the scale leaves the edge transparent")
 }

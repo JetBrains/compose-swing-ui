@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import java.awt.AlphaComposite
 import java.awt.Dimension
 import java.awt.Graphics2D
@@ -17,7 +18,7 @@ import java.awt.Rectangle
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
-import kotlin.math.abs
+import kotlin.test.assertIs
 
 /** Creates a transparent raster and gives its graphics to a test drawing directly without a Swing component. */
 internal inline fun renderImage(
@@ -94,14 +95,11 @@ internal fun JComponent.paintOnto(
         paint(it)
     }
 
-/**
- * How many levels of one channel, at most, [before], what this component painted before a change, painted again over
- * [areas] alone, in its own coordinates, is off what this component paints whole now.
- */
-internal fun JComponent.levelsOffAWholeRepaint(
+/** Repainting [areas] over [before] matches a whole repaint pixel for pixel. */
+internal fun JComponent.assertPartialRepaintMatchesWhole(
     before: BufferedImage,
     areas: List<Rectangle>,
-): Int {
+) {
     val partial =
         renderImage(width, height) { graphics ->
             graphics.drawImage(before, 0, 0, null)
@@ -112,11 +110,12 @@ internal fun JComponent.levelsOffAWholeRepaint(
                 graphics.drawImage(paintOnto(width, height, clip = area), 0, 0, null)
             }
         }
-    return partial.channelDifference(paintOnto(width, height))
+    val full = paintOnto(width, height)
+    assertImagesPixelPerfect(full, partial)
 }
 
 /** The paint outsets of this decorated component. */
-internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()
+internal val JComponent.paintOutsets: Insets get() = assertIs<Decoratable>(this).decoration.paintOutsets()
 
 internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension> {
     val sizes = mutableListOf<Dimension>()
@@ -128,19 +127,6 @@ internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension
     }
     return sizes
 }
-
-/** The largest difference of one channel between this image and [other] over [pixels], every pixel by default. */
-internal fun BufferedImage.channelDifference(
-    other: BufferedImage,
-    pixels: List<Pair<Int, Int>> = (0 until height).flatMap { y -> (0 until width).map { x -> x to y } },
-): Int =
-    pixels.maxOf { (x, y) ->
-        val pixel = getRGB(x, y)
-        val otherPixel = other.getRGB(x, y)
-        (0 until Int.SIZE_BITS step Byte.SIZE_BITS).maxOf { shift ->
-            abs((pixel ushr shift and 0xFF) - (otherPixel ushr shift and 0xFF))
-        }
-    }
 
 /** Test-only drawing leaf used where tests need a raw Swing view. */
 @Composable
@@ -178,14 +164,10 @@ private class TestDrawNode(
     var onDraw: (Graphics2D, Int, Int) -> Unit,
 ) : DrawModifierNode<JComponent>() {
     override fun ContentDrawScope.draw() {
-        val border = component.border?.getBorderInsets(component)
-        val left = border?.left ?: 0
-        val top = border?.top ?: 0
-        val drawWidth = (size.width - left - (border?.right ?: 0)).coerceAtLeast(0)
-        val drawHeight = (size.height - top - (border?.bottom ?: 0)).coerceAtLeast(0)
-        val surface = graphics.create(left, top, drawWidth, drawHeight) as Graphics2D
+        val surface =
+            assertIs<Graphics2D>(graphics.create(0, 0, size.width, size.height), "expected a Graphics2D copy")
         try {
-            onDraw(surface, drawWidth, drawHeight)
+            onDraw(surface, size.width, size.height)
         } finally {
             surface.dispose()
         }

@@ -23,6 +23,7 @@ import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -33,7 +34,6 @@ import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTextField
@@ -90,7 +90,7 @@ class PaintOutsetsInFoundationTest {
                 }
             }
 
-            assertEquals(Dimension(21, 15), onNodeWithTag("row").fetch<JComponent>().minimumSize, "shadow left out")
+            onNodeWithTag("row").assertProperty(Dimension(21, 15), "shadow left out") { minimumSize }
         }
 
     @Test
@@ -109,7 +109,7 @@ class PaintOutsetsInFoundationTest {
                 }
             }
 
-            assertEquals(40, onNodeWithTag("canvas").fetch<JComponent>().layoutBounds.width, "stops at the set maximum")
+            onNodeWithTag("canvas").assertProperty(40, "stops at the set maximum") { layoutBounds.width }
         }
 
     @Test
@@ -280,7 +280,7 @@ class PaintOutsetsInFoundationTest {
 
             text = "after"
             awaitIdle()
-            assertEquals("after", onNodeWithTag("plain").fetch<JLabel>().text, "the composition keeps running")
+            onNodeWithTag("plain").assertTextEquals("after")
             val sized = onNodeWithTag("sized").fetch<JComponent>()
             assertEquals(
                 Dimension(0, 0),

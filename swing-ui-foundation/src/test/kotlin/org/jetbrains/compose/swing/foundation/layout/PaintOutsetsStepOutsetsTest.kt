@@ -15,6 +15,8 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Dimension
@@ -163,11 +165,10 @@ class PaintOutsetsStepOutsetsTest {
             assertNotEquals(0, reach, "the shadow reaches past the box")
             val orders = listOf("none, shadow, padding", "shadow, padding, none", "padding, none, shadow")
             for ((index, order) in orders.withIndex()) {
-                assertEquals(
+                onNodeWithTag(order).assertProperty(
                     Rectangle(reach + 8, index * box + reach + 8, 40, 40),
-                    onNodeWithTag(order).fetch().layoutBounds,
                     "$order: the shadow's reach and the padding, each once",
-                )
+                ) { layoutBounds }
             }
             assertEquals(Rectangle(8, 3 * box + 8, 40, 40), undeclared.layoutBounds, "the last box ends at 3 * $box")
         }
@@ -202,7 +203,7 @@ class PaintOutsetsStepOutsetsTest {
             assertEquals(first.paintOutsets, second.paintOutsets)
             assertEquals(Rectangle(0, 0, 60, 40), first.layoutBounds, "declared before the layer")
             assertEquals(Rectangle(0, 40, 60, 40), second.layoutBounds, "declared after the layer")
-            assertEquals(80, onNodeWithTag(NEXT).fetch().layoutBounds.y)
+            onNodeWithTag(NEXT).assertProperty(80) { layoutBounds.y }
         }
 
     @Test
@@ -251,7 +252,7 @@ class PaintOutsetsStepOutsetsTest {
         }
 
     /**
-     * The panel's preferred size is set, so its layout asks the row's once, as it lays it out. That answer comes from
+     * The panel's preferred size is set, so its layout asks the row's once, as it lays it out. That result comes from
      * the node's intrinsic hooks, which run its `measure`.
      */
     @Test
@@ -276,9 +277,9 @@ class PaintOutsetsStepOutsetsTest {
                     }
                 }
             }
-            assertEquals(Dimension(66, 56), onNodeWithTag("row").fetch().size)
-            assertEquals(Rectangle(8, 8, 40, 40), onNodeWithTag(FIRST).fetch().layoutBounds)
-            assertEquals(56, onNodeWithTag(NEXT).fetch().layoutBounds.x)
+            onNodeWithTag("row").assertProperty(Dimension(66, 56)) { size }
+            onNodeWithTag(FIRST).assertProperty(Rectangle(8, 8, 40, 40)) { layoutBounds }
+            onNodeWithTag(NEXT).assertProperty(56) { layoutBounds.x }
         }
 
     /** A changed read in the node's placement places the column's children again while the column is valid. */
@@ -347,7 +348,7 @@ class PaintOutsetsStepOutsetsTest {
 
             val reach = blurOutsets(8)
             assertEquals(1, passes, "the change joins the validation the container awaits")
-            assertEquals(Rectangle(reach, reach, 40, 40), onNodeWithTag(FIRST).fetch().layoutBounds)
+            onNodeWithTag(FIRST).assertProperty(Rectangle(reach, reach, 40, 40)) { layoutBounds }
         }
 
     /** The layout bounds and paint outsets of the component tagged [FIRST], and where the one tagged [NEXT] starts. */
@@ -356,10 +357,11 @@ class PaintOutsetsStepOutsetsTest {
         paintOutsets: Insets,
         next: Int,
     ) {
-        val first = onNodeWithTag(FIRST).fetch<JComponent>()
-        assertEquals(layoutBounds, first.layoutBounds, "the layout bounds")
-        assertEquals(paintOutsets, first.paintOutsets, "the paint outsets")
-        assertEquals(next, onNodeWithTag(NEXT).fetch().layoutBounds.y, "where the next sibling starts")
+        onNodeWithTag(FIRST).assertProperty(layoutBounds, "the layout bounds") { this.layoutBounds }
+        onNodeWithTag(FIRST).assertIsOfType<JComponent>().assertProperty(paintOutsets, "the paint outsets") {
+            this.paintOutsets
+        }
+        onNodeWithTag(NEXT).assertProperty(next, "where the next sibling starts") { this.layoutBounds.y }
     }
 
     private companion object {

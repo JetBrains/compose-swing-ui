@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -21,6 +23,7 @@ import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -186,7 +189,10 @@ class LayoutModifierUpdateTest {
             start = 9
             awaitIdle()
 
-            assertEquals(9, childBoundsOf(UPDATED_TAG).x, "a padding declared with another value must place the child")
+            onNodeWithTag(UPDATED_TAG).onChildAt(0).assertProperty(
+                9,
+                "a padding declared with another value must place the child",
+            ) { this.x }
             assertEquals(1, measures, "a padding declared with another value must measure its child once")
             assertEquals(keyReads, keyed.keyReads, "a padding written in place must leave the modifier undiffed")
         }
@@ -207,7 +213,10 @@ class LayoutModifierUpdateTest {
             x = 9
             awaitIdle()
 
-            assertEquals(9, childBoundsOf(UPDATED_TAG).x, "an offset declared with another value must place the child")
+            onNodeWithTag(UPDATED_TAG).onChildAt(0).assertProperty(
+                9,
+                "an offset declared with another value must place the child",
+            ) { this.x }
             assertEquals(0, measures, "an offset declared with another value must not measure its child again")
         }
 
@@ -340,11 +349,10 @@ class LayoutModifierUpdateTest {
             y = 20
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).onChildAt(0).assertProperty(
                 100 - 20 - 10,
-                onNodeWithTag(CONTAINER_TAG).fetch<Container>().getComponent(0).y,
                 "a parent placing the box by its baseline must follow the baseline the offset moves",
-            )
+            ) { this.y }
             assertEquals(0, measures, "a parent reading the line only in its placement is placed again, not measured")
         }
 
@@ -375,13 +383,16 @@ class LayoutModifierUpdateTest {
                 )
             }
             awaitIdle()
-            val box = onNodeWithTag(CONTAINER_TAG).fetch<Container>().getComponent(0)
+            val box = onNodeWithTag(CONTAINER_TAG).onChildAt(0).fetch()
 
             y = 20
             awaitIdle()
             byLine = true
             awaitIdle()
-            assertEquals(100 - 20 - 10, box.y, "the first read must find the baseline the offset moved")
+            onNodeWithTag(CONTAINER_TAG).onChildAt(0).assertProperty(
+                100 - 20 - 10,
+                "the first read must find the baseline the offset moved",
+            ) { this.y }
 
             byLine = false
             awaitIdle()
@@ -389,7 +400,11 @@ class LayoutModifierUpdateTest {
             awaitIdle()
             byLine = true
             awaitIdle()
-            assertEquals(100 - 10, box.y, "a read after an earlier one must find the baseline the offset moved since")
+            assertSame(box, onNodeWithTag(CONTAINER_TAG).onChildAt(0).fetch(), "the box is updated, not rebuilt")
+            onNodeWithTag(CONTAINER_TAG).onChildAt(0).assertProperty(
+                100 - 10,
+                "a read after an earlier one must find the baseline the offset moved since",
+            ) { this.y }
         }
 
     @Test

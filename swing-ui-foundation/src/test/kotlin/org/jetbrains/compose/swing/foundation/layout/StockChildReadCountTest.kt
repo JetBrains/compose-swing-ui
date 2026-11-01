@@ -10,11 +10,15 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Dimension
 import javax.swing.JComponent
+import javax.swing.JEditorPane
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.assertEquals
@@ -105,6 +109,38 @@ class StockChildReadCountTest {
         onNodeWithTag("label").assertProperty(JLabel(lastText).preferredSize.height, "the label's height") { height }
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("contentTypes")
+    fun aPaneResettingItsSizeOnATextChangeTakesItsWrappedHeightAtAHeldWidth(contentType: String) {
+        runComposeSwingTest {
+            var text by mutableStateOf("Short")
+            setContent {
+                Box {
+                    Column(SwingModifier.width(200)) {
+                        SwingNode(
+                            factory = { SizeResettingPane(contentType) },
+                            modifier = SwingModifier.fillMaxWidth().testTag("pane"),
+                            update = { set(text) { this.text = it } },
+                        )
+                        Label("After", SwingModifier.testTag("after"))
+                    }
+                }
+            }
+            val wrapped =
+                SizeResettingPane(contentType).run {
+                    this.text = WRAPPING_TEXT
+                    setSize(200, 1000)
+                    preferredSize.height
+                }
+
+            text = WRAPPING_TEXT
+            awaitIdle()
+
+            onNodeWithTag("pane").assertProperty(wrapped, "the height of the wrapped text") { height }
+            onNodeWithTag("after").assertProperty(wrapped, "the next child below the wrapped text") { y }
+        }
+    }
+
     @ParameterizedTest(name = "{0}, then {1}")
     @CsvSource(
         "<html>Short</html>, '<html>$WRAPPING_TEXT</html>'",
@@ -128,6 +164,15 @@ class StockChildReadCountTest {
 
         onNodeWithTag("leaf").assertProperty(10, "the label's top, where its settled baseline puts it") { y }
         onNodeWithTag("side").assertProperty(10, "the side label's top, below its padding and on that line") { y }
+    }
+
+    companion object {
+        @JvmStatic
+        fun contentTypes(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("an HTML pane", "text/html")),
+                Arguments.of(Named.of("a plain-text pane", "text/plain")),
+            )
     }
 
     private class CountingLabel : JLabel() {
@@ -171,5 +216,15 @@ private fun LabelIn(
         "Box" -> Box { child() }
         "nested" -> Row { Column { Box { child() } } }
         else -> error("No container named $container")
+    }
+}
+
+/** Sets its size to 0x0 on every text write, so its next preferred height depends on the width its parent grants. */
+private class SizeResettingPane(
+    contentType: String,
+) : JEditorPane(contentType, "") {
+    override fun setText(t: String?) {
+        super.setText(t)
+        size = Dimension(0, 0)
     }
 }

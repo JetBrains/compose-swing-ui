@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
@@ -47,15 +48,17 @@ class LayoutNodeDecoratorTest {
             }
 
             val painted = onNodeWithTag(DECORATED).captureToImage()
-            assertEquals(
-                Color.GREEN.rgb,
-                painted.getRGB(1, 1),
+            painted.assertPixelColor(
+                Color.GREEN,
+                1,
+                1,
                 "the step paints over the background declared before it, at the node's own box, which holds the " +
                     "padding declared after it",
             )
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(10, 10),
+            painted.assertPixelColor(
+                Color.BLUE,
+                10,
+                10,
                 "the background declared after the padding paints at the component's box, inside the step",
             )
         }
@@ -77,9 +80,12 @@ class LayoutNodeDecoratorTest {
                     .background(Blue)
             }
             awaitIdle()
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(
+                Color.GREEN,
+                1,
+                1,
                 "a background declared ahead of an unchanged layout node moves the node's step inside it",
             )
 
@@ -91,19 +97,15 @@ class LayoutNodeDecoratorTest {
                     .background(Blue)
             }
             awaitIdle()
-            assertEquals(
-                Color.YELLOW.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "an updated node keeps its place",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.YELLOW, 1, 1, "an updated node keeps its place")
 
             modifier = { SwingModifier.background(Red).padding(4).background(Blue) }
             awaitIdle()
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "a detached node paints no more",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.RED, 1, 1, "a detached node paints no more")
         }
 
     @Test
@@ -128,11 +130,9 @@ class LayoutNodeDecoratorTest {
             awaitIdle()
 
             assertEquals(1, panel.repaints, "both steps move inside the moved background in one change, not one each")
-            assertEquals(
-                Color.YELLOW.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the last step paints innermost",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.YELLOW, 1, 1, "the last step paints innermost")
         }
 
     @Test
@@ -156,16 +156,8 @@ class LayoutNodeDecoratorTest {
 
             assertEquals(1, panel.repaints, "the new node's step reaches the component as one decoration")
             val painted = onNodeWithTag(DECORATED).captureToImage()
-            assertEquals(
-                Color.GREEN.rgb,
-                painted.getRGB(1, 1),
-                "the step paints inside the background declared before it",
-            )
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(10, 10),
-                "the background declared after the step paints inside it",
-            )
+            painted.assertPixelColor(Color.GREEN, 1, 1, "the step paints inside the background declared before it")
+            painted.assertPixelColor(Color.BLUE, 10, 10, "the background declared after the step paints inside it")
         }
 
     @Test
@@ -180,11 +172,9 @@ class LayoutNodeDecoratorTest {
                 }
 
             val corners = checkNotNull(panel.corners)
-            assertEquals(
-                Color.YELLOW.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the last step declared paints innermost",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.YELLOW, 1, 1, "the last step declared paints innermost")
             assertTrue(
                 Color.GREEN.rgb !in corners.dropWhile { it != Color.YELLOW.rgb },
                 "each step joins at its final place, so no repaint paints a step inside a later one: $corners",
@@ -209,11 +199,9 @@ class LayoutNodeDecoratorTest {
                 panel.repaints,
                 "the new decorator reaches the component once, already at the node's new place",
             )
-            assertEquals(
-                Color.YELLOW.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the step paints inside the background",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.YELLOW, 1, 1, "the step paints inside the background")
         }
 
     @Test
@@ -258,16 +246,14 @@ class LayoutNodeDecoratorTest {
                     SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.GREEN))
                 })
             decoratedChild { modifier() }
-            assertEquals(Color.GREEN.rgb, onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1))
+            onNodeWithTag(DECORATED).captureToImage().assertPixelColor(Color.GREEN, 1, 1)
 
             modifier = { SwingModifier.background(Red) }
             awaitIdle()
 
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "a detached node's decorator paints no more",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.RED, 1, 1, "a detached node's decorator paints no more")
         }
 
     @Test
@@ -283,7 +269,7 @@ class LayoutNodeDecoratorTest {
                     "element attaches it. Declare that element through decoration.",
                 failure.message,
             )
-            assertEquals(Color.GREEN.rgb, onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1))
+            onNodeWithTag(DECORATED).captureToImage().assertPixelColor(Color.GREEN, 1, 1)
         }
 
     @Test
@@ -327,19 +313,13 @@ class LayoutNodeDecoratorTest {
             assertSame(replacement, node.decorator, "the node holds the replacement")
             assertEquals(1, panel.repaints, "a replacement reaches the component as one decoration")
             val painted = onNodeWithTag(DECORATED).captureToImage()
-            assertEquals(Color.YELLOW.rgb, painted.getRGB(1, 1), "the replacement paints where the replaced one did")
-            assertEquals(
-                Color.BLUE.rgb,
-                painted.getRGB(10, 10),
-                "what is declared after the node still paints inside it",
-            )
+            painted.assertPixelColor(Color.YELLOW, 1, 1, "the replacement paints where the replaced one did")
+            painted.assertPixelColor(Color.BLUE, 10, 10, "what is declared after the node still paints inside it")
 
             node.decorator = null
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "nothing of the replaced decorator is left",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.RED, 1, 1, "nothing of the replaced decorator is left")
         }
 
     @Test
@@ -354,18 +334,14 @@ class LayoutNodeDecoratorTest {
 
             node.decorator = null
             assertNull(node.decorator)
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "a cleared decorator paints no more",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.RED, 1, 1, "a cleared decorator paints no more")
 
             node.decorator = decorator
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "setting it again paints it again",
-            )
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(Color.GREEN, 1, 1, "setting it again paints it again")
         }
 
     @Test
@@ -388,7 +364,7 @@ class LayoutNodeDecoratorTest {
             node.decorator = Fill(Color.YELLOW, outsets = Insets(4, 4, 4, 4))
             awaitIdle()
             assertEquals(
-                Rectangle(bounds.x - 4, bounds.y - 4, bounds.width + 8, bounds.height + 8),
+                Rectangle(bounds).apply { grow(4, 4) },
                 panel.bounds,
                 "a decorator taking other outsets grows the bounds by them",
             )
@@ -408,11 +384,7 @@ class LayoutNodeDecoratorTest {
                 node.layerFailure?.message,
             )
             assertEquals(Fill(Color.GREEN), node.decorator)
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the decorator still paints",
-            )
+            onNodeWithTag(DECORATED).captureToImage().assertPixelColor(Color.GREEN, 1, 1, "the decorator still paints")
         }
 
     @Test
@@ -446,11 +418,7 @@ class LayoutNodeDecoratorTest {
             awaitIdle()
 
             assertEquals(Fill(Color.GREEN), reused.decorator, "the node keeps its decorator across the detach")
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the decorator paints again",
-            )
+            onNodeWithTag(DECORATED).captureToImage().assertPixelColor(Color.GREEN, 1, 1, "the decorator paints again")
         }
 
     @Test
@@ -472,11 +440,7 @@ class LayoutNodeDecoratorTest {
                 reused.decorator,
                 "placing without the layer keeps the decorator",
             )
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
-                "the decorator paints",
-            )
+            onNodeWithTag(DECORATED).captureToImage().assertPixelColor(Color.GREEN, 1, 1, "the decorator paints")
         }
 
     @Test
@@ -511,9 +475,12 @@ class LayoutNodeDecoratorTest {
             modifier = SwingModifier.then(FillingLayoutNodeElement(null, reused = reused))
             awaitIdle()
 
-            assertEquals(
-                Color.GREEN.rgb,
-                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+            onNodeWithTag(
+                DECORATED,
+            ).captureToImage().assertPixelColor(
+                Color.GREEN,
+                1,
+                1,
                 "the decorator set while the node was placed elsewhere paints once it is placed again",
             )
         }

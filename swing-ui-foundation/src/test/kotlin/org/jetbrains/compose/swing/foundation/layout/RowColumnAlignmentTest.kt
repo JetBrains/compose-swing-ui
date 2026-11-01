@@ -9,7 +9,12 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -28,116 +33,28 @@ import kotlin.test.assertEquals
  * is placed by that one, and its siblings are untouched.
  */
 class RowColumnAlignmentTest {
-    @Test
-    fun startPutsAChildAgainstTheLeadingEdgeOfTheColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.Start) }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("columnAlignments")
+    fun aColumnPutsItsChildWhereItsHorizontalAlignmentSays(
+        alignment: Alignment.Horizontal,
+        orientation: ComponentOrientation,
+        expected: Rectangle,
+        message: String,
+    ) = runComposeSwingTest {
+        setContent { AlignedColumn(alignment, orientation) }
+        assertEquals(listOf(expected), childBounds(), message)
+    }
 
-            assertEquals(
-                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.Start must put the child against the column's leading edge",
-            )
-        }
-
-    @Test
-    fun startPutsAChildAgainstTheRightEdgeOfARightToLeftColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.Start, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.Start must put the child against the column's leading edge, the right one under " +
-                    "a right-to-left orientation",
-            )
-        }
-
-    @Test
-    fun centerHorizontallyPutsAChildHalfwayAcrossTheColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.CenterHorizontally) }
-
-            assertEquals(
-                listOf(Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.CenterHorizontally must leave equal width on either side of the child",
-            )
-        }
-
-    @Test
-    fun centerHorizontallyPutsAChildHalfwayAcrossARightToLeftColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.CenterHorizontally, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                listOf(Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.CenterHorizontally must leave equal width on either side of the child under a " +
-                    "right-to-left orientation too",
-            )
-        }
-
-    @Test
-    fun endPutsAChildAgainstTheTrailingEdgeOfTheColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.End) }
-
-            assertEquals(
-                listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.End must put the child against the column's trailing edge",
-            )
-        }
-
-    @Test
-    fun endPutsAChildAgainstTheLeftEdgeOfARightToLeftColumn() =
-        runComposeSwingTest {
-            setContent { AlignedColumn(Alignment.End, ComponentOrientation.RIGHT_TO_LEFT) }
-
-            assertEquals(
-                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.End must put the child against the column's trailing edge, the left one under a " +
-                    "right-to-left orientation",
-            )
-        }
-
-    @Test
-    fun topPutsAChildAgainstTheTopOfTheRow() =
-        runComposeSwingTest {
-            setContent { AlignedRow(Alignment.Top) }
-
-            assertEquals(
-                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.Top must put the child against the row's top edge",
-            )
-        }
-
-    @Test
-    fun centerVerticallyPutsAChildHalfwayDownTheRow() =
-        runComposeSwingTest {
-            setContent { AlignedRow(Alignment.CenterVertically) }
-
-            assertEquals(
-                listOf(Rectangle(0, 80, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.CenterVertically must leave equal height above and below the child",
-            )
-        }
-
-    @Test
-    fun bottomPutsAChildAgainstTheBottomOfTheRow() =
-        runComposeSwingTest {
-            setContent { AlignedRow(Alignment.Bottom) }
-
-            assertEquals(
-                listOf(Rectangle(0, 160, CHILD_WIDTH, CHILD_HEIGHT)),
-                childBounds(),
-                "Alignment.Bottom must put the child against the row's bottom edge",
-            )
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rowAlignments")
+    fun aRowPutsItsChildWhereItsVerticalAlignmentSays(
+        alignment: Alignment.Vertical,
+        expected: Rectangle,
+        message: String,
+    ) = runComposeSwingTest {
+        setContent { AlignedRow(alignment) }
+        assertEquals(listOf(expected), childBounds(), message)
+    }
 
     @Test
     fun aChildOfAColumnIsPlacedByTheAlignmentItNamesForItself() =
@@ -382,12 +299,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH * 2, 60),
-                containerPreferredSize(),
                 "a row asking for its own height must hold the deepest baseline of its children above the " +
                     "shared line and the deepest remainder below it, which is more than any one child asks for",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
@@ -413,11 +329,10 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH * 2, CHILD_HEIGHT),
-                containerPreferredSize(),
                 "the row's preferred height must not hold a line only the child's measure pass provides",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(
                     Rectangle(0, 20, CHILD_WIDTH, CHILD_HEIGHT),
@@ -472,12 +387,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 60,
-                containerPreferredSize().height,
                 "a weighted child's baseline must enter the row's height like any other child's, and a weighted " +
                     "child without one must take no part in it",
-            )
+            ) { preferredSize.height }
         }
 
     @Test
@@ -490,12 +404,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH * 2, 60),
-                containerPreferredSize(),
                 "a row asking for its own height must read a baseline through a custom layout node, as through a " +
                     "built-in modifier",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -508,12 +421,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH * 2, 5 + 30 + CHILD_HEIGHT - 10),
-                containerPreferredSize(),
                 "a row asking for its own height must read the baseline of a child measured through a padding, " +
                     "below the space the padding reserves",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -529,15 +441,14 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(
                     CAPPED_BASELINE_WIDTH + CHILD_WIDTH,
                     60,
                 ),
-                containerPreferredSize(),
                 "a row must ask its capped child for the baseline at the width it can occupy, so the child " +
                     "still contributes its deeper baseline to the row's intrinsic height",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -552,15 +463,14 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(
                     CHILD_WIDTH * 2,
                     CAPPED_CROSS_DEEP_BASELINE + CHILD_HEIGHT - 10,
                 ),
-                containerPreferredSize(),
                 "a row must ask its capped child for the baseline at the height it can occupy, then calculate " +
                     "the below-baseline remainder from that same capped height",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -576,13 +486,12 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CAPPED_BASELINE_WIDTH + CHILD_WIDTH, 60),
-                containerPreferredSize(),
                 "a row must cap a weighted child's unbounded main-axis share at its own maximum width before " +
                     "asking for its intrinsic height, so the capped child still contributes its baseline to the " +
                     "row's own height",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -603,13 +512,12 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CAPPED_ASPECT_CROSS_AXIS + CHILD_WIDTH, 60),
-                containerPreferredSize(),
                 "a row must cap the cross-axis bound an unweighted child's own maximum height allows before " +
                     "asking its intrinsic main axis, so a child whose width follows that bound still contributes " +
                     "its capped baseline to the row's own height",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -624,12 +532,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH * 2, 60),
-                containerSize(),
                 "a row its column measures settles on the same height it would ask for: the deepest baseline " +
                     "above the shared line and the deepest remainder below it, not merely its tallest child",
-            )
+            ) { size }
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
@@ -650,12 +557,11 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(2 * 20, 2 * 60),
-                containerPreferredSize(),
                 "a row asking for its own height must hold the deepest line its children work out above the " +
                     "shared line and the deepest remainder below it",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(Rectangle(0, 0, 20, 60), Rectangle(20, 60, 20, 60)),
                 childBounds(),
@@ -673,18 +579,86 @@ class RowColumnAlignmentTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(2 * 60, 2 * 20),
-                containerPreferredSize(),
                 "a column asking for its own width must work each child's line out at the width the child " +
                     "takes, and hold the furthest line from its leading edge and the furthest remainder past it",
-            )
+            ) { preferredSize }
             assertEquals(
                 listOf(Rectangle(0, 0, 60, 20), Rectangle(60, 20, 60, 20)),
                 childBounds(),
                 "both children must fit within the width the column asked for, on one line",
             )
         }
+
+    companion object {
+        @JvmStatic
+        fun columnAlignments(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("startPutsAChildAgainstTheLeadingEdgeOfTheColumn", Alignment.Start),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.Start must put the child against the column's leading edge",
+                ),
+                Arguments.of(
+                    Named.of("startPutsAChildAgainstTheRightEdgeOfARightToLeftColumn", Alignment.Start),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.Start must put the child against the column's leading edge, the right one under " +
+                        "a right-to-left orientation",
+                ),
+                Arguments.of(
+                    Named.of("centerHorizontallyPutsAChildHalfwayAcrossTheColumn", Alignment.CenterHorizontally),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.CenterHorizontally must leave equal width on either side of the child",
+                ),
+                Arguments.of(
+                    Named.of(
+                        "centerHorizontallyPutsAChildHalfwayAcrossARightToLeftColumn",
+                        Alignment.CenterHorizontally,
+                    ),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.CenterHorizontally must leave equal width on either side of the child under a " +
+                        "right-to-left orientation too",
+                ),
+                Arguments.of(
+                    Named.of("endPutsAChildAgainstTheTrailingEdgeOfTheColumn", Alignment.End),
+                    ComponentOrientation.LEFT_TO_RIGHT,
+                    Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.End must put the child against the column's trailing edge",
+                ),
+                Arguments.of(
+                    Named.of("endPutsAChildAgainstTheLeftEdgeOfARightToLeftColumn", Alignment.End),
+                    ComponentOrientation.RIGHT_TO_LEFT,
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.End must put the child against the column's trailing edge, the left one under a " +
+                        "right-to-left orientation",
+                ),
+            )
+
+        @JvmStatic
+        fun rowAlignments(): List<Arguments> =
+            listOf(
+                Arguments.of(
+                    Named.of("topPutsAChildAgainstTheTopOfTheRow", Alignment.Top),
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.Top must put the child against the row's top edge",
+                ),
+                Arguments.of(
+                    Named.of("centerVerticallyPutsAChildHalfwayDownTheRow", Alignment.CenterVertically),
+                    Rectangle(0, 80, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.CenterVertically must leave equal height above and below the child",
+                ),
+                Arguments.of(
+                    Named.of("bottomPutsAChildAgainstTheBottomOfTheRow", Alignment.Bottom),
+                    Rectangle(0, 160, CHILD_WIDTH, CHILD_HEIGHT),
+                    "Alignment.Bottom must put the child against the row's bottom edge",
+                ),
+            )
+    }
 }
 
 /** The extent a fixture container is given across its axis, far wider than a child asks for. */

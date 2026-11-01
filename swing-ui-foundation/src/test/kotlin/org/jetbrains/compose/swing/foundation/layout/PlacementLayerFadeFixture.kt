@@ -6,9 +6,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.foundation.graphics.TapStep
+import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.blur
-import org.jetbrains.compose.swing.foundation.graphics.channelDifference
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -16,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.provider.Arguments
 import java.awt.Color
@@ -23,7 +25,6 @@ import java.awt.Graphics
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 internal const val FADE_SIDE = 80
@@ -38,6 +39,7 @@ internal class FadeFixture {
     var clip by mutableStateOf(false)
     var scaleX by mutableFloatStateOf(1f)
     var layered by mutableStateOf(true)
+    var contentModifier: SwingModifier = SwingModifier
 
     // The versions have colors of different hues.
     val color: Color get() = listOf(Color.RED, Color.BLUE, Color.GREEN)[version % 3]
@@ -62,25 +64,16 @@ internal class FadeFixture {
     }
 }
 
-/** The interior is the frame shrunk by [reach], the effect's outsets around the content, and by one pixel for edges. */
 internal fun assertKeptMatchesFresh(
     kept: BufferedImage,
     fresh: BufferedImage,
     fixture: FadeFixture,
-    reach: Int,
 ) {
-    val inset = reach + 1
-    val width = kept.width - 2 * inset
-    val height = kept.height - 2 * inset
-    assertTrue(width > 0 && height > 0, "the interior of ${kept.width} by ${kept.height} inside $inset is empty")
-    assertEquals(kept.width, fresh.width)
-    assertEquals(kept.height, fresh.height)
-    val keptInterior = kept.getSubimage(inset, inset, width, height)
-    val difference = keptInterior.channelDifference(fresh.getSubimage(inset, inset, width, height))
-    assertTrue(difference <= 1, "the kept frame differs from the fresh one by $difference levels inside the interior")
+    assertImagesPixelPerfect(kept, fresh)
     assertTrue(kept.shows(fixture.color), "the kept frame does not show the current version of the content")
 }
 
+// The proportions of the channels decide, so a layer's alpha or a darker stripe of the same version still shows it.
 internal fun BufferedImage.shows(color: Color): Boolean {
     val shown = Color(getRGB(width / 2, height / 2), true)
     if (shown.alpha == 0) return false
@@ -103,6 +96,36 @@ internal suspend fun ComposeSwingTest.fadeTo(
     awaitIdle()
 }
 
+/**
+ * A property a layer block reads from a state, set to 0.5 for a red child of at least 40 by 20 pixels, which then
+ * paints as [assertPainted] checks at (20, 10) and (5, 10).
+ */
+internal enum class LayerRead(
+    val write: PlacementLayerScope.(Float) -> Unit,
+    /** Whether a change draws the recording again, instead of repainting the component to record the content. */
+    val redrawsRecording: Boolean,
+    val assertPainted: BufferedImage.() -> Unit,
+) {
+    Alpha(
+        write = { alpha = it },
+        redrawsRecording = true,
+        assertPainted = {
+            assertPixelColor(Color(255, 0, 0, 128), 20, 10, "the faded layer keeps its color")
+        },
+    ),
+    ScaleX(
+        write = { scaleX = it },
+        redrawsRecording = false,
+        assertPainted = {
+            assertPixelColor(Color.RED, 20, 10, "the scaled layer still paints its content")
+            assertPixelColor(Color(0, true), 5, 10, "the scale leaves the edge transparent")
+        },
+    ),
+}
+
+/** The reads of the arguments of a case that runs once for each layer property a block can read. */
+internal fun layerReads(): List<Arguments> = LayerRead.entries.map { Arguments.of(Named.of(it.name, it)) }
+
 /** The fade does not decide the [reach], in logical units, of the effect outside its layers. */
 internal enum class FadeEffect(
     val containerLayer: Boolean,
@@ -122,14 +145,17 @@ internal enum class FadeEffect(
     ModifierLayerInBlur(containerLayer = false, modifierLayer = true, outer = SwingModifier.blur(4), reach = 4),
 }
 
+internal enum class FadeLeaf { NodeLeaf, CanvasLeaf, CanvasChild }
+
 /** [tap] stands outermost among the content's steps. */
 @Composable
 internal fun FadeContent(
     fixture: FadeFixture,
     effect: FadeEffect,
-    tap: TapStep? = null,
+    tap: TapElement? = null,
     side: Int = FADE_SIDE,
     child: (@Composable () -> Unit)? = null,
+    leaf: FadeLeaf = FadeLeaf.NodeLeaf,
 ) {
     val layer: PlacementLayerScope.() -> Unit =
         remember(fixture) {
@@ -156,15 +182,30 @@ internal fun FadeContent(
                     .preferredSize(side, side)
                     .then(tap ?: SwingModifier)
                     .then(effect.outer)
+                    .then(fixture.contentModifier)
                     .then(if (effect.modifierLayer) SwingModifier.placementLayer(layer) else SwingModifier)
                     .then(
-                        if (child == null) {
+                        if (child == null && leaf == FadeLeaf.NodeLeaf) {
                             SwingModifier.drawBehind { fixture.paintVersion(graphics, width, height) }
                         } else {
                             SwingModifier
                         },
                     )
-            SwingNode(factory = { ConstrainedPanel() }, modifier = modifier) { child?.invoke() }
+            when (leaf) {
+                FadeLeaf.NodeLeaf -> {
+                    SwingNode(factory = { ConstrainedPanel() }, modifier = modifier) { child?.invoke() }
+                }
+
+                FadeLeaf.CanvasLeaf -> {
+                    Canvas(modifier) { fixture.paintVersion(graphics, width, height) }
+                }
+
+                FadeLeaf.CanvasChild -> {
+                    SwingNode(factory = { ConstrainedPanel() }, modifier = modifier) {
+                        Canvas(SwingModifier.size(side, side)) { fixture.paintVersion(graphics, width, height) }
+                    }
+                }
+            }
         }
     }
 }

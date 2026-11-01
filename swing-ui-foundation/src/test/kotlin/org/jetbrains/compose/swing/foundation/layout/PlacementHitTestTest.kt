@@ -22,12 +22,17 @@ import org.jetbrains.compose.swing.modifier.listener.mouseWheelListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.Cursor
@@ -51,6 +56,7 @@ import kotlin.math.floor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -79,7 +85,7 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val turn = turn(100, 100, rotation = 45f)
 
             // Near the unturned top-left corner, which the eighth turn puts above the unturned box. The canvas reads
@@ -108,7 +114,7 @@ class PlacementHitTestTest {
         }
 
     @Test
-    fun aButtonInATurnedSceneFiresOnlyInsideItsTurnedOutline() =
+    fun aButtonInATurnedLayerFiresOnlyInsideItsTurnedOutline() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val window = onWindowWithTitle(WINDOW_TITLE)
@@ -126,8 +132,8 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val button = windowNode(INNER_TAG)
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val button = window.onNodeWithTag(INNER_TAG).fetch<JComponent>()
             val turn = turn(120, 40, rotation = 90f)
 
             // Near the unturned left edge, which the quarter turn puts above the unturned box.
@@ -165,8 +171,8 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val button = windowNode(INNER_TAG)
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val button = window.onNodeWithTag(INNER_TAG).fetch<JComponent>()
 
             // The two quarter turns about one center make a half turn, which puts the button at the far end.
             stageInput.performMouseInput {
@@ -179,7 +185,9 @@ class PlacementHitTestTest {
             }
             assertEquals(1, clicks, "a click where the button would stand unturned must not fire")
         }
+}
 
+class PlacementTextFieldHitTestTest {
     @Test
     fun thePointerOverATurnedTextFieldShowsItsTextCursor() =
         runComposeSwingTest {
@@ -187,29 +195,32 @@ class PlacementHitTestTest {
             val window = onWindowWithTitle(WINDOW_TITLE)
             val stageInput = window.onNodeWithTag(STAGE_TAG)
             setWindowContent { Box { TurnedTextField(rotation = 90f) } }
-            val layered = windowNode(LAYERED_TAG)
-            val field = windowNode(INNER_TAG)
-            val frame = frame()
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val field = window.onNodeWithTag(INNER_TAG).fetch<JComponent>()
             val over = layered.paintedAt(stageInput.fetch(), field, 10.0, 15.0, turn(200, 30, rotation = 90f))
 
             stageInput.performMouseInput {
                 moveTo(over)
             }
-            assertEquals(
-                Cursor.TEXT_CURSOR,
-                frame.findComponentAt(SwingUtilities.convertPoint(stageInput.fetch(), over, frame)).cursor.type,
-                "over the turned field",
-            )
+            stageInput.assertProperty(true) {
+                val stage = this
+                window.assertIsOfType<JFrame>().assertProperty(Cursor.TEXT_CURSOR, "over the turned field") {
+                    findComponentAt(SwingUtilities.convertPoint(stage, over, this)).cursor.type
+                }
+                true
+            }
 
             val unturned = layered.unturnedAt(stageInput.fetch(), 10, 15)
             stageInput.performMouseInput {
                 moveTo(unturned)
             }
-            assertEquals(
-                Cursor.DEFAULT_CURSOR,
-                frame.findComponentAt(SwingUtilities.convertPoint(stageInput.fetch(), unturned, frame)).cursor.type,
-                "where it would stand",
-            )
+            stageInput.assertProperty(true) {
+                val stage = this
+                window.assertIsOfType<JFrame>().assertProperty(Cursor.DEFAULT_CURSOR, "where it would stand") {
+                    findComponentAt(SwingUtilities.convertPoint(stage, unturned, this)).cursor.type
+                }
+                true
+            }
         }
 
     @Test
@@ -219,8 +230,8 @@ class PlacementHitTestTest {
             val window = onWindowWithTitle(WINDOW_TITLE)
             val stageInput = window.onNodeWithTag(STAGE_TAG)
             setWindowContent { Box { TurnedTextField(rotation = 90f) } }
-            val layered = windowNode(LAYERED_TAG)
-            val field = windowNode(INNER_TAG) as JTextField
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val field = window.onNodeWithTag(INNER_TAG).fetch<JTextField>()
             val turn = turn(200, 30, rotation = 90f)
             // The Aqua look and feel selects the whole text when the field gains focus at either end of it, and a press
             // inside a selection starts dragging the selection instead of selecting anew.
@@ -237,34 +248,32 @@ class PlacementHitTestTest {
                 release(MouseEvent.BUTTON1)
             }
 
-            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(INNER_TAG).assertProperty(1 to 6) {
-                (this as JTextField).selectionStart to selectionEnd
+            window.onNodeWithTag(INNER_TAG).assertIsOfType<JTextField>().assertProperty(
+                1 to 6,
+            ) {
+                selectionStart to selectionEnd
             }
         }
 
-    @Test
-    fun aClickPlacesTheCaretAtTheClickedCharacterUnderARotation() = assertCaretFollowsTheClick(rotation = 30f)
-
-    @Test
-    fun aClickPlacesTheCaretAtTheClickedCharacterUnderAScale() = assertCaretFollowsTheClick(scale = 1.5f)
-
-    private fun assertCaretFollowsTheClick(
-        rotation: Float = 0f,
-        scale: Float = 1f,
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("caretTransforms")
+    fun aClickPlacesTheCaretAtTheClickedCharacterUnderATransform(
+        rotation: Float,
+        scale: Float,
     ) = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val window = onWindowWithTitle(WINDOW_TITLE)
         val stageInput = window.onNodeWithTag(STAGE_TAG)
         setWindowContent { Box { TurnedTextField(rotation = rotation, scale = scale) } }
-        val layered = windowNode(LAYERED_TAG)
-        val field = windowNode(INNER_TAG) as JTextField
+        val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+        val field = window.onNodeWithTag(INNER_TAG).fetch<JTextField>()
 
         stageInput.performMouseInput {
             click(layered.charAt(stageInput.fetch(), field, 4, turn(200, 30, rotation, scale)))
         }
 
-        onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(INNER_TAG).assertProperty(4) {
-            (this as JTextField).caretPosition
+        window.onNodeWithTag(INNER_TAG).assertIsOfType<JTextField>().assertProperty(4) {
+            caretPosition
         }
     }
 
@@ -287,8 +296,8 @@ class PlacementHitTestTest {
                     )
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val field = windowNode(INNER_TAG) as JTextField
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val field = window.onNodeWithTag(INNER_TAG).fetch<JTextField>()
             val stage = stageInput.fetch<JComponent>()
             awaitIdle()
             repainted.clear()
@@ -299,20 +308,32 @@ class PlacementHitTestTest {
             val caret = layered.charAt(stageInput.fetch(), field, 8, turn(200, 30, rotation = 90f))
             caret.translate(stage.paintBounds.x, stage.paintBounds.y)
             assertTrue(repainted.any { it.contains(caret) }, "the turned caret at $caret must repaint: $repainted")
-            assertFalse(repainted.any { it.contains(Point(1, 1)) }, "the caret alone repaints: $repainted")
+            assertFalse(
+                repainted.any {
+                    it.contains(Point(1, 1))
+                },
+                "the caret alone repaints: $repainted",
+            )
         }
 
-    @Test
-    fun aPressWhereAScaledChildPaintsPastItsContainerReachesIt() = assertPressPastTheContainers(depth = 1)
+    companion object {
+        @JvmStatic
+        fun caretTransforms(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("a rotation", 30f), 1f),
+                Arguments.of(Named.of("a scale", 0f), 1.5f),
+            )
+    }
+}
 
-    @Test
-    fun aPressWhereAScaledChildPaintsPastTwoContainersReachesIt() = assertPressPastTheContainers(depth = 2)
-
+class PlacementOverflowHitTestTest {
     /**
      * A child scaled to twice its size paints past [depth] containers of its own size. A press there reaches it,
      * and one on its shadow, which those containers grow by as well, does not.
      */
-    private fun assertPressPastTheContainers(depth: Int) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("containerDepths")
+    fun aPressWhereAScaledChildPaintsPastItsContainersReachesIt(depth: Int) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val window = onWindowWithTitle(WINDOW_TITLE)
@@ -335,7 +356,7 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val turn = turn(120, 30, rotation = 0f, scale = 2f)
 
             // Inside the shadow's outsets, which paints past the containers as well.
@@ -393,14 +414,14 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             // 8 into the canvas, which overflows the container by 20 on each side.
             val stage = stageInput.fetch<JComponent>()
             val past = canvas.unturnedAt(stage, 8, 15)
-            assertTrue(
-                past.x < windowNode(OUTER_TAG).unturnedAt(stage, 0, 0).x,
+            window.onNodeWithTag(OUTER_TAG).assertIsOfType<JComponent>().assertProperty(
+                true,
                 "the point is past the container: $past",
-            )
+            ) { past.x < unturnedAt(stage, 0, 0).x }
 
             stageInput.performMouseInput {
                 click(past)
@@ -415,13 +436,9 @@ class PlacementHitTestTest {
             assertEquals(2, presses, "a mirrored child is hit past its container")
         }
 
-    @Test
-    fun aClickWhereAScaledTextFieldPaintsPastItsContainerPlacesTheCaret() = assertCaretPastTheContainers(depth = 1)
-
-    @Test
-    fun aClickWhereAScaledTextFieldPaintsPastTwoContainersPlacesTheCaret() = assertCaretPastTheContainers(depth = 2)
-
-    private fun assertCaretPastTheContainers(depth: Int) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("containerDepths")
+    fun aClickWhereAScaledTextFieldPaintsPastItsContainersPlacesTheCaret(depth: Int) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val window = onWindowWithTitle(WINDOW_TITLE)
@@ -443,18 +460,25 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val field = windowNode(INNER_TAG) as JTextField
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val field = window.onNodeWithTag(INNER_TAG).fetch<JTextField>()
             val at = layered.charAt(stageInput.fetch(), field, 1, turn(120, 30, rotation = 0f, scale = 2f))
-            val edge = windowNode(OUTER_TAG).unturnedAt(stageInput.fetch(), 0, 0)
-            assertTrue(at.x < edge.x, "character 1 paints past the containers' left edge $edge: $at")
+            stageInput.assertProperty(true) {
+                val stage = this
+                window.onNodeWithTag(OUTER_TAG).assertIsOfType<JComponent>().assertProperty(true) {
+                    val edge = unturnedAt(stage, 0, 0)
+                    assertTrue(at.x < edge.x, "character 1 paints past the containers' left edge $edge: $at")
+                    true
+                }
+                true
+            }
 
             stageInput.performMouseInput {
                 click(at)
             }
 
-            onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(INNER_TAG).assertProperty(1) {
-                (this as JTextField).caretPosition
+            window.onNodeWithTag(INNER_TAG).assertIsOfType<JTextField>().assertProperty(1) {
+                caretPosition
             }
         }
 
@@ -477,10 +501,10 @@ class PlacementHitTestTest {
                     )
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val field = windowNode(INNER_TAG) as JTextField
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+            val field = window.onNodeWithTag(INNER_TAG).fetch<JTextField>()
             val stage = stageInput.fetch<JComponent>()
-            val outer = windowNode(OUTER_TAG)
+            val outer = window.onNodeWithTag(OUTER_TAG).fetch<JComponent>()
             awaitIdle()
             repainted.clear()
 
@@ -517,7 +541,7 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val turn = turn(120, 30, rotation = 0f, scale = 2f)
 
             // A quarter of the way in, which the doubled layer paints 30 past the clipping box's left edge.
@@ -553,6 +577,7 @@ class PlacementHitTestTest {
     fun aTurnedCanvasRepaintingPartOfItselfInAPlainBoxRepaintsAllOfIt() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val window = onWindowWithTitle(WINDOW_TITLE)
             val repainted = ArrayList<Rectangle>()
             setWindowContent {
                 Box {
@@ -566,7 +591,7 @@ class PlacementHitTestTest {
                     ) {}
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             awaitIdle()
             repainted.clear()
 
@@ -599,14 +624,13 @@ class PlacementHitTestTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
-            val frame = frame()
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             // The two quarter turns about one center make a half turn.
             val turn = turn(200, 30, rotation = 180f)
             val overField =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode(INNER_TAG),
+                    window.onNodeWithTag(INNER_TAG).fetch<JComponent>(),
                     50.0,
                     15.0,
                     turn,
@@ -614,7 +638,7 @@ class PlacementHitTestTest {
             val overButton =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode("other"),
+                    window.onNodeWithTag("other").fetch<JComponent>(),
                     50.0,
                     15.0,
                     turn,
@@ -623,20 +647,24 @@ class PlacementHitTestTest {
             stageInput.performMouseInput {
                 moveTo(overField)
             }
-            assertEquals(
-                Cursor.TEXT_CURSOR,
-                frame.findComponentAt(SwingUtilities.convertPoint(stageInput.fetch(), overField, frame)).cursor.type,
-                "over the field",
-            )
+            stageInput.assertProperty(true) {
+                val stage = this
+                window.assertIsOfType<JFrame>().assertProperty(Cursor.TEXT_CURSOR, "over the field") {
+                    findComponentAt(SwingUtilities.convertPoint(stage, overField, this)).cursor.type
+                }
+                true
+            }
 
             stageInput.performMouseInput {
                 moveTo(overButton)
             }
-            assertEquals(
-                Cursor.DEFAULT_CURSOR,
-                frame.findComponentAt(SwingUtilities.convertPoint(stageInput.fetch(), overButton, frame)).cursor.type,
-                "over the button",
-            )
+            stageInput.assertProperty(true) {
+                val stage = this
+                window.assertIsOfType<JFrame>().assertProperty(Cursor.DEFAULT_CURSOR, "over the button") {
+                    findComponentAt(SwingUtilities.convertPoint(stage, overButton, this)).cursor.type
+                }
+                true
+            }
         }
 
     /** As in AWT, a press while another button is held goes where the first press went. */
@@ -649,12 +677,12 @@ class PlacementHitTestTest {
             val firstPresses = ArrayList<Int>()
             var otherPresses = 0
             setUpTwoPressTargets(firstPresses, { otherPresses++ })
-            val layered = windowNode(LAYERED_TAG)
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val turn = turn(200, 30, rotation = 90f)
             val overFirst =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode(INNER_TAG),
+                    window.onNodeWithTag(INNER_TAG).fetch<JComponent>(),
                     50.0,
                     15.0,
                     turn,
@@ -662,7 +690,7 @@ class PlacementHitTestTest {
             val overOther =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode("other"),
+                    window.onNodeWithTag("other").fetch<JComponent>(),
                     50.0,
                     15.0,
                     turn,
@@ -716,6 +744,15 @@ class PlacementHitTestTest {
             }
         }
     }
+
+    companion object {
+        @JvmStatic
+        fun containerDepths(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("one container", 1)),
+                Arguments.of(Named.of("two containers", 2)),
+            )
+    }
 }
 
 /** Capture, wheel, and target lifetime behavior of the transformed-child glass pane. */
@@ -746,11 +783,11 @@ class PlacementHitTestInputTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val at =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode(INNER_TAG),
+                    window.onNodeWithTag(INNER_TAG).fetch<JComponent>(),
                     10.0,
                     20.0,
                     turn(120, 40, rotation = 90f),
@@ -789,7 +826,7 @@ class PlacementHitTestInputTest {
                 }
             }
 
-            val at = windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 50, 50)
+            val at = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 50, 50)
             stageInput.performMouseInput {
                 moveTo(at)
                 scroll(1)
@@ -805,30 +842,11 @@ class PlacementHitTestInputTest {
             val window = onWindowWithTitle(WINDOW_TITLE)
             val stageInput = window.onNodeWithTag(STAGE_TAG)
             val heard = ArrayList<Int>()
-            setWindowContent {
-                Box {
-                    Stage {
-                        Box(modifier = SwingModifier.testTag(LAYERED_TAG).size(100, 100).placementLayer(EighthTurn)) {
-                            Canvas(
-                                modifier =
-                                    SwingModifier
-                                        .testTag(INNER_TAG)
-                                        .fillMaxSize()
-                                        .mouseListener(
-                                            onMouseEntered = { heard += it.id },
-                                            onMouseExited = { heard += it.id },
-                                            onMousePressed = { heard += it.id },
-                                            onMouseReleased = { heard += it.id },
-                                        ).mouseMotionListener(onMouseDragged = { heard += it.id }),
-                            ) {}
-                        }
-                    }
-                }
-            }
-            val target = windowNode(INNER_TAG)
+            setUpReparentedTarget(heard)
+            val target = window.onNodeWithTag(INNER_TAG).fetch<JComponent>()
             val originalParent = target.parent
             val otherParent = JPanel()
-            val at = windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 50, 50)
+            val at = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 50, 50)
 
             stageInput.performMouseInput { moveTo(at) }
             stageInput.performMouseInput {
@@ -854,6 +872,29 @@ class PlacementHitTestInputTest {
                 originalParent.add(target)
             }
         }
+
+    private suspend fun ComposeSwingTest.setUpReparentedTarget(heard: MutableList<Int>) {
+        setWindowContent {
+            Box {
+                Stage {
+                    Box(modifier = SwingModifier.testTag(LAYERED_TAG).size(100, 100).placementLayer(EighthTurn)) {
+                        Canvas(
+                            modifier =
+                                SwingModifier
+                                    .testTag(INNER_TAG)
+                                    .fillMaxSize()
+                                    .mouseListener(
+                                        onMouseEntered = { heard += it.id },
+                                        onMouseExited = { heard += it.id },
+                                        onMousePressed = { heard += it.id },
+                                        onMouseReleased = { heard += it.id },
+                                    ).mouseMotionListener(onMouseDragged = { heard += it.id }),
+                        ) {}
+                    }
+                }
+            }
+        }
+    }
 
     /** The press target of a turned child hears the drag and the release off it, where no child stands. */
     @Test
@@ -881,7 +922,7 @@ class PlacementHitTestInputTest {
                 }
             }
             // The eighth turn keeps the center where it stands unturned; the stage's corner holds no child.
-            val center = windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 50, 50)
+            val center = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 50, 50)
             val corner = Point(5, 5)
 
             stageInput.performMouseInput {
@@ -928,7 +969,7 @@ class PlacementHitTestInputTest {
             }
             // A turn about the center leaves the center where it is.
             stageInput.performMouseInput {
-                click(windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 60, 20))
+                click(window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 60, 20))
             }
 
             assertEquals(0, presses, "the box hears no press")
@@ -965,7 +1006,7 @@ class PlacementHitTestInputTest {
                 }
             }
             // The eighth turn keeps the center where it stands unturned.
-            val center = windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 50, 50)
+            val center = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 50, 50)
             stageInput.performMouseInput { click(center) }
             assertEquals(1, presses, "the placed turned child takes the press")
 
@@ -1018,11 +1059,11 @@ class PlacementHitTestInputTest {
                     }
                 }
             }
-            val layered = windowNode(LAYERED_TAG)
+            val layered = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
             val over =
                 layered.paintedAt(
                     stageInput.fetch(),
-                    windowNode(INNER_TAG),
+                    window.onNodeWithTag(INNER_TAG).fetch<JComponent>(),
                     90.0,
                     20.0,
                     turn(120, 40, rotation = 30f),
@@ -1067,7 +1108,7 @@ class PlacementClipHitTestTest {
                     }
                 }
             }
-            val canvas = windowNode(LAYERED_TAG)
+            val canvas = window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
 
             // Inside the layout bounds, past the box the layer clips to: the offset's, which stands 30 up and left.
             stageInput.performMouseInput {
@@ -1116,24 +1157,26 @@ class PlacementHitTestLifecycleTest {
                             }
                         }
                     }
-                awaitIdle()
-                val turn = turn(120, 30, rotation = 90f)
+                try {
+                    awaitIdle()
+                    val turn = turn(120, 30, rotation = 90f)
 
-                // Turned, the box paints this point of its canvas 35 above its unturned box.
-                stageInput.performMouseInput {
-                    click(
-                        windowNode(LAYERED_TAG).paintedAt(
-                            stageInput.fetch(),
-                            windowNode(INNER_TAG),
-                            10.0,
-                            15.0,
-                            turn,
-                        ),
-                    )
+                    // Turned, the box paints this point of its canvas 35 above its unturned box.
+                    stageInput.performMouseInput {
+                        click(
+                            window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().paintedAt(
+                                stageInput.fetch(),
+                                window.onNodeWithTag(INNER_TAG).fetch<JComponent>(),
+                                10.0,
+                                15.0,
+                                turn,
+                            ),
+                        )
+                    }
+                    assertEquals(round + 1, presses, "composition $round: the press reaches the turned child")
+                } finally {
+                    composition.dispose()
                 }
-                assertEquals(round + 1, presses, "composition $round: the press reaches the turned child")
-
-                composition.dispose()
                 awaitIdle()
             }
         }
@@ -1153,42 +1196,13 @@ class PlacementHitTestCrossingTest {
             val stageInput = window.onNodeWithTag(STAGE_TAG)
             val container = ArrayList<Int>()
             val sibling = ArrayList<Int>()
-            setWindowContent {
-                Box {
-                    Stage {
-                        Row(
-                            modifier =
-                                SwingModifier
-                                    .testTag(OUTER_TAG)
-                                    .size(120, 40)
-                                    .mouseListener(
-                                        onMouseEntered = { container += it.id },
-                                        onMouseExited = { container += it.id },
-                                    ),
-                        ) {
-                            Canvas(
-                                modifier = SwingModifier.testTag(LAYERED_TAG).size(40, 40).placementLayer(EighthTurn),
-                            ) {}
-                            Canvas(
-                                modifier =
-                                    SwingModifier
-                                        .testTag("other")
-                                        .size(40, 40)
-                                        .mouseListener(
-                                            onMouseEntered = { sibling += it.id },
-                                            onMouseExited = { sibling += it.id },
-                                        ),
-                            ) {}
-                        }
-                    }
-                }
-            }
+            setUpCrossingTargets(container, sibling)
             // A turn about the center leaves the center where it is; the container's last third holds no child.
             val overTurned =
-                windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 20, 20)
-            val overSibling = windowNode("other").unturnedAt(stageInput.fetch(), 20, 20)
+                window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 20, 20)
+            val overSibling = window.onNodeWithTag("other").fetch<JComponent>().unturnedAt(stageInput.fetch(), 20, 20)
             val overContainer =
-                windowNode(OUTER_TAG).unturnedAt(stageInput.fetch(), 100, 20)
+                window.onNodeWithTag(OUTER_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 100, 20)
 
             stageInput.performMouseInput { moveTo(overContainer) }
             stageInput.performMouseInput { moveTo(overTurned) }
@@ -1210,6 +1224,42 @@ class PlacementHitTestCrossingTest {
                     sibling.indices.all { sibling[it] == crossings[it % 2] }
             assertTrue(alternating, "the sibling hears an exit after each enter, but heard $sibling")
         }
+
+    private suspend fun ComposeSwingTest.setUpCrossingTargets(
+        container: MutableList<Int>,
+        sibling: MutableList<Int>,
+    ) {
+        setWindowContent {
+            Box {
+                Stage {
+                    Row(
+                        modifier =
+                            SwingModifier
+                                .testTag(OUTER_TAG)
+                                .size(120, 40)
+                                .mouseListener(
+                                    onMouseEntered = { container += it.id },
+                                    onMouseExited = { container += it.id },
+                                ),
+                    ) {
+                        Canvas(
+                            modifier = SwingModifier.testTag(LAYERED_TAG).size(40, 40).placementLayer(EighthTurn),
+                        ) {}
+                        Canvas(
+                            modifier =
+                                SwingModifier
+                                    .testTag("other")
+                                    .size(40, 40)
+                                    .mouseListener(
+                                        onMouseEntered = { sibling += it.id },
+                                        onMouseExited = { sibling += it.id },
+                                    ),
+                        ) {}
+                    }
+                }
+            }
+        }
+    }
 
     /** A child turned, straightened and turned again hears the pointer enter it again. */
     @Test
@@ -1239,8 +1289,8 @@ class PlacementHitTestCrossingTest {
             }
             // A turn about the center leaves the center where it is.
             val overTurned =
-                windowNode(LAYERED_TAG).unturnedAt(stageInput.fetch(), 20, 20)
-            val overOther = windowNode("other").unturnedAt(stageInput.fetch(), 20, 20)
+                window.onNodeWithTag(LAYERED_TAG).fetch<JComponent>().unturnedAt(stageInput.fetch(), 20, 20)
+            val overOther = window.onNodeWithTag("other").fetch<JComponent>().unturnedAt(stageInput.fetch(), 20, 20)
 
             stageInput.performMouseInput { moveTo(overTurned) }
             assertEquals(1, entered, "the pointer enters the turned child")
@@ -1325,7 +1375,7 @@ private fun turn(
 /** This decorated component's paint bounds, its bounds, from its layout origin. */
 private val Component.paintBounds: Rectangle
     get() {
-        val outsets = (this as Decoratable).decoration.paintOutsets()
+        val outsets = assertIs<Decoratable>(this).decoration.paintOutsets()
         return Rectangle(-outsets.left, -outsets.top, width, height)
     }
 
@@ -1367,11 +1417,6 @@ private fun Component.charAt(
     val end = field.modelToView2D(index + 1)
     return paintedAt(stage, field, (start.x + end.x) / 2 - (end.x - start.x) / 4, start.centerY, turn)
 }
-
-internal fun ComposeSwingTest.windowNode(tag: String): JComponent =
-    onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(tag).fetch<JComponent>()
-
-internal fun ComposeSwingTest.frame(): JFrame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
 
 private const val STAGE_TAG = "stage"
 private const val LAYERED_TAG = "layered"

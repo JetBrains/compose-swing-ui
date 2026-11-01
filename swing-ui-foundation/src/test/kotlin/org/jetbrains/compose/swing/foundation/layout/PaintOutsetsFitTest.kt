@@ -140,7 +140,6 @@ class PaintOutsetsFitTest {
                     Box(modifier = SwingModifier.size(width, 10))
                 }
             }
-            val column = onNodeWithTag("column").fetch<JComponent>()
             val row = onNodeWithTag("row").fetch<JComponent>()
             assertEquals(Dimension(40, 40), row.preferredSize, "the row asks for its child's size while unscaled")
             scale = 2f
@@ -150,12 +149,15 @@ class PaintOutsetsFitTest {
             awaitIdle()
 
             assertEquals(Dimension(80, 40), row.preferredSize, "the row asks for its layout size and outsets")
-            assertEquals(Dimension(40, 50), column.preferredSize, "the column measures the row at its layout size")
+            onNodeWithTag("column").assertProperty(
+                Dimension(40, 50),
+                "the column measures the row at its layout size",
+            ) { preferredSize }
             assertEquals(Rectangle(0, 0, 40, 40), placed, "and places it there")
         }
 
     /**
-     * The last box's new width lays the column out while the row is valid. The size ahead of the node answers the
+     * The last box's new width lays the column out while the row is valid. The size ahead of the node serves the
      * column's size query, so the node reads its new reach as the row measures the box.
      */
     @Test
@@ -183,10 +185,10 @@ class PaintOutsetsFitTest {
 
             assertEquals(Insets(12, 12, 12, 12), reaching.paintOutsets, "the box takes the new reach")
             assertEquals(Rectangle(0, 0, 40, 40), reaching.layoutBounds, "and keeps its layout bounds")
-            assertEquals(Rectangle(40, 0, 10, 40), onNodeWithTag("beside").fetch().layoutBounds)
+            onNodeWithTag("beside").assertProperty(Rectangle(40, 0, 10, 40)) { layoutBounds }
             assertEquals(Insets(12, 12, 12, 2), row.paintOutsets, "the row spreads by the new reach")
             assertEquals(Rectangle(0, 0, 50, 40), row.layoutBounds, "and keeps its layout bounds")
-            assertEquals(Rectangle(0, 40, 20, 10), onNodeWithTag("below").fetch().layoutBounds)
+            onNodeWithTag("below").assertProperty(Rectangle(0, 40, 20, 10)) { layoutBounds }
         }
 
     /** The box's padding holds its new reach inside the row, so the pass fits the box and leaves the row's bounds. */

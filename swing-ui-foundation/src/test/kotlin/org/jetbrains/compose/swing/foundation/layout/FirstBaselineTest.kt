@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.graphics.Brush
@@ -123,7 +124,7 @@ class FirstBaselineTest {
         }
 
     @Test
-    fun aLineTheChildsPolicyDoesNotProvideAnswersUnspecified() =
+    fun aLineTheChildsPolicyDoesNotProvideReturnsUnspecified() =
         runComposeSwingTest {
             val lines =
                 linesOf(VerticalAlignmentLine(::minOf)) {
@@ -136,7 +137,7 @@ class FirstBaselineTest {
         }
 
     @Test
-    fun aChildWithoutABaselineAnswersUnspecified() =
+    fun aChildWithoutABaselineReturnsUnspecified() =
         runComposeSwingTest {
             val baselines = linesOf { Layout(measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT) {} }) }
 
@@ -478,7 +479,7 @@ class FirstBaselineTest {
 
             val image = onNodeWithTag(LAYERED_TAG).captureToImage()
             assertEquals(128.0, (image.getRGB(10, 10) ushr 24).toDouble(), 1.0, "the faded background")
-            assertEquals(0, image.getRGB(2, 10), "the background the halved width leaves bare")
+            image.assertPixelColor(Color(0, true), 2, 10, "the background the halved width leaves bare")
         }
 
     @Test
@@ -652,7 +653,7 @@ class FirstBaselineTest {
         return content
     }
 
-    /** A component of its own that answers constrained questions and names [FirstBaseline] at [OWN_LINE]. */
+    /** A component of its own that serves constrained queries and names [FirstBaseline] at [OWN_LINE]. */
     private class LineProvidingComponent :
         JComponent(),
         Constrainable {

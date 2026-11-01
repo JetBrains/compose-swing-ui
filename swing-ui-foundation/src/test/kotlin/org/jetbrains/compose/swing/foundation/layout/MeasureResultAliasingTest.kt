@@ -4,11 +4,10 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
-import javax.swing.JComponent
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * A measured result belongs to the pass that produced it. A parent asking a container for its intrinsic extent
@@ -16,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class MeasureResultAliasingTest {
     @Test
-    fun anIntrinsicQuestionDoesNotRewriteARowsMeasuredResult() =
+    fun anIntrinsicQueryDoesNotRewriteARowsMeasuredResult() =
         runComposeSwingTest {
             setAskedBetweenMeasureAndPlace {
                 Row(horizontalArrangement = Arrangement.End) {
@@ -24,11 +23,11 @@ class MeasureResultAliasingTest {
                 }
             }
 
-            assertEquals(Rectangle(0, 0, 100, 50), onNodeWithTag(FILLED).fetch<JComponent>().bounds)
+            onNodeWithTag(FILLED).assertProperty(Rectangle(0, 0, 100, 50)) { bounds }
         }
 
     @Test
-    fun anIntrinsicQuestionDoesNotRewriteABoxsMeasuredResult() =
+    fun anIntrinsicQueryDoesNotRewriteABoxsMeasuredResult() =
         runComposeSwingTest {
             setAskedBetweenMeasureAndPlace {
                 Box(contentAlignment = Alignment.BottomEnd) {
@@ -36,7 +35,7 @@ class MeasureResultAliasingTest {
                 }
             }
 
-            assertEquals(Rectangle(0, 0, 100, 50), onNodeWithTag(FILLED).fetch<JComponent>().bounds)
+            onNodeWithTag(FILLED).assertProperty(Rectangle(0, 0, 100, 50)) { bounds }
         }
 
     /** Composes [content] under a parent that measures it at 100 x 50, asks its intrinsic width, then places it. */

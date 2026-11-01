@@ -21,10 +21,15 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -66,7 +71,7 @@ class ConstrainedPanelObservationTest {
             width.intValue = 30
             awaitIdle()
 
-            assertEquals(30, onNodeWithTag("child").fetch().width, "a changed measure read measures the child again")
+            onNodeWithTag("child").assertProperty(30, "a changed measure read measures the child again") { this.width }
         }
 
     @Test
@@ -84,16 +89,12 @@ class ConstrainedPanelObservationTest {
                 )
             }
             awaitIdle()
-            val before = onNodeWithTag("child").fetch().x
 
             x.intValue = 7
             awaitIdle()
 
-            assertEquals(
-                before + 7,
-                onNodeWithTag("child").fetch().x,
-                "a changed placement read places the child again",
-            )
+            // The 10 px child is centered in a panel with no room, at -5, and the read moves it 7.
+            onNodeWithTag("child").assertProperty(2, "a changed placement read places the child again") { this.x }
         }
 
     @Test
@@ -103,12 +104,11 @@ class ConstrainedPanelObservationTest {
             val panel = hostedPanel()
             panel.setContent { Box(modifier = SwingModifier.testTag("child").offset(x = x)) }
             awaitIdle()
-            val before = onNodeWithTag("child").fetch().x
 
             x = 7
             awaitIdle()
 
-            assertEquals(before + 7, onNodeWithTag("child").fetch().x, "a changed offset places the child again")
+            onNodeWithTag("child").assertProperty(7, "a changed offset places the child again") { this.x }
         }
 
     @Test
@@ -122,11 +122,10 @@ class ConstrainedPanelObservationTest {
             width.intValue = 30
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag("child").assertProperty(
                 Rectangle(0, 0, 30, 10),
-                onNodeWithTag("child").fetch().bounds,
                 "a changed policy read measures the panel again",
-            )
+            ) { bounds }
         }
 
     @Test
@@ -205,22 +204,24 @@ class ConstrainedPanelObservationTest {
             awaitIdle()
             val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
             val content = panel.setContent { Box(modifier = SwingModifier.testTag("child")) }
-            awaitIdle()
-            declared = false
-            awaitIdle()
-            host.add(panel)
-            host.revalidate()
-            awaitIdle()
+            try {
+                awaitIdle()
+                declared = false
+                awaitIdle()
+                host.add(panel)
+                host.revalidate()
+                awaitIdle()
 
-            width.intValue = 30
-            awaitIdle()
+                width.intValue = 30
+                awaitIdle()
 
-            assertEquals(
-                Rectangle(0, 0, 30, 10),
-                onNodeWithTag("child").fetch().bounds,
-                "the node its content is rooted at still tracks the policy's reads",
-            )
-            content.dispose()
+                onNodeWithTag("child").assertProperty(
+                    Rectangle(0, 0, 30, 10),
+                    "the node its content is rooted at still tracks the policy's reads",
+                ) { bounds }
+            } finally {
+                content.dispose()
+            }
         }
 
     @Test
@@ -242,24 +243,26 @@ class ConstrainedPanelObservationTest {
             }
             awaitIdle()
             val content = panel.setContent { Box(modifier = SwingModifier.testTag("child")) }
-            awaitIdle()
-            inRow = true
-            awaitIdle()
-            declared = false
-            awaitIdle()
-            host.add(panel)
-            host.revalidate()
-            awaitIdle()
+            try {
+                awaitIdle()
+                inRow = true
+                awaitIdle()
+                declared = false
+                awaitIdle()
+                host.add(panel)
+                host.revalidate()
+                awaitIdle()
 
-            width.intValue = 30
-            awaitIdle()
+                width.intValue = 30
+                awaitIdle()
 
-            assertEquals(
-                Rectangle(0, 0, 30, 10),
-                onNodeWithTag("child").fetch().bounds,
-                "the node its content is rooted at still tracks the policy's reads",
-            )
-            content.dispose()
+                onNodeWithTag("child").assertProperty(
+                    Rectangle(0, 0, 30, 10),
+                    "the node its content is rooted at still tracks the policy's reads",
+                ) { bounds }
+            } finally {
+                content.dispose()
+            }
         }
 
     @Test
@@ -338,7 +341,7 @@ class ConstrainedPanelObservationTest {
                     }
                 }
             } finally {
-                if (scenario.recordingRootLeaves) extraRoot?.dispose()
+                extraRoot?.dispose()
                 source.dispose()
             }
         }
@@ -543,44 +546,9 @@ class ConstrainedPanelObservationTest {
         )
     }
 
-    @Test
-    fun heightsReadAtAGrantedWidthFollowOnlyTheStateTheirStockParentConsumes() {
-        val slots = swingParentSlots(emptyList())
-        val shortGridBag =
-            shortSlot(PanelLayout.GridBag) { it.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL) }
-        val squeezedBox = shortSlot(PanelLayout.Box(BoxLayout.Y_AXIS)) { it }
-        val box = slots.getValue("BoxLayout Y_AXIS")
-        val gridBag = slots.getValue("GridBagLayout fill HORIZONTAL")
-        val scenarios =
-            listOf(
-                HeightRead("BoxLayout shared heights", box, 80, 60, 120, read = Read.Shared),
-                HeightRead("GridBag shared heights", gridBag, 80, 60, 120, read = Read.Shared),
-                HeightRead(
-                    "short GridBag shared heights",
-                    shortGridBag,
-                    40,
-                    60,
-                    60,
-                    read = Read.SharedAtNaturalWidth,
-                ),
-                HeightRead("BoxLayout preferred", box, 80, 120, 120, read = Read.Preferred),
-                HeightRead("BoxLayout minimum", box, 80, 60, 80),
-                HeightRead(
-                    "short GridBag minimum",
-                    shortGridBag,
-                    40,
-                    60,
-                    40,
-                    read = Read.MinimumWithPreferredAtGrantedWidth,
-                ),
-                HeightRead("short GridBag preferred", shortGridBag, 40, 120, 40, read = Read.Preferred),
-                // BoxLayout grants neither intrinsic height here, so establish both observations explicitly.
-                HeightRead("squeezed BoxLayout shared heights", squeezedBox, 70, 100, 70, read = Read.Shared),
-            )
-        for (scenario in scenarios) verifyHeightRead(scenario)
-    }
-
-    private fun verifyHeightRead(scenario: HeightRead) {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("heightReads")
+    internal fun heightsReadAtAGrantedWidthFollowOnlyTheStateTheirStockParentConsumes(scenario: HeightRead) {
         runComposeSwingTest {
             val least = mutableIntStateOf(40)
             val preferred = mutableIntStateOf(80)
@@ -662,18 +630,6 @@ class ConstrainedPanelObservationTest {
         return panel.preferredSize.height
     }
 
-    private fun <S : PanelScope> shortSlot(
-        layout: PanelLayout<S>,
-        modifier: S.(SwingModifier) -> SwingModifier,
-    ): Slot =
-        { width, subject ->
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
-                Panel(layout, modifier = SwingModifier.north().preferredSize(width, 70)) {
-                    subject(modifier(SwingModifier))
-                }
-            }
-        }
-
     /** A panel standing in a stock parent that stretches it, built outside any composition. */
     private fun ComposeSwingTest.hostedPanel(policy: MeasurePolicy? = null): ConstrainedPanel {
         val panel = if (policy == null) ConstrainedPanel() else ConstrainedPanel(policy)
@@ -681,9 +637,9 @@ class ConstrainedPanelObservationTest {
         return panel
     }
 
-    private enum class Read { Shared, Minimum, Preferred, SharedAtNaturalWidth, MinimumWithPreferredAtGrantedWidth }
+    internal enum class Read { Shared, Minimum, Preferred, SharedAtNaturalWidth, MinimumWithPreferredAtGrantedWidth }
 
-    private class HeightRead(
+    internal class HeightRead(
         val name: String,
         val slot: Slot,
         val initial: Int,
@@ -754,10 +710,57 @@ class ConstrainedPanelObservationTest {
         }
     }
 
-    private companion object {
-        const val PANEL_TAG = "panel"
+    companion object {
+        @JvmStatic
+        fun heightReads(): List<Arguments> {
+            val slots = swingParentSlots(emptyList())
+            val shortGridBag =
+                shortSlot(PanelLayout.GridBag) { it.item(weightx = 1.0, fill = GridBagConstraints.HORIZONTAL) }
+            val squeezedBox = shortSlot(PanelLayout.Box(BoxLayout.Y_AXIS)) { it }
+            val box = slots.getValue("BoxLayout Y_AXIS")
+            val gridBag = slots.getValue("GridBagLayout fill HORIZONTAL")
+            return listOf(
+                HeightRead("BoxLayout shared heights", box, 80, 60, 120, read = Read.Shared),
+                HeightRead("GridBag shared heights", gridBag, 80, 60, 120, read = Read.Shared),
+                HeightRead(
+                    "short GridBag shared heights",
+                    shortGridBag,
+                    40,
+                    60,
+                    60,
+                    read = Read.SharedAtNaturalWidth,
+                ),
+                HeightRead("BoxLayout preferred", box, 80, 120, 120, read = Read.Preferred),
+                HeightRead("BoxLayout minimum", box, 80, 60, 80),
+                HeightRead(
+                    "short GridBag minimum",
+                    shortGridBag,
+                    40,
+                    60,
+                    40,
+                    read = Read.MinimumWithPreferredAtGrantedWidth,
+                ),
+                HeightRead("short GridBag preferred", shortGridBag, 40, 120, 40, read = Read.Preferred),
+                // BoxLayout grants neither intrinsic height here, so establish both observations explicitly.
+                HeightRead("squeezed BoxLayout shared heights", squeezedBox, 70, 100, 70, read = Read.Shared),
+            ).map { Arguments.of(Named.of(it.name, it)) }
+        }
 
-        fun SwingModifier.panelModifier(color: () -> Color): SwingModifier =
+        private fun <S : PanelScope> shortSlot(
+            layout: PanelLayout<S>,
+            modifier: S.(SwingModifier) -> SwingModifier,
+        ): Slot =
+            { width, subject ->
+                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
+                    Panel(layout, modifier = SwingModifier.north().preferredSize(width, 70)) {
+                        subject(modifier(SwingModifier))
+                    }
+                }
+            }
+
+        private const val PANEL_TAG = "panel"
+
+        private fun SwingModifier.panelModifier(color: () -> Color): SwingModifier =
             testTag(PANEL_TAG).background(brush = { _, _ -> color() })
     }
 }

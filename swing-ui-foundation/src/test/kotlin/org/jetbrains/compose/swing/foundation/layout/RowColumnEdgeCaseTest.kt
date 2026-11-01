@@ -7,10 +7,12 @@ import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Container
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -184,24 +186,22 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
-
-            assertEquals(
+            onNodeWithTag("nestedRow").assertProperty(
                 Rectangle(0, CHILD_HEIGHT, 100, 160),
-                nestedRow.bounds,
                 "the weight must give the nested row the column's whole leftover height, and the row's own " +
                     "preferred width since it declared no fill of its own",
-            )
-            assertEquals(
+            ) { bounds }
+            onNodeWithTag("nestedRow").assertIsOfType<Container>().assertProperty(
                 listOf(
                     Rectangle(0, 60, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, 60, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
-                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "inside the height its weight granted, the nested row must place its own children by its " +
                     "own arrangement and alignment - spread edge to edge and centered vertically - exactly " +
                     "as it would laid out on its own",
-            )
+            ) { childrenInDeclarationOrder().map { it.bounds } }
+            onNodeWithText("child 1").assertProperty(Rectangle(0, 60, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
+            onNodeWithText("child 2").assertProperty(Rectangle(CHILD_WIDTH, 60, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
         }
 
     @Test
@@ -222,20 +222,18 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
-
-            assertEquals(
+            onNodeWithTag("nestedRow").assertProperty(
                 Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, 160),
-                nestedRow.bounds,
                 "a weighted row without fillMaxWidth must keep the width it prefers " +
                     "once its main-axis weight is resolved, not stretch to a column wider than that",
-            )
-            assertEquals(
+            ) { bounds }
+            onNodeWithTag("nestedRow").assertIsOfType<Container>().assertProperty(
                 rowCells(0, CHILD_WIDTH),
-                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "and must space its children across the width it settled on rather than the wider one its " +
                     "column offered, which would put the last of them outside the row",
-            )
+            ) { childrenInDeclarationOrder().map { it.bounds } }
+            onNodeWithText("child 1").assertProperty(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
+            onNodeWithText("child 2").assertProperty(Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
         }
 
     @Test
@@ -252,15 +250,14 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
-
-            assertEquals(
+            onNodeWithTag("nestedRow").assertIsOfType<Container>().assertProperty(
                 rowCells(0, CHILD_WIDTH),
-                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "a child claiming a share it does not fill shrinks the row below the width it was offered, " +
                     "and the row must place the children that pass measured rather than divide the width " +
                     "they shrank it to among the same weights again",
-            )
+            ) { childrenInDeclarationOrder().map { it.bounds } }
+            onNodeWithText("child 0").assertProperty(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
+            onNodeWithText("child 1").assertProperty(Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)) { bounds }
         }
 
     @Test
@@ -296,14 +293,13 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(Int.MAX_VALUE, 54),
-                containerPreferredSize(),
                 "the width the 1f child implies for a weight of Float.MAX_VALUE beside it does not fit an " +
                     "Int, so the row must ask for the largest width there is and keep the height its " +
                     "children ask for - neither the unweighted child beside that width nor the border " +
                     "around it may carry the row past it and back to a negative width",
-            )
+            ) { preferredSize }
         }
 }
 

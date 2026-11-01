@@ -5,7 +5,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.layout.Box
@@ -20,6 +23,9 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -67,8 +73,8 @@ class DecorationModifierNodeTest {
                 image.getRGB(2, 2),
                 "The padding declared before the step keeps it off the edge.",
             )
-            assertEquals(Color.RED.rgb, image.getRGB(6, 6), "The step paints at the box of the padding after it.")
-            assertEquals(Color.BLUE.rgb, image.getRGB(10, 10), "What is declared after the step paints inside it.")
+            image.assertPixelColor(Color.RED, 6, 6, "The step paints at the box of the padding after it.")
+            image.assertPixelColor(Color.BLUE, 10, 10, "What is declared after the step paints inside it.")
         }
 
     @Test
@@ -100,11 +106,15 @@ class DecorationModifierNodeTest {
                     }
                 }
             }
-            val panel = onNodeWithTag("panel").fetch<JComponent>()
-            val child = onNodeWithTag("child").fetch<JComponent>()
 
-            assertEquals(Insets(4, 4, 4, 4), panel.insets, "The component reports the outsets the step declares.")
-            assertEquals(4, child.x, "The children are laid out inside the outsets the step reserves.")
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("panel")).assertProperty(
+                Insets(4, 4, 4, 4),
+                "The component reports the outsets the step declares.",
+            ) { insets }
+            onNodeWithTag("child").assertProperty(
+                4,
+                "The children are laid out inside the outsets the step reserves.",
+            ) { x }
         }
 
     @Test
@@ -123,11 +133,9 @@ class DecorationModifierNodeTest {
                 )
             }
             val node = step.created.single()
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag("panel").captureToImage().getRGB(16, 16),
-                "The step paints with its initial color.",
-            )
+            onNodeWithTag(
+                "panel",
+            ).captureToImage().assertPixelColor(Color.RED, 16, 16, "The step paints with its initial color.")
             val panel = onNodeWithTag("panel").fetch<JComponent>()
             withRecordedRepaints { recorder ->
                 node.color = Color.GREEN
@@ -139,9 +147,12 @@ class DecorationModifierNodeTest {
                     recorder.relayoutsOver(panel),
                     "A step reserving the same outsets does not lay the component out again.",
                 )
-                assertEquals(
-                    Color.GREEN.rgb,
-                    onNodeWithTag("panel").captureToImage().getRGB(16, 16),
+                onNodeWithTag(
+                    "panel",
+                ).captureToImage().assertPixelColor(
+                    Color.GREEN,
+                    16,
+                    16,
                     "The repaint draws with the step's changed color.",
                 )
             }
@@ -162,8 +173,7 @@ class DecorationModifierNodeTest {
                 }
             }
             val node = step.created.single()
-            val child = onNodeWithTag("child").fetch<JComponent>()
-            assertEquals(0, child.x, "Without outsets the child starts at the panel's edge.")
+            onNodeWithTag("child").assertProperty(0, "Without outsets the child starts at the panel's edge.") { x }
             val panel = onNodeWithTag("panel").fetch<JComponent>()
             withRecordedRepaints { recorder ->
                 node.outset = 5
@@ -174,8 +184,14 @@ class DecorationModifierNodeTest {
                     recorder.relayoutsOver(panel),
                     "A step reserving different outsets revalidates nothing.",
                 )
-                assertEquals(5, child.x, "The children are laid out inside the outsets the step now reserves.")
-                assertEquals(5, child.y, "The children are laid out inside the outsets the step now reserves.")
+                onNodeWithTag("child").assertProperty(
+                    5,
+                    "The children are laid out inside the outsets the step now reserves.",
+                ) { x }
+                onNodeWithTag("child").assertProperty(
+                    5,
+                    "The children are laid out inside the outsets the step now reserves.",
+                ) { y }
             }
         }
 
@@ -198,12 +214,17 @@ class DecorationModifierNodeTest {
             val child = onNodeWithTag("child").fetch<JComponent>()
             outset = 5
             awaitIdle()
-            assertEquals(5, child.x, "The step's element reports the outsets it reserves.")
+            onNodeWithTag("child").assertProperty(5, "The step's element reports the outsets it reserves.") { x }
 
             declared = false
             awaitIdle()
+            assertSame(
+                child,
+                onNodeWithTag("child").fetch<JComponent>(),
+                "the component is updated in place, not rebuilt",
+            )
 
-            assertEquals(0, child.x, "A removed step takes the outsets it reserved with it.")
+            onNodeWithTag("child").assertProperty(0, "A removed step takes the outsets it reserved with it.") { x }
         }
 
     @Test
@@ -224,20 +245,16 @@ class DecorationModifierNodeTest {
                     )
                 }
             }
-            assertEquals(
-                Color.RED.rgb,
-                onNodeWithTag("panel").captureToImage().getRGB(16, 16),
-                "The step paints over the fill while declared.",
-            )
+            onNodeWithTag(
+                "panel",
+            ).captureToImage().assertPixelColor(Color.RED, 16, 16, "The step paints over the fill while declared.")
 
             declared = false
             awaitIdle()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("panel").captureToImage().getRGB(16, 16),
-                "Removing the step leaves the fill showing.",
-            )
+            onNodeWithTag(
+                "panel",
+            ).captureToImage().assertPixelColor(Color.BLUE, 16, 16, "Removing the step leaves the fill showing.")
         }
 
     @Test
@@ -294,17 +311,25 @@ class DecorationModifierNodeTest {
             setContent {
                 SwingNode(factory = { DecoratedPanel() }, modifier = SwingModifier.testTag("panel").then(step))
             }
-            val panel = onNodeWithTag("panel").fetch<JComponent>()
             val node = step.created.single()
-            assertTrue(panel.isOpaque, "A step covering its whole area leaves an opaque panel opaque.")
+            onNodeWithTag("panel").assertProperty(
+                true,
+                "A step covering its whole area leaves an opaque panel opaque.",
+            ) { isOpaque }
 
             node.opaque = false
             node.invalidateDecoration()
-            assertFalse(panel.isOpaque, "A step that stops covering its area makes the panel stop being opaque.")
+            onNodeWithTag("panel").assertProperty(
+                false,
+                "A step that stops covering its area makes the panel stop being opaque.",
+            ) { isOpaque }
 
             node.opaque = true
             node.invalidateDecoration()
-            assertTrue(panel.isOpaque, "and one covering it again makes it opaque again.")
+            onNodeWithTag("panel").assertProperty(
+                true,
+                "and one covering it again makes it opaque again.",
+            ) { isOpaque }
         }
 
     @Test
@@ -323,17 +348,17 @@ class DecorationModifierNodeTest {
                 )
             }
             val panel = onNodeWithTag("panel").fetch<JComponent>()
-            assertEquals(0, panel.paintOnto(32, 32).getRGB(0, 0), "The cut takes the corner away.")
+            panel.paintOnto(32, 32).assertPixelColor(Color(0, true), 0, 0, "The cut takes the corner away.")
 
             failing = true
             val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
             assertEquals("update fails", thrown.message, "The pass writing the step throws after it.")
 
-            assertEquals(
-                Color.RED.rgb,
-                panel.paintOnto(32, 32).getRGB(0, 0),
-                "A step left holding no decorator paints its content unchanged.",
-            )
+            panel
+                .paintOnto(
+                    32,
+                    32,
+                ).assertPixelColor(Color.RED, 0, 0, "A step left holding no decorator paints its content unchanged.")
         }
 
     @Test
@@ -355,13 +380,17 @@ class DecorationModifierNodeTest {
             }
             val panel = onNodeWithTag("panel").fetch<JComponent>()
             panel.background = Color.RED
-            assertEquals(Color.RED.rgb, panel.paintOnto(32, 32).getRGB(16, 16), "The step fills the panel.")
+            panel.paintOnto(32, 32).assertPixelColor(Color.RED, 16, 16, "The step fills the panel.")
 
             failing = true
             val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
             assertEquals("onAttach fails", thrown.message, "The pass detaching the step throws as it attaches another.")
 
-            assertEquals(0, panel.paintOnto(32, 32).getRGB(16, 16), "A step detached by the pass paints no more.")
+            panel
+                .paintOnto(
+                    32,
+                    32,
+                ).assertPixelColor(Color(0, true), 16, 16, "A step detached by the pass paints no more.")
         }
 
     @Test
@@ -381,7 +410,7 @@ class DecorationModifierNodeTest {
             awaitIdle()
 
             assertEquals(Decoration.None, panel.decoration, "The released component holds no decoration.")
-            assertEquals(undecorated, panel.isOpaque, "and answers isOpaque as it did before the step.")
+            assertEquals(undecorated, panel.isOpaque, "and reports isOpaque as it did before the step.")
         }
 
     @Test
@@ -403,7 +432,7 @@ class DecorationModifierNodeTest {
             awaitIdle()
 
             assertEquals(Decoration.None, panel.decoration, "The deactivated component holds no decoration.")
-            assertEquals(undecorated, panel.isOpaque, "and answers isOpaque as it did before the step.")
+            assertEquals(undecorated, panel.isOpaque, "and reports isOpaque as it did before the step.")
         }
 
     @Test
@@ -424,8 +453,10 @@ class DecorationModifierNodeTest {
             }
 
             // The panel leaves with the composition, whose teardown holds each departing step to the restore check.
-            val panel = onNodeWithTag("subject").fetch<DecoratedPanel>()
-            assertFalse(panel.isOpaque, "A faded, clipped panel is not opaque.")
+            onNodeWithTag("subject").assertProperty(
+                false,
+                "A faded, clipped panel is not opaque.",
+            ) { isOpaque }
         }
 
     @Test
@@ -445,7 +476,10 @@ class DecorationModifierNodeTest {
             clipped = false
             awaitIdle()
 
-            assertFalse(onNodeWithTag("subject").fetch<DecoratedPanel>().isOpaque, "The layer still fades the panel.")
+            onNodeWithTag("subject").assertProperty(
+                false,
+                "The layer still fades the panel.",
+            ) { isOpaque }
         }
 
     @Test
@@ -538,7 +572,7 @@ class DecorationModifierNodeTest {
     @Test
     fun aStepIsToldItLeavesTheDecorationWhenRemovedReplacedOrItsComponentLeaves() =
         runComposeSwingTest {
-            val counter = RemovalCounter()
+            val counter = RemovalCounter(mockk(relaxed = true))
             var declared by mutableStateOf(true)
             var replaced by mutableStateOf(false)
             var componentPresent by mutableStateOf(true)
@@ -564,19 +598,19 @@ class DecorationModifierNodeTest {
             observedValue = 1
             awaitIdle()
             assertEquals(1, node.observedValue, "the recomposed element's update reaches the same node")
-            assertEquals(0, counter.removedCount, "an in-place update tells no step it left")
+            verify(exactly = 0) { counter.onRemoved(true) }
 
             // (2) Dropping the element from the modifier.
             declared = false
             awaitIdle()
-            assertEquals(1, counter.removedCount, "a dropped step is told it left")
+            verify(exactly = 1) { counter.onRemoved(true) }
 
             // (3) Declaring it again, then replacing it in the same slot by a different element type.
             declared = true
             awaitIdle()
             replaced = true
             awaitIdle()
-            assertEquals(2, counter.removedCount, "a step replaced by another element is told it left")
+            verify(exactly = 2) { counter.onRemoved(true) }
 
             // (4) Declaring it again, then removing the whole component from composition.
             replaced = false
@@ -584,20 +618,17 @@ class DecorationModifierNodeTest {
             awaitIdle()
             componentPresent = false
             awaitIdle()
-            assertEquals(3, counter.removedCount, "a step whose component leaves is told it left")
+            verify(exactly = 3) { counter.onRemoved(true) }
 
-            assertTrue(
-                counter.attachedAtEveryRemoval.all { it },
-                "the step is still attached each time it is told it left the decoration",
-            )
+            verify(exactly = 0) { counter.onRemoved(false) }
         }
 }
 
 /** Counts how often a [CountingStepNode] is told it left the decoration, across every instance created. */
-private class RemovalCounter {
+private class RemovalCounter(
+    val onRemoved: (Boolean) -> Unit,
+) {
     val created = ArrayList<CountingStepNode>()
-    var removedCount = 0
-    val attachedAtEveryRemoval = ArrayList<Boolean>()
 }
 
 /** Declares a [CountingStepNode] holding [value], which reports every removal from the decoration to [counter]. */
@@ -631,8 +662,7 @@ private class CountingStepNode(
     var observedValue: Int = 0
 
     override fun onRemovedFromDecoration() {
-        counter.removedCount++
-        counter.attachedAtEveryRemoval += isAttached
+        counter.onRemoved(isAttached)
     }
 
     override fun paint(
@@ -729,7 +759,7 @@ private class ReportingStep(
 
 /**
  * Fills its area with [color], then paints its content over it, declaring [outset] of paint outsets on each side and
- * answering [opaque] as its opacity.
+ * reporting [opaque] as its opacity.
  */
 private class StepNode : DecorationModifierNode<Component>() {
     var color: Color = Color.RED

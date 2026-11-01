@@ -20,8 +20,10 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onDescendants
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -42,9 +44,7 @@ import javax.swing.Scrollable
 import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 
 class ConstrainedPanelTest {
     @Test
@@ -54,10 +54,9 @@ class ConstrainedPanelTest {
                 Box(modifier = SwingModifier.testTag("container-under-test").accessibleName("Toolbar")) {}
             }
 
-            val context = onNodeWithTag("container-under-test").fetch().accessibleContext
-
-            assertEquals(AccessibleRole.PANEL, context.accessibleRole, "A panel reports the accessible role PANEL.")
-            assertEquals("Toolbar", context.accessibleName, "A panel reports the name declared on it.")
+            onNodeWithTag("container-under-test")
+                .assert(SwingMatcher.hasAccessibleRole(AccessibleRole.PANEL))
+                .assert(SwingMatcher.hasAccessibleName("Toolbar"))
         }
 
     @Test
@@ -71,11 +70,10 @@ class ConstrainedPanelTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag("container-under-test").assertProperty(
                 listOf("first", "second", "third"),
-                accessibleChildNames(onNodeWithTag("container-under-test").fetch().accessibleContext),
                 "A panel lists its children to assistive technologies in the order they are declared.",
-            )
+            ) { accessibleChildNames(accessibleContext) }
         }
 
     @Test
@@ -93,9 +91,10 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val panel = assertIs<ConstrainedPanel>(onNodeWithTag("container-under-test").fetch())
-            assertNotNull(panel.glassPane)
-            assertEquals(listOf("child"), accessibleChildNames(panel.accessibleContext))
+            onAllNodesOfType<ConstrainedPanel>()
+                .filterToOne(SwingMatcher.hasTestTag("container-under-test"))
+                .assertProperty(true, "A panel holding a scaled child has a glass pane.") { glassPane != null }
+                .assertProperty(listOf("child")) { accessibleChildNames(accessibleContext) }
         }
 
     @Test
@@ -107,14 +106,18 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val panel = assertIs<ConstrainedPanel>(onNodeWithTag("container-under-test").fetch())
-            val glassPane = assertNotNull(panel.glassPane)
-            assertEquals(Dimension(40, 50), panel.size)
-            assertEquals(Rectangle(0, 0, 40, 50), glassPane.bounds)
+            val panel =
+                onAllNodesOfType<ConstrainedPanel>().filterToOne(SwingMatcher.hasTestTag("container-under-test"))
+            panel
+                .assertProperty(Dimension(40, 50)) { size }
+                .assertProperty(Rectangle(0, 0, 40, 50)) { glassPane?.bounds }
 
-            panel.setBounds(3, 4, 60, 70)
-            assertEquals(Rectangle(0, 0, 60, 70), glassPane.bounds)
-            assertEquals(glassPane, panel.glassPane)
+            val resized = panel.fetch()
+            val glass = resized.glassPane
+            resized.setBounds(3, 4, 60, 70)
+            panel
+                .assertProperty(glass) { glassPane }
+                .assertProperty(Rectangle(0, 0, 60, 70)) { glassPane?.bounds }
         }
 
     @ParameterizedTest
@@ -179,19 +182,16 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val context = onNodeWithTag("container-under-test").fetch().accessibleContext
-            assertEquals(
-                listOf("second", "third", "raised"),
-                accessibleChildNames(context),
-                "A panel lists its children in paint order, the child painted last listed last.",
-            )
-            assertEquals(
-                listOf(0, 1, 2),
-                List(context.accessibleChildrenCount) {
-                    context.getAccessibleChild(it).accessibleContext.accessibleIndexInParent
-                },
-                "Each child reports the index its panel lists it at.",
-            )
+            onNodeWithTag("container-under-test")
+                .assertProperty(
+                    listOf("second", "third", "raised"),
+                    "A panel lists its children in paint order, the child painted last listed last.",
+                ) { accessibleChildNames(accessibleContext) }
+                .assertProperty(listOf(0, 1, 2), "Each child reports the index its panel lists it at.") {
+                    List(accessibleContext.accessibleChildrenCount) {
+                        accessibleContext.getAccessibleChild(it).accessibleContext.accessibleIndexInParent
+                    }
+                }
         }
 
     @Test
@@ -229,41 +229,34 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val panel = assertIs<ConstrainedPanel>(onNodeWithTag("container-under-test").fetch())
-
-            assertFalse(
-                panel.isOptimizedDrawingEnabled,
-                "Overlapping children must repaint each other.",
-            )
+            val panel =
+                onAllNodesOfType<ConstrainedPanel>().filterToOne(SwingMatcher.hasTestTag("container-under-test"))
+            panel
+                .assertProperty(false, "Overlapping children must repaint each other.") { isOptimizedDrawingEnabled }
+                .assertProperty(
+                    Dimension(100, 80),
+                    "The viewport reports the size of the box it scrolls.",
+                ) { preferredScrollableViewportSize }
+            val live = panel.fetch()
             assertEquals(
-                Dimension(100, 80),
-                panel.preferredScrollableViewportSize,
-                "The viewport reports the size of the box it scrolls.",
-            )
-            assertEquals(
-                panel.getFontMetrics(panel.font).height,
-                panel.getScrollableUnitIncrement(Rectangle(0, 0, 10, 10), SwingConstants.VERTICAL, 1),
+                live.getFontMetrics(live.font).height,
+                live.getScrollableUnitIncrement(Rectangle(0, 0, 10, 10), SwingConstants.VERTICAL, 1),
                 "an arrow button moves the pane by a line of the panel's font",
             )
-            assertEquals(
-                25,
-                panel.getScrollableBlockIncrement(Rectangle(0, 0, 50, 25), SwingConstants.VERTICAL, 1),
-                "a page down is the visible height",
-            )
-            assertEquals(
-                50,
-                panel.getScrollableBlockIncrement(Rectangle(0, 0, 50, 25), SwingConstants.HORIZONTAL, 1),
-                "a page across is the visible width",
-            )
-            assertEquals(
+            panel.assertProperty(25, "a page down is the visible height") {
+                getScrollableBlockIncrement(Rectangle(0, 0, 50, 25), SwingConstants.VERTICAL, 1)
+            }
+            panel.assertProperty(50, "a page across is the visible width") {
+                getScrollableBlockIncrement(Rectangle(0, 0, 50, 25), SwingConstants.HORIZONTAL, 1)
+            }
+            panel.assertProperty(
                 Dimension(100, 80),
-                panel.size,
                 "a viewport smaller than the panel leaves it at its preferred size, so the pane scrolls it",
-            )
+            ) { size }
         }
 
     @Test
-    fun aPanelHoldingOneScrollableAnswersAPaneOnItsBehalf() =
+    fun aPanelHoldingOneScrollableServesAPaneOnItsBehalf() =
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(100, 80)) {
@@ -275,15 +268,20 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val pane = onNodeOfType<JScrollPane>().fetch()
+            val pane = onNodeOfType<JScrollPane>()
+            val live = pane.fetch()
             val area = onNodeOfType<JTextArea>().fetch()
-            assertEquals(
-                area.getScrollableUnitIncrement(pane.viewport.viewRect, SwingConstants.VERTICAL, 1),
-                pane.verticalScrollBar.getUnitIncrement(1),
-                "an arrow button moves the pane by a line of the text area the panel holds",
-            )
-            assertFalse(pane.horizontalScrollBar.isVisible, "content taking the viewport's width needs no scroll bar")
-            assertEquals(pane.viewport.width, pane.viewport.view.width, "the panel is laid out at the viewport's width")
+            pane
+                .assertProperty(
+                    area.getScrollableUnitIncrement(live.viewport.viewRect, SwingConstants.VERTICAL, 1),
+                    "an arrow button moves the pane by a line of the text area the panel holds",
+                ) { verticalScrollBar.getUnitIncrement(1) }
+                .assertProperty(
+                    false,
+                    "content taking the viewport's width needs no scroll bar",
+                ) { horizontalScrollBar.isVisible }
+            val viewportWidth = pane.fetch().viewport.width
+            pane.assertProperty(viewportWidth, "the panel is laid out at the viewport's width") { viewport.view.width }
         }
 
     @Test
@@ -321,20 +319,24 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val pane = onNodeOfType<JScrollPane>().fetch()
-            val panel = assertIs<Scrollable>(pane.viewport.view)
-            assertEquals(content.preferredScrollableViewportSize, panel.preferredScrollableViewportSize)
-            assertEquals(7, pane.verticalScrollBar.getBlockIncrement(1), "a page is the content's own page")
-            assertFalse(pane.verticalScrollBar.isVisible, "content taking the viewport's height needs no scroll bar")
-            assertEquals(
-                pane.viewport.height,
-                pane.viewport.view.height,
-                "the panel is laid out at the viewport's height",
-            )
+            val pane = onNodeOfType<JScrollPane>()
+            pane.assertProperty(Dimension(50, 40)) {
+                assertIs<Scrollable>(viewport.view).preferredScrollableViewportSize
+            }
+            pane
+                .assertProperty(7, "a page is the content's own page") { verticalScrollBar.getBlockIncrement(1) }
+                .assertProperty(
+                    false,
+                    "content taking the viewport's height needs no scroll bar",
+                ) { verticalScrollBar.isVisible }
+            val viewportHeight = pane.fetch().viewport.height
+            pane.assertProperty(viewportHeight, "the panel is laid out at the viewport's height") {
+                viewport.view.height
+            }
         }
 
     @Test
-    fun aPanelHoldingSeveralChildrenAnswersAPaneAsAPanelOfItsOwn() =
+    fun aPanelHoldingSeveralChildrenServesAPaneAsAPanelOfItsOwn() =
         runComposeSwingTest {
             setContent {
                 ScrollPane(modifier = SwingModifier.preferredSize(400, 80)) {
@@ -347,14 +349,13 @@ class ConstrainedPanelTest {
                 }
             }
 
-            val pane = onNodeOfType<JScrollPane>().fetch()
-            val view = pane.viewport.view
-            assertEquals(
-                view.preferredSize,
-                pane.viewport.preferredSize,
+            val pane = onNodeOfType<JScrollPane>()
+            pane.assertProperty(
+                Dimension(200, 320),
                 "the pane sizes its viewport by the whole panel, not by one of its children",
-            )
-            assertEquals(pane.viewport.width, view.width, "the panel is laid out at the viewport's width")
+            ) { viewport.preferredSize }
+            val viewportWidth = pane.fetch().viewport.width
+            pane.assertProperty(viewportWidth, "the panel is laid out at the viewport's width") { viewport.view.width }
         }
 
     @Test
@@ -373,12 +374,11 @@ class ConstrainedPanelTest {
                     )
                 }
             }
-            val box = onNodeWithTag("box").fetch<JComponent>()
+            val box = onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag("box"))
 
-            box.getInsets(Insets(0, 0, 0, 0))
+            box.assertProperty(Insets(10, 10, 10, 10)) { getInsets(Insets(0, 0, 0, 0)) }
 
             assertEquals(Insets(2, 2, 2, 2), border.own, "the border's own insets are read, never written")
-            assertEquals(Insets(10, 10, 10, 10), box.getInsets(Insets(0, 0, 0, 0)))
         }
 
     companion object {

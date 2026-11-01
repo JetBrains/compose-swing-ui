@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.blur
+import org.jetbrains.compose.swing.foundation.graphics.paintOnto
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -114,9 +115,6 @@ class PlacementLayerFadeTest {
     /** What the component tagged [tag] paints on graphics clipped to its bounds, as Swing paints it. */
     private fun ComposeSwingTest.paintClipped(tag: String): BufferedImage {
         val component = onNodeWithTag(tag).fetch<JComponent>()
-        return renderImage(component.width, component.height) {
-            it.clipRect(0, 0, component.width, component.height)
-            component.paint(it)
-        }
+        return component.paintOnto(component.width, component.height)
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextArea
@@ -17,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -26,10 +28,10 @@ import java.awt.Point
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JTextField
 import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 
 /**
  * A stock widget declaring which part of its insets is paint outsets lines up by the rest under a Foundation parent:
@@ -52,9 +54,9 @@ class PaintOutsetsAlignmentTest {
                     )
                 }
             }
-            val label = onNodeWithTag("label").fetch()
             val field = onNodeWithTag("field").fetch()
-            assertEquals(label.x, field.x + LINE, "the field's content edge lines up with the label")
+            onNodeWithTag("label").assertProperty(0) { x }
+            assertEquals(-LINE, field.x, "the field's content edge lines up with the label")
 
             filled = true
             awaitIdle()
@@ -78,14 +80,13 @@ class PaintOutsetsAlignmentTest {
                     }
                 }
             }
-            val row = onNodeWithTag("row").fetch()
             val first = onNodeWithTag("first").fetch()
-            assertEquals(first.preferredSize.height - 2 * LINE, row.layoutBounds.height)
+            onNodeWithTag("row").assertProperty(first.preferredSize.height - 2 * LINE) { layoutBounds.height }
             val second = onNodeWithTag("second").fetch()
             assertEquals(-LINE, first.layoutBounds.y)
             assertEquals(-LINE, second.layoutBounds.y)
             assertEquals(first.width - 2 * LINE, second.x - first.x, "the row places the boxes side by side")
-            assertEquals(40 + 2 * LINE, onNodeWithTag("filling").fetch().height, "a filling field reaches past its row")
+            onNodeWithTag("filling").assertProperty(40 + 2 * LINE, "a filling field reaches past its row") { height }
         }
 
     @Test
@@ -102,7 +103,7 @@ class PaintOutsetsAlignmentTest {
             assertEquals(Insets(LINE, LINE, LINE, LINE), column.paintOutsets)
             val box = column.layoutBounds
             val image = onNodeWithTag("box").captureToImage()
-            assertEquals(Color.RED.rgb, image.getRGB(box.x - 1, box.y + box.height / 2), "the line past the column")
+            image.assertPixelColor(Color.RED, box.x - 1, box.y + box.height / 2, "the line past the column")
         }
 
     @Test
@@ -118,7 +119,7 @@ class PaintOutsetsAlignmentTest {
             val column = onNodeWithTag("column").fetch<JComponent>()
             assertEquals(Insets(0, 0, 0, 0), column.paintOutsets, "a root takes no paint outsets")
             val image = onNodeWithTag("panel").captureToImage()
-            assertEquals(Color.WHITE.rgb, image.getRGB(column.x - 1, column.y + column.height / 2), "cut at its edge")
+            image.assertPixelColor(Color.WHITE, column.x - 1, column.y + column.height / 2, "cut at its edge")
         }
 
     @Test
@@ -200,8 +201,8 @@ class PaintOutsetsAlignmentTest {
             thickness = 5
             awaitIdle()
 
-            val label = onNodeWithTag("label").fetch()
-            assertEquals(label.x, onNodeWithTag("field").fetch().x + 5)
+            onNodeWithTag("label").assertProperty(0) { x }
+            onNodeWithTag("field").assertProperty(-5) { x }
             assertEquals(1, measures)
         }
 
@@ -215,9 +216,9 @@ class PaintOutsetsAlignmentTest {
                     Label("bare", modifier = SwingModifier.testTag("bare").paintOutsets(TwoPixels))
                 }
             }
-            val label = onNodeWithTag("label").fetch()
-            assertEquals(label.x, onNodeWithTag("field").fetch().x + 2)
-            assertEquals(label.x, onNodeWithTag("bare").fetch().x, "a label with no insets keeps its bounds")
+            onNodeWithTag("label").assertProperty(0) { x }
+            onNodeWithTag("field").assertProperty(-2) { x }
+            onNodeWithTag("bare").assertProperty(0, "a label with no insets keeps its bounds") { x }
         }
 
     @Test
@@ -237,12 +238,12 @@ class PaintOutsetsAlignmentTest {
                     )
                 }
             }
-            val label = onNodeWithTag("label").fetch()
             val field = onNodeWithTag("field").fetch()
-            assertEquals(label.x, field.x + RING, "the field's ring is past its box")
+            onNodeWithTag("label").assertProperty(0) { x }
+            assertEquals(-RING, field.x, "the field's ring is past its box")
             val lined = onNodeWithTag("lined").fetch()
             assertEquals(
-                Rectangle(Point(label.x, field.y + field.height - RING), lined.preferredSize),
+                Rectangle(Point(0, field.y + field.height - RING), lined.preferredSize),
                 lined.bounds,
                 "a label the value names nothing for keeps its bounds as its box",
             )
@@ -267,7 +268,8 @@ class PaintOutsetsAlignmentTest {
             }
             val label = onNodeWithTag("label").fetch()
             val tight = onNodeWithTag("tight").fetch()
-            assertEquals(label.x, tight.x + 3, "the left inset is paint outsets")
+            onNodeWithTag("label").assertProperty(0) { x }
+            assertEquals(-3, tight.x, "the left inset is paint outsets")
             assertEquals(label.height, tight.layoutBounds.y, "a negative top inset names none")
         }
 
@@ -280,8 +282,8 @@ class PaintOutsetsAlignmentTest {
                     LinedField("inner", SwingModifier.paintOutsets(PaintOutsets.FullInsets).width(100))
                 }
             }
-            assertEquals(100 + 2 * LINE, onNodeWithTag("outer").fetch().width, "a 100 px box, the border past it")
-            assertEquals(100, onNodeWithTag("inner").fetch().width, "a 100 px field")
+            onNodeWithTag("outer").assertProperty(100 + 2 * LINE, "a 100 px box, the border past it") { width }
+            onNodeWithTag("inner").assertProperty(100, "a 100 px field") { width }
         }
 
     @Test
@@ -305,7 +307,7 @@ class PaintOutsetsAlignmentTest {
 
             value = PaintOutsets.FullInsets
             awaitIdle()
-            assertEquals(height - 2 * 2, column.preferredSize.height, "2 px less per field")
+            assertEquals(-4, column.preferredSize.height - height, "2 px less per field")
         }
 
     @Test
@@ -339,9 +341,23 @@ class PaintOutsetsAlignmentTest {
             }
             val padded = onNodeWithTag("padded").fetch<JLabel>()
             val plain = onNodeWithTag("plain").fetch<JLabel>()
-            assertEquals(plain.x + plain.insets.left, padded.x + padded.insets.left)
-            assertNotEquals(plain.x, padded.x)
+            assertEquals(0, plain.x)
+            assertEquals(-8, padded.x)
+            assertEquals(
+                plain.x + plain.insets.left,
+                padded.x + padded.insets.left,
+                "the padded label's text starts where the plain label's does",
+            )
         }
 }
 
 private fun Component.baseline(): Int = getBaseline(width, height)
+
+/** A [RING] px focus ring for a text field and none for any other component, as a look and feel gives a label none. */
+private object FieldRing : PaintOutsets {
+    override fun outsetsOf(
+        component: JComponent,
+        insets: Insets,
+        decorationOutsets: Insets,
+    ): Insets = if (component is JTextField) Insets(RING, RING, RING, RING) else Insets(0, 0, 0, 0)
+}

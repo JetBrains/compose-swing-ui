@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Component
@@ -223,16 +224,18 @@ class PublicParentLayoutModifierTest {
                 }
             }
 
-            assertEquals(Dimension(10, 10), containerPreferredSize(), "the node must report the size it starts with")
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
+                Dimension(10, 10),
+                "the node must report the size it starts with",
+            ) { preferredSize }
 
             size = 24
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(24, 24),
-                containerPreferredSize(),
                 "invalidateMeasurement must measure the node again for a change shouldAutoInvalidate is false for",
-            )
+            ) { preferredSize }
         }
     }
 

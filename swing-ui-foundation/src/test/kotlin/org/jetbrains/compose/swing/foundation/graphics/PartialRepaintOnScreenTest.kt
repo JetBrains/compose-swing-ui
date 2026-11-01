@@ -5,29 +5,33 @@ import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.frame
+import org.jetbrains.compose.swing.foundation.layout.WINDOW_TITLE
 import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.foundation.layout.size
-import org.jetbrains.compose.swing.foundation.layout.windowNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.awt.Robot
 import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -62,12 +66,17 @@ class PartialRepaintOnScreenTest {
                 repainted = { recording = false },
             )
 
-            val root = windowNode("root")
+            val root = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("root").fetch<JComponent>()
             val painted = repainted.single()
             for (neighbor in listOf("above", "left", "right", "below")) {
-                val bounds = windowNode(neighbor).run { SwingUtilities.convertRectangle(parent, bounds, root) }
-                assertTrue(painted.intersects(bounds), "$painted reaches into the $neighbor neighbor")
-                assertFalse(painted.contains(bounds), "$painted does not cover the $neighbor neighbor whole")
+                onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(neighbor).assertProperty(
+                    true,
+                    "$painted reaches into the $neighbor neighbor",
+                ) { painted.intersects(SwingUtilities.convertRectangle(parent, bounds, root)) }
+                onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(neighbor).assertProperty(
+                    false,
+                    "$painted does not cover the $neighbor neighbor whole",
+                ) { painted.contains(SwingUtilities.convertRectangle(parent, bounds, root)) }
             }
         }
 
@@ -75,19 +84,9 @@ class PartialRepaintOnScreenTest {
      * A shadowed leaf under no decorated container draws a mark it did not draw before and repaints the mark's area.
      * That repaints the shadow the mark casts, and leaves on screen what a repaint of the whole window shows.
      */
-    @Test
-    fun aChangeInAShadowedLeafUnderNoDecoratedContainerShowsAsARepaintOfTheWholeWindowShowsIt() =
-        assertShadowedLeafUnderNoDecoratedContainerShowsAsAWholeRepaint(mergedIntoContentPane = false)
-
-    /**
-     * The same holds where Swing merges the leaf's repaint into a repaint of the window's content pane, which is no
-     * Foundation container.
-     */
-    @Test
-    fun aChangeInAShadowedLeafMergedIntoTheContentPanesRepaintShowsAsARepaintOfTheWholeWindowShowsIt() =
-        assertShadowedLeafUnderNoDecoratedContainerShowsAsAWholeRepaint(mergedIntoContentPane = true)
-
-    private fun assertShadowedLeafUnderNoDecoratedContainerShowsAsAWholeRepaint(mergedIntoContentPane: Boolean) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("repaints")
+    fun aChangeInAShadowedLeafShowsAsARepaintOfTheWholeWindow(mergedIntoContentPane: Boolean) =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var marked = false
@@ -113,13 +112,13 @@ class PartialRepaintOnScreenTest {
         mergedIntoContentPane: Boolean = false,
         repainted: () -> Unit = {},
     ) {
-        val frame = frame()
+        val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
         frame.isAlwaysOnTop = true
         frame.toFront()
         settle()
         assumeTrue(frame.isShowing, "requires a window system that shows the window")
-        val root = windowNode("root")
-        val leaf = windowNode("leaf")
+        val root = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("root").fetch<JComponent>()
+        val leaf = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("leaf").fetch<JComponent>()
         val robot = Robot()
         val onScreen = Rectangle(root.locationOnScreen, root.size)
         val mark = Rectangle(MARK).apply { translate(leaf.paintOutsets.left, leaf.paintOutsets.top) }
@@ -180,8 +179,8 @@ class PartialRepaintOnScreenTest {
     }
 
     /**
-     * A shadowed leaf tagged `leaf`, which draws [MARK] while [marked]. Both scenes place it, 80 by 80, at (110, 110)
-     * in a box of 300 by 300.
+     * A shadowed leaf tagged `leaf`, which draws [MARK] while [marked]. Both contents place it, 80 by 80,
+     * at (110, 110) in a box of 300 by 300.
      */
     @Composable
     private fun MarkedLeaf(
@@ -208,8 +207,15 @@ class PartialRepaintOnScreenTest {
         waitUntil(timeout = 10.seconds) { System.nanoTime() - start >= 500.milliseconds.inWholeNanoseconds }
     }
 
-    private companion object {
+    companion object {
         /** Inside the leaf's layout bounds, clear of every neighbor's paint outsets. */
-        val MARK = Rectangle(34, 24, 12, 12)
+        private val MARK = Rectangle(34, 24, 12, 12)
+
+        @JvmStatic
+        fun repaints(): List<Arguments> =
+            listOf(
+                Arguments.of(Named.of("under no decorated container", false)),
+                Arguments.of(Named.of("merged into the content pane's repaint", true)),
+            )
     }
 }

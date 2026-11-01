@@ -34,6 +34,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junitJupiterParams)
+    testImplementation(libs.mockk)
     testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(project(":swing-ui-test"))
 }

@@ -15,9 +15,16 @@ import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Container
 import java.awt.Dimension
@@ -35,30 +42,6 @@ import kotlin.test.assertTrue
  * leaves the composition applying.
  */
 class StepAfterShadowChangeTest {
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAClipToBoundsAfterItBecomesAFade() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.ClipToBounds, StepAfterShadow.Alpha)
-
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAClipToBoundsAfterItBecomesAClip() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.ClipToBounds, StepAfterShadow.Clip)
-
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAClipToBoundsAfterItIsRemoved() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.ClipToBounds, StepAfterShadow.None)
-
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAFadingPlacementLayerAfterItBecomesAFade() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.FadingLayer, StepAfterShadow.Alpha)
-
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAFadeAfterItBecomesAClipToBounds() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.Alpha, StepAfterShadow.ClipToBounds)
-
-    @Test
-    fun aShadowKeepsItsPaintOutsetsWhenAClipAfterItBecomesAClipToBounds() =
-        assertShadowFitsOnceTheStepAfterItChanges(StepAfterShadow.Clip, StepAfterShadow.ClipToBounds)
-
     /**
      * One modifier pass drops the clip and hands the node declared before it a decorator with another reach. The pass
      * after it is applied too.
@@ -81,10 +64,15 @@ class StepAfterShadowChangeTest {
                 awaitIdle()
 
                 val spread = Insets(next, next, next, next)
-                val box = onNodeWithTag("box").fetch<JComponent>()
-                assertEquals(spread, box.paintOutsets, "the box takes a reach of $next")
-                assertEquals(spread, onNodeWithTag("row").fetch<JComponent>().paintOutsets, "and its row spreads by it")
-                assertEquals(Rectangle(0, 0, 20, 20), box.layoutBounds, "around the same layout bounds")
+                onNodeWithTag("box")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(spread, "the box takes a reach of $next") { paintOutsets }
+                onNodeWithTag("row")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(spread, "and its row spreads by it") { paintOutsets }
+                onNodeWithTag("box").assertProperty(Rectangle(0, 0, 20, 20), "around the same layout bounds") {
+                    layoutBounds
+                }
             }
         }
 
@@ -112,10 +100,15 @@ class StepAfterShadowChangeTest {
                 awaitIdle()
 
                 val spread = Insets(next, next, next, next)
-                val box = onNodeWithTag("box").fetch<JComponent>()
-                assertEquals(spread, box.paintOutsets, "the box takes a reach of $next")
-                assertEquals(spread, onNodeWithTag("row").fetch<JComponent>().paintOutsets, "and its row spreads by it")
-                assertEquals(Rectangle(0, 0, 20, 20), box.layoutBounds, "around the same layout bounds")
+                onNodeWithTag("box")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(spread, "the box takes a reach of $next") { paintOutsets }
+                onNodeWithTag("row")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(spread, "and its row spreads by it") { paintOutsets }
+                onNodeWithTag("box").assertProperty(Rectangle(0, 0, 20, 20), "around the same layout bounds") {
+                    layoutBounds
+                }
             }
         }
 
@@ -143,9 +136,12 @@ class StepAfterShadowChangeTest {
                 awaitIdle()
 
                 val spread = Insets(next, next, next, next)
-                val box = onNodeWithTag("box").fetch<JComponent>()
-                assertEquals(spread, box.paintOutsets, "the box takes a reach of $next")
-                assertEquals(Rectangle(0, 0, 20, 20), box.layoutBounds, "around the same layout bounds")
+                onNodeWithTag("box")
+                    .assertIsOfType<JComponent>()
+                    .assertProperty(spread, "the box takes a reach of $next") { paintOutsets }
+                onNodeWithTag("box").assertProperty(Rectangle(0, 0, 20, 20), "around the same layout bounds") {
+                    layoutBounds
+                }
             }
         }
 
@@ -157,10 +153,10 @@ class StepAfterShadowChangeTest {
     fun aNodeMeasuringWhileAttachedLeavesAsANodeBeforeItAsksTheRowForItsPreferredSize() =
         runComposeSwingTest {
             var tick by mutableIntStateOf(0)
-            val answers = mutableListOf<Dimension>()
+            val results = mutableListOf<Dimension>()
             val ask = { row: Container ->
                 row.invalidate()
-                answers += row.preferredSize
+                results += row.preferredSize
             }
             setContent {
                 Column {
@@ -177,7 +173,7 @@ class StepAfterShadowChangeTest {
                 tick = next
                 awaitIdle()
 
-                assertEquals(List(next) { Dimension(20, 20) }, answers, "the row answers as tick $next is written")
+                assertEquals(List(next) { Dimension(20, 20) }, results, "the row reports as tick $next is written")
             }
         }
 
@@ -232,21 +228,26 @@ class StepAfterShadowChangeTest {
                     }
                 }
             }
-            val row = onNodeWithTag("row").fetch<JComponent>()
-            assertEquals(Insets(6, 6, 6, 6), row.paintOutsets, "the row spreads by both reaches of the box")
+            onNodeWithTag("row")
+                .assertIsOfType<JComponent>()
+                .assertProperty(Insets(6, 6, 6, 6), "the row spreads by both reaches of the box") { paintOutsets }
 
             active = false
             awaitIdle()
 
-            assertEquals(0, row.componentCount, "the box leaves its row")
-            assertEquals(Insets(0, 0, 0, 0), row.paintOutsets, "which spreads no more")
+            onNodeWithTag("row").onChildren().assertCountEquals(0)
+            onNodeWithTag("row")
+                .assertIsOfType<JComponent>()
+                .assertProperty(Insets(0, 0, 0, 0), "which spreads no more") { paintOutsets }
         }
 
     /**
      * A shadowed box alone in its row, whose step declared after the shadow changes from [before] to [after], takes
      * the paint outsets, insets, bounds and pixels of a box that declared [after] from the start, and so does its row.
      */
-    private fun assertShadowFitsOnceTheStepAfterItChanges(
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stepChanges")
+    internal fun aShadowKeepsItsPaintOutsetsWhenTheStepAfterItChanges(
         before: StepAfterShadow,
         after: StepAfterShadow,
     ) = runComposeSwingTest {
@@ -287,8 +288,21 @@ class StepAfterShadowChangeTest {
         }
     }
 
-    /** The step an [assertShadowFitsOnceTheStepAfterItChanges] box declares after its shadow. */
-    private enum class StepAfterShadow { ClipToBounds, FadingLayer, Alpha, Clip, None }
+    /** The step an [aShadowKeepsItsPaintOutsetsWhenTheStepAfterItChanges] box declares after its shadow. */
+    internal enum class StepAfterShadow { ClipToBounds, FadingLayer, Alpha, Clip, None }
+
+    companion object {
+        @JvmStatic
+        fun stepChanges(): List<Arguments> =
+            listOf(
+                StepAfterShadow.ClipToBounds to StepAfterShadow.Alpha,
+                StepAfterShadow.ClipToBounds to StepAfterShadow.Clip,
+                StepAfterShadow.ClipToBounds to StepAfterShadow.None,
+                StepAfterShadow.FadingLayer to StepAfterShadow.Alpha,
+                StepAfterShadow.Alpha to StepAfterShadow.ClipToBounds,
+                StepAfterShadow.Clip to StepAfterShadow.ClipToBounds,
+            ).map { (before, after) -> Arguments.of(Named.of("$before becomes $after", before), after) }
+    }
 }
 
 /** Declares a layout node that takes a [Halo] of [reach] as its decorator when the element is applied. */

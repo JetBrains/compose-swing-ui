@@ -6,15 +6,12 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.visible
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Component
 import java.awt.Dimension
-import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * A child hidden with `SwingModifier.visible(false)` stays attached to its row or column and the layout
@@ -40,7 +37,7 @@ class RowColumnVisibilityTest {
                 }
             }
 
-            assertEquals(CHILD_COUNT, childCount(), "a hidden child stays attached to the column that declares it")
+            onNodeWithTag(CONTAINER_TAG).onChildren().assertCountEquals(CHILD_COUNT)
             assertEquals(
                 columnRows(0, 50, 100),
                 childBounds(),
@@ -62,11 +59,10 @@ class RowColumnVisibilityTest {
                 }
             }
 
-            assertEquals(
+            onNodeWithTag(CONTAINER_TAG).assertProperty(
                 Dimension(CHILD_WIDTH, 140),
-                containerPreferredSize(),
                 "a hidden child costs its own extent and its gap, so the column asks for both",
-            )
+            ) { preferredSize }
         }
 
     @Test
@@ -106,29 +102,22 @@ class RowColumnVisibilityTest {
             }
             val rows = columnRows(0, 50, 100)
 
-            assertFalse(toggledChild().isVisible, "the child under test starts hidden")
+            onNodeWithText("child 1").assertProperty(false, "the child under test starts hidden") { isVisible }
             assertEquals(rows, childBounds(), "and the column holds the slot it hides")
 
             shown = true
             awaitIdle()
 
-            assertTrue(toggledChild().isVisible, "the declaration reaches the child when it is shown")
+            onNodeWithText("child 1").assertProperty(
+                true,
+                "the declaration reaches the child when it is shown",
+            ) { isVisible }
             assertEquals(rows, childBounds(), "which is already standing where it was placed")
 
             shown = false
             awaitIdle()
 
-            assertFalse(toggledChild().isVisible, "and when it is hidden again")
+            onNodeWithText("child 1").assertProperty(false, "and when it is hidden again") { isVisible }
             assertEquals(rows, childBounds(), "moving nothing either way")
         }
-
-    private companion object {
-        /** How many children the container holds, hidden ones included. */
-        fun ComposeSwingTest.childCount(): Int = container().componentCount
-
-        /** The child whose visibility a test drives, the second of the three the fixture declares. */
-        fun ComposeSwingTest.toggledChild(): Component = container().childrenInDeclarationOrder()[1]
-
-        fun ComposeSwingTest.container(): JComponent = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-    }
 }

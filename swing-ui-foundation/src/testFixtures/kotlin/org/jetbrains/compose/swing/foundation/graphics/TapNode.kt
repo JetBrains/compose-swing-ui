@@ -8,19 +8,28 @@ import java.awt.Rectangle
 import java.awt.image.BufferedImage
 
 /** The outermost step of a window fixture: [shown] is what the component shows after the paints so far. */
-internal class TapNode : DecorationModifierNode<Component>() {
+public class TapNode : DecorationModifierNode<Component>() {
     private var surface: BufferedImage? = null
     private var painted: Rectangle? = null
 
-    var paints = 0
+    /** How many times this node has painted. */
+    public var paints: Int = 0
         private set
 
     /** Whether the paints since the surface last changed size covered all of [area]. */
-    fun covers(area: Rectangle): Boolean = painted?.contains(area) == true
+    public fun covers(area: Rectangle): Boolean = painted?.contains(area) == true
 
-    fun shown(): BufferedImage {
+    /** A copy of what the component shows after the paints so far. It fails before the first paint. */
+    public fun shown(): BufferedImage {
         val pixels = checkNotNull(surface) { "the component has not painted" }
-        return renderImage(pixels.width, pixels.height) { it.drawImage(pixels, 0, 0, null) }
+        val copy = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
+        val into = copy.createGraphics()
+        try {
+            into.drawImage(pixels, 0, 0, null)
+        } finally {
+            into.dispose()
+        }
+        return copy
     }
 
     override fun paint(
@@ -52,15 +61,21 @@ internal class TapNode : DecorationModifierNode<Component>() {
     }
 }
 
-internal class TapStep : SwingModifier.NodeElement<Component, TapNode>() {
-    val created = ArrayList<TapNode>()
-    val node: TapNode get() = created.last()
+/** Adds one [TapNode] where it is declared, and keeps each node it creates. */
+public class TapElement : SwingModifier.NodeElement<Component, TapNode>() {
+    private val nodes = ArrayList<TapNode>()
+
+    /** Every node this element has created, oldest first. */
+    public val created: List<TapNode> get() = nodes
+
+    /** The node this element created last. */
+    public val node: TapNode get() = nodes.last()
 
     override val additive: Boolean get() = true
 
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): TapNode = TapNode().also { created += it }
+    override fun create(): TapNode = TapNode().also { nodes += it }
 
     override fun update(node: TapNode) = Unit
 

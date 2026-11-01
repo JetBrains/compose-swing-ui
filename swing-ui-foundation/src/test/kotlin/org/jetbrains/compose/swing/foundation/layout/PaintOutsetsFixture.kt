@@ -9,15 +9,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import java.awt.Color
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
-import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.JTextField
-import javax.swing.border.AbstractBorder
 import javax.swing.border.LineBorder
 
 /** Two pixels of every side, clamped to the insets. */
@@ -40,73 +36,8 @@ internal fun LinedField(
     )
 }
 
-/** A decoration's outsets plus a 2 px focus ring, as an app's value for a look and feel with one. */
-internal object TestFocusRing : PaintOutsets {
-    override fun outsetsOf(
-        component: JComponent,
-        insets: Insets,
-        decorationOutsets: Insets,
-    ): Insets {
-        val d = decorationOutsets
-        return Insets(d.top + RING, d.left + RING, d.bottom + RING, d.right + RING)
-    }
-}
-
-/** The width of the focus ring a [RingBorder] leaves outside its line. */
+/** The width of the focus ring a test's border or outsets leave outside the line. */
 internal const val RING = 2
-
-/** A [RING] px focus ring for a text field and none for any other component, as a look and feel gives a label none. */
-internal object FieldRing : PaintOutsets {
-    override fun outsetsOf(
-        component: JComponent,
-        insets: Insets,
-        decorationOutsets: Insets,
-    ): Insets = if (component is JTextField) Insets(RING, RING, RING, RING) else Insets(0, 0, 0, 0)
-}
-
-/** Answers as [value] does, and records each component it is asked about. */
-internal class RecordingPaintOutsets(
-    private val value: PaintOutsets,
-) : PaintOutsets {
-    val asked = mutableSetOf<JComponent>()
-
-    override fun outsetsOf(
-        component: JComponent,
-        insets: Insets,
-        decorationOutsets: Insets,
-    ): Insets {
-        asked += component
-        return value.outsetsOf(component, insets, decorationOutsets)
-    }
-}
-
-/**
- * A border of a margin, a 1 px line and outside it a [RING] px focus ring, painted only while focused: the shape of a
- * look and feel's text field or button border. The line is [RING] px in from the rectangle it is given.
- */
-internal class RingBorder(
-    private val color: Color,
-) : AbstractBorder() {
-    override fun getBorderInsets(
-        c: Component,
-        insets: Insets,
-    ): Insets {
-        insets.set(RING + 1 + 2, RING + 1 + 14, RING + 1 + 2, RING + 1 + 14)
-        return insets
-    }
-
-    override fun paintBorder(
-        c: Component,
-        g: Graphics,
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int,
-    ) {
-        g.color = color
-        g.drawRect(x + RING, y + RING, width - 2 * RING - 1, height - 2 * RING - 1)
-    }
-}
 
 /** A component painting through its decoration, written to the recipe: 120 by 80 inside its insets. */
 internal class Card :
@@ -147,35 +78,6 @@ internal class Card :
         val insets = insets
         return Dimension(120 + insets.left + insets.right, 80 + insets.top + insets.bottom)
     }
-}
-
-/** A button painting through its decoration, written to the recipe; its UI delegate sizes it from its insets. */
-internal class ShadowButton(
-    text: String,
-) : JButton(text),
-    Decoratable {
-    override var decoration: Decoration = Decoration.None
-
-    override fun getGraphics(): Graphics? = decoration.getGraphics(this, super.getGraphics())
-
-    override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
-
-    override fun paintBorder(g: Graphics) {
-        val box = decoration.localLayoutBounds(this)
-        border?.paintBorder(this, g, box.x, box.y, box.width, box.height)
-    }
-
-    override fun getInsets(): Insets = decoration.insets(super.getInsets())
-
-    override fun getInsets(insets: Insets?): Insets =
-        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
-
-    override fun contains(
-        x: Int,
-        y: Int,
-    ): Boolean = decoration.contains(this, x, y)
-
-    override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
 }
 
 /** Declares a [ReachingNode] taking [reach] on every side, from its placement where [whilePlacing]. */
