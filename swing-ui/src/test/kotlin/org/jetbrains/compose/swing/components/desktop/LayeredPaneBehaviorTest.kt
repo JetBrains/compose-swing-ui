@@ -11,6 +11,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.bounds
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.performClick
@@ -55,16 +57,14 @@ class LayeredPaneBehaviorTest {
         }
 
         onNodeOfType<JLayeredPane>().onChildren().assertCountEquals(2)
-        assertEquals(
+        onNodeWithText("back").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DEFAULT_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("back").fetch<JComponent>()),
             "the back child sits on the default layer",
-        )
-        assertEquals(
+        ) { JLayeredPane.getLayer(this) }
+        onNodeWithText("front").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.PALETTE_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("front").fetch<JComponent>()),
             "the front child sits on the palette layer",
-        )
+        ) { JLayeredPane.getLayer(this) }
     }
 
     @Test
@@ -75,11 +75,10 @@ class LayeredPaneBehaviorTest {
             }
         }
 
-        assertEquals(
+        onNodeWithText("seven").assertIsOfType<JLabel>().assertProperty(
             7,
-            JLayeredPane.getLayer(onNodeWithText("seven").fetch<JComponent>()),
             "a layer named by a raw integer is the one the child sits on",
-        )
+        ) { JLayeredPane.getLayer(this) }
     }
 
     @Test
@@ -162,11 +161,10 @@ class LayeredPaneBehaviorTest {
         onNodeOfType<JLayeredPane>().onChildren().assertCountEquals(2)
         onNodeWithText("lower").assertExists()
         onNodeWithText("upper").assertExists()
-        assertEquals(
+        onNodeOfType<JLayeredPane>().assertProperty(
             2,
-            onNodeOfType<JLayeredPane>().fetch().getComponentCountInLayer(JLayeredPane.PALETTE_LAYER),
             "both children declaring one depth stand on that layer",
-        )
+        ) { getComponentCountInLayer(JLayeredPane.PALETTE_LAYER) }
     }
 
     @Test
@@ -207,11 +205,10 @@ class LayeredPaneBehaviorTest {
         }
 
         // A JLayeredPane has no layout manager, so the child keeps the bounds the modifier set.
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             Rectangle(15, 25, 120, 40),
-            onNodeOfType<JLabel>().fetch().bounds,
             "a child positioned by the bounds modifier keeps those bounds on the pane",
-        )
+        ) { bounds }
     }
 
     @Test
@@ -249,27 +246,24 @@ class LayeredPaneBehaviorTest {
             }
         }
 
-        assertEquals(
+        onNodeWithText("mover").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DEFAULT_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("mover").fetch<JComponent>()),
             "the child should start on the default layer",
-        )
+        ) { JLayeredPane.getLayer(this) }
 
         depth = JLayeredPane.DRAG_LAYER
         awaitIdle()
-        assertEquals(
+        onNodeWithText("mover").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DRAG_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("mover").fetch<JComponent>()),
             "child layer did not update on recomposition",
-        )
+        ) { JLayeredPane.getLayer(this) }
 
         depth = JLayeredPane.DEFAULT_LAYER
         awaitIdle()
-        assertEquals(
+        onNodeWithText("mover").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DEFAULT_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("mover").fetch<JComponent>()),
             "the child follows its layer back down again",
-        )
+        ) { JLayeredPane.getLayer(this) }
     }
 
     @Test
@@ -284,27 +278,24 @@ class LayeredPaneBehaviorTest {
             }
         }
 
-        assertEquals(
+        onNodeWithText("child").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DRAG_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
             "the child sits on the layer its modifier declares",
-        )
+        ) { JLayeredPane.getLayer(this) }
 
         raised = false
         awaitIdle()
-        assertEquals(
+        onNodeWithText("child").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DEFAULT_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
             "a child whose modifier stops declaring a layer returns to the pane's default layer",
-        )
+        ) { JLayeredPane.getLayer(this) }
 
         raised = true
         awaitIdle()
-        assertEquals(
+        onNodeWithText("child").assertIsOfType<JLabel>().assertProperty(
             JLayeredPane.DRAG_LAYER,
-            JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
             "the child follows the layer its modifier declares again",
-        )
+        ) { JLayeredPane.getLayer(this) }
     }
 
     @Test
@@ -333,11 +324,10 @@ class LayeredPaneBehaviorTest {
         onNodeOfType<JLayeredPane>().onChildren().assertCountEquals(1)
         onNodeOfType<JButton>().assertExists()
         onNodeOfType<JLabel>().assertDoesNotExist()
-        assertEquals(
+        onNodeOfType<JButton>().assertProperty(
             JLayeredPane.DEFAULT_LAYER,
-            JLayeredPane.getLayer(onNodeOfType<JButton>().fetch<JComponent>()),
             "the replacing child is hosted on the declared layer",
-        )
+        ) { JLayeredPane.getLayer(this) }
 
         editing = false
         awaitIdle()

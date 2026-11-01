@@ -128,6 +128,9 @@ internal fun realizedFrame(): JFrame = JFrame().apply {
     pack()
 }
 
+/** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
+internal fun childOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
+
 /** The text of every [JLabel] in [container]'s subtree, in tree order. Must be called on the EDT. */
 internal fun labelTexts(container: Container): List<String> {
     val texts = mutableListOf<String>()

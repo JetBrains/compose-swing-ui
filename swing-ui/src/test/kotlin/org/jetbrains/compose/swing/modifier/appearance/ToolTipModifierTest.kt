@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.MouseEvent
@@ -65,11 +66,12 @@ class ToolTipModifierTest {
     @Test
     fun aConstantToolTipNeedsNothingFromThePointer() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.toolTip("hint")) }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertTrue(
-            label.mouseMotionListeners.none { it.javaClass.name.startsWith("org.jetbrains.compose.swing") },
+        val label = onNodeOfType<JLabel>()
+        // A bare label given the same tooltip calibrates Swing's own registration.
+        label.assertProperty(
+            JLabel().apply { toolTipText = "hint" }.mouseMotionListeners.size,
             "a tooltip that is the same everywhere is read off the component, not followed",
-        )
+        ) { mouseMotionListeners.size }
     }
 
     @Test
@@ -104,13 +106,16 @@ class ToolTipModifierTest {
     @Test
     fun aComponentWithOnlyThePerLocationFormIsUnderTheToolTipManager() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.toolTip { "cell" }) }
-        val label = onNodeOfType<JLabel>().fetch()
+        val label = onNodeOfType<JLabel>()
 
-        assertNull(label.toolTipText, "the declaration writes no tooltip of its own until the pointer arrives")
-        assertTrue(
-            label.isUnderToolTipManager(),
+        label.assertProperty(
+            null,
+            "the declaration writes no tooltip of its own until the pointer arrives",
+        ) { toolTipText }
+        label.assertProperty(
+            true,
             "yet the component is registered for tooltips, which is what lets one be shown at all",
-        )
+        ) { isUnderToolTipManager() }
     }
 
     @Test

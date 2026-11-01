@@ -1,19 +1,14 @@
 package org.jetbrains.compose.swing.components.menu
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.window.Window
-import org.junit.jupiter.api.Assumptions.assumeFalse
-import java.awt.GraphicsEnvironment
-import javax.swing.JLabel
 import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -33,7 +28,7 @@ class ContextMenuOpenCloseTest {
     fun droppingTheDeclarationClosesAnOpenMenu() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var withMenu by mutableStateOf(true)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             if (withMenu) {
@@ -48,9 +43,8 @@ class ContextMenuOpenCloseTest {
                 }
             }
         }
-        val target = onWindowWithTitle(WINDOW_TITLE).onNodeWithText("target").fetch<JLabel>()
 
-        target.dispatchEvent(popupTrigger(target))
+        onWindowWithTitle(WINDOW_TITLE).onNodeWithText("target").performContextClick()
         val popup = captured ?: error("popup-trigger event did not build a popup")
         assertTrue(popup.isVisible, "the menu the trigger built must be on screen")
 
@@ -65,18 +59,3 @@ class ContextMenuOpenCloseTest {
 }
 
 private const val WINDOW_TITLE = "context-menu-open-close-test"
-
-/**
- * Composes [content] as the content of a window that is on screen by the time this returns, and settles
- * the composition.
- *
- * Realizing that window needs a display, so a case built on this one reports SKIPPED where there is
- * none.
- */
-private suspend fun ComposeSwingTest.setWindowContent(content: @Composable () -> Unit) {
-    assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-    setContent {
-        Window(onCloseRequest = {}, title = WINDOW_TITLE) { content() }
-    }
-    awaitIdle()
-}

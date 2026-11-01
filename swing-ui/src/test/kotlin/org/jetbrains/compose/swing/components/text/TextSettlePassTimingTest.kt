@@ -52,7 +52,7 @@ class TextSettlePassTimingTest {
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(EDIT, DECLARATION_RESTORED),
+            listOf(EDIT, "remove@5"),
             changes,
             "the pass carrying the caller's answer should write the standing declaration back",
         )
@@ -108,12 +108,14 @@ class TextSettlePassTimingTest {
         changes.clear()
 
         // The caller answers the edit with a value of its own: the field is settled on that answer, not
-        // put back on the declaration that stood before the edit.
+        // put back on the declaration that stood before the edit. "HELLO!" differs from "hello!" everywhere
+        // but its last character, so the settle removes five characters and inserts five. Each entry names the
+        // length the document is left at.
         field.type("!")
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(EDIT, ANSWER_REPLACED, ANSWER_WRITTEN),
+            listOf(EDIT, "remove@1", "insert@6"),
             changes,
             "the pass carrying the answer should write it, once",
         )
@@ -129,15 +131,6 @@ class TextSettlePassTimingTest {
 
         /** The user's keystroke, which the document publishes as an insertion. */
         const val EDIT = "insert@6"
-
-        /** A settle putting [DECLARED] back, which takes the typed character off and adds nothing. */
-        const val DECLARATION_RESTORED = "remove@5"
-
-        /** The removal half of a settle onto an answer that differs from [EDITED] everywhere but its last character. */
-        const val ANSWER_REPLACED = "remove@1"
-
-        /** The insertion half of that settle, which leaves the document as long as [EDITED]. */
-        const val ANSWER_WRITTEN = "insert@6"
     }
 }
 

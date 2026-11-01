@@ -10,15 +10,18 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /**
  * Behavioral coverage for both [RadioButton] overloads, asserted on the live `JRadioButton`.
@@ -138,11 +141,7 @@ class RadioButtonBehaviorTest {
         awaitIdle()
         radioButton.performClick()
         assertEquals(listOf(1, 2), runs, "the gesture runs the recomposed callback, not the one it replaced")
-        assertEquals(
-            1,
-            radioButton.fetch().actionListeners.size,
-            "recomposition must not stack up action listeners",
-        )
+        radioButton.assertProperty(1, "recomposition must not stack up action listeners") { actionListeners.size }
     }
 
     @Test
@@ -157,16 +156,18 @@ class RadioButtonBehaviorTest {
             )
         }
 
-        val radio = onNodeOfType<JRadioButton>().fetch()
-        assertEquals("Denser layout", radio.toolTipText, "the modifier applies to the button")
+        val radio = onNodeOfType<JRadioButton>()
+        radio.assertProperty("Denser layout", "the modifier applies to the button") { toolTipText }
 
         tip = "Fits more rows on screen"
         awaitIdle()
-        assertEquals("Fits more rows on screen", radio.toolTipText, "the modifier follows the state driving it")
+        radio.assertProperty("Fits more rows on screen", "the modifier follows the state driving it") { toolTipText }
 
         tip = null
         awaitIdle()
-        assertNull(radio.toolTipText, "dropping the element restores the tooltip the button had without it")
+        radio.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
+            toolTipText
+        }
     }
 
     @Test
@@ -196,9 +197,10 @@ class RadioButtonBehaviorTest {
         awaitIdle()
         radioButton.assertTextEquals("Comfortable")
         radioButton.assert(SwingMatcher.isSelected())
-        val radio = radioButton.fetch()
-        assertNull(radio.toolTipText, "dropping the element restores the tooltip the button had without it")
-        assertEquals(1, radio.actionListeners.size, "a stable listener instance stays attached exactly once")
+        radioButton.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
+            toolTipText
+        }
+        radioButton.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         selected = false
         awaitIdle()
@@ -228,45 +230,30 @@ class RadioButtonBehaviorTest {
 
         second = true
         awaitIdle()
-        assertEquals(
-            1,
-            onNodeOfType<JRadioButton>().fetch().actionListeners.size,
-            "the replaced listener must be detached, not stacked",
-        )
+        onNodeOfType<JRadioButton>().assertProperty(1, "the replaced listener must be detached, not stacked") {
+            actionListeners.size
+        }
 
         onNodeOfType<JRadioButton>().performClick()
         assertEquals(1, latest, "the newly declared listener receives the gesture")
         assertEquals(1, first, "the listener that left the declaration no longer fires")
     }
 
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("declaredSelections")
+    fun aClickTheCallerDoesNotAdoptDoesNotStand(declared: Boolean) = runComposeSwingTest {
         var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text, selected = false, onSelectedChange = {}) }
+        setContent { RadioButton(text = text, selected = declared, onSelectedChange = {}) }
 
         val radioButton = onNodeOfType<JRadioButton>()
         radioButton.performClick()
-        radioButton.assert(SwingMatcher.isSelected(false))
+        radioButton.assert(SwingMatcher.isSelected(declared))
 
         // An unrelated recomposition changes nothing: the button already showed the declared state
         // right after the click, not only once this pass ran.
         text = "Comfortable"
         awaitIdle()
-        radioButton.assert(SwingMatcher.isSelected(false))
-    }
-
-    @Test
-    fun aClearingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
-        var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text, selected = true, onSelectedChange = {}) }
-
-        val radioButton = onNodeOfType<JRadioButton>()
-        radioButton.performClick()
-        radioButton.assert(SwingMatcher.isSelected())
-
-        text = "Comfortable"
-        awaitIdle()
-        radioButton.assert(SwingMatcher.isSelected())
+        radioButton.assert(SwingMatcher.isSelected(declared))
     }
 
     @Test
@@ -277,6 +264,14 @@ class RadioButtonBehaviorTest {
             content = { report -> RadioButton(text = "Nightly", selected = false, onSelectedChange = { report() }) },
             change = { it.click() },
             read = { it.isSelected },
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun declaredSelections(): List<Named<Boolean>> = listOf(
+            Named.of("a selecting click", false),
+            Named.of("a clearing click", true),
         )
     }
 }

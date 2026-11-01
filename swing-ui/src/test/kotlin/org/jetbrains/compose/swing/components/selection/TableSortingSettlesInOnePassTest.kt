@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.TracedTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -12,7 +13,6 @@ import javax.swing.SortOrder
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /**
  * What a pass that moves a [Table]'s sorting costs.
@@ -46,21 +46,18 @@ class TableSortingSettlesInOnePassTest : TracedTest() {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             listOf("Grace", "Alan", "Ada"),
-            (0 until table.rowCount).map { table.getValueAt(it, 0) },
             "the state's order should reach the rows the table sorts",
-        )
+        ) { shownNames() }
 
         sortable = false
         mainClock.advanceTimeByFrame()
 
-        assertNull(
-            onNodeOfType<JTable>().fetch().rowSorter,
+        onNodeOfType<JTable>().assertProperty(
+            null,
             "turning sorting off should leave the table without a sorter",
-        )
-
+        ) { rowSorter }
         tracer.clear()
         mainClock.advanceTimeByFrame()
 

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
@@ -33,7 +34,7 @@ class ListBoxStateListItemsTest {
         awaitIdle()
 
         assertTrue(swaps.isNotEmpty(), "the list was never given a model holding the new item")
-        assertEquals(listOf("Ada", "Alan"), list.elements(), "the list should show both items")
+        onNodeOfType<JList<*>>().assertProperty(listOf("Ada", "Alan"), "the list should show both items") { elements() }
     }
 
     @Test
@@ -48,7 +49,10 @@ class ListBoxStateListItemsTest {
         awaitIdle()
 
         assertTrue(swaps.isNotEmpty(), "the list was never given a model holding the remaining item")
-        assertEquals(listOf("Alan"), list.elements(), "the list should show the remaining item")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf("Alan"),
+            "the list should show the remaining item",
+        ) { elements() }
     }
 
     @Test

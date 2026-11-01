@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -30,19 +31,19 @@ class ListStateProjectionTest {
             ListBox(items = items, state = state)
         }
 
-        assertEquals(names.size, state.itemCount, "every declared item is one the list shows")
+        assertEquals(3, state.itemCount, "every declared item is one the list shows")
 
         items = names.dropLast(1)
         awaitIdle()
 
-        assertEquals(names.size - 1, state.itemCount, "an item taken away is one the list no longer shows")
+        assertEquals(2, state.itemCount, "an item taken away is one the list no longer shows")
     }
 
     @Test
     fun anUnboundStateAnswersForNoList() {
         val state = ListState(initialSelectedIndices = setOf(0, 1))
 
-        assertEquals(0, state.itemCount, "a state with no list has no items to report")
+        assertEquals(0, state.itemCount, "a state with no list has no items to count")
         assertEquals(emptySet(), state.shownSelectedIndices, "nor a selection")
     }
 
@@ -60,11 +61,9 @@ class ListStateProjectionTest {
             state.shownSelectedIndices,
             "a list that holds every declared row reports every one",
         )
-        assertEquals(
-            listOf(0, 2),
-            onNodeOfType<JList<*>>().fetch<JList<*>>().selectedIndices.toList(),
-            "which is what the list stands on",
-        )
+        onNodeOfType<JList<*>>().assertProperty(listOf(0, 2), "which is what the list stands on") {
+            selectedIndices.toList()
+        }
     }
 
     @Test

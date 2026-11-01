@@ -32,6 +32,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
 import java.lang.ref.WeakReference
+import java.util.concurrent.CompletableFuture
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
@@ -261,7 +262,7 @@ class ModifierNodeTest {
         val observing =
             SwingModifier then
                 ObservingElement(watched::intValue, onDetach = {
-                    thread { Snapshot.withMutableSnapshot { watched.intValue = 1 } }.join()
+                    CompletableFuture.runAsync { Snapshot.withMutableSnapshot { watched.intValue = 1 } }.join()
                 }) { changes++ }
         val other = mutableIntStateOf(0)
         setContent {
@@ -272,6 +273,7 @@ class ModifierNodeTest {
         present = false
         awaitIdle()
 
+        assertEquals(1, watched.intValue, "the background write was applied")
         assertEquals(0, changes, "a change reported after the node detached must not reach it")
     }
 
@@ -306,7 +308,7 @@ class ModifierNodeTest {
             )
         }
 
-        thread { Snapshot.withMutableSnapshot { watched.intValue = 1 } }.join()
+        CompletableFuture.runAsync { Snapshot.withMutableSnapshot { watched.intValue = 1 } }.join()
         awaitIdle()
 
         assertEquals(listOf(true), reportedOnEdt, "a change applied on another thread must be reported on the EDT")
@@ -437,10 +439,10 @@ class ModifierNodeTest {
         // Moves the global snapshot forward, so the next observeReads replaces reads recorded under an earlier
         // snapshot even when nothing else applied one in between.
         unrelated.intValue = 1
-        Snapshot.sendApplyNotifications()
+        awaitIdle()
         node.observeReads(byFirst) { first.intValue }
         second.intValue = 1
-        Snapshot.sendApplyNotifications()
+        awaitIdle()
 
         assertEquals(listOf("second"), heard, "observing under one callback must keep the other callback's reads")
     }
@@ -456,14 +458,14 @@ class ModifierNodeTest {
         node.observeReads(onChanged) { dropped.intValue }
 
         unrelated.intValue = 1
-        Snapshot.sendApplyNotifications()
+        awaitIdle()
         node.observeReads(onChanged) { kept.intValue }
         dropped.intValue = 1
-        Snapshot.sendApplyNotifications()
+        awaitIdle()
         assertEquals(emptyList(), heard, "a read the latest call did not make must no longer be observed")
 
         kept.intValue = 1
-        Snapshot.sendApplyNotifications()
+        awaitIdle()
         assertEquals(listOf("changed"), heard, "the latest call's read must be observed")
     }
 

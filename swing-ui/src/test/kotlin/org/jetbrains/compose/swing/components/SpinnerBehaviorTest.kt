@@ -4,6 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
 import org.jetbrains.compose.swing.test.interaction.performSetValue
@@ -288,7 +289,7 @@ class SpinnerBehaviorTest {
         awaitIdle()
 
         assertEquals("red", selected, "the arriving list settles the spinner on its head and reports it")
-        assertEquals("red", onNodeOfType<JSpinner>().fetch().value, "and the widget shows that head")
+        onNodeOfType<JSpinner>().assertProperty("red", "and the widget shows that head") { value }
     }
 
     @Test

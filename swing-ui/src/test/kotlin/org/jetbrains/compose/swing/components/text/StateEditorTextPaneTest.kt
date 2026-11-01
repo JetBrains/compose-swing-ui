@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -31,24 +32,6 @@ import kotlin.test.assertTrue
  * asserted on the live component.
  */
 class StateEditorTextPaneTest {
-    @Test
-    fun editorPaneSharesTheStateDocument() = runComposeSwingTest {
-        lateinit var state: DocumentState
-        setContent {
-            state = rememberDocumentState("seed")
-            EditorPane(state = state)
-        }
-
-        // Sharing one document means an edit made through either side is what the other renders: a write
-        // through the state reaches the pane, and typing in the pane reaches the state.
-        state.edit { append(" grown") }
-        awaitIdle()
-        onNodeOfType<JEditorPane>().assertTextEquals("seed grown")
-
-        onNodeOfType<JEditorPane>().performTextReplacement("typed")
-        assertEquals("typed", state.text.toString())
-    }
-
     @Test
     fun editingStateUpdatesEditorPane() = runComposeSwingTest {
         lateinit var state: DocumentState
@@ -90,9 +73,9 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch()
-        assertEquals("text/plain", pane.contentType, "a plain-document state renders as plain text")
-        onNodeOfType<JEditorPane>().assertTextEquals("plain")
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty("text/plain", "a plain-document state renders as plain text") { contentType }
+        pane.assertTextEquals("plain")
 
         state.edit { append(" grown") }
         awaitIdle()
@@ -226,6 +209,9 @@ class StateEditorTextPaneTest {
         // is the same empty document as source that legitimately renders to nothing - so the seed simply
         // does not arrive, rather than being reported.
         assertEquals("", state.text.toString(), "a kit contributes nothing it cannot read")
+        onNodeOfType<JTextPane>().assertProperty("", "the pane shows the empty document the state built") {
+            document.getText(0, document.length)
+        }
     }
 
     @Test

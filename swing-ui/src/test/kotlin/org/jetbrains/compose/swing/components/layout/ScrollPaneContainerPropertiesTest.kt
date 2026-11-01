@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -14,7 +15,6 @@ import javax.swing.JScrollPane
 import javax.swing.border.Border
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -74,11 +74,10 @@ class ScrollPaneContainerPropertiesTest {
             }
         }
 
-        assertEquals(
+        onNodeOfType<JScrollPane>().assertProperty(
             JScrollPane().viewportBorder,
-            onNodeOfType<JScrollPane>().fetch().viewportBorder,
             "an undeclared border should be the look-and-feel value",
-        )
+        ) { viewportBorder }
     }
 
     @Test
@@ -90,36 +89,21 @@ class ScrollPaneContainerPropertiesTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertTrue(pane.isWheelScrollingEnabled, "a pane scrolls on the wheel by default")
+        onNodeOfType<JScrollPane>().assertProperty(true, "a pane scrolls on the wheel by default") {
+            isWheelScrollingEnabled
+        }
 
         wheel = false
         awaitIdle()
-        assertFalse(pane.isWheelScrollingEnabled, "the declared choice should reach the pane")
+        onNodeOfType<JScrollPane>().assertProperty(false, "the declared choice should reach the pane") {
+            isWheelScrollingEnabled
+        }
 
         wheel = true
         awaitIdle()
-        assertTrue(pane.isWheelScrollingEnabled, "a new declared choice should reach the pane")
-    }
-
-    @Test
-    fun viewportAndScrollbarsFollowTheirGeneralModifiers() = runComposeSwingTest {
-        setContent {
-            ScrollPane {
-                Viewport(modifier = SwingModifier.background(Color.RED)) { Label(text = "Body") }
-                VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-                HorizontalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-            }
+        onNodeOfType<JScrollPane>().assertProperty(true, "a new declared choice should reach the pane") {
+            isWheelScrollingEnabled
         }
-
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(Color.RED, pane.viewport.background, "the general modifier should reach the viewport")
-        assertEquals(Color.BLUE, pane.verticalScrollBar.background, "the modifier should reach the vertical scrollbar")
-        assertEquals(
-            Color.BLUE,
-            pane.horizontalScrollBar.background,
-            "the modifier should reach the horizontal scrollbar",
-        )
     }
 
     @Test
@@ -139,6 +123,9 @@ class ScrollPaneContainerPropertiesTest {
         val viewport = pane.viewport
         val verticalBar = pane.verticalScrollBar
         val horizontalBar = pane.horizontalScrollBar
+        assertEquals(Color.RED, viewport.background, "the general modifier should reach the viewport")
+        assertEquals(Color.BLUE, verticalBar.background, "the modifier should reach the vertical scrollbar")
+        assertEquals(Color.BLUE, horizontalBar.background, "the modifier should reach the horizontal scrollbar")
         val raw = JScrollPane()
 
         declared = false

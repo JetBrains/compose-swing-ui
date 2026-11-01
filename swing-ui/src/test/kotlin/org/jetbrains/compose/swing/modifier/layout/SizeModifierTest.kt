@@ -8,9 +8,13 @@ import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.JLabel
@@ -26,26 +30,19 @@ import kotlin.test.assertEquals
  * `getHeight`.
  */
 class SizeModifierTest {
-    /** Hosts a single [LayeredPane] child carrying [modifier] and returns its live component. */
-    private fun ComposeSwingTest.sizedChild(modifier: SwingModifier): JLabel {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sizeCases")
+    fun aSizeDeclarationSetsTheActualSize(
+        message: String,
+        modifier: SwingModifier,
+        expected: Dimension,
+    ) = runComposeSwingTest {
         setContent {
             LayeredPane {
                 Label(text = "child", modifier = modifier.layer(JLayeredPane.DEFAULT_LAYER))
             }
         }
-        return onNodeOfType<JLabel>().fetch()
-    }
-
-    @Test
-    fun sizeSetsTheActualSize() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.size(120, 40))
-        assertEquals(Dimension(120, 40), child.size, "size should set the component's actual size")
-    }
-
-    @Test
-    fun sizeDimensionOverloadSetsTheActualSize() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.size(Dimension(90, 30)))
-        assertEquals(Dimension(90, 30), child.size, "the Dimension overload should set the actual size")
+        onNodeOfType<JLabel>().assertProperty(expected, message) { size }
     }
 
     @Test
@@ -56,48 +53,6 @@ class SizeModifierTest {
             }
 
         assertEquals(setOf("size", "width", "height"), held, "one write, every axis it lands on named")
-    }
-
-    @Test
-    fun widthSetsTheWidthKeepingHeight() = runComposeSwingTest {
-        // Establish a known height first, then narrow the width: the height must survive.
-        val child = sizedChild(SwingModifier.size(50, 33).width(150))
-        assertEquals(150, child.width, "width should set the actual width")
-        assertEquals(33, child.height, "width must keep the current height")
-    }
-
-    @Test
-    fun heightSetsTheHeightKeepingWidth() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.size(44, 50).height(55))
-        assertEquals(55, child.height, "height should set the actual height")
-        assertEquals(44, child.width, "height must keep the current width")
-    }
-
-    @Test
-    fun widthAndHeightCombineIntoAFullSize() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.width(10).height(20))
-        // Each axis comes from its own modifier; they combine into a full size.
-        assertEquals(Dimension(10, 20), child.size, "width+height combine into a full size")
-    }
-
-    @Test
-    fun heightThenWidthAlsoCombinesRegardlessOfOrder() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.height(20).width(10))
-        assertEquals(Dimension(10, 20), child.size, "distinct axes combine regardless of order")
-    }
-
-    @Test
-    fun sizeAfterWidthWinsTheWidthAxis() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.width(10).size(20, 30))
-        // size is applied later in the modifier chain, so its width wins over the earlier width(10).
-        assertEquals(Dimension(20, 30), child.size, "later size wins the width axis")
-    }
-
-    @Test
-    fun widthAfterSizeWinsTheWidthAxis() = runComposeSwingTest {
-        val child = sizedChild(SwingModifier.size(20, 30).width(10))
-        // width is applied later, so it wins the width axis; the height axis stays from size.
-        assertEquals(Dimension(10, 30), child.size, "later width wins the width axis, height stays from size")
     }
 
     @Test
@@ -147,19 +102,18 @@ class SizeModifierTest {
                 )
             }
         }
-        val sizedComponent = onNodeOfType<JLabel>().fetch()
+        val sizedComponent = onNodeOfType<JLabel>()
         // The size the component had before the modifier captured it - its pre-modifier original.
-        assertEquals(Dimension(120, 40), sizedComponent.size, "size should set the actual size while applied")
+        sizedComponent.assertProperty(Dimension(120, 40), "size should set the actual size while applied") { size }
 
         sized = false
         awaitIdle()
         // The size declaration is gone, so the component returns to the size it had before it.
-        val restored = onNodeOfType<JLabel>().fetch()
-        assertEquals(
+        val restored = onNodeOfType<JLabel>()
+        restored.assertProperty(
             Dimension(0, 0),
-            restored.size,
             "removing the size modifier restores the component's original size",
-        )
+        ) { size }
     }
 
     @Test
@@ -174,16 +128,16 @@ class SizeModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(10, child.width, "the declared width is what the child carries")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(10, "the declared width is what the child carries") { width }
 
         // The size arrives ahead of the width declaration and writes the axis it declares, so the
         // later declaration is written again over it.
         whole = true
         awaitIdle()
 
-        assertEquals(10, child.width, "the declared width stands after the size arrives under it")
-        assertEquals(40, child.height, "the size reaches the axis it owns")
+        child.assertProperty(10, "the declared width stands after the size arrives under it") { width }
+        child.assertProperty(40, "the size reaches the axis it owns") { height }
     }
 
     @Test
@@ -198,15 +152,15 @@ class SizeModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(10, 40), child.size, "the later width wins its axis, height stays from size")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(Dimension(10, 40), "the later width wins its axis, height stays from size") { size }
 
         whole = false
         awaitIdle()
 
         // Restoring a size puts both axes back, width included, so the modifier declaring that axis
         // alone writes it again on the same pass.
-        assertEquals(Dimension(10, 0), child.size, "the declared width stands after the size is dropped")
+        child.assertProperty(Dimension(10, 0), "the declared width stands after the size is dropped") { size }
     }
 
     @Test
@@ -221,19 +175,17 @@ class SizeModifierTest {
             }
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(
+        label.assertProperty(
             Dimension(120, 40),
-            label.fetch().size,
             "size should set the actual size before the state changes",
-        )
+        ) { size }
 
         wide = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             Dimension(60, 40),
-            label.fetch().size,
             "size should react to the state change",
-        )
+        ) { size }
     }
 
     @Test
@@ -251,11 +203,10 @@ class SizeModifierTest {
                 )
             }
         }
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             Dimension(5, 30),
-            onNodeOfType<JLabel>().fetch().size,
             "a key declared again later should stand where it was declared last",
-        )
+        ) { size }
     }
 
     @Test
@@ -286,13 +237,59 @@ class SizeModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(10, 30), child.size, "the width is declared last and wins its axis")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(Dimension(10, 30), "the width is declared last and wins its axis") { size }
 
         // No declaration changed, so nothing but their order says which one stands.
         sizeFirst = false
         awaitIdle()
 
-        assertEquals(Dimension(20, 30), child.size, "the size is declared last now and wins the width axis")
+        child.assertProperty(Dimension(20, 30), "the size is declared last now and wins the width axis") { size }
+    }
+
+    companion object {
+        @JvmStatic
+        fun sizeCases(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of("size", "size should set the component's actual size"),
+                SwingModifier.size(120, 40),
+                Dimension(120, 40),
+            ),
+            Arguments.of(
+                Named.of("Dimension overload", "the Dimension overload should set the actual size"),
+                SwingModifier.size(Dimension(90, 30)),
+                Dimension(90, 30),
+            ),
+            Arguments.of(
+                Named.of("width keeps height", "width must keep the current height"),
+                SwingModifier.size(50, 33).width(150),
+                Dimension(150, 33),
+            ),
+            Arguments.of(
+                Named.of("height keeps width", "height must keep the current width"),
+                SwingModifier.size(44, 50).height(55),
+                Dimension(44, 55),
+            ),
+            Arguments.of(
+                Named.of("width then height", "width+height combine into a full size"),
+                SwingModifier.width(10).height(20),
+                Dimension(10, 20),
+            ),
+            Arguments.of(
+                Named.of("height then width", "distinct axes combine regardless of order"),
+                SwingModifier.height(20).width(10),
+                Dimension(10, 20),
+            ),
+            Arguments.of(
+                Named.of("size after width", "later size wins the width axis"),
+                SwingModifier.width(10).size(20, 30),
+                Dimension(20, 30),
+            ),
+            Arguments.of(
+                Named.of("width after size", "later width wins the width axis, height stays from size"),
+                SwingModifier.size(20, 30).width(10),
+                Dimension(10, 30),
+            ),
+        )
     }
 }

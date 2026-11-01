@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListSelectionModel
@@ -73,13 +74,13 @@ class SelectionCallbackStabilityTest {
         val registered = list.registeredSelectionListeners()
         assertTrue(registered.isNotEmpty(), "the list registers a selection listener")
 
-        list.selectedIndex = 0
+        onNodeOfType<JList<*>>().performAddSelection(0)
         assertEquals("first", reported, "the lambda the first pass declared runs")
 
         declared = "second"
         awaitIdle()
 
-        list.selectedIndex = 1
+        onNodeOfType<JList<*>>().performAddSelection(1)
         assertEquals("second", reported, "and the lambda the latest pass declares, with no remember")
         assertContentSame(
             registered,

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -72,13 +73,13 @@ class ComboBoxSelectionFeedbackTest {
             ComboBox(items = listOf("red", "green", "blue"), selectedItem = selection, onSelectionChange = {})
         }
 
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-
         // Without an onSelectionChange callback that adopts the accessible selection,
         // settlement restores the declaration.
         onNodeOfType<JComboBox<*>>().performAddSelection(2)
 
-        assertEquals("red", combo.selectedItem, "a choice the caller does not adopt does not stand")
+        onNodeOfType<JComboBox<*>>().assertProperty("red", "a choice the caller does not adopt does not stand") {
+            selectedItem
+        }
     }
 
     @Test
@@ -93,14 +94,14 @@ class ComboBoxSelectionFeedbackTest {
             )
         }
 
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        received.clear()
+        assertEquals(emptyList(), received, "rendering the declared selection must not fire onSelectionChange")
 
         items += "violet"
         awaitIdle()
 
-        assertEquals(4, combo.itemCount, "the added item reaches the combo box")
-        assertEquals("green", combo.selectedItem, "the declared selection survives an items change")
+        onNodeOfType<JComboBox<*>>()
+            .assertProperty(4, "the added item reaches the combo box") { itemCount }
+            .assertProperty("green", "the declared selection survives an items change") { selectedItem }
         assertEquals(emptyList(), received, "an items change reported a selection change")
     }
 
@@ -189,14 +190,15 @@ class ComboBoxSelectionFeedbackTest {
             )
         }
 
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
         received.clear()
 
         // `null` names no selection at all, as against an item the items happen not to contain.
         selection = null
         awaitIdle()
 
-        assertNull(combo.selectedItem, "declaring no selection reaches the combo box")
+        onNodeOfType<JComboBox<*>>().assertProperty(null, "declaring no selection reaches the combo box") {
+            selectedItem
+        }
         assertEquals(emptyList(), received, "declaring no selection reported itself back")
     }
 
@@ -212,14 +214,15 @@ class ComboBoxSelectionFeedbackTest {
             )
         }
 
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
         received.clear()
 
         // The declared selection can only name one of the items; anything else names none of them.
         selection = "violet"
         awaitIdle()
 
-        assertNull(combo.selectedItem, "an item the items do not contain selects nothing")
+        onNodeOfType<JComboBox<*>>().assertProperty(null, "an item the items do not contain selects nothing") {
+            selectedItem
+        }
         assertEquals(emptyList(), received, "coercing a selection outside the items reported itself back")
     }
 
@@ -235,15 +238,15 @@ class ComboBoxSelectionFeedbackTest {
             )
         }
 
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
         received.clear()
 
         // The declared item is the last one; removing it leaves a declaration the items cannot hold.
         items.removeAt(items.lastIndex)
         awaitIdle()
 
-        assertEquals(2, combo.itemCount, "the removed item leaves the combo box")
-        assertNull(combo.selectedItem, "a selection the shrunk items no longer contain selects nothing")
+        onNodeOfType<JComboBox<*>>()
+            .assertProperty(2, "the removed item leaves the combo box") { itemCount }
+            .assertProperty(null, "a selection the shrunk items no longer contain selects nothing") { selectedItem }
         assertEquals(emptyList(), received, "the items change reported a selection change")
     }
 

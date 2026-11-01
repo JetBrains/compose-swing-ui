@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -96,7 +97,10 @@ class TreeComposableNodeTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("apple ripe", tree.renderRow(1).firstLabelText(), "the node renders the value it stands for")
+        onNodeOfType<JTree>().assertProperty(
+            "apple ripe",
+            "the node renders the value it stands for",
+        ) { renderRow(1).firstLabelText() }
         tree.model.addTreeModelListener(nodeChangeRecorder(changed))
 
         apple = Branch("apple", badge = "eaten")
@@ -107,7 +111,10 @@ class TreeComposableNodeTest {
             tree.pathTo(0),
             "the row renders from the value, so a node that took over another one has to be painted again",
         )
-        assertEquals("apple eaten", tree.renderRow(1).firstLabelText(), "and renders the value that stands")
+        onNodeOfType<JTree>().assertProperty(
+            "apple eaten",
+            "and renders the value that stands",
+        ) { renderRow(1).firstLabelText() }
     }
 
     @Test
@@ -152,12 +159,10 @@ class TreeComposableNodeTest {
             }
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             "ROOT",
-            tree.getPathForRow(0).lastPathComponent.toString(),
             "a node rendered by a composable still carries its label as the node's text",
-        )
+        ) { getPathForRow(0).lastPathComponent.toString() }
     }
 
     @Test
@@ -174,16 +179,17 @@ class TreeComposableNodeTest {
             }
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("veg", tree.renderRow(2).firstLabelText(), "an unselected row should render plainly")
+        onNodeOfType<JTree>().assertProperty(
+            "veg",
+            "an unselected row should render plainly",
+        ) { renderRow(2).firstLabelText() }
 
         selection = setOf(listOf(1))
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             "veg*",
-            tree.renderRow(2).firstLabelText(),
             "a selected row should observe isSelected through the TreeNodeScope",
-        )
+        ) { renderRow(2).firstLabelText() }
     }
 
     @Test
@@ -200,17 +206,21 @@ class TreeComposableNodeTest {
             }
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("root open", tree.renderRow(0).firstLabelText(), "the expanded root should render as open")
-        assertEquals("fruit", tree.renderRow(1).firstLabelText(), "a collapsed row should render as closed")
+        onNodeOfType<JTree>().assertProperty(
+            "root open",
+            "the expanded root should render as open",
+        ) { renderRow(0).firstLabelText() }
+        onNodeOfType<JTree>().assertProperty(
+            "fruit",
+            "a collapsed row should render as closed",
+        ) { renderRow(1).firstLabelText() }
 
         state.expandedPaths = setOf(emptyList(), listOf(0))
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             "fruit open",
-            tree.renderRow(1).firstLabelText(),
             "expanding a node should rerender it as open through the TreeNodeScope",
-        )
+        ) { renderRow(1).firstLabelText() }
     }
 
     @Test
@@ -233,12 +243,10 @@ class TreeComposableNodeTest {
             }
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             "root",
-            tree.renderRow(0).firstLabelText(),
             "a composable node inside a ScrollPane should realize its row content, not leak the viewport slot",
-        )
+        ) { renderRow(0).firstLabelText() }
     }
 
     @Test

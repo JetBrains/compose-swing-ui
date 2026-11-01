@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
@@ -23,9 +24,7 @@ import javax.swing.plaf.IconUIResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -113,22 +112,23 @@ class ButtonStateIconModifierTest {
 
     @Test
     fun droppingAStateIconRestoresTheOneTheButtonHad() = runComposeSwingTest {
+        val declared = icon()
         var decorated by mutableStateOf(true)
         setContent {
             Button(
                 "Save",
                 onClick = { },
-                modifier = if (decorated) SwingModifier.selectedIcon(icon()) else SwingModifier,
+                modifier = if (decorated) SwingModifier.selectedIcon(declared) else SwingModifier,
             )
         }
 
-        val button = onNodeOfType<AbstractButton>().fetch()
-        assertTrue(button.selectedIcon != null, "the icon is installed while declared")
+        val button = onNodeOfType<AbstractButton>()
+        button.assertProperty(declared, "the icon is installed while declared") { selectedIcon }
 
         decorated = false
         awaitIdle()
 
-        assertNull(button.selectedIcon, "dropping the modifier restores the button's own state icon")
+        button.assertProperty(null, "dropping the modifier restores the button's own state icon") { selectedIcon }
     }
 
     @Test
@@ -330,14 +330,14 @@ class ButtonStateIconModifierTest {
                         CheckBox("Wrap", checked = false, onCheckedChange = {})
                     }
 
-                    assertTrue(
-                        onNodeOfType<JButton>().fetch().isRolloverEnabled,
+                    onNodeOfType<JButton>().assertProperty(
+                        true,
                         "a rollover icon switches the state on",
-                    )
-                    assertFalse(
-                        onNodeOfType<JCheckBox>().fetch().isRolloverEnabled,
+                    ) { isRolloverEnabled }
+                    onNodeOfType<JCheckBox>().assertProperty(
+                        false,
                         "a button with no rollover icon",
-                    )
+                    ) { isRolloverEnabled }
                 }
             }
         }
@@ -356,13 +356,13 @@ class ButtonStateIconModifierTest {
                     )
                 }
 
-                val button = onNodeOfType<JButton>().fetch()
-                assertTrue(button.isRolloverEnabled, "the declared value is what the button carries")
+                val button = onNodeOfType<JButton>()
+                button.assertProperty(true, "the declared value is what the button carries") { isRolloverEnabled }
 
                 rollover = false
                 awaitIdle()
 
-                assertFalse(button.isRolloverEnabled, "dropping it restores the value the button had")
+                button.assertProperty(false, "dropping it restores the value the button had") { isRolloverEnabled }
             }
         }
     }
@@ -376,8 +376,11 @@ class ButtonStateIconModifierTest {
             Button("Save", onClick = { }, modifier = SwingModifier.rolloverEnabled(false).rolloverIcon(current))
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertFalse(button.isRolloverEnabled, "the declared switch outranks the one the rollover icon switched on")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(
+            false,
+            "the declared switch outranks the one the rollover icon switched on",
+        ) { isRolloverEnabled }
 
         // Writing a rollover icon switches rollover painting on again. The switch is declared ahead of
         // the icon, so nothing in the pass writes it after; only the declaration answering the button's
@@ -385,7 +388,7 @@ class ButtonStateIconModifierTest {
         current = second
         awaitIdle()
 
-        assertFalse(button.isRolloverEnabled, "the declared switch stands after the icon is written again")
+        button.assertProperty(false, "the declared switch stands after the icon is written again") { isRolloverEnabled }
     }
 
     @Test
@@ -406,17 +409,17 @@ class ButtonStateIconModifierTest {
                     )
                 }
 
-                val button = onNodeOfType<JButton>().fetch()
-                assertFalse(button.isRolloverEnabled, "the declared switch stands while it is declared")
+                val button = onNodeOfType<JButton>()
+                button.assertProperty(false, "the declared switch stands while it is declared") { isRolloverEnabled }
 
                 declared = false
                 awaitIdle()
 
-                assertNull(button.rolloverIcon, "the rollover icon the button never carried is gone")
-                assertFalse(
-                    button.isRolloverEnabled,
+                button.assertProperty(null, "the rollover icon the button never carried is gone") { rolloverIcon }
+                button.assertProperty(
+                    false,
                     "dropping both leaves rollover painting off, as the button carried it",
-                )
+                ) { isRolloverEnabled }
             }
         }
     }
@@ -434,16 +437,16 @@ class ButtonStateIconModifierTest {
                     )
                 }
 
-                val button = onNodeOfType<JButton>().fetch()
-                assertTrue(button.isRolloverEnabled, "declaring the icon switches rollover painting on")
+                val button = onNodeOfType<JButton>()
+                button.assertProperty(true, "declaring the icon switches rollover painting on") { isRolloverEnabled }
 
                 declared = false
                 awaitIdle()
 
-                assertFalse(
-                    button.isRolloverEnabled,
+                button.assertProperty(
+                    false,
                     "dropping the icon takes the switch it turned on back off",
-                )
+                ) { isRolloverEnabled }
             }
         }
     }
@@ -462,16 +465,16 @@ class ButtonStateIconModifierTest {
                     )
                 }
 
-                val box = onNodeOfType<JCheckBox>().fetch()
-                assertTrue(box.isRolloverEnabled, "declaring the icon switches rollover painting on")
+                val box = onNodeOfType<JCheckBox>()
+                box.assertProperty(true, "declaring the icon switches rollover painting on") { isRolloverEnabled }
 
                 declared = false
                 awaitIdle()
 
-                assertFalse(
-                    box.isRolloverEnabled,
+                box.assertProperty(
+                    false,
                     "dropping the icon takes the switch it turned on back off",
-                )
+                ) { isRolloverEnabled }
             }
         }
     }

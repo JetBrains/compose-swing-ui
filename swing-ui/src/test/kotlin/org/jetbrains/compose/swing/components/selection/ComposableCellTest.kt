@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -49,17 +50,16 @@ class ComposableCellTest {
             }
         }
 
-        val list = onNodeOfType<JList<String>>().fetch()
-        assertEquals("draft", list.renderCell(index = 0).firstLabelText(), "the initial item should render")
+        val list = onNodeOfType<JList<String>>()
+        list.assertProperty("draft", "the initial item should render") { renderCell(index = 0).firstLabelText() }
 
         // Changing the backing items recomposes the list and the cell rerenders the new value for that row.
         items = listOf("final")
         awaitIdle()
-        assertEquals(
+        list.assertProperty(
             "final",
-            list.renderCell(index = 0).firstLabelText(),
             "changing the item should rerender the cell with the new content",
-        )
+        ) { renderCell(index = 0).firstLabelText() }
     }
 
     @Test
@@ -70,17 +70,12 @@ class ComposableCellTest {
             }
         }
 
-        val list = onNodeOfType<JList<String>>().fetch()
-        assertEquals(
-            "y",
-            list.renderCell(index = 1, isSelected = false).firstLabelText(),
-            "an unselected render should render the plain item",
-        )
-        assertEquals(
-            "y*",
-            list.renderCell(index = 1, isSelected = true).firstLabelText(),
-            "a selected render should observe isSelected through the ListItemScope",
-        )
+        onNodeOfType<JList<String>>()
+            .assertProperty("y", "an unselected render should render the plain item") {
+                renderCell(index = 1, isSelected = false).firstLabelText()
+            }.assertProperty("y*", "a selected render should observe isSelected through the ListItemScope") {
+                renderCell(index = 1, isSelected = true).firstLabelText()
+            }
     }
 
     @Test
@@ -102,12 +97,10 @@ class ComposableCellTest {
             }
         }
 
-        val list = onNodeOfType<JList<String>>().fetch()
-        assertEquals(
+        onNodeOfType<JList<String>>().assertProperty(
             "second",
-            list.renderCell(index = 1).firstLabelText(),
             "a composable cell inside a ScrollPane should realize its row content, not leak the viewport slot",
-        )
+        ) { renderCell(index = 1).firstLabelText() }
     }
 
     @TestFactory

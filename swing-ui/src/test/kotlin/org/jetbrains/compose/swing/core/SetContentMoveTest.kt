@@ -67,9 +67,7 @@ class SetContentMoveTest {
 
             second.contentPane.add(composition)
             second.pack()
-            awaitUntil("the container moves to the second window") {
-                SwingUtilities.getWindowAncestor(composition) === second
-            }
+            awaitQueuedTurns()
 
             assertSame(
                 first,
@@ -427,7 +425,7 @@ class SetContentMoveTest {
         val hostWindow = realizedFrame()
         val otherWindow = realizedFrame()
         try {
-            // The content composition composes under a host in one window while hanging off nothing, and
+            // The content composition joins a host in one window while its container has no window ancestor, and
             // its container is then given a place in another. It reads the window of the composition it
             // joined: where a container hangs answers only where that composition names no window at all.
             val host = hostIn(hostWindow)
@@ -444,6 +442,7 @@ class SetContentMoveTest {
 
             otherWindow.contentPane.add(composition)
             otherWindow.pack()
+            awaitQueuedTurns()
 
             assertSame(
                 hostWindow,

@@ -1,10 +1,18 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.awt.Component
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
@@ -25,58 +33,26 @@ import kotlin.test.assertEquals
  * [ListBox] and [Table] answer alike, both being the same selection model underneath.
  */
 class SelectionDifferenceTest {
-    private val people =
-        listOf(
-            Person("Ada", 36),
-            Person("Alan", 41),
-            Person("Grace", 50),
-            Person("Edsger", 51),
-            Person("Barbara", 45),
-            Person("Donald", 60),
-        )
-
-    private val colors = listOf("red", "green", "blue", "amber", "violet", "teal")
-
-    /** The rows [this] model holds, and the two rows a following shift-click would extend from. */
-    private fun ListSelectionModel.state(): Triple<List<Int>, Int, Int> {
-        val selected = (0 until ROW_COUNT).filter { isSelectedIndex(it) }
-        return Triple(selected, anchorSelectionIndex, leadSelectionIndex)
-    }
-
-    @Test
-    fun aTableSelectionDeclaredTwiceLeavesTheSameSelectionLeadAndAnchor() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("widgets")
+    fun aSelectionDeclaredTwiceLeavesTheSameSelectionLeadAndAnchor(widget: SelectionWidget<*>) = runComposeSwingTest {
         var selection by mutableStateOf(setOf(1, 2, 4))
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
+        setContent { widget.content(selection) }
+
+        val first = Triple(listOf(1, 2, 4), 4, 4)
+        widget.run { assertState(first, "the declared rows and the last run's ends") }
+
+        selection = setOf(0)
+        awaitIdle()
+        selection = setOf(1, 2, 4)
+        awaitIdle()
+
+        widget.run {
+            assertState(
+                first,
+                "the same declaration leaves the $widget the same way",
+            )
         }
-
-        val table = onNodeOfType<JTable>().fetch()
-        val first = table.selectionModel.state()
-
-        selection = setOf(0)
-        awaitIdle()
-        selection = setOf(1, 2, 4)
-        awaitIdle()
-
-        assertEquals(first, table.selectionModel.state(), "the same declaration leaves the table the same way")
-        assertEquals(Triple(listOf(1, 2, 4), 4, 4), first, "the declared rows and the last run's ends")
-    }
-
-    @Test
-    fun aListSelectionDeclaredTwiceLeavesTheSameSelectionLeadAndAnchor() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(1, 2, 4))
-        setContent { ListBox(items = colors, selectedIndices = selection) }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        val first = list.selectionModel.state()
-
-        selection = setOf(0)
-        awaitIdle()
-        selection = setOf(1, 2, 4)
-        awaitIdle()
-
-        assertEquals(first, list.selectionModel.state(), "the same declaration leaves the list the same way")
-        assertEquals(Triple(listOf(1, 2, 4), 4, 4), first, "the declared rows and the last run's ends")
     }
 
     @Test
@@ -86,168 +62,152 @@ class SelectionDifferenceTest {
             Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
         selection = setOf(1, 2)
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             Triple(listOf(1, 2), 1, 2),
-            table.selectionModel.state(),
             "the rows that left are deselected and the run that stayed carries the anchor and the lead",
-        )
+        ) { selectionModel.state() }
     }
 
-    @Test
-    fun aTableSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("widgets")
+    fun aSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared(widget: SelectionWidget<*>) = runComposeSwingTest {
         var selection by mutableStateOf(setOf(0, 1, 4))
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
-        }
+        setContent { widget.content(selection) }
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val table = onNodeOfType<JTable>().fetch()
         selection = setOf(1, 2, 5)
         mainClock.advanceTimeByFrame()
 
-        assertEquals(
-            Triple(listOf(1, 2, 5), 5, 5),
-            table.selectionModel.state(),
-            "the one pass that declares the selection should already have taken row 0 and row 4 out, put " +
-                "row 2 and row 5 in and left row 1 where it was",
-        )
+        widget.run {
+            assertState(
+                Triple(listOf(1, 2, 5), 5, 5),
+                "the one pass that declares the selection should already have taken row 0 and row 4 out, put " +
+                    "row 2 and row 5 in and left row 1 where it was",
+            )
+        }
     }
 
-    @Test
-    fun aListSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0, 1, 4))
-        setContent { ListBox(items = colors, selectedIndices = selection) }
-        awaitIdle()
-        mainClock.autoAdvance = false
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("widgets")
+    fun theAnchorAndLeadFollowTheDeclarationAndNotTheRowsThatJoinedIt(widget: SelectionWidget<*>) =
+        runComposeSwingTest {
+            var selection by mutableStateOf(setOf(4, 5))
+            setContent { widget.content(selection) }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        selection = setOf(1, 2, 5)
-        mainClock.advanceTimeByFrame()
+            // Rows 0 and 1 join a selection that already holds the declaration's last run, so they are the rows
+            // written and rows 4 and 5 are the rows the anchor and the lead belong on.
+            selection = setOf(0, 1, 4, 5)
+            awaitIdle()
 
-        assertEquals(
-            Triple(listOf(1, 2, 5), 5, 5),
-            list.selectionModel.state(),
-            "the one pass that declares the selection should already have taken row 0 and row 4 out, put " +
-                "row 2 and row 5 in and left row 1 where it was",
-        )
-    }
-
-    @Test
-    fun theTableAnchorAndLeadFollowTheDeclarationAndNotTheRowsThatJoinedIt() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(4, 5))
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
+            widget.run {
+                assertState(
+                    Triple(listOf(0, 1, 4, 5), 4, 5),
+                    "the last declared run carries the anchor and the lead",
+                )
+            }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        // Rows 0 and 1 join a selection that already holds the declaration's last run, so they are the rows
-        // written and rows 4 and 5 are the rows the anchor and the lead belong on.
-        selection = setOf(0, 1, 4, 5)
-        awaitIdle()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("widgets")
+    fun aWidgetWritesOnlyTheRowsThatChangedAndNotTheOnesItAlreadyHeld(widget: SelectionWidget<*>) =
+        runComposeSwingTest {
+            var selection by mutableStateOf(setOf(0, 1, 2, 3))
+            setContent { widget.content(selection) }
 
-        assertEquals(
-            Triple(listOf(0, 1, 4, 5), 4, 5),
-            table.selectionModel.state(),
-            "the last declared run carries the anchor and the lead",
-        )
-    }
+            val settled = SettledSpan(widget.run { heldModel() })
 
-    @Test
-    fun theListAnchorAndLeadFollowTheDeclarationAndNotTheRowsThatJoinedIt() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(4, 5))
-        setContent { ListBox(items = colors, selectedIndices = selection) }
+            selection = setOf(0, 1, 2, 3, 4)
+            awaitIdle()
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        selection = setOf(0, 1, 4, 5)
-        awaitIdle()
-
-        assertEquals(
-            Triple(listOf(0, 1, 4, 5), 4, 5),
-            list.selectionModel.state(),
-            "the last declared run carries the anchor and the lead",
-        )
-    }
-
-    @Test
-    fun aTableWritesOnlyTheRowsThatChangedAndNotTheOnesItAlreadyHeld() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0, 1, 2, 3))
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
+            assertEquals(
+                3..4,
+                settled.span,
+                "rows 0 to 3 were already selected, so the change reaches the model as the row that " +
+                    "joined and the lead it moved",
+            )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val settled = SettledSpan(table.selectionModel)
-
-        selection = setOf(0, 1, 2, 3, 4)
-        awaitIdle()
-
-        assertEquals(
-            3..4,
-            settled.span,
-            "rows 0 to 3 were already selected, so the change reaches the model as the row that " +
-                "joined and the lead it moved",
-        )
-    }
-
-    @Test
-    fun aListWritesOnlyTheRowsThatChangedAndNotTheOnesItAlreadyHeld() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0, 1, 2, 3))
-        setContent { ListBox(items = colors, selectedIndices = selection) }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        val settled = SettledSpan(list.selectionModel)
-
-        selection = setOf(0, 1, 2, 3, 4)
-        awaitIdle()
-
-        assertEquals(
-            3..4,
-            settled.span,
-            "rows 0 to 3 were already selected, so the change reaches the model as the row that " +
-                "joined and the lead it moved",
-        )
-    }
-
-    @Test
-    fun aTableSelectionDeclaredEmptyLeavesNoRowSelected() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("widgets")
+    fun aSelectionDeclaredEmptyLeavesNoRowSelected(widget: SelectionWidget<*>) = runComposeSwingTest {
         var selection by mutableStateOf(setOf(1, 2))
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
-        }
+        setContent { widget.content(selection) }
 
-        val table = onNodeOfType<JTable>().fetch()
         selection = emptySet()
         awaitIdle()
 
-        assertEquals(
-            Triple(emptyList<Int>(), 1, 2),
-            table.selectionModel.state(),
-            "every row the declaration dropped is deselected, and the anchor and the lead stay on the ends " +
-                "of the run the last declaration named, which is where a shift-click extends from",
-        )
+        widget.run {
+            assertState(
+                Triple(emptyList<Int>(), 1, 2),
+                "every row the declaration dropped is deselected, and the anchor and the lead stay on the ends " +
+                    "of the run the last declaration named, which is where a shift-click extends from",
+            )
+        }
     }
 
-    @Test
-    fun aListSelectionDeclaredEmptyLeavesNoRowSelected() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(1, 2))
-        setContent { ListBox(items = colors, selectedIndices = selection) }
+    companion object {
+        private val people =
+            listOf(
+                Person("Ada", 36),
+                Person("Alan", 41),
+                Person("Grace", 50),
+                Person("Edsger", 51),
+                Person("Barbara", 45),
+                Person("Donald", 60),
+            )
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        selection = emptySet()
-        awaitIdle()
+        private val colors = listOf("red", "green", "blue", "amber", "violet", "teal")
 
-        assertEquals(
-            Triple(emptyList<Int>(), 1, 2),
-            list.selectionModel.state(),
-            "every row the declaration dropped is deselected, and the anchor and the lead stay on the ends " +
-                "of the run the last declaration named, which is where a shift-click extends from",
+        @JvmStatic
+        fun widgets(): List<Named<SelectionWidget<*>>> = listOf(
+            Named.of(
+                "table",
+                SelectionWidget(
+                    "table",
+                    { Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = it) },
+                    { onNodeOfType<JTable>() },
+                    { selectionModel },
+                ),
+            ),
+            Named.of(
+                "list",
+                SelectionWidget(
+                    "list",
+                    { ListBox(items = colors, selectedIndices = it) },
+                    { onNodeOfType<JList<*>>() },
+                    { selectionModel },
+                ),
+            ),
         )
     }
+}
+
+class SelectionWidget<T : Component>(
+    private val name: String,
+    val content: @Composable (Set<Int>) -> Unit,
+    private val node: ComposeSwingTest.() -> SwingNodeInteraction<T>,
+    private val selectionModel: T.() -> ListSelectionModel,
+) {
+    fun ComposeSwingTest.assertState(
+        expected: Triple<List<Int>, Int, Int>,
+        message: String,
+    ) {
+        node().assertProperty(expected, message) { selectionModel().state() }
+    }
+
+    fun ComposeSwingTest.heldModel(): ListSelectionModel = node().fetch().selectionModel()
+
+    override fun toString(): String = name
+}
+
+/** The rows [this] model holds, and the two rows a following shift-click would extend from. */
+private fun ListSelectionModel.state(): Triple<List<Int>, Int, Int> {
+    val selected = (0 until ROW_COUNT).filter { isSelectedIndex(it) }
+    return Triple(selected, anchorSelectionIndex, leadSelectionIndex)
 }
 
 /**

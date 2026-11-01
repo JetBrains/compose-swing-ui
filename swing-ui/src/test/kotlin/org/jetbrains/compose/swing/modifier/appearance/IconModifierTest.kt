@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Font
@@ -150,19 +151,20 @@ class IconModifierTest {
 
     @Test
     fun droppingTheModifierRestoresTheIconTheComponentHad() = runComposeSwingTest {
+        val declared = icon()
         var decorated by mutableStateOf(true)
         setContent {
-            Button("Save", onClick = { }, modifier = if (decorated) SwingModifier.icon(icon()) else SwingModifier)
+            Button("Save", onClick = { }, modifier = if (decorated) SwingModifier.icon(declared) else SwingModifier)
         }
 
-        val button = onNodeOfType<AbstractButton>().fetch()
-        assertTrue(button.icon != null, "the icon is installed while declared")
+        val button = onNodeOfType<AbstractButton>()
+        button.assertProperty(declared, "the icon is installed while declared") { icon }
 
         decorated = false
         awaitIdle()
 
         // The element captured what the button had before it applied - no icon - and puts it back.
-        assertNull(button.icon, "dropping the modifier restores the component's own icon")
+        button.assertProperty(null, "dropping the modifier restores the component's own icon") { icon }
     }
 
     @Test

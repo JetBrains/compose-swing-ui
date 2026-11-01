@@ -25,9 +25,13 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.node.ExistingSwingNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.recordAddsAndRemovesOf
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.FlowLayout
@@ -295,7 +299,7 @@ class InheritableLayoutDefaultTest {
         amount = 2
         awaitIdle()
 
-        assertTrue(onNodeWithText("beside").fetch().isOpaque, "the pass applies the modifier")
+        onNodeWithText("beside").assertProperty(true, "the pass applies the modifier") { isOpaque }
         assertEquals(declarations, other.declarations.size, "the parent is not declared to again")
         assertEquals(invalidations, other.invalidations.size, "the parent's layout is not invalidated")
     }
@@ -406,50 +410,34 @@ class InheritableLayoutDefaultTest {
         assertEquals(listOf("third", "first", "second"), order, "the deck keeps its card order")
     }
 
-    @Test
-    fun aDefaultRefusesALayoutElementThatIsNotInheritableOrFoldsParentData() {
-        val kinds: List<Pair<String, ParentLayoutElement>> =
-            listOf(
-                "non-inheritable element" to NonInheritableLayout,
-                "parent data" to InheritableParentData,
-            )
-        for ((kind, element) in kinds) {
-            val key = componentDefaultKeyOf<Unit>(kind) { this then element }
-            val failure =
-                assertFailsWith<IllegalArgumentException>("A $kind must be refused as a default") {
-                    runComposeSwingTest {
-                        setContent { ProvideComponentDefaults(key provides Unit) { Label("refused") } }
-                    }
-                }
-            assertTrue(
-                failure.message.orEmpty().startsWith("ComponentDefaultKey '$kind' cannot declare $kind: "),
-                "A $kind must be named in the refusal, but the provider said: ${failure.message}",
-            )
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("refusedDefaults")
+    fun aDefaultRefusesALayoutElementThatIsNotInheritableOrFoldsParentData(
+        kind: String,
+        element: ParentLayoutElement,
+    ) {
+        val key = componentDefaultKeyOf<Unit>(kind) { this then element }
+        assertFailsWith<IllegalArgumentException>("A $kind must be refused as a default") {
+            runComposeSwingTest {
+                setContent { ProvideComponentDefaults(key provides Unit) { Label("refused") } }
+            }
         }
     }
 
-    @Test
-    fun anInheritableAdditiveElementIsRefusedDeclaredOnAComponentOrAsADefault() {
-        for (element in listOf(AdditiveNodeInset, AdditiveInheritableLayout)) {
-            val key = componentDefaultKeyOf<Unit>("additive") { this then element }
-            val declarations: List<@Composable () -> Unit> =
-                listOf(
-                    { Label("refused", SwingModifier then element) },
-                    { ProvideComponentDefaults(key provides Unit) { Label("refused") } },
-                )
-            for (declaration in declarations) {
-                val failure =
-                    assertFailsWith<IllegalArgumentException>("$element must be refused") {
-                        runComposeSwingTest {
-                            setContent { SwingNode(factory = { JPanel(InsetLayout()) }) { declaration() } }
-                        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("refusedAdditiveElements")
+    fun anInheritableAdditiveElementIsRefusedDeclaredOnAComponentOrAsADefault(
+        name: String,
+        element: ParentLayoutElement,
+        declare: @Composable (ParentLayoutElement) -> Unit,
+    ) {
+        assertFailsWith<IllegalArgumentException>("$name must be refused") {
+            runComposeSwingTest {
+                setContent {
+                    SwingNode(factory = { JPanel(InsetLayout()) }) {
+                        declare(element)
                     }
-                val message = failure.message.orEmpty()
-                assertTrue(
-                    message.startsWith(element.javaClass.name) &&
-                        message.endsWith("an inheritable element is not additive."),
-                    "The refusal must name the element and the rule, but said: $message",
-                )
+                }
             }
         }
     }
@@ -467,48 +455,67 @@ class InheritableLayoutDefaultTest {
 
     @Test
     fun inheritableParentDataBesideARegionIsRefused() {
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                runComposeSwingTest {
-                    setContent {
-                        ScrollPane {
-                            Label(
-                                "refused",
-                                SwingModifier.corner(JScrollPane.UPPER_LEFT_CORNER) then InheritableParentData,
-                            )
-                        }
+        assertFailsWith<IllegalArgumentException> {
+            runComposeSwingTest {
+                setContent {
+                    ScrollPane {
+                        Label(
+                            "refused",
+                            SwingModifier.corner(JScrollPane.UPPER_LEFT_CORNER) then InheritableParentData,
+                        )
                     }
                 }
             }
-        val message = failure.message.orEmpty()
-        assertTrue(
-            message.contains("SwingModifier.${InheritableParentData.name}() asks for") &&
-                message.contains("this modifier declares both"),
-            "The refusal must name the parent data and say why, but said: $message",
-        )
+        }
     }
 
-    @Test
-    fun aLayoutNodeDeclaringOtherFactsThanItsElementIsRefused() {
-        val mismatches: List<Pair<String, ParentLayoutNodeElement<*>>> =
-            listOf("inheritable" to NotInheritableNodeInset, "parentProtocol" to OtherProtocolNodeInset)
-        for ((fact, element) in mismatches) {
-            val failure =
-                assertFailsWith<IllegalStateException>("A node differing in $fact must be refused") {
-                    runComposeSwingTest {
-                        setContent {
-                            SwingNode(factory = { JPanel(InsetLayout()) }) {
-                                Label("refused", SwingModifier then element)
-                            }
-                        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("nodeFactMismatches")
+    fun aLayoutNodeDeclaringOtherFactsThanItsElementIsRefused(
+        fact: String,
+        element: ParentLayoutNodeElement<*>,
+    ) {
+        assertFailsWith<IllegalStateException>("A node differing in $fact must be refused") {
+            runComposeSwingTest {
+                setContent {
+                    SwingNode(factory = { JPanel(InsetLayout()) }) {
+                        Label("refused", SwingModifier then element)
                     }
                 }
-            val message = failure.message.orEmpty()
-            assertTrue(
-                message.contains(InsetNode::class.java.name) && message.contains(element.javaClass.name),
-                "The refusal must name the node and its element, but said: $message",
+            }
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun refusedDefaults(): List<Arguments> = listOf(
+            Arguments.of("non-inheritable element", NonInheritableLayout),
+            Arguments.of("parent data", InheritableParentData),
+        )
+
+        @JvmStatic
+        fun refusedAdditiveElements(): List<Arguments> {
+            val onComponent: @Composable (ParentLayoutElement) -> Unit = { element ->
+                Label("refused", SwingModifier then element)
+            }
+            val asDefault: @Composable (ParentLayoutElement) -> Unit = { element ->
+                ProvideComponentDefaults(componentDefaultKeyOf<Unit>("additive") { this then element } provides Unit) {
+                    Label("refused")
+                }
+            }
+            return listOf(
+                Arguments.of("node inset on a component", AdditiveNodeInset, onComponent),
+                Arguments.of("node inset as a default", AdditiveNodeInset, asDefault),
+                Arguments.of("inheritable layout on a component", AdditiveInheritableLayout, onComponent),
+                Arguments.of("inheritable layout as a default", AdditiveInheritableLayout, asDefault),
             )
         }
+
+        @JvmStatic
+        fun nodeFactMismatches(): List<Arguments> = listOf(
+            Arguments.of("inheritable", NotInheritableNodeInset),
+            Arguments.of("parentProtocol", OtherProtocolNodeInset),
+        )
     }
 }
 

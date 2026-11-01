@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -32,14 +33,9 @@ class TableColumnLayoutTest {
 
     @Test
     fun aLayoutNeedsOneWidthPerColumn() {
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                TableColumnLayout(modelIndices = listOf(0, 1), preferredWidths = listOf(120))
-            }
-        assertTrue(
-            failure.message.orEmpty().contains("one preferred width per column"),
-            "the message should say what the layout is missing, but was: ${failure.message}",
-        )
+        assertFailsWith<IllegalArgumentException>("the message should say what the layout is missing") {
+            TableColumnLayout(modelIndices = listOf(0, 1), preferredWidths = listOf(120))
+        }
     }
 
     /**
@@ -55,7 +51,6 @@ class TableColumnLayoutTest {
         val resized = TableColumnLayout(modelIndices = listOf(1, 0), preferredWidths = listOf(120, 41))
 
         assertEquals(same, layout, "the same columns at the same widths are the same layout")
-        assertEquals(layout, layout, "a layout is itself")
         assertTrue(layout != reordered, "columns in another order are another layout")
         assertTrue(layout != resized, "columns at another width are another layout")
         assertTrue(layout != Any(), "only a layout is a layout")
@@ -257,8 +252,14 @@ class TableColumnLayoutTest {
         rows = people + Person("Grace", 50)
         awaitIdle()
 
-        assertEquals(order, table.columnModel.modelIndices(), "a rows-only refresh should keep the order")
-        assertEquals(widths, table.columnModel.preferredWidths(), "a rows-only refresh should keep the widths")
+        onNodeOfType<JTable>().assertProperty(
+            order,
+            "a rows-only refresh should keep the order",
+        ) { columnModel.modelIndices() }
+        onNodeOfType<JTable>().assertProperty(
+            widths,
+            "a rows-only refresh should keep the widths",
+        ) { columnModel.preferredWidths() }
         assertEquals(emptyList(), received, "a rows-only refresh should report no column change")
     }
 

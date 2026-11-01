@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.core.compositionContext
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
@@ -92,15 +93,11 @@ class ToolBarFloatingTest {
 
         assertEquals(1, failures.size, "the callback is asked once")
         assertEquals(failures.toList(), reported, "the throw out of the callback is reported, not thrown")
-        assertFalse(onNodeOfType<JToolBar>().fetch().isFloatingNow, "the bar settled docked all the same")
+        onNodeOfType<JToolBar>().assertProperty(false, "the bar settled docked all the same") { isFloatingNow }
 
         caption = "after"
         awaitIdle()
-        assertEquals(
-            "after",
-            onNodeOfType<JLabel>().fetch().text,
-            "a later pass applies, and reports no second refusal",
-        )
+        onNodeOfType<JLabel>().assertProperty("after", "a later pass applies, and reports no second refusal") { text }
     }
 
     @Test

@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
@@ -37,7 +39,7 @@ class DeclaredValueSettlesInOnePassTest {
         declared = REDECLARED
         awaitIdle()
 
-        assertEquals(REDECLARED, onNodeOfType<JSlider>().fetch().value, "the widget should hold the new declaration")
+        onNodeOfType<JSlider>().assertProperty(REDECLARED, "the widget should hold the new declaration") { value }
         assertEquals(
             settled + 1,
             passes[0],
@@ -56,7 +58,7 @@ class DeclaredValueSettlesInOnePassTest {
         declared = SECOND_NAME
         awaitIdle()
 
-        assertEquals(SECOND_NAME, onNodeOfType<JLabel>().fetch().name, "the widget should hold the new declaration")
+        onNodeOfType<JLabel>().assertProperty(SECOND_NAME, "the widget should hold the new declaration") { name }
         assertEquals(
             settled + 1,
             passes[0],
@@ -78,8 +80,7 @@ class DeclaredValueSettlesInOnePassTest {
 
         // Nothing but the mirror can carry this to the composition: the test writes no state of its own
         // between the change and the pass that answers it.
-        slider.value = CHANGED
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(CHANGED)
 
         assertEquals(listOf(CHANGED), reported, "the change should reach the caller")
         assertEquals(DECLARED, slider.value, "a change the caller does not adopt should be written back")
@@ -95,16 +96,14 @@ class DeclaredValueSettlesInOnePassTest {
         awaitIdle()
 
         val slider = onNodeOfType<JSlider>().fetch()
-        slider.value = CHANGED
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(CHANGED)
         assertEquals(DECLARED, slider.value, "the first rejected change should be written back")
 
         // The composition's own declared value never moved between the two changes, so a check keyed
         // only on it - the way SwingNodeUpdater.set compares this pass's declaration against the last -
         // would see nothing new to settle. redeclare also weighs the widget's own value, so the repeat
         // is caught just the same.
-        slider.value = CHANGED
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(CHANGED)
 
         assertEquals(listOf(CHANGED, CHANGED), reported, "the repeated change should reach the caller again")
         assertEquals(DECLARED, slider.value, "a repeated change the caller rejects should be written back again")
@@ -119,8 +118,7 @@ class DeclaredValueSettlesInOnePassTest {
         awaitIdle()
 
         val slider = onNodeOfType<JSlider>().fetch()
-        slider.value = CHANGED
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(CHANGED)
 
         assertEquals(CHANGED, slider.value, "a change the caller adopts should be left where the user put it")
         assertEquals(CHANGED, declared, "the caller should be holding the value it adopted")

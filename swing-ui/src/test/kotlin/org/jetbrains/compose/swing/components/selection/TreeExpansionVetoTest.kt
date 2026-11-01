@@ -8,6 +8,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
@@ -24,6 +25,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** A value tree: each section yields its [children], and its [name] is what the row renders. */
@@ -67,10 +70,9 @@ class TreeExpansionVetoTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
         state.expandedPaths = setOf(emptyList(), listOf(0), listOf(0, 0))
         awaitIdle()
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the refused node stays closed")
+        onNodeOfType<JTree>().assertProperty(false, "the refused node stays closed") { isExpanded(pathTo(0)) }
         assertEquals(1, asked.count { it == "fruit" }, "the refused node is asked once: $asked")
         assertEquals(0, asked.count { it == "apple" }, "the node below it is never asked: $asked")
     }
@@ -88,10 +90,13 @@ class TreeExpansionVetoTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.expandPath(tree.pathTo(0))
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "an expansion the callback allows goes through")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "an expansion the callback allows goes through",
+        ) { isExpanded(pathTo(0)) }
 
         tree.expandPath(tree.pathTo(1))
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the one it refuses does not")
+        onNodeOfType<JTree>().assertProperty(false, "the one it refuses does not") { isExpanded(pathTo(1)) }
     }
 
     @Test
@@ -128,12 +133,12 @@ class TreeExpansionVetoTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
+        val tree = onNodeOfType<JTree>()
         state.expandedPaths = setOf(emptyList(), listOf(0), listOf(1))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the callback allows opens")
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the node it refuses stays closed")
+        tree.assertProperty(true, "the node the callback allows opens") { isExpanded(pathTo(0)) }
+        tree.assertProperty(false, "the node it refuses stays closed") { isExpanded(pathTo(1)) }
     }
 
     @Test
@@ -148,9 +153,9 @@ class TreeExpansionVetoTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the callback allows opens as the tree is built")
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the one it refuses stays closed from the start")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(true, "the node the callback allows opens as the tree is built") { isExpanded(pathTo(0)) }
+        tree.assertProperty(false, "the one it refuses stays closed from the start") { isExpanded(pathTo(1)) }
     }
 
     @Test
@@ -172,7 +177,7 @@ class TreeExpansionVetoTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
+        val tree = onNodeOfType<JTree>()
         // Applying the state's expansion is the wrapper's own write, so the callback is reached from
         // inside the pass that applies it - where a throw would otherwise end the composition.
         state.expandedPaths = setOf(emptyList(), listOf(0))
@@ -180,16 +185,15 @@ class TreeExpansionVetoTest {
 
         assertEquals(failures, listOf(reported) + reported.suppressed, "every callback failure is reported once")
         assertTrue("the will-expand callback fails" in reported.message.orEmpty())
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "a failure is no refusal, so the expansion stands")
+        tree.assertProperty(true, "a failure is no refusal, so the expansion stands") { isExpanded(pathTo(0)) }
 
         label = "trunk"
         awaitIdle()
 
-        assertEquals(
+        tree.assertProperty(
             "trunk",
-            (tree.model.root as DefaultMutableTreeNode).userObject.toString(),
             "the composition still applies what a later pass declares",
-        )
+        ) { assertIs<DefaultMutableTreeNode>(model.root, "expected a mutable tree root").userObject.toString() }
     }
 
     /** A will-change callback that throws what [throws] makes of the event, which is reported only if [isReported]. */
@@ -231,8 +235,14 @@ class TreeExpansionVetoTest {
                     "only a failure is reported, as thrown",
                 )
                 assertEquals(2, thrown.size, "the callback is asked about the expansion and the collapse")
-                assertFalse(tree.isExpanded(tree.pathTo(0)), "the callback's throw vetoes the expansion")
-                assertTrue(tree.isExpanded(rootPath), "the callback's throw vetoes the collapse")
+                onNodeOfType<JTree>().assertProperty(
+                    false,
+                    "the callback's throw vetoes the expansion",
+                ) { isExpanded(pathTo(0)) }
+                onNodeOfType<JTree>().assertProperty(
+                    true,
+                    "the callback's throw vetoes the collapse",
+                ) { isExpanded(rootPath) }
             }
         }
     }
@@ -281,8 +291,9 @@ class TreeExpansionVetoTest {
     fun aListenerFailingPartWayThroughAnAssignedExpansionLeavesTheTreeAnsweringForWhatOpened() = runComposeSwingTest {
         val state = TreeState(initialExpandedPaths = setOf(emptyList()))
         val failing = mockk<TreeWillExpandListener>(relaxed = true)
+        val failure = IllegalStateException("the listener fails")
         every { failing.treeWillExpand(any()) } answers {
-            check(firstArg<TreeExpansionEvent>().path.lastPathComponent.toString() != "veg") { "the listener fails" }
+            if (firstArg<TreeExpansionEvent>().path.lastPathComponent.toString() == "veg") throw failure
         }
         setContent {
             Tree(
@@ -296,19 +307,28 @@ class TreeExpansionVetoTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         state.expandedPaths = setOf(emptyList(), listOf(0), listOf(1))
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertTrue(
-            "the listener fails" in failure.message.orEmpty(),
-            "the listener's failure should be reported as it was thrown, but was: $failure",
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> { awaitIdle() },
+            "the listener's failure is reported as it was thrown",
         )
         awaitIdle()
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node opened before the failure stays open")
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the node whose listener failed stays closed")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the node opened before the failure stays open",
+        ) { isExpanded(pathTo(0)) }
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the node whose listener failed stays closed",
+        ) { isExpanded(pathTo(1)) }
 
         tree.collapsePath(tree.pathTo(0))
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the user's collapse of the node that did open stands")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the user's collapse of the node that did open stands",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(setOf(emptyList<Int>()), state.expandedPaths, "and reaches the state")
     }
 
@@ -326,8 +346,10 @@ class TreeExpansionVetoTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node above the selection is refused and stays closed")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the node above the selection is refused and stays closed",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(emptyList(), expansions, "a refused opening changes no expansion, so none is reported")
     }
 
@@ -387,12 +409,15 @@ class TreeExpansionVetoTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(
-            tree.treeWillExpandListeners.any { it === listener },
+        onNodeOfType<JTree>().assertProperty(
+            true,
             "the exact declared listener should be installed on the tree",
-        )
+        ) { treeWillExpandListeners.any { it === listener } }
 
         tree.expandPath(tree.pathTo(0))
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the listener's veto leaves the node closed")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the listener's veto leaves the node closed",
+        ) { isExpanded(pathTo(0)) }
     }
 }

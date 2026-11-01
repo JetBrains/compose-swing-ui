@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -122,12 +123,14 @@ class KeyboardModifierTest {
         var target by mutableStateOf("first")
         var captured = ""
         setContent {
+            // Read at composition time, so only the callback the latest composition declared reports the new value.
+            val current = target
             TextField(
                 value = "",
                 onValueChange = {},
                 modifier =
                     SwingModifier.onKeyEvent {
-                        captured = target
+                        captured = current
                         false
                     },
             )
@@ -351,17 +354,17 @@ class KeyboardModifierTest {
             )
         }
         val field = onNodeOfType<JTextField>()
-        assertTrue(
-            field.fetch<JTextField>().getInputMap(JComponent.WHEN_FOCUSED).get(stroke) != null,
+        field.assertProperty(
+            true,
             "the binding must be installed while its element is present",
-        )
+        ) { getInputMap(JComponent.WHEN_FOCUSED).get(stroke) != null }
 
         bound = false
         awaitIdle()
-        assertTrue(
-            field.fetch<JTextField>().getInputMap(JComponent.WHEN_FOCUSED).get(stroke) == null,
+        field.assertProperty(
+            null,
             "the binding must be removed when its element leaves the chain",
-        )
+        ) { getInputMap(JComponent.WHEN_FOCUSED).get(stroke) }
     }
 
     @Test

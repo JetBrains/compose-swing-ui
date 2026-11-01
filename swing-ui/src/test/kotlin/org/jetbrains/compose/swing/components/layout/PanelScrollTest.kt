@@ -5,6 +5,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import javax.swing.BoxLayout
 import javax.swing.JPanel
@@ -20,28 +23,9 @@ import kotlin.test.assertEquals
  * the page keys and the layout do.
  */
 class PanelScrollTest {
-    @Test
-    fun aHorizontalBoxPanelScrollsAsAJPanel() =
-        assertScrollsAsAJPanel { Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), it) {} }
-
-    @Test
-    fun aVerticalBoxPanelScrollsAsAJPanel() = assertScrollsAsAJPanel { Panel(PanelLayout.Box(), it) {} }
-
-    @Test
-    fun aFlowPanelScrollsAsAJPanel() = assertScrollsAsAJPanel { Panel(PanelLayout.Flow(), it) {} }
-
-    @Test
-    fun aGridPanelScrollsAsAJPanel() = assertScrollsAsAJPanel { Panel(PanelLayout.Grid(), it) {} }
-
-    @Test
-    fun aGridBagPanelScrollsAsAJPanel() = assertScrollsAsAJPanel { Panel(PanelLayout.GridBag, it) {} }
-
-    @Test
-    fun aBorderPanelScrollsAsAJPanel() = assertScrollsAsAJPanel { Panel(PanelLayout.Border(), it) {} }
-
-    @Test
-    fun aCardPanelScrollsAsAJPanel() =
-        assertScrollsAsAJPanel { Panel(PanelLayout.Card(selectedCard = "only"), modifier = it) {} }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("panels")
+    fun aPanelScrollsAsAJPanel(content: @Composable (SwingModifier) -> Unit) = assertScrollsAsAJPanel(content)
 
     @Test
     fun aPanelNarrowerThanTheViewportIsLaidOutAsARawPaneWouldLayItOut() =
@@ -116,6 +100,19 @@ class PanelScrollTest {
             raw.viewport.view.size,
             pane.viewport.view.size,
             "the panel takes the viewport's extent where the viewport is the larger, and its own size where it is not",
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun panels(): List<Named<@Composable (SwingModifier) -> Unit>> = listOf(
+            Named.of("horizontal box", { Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), it) {} }),
+            Named.of("vertical box", { Panel(PanelLayout.Box(), it) {} }),
+            Named.of("flow", { Panel(PanelLayout.Flow(), it) {} }),
+            Named.of("grid", { Panel(PanelLayout.Grid(), it) {} }),
+            Named.of("grid bag", { Panel(PanelLayout.GridBag, it) {} }),
+            Named.of("border", { Panel(PanelLayout.Border(), it) {} }),
+            Named.of("card", { Panel(PanelLayout.Card(selectedCard = "only"), modifier = it) {} }),
         )
     }
 }

@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.publishClose
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
@@ -42,8 +43,7 @@ class ContextMenuDetachTest {
                 }
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(
             listOf("Cut"),
             (captured ?: error("no popup")).menuItemTexts(),
@@ -53,12 +53,12 @@ class ContextMenuDetachTest {
         withMenu = false
         awaitIdle()
         captured = null
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertNull(captured, "a popup gesture must build no menu once the declaration goes")
 
         withMenu = true
         awaitIdle()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(
             listOf("Cut"),
             (captured ?: error("no popup")).menuItemTexts(),
@@ -180,8 +180,7 @@ class ContextMenuDetachTest {
                 }
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val popup = captured ?: error("popup-trigger event did not build a popup")
         assertEquals(0, released, "a menu that is up keeps its composition")
 
@@ -222,9 +221,8 @@ class ContextMenuDetachTest {
                 }
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
+        onNodeWithText("target").performContextClick()
         assertEquals(2, captured.distinct().size, "a second gesture must build a popup of its own")
 
         // The wrapper takes the predecessor down itself before presenting the successor, so its

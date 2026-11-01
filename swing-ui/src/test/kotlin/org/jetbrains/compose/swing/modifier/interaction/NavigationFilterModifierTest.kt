@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
@@ -76,8 +77,8 @@ class NavigationFilterModifierTest {
         state.selection = TextRange(INSIDE_THE_PROMPT, INSIDE_THE_PROMPT)
         awaitIdle()
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(PROMPT_LENGTH, field.caretPosition, "the filter should move the caret out of the prompt")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(PROMPT_LENGTH, "the filter should move the caret out of the prompt") { caretPosition }
         assertEquals(
             TextRange(PROMPT_LENGTH, PROMPT_LENGTH),
             state.selection,

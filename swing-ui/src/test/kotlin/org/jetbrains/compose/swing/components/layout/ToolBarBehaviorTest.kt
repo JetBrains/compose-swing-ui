@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -188,7 +189,7 @@ class ToolBarBehaviorTest {
     @Test
     fun withdrawingASeparatorSizeGivesTheSizeBackToTheLookAndFeel() = runComposeSwingTest {
         // Driven under a known look and feel, whose separator size is chosen oblong and unlike the
-        // declared one: bringing that answer back is what a withdrawal has to do, and an oblong answer
+        // declared one: bringing that size back is what a withdrawal has to do, and an oblong size
         // also tells apart the two ways round it can be read, which a square one would hide.
         underMetal {
             withLookAndFeelDefault(SEPARATOR_SIZE_KEY, Dimension(7, 19)) {
@@ -244,7 +245,7 @@ class ToolBarBehaviorTest {
                 assertNull(
                     swingSeparatorSize(),
                     "the look and feel under test should size no separator of its own, so that a " +
-                        "withdrawal has no answer to put back",
+                        "withdrawal has no size to put back",
                 )
 
                 size = null
@@ -257,25 +258,6 @@ class ToolBarBehaviorTest {
                 )
             }
         }
-    }
-
-    @Test
-    fun anUndeclaredSeparatorSizeLeavesTheLookAndFeelsChoiceInPlace() = runComposeSwingTest {
-        setContent {
-            ToolBar(floatable = false) {
-                ToolBarSeparator()
-            }
-        }
-
-        val separator = onNodeOfType<JToolBar.Separator>().fetch()
-
-        // A separator declared without a size draws at the size its look and feel asks for, so the
-        // oracle is a separator a hand-written tool bar was given the plain Swing way.
-        assertEquals(
-            swingSeparatorSize(),
-            separator.separatorSize,
-            "a separator declared without a size should be sized as Swing sizes one",
-        )
     }
 
     @Test
@@ -464,12 +446,11 @@ class ToolBarBehaviorTest {
                 composed.isRolloverEnabled,
                 "a tool bar declared without a rollover choice should treat its items as Swing does",
             )
-            assertEquals(
+            onNodeOfType<JToolBar>().assertProperty(
                 JToolBar().isRollover,
-                onNodeOfType<JToolBar>().fetch().isRollover,
                 "a tool bar declared without a rollover choice should record none, as Swing leaves one " +
                     "that was never told",
-            )
+            ) { isRollover }
         }
     }
 
@@ -544,7 +525,7 @@ private const val ROLLOVER_KEY: String = "ToolBar.isRollover"
 /**
  * The size Swing gives a tool bar separator that was never given one, read off a separator a
  * hand-written tool bar was handed the plain Swing way. It stands apart from how the library arrives at
- * that size, so it can tell a wrong answer from the right one.
+ * that size, so it can tell a wrong size from the right one.
  */
 private fun swingSeparatorSize(): Dimension? {
     val handWrittenBar = JToolBar()

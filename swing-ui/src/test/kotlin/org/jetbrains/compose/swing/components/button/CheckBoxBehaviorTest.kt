@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.singleWidget
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -26,7 +27,6 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -74,16 +74,20 @@ class CheckBoxBehaviorTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val box = onNodeOfType<JCheckBox>().fetch()
-        assertTrue(box.isSelected, "the box should open on the checked state it first declares")
+        val box = onNodeOfType<JCheckBox>()
+        box.assertProperty(true, "the box should open on the checked state it first declares") { isSelected }
 
         checked = false
         mainClock.advanceTimeByFrame()
-        assertFalse(box.isSelected, "the pass declaring the box clear should leave it clear, not still checked")
+        box.assertProperty(false, "the pass declaring the box clear should leave it clear, not still checked") {
+            isSelected
+        }
 
         checked = true
         mainClock.advanceTimeByFrame()
-        assertTrue(box.isSelected, "the pass declaring the box checked again should leave it checked, not clear")
+        box.assertProperty(true, "the pass declaring the box checked again should leave it checked, not clear") {
+            isSelected
+        }
     }
 
     @Test
@@ -157,11 +161,9 @@ class CheckBoxBehaviorTest {
         text = "Three"
         awaitIdle()
 
-        assertEquals(
-            1,
-            onNodeOfType<JCheckBox>().fetch().actionListeners.size,
-            "recomposition must not stack up action listeners",
-        )
+        onNodeOfType<JCheckBox>().assertProperty(1, "recomposition must not stack up action listeners") {
+            actionListeners.size
+        }
         onNodeOfType<JCheckBox>().performClick()
         assertEquals(listOf(true), reported, "a single click reports exactly once")
     }
@@ -178,16 +180,16 @@ class CheckBoxBehaviorTest {
             )
         }
 
-        val box = onNodeOfType<JCheckBox>().fetch()
-        assertEquals("Wraps long lines", box.toolTipText, "the modifier applies to the box")
+        val box = onNodeOfType<JCheckBox>()
+        box.assertProperty("Wraps long lines", "the modifier applies to the box") { toolTipText }
 
         tip = "Wraps text at the viewport edge"
         awaitIdle()
-        assertEquals("Wraps text at the viewport edge", box.toolTipText, "the modifier follows its state")
+        box.assertProperty("Wraps text at the viewport edge", "the modifier follows its state") { toolTipText }
 
         tip = null
         awaitIdle()
-        assertNull(box.toolTipText, "dropping the element restores the tooltip the box had without it")
+        box.assertProperty(null, "dropping the element restores the tooltip the box had without it") { toolTipText }
     }
 
     @Test
@@ -216,9 +218,10 @@ class CheckBoxBehaviorTest {
         awaitIdle()
         checkBox.assert(SwingMatcher.isSelected())
         checkBox.assertTextEquals("Wrap lines")
-        val box = checkBox.fetch()
-        assertNull(box.toolTipText, "dropping the element restores the tooltip the box had without it")
-        assertEquals(1, box.actionListeners.size, "a stable listener instance stays attached exactly once")
+        checkBox.assertProperty(null, "dropping the element restores the tooltip the box had without it") {
+            toolTipText
+        }
+        checkBox.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         checked = false
         awaitIdle()
@@ -248,11 +251,9 @@ class CheckBoxBehaviorTest {
 
         second = true
         awaitIdle()
-        assertEquals(
-            1,
-            onNodeOfType<JCheckBox>().fetch().actionListeners.size,
-            "the replaced listener must be detached, not stacked",
-        )
+        onNodeOfType<JCheckBox>().assertProperty(1, "the replaced listener must be detached, not stacked") {
+            actionListeners.size
+        }
 
         onNodeOfType<JCheckBox>().performClick()
         assertEquals(1, latest, "the newly declared listener receives the click")
@@ -362,10 +363,10 @@ class CheckBoxBehaviorTest {
             "a listener the caller added must be handed the state its click produced, not the one the " +
                 "declaration settles back over it",
         )
-        assertFalse(
-            onNodeOfType<JCheckBox>().fetch<JCheckBox>().isSelected,
+        onNodeOfType<JCheckBox>().assertProperty(
+            false,
             "the settle this asserts about has to have run: the unadopted click is put back",
-        )
+        ) { isSelected }
     }
 
     @Test

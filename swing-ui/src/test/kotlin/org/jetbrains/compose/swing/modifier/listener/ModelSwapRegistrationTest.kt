@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.TableColumnLayout
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultBoundedRangeModel
@@ -33,19 +34,16 @@ class ModelSwapRegistrationTest {
         }
         val slider = onNodeOfType<JSlider>().fetch<JSlider>()
 
-        // A bare slider calibrates what the widget itself registers on a model it is given, so the
-        // difference is the wrapper's own mirror and nothing else.
-        val control = JSlider()
-        val bare = DefaultBoundedRangeModel(10, 0, 0, 100)
         val declared = DefaultBoundedRangeModel(10, 0, 0, 100)
-        control.model = bare
         slider.model = declared
-
-        assertEquals(
-            bare.changeListeners.size + 1,
-            declared.changeListeners.size,
-            "the mirror rode the swap onto the model the slider was given",
-        )
+        awaitIdle()
+        // The mirror sends model changes to the composition, which restores the declared value.
+        declared.value = 50
+        awaitIdle()
+        onNodeOfType<JSlider>().assertProperty(
+            10,
+            "the declared value stands against a change on the model the slider was given",
+        ) { value }
     }
 
     @Test

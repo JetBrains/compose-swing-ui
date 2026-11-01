@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -19,6 +20,7 @@ import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -48,16 +50,15 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val model = table.model
-        assertEquals(2, model.rowCount, "row count")
-        assertEquals(2, model.columnCount, "column count")
-        assertEquals("Name", model.getColumnName(0), "column 0 header")
-        assertEquals("Age", model.getColumnName(1), "column 1 header")
-        assertEquals("Ada", model.getValueAt(0, 0), "cell (0,0) value")
-        assertEquals(36, model.getValueAt(0, 1), "cell (0,1) value")
-        assertEquals("Alan", model.getValueAt(1, 0), "cell (1,0) value")
-        assertEquals(41, model.getValueAt(1, 1), "cell (1,1) value")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(2, "row count") { model.rowCount }
+        table.assertProperty(2, "column count") { model.columnCount }
+        table.assertProperty("Name", "column 0 header") { model.getColumnName(0) }
+        table.assertProperty("Age", "column 1 header") { model.getColumnName(1) }
+        table.assertProperty("Ada", "cell (0,0) value") { model.getValueAt(0, 0) }
+        table.assertProperty(36, "cell (0,1) value") { model.getValueAt(0, 1) }
+        table.assertProperty("Alan", "cell (1,0) value") { model.getValueAt(1, 0) }
+        table.assertProperty(41, "cell (1,1) value") { model.getValueAt(1, 1) }
     }
 
     @Test
@@ -104,14 +105,21 @@ class TableBehaviorTest {
         setContent {
             Table(rows = listOf(Person("Ada", 36)), columns = { column("Age") { it.age } }, rowHeight = rowHeight)
         }
-        val table = onNodeOfType<JTable>().fetch()
-        table.columnModel.getColumn(0).minWidth = 50
+        val table = onNodeOfType<JTable>()
+        table
+            .fetch()
+            .columnModel
+            .getColumn(0)
+            .minWidth = 50
 
         rowHeight = 30
         awaitIdle()
 
-        assertEquals(30, table.rowHeight, "the pass reached the table")
-        assertEquals(50, table.columnModel.getColumn(0).minWidth, "unchanged columns are not declared again")
+        table.assertProperty(30, "the pass reached the table") { this.rowHeight }
+        table.assertProperty(
+            50,
+            "unchanged columns are not declared again",
+        ) { columnModel.getColumn(0).minWidth }
     }
 
     @Test
@@ -153,17 +161,15 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        repeat(2) {
-            table.setRowSelectionInterval(1, 1)
+        val table = onNodeOfType<JTable>()
+        repeat(2) { attempt ->
+            table.fetch().setRowSelectionInterval(1, 1)
             awaitIdle()
+            table.assertProperty(
+                listOf(0),
+                "attempt ${attempt + 1}: an unadopted selection change does not stand, however often it is made",
+            ) { selectedRows.toList() }
         }
-
-        assertEquals(
-            listOf(0),
-            table.selectedRows.toList(),
-            "an unadopted selection change does not stand, however often it is made",
-        )
     }
 
     @Test
@@ -182,12 +188,12 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertFalse(table.isCellEditable(0, 0), "Name column must be read-only")
-        assertTrue(table.isCellEditable(0, 1), "Age column must be editable")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(false, "Name column must be read-only") { isCellEditable(0, 0) }
+        table.assertProperty(true, "Age column must be editable") { isCellEditable(0, 1) }
         // Committing an edit routes through JTable.setValueAt -> model.setValueAt, the same
         // path the cell editor takes on commit.
-        table.setValueAt(37, 0, 1)
+        table.fetch().setValueAt(37, 0, 1)
 
         assertEquals(1, edits.size, "exactly one edit committed")
         assertEquals(Triple("Ada", 0, 37), edits.single(), "edited row, index, and new value")
@@ -206,10 +212,13 @@ class TableBehaviorTest {
             )
         }
 
-        val model = onNodeOfType<JTable>().fetch().model
-        assertEquals(String::class.java, model.getColumnClass(0), "a column of names holds strings")
-        assertEquals(Int::class.javaObjectType, model.getColumnClass(1), "a column of ages holds integers")
-        assertEquals(Boolean::class.javaObjectType, model.getColumnClass(2), "a column of flags holds booleans")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(String::class.java, "a column of names holds strings") { model.getColumnClass(0) }
+        table.assertProperty(Int::class.javaObjectType, "a column of ages holds integers") { model.getColumnClass(1) }
+        table.assertProperty(
+            Boolean::class.javaObjectType,
+            "a column of flags holds booleans",
+        ) { model.getColumnClass(2) }
     }
 
     @Test
@@ -257,7 +266,7 @@ class TableBehaviorTest {
         // column's class; committing it is the model write JTable makes once editing stops.
         val table = onNodeOfType<JTable>().fetch()
         val editor = table.getCellEditor(0, 0)
-        val typedInto = editor.getTableCellEditorComponent(table, 36, false, 0, 0) as JTextField
+        val typedInto = assertIs<JTextField>(editor.getTableCellEditorComponent(table, 36, false, 0, 0))
         typedInto.text = "37"
         editor.stopCellEditing()
         table.setValueAt(editor.cellEditorValue, 0, 0)
@@ -272,21 +281,21 @@ class TableBehaviorTest {
             Table(rows = rows.toList(), columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(1, table.model.rowCount, "the model should start with one row")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(1, "the model should start with one row") { model.rowCount }
 
         rows.add(Person("Alan", 41))
         awaitIdle()
 
-        assertEquals(2, table.model.rowCount, "row added to the model")
-        assertEquals("Alan", table.model.getValueAt(1, 0), "the added row's cell should render")
+        table.assertProperty(2, "row added to the model") { model.rowCount }
+        table.assertProperty("Alan", "the added row's cell should render") { model.getValueAt(1, 0) }
 
         rows.clear()
         rows.add(Person("Grace", 50))
         awaitIdle()
 
-        assertEquals(1, table.model.rowCount, "model reflects replaced rows")
-        assertEquals("Grace", table.model.getValueAt(0, 0), "the replaced row's cell should render")
+        table.assertProperty(1, "model reflects replaced rows") { model.rowCount }
+        table.assertProperty("Grace", "the replaced row's cell should render") { model.getValueAt(0, 0) }
     }
 
     @Test
@@ -300,17 +309,26 @@ class TableBehaviorTest {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(0, 0)
+        val table = onNodeOfType<JTable>()
+        table.fetch().setRowSelectionInterval(0, 0)
         awaitIdle()
 
         rows.add(Person("Grace", 45))
         awaitIdle()
 
-        assertEquals(3, table.model.rowCount, "the pass this asserts about has to have run")
-        assertEquals(listOf(0), table.selectedRows.toList(), "the row the user selected should stay selected")
-        assertEquals(0, table.selectionModel.leadSelectionIndex, "the selected row should stay the lead")
-        assertEquals(0, table.selectionModel.anchorSelectionIndex, "the selected row should stay the anchor")
+        table.assertProperty(3, "the pass this asserts about has to have run") { model.rowCount }
+        table.assertProperty(
+            listOf(0),
+            "the row the user selected should stay selected",
+        ) { selectedRows.toList() }
+        table.assertProperty(
+            0,
+            "the selected row should stay the lead",
+        ) { selectionModel.leadSelectionIndex }
+        table.assertProperty(
+            0,
+            "the selected row should stay the anchor",
+        ) { selectionModel.anchorSelectionIndex }
     }
 
     @Test
@@ -320,19 +338,18 @@ class TableBehaviorTest {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(2, 2)
+        val table = onNodeOfType<JTable>()
+        table.fetch().setRowSelectionInterval(2, 2)
         awaitIdle()
 
         rows.add(0, Person("Edsger", 51))
         awaitIdle()
 
-        assertEquals(4, table.model.rowCount, "the pass this asserts about has to have run")
-        assertEquals(
+        table.assertProperty(4, "the pass this asserts about has to have run") { model.rowCount }
+        table.assertProperty(
             listOf(3),
-            table.selectedRows.toList(),
             "the row the user selected should shift down and stay selected",
-        )
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -347,20 +364,19 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(2, 2)
+        val table = onNodeOfType<JTable>()
+        table.fetch().setRowSelectionInterval(2, 2)
         awaitIdle()
         lossReported = false
 
         rows.removeAt(0)
         awaitIdle()
 
-        assertEquals(2, table.model.rowCount, "the pass this asserts about has to have run")
-        assertEquals(
+        table.assertProperty(2, "the pass this asserts about has to have run") { model.rowCount }
+        table.assertProperty(
             listOf(1),
-            table.selectedRows.toList(),
             "the row the user selected should shift up and stay selected",
-        )
+        ) { selectedRows.toList() }
         assertFalse(lossReported, "a row the table kept must not be reported as lost")
     }
 
@@ -404,10 +420,10 @@ class TableBehaviorTest {
             Table(rows = rows, columns = { column("Name") { it.name } }, selectedRowIndices = setOf(1, 2, 3))
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(1, 2, 3), table.selectedRows.toList(), "the declared rows should be selected")
-        assertEquals(3, table.selectionModel.leadSelectionIndex, "the end of the run should be the lead")
-        assertEquals(1, table.selectionModel.anchorSelectionIndex, "the start of the run should be the anchor")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(1, 2, 3), "the declared rows should be selected") { selectedRows.toList() }
+        table.assertProperty(3, "the end of the run should be the lead") { selectionModel.leadSelectionIndex }
+        table.assertProperty(1, "the start of the run should be the anchor") { selectionModel.anchorSelectionIndex }
     }
 
     @Test
@@ -429,8 +445,8 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0), table.selectedRows.toList(), "initial selection applied")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0), "initial selection applied") { selectedRows.toList() }
 
         // A purely external selection update applies to the table and settles. Because the guard
         // skips re-applying an unchanged selection, any echoed callback carries the SAME new
@@ -438,7 +454,7 @@ class TableBehaviorTest {
         selection = setOf(2)
         awaitIdle()
 
-        assertEquals(listOf(2), table.selectedRows.toList(), "external selection applied")
+        table.assertProperty(listOf(2), "external selection applied") { selectedRows.toList() }
         assertEquals(setOf(2), selection, "controlled state settled on the new selection")
         assertTrue(
             received.all { it == setOf(2) },
@@ -463,17 +479,22 @@ class TableBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
         // A structure change rebuilds the table's columns, taking any width along with them, so the
         // column object the table still carries is what tells a narrow refresh from a broad one.
-        val column = table.columnModel.getColumn(0)
+        val before = table.fetch()
+        val column = before.columnModel.getColumn(0)
         column.preferredWidth = 123
 
         label = "second"
         awaitIdle()
+        assertSame(before, table.fetch(), "the component is updated in place, not rebuilt")
 
-        assertSame(column, table.columnModel.getColumn(0), "the column survives a pass that changed no data")
-        assertEquals(123, table.columnModel.getColumn(0).preferredWidth, "and so does the width set on it")
+        assertSame(column, table.fetch().columnModel.getColumn(0), "the column survives a pass that changed no data")
+        table.assertProperty(
+            123,
+            "and so does the width set on it",
+        ) { columnModel.getColumn(0).preferredWidth }
     }
 
     @Test

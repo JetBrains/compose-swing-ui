@@ -8,6 +8,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
@@ -52,7 +53,6 @@ class TreeModelBehaviorTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         assertSame(model, tree.model, "the caller-supplied model should back the tree as-is")
-        assertEquals(2, model.getChildCount(model.root), "the root should have two children")
     }
 
     @Test
@@ -120,21 +120,16 @@ class TreeModelBehaviorTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
-            model.pathTo(0, 1),
-            tree.selectionPath,
-            "initial selection applied",
-        )
+        onNodeOfType<JTree>().assertProperty(model.pathTo(0, 1), "initial selection applied") { selectionPath }
 
         model = sampleModel()
         awaitIdle()
 
         assertSame(model, tree.model, "the swapped-in model should back the tree")
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             model.pathTo(0, 1),
-            tree.selectionPath,
             "controlled selection survives the model swap",
-        )
+        ) { selectionPath }
     }
 
     /** A plain tree node - deliberately not a [DefaultMutableTreeNode]. */
@@ -226,10 +221,9 @@ class TreeModelBehaviorTest {
         trigger = 1
         awaitIdle()
         assertEquals(emptyList(), reported, "re-applying an unchanged controlled selection must not echo")
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             model.pathTo(0, 1),
-            onNodeOfType<JTree>().fetch().selectionPath,
             "the controlled selection should remain applied",
-        )
+        ) { selectionPath }
     }
 }

@@ -126,10 +126,12 @@ class SplitPaneReactivityTest {
     fun withdrawingTheDividerSizeGivesTheSizeBackToTheLookAndFeel() = runComposeSwingTest {
         // A pane that was never given a size draws its divider at the size its look and feel asks for,
         // so the oracle is a pane a hand-written form was handed the plain Swing way, and the declared
-        // size is chosen away from it so that a withdrawal that did nothing could not pass for one that
+        // size is asserted away from it so that a withdrawal that did nothing could not pass for one that
         // gave the size back.
         val handWrittenSize = JSplitPane().dividerSize
-        var size by mutableStateOf<Int?>(handWrittenSize + 13)
+        val declaredSize = 30
+        assertNotEquals(declaredSize, handWrittenSize, "the declared size must differ from the look and feel's")
+        var size by mutableStateOf<Int?>(declaredSize)
         setContent {
             SplitPane(dividerSize = size) {
                 Label(text = "A", modifier = SwingModifier.first())
@@ -138,7 +140,7 @@ class SplitPaneReactivityTest {
         }
 
         val pane = onNodeOfType<JSplitPane>().fetch()
-        assertEquals(handWrittenSize + 13, pane.dividerSize, "the declared size should reach the divider")
+        assertEquals(declaredSize, pane.dividerSize, "the declared size should reach the divider")
 
         size = null
         awaitIdle()

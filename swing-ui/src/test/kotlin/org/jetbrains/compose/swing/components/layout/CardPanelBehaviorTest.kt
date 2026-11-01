@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -21,8 +23,8 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for [PanelLayout.Card] and the cards its children name for themselves.
@@ -265,41 +267,29 @@ class CardPanelBehaviorTest {
 
     @Test
     fun twoChildrenOfOnePanelCannotNameTheSameCard() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                setContent {
-                    Panel(PanelLayout.Card(selectedCard = "shared")) {
-                        Label("first", SwingModifier.card("shared"))
-                        Label("second", SwingModifier.card("shared"))
-                    }
+        assertFailsWith<IllegalArgumentException> {
+            setContent {
+                Panel(PanelLayout.Card(selectedCard = "shared")) {
+                    Label("first", SwingModifier.card("shared"))
+                    Label("second", SwingModifier.card("shared"))
                 }
-                // The check runs a turn after the pass that added these children, once it has settled.
-                awaitIdle()
             }
-
-        assertTrue(
-            "shared" in failure.message.orEmpty(),
-            "the failure should name the card held twice: ${failure.message}",
-        )
+            // The check runs a turn after the pass that added these children, once it has settled.
+            awaitIdle()
+        }
     }
 
     @Test
     fun twoChildrenOfOnePanelCannotBothNameNoCard() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                setContent {
-                    Panel(PanelLayout.Card(selectedCard = "")) {
-                        Label("first")
-                        Label("second")
-                    }
+        assertFailsWith<IllegalArgumentException> {
+            setContent {
+                Panel(PanelLayout.Card(selectedCard = "")) {
+                    Label("first")
+                    Label("second")
                 }
-                awaitIdle()
             }
-
-        assertTrue(
-            "SwingModifier.card(key)" in failure.message.orEmpty(),
-            "the failure should tell the caller to name the cards: ${failure.message}",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -356,14 +346,14 @@ class CardPanelBehaviorTest {
             }
         }
 
-        assertTrue(
-            onNodeWithText("unnamed").fetch<JLabel>().isVisible,
+        onNodeWithText("unnamed").assertProperty(
+            true,
             "the later child with no card name should be shown for selectedCard=\"\"",
-        )
-        assertTrue(
-            !onNodeWithText("named").fetch<JLabel>().isVisible,
+        ) { isVisible }
+        onNodeWithText("named").assertProperty(
+            false,
             "a named card should stay hidden when the selected card is the empty key",
-        )
+        ) { isVisible }
     }
 
     @Test
@@ -385,9 +375,12 @@ class CardPanelBehaviorTest {
             }
         }
 
-        val layout = onNodeWithText("only").onParent().fetch<JPanel>().layout as CardLayout
-        assertEquals(HGAP, layout.hgap, "hgap")
-        assertEquals(VGAP, layout.vgap, "vgap")
+        onNodeWithText("only")
+            .onParent()
+            .assertIsOfType<JPanel>()
+            .assertProperty(HGAP to VGAP, "the declared gaps reach the card layout") {
+                assertIs<CardLayout>(layout).let { it.hgap to it.vgap }
+            }
     }
 
     private companion object {

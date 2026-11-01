@@ -21,12 +21,10 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
-import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.GraphicsEnvironment
 import javax.swing.ButtonGroup
@@ -56,14 +54,6 @@ private fun ComposeSwingTest.setFormContent(content: @Composable () -> Unit) {
     }
 }
 
-/** The control of the realized form reading [text]. */
-private fun ComposeSwingTest.formControl(text: String): SwingNodeInteraction<Component> =
-    onWindowWithTitle(FORM_TITLE).onNodeWithText(text)
-
-/** The container of the realized form tagged [tag], for one a control's own text cannot name. */
-private fun ComposeSwingTest.formContainer(tag: String): SwingNodeInteraction<Component> =
-    onWindowWithTitle(FORM_TITLE).onNodeWithTag(tag)
-
 /**
  * Behavioral tests for the focus-traversal modifiers. They drive the real `FocusTraversalPolicy` the
  * container installs and assert the observable Swing wiring rather than the modifier's internal records.
@@ -82,11 +72,12 @@ class FocusTraversalModifierTest {
                 TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val first = formControl("first").fetch<JTextField>()
-        val second = formControl("second").fetch<JTextField>()
-        val third = formControl("third").fetch<JTextField>()
+        val first = form.onNodeWithText("first").fetch<JTextField>()
+        val second = form.onNodeWithText("second").fetch<JTextField>()
+        val third = form.onNodeWithText("third").fetch<JTextField>()
 
         // Despite the declaration order (third, first, second), the policy orders by index.
         assertSame(first, policy.getFirstComponent(panel), "the lowest index starts the traversal order")
@@ -214,10 +205,11 @@ class FocusTraversalModifierTest {
                 TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val first = formControl("first").fetch<JTextField>()
-        val second = formControl("second").fetch<JTextField>()
+        val first = form.onNodeWithText("first").fetch<JTextField>()
+        val second = form.onNodeWithText("second").fetch<JTextField>()
 
         assertSame(first, policy.getComponentAfter(panel, second), "the order should wrap forward to the first")
         assertSame(second, policy.getComponentBefore(panel, first), "the order should wrap backward to the last")
@@ -235,11 +227,12 @@ class FocusTraversalModifierTest {
                 TextField("left", onValueChange = {}, modifier = SwingModifier.west())
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val indexed = formControl("indexed").fetch<JTextField>()
-        val right = formControl("right").fetch<JTextField>()
-        val left = formControl("left").fetch<JTextField>()
+        val indexed = form.onNodeWithText("indexed").fetch<JTextField>()
+        val right = form.onNodeWithText("right").fetch<JTextField>()
+        val left = form.onNodeWithText("left").fetch<JTextField>()
 
         assertSame(indexed, policy.getFirstComponent(panel), "an indexed child is visited before un-indexed ones")
         assertSame(left, policy.getComponentAfter(panel, indexed), "un-indexed children follow the indexed ones")
@@ -304,9 +297,10 @@ class FocusTraversalModifierTest {
                 TextField("live", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val live = formControl("live").fetch<JTextField>()
+        val live = form.onNodeWithText("live").fetch<JTextField>()
 
         // Only a child that can actually take focus takes part in the order, so the sole reachable
         // child is both the first and the last, and stepping from it returns to itself.
@@ -328,9 +322,10 @@ class FocusTraversalModifierTest {
                 Button("OK", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val ok = formControl("OK").fetch<JButton>()
+        val ok = form.onNodeWithText("OK").fetch<JButton>()
 
         // Disabling a heavyweight container disables everything the window system draws inside it, so
         // its content cannot be given the keyboard and never joins the order. A lightweight container
@@ -351,9 +346,10 @@ class FocusTraversalModifierTest {
                 Button("OK", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val ok = formControl("OK").fetch<JButton>()
+        val ok = form.onNodeWithText("OK").fetch<JButton>()
 
         // A control that is not a Swing component carries no Swing key bindings, and the window system
         // is asked about it instead. An AWT button reports itself focusable, so Tab stops on it exactly
@@ -373,10 +369,11 @@ class FocusTraversalModifierTest {
                 }
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val nested = formControl("nested").fetch<JTextField>()
-        val outer = formControl("outer").fetch<JTextField>()
+        val nested = form.onNodeWithText("nested").fetch<JTextField>()
+        val outer = form.onNodeWithText("outer").fetch<JTextField>()
 
         // The order spans the whole cycle: a grandchild takes its indexed place among the top-level ones.
         assertSame(nested, policy.getFirstComponent(panel), "a nested child joins the order at its index")
@@ -394,10 +391,11 @@ class FocusTraversalModifierTest {
                 }
             }
         }
-        val outerPanel = formContainer("outerPanel").fetch<JPanel>()
-        val innerPanel = formContainer("innerPanel").fetch<JPanel>()
-        val outer = formControl("outer").fetch<JTextField>()
-        val inner = formControl("inner").fetch<JTextField>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val outerPanel = form.onNodeWithTag("outerPanel").fetch<JPanel>()
+        val innerPanel = form.onNodeWithTag("innerPanel").fetch<JPanel>()
+        val outer = form.onNodeWithText("outer").fetch<JTextField>()
+        val inner = form.onNodeWithText("inner").fetch<JTextField>()
         val outerPolicy = outerPanel.focusTraversalPolicy
 
         // A nested ordered container owns its children's traversal: they are not stops of the outer
@@ -421,9 +419,10 @@ class FocusTraversalModifierTest {
                 Label("caption", modifier = SwingModifier.focusable(false))
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val caption = formControl("caption").fetch<JLabel>()
+        val caption = form.onNodeWithText("caption").fetch<JLabel>()
 
         assertNull(policy.getFirstComponent(panel), "a container with no focusable child has no first component")
         assertNull(policy.getLastComponent(panel), "a container with no focusable child has no last component")
@@ -439,8 +438,9 @@ class FocusTraversalModifierTest {
                 Button("A", onClick = { }, modifier = SwingModifier.focusable(true).focusTraversalIndex(1))
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
-        val a = formControl("A").fetch<JButton>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
+        val a = form.onNodeWithText("A").fetch<JButton>()
         assertSame(
             a,
             panel.focusTraversalPolicy.getFirstComponent(panel),
@@ -460,10 +460,11 @@ class FocusTraversalModifierTest {
                 Button("OK", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val field = formControl("name").fetch<JTextField>()
-        val ok = formControl("OK").fetch<JButton>()
+        val field = form.onNodeWithText("name").fetch<JTextField>()
+        val ok = form.onNodeWithText("OK").fetch<JButton>()
 
         // Tabbing visits only the real controls; the caption and the nested layout panel are stepped over.
         assertSame(field, policy.getFirstComponent(panel), "the text field is the first control")
@@ -482,10 +483,11 @@ class FocusTraversalModifierTest {
                 Button("OK", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val legend = formControl("Legend").fetch<JLabel>()
-        val ok = formControl("OK").fetch<JButton>()
+        val legend = form.onNodeWithText("Legend").fetch<JLabel>()
+        val ok = form.onNodeWithText("OK").fetch<JButton>()
 
         assertSame(legend, policy.getFirstComponent(panel), "the label declared focusable is a stop")
         assertSame(ok, policy.getComponentAfter(panel, legend), "the button declared non-focusable is skipped")
@@ -501,9 +503,10 @@ class FocusTraversalModifierTest {
                 Button("OK", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val ok = formControl("OK").fetch<JButton>()
+        val ok = form.onNodeWithText("OK").fetch<JButton>()
 
         // The declaration decides whether a component counts as a control, not whether the keyboard can
         // reach it: a disabled one stays out of the order either way.
@@ -522,10 +525,11 @@ class FocusTraversalModifierTest {
                 Button("D", onClick = { })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val a = formControl("A").fetch<JButton>()
-        val d = formControl("D").fetch<JButton>()
+        val a = form.onNodeWithText("A").fetch<JButton>()
+        val d = form.onNodeWithText("D").fetch<JButton>()
 
         assertSame(a, policy.getFirstComponent(panel), "the first reachable button starts the order")
         assertSame(d, policy.getComponentAfter(panel, a), "the disabled and invisible buttons are skipped")
@@ -546,7 +550,7 @@ class FocusTraversalModifierTest {
                 SwingNode(factory = { secondOption.also(group::add) })
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val panel = onWindowWithTitle(FORM_TITLE).onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
 
         // Tab enters a group of toggle buttons once, at its first member, and the arrow keys move
@@ -568,10 +572,11 @@ class FocusTraversalModifierTest {
                 Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("group")) {}
             }
         }
-        val panel = formContainer(PANEL_TAG).fetch<JPanel>()
+        val form = onWindowWithTitle(FORM_TITLE)
+        val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
-        val c = formControl("C").fetch<JButton>()
-        val group = formContainer("group").fetch<JPanel>()
+        val c = form.onNodeWithText("C").fetch<JButton>()
+        val group = form.onNodeWithTag("group").fetch<JPanel>()
 
         assertNotSame(group, policy.getFirstComponent(panel), "a layout container is not a stop")
         assertSame(
@@ -584,7 +589,7 @@ class FocusTraversalModifierTest {
 
 /** Asserts that Tab after Tab from the control reading the first of [texts] reaches the ones after it, in order. */
 private fun ComposeSwingTest.assertTabOrder(vararg texts: String) {
-    var control = formControl(texts.first()).fetch()
+    var control = onWindowWithTitle(FORM_TITLE).onNodeWithText(texts.first()).fetch()
     val reached =
         List(texts.size) { index ->
             if (index > 0) {

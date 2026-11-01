@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -14,6 +15,8 @@ import javax.swing.LookAndFeel
 import javax.swing.tree.DefaultMutableTreeNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 
 /**
  * A small data tree used to feed [Tree] from nested values: each [Node] yields its [children], and its
@@ -65,11 +68,10 @@ class TreeBehaviorTest {
         // so asking the tree to take a look-and-feel value is what distinguishes "left to the look and
         // feel" from "set to the same value", whatever the host's look and feel defaults to.
         LookAndFeel.installProperty(tree, "showsRootHandles", installed)
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             installed,
-            tree.showsRootHandles,
             "an undeclared choice should still accept the look and feel's value",
-        )
+        ) { showsRootHandles }
     }
 
     @Test
@@ -84,13 +86,12 @@ class TreeBehaviorTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(true, tree.showsRootHandles, "a declared choice should be applied")
+        onNodeOfType<JTree>().assertProperty(true, "a declared choice should be applied") { showsRootHandles }
         LookAndFeel.installProperty(tree, "showsRootHandles", false)
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             true,
-            tree.showsRootHandles,
             "a declared choice should outrank the look and feel",
-        )
+        ) { showsRootHandles }
     }
 
     @Test
@@ -112,15 +113,15 @@ class TreeBehaviorTest {
 
         declared = !ownChoice
         awaitIdle()
-        assertEquals(!ownChoice, tree.showsRootHandles, "a declared choice should be applied")
+        onNodeOfType<JTree>().assertProperty(!ownChoice, "a declared choice should be applied") { showsRootHandles }
 
         declared = null
         awaitIdle()
-        assertEquals(
+        assertSame(tree, onNodeOfType<JTree>().fetch(), "the component is updated in place, not rebuilt")
+        onNodeOfType<JTree>().assertProperty(
             ownChoice,
-            tree.showsRootHandles,
             "withdrawing the declaration should give the look and feel's own choice back",
-        )
+        ) { showsRootHandles }
     }
 
     @Test
@@ -142,23 +143,20 @@ class TreeBehaviorTest {
         declared = !ownChoice
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             !ownChoice,
-            onNodeOfType<JTree>().fetch().showsRootHandles,
             "a declared root-handle choice should displace the look and feel's own",
-        )
-
+        ) { showsRootHandles }
         active = false
         awaitIdle()
         declared = null
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             ownChoice,
-            onNodeOfType<JTree>().fetch().showsRootHandles,
             "a reactivated tree should give the look and feel's own choice back",
-        )
+        ) { showsRootHandles }
     }
 
     @Test
@@ -194,21 +192,21 @@ class TreeBehaviorTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
         // Declaring a height different from the look and feel's own is what makes the withdrawal observable.
-        val ownHeight = tree.rowHeight
+        val ownHeight = onNodeOfType<JTree>().fetch().rowHeight
 
-        declared = ownHeight + 9
+        val declaredHeight = 31
+        assertNotEquals(declaredHeight, ownHeight, "the declared height must differ from the look and feel's")
+        declared = declaredHeight
         awaitIdle()
-        assertEquals(ownHeight + 9, tree.rowHeight, "a declared row height should be applied")
+        onNodeOfType<JTree>().assertProperty(declaredHeight, "a declared row height should be applied") { rowHeight }
 
         declared = null
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             ownHeight,
-            tree.rowHeight,
             "withdrawing the declaration should give the look and feel's own height back",
-        )
+        ) { rowHeight }
     }
 
     @Test
@@ -227,10 +225,13 @@ class TreeBehaviorTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
         val own = JTree()
-        assertEquals(own.visibleRowCount, tree.visibleRowCount, "the visible row count should be a JTree's own")
-        assertEquals(own.toggleClickCount, tree.toggleClickCount, "the toggle click count should be a JTree's own")
+        onNodeOfType<JTree>().assertProperty(own.visibleRowCount, "the visible row count should be a JTree's own") {
+            visibleRowCount
+        }
+        onNodeOfType<JTree>().assertProperty(own.toggleClickCount, "the toggle click count should be a JTree's own") {
+            toggleClickCount
+        }
     }
 
     @Test
@@ -249,18 +250,20 @@ class TreeBehaviorTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(24, tree.rowHeight, "the declared row height should reach the tree")
-        assertEquals(12, tree.visibleRowCount, "the declared visible row count should reach the tree")
-        assertEquals(1, tree.toggleClickCount, "the declared toggle click count should reach the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(24, "the declared row height should reach the tree") { this.rowHeight }
+        tree.assertProperty(12, "the declared visible row count should reach the tree") { this.visibleRowCount }
+        tree.assertProperty(1, "the declared toggle click count should reach the tree") { this.toggleClickCount }
 
         rowHeight = 0
         visibleRowCount = 5
         toggleClickCount = 3
         awaitIdle()
-        assertEquals(0, tree.rowHeight, "a row height of zero should reach the tree, so each row sizes itself")
-        assertEquals(5, tree.visibleRowCount, "a changed visible row count should be re-applied")
-        assertEquals(3, tree.toggleClickCount, "a changed toggle click count should be re-applied")
+        tree.assertProperty(0, "a row height of zero should reach the tree, so each row sizes itself") {
+            this.rowHeight
+        }
+        tree.assertProperty(5, "a changed visible row count should be re-applied") { this.visibleRowCount }
+        tree.assertProperty(3, "a changed toggle click count should be re-applied") { this.toggleClickCount }
     }
 
     @Test
@@ -273,15 +276,17 @@ class TreeBehaviorTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        val root = tree.model.root as DefaultMutableTreeNode
-        assertEquals("root", tree.labelAt(emptyList()), "the root node should render its label")
-        assertEquals(2, root.childCount, "the root should have two children")
-        assertEquals("fruit", tree.labelAt(listOf(0)), "node [0] should be fruit")
-        assertEquals("veg", tree.labelAt(listOf(1)), "node [1] should be veg")
-        assertEquals("apple", tree.labelAt(listOf(0, 0)), "node [0,0] should be apple")
-        assertEquals("pear", tree.labelAt(listOf(0, 1)), "node [0,1] should be pear")
-        assertEquals("carrot", tree.labelAt(listOf(1, 0)), "node [1,0] should be carrot")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty("root", "the root node should render its label") { labelAt(emptyList()) }
+        tree.assertProperty(
+            2,
+            "the root should have two children",
+        ) { model.getChildCount(model.root) }
+        tree.assertProperty("fruit", "node [0] should be fruit") { labelAt(listOf(0)) }
+        tree.assertProperty("veg", "node [1] should be veg") { labelAt(listOf(1)) }
+        tree.assertProperty("apple", "node [0,0] should be apple") { labelAt(listOf(0, 0)) }
+        tree.assertProperty("pear", "node [0,1] should be pear") { labelAt(listOf(0, 1)) }
+        tree.assertProperty("carrot", "node [1,0] should be carrot") { labelAt(listOf(1, 0)) }
     }
 
     @Test
@@ -346,21 +351,21 @@ class TreeBehaviorTest {
             Tree(root = data, children = { it.children }, state = state, label = { it.name })
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(
             listOf("root", "fruit", "apple", "pear", "veg"),
-            tree.rowLabels(),
             "the tree should start on the rows the first data describes",
-        )
+        ) { rowLabels() }
+        val treeBefore = tree.fetch()
 
         data = Node("root", listOf(Node("only", listOf(Node("leaf")))))
         awaitIdle()
+        assertSame(treeBefore, tree.fetch(), "the component is updated in place, not rebuilt")
 
-        assertEquals(
+        tree.assertProperty(
             listOf("root", "only", "leaf"),
-            tree.rowLabels(),
             "the rows should be the ones the new data describes",
-        )
+        ) { rowLabels() }
     }
 
     @Test
@@ -375,20 +380,18 @@ class TreeBehaviorTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(
             listOf("fruit", "veg"),
-            (0 until tree.rowCount).map { tree.getPathForRow(it).lastPathComponent.toString() },
             "a hidden root leaves its children as the tree's top-level rows",
-        )
+        ) { (0 until rowCount).map { getPathForRow(it).lastPathComponent.toString() } }
 
         rootVisible = true
         awaitIdle()
-        assertEquals(
+        tree.assertProperty(
             listOf("root", "fruit", "veg"),
-            (0 until tree.rowCount).map { tree.getPathForRow(it).lastPathComponent.toString() },
             "showing the root again puts it back at the top",
-        )
+        ) { (0 until rowCount).map { getPathForRow(it).lastPathComponent.toString() } }
     }
 
     @Test

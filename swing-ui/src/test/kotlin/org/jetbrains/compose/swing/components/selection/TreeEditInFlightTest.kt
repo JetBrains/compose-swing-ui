@@ -3,13 +3,12 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /** A value tree: each topic yields its [children], and its [name] is what the row renders. */
 private data class Topic(
@@ -41,13 +40,13 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         // The node under the editor takes over another value at the same position, keeping its identity.
         root = Topic("root", listOf(a, Topic("C")))
         awaitIdle()
 
-        assertFalse(tree.isEditing, "the edit should end with the node it was opened on")
+        onNodeOfType<JTree>().assertProperty(false, "the edit should end with the node it was opened on") { isEditing }
         assertEquals(emptyList(), edits, "and commit nothing, rather than against the value that took over")
     }
 
@@ -68,12 +67,15 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         root = Topic("root", listOf(a))
         awaitIdle()
 
-        assertFalse(tree.isEditing, "the edit should end with the node that left the structure")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the edit should end with the node that left the structure",
+        ) { isEditing }
         assertEquals(emptyList(), edits, "and commit nothing, since the node it named is gone")
     }
 
@@ -94,13 +96,13 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         // A sibling is rewritten; the node under the editor is handed over unchanged.
         root = Topic("root", listOf(Topic("X"), b))
         awaitIdle()
 
-        assertTrue(tree.isEditing, "an edit on a node the walk left alone should stand")
+        onNodeOfType<JTree>().assertProperty(true, "an edit on a node the walk left alone should stand") { isEditing }
 
         tree.stopEditing()
         assertEquals(
@@ -129,12 +131,12 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         root = Topic("root", listOf(Topic("X"), Topic("B")))
         awaitIdle()
 
-        assertTrue(tree.isEditing, "an edit on a node rebuilt equal should stand")
+        onNodeOfType<JTree>().assertProperty(true, "an edit on a node rebuilt equal should stand") { isEditing }
 
         tree.stopEditing()
         assertEquals(
@@ -165,12 +167,15 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         root = Topic("root", listOf(Topic("X"), a, b))
         awaitIdle()
 
-        assertTrue(tree.isEditing, "an edit on a node an insert only moved along should stand")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "an edit on a node an insert only moved along should stand",
+        ) { isEditing }
 
         tree.stopEditing()
         assertEquals(
@@ -200,12 +205,12 @@ class TreeEditInFlightTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.startEditingAtPath(tree.pathTo(1))
-        assertTrue(tree.isEditing, "the second node's row should open for editing")
+        onNodeOfType<JTree>().assertProperty(true, "the second node's row should open for editing") { isEditing }
 
         hasChildren = { true }
         awaitIdle()
 
-        assertFalse(tree.isEditing, "the edit should end with the model it was opened on")
+        onNodeOfType<JTree>().assertProperty(false, "the edit should end with the model it was opened on") { isEditing }
         assertEquals(emptyList(), edits, "and commit nothing, since the nodes it named are gone")
     }
 }

@@ -468,7 +468,7 @@ class CompositionLifecycleTest {
         )
         assertNotSame(
             provided,
-            windowContent.owner,
+            assertNotNull(windowContent.owner, "the window content must have read an owner"),
             "a window's content must read the owner of the window it is, not one provided around the " +
                 "declaration it was written in",
         )

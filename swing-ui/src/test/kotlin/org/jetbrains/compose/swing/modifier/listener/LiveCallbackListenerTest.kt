@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -290,11 +291,10 @@ class LiveCallbackListenerTest {
         onNodeOfType<JButton>().performClick()
 
         assertEquals(listOf("first", "second"), pressed, "each press runs the callback the latest pass built")
-        assertEquals(
+        onNodeOfType<JButton>().assertProperty(
             "second",
-            onNodeOfType<JButton>().fetch().toolTipText,
             "and the keyed element declared beside it is applied by the diff",
-        )
+        ) { toolTipText }
     }
 
     @Test

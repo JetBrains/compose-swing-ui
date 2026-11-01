@@ -6,10 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -20,7 +20,6 @@ import javax.swing.JScrollPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -78,8 +77,10 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("body", labelTextOf(pane.viewport.view), "content should reach the central viewport")
+        onNodeOfType<JScrollPane>().assertProperty(
+            "body",
+            "content should reach the central viewport",
+        ) { labelTextOf(viewport.view) }
     }
 
     @Test
@@ -93,15 +94,14 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("body", labelTextOf(pane.viewport.view), "content should reach the central viewport")
-        assertEquals("rows", labelTextOf(pane.rowHeader?.view), "rowHeader should reach the row header slot")
-        assertEquals("cols", labelTextOf(pane.columnHeader?.view), "columnHeader should reach the column header slot")
-        assertEquals(
-            "corner",
-            labelTextOf(pane.getCorner(JScrollPane.UPPER_TRAILING_CORNER)),
-            "corner should reach the upper-trailing corner slot",
-        )
+        onNodeOfType<JScrollPane>()
+            .assertProperty("body", "content should reach the central viewport") { labelTextOf(viewport.view) }
+            .assertProperty("rows", "rowHeader should reach the row header slot") { labelTextOf(rowHeader?.view) }
+            .assertProperty("cols", "columnHeader should reach the column header slot") {
+                labelTextOf(columnHeader?.view)
+            }.assertProperty("corner", "corner should reach the upper-trailing corner slot") {
+                labelTextOf(getCorner(JScrollPane.UPPER_TRAILING_CORNER))
+            }
     }
 
     @Test
@@ -113,14 +113,19 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("first", labelTextOf(pane.viewport.view), "the viewport should start with the first content")
+        onNodeOfType<JScrollPane>().assertProperty(
+            "first",
+            "the viewport should start with the first content",
+        ) { labelTextOf(viewport.view) }
 
         label = "second"
         awaitIdle()
 
         // The single viewport view now reflects the new content; the viewport itself is reused.
-        assertEquals("second", labelTextOf(pane.viewport.view), "redeclaring content should replace the viewport view")
+        onNodeOfType<JScrollPane>().assertProperty(
+            "second",
+            "redeclaring content should replace the viewport view",
+        ) { labelTextOf(viewport.view) }
     }
 
     @Test
@@ -164,23 +169,21 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertNotNull(pane.rowHeader, "row header should be installed before removal")
-        assertNotNull(pane.columnHeader, "column header should be installed before removal")
-        assertNotNull(
-            pane.getCorner(JScrollPane.UPPER_TRAILING_CORNER),
-            "corner should be installed before removal",
-        )
+        onNodeOfType<JScrollPane>()
+            .assertProperty(true, "row header should be installed before removal") { rowHeader != null }
+            .assertProperty(true, "column header should be installed before removal") { columnHeader != null }
+            .assertProperty(true, "corner should be installed before removal") {
+                getCorner(JScrollPane.UPPER_TRAILING_CORNER) != null
+            }
 
         showHeaders = false
         awaitIdle()
 
-        // Uninstall must release each host slot entirely (not leave an empty header viewport / corner).
-        assertNull(pane.rowHeader, "row header slot leaked")
-        assertNull(pane.columnHeader, "column header slot leaked")
-        assertNull(pane.getCorner(JScrollPane.UPPER_TRAILING_CORNER), "corner slot leaked")
-        // Content is untouched.
-        assertEquals("body", labelTextOf(pane.viewport.view), "content should survive removing the headers")
+        onNodeOfType<JScrollPane>()
+            .assertProperty(null, "row header slot leaked") { rowHeader }
+            .assertProperty(null, "column header slot leaked") { columnHeader }
+            .assertProperty(null, "corner slot leaked") { getCorner(JScrollPane.UPPER_TRAILING_CORNER) }
+            .assertProperty("body", "content should survive removing the headers") { labelTextOf(viewport.view) }
     }
 
     @Test
@@ -219,15 +222,18 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("moving", labelTextOf(pane.viewport.view), "the child should start in the viewport")
-        assertNull(pane.rowHeader, "row header installed though the child declared the viewport")
+        onNodeOfType<JScrollPane>()
+            .assertProperty("moving", "the child should start in the viewport") { labelTextOf(viewport.view) }
+            .assertProperty(null, "row header installed though the child declared the viewport") { rowHeader }
 
         asHeader = true
         awaitIdle()
 
-        assertEquals("moving", labelTextOf(pane.rowHeader?.view), "the child should follow the region it declares")
-        assertNull(pane.viewport.view, "the viewport should release the child that now declares the row header")
+        onNodeOfType<JScrollPane>()
+            .assertProperty("moving", "the child should follow the region it declares") { labelTextOf(rowHeader?.view) }
+            .assertProperty(null, "the viewport should release the child that now declares the row header") {
+                viewport.view
+            }
     }
 
     @Test
@@ -259,61 +265,40 @@ class ScrollPaneRegionTest {
         // A JScrollPane reaches its children through its own setters, and ScrollPaneLayout is no
         // LayoutManager2, so a child merely added to the pane would be held with no bounds and painted
         // by nobody. It is refused instead.
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    ScrollPane {
-                        Label(text = "loose")
-                    }
+        assertFailsWith<IllegalStateException>("the refusal should say the child named no region") {
+            setContent {
+                ScrollPane {
+                    Label(text = "loose")
                 }
             }
-
-        val message = failure.message.orEmpty()
-        assertTrue("names none" in message, "the refusal should say the child named no region: $message")
-        assertTrue("JScrollPane" in message, "the refusal should name the host that holds the regions: $message")
-        assertTrue(
-            "Name the region it fills through one of: Viewport { }, VerticalScrollbar(), HorizontalScrollbar(), " +
-                "SwingModifier.rowHeader(), SwingModifier.columnHeader(), SwingModifier.corner(position)." in message,
-            "the refusal should list every call that would place the child: $message",
-        )
+        }
     }
 
     @Test
     fun twoChildrenNamingOneRegionAreRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    ScrollPane {
-                        Viewport { Label(text = "body") }
-                        Label(text = "rows", modifier = SwingModifier.rowHeader())
-                        Label(text = "more rows", modifier = SwingModifier.rowHeader())
-                    }
+        assertFailsWith<IllegalStateException>("the refusal should name the region two children declared") {
+            setContent {
+                ScrollPane {
+                    Viewport { Label(text = "body") }
+                    Label(text = "rows", modifier = SwingModifier.rowHeader())
+                    Label(text = "more rows", modifier = SwingModifier.rowHeader())
                 }
-                awaitIdle()
             }
-
-        assertTrue(
-            "two children declare SwingModifier.rowHeader()" in failure.message.orEmpty(),
-            "the refusal should name the region two children declared: ${failure.message}",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
     fun twoViewportsAreRefusedAsTwoClaimsOfOneViewport() = runComposeSwingTest {
-        val message =
-            failureOf {
-                setContent {
-                    ScrollPane {
-                        Viewport { Label(text = "body") }
-                        Viewport {}
-                    }
+        assertFailsWith<IllegalStateException>("two Viewport { } declarations must be refused") {
+            setContent {
+                ScrollPane {
+                    Viewport { Label(text = "body") }
+                    Viewport {}
                 }
-                awaitIdle()
             }
-        assertTrue(
-            "Viewport { } is declared twice at once in one JScrollPane" in message,
-            "the refusal should say the viewport is declared twice: $message",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -326,17 +311,12 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(
-            "upper",
-            labelTextOf(pane.getCorner(JScrollPane.UPPER_LEFT_CORNER)),
-            "the upper-left corner should hold the child that declared it",
-        )
-        assertEquals(
-            "lower",
-            labelTextOf(pane.getCorner(JScrollPane.LOWER_RIGHT_CORNER)),
-            "the lower-right corner should hold the child that declared it",
-        )
+        onNodeOfType<JScrollPane>()
+            .assertProperty("upper", "the upper-left corner should hold the child that declared it") {
+                labelTextOf(getCorner(JScrollPane.UPPER_LEFT_CORNER))
+            }.assertProperty("lower", "the lower-right corner should hold the child that declared it") {
+                labelTextOf(getCorner(JScrollPane.LOWER_RIGHT_CORNER))
+            }
     }
 
     @Test
@@ -353,27 +333,16 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(
-            "upper leading",
-            labelTextOf(pane.getCorner(JScrollPane.UPPER_LEFT_CORNER)),
-            "the upper-leading child should hold the upper-left corner",
-        )
-        assertEquals(
-            "upper trailing",
-            labelTextOf(pane.getCorner(JScrollPane.UPPER_RIGHT_CORNER)),
-            "the upper-trailing child should hold the upper-right corner",
-        )
-        assertEquals(
-            "lower left",
-            labelTextOf(pane.getCorner(JScrollPane.LOWER_LEFT_CORNER)),
-            "the lower-left corner should hold the child that declared it",
-        )
-        assertEquals(
-            "lower right",
-            labelTextOf(pane.getCorner(JScrollPane.LOWER_RIGHT_CORNER)),
-            "the lower-right corner should hold the child that declared it",
-        )
+        onNodeOfType<JScrollPane>()
+            .assertProperty("upper leading", "the upper-leading child should hold the upper-left corner") {
+                labelTextOf(getCorner(JScrollPane.UPPER_LEFT_CORNER))
+            }.assertProperty("upper trailing", "the upper-trailing child should hold the upper-right corner") {
+                labelTextOf(getCorner(JScrollPane.UPPER_RIGHT_CORNER))
+            }.assertProperty("lower left", "the lower-left corner should hold the child that declared it") {
+                labelTextOf(getCorner(JScrollPane.LOWER_LEFT_CORNER))
+            }.assertProperty("lower right", "the lower-right corner should hold the child that declared it") {
+                labelTextOf(getCorner(JScrollPane.LOWER_RIGHT_CORNER))
+            }
     }
 
     @Test
@@ -389,34 +358,25 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(
+        onNodeOfType<JScrollPane>().assertProperty(
             "resolved",
-            (pane.getCorner(JScrollPane.UPPER_RIGHT_CORNER) as JLabel).text,
             "the later of two children reaching for one corner is the one the pane shows",
-        )
+        ) { labelTextOf(getCorner(JScrollPane.UPPER_RIGHT_CORNER)) }
     }
 
     @Test
     fun twoChildrenSpellingOneCornerAlikeAreRefused() = runComposeSwingTest {
         // One key is one region whatever the pane's orientation, so this collision is the library's to
         // refuse rather than the pane's to settle.
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    ScrollPane {
-                        Label(text = "first", modifier = SwingModifier.corner(JScrollPane.UPPER_RIGHT_CORNER))
-                        Label(text = "second", modifier = SwingModifier.corner(JScrollPane.UPPER_RIGHT_CORNER))
-                    }
+        assertFailsWith<IllegalStateException>("two children spelling one corner alike must be refused") {
+            setContent {
+                ScrollPane {
+                    Label(text = "first", modifier = SwingModifier.corner(JScrollPane.UPPER_RIGHT_CORNER))
+                    Label(text = "second", modifier = SwingModifier.corner(JScrollPane.UPPER_RIGHT_CORNER))
                 }
-                awaitIdle()
             }
-
-        val message = failure.message.orEmpty()
-        assertTrue(
-            "two children declare SwingModifier.corner(UPPER_RIGHT_CORNER)" in message,
-            "the refusal should name the corner both children reached for: $message",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -437,17 +397,22 @@ class ScrollPaneRegionTest {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("first", labelTextOf(pane.viewport.view), "the viewport should start with the first branch")
+        onNodeOfType<JScrollPane>().assertProperty("first", "the viewport should start with the first branch") {
+            labelTextOf(viewport.view)
+        }
 
         alternate = true
         awaitIdle()
 
-        assertEquals("second", labelTextOf(pane.viewport.view), "the branch now declared should fill the viewport")
+        onNodeOfType<JScrollPane>().assertProperty("second", "the branch now declared should fill the viewport") {
+            labelTextOf(viewport.view)
+        }
 
         alternate = false
         awaitIdle()
 
-        assertEquals("first", labelTextOf(pane.viewport.view), "swapping back should fill the viewport again")
+        onNodeOfType<JScrollPane>().assertProperty("first", "swapping back should fill the viewport again") {
+            labelTextOf(viewport.view)
+        }
     }
 }

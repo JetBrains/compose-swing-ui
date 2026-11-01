@@ -8,6 +8,7 @@ import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.AWTEvent
@@ -51,11 +52,10 @@ class InternalFrameStateTest {
             }
         }
 
-        assertEquals(
+        onNodeOfType<JInternalFrame>().assertProperty(
             Rectangle(10, 20, 300, 200),
-            onNodeOfType<JInternalFrame>().fetch().bounds,
             "the frame should open on the declared bounds",
-        )
+        ) { bounds }
     }
 
     @Test
@@ -206,11 +206,10 @@ class InternalFrameStateTest {
             }
 
             assertEquals(Rectangle(80, 90, 100, 100), state.bounds, "the move should stand over the placement")
-            assertEquals(
+            onNodeOfType<JInternalFrame>().assertProperty(
                 Rectangle(80, 90, 100, 100),
-                onNodeOfType<JInternalFrame>().fetch().bounds,
                 "the frame should end up where the move puts it",
-            )
+            ) { bounds }
         } finally {
             Toolkit.getDefaultToolkit().removeAWTEventListener(observer)
         }
@@ -377,10 +376,9 @@ class InternalFrameStateTest {
 
         assertSame(built, remembered, "the state survives the recomposition rather than being rebuilt")
         assertEquals(Rectangle(10, 20, 300, 200), built.bounds, "a later initial value leaves the state alone")
-        assertEquals(
+        onNodeOfType<JInternalFrame>().assertProperty(
             Rectangle(10, 20, 300, 200),
-            onNodeOfType<JInternalFrame>().fetch().bounds,
             "and leaves the frame where the state put it",
-        )
+        ) { bounds }
     }
 }

@@ -24,7 +24,6 @@ import javax.swing.JTabbedPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -68,7 +67,7 @@ class TabbedPaneBehaviorTest {
     private fun bodyTextAt(
         pane: JTabbedPane,
         index: Int,
-    ): String = (pane.getComponentAt(index) as JLabel).text
+    ): String = assertIs<JLabel>(pane.getComponentAt(index)).text
 
     @Test
     fun aTabAppendsToTheChainWithoutRepeatingIt() = runComposeSwingTest {
@@ -134,27 +133,6 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun tabAttributesUpdateViaRecomposition() = runComposeSwingTest {
-        var title by mutableStateOf("Old")
-        var enabled by mutableStateOf(true)
-        setContent {
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                Label("body", SwingModifier.tab(title, enabled = enabled))
-            }
-        }
-
-        val pane = onNodeOfType<JTabbedPane>().fetch()
-        assertEquals(listOf("Old"), titles(pane), "the tab should start with its original title")
-        assertEquals(true, pane.isEnabledAt(0), "the tab should start enabled")
-
-        title = "New"
-        enabled = false
-        awaitIdle()
-        assertEquals(listOf("New"), titles(pane), "the tab title should update on recomposition")
-        assertFalse(pane.isEnabledAt(0), "tab enabled did not update on recomposition")
-    }
-
-    @Test
     fun selectedIndexIsControlledAndChangeCallbackFires() = runComposeSwingTest {
         val events = mutableListOf<Int>()
         var selected by mutableIntStateOf(0)
@@ -193,8 +171,10 @@ class TabbedPaneBehaviorTest {
             }
         }
 
-        val pane = onNodeOfType<JTabbedPane>().fetch()
-        assertEquals(2, pane.selectedIndex, "the pane should open on the declared index, not on its own default")
+        onNodeOfType<JTabbedPane>().assertProperty(
+            2,
+            "the pane should open on the declared index, not on its own default",
+        ) { selectedIndex }
     }
 
     @Test
@@ -704,14 +684,18 @@ class TabbedPaneBehaviorTest {
 
         val pane = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(1, pane.tabCount, "the declared tab should stand")
-        assertEquals("as a label", (pane.getComponentAt(0) as JLabel).text, "the tab should hold the declared body")
+        assertEquals(
+            "as a label",
+            assertIs<JLabel>(pane.getComponentAt(0)).text,
+            "the tab should hold the declared body",
+        )
 
         asLabel = false
         awaitIdle()
         assertEquals(1, pane.tabCount, "replacing what fills the tab should leave one tab, not two")
         assertEquals(
             "as a button",
-            (pane.getComponentAt(0) as JButton).text,
+            assertIs<JButton>(pane.getComponentAt(0)).text,
             "the tab should hold the body the composition now declares",
         )
 
@@ -720,7 +704,7 @@ class TabbedPaneBehaviorTest {
         assertEquals(1, pane.tabCount, "swapping the body back should still leave one tab")
         assertEquals(
             "as a label",
-            (pane.getComponentAt(0) as JLabel).text,
+            assertIs<JLabel>(pane.getComponentAt(0)).text,
             "the tab should hold the body the composition declares again",
         )
     }

@@ -1,7 +1,9 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.layout.ScrollPane
@@ -9,8 +11,12 @@ import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.mouseEvent
 import org.jetbrains.compose.swing.paintsOf
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.InputEvent
 import java.awt.event.MouseEvent
 import javax.swing.JTable
@@ -30,8 +36,6 @@ import kotlin.test.assertTrue
  * header click or column drag is painted as they made it, with no pass after it showing another arrangement.
  */
 class TableStateArrangementTest {
-    private val people = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
-
     @Test
     fun aColumnTheTableDropsKeepsItsPlaceInTheState() = runComposeSwingTest {
         var withAge by mutableStateOf(true)
@@ -49,20 +53,20 @@ class TableStateArrangementTest {
                 )
             }
         }
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
 
         withAge = false
         awaitIdle()
 
-        assertEquals(listOf(0), table.columnModel.modelIndices(), "only the surviving column should be left")
-        assertEquals(listOf(40), table.columnModel.preferredWidths(), "at the width the state gives it")
+        table.assertProperty(listOf(0), "only the surviving column should be left") { columnModel.modelIndices() }
+        table.assertProperty(listOf(40), "at the width the state gives it") { columnModel.preferredWidths() }
         assertEquals(layout, state.columnLayout, "the state should go on naming the column the table dropped")
 
         withAge = true
         awaitIdle()
 
-        assertEquals(listOf(1, 0), table.columnModel.modelIndices(), "the column should come back in its place")
-        assertEquals(listOf(120, 40), table.columnModel.preferredWidths(), "at its width")
+        table.assertProperty(listOf(1, 0), "the column should come back in its place") { columnModel.modelIndices() }
+        table.assertProperty(listOf(120, 40), "at its width") { columnModel.preferredWidths() }
     }
 
     @Test
@@ -81,19 +85,21 @@ class TableStateArrangementTest {
                 sortable = true,
             )
         }
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
 
         withAge = false
         awaitIdle()
 
-        assertEquals(emptyList(), table.rowSorter.sortKeys.toList(), "the table has no column left to sort by")
+        table.assertProperty(emptyList<SortKey>(), "the table has no column left to sort by") {
+            rowSorter.sortKeys.toList()
+        }
         assertEquals(byAge, state.sortKeys, "the state should go on naming the column the table dropped")
 
         withAge = true
         awaitIdle()
 
-        assertEquals(byAge, table.rowSorter.sortKeys.toList(), "the column should sort the rows again")
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "in the state's order")
+        table.assertProperty(byAge, "the column should sort the rows again") { rowSorter.sortKeys.toList() }
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "in the state's order") { shownNames() }
     }
 
     @Test
@@ -102,17 +108,15 @@ class TableStateArrangementTest {
         setContent {
             Table(rows = people, columns = { column("Name") { it.name } }, state = state, sortable = true)
         }
-        val table = onNodeOfType<JTable>().fetch()
 
         val keys = listOf(SortKey(5, SortOrder.ASCENDING), SortKey(0, SortOrder.DESCENDING))
         state.sortKeys = keys
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             listOf(SortKey(0, SortOrder.DESCENDING)),
-            table.rowSorter.sortKeys.toList(),
             "the table sorts by the columns it has",
-        )
+        ) { rowSorter.sortKeys.toList() }
         assertEquals(keys, state.sortKeys, "and the state should go on naming the one it lacks")
     }
 
@@ -132,14 +136,14 @@ class TableStateArrangementTest {
                 )
             }
         }
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
 
         val layout = TableColumnLayout(modelIndices = listOf(2, 1, 0), preferredWidths = listOf(60, 80, 90))
         state.columnLayout = layout
         awaitIdle()
 
-        assertEquals(listOf(1, 0), table.columnModel.modelIndices(), "the table lays out the columns it has")
-        assertEquals(listOf(80, 90), table.columnModel.preferredWidths(), "at the widths the layout names")
+        table.assertProperty(listOf(1, 0), "the table lays out the columns it has") { columnModel.modelIndices() }
+        table.assertProperty(listOf(80, 90), "at the widths the layout names") { columnModel.preferredWidths() }
         assertEquals(layout, state.columnLayout, "and the state should go on naming the one it lacks")
     }
 
@@ -210,47 +214,27 @@ class TableStateArrangementTest {
      * A caller can replace the table's column model whole. The columns that arrive carry a layout of their
      * own, and no later change of rows, columns or model would otherwise put the state's layout onto them.
      */
-    @Test
-    fun aStatesLayoutReachesTheColumnsAColumnModelSwapBringsInOnAModelTable() = runComposeSwingTest {
-        val layout = TableColumnLayout(modelIndices = listOf(1, 0), preferredWidths = listOf(80, 90))
-        val state = TableState(initialColumnLayout = layout)
-        val model = modelWithColumns("Name", "Age")
-        setContent { HeaderPane { Table(model = model, state = state) } }
-        val table = onNodeOfType<JTable>().fetch()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tableKinds")
+    fun aStatesLayoutReachesTheColumnsAColumnModelSwapBringsIn(table: @Composable (TableState) -> Unit) =
+        runComposeSwingTest {
+            val layout = TableColumnLayout(modelIndices = listOf(1, 0), preferredWidths = listOf(80, 90))
+            val state = TableState(initialColumnLayout = layout)
+            setContent { HeaderPane { table(state) } }
 
-        table.columnModel = twoFreshColumns()
-        awaitIdle()
+            onNodeOfType<JTable>().fetch().columnModel = twoFreshColumns()
+            awaitIdle()
 
-        assertEquals(listOf(1, 0), table.columnModel.modelIndices(), "the state's order reaches the new columns")
-        assertEquals(listOf(80, 90), table.columnModel.preferredWidths(), "and so do its widths")
-        assertEquals(layout, state.columnLayout, "a column model the caller installs is not written back")
-    }
-
-    @Test
-    fun aStatesLayoutReachesTheColumnsAColumnModelSwapBringsInOnARowsTable() = runComposeSwingTest {
-        val layout = TableColumnLayout(modelIndices = listOf(1, 0), preferredWidths = listOf(80, 90))
-        val state = TableState(initialColumnLayout = layout)
-        setContent {
-            HeaderPane {
-                Table(
-                    rows = people,
-                    columns = {
-                        column("Name") { it.name }
-                        column("Age") { it.age }
-                    },
-                    state = state,
-                )
-            }
+            onNodeOfType<JTable>().assertProperty(
+                listOf(1, 0),
+                "the state's order reaches the new columns",
+            ) { columnModel.modelIndices() }
+            onNodeOfType<JTable>().assertProperty(
+                listOf(80, 90),
+                "and so do its widths",
+            ) { columnModel.preferredWidths() }
+            assertEquals(layout, state.columnLayout, "a column model the caller installs is not written back")
         }
-        val table = onNodeOfType<JTable>().fetch()
-
-        table.columnModel = twoFreshColumns()
-        awaitIdle()
-
-        assertEquals(listOf(1, 0), table.columnModel.modelIndices(), "the state's order reaches the new columns")
-        assertEquals(listOf(80, 90), table.columnModel.preferredWidths(), "and so do its widths")
-        assertEquals(layout, state.columnLayout, "a column model the caller installs is not written back")
-    }
 
     /**
      * A structure change the caller makes to their own model in place starts the sorter and the columns
@@ -270,9 +254,15 @@ class TableStateArrangementTest {
         model.addColumn("City")
         awaitIdle()
 
-        assertEquals(emptyList(), table.rowSorter.sortKeys.toList(), "the table's rows are unsorted again")
+        onNodeOfType<JTable>().assertProperty(
+            emptyList(),
+            "the table's rows are unsorted again",
+        ) { rowSorter.sortKeys.toList() }
         assertEquals(emptyList(), state.sortKeys, "and the state holds that")
-        assertEquals(listOf(0, 1, 2), table.columnModel.modelIndices(), "the columns are in the model's order")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0, 1, 2),
+            "the columns are in the model's order",
+        ) { columnModel.modelIndices() }
         assertEquals(listOf(0, 1, 2), state.columnLayout?.modelIndices, "and the state holds that order")
         assertEquals(
             table.columnModel.preferredWidths(),
@@ -284,5 +274,26 @@ class TableStateArrangementTest {
     private fun twoFreshColumns(): DefaultTableColumnModel = DefaultTableColumnModel().apply {
         addColumn(TableColumn(0))
         addColumn(TableColumn(1))
+    }
+
+    companion object {
+        private val people = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
+
+        @JvmStatic
+        fun tableKinds(): List<Named<@Composable (TableState) -> Unit>> = listOf(
+            Named.of("caller's model") { state ->
+                Table(model = remember { modelWithColumns("Name", "Age") }, state = state)
+            },
+            Named.of("declared rows") { state ->
+                Table(
+                    rows = people,
+                    columns = {
+                        column("Name") { it.name }
+                        column("Age") { it.age }
+                    },
+                    state = state,
+                )
+            },
+        )
     }
 }

@@ -1,7 +1,12 @@
 package org.jetbrains.compose.swing.modifier.datatransfer
 
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.TransferHandler
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -13,20 +18,6 @@ import kotlin.test.assertTrue
  * `isDrop`/`dropAction` values a real drop or paste would carry.
  */
 class DropActionGateTest {
-    @Test
-    fun aPasteClearsTheGateRegardlessOfTheAcceptedActionsMask() {
-        // isDrop false is what a clipboard paste's TransferSupport reports; it carries no drop action
-        // to gate on, so the mask never excludes it.
-        assertTrue(
-            acceptsDropAction(
-                isDrop = false,
-                acceptedActions = TransferHandler.COPY,
-                dropAction = { TransferHandler.MOVE },
-            ),
-            "a paste must clear the gate even though its action is outside the accepted mask",
-        )
-    }
-
     @Test
     fun aPasteIsNeverAskedWhatActionItCarries() {
         // A TransferSupport that is not a drop throws from getDropAction() rather than answer it, so
@@ -41,48 +32,53 @@ class DropActionGateTest {
                     TransferHandler.MOVE
                 },
             ),
+            "a paste must clear the gate even though its action is outside the accepted mask",
         )
         assertFalse(asked, "the gate must not read the drop action of a transfer that is not a drop")
     }
 
-    @Test
-    fun aDropWhoseActionIsInTheAcceptedMaskClearsTheGate() {
-        assertTrue(
-            acceptsDropAction(
-                isDrop = true,
-                acceptedActions = TransferHandler.COPY,
-                dropAction = { TransferHandler.COPY },
-            ),
-            "a drop whose action is accepted must clear the gate",
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("dropActions")
+    fun aDropClearsTheGateExactlyWhenTheMaskAcceptsItsAction(
+        acceptedActions: Int,
+        dropAction: Int,
+        accepted: Boolean,
+    ) {
+        assertEquals(
+            accepted,
+            acceptsDropAction(isDrop = true, acceptedActions = acceptedActions, dropAction = { dropAction }),
+            "a drop must clear the gate exactly when its action is in the accepted mask",
         )
     }
 
-    @Test
-    fun aDropWhoseActionIsOutsideTheAcceptedMaskIsRefused() {
-        assertFalse(
-            acceptsDropAction(
-                isDrop = true,
-                acceptedActions = TransferHandler.COPY,
-                dropAction = { TransferHandler.MOVE },
+    companion object {
+        @JvmStatic
+        fun dropActions(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of("single-action mask, its action", TransferHandler.COPY),
+                TransferHandler.COPY,
+                true,
             ),
-            "a drop whose action is not accepted must be refused",
-        )
-    }
-
-    @Test
-    fun aDropIsAcceptedWhenItsActionIsAnyMemberOfAMultiActionMask() {
-        val copyOrMove = TransferHandler.COPY_OR_MOVE
-        assertTrue(
-            acceptsDropAction(isDrop = true, acceptedActions = copyOrMove, dropAction = { TransferHandler.COPY }),
-            "a drop whose action is one member of a multi-action mask must clear the gate",
-        )
-        assertTrue(
-            acceptsDropAction(isDrop = true, acceptedActions = copyOrMove, dropAction = { TransferHandler.MOVE }),
-            "a drop whose action is the other member of a multi-action mask must clear the gate",
-        )
-        assertFalse(
-            acceptsDropAction(isDrop = true, acceptedActions = copyOrMove, dropAction = { TransferHandler.LINK }),
-            "a drop whose action is outside every member of a multi-action mask must be refused",
+            Arguments.of(
+                Named.of("single-action mask, another action", TransferHandler.COPY),
+                TransferHandler.MOVE,
+                false,
+            ),
+            Arguments.of(
+                Named.of("multi-action mask, first member", TransferHandler.COPY_OR_MOVE),
+                TransferHandler.COPY,
+                true,
+            ),
+            Arguments.of(
+                Named.of("multi-action mask, second member", TransferHandler.COPY_OR_MOVE),
+                TransferHandler.MOVE,
+                true,
+            ),
+            Arguments.of(
+                Named.of("multi-action mask, non-member", TransferHandler.COPY_OR_MOVE),
+                TransferHandler.LINK,
+                false,
+            ),
         )
     }
 }

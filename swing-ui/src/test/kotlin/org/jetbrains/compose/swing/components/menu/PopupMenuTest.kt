@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,6 +31,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -52,7 +54,7 @@ class PopupMenuTest {
     fun anExpandedMenuComposesTheDeclaredItems() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var expanded by mutableStateOf(false)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -80,7 +82,7 @@ class PopupMenuTest {
         )
         assertEquals(
             "Nested",
-            (popup.getComponent(3) as JMenu).getItem(0).text,
+            assertIs<JMenu>(popup.getComponent(3)).getItem(0).text,
             "a submenu must be composed into the menu as well",
         )
     }
@@ -90,14 +92,14 @@ class PopupMenuTest {
         var anchorPoint: Pair<Int, Int>? = null
         var invoker: JLabel? = null
         var expanded by mutableStateOf(false)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
                 anchor,
                 expanded = expanded,
                 display = { _, target, x, y ->
-                    invoker = target as JLabel
+                    invoker = assertIs<JLabel>(target)
                     anchorPoint = x to y
                 },
                 onDismiss = { expanded = false },
@@ -122,7 +124,7 @@ class PopupMenuTest {
         var captured: JPopupMenu? = null
         var expanded by mutableStateOf(true)
         var exported = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -135,7 +137,7 @@ class PopupMenuTest {
             }
         }
 
-        val item = (captured ?: error("the menu did not open")).getComponent(0) as JMenuItem
+        val item = assertIs<JMenuItem>((captured ?: error("the menu did not open")).getComponent(0))
         item.doClick()
         assertEquals(1, exported, "selecting the item must run its onClick callback")
     }
@@ -145,7 +147,7 @@ class PopupMenuTest {
         var captured: JPopupMenu? = null
         var expanded by mutableStateOf(true)
         var exported = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -158,7 +160,7 @@ class PopupMenuTest {
             }
         }
         val popup = captured ?: error("the menu did not open")
-        val item = popup.getComponent(0) as JMenuItem
+        val item = assertIs<JMenuItem>(popup.getComponent(0))
 
         // The look and feel clears the selection path before it clicks the item, so the dismissal and
         // everything it drives - here the declaration going false - run first, and the selection lands
@@ -176,7 +178,7 @@ class PopupMenuTest {
         var expanded by mutableStateOf(false)
         var dismissals = 0
         var released = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -215,7 +217,7 @@ class PopupMenuTest {
         lateinit var first: JPopupMenu
         var second: JPopupMenu? = null
         val failure = IllegalStateException("dismissal")
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label(caption, modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -254,7 +256,7 @@ class PopupMenuTest {
     fun aCloseTheCallerDoesNotAdoptDoesNotBringTheMenuBack() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var label by mutableStateOf("target")
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label(label, modifier = SwingModifier.popupAnchor(anchor))
             // The declaration stays open: the caller hears the close and leaves its state alone.
@@ -285,7 +287,7 @@ class PopupMenuTest {
         var expanded by mutableStateOf(true)
         var dismissals = 0
         var released = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -318,7 +320,7 @@ class PopupMenuTest {
     fun aMenuIsReleasedWithTheComponentThatDeclaredIt() = runComposeSwingTest {
         var present by mutableStateOf(true)
         var released = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             if (present) {
                 Label("target", modifier = SwingModifier.popupAnchor(anchor))
@@ -350,7 +352,7 @@ class PopupMenuTest {
         var expanded by mutableStateOf(false)
         var generation by mutableIntStateOf(1)
         var handled = 0
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val declared = generation
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
@@ -371,7 +373,7 @@ class PopupMenuTest {
 
         val popup = captured ?: error("the menu did not open")
         assertEquals(listOf("Item 2"), popup.menuItemTexts(), "the menu must show what the latest pass declared")
-        (popup.getComponent(0) as JMenuItem).doClick()
+        assertIs<JMenuItem>(popup.getComponent(0)).doClick()
         assertEquals(2, handled, "and run that pass's callback, not a captured earlier one")
     }
 
@@ -379,7 +381,7 @@ class PopupMenuTest {
     fun anOpenMenuFollowsTheStateItsItemsRead() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var wrap by mutableStateOf(true)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -391,7 +393,7 @@ class PopupMenuTest {
                 CheckBoxMenuItem("Wrap", checked = wrap, onCheckedChange = { wrap = it })
             }
         }
-        val item = (captured ?: error("the menu did not open")).getComponent(0) as JCheckBoxMenuItem
+        val item = assertIs<JCheckBoxMenuItem>((captured ?: error("the menu did not open")).getComponent(0))
         assertTrue(item.isSelected, "the item reflects the state it was composed with")
 
         // Toggling the item drives the hoisted flag, and the open menu follows it back.
@@ -405,7 +407,7 @@ class PopupMenuTest {
     fun anOpenMenuFollowsAChangedComponentDefault() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var color by mutableStateOf(Color.MAGENTA)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             ProvideComponentDefaults(DefaultBackground provides color) {
                 val anchor = rememberPopupAnchor()
                 Label("target", modifier = SwingModifier.popupAnchor(anchor))
@@ -432,7 +434,7 @@ class PopupMenuTest {
         var captured: JPopupMenu? = null
         var expanded by mutableStateOf(true)
         var extra by mutableStateOf(false)
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -464,7 +466,7 @@ class PopupMenuTest {
     @Test
     fun twoMenusOnOneAnchorEachOpenTheirOwn() = runComposeSwingTest {
         val opened = mutableListOf<List<String?>>()
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(
@@ -529,7 +531,7 @@ class PopupMenuTest {
         // the invoker's place on screen, which the invoker only has once its window shows it. A window
         // that survives the pass with its content intact is a menu that reached the screen rather than
         // one that tore the pass down on its way there.
-        setWindowContent {
+        setWindowContent(WINDOW_TITLE) {
             val anchor = rememberPopupAnchor()
             Label("target", modifier = SwingModifier.popupAnchor(anchor))
             PopupMenu(anchor, expanded = true, onDismiss = {}) { MenuItem("Cut", onClick = { }) }
@@ -568,11 +570,10 @@ class PopupMenuTest {
         awaitIdle()
 
         assertNull(captured, "a declaration withdrawn before its window shows must not open a menu")
-        val label = onWindowWithTitle("popup-menu-withdrawn-test").onNodeWithText("target").fetch<JLabel>()
-        assertTrue(
-            label.hierarchyListeners.none { it.javaClass.name.startsWith("org.jetbrains.compose.swing") },
+        onWindowWithTitle("popup-menu-withdrawn-test").onNodeWithText("target").assertProperty(
+            true,
             "and must leave nothing on the component still waiting to open one",
-        )
+        ) { hierarchyListeners.none { it.javaClass.name.startsWith("org.jetbrains.compose.swing") } }
     }
 
     @Test
@@ -606,10 +607,13 @@ private const val WINDOW_TITLE = "popup-menu-test"
  * Realizing that window needs a display, so a case built on this one reports SKIPPED where there is
  * none.
  */
-private suspend fun ComposeSwingTest.setWindowContent(content: @Composable () -> Unit) {
+internal suspend fun ComposeSwingTest.setWindowContent(
+    title: String,
+    content: @Composable () -> Unit,
+) {
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     setContent {
-        Window(onCloseRequest = {}, title = WINDOW_TITLE) { content() }
+        Window(onCloseRequest = {}, title = title) { content() }
     }
     awaitIdle()
 }

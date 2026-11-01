@@ -3,14 +3,13 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
 import javax.swing.JTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /** A two-level value tree: `root` holds `a` and `b`, and `a` holds `a1`. */
 private fun childrenOf(value: String): List<String> = when (value) {
@@ -41,8 +40,10 @@ class SelectionStateTest {
         }
         val state = declared ?: error("the list did not compose")
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the rows the state starts on reach the list")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(1),
+            "the rows the state starts on reach the list",
+        ) { selectedIndices.toList() }
         assertEquals(setOf(1), state.selectedIndices, "and are what the state goes on holding")
     }
 
@@ -55,17 +56,16 @@ class SelectionStateTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(emptyList<Int>(), list.selectedIndices.toList(), "a state naming no row selects none")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(emptyList<Int>(), "a state naming no row selects none") { selectedIndices.toList() }
 
         state.selectedIndices = setOf(0, 2)
         mainClock.advanceTimeByFrame()
 
-        assertEquals(
+        list.assertProperty(
             listOf(0, 2),
-            list.selectedIndices.toList(),
             "the one pass that carries the state's new rows should already have selected them",
-        )
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -80,7 +80,10 @@ class SelectionStateTest {
         awaitIdle()
 
         assertEquals(setOf(2), state.selectedIndices, "the row the user selected reaches the state")
-        assertEquals(listOf(2), list.selectedIndices.toList(), "and stands, since the state adopted it")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(2),
+            "and stands, since the state adopted it",
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -94,13 +97,22 @@ class SelectionStateTest {
         val list = onNodeOfType<JList<*>>().fetch()
         // A drag upwards from the last row: it ends - and so leaves the lead - on the first one.
         list.selectionModel.setSelectionInterval(2, 0)
-        assertEquals(0, list.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+        onNodeOfType<JList<*>>().assertProperty(
+            0,
+            "the drag left the lead on the row it ended on",
+        ) { selectionModel.leadSelectionIndex }
 
         count = 6
         awaitIdle()
 
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the selection is the one already applied")
-        assertEquals(0, list.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0, 1, 2),
+            "the selection is the one already applied",
+        ) { selectedIndices.toList() }
+        onNodeOfType<JList<*>>().assertProperty(
+            0,
+            "the lead the user left is where it was",
+        ) { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -111,19 +123,19 @@ class SelectionStateTest {
             ListBox(items = items, state = state)
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(2), list.selectedIndices.toList(), "the row the state names is selected")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(2), "the row the state names is selected") { selectedIndices.toList() }
 
         items = colors.take(2)
         awaitIdle()
 
-        assertEquals(emptyList<Int>(), list.selectedIndices.toList(), "items that do not reach it leave it out")
+        list.assertProperty(emptyList<Int>(), "items that do not reach it leave it out") { selectedIndices.toList() }
         assertEquals(setOf(2), state.selectedIndices, "and the state goes on naming it")
 
         items = colors
         awaitIdle()
 
-        assertEquals(listOf(2), list.selectedIndices.toList(), "items that reach it again show it selected")
+        list.assertProperty(listOf(2), "items that reach it again show it selected") { selectedIndices.toList() }
     }
 
     @Test
@@ -137,9 +149,10 @@ class SelectionStateTest {
             Tree(root = "root", children = { childrenOf(it) }, state = state)
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo()), "the root the state names is open")
-        assertEquals(listOf(tree.pathTo(1)), tree.selectionPaths?.toList(), "and the node it names is selected")
+        onNodeOfType<JTree>().assertProperty(true, "the root the state names is open") { isExpanded(pathTo()) }
+        onNodeOfType<JTree>().assertProperty(true, "and the node it names is selected") {
+            selectionPaths?.toList() == listOf(pathTo(1))
+        }
     }
 
     @Test
@@ -151,22 +164,23 @@ class SelectionStateTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertFalse(tree.isExpanded(tree.pathTo()), "a state naming no expansion opens nothing")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "a state naming no expansion opens nothing",
+        ) { isExpanded(pathTo()) }
 
         state.expandedPaths = setOf(emptyList(), listOf(0))
         state.selectedPaths = setOf(listOf(0, 0))
         mainClock.advanceTimeByFrame()
 
-        assertTrue(
-            tree.isExpanded(tree.pathTo(0)),
+        onNodeOfType<JTree>().assertProperty(
+            true,
             "the one pass that carries the state's expansion should already have opened the node it names",
-        )
-        assertEquals(
-            listOf(tree.pathTo(0, 0)),
-            tree.selectionPaths?.toList(),
+        ) { isExpanded(pathTo(0)) }
+        onNodeOfType<JTree>().assertProperty(
+            true,
             "and the same pass should already have selected the node the state names",
-        )
+        ) { selectionPaths?.toList() == listOf(pathTo(0, 0)) }
     }
 
     @Test
@@ -190,6 +204,9 @@ class SelectionStateTest {
             state.expandedPaths,
             "and every node that is then open reaches it too",
         )
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the user opened stays open, the state having adopted it")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the node the user opened stays open, the state having adopted it",
+        ) { isExpanded(pathTo(0)) }
     }
 }

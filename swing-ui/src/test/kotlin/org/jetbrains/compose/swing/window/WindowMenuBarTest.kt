@@ -15,6 +15,8 @@ import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -34,7 +36,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -169,7 +170,7 @@ class WindowMenuBarTest {
         }
 
         val window = onWindowWithTitle("menu-bar-hoisted")
-        val item = window.fetch<JFrame>().jMenuBar.getComponent(0) as JCheckBoxMenuItem
+        val item = window.onNodeWithText("Wrap").assertIsOfType<JCheckBoxMenuItem>().fetch()
         item.doClick()
         awaitIdle()
 
@@ -197,7 +198,10 @@ class WindowMenuBarTest {
         }
 
         val frame = onWindowWithTitle("menu-bar-withdrawn").fetch<JFrame>()
-        assertNull(frame.jMenuBar, "a window whose content declares no menu bar should carry none")
+        onWindowWithTitle("menu-bar-withdrawn").assertIsOfType<JFrame>().assertProperty(
+            null,
+            "a window whose content declares no menu bar should carry none",
+        ) { jMenuBar }
 
         showMenu = true
         awaitIdle()
@@ -209,7 +213,10 @@ class WindowMenuBarTest {
 
         showMenu = false
         awaitIdle()
-        assertNull(frame.jMenuBar, "a menu bar that leaves the composition should be taken off the window")
+        onWindowWithTitle("menu-bar-withdrawn").assertIsOfType<JFrame>().assertProperty(
+            null,
+            "a menu bar that leaves the composition should be taken off the window",
+        ) { jMenuBar }
     }
 
     @Test
@@ -502,7 +509,8 @@ class WindowMenuBarTest {
 
         val bar = onWindowWithTitle("menu-bar-open-submenu").fetch<JFrame>().jMenuBar
         val file = bar.getMenu(0)
-        val export = file.getItem(1) as JMenu
+        val export =
+            onWindowWithTitle("menu-bar-open-submenu").onNodeWithText("Export").assertIsOfType<JMenu>().fetch()
         // The selection standing while the user is in the submenu of an open menu.
         val selection = MenuSelectionManager.defaultManager()
         onWindowWithTitle("menu-bar-open-submenu").awaitWindowSystemIdle()
@@ -542,7 +550,10 @@ class WindowMenuBarTest {
         showMenu = false
         awaitIdle()
 
-        assertNull(frame.jMenuBar, "a menu bar that leaves the composition should be taken off the window")
+        onWindowWithTitle("menu-bar-open-withdrawn").assertIsOfType<JFrame>().assertProperty(
+            null,
+            "a menu bar that leaves the composition should be taken off the window",
+        ) { jMenuBar }
         assertEquals(
             emptyList<MenuElement>(),
             selection.selectedPath.toList(),
@@ -586,7 +597,10 @@ class WindowMenuBarTest {
             showMenu = false
             awaitIdle()
 
-            assertNull(frame.jMenuBar, "the menu bar that left the composition should be off the window")
+            onWindowWithTitle("menu-bar-open-elsewhere").assertIsOfType<JFrame>().assertProperty(
+                null,
+                "the menu bar that left the composition should be off the window",
+            ) { jMenuBar }
             // Emptying the bar and answering the selection are one pass in the applier, so an emptied
             // bar shows that pass ran.
             assertEquals(

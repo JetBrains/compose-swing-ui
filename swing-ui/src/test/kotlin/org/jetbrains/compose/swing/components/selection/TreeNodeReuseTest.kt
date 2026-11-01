@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -59,19 +60,20 @@ class TreeNodeReuseTest {
                 Tree(model = model, selectedPaths = setOf(listOf(1)))
             }
         }
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("pear"), tree.selectedLabels(), "the controlled selection should be applied")
+        onNodeOfType<JTree>().assertProperty(
+            listOf("pear"),
+            "the controlled selection should be applied",
+        ) { selectedLabels() }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             listOf("pear"),
-            onNodeOfType<JTree>().fetch().selectedLabels(),
             "the fresh tree should hold the controlled selection",
-        )
+        ) { selectedLabels() }
     }
 
     @Test
@@ -102,10 +104,9 @@ class TreeNodeReuseTest {
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             "<pear>",
-            onNodeOfType<JTree>().fetch().renderRow(row = 2).firstLabelText(),
             "the fresh tree should render the composable node",
-        )
+        ) { renderRow(row = 2).firstLabelText() }
     }
 }

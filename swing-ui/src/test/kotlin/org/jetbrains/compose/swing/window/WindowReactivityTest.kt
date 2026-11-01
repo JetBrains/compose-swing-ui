@@ -15,6 +15,10 @@ import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
@@ -186,45 +190,21 @@ class WindowReactivityTest {
         ) { frame.location }
     }
 
-    @Test
-    fun sizeReactsToStateChange() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sizeChanges")
+    fun aSizeStateChangeResizesTheRealizedFrame(
+        change: WindowState.() -> Unit,
+        expected: Dimension,
+    ) = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertReaches(Dimension(320, 240)) { frame.size }
-        state.size = Dimension(500, 400)
+        assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
+        state.change()
         // Applying size to the peer is an asynchronous native resize; wait for the frame to reach the
         // target rather than assert right after the compose frame that requests it.
-        assertReaches(Dimension(500, 400)) { frame.size }
-    }
-
-    @Test
-    fun widthReactsToStateChange() = runComposeSwingTest {
-        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = WindowState(size = Dimension(320, 240))
-        setContent { Window(onCloseRequest = {}, state = state, title = "width-test") {} }
-        val frame = onWindow().fetch<JFrame>()
-        assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
-        state.width = 500
-        assertReaches(
-            Dimension(500, 240),
-            "assigning width must resize the realized frame, leaving its height unchanged",
-        ) { frame.size }
-    }
-
-    @Test
-    fun heightReactsToStateChange() = runComposeSwingTest {
-        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = WindowState(size = Dimension(320, 240))
-        setContent { Window(onCloseRequest = {}, state = state, title = "height-test") {} }
-        val frame = onWindow().fetch<JFrame>()
-        assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
-        state.height = 400
-        assertReaches(
-            Dimension(320, 400),
-            "assigning height must resize the realized frame, leaving its width unchanged",
-        ) { frame.size }
+        assertReaches(expected, "the realized frame must take the size the state's change declares") { frame.size }
     }
 
     @Test
@@ -562,6 +542,21 @@ class WindowReactivityTest {
             Frame.MAXIMIZED_BOTH,
             state.extendedState,
             "the state must keep reflecting the user-driven maximize",
+        )
+    }
+
+    companion object {
+        private fun sizeChange(
+            name: String,
+            change: WindowState.() -> Unit,
+            expected: Dimension,
+        ): Arguments = Arguments.of(Named.of(name, change), expected)
+
+        @JvmStatic
+        fun sizeChanges(): List<Arguments> = listOf(
+            sizeChange("size", { size = Dimension(500, 400) }, Dimension(500, 400)),
+            sizeChange("width", { width = 500 }, Dimension(500, 240)),
+            sizeChange("height", { height = 400 }, Dimension(320, 400)),
         )
     }
 }

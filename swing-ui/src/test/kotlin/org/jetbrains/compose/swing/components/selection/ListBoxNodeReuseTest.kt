@@ -1,12 +1,17 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.DefaultListModel
 import javax.swing.JLabel
 import javax.swing.JList
@@ -25,12 +30,6 @@ import kotlin.test.assertTrue
  * list reactivation builds renders the composable cell again.
  */
 class ListBoxNodeReuseTest {
-    private val colors = listOf("red", "green")
-
-    /** A caller-owned model holding the first [size] of [colors]. */
-    private fun listModel(size: Int = colors.size): DefaultListModel<String> =
-        DefaultListModel<String>().apply { for (color in colors.take(size)) addElement(color) }
-
     @Test
     fun aParkedListRendersItsOwnCellsAndTheFreshOneRendersTheComposableCellAgain() = runComposeSwingTest {
         var active by mutableStateOf(true)
@@ -62,50 +61,40 @@ class ListBoxNodeReuseTest {
         )
     }
 
-    @Test
-    fun aReactivatedListStillHoldsItsControlledSelection() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("declarations")
+    fun aReactivatedListStillHoldsItsControlledSelection(list: @Composable () -> Unit) = runComposeSwingTest {
         var active by mutableStateOf(true)
-        setContent {
-            ReusableContentHost(active = active) {
-                ListBox(items = colors, selectedIndices = setOf(1))
-            }
-        }
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the controlled selection should be applied")
+        setContent { ReusableContentHost(active = active) { list() } }
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(1),
+            "the controlled selection should be applied",
+        ) { selectedIndices.toList() }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JList<*>>().assertProperty(
             listOf(1),
-            onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
             "the fresh list should hold the controlled selection",
-        )
+        ) { selectedIndices.toList() }
     }
 
-    @Test
-    fun aReactivatedModelDrivenListStillHoldsItsControlledSelection() = runComposeSwingTest {
-        var active by mutableStateOf(true)
-        val model = listModel()
-        setContent {
-            ReusableContentHost(active = active) {
-                ListBox(model = model, selectedIndices = setOf(1))
-            }
+    companion object {
+        private val colors = listOf("red", "green")
+
+        private fun listModel(size: Int = colors.size): DefaultListModel<String> =
+            DefaultListModel<String>().apply { for (color in colors.take(size)) addElement(color) }
+
+        @JvmStatic
+        fun declarations(): List<Named<@Composable () -> Unit>> {
+            val model = listModel()
+            return listOf(
+                Named.of("items", { ListBox(items = colors, selectedIndices = setOf(1)) }),
+                Named.of("caller's model", { ListBox(model = model, selectedIndices = setOf(1)) }),
+            )
         }
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the controlled selection should be applied")
-
-        active = false
-        awaitIdle()
-        active = true
-        awaitIdle()
-
-        assertEquals(
-            listOf(1),
-            onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
-            "the fresh model-driven list should hold the controlled selection",
-        )
     }
 }

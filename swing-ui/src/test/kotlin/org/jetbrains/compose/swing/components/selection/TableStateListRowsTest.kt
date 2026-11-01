@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.TracedTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -12,6 +13,7 @@ import javax.swing.event.TableModelEvent
 import javax.swing.event.TableModelListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -39,8 +41,8 @@ class TableStateListRowsTest : TracedTest() {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val events = recordEvents(table)
+        val table = onNodeOfType<JTable>()
+        val events = recordEvents(table.fetch())
         // Building the table is churn, and reading it here is what says the recording below is a silence
         // rather than a channel that was never listening.
         val mountChurn = tracer.passes().flatten().filterNot { it == SETTLE }
@@ -50,7 +52,7 @@ class TableStateListRowsTest : TracedTest() {
         rows.add(Person("Alan", 41))
         awaitIdle()
 
-        assertEquals(2, table.model.rowCount, "the model should hold both rows")
+        table.assertProperty(2, "the model should hold both rows") { model.rowCount }
         assertEquals(listOf("insert 1..1"), events.describe(), "the appended row is what changed")
         assertEquals(
             emptyList(),
@@ -67,13 +69,15 @@ class TableStateListRowsTest : TracedTest() {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val events = recordEvents(table)
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        val events = recordEvents(table.fetch())
 
         rows.removeAt(0)
         awaitIdle()
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
 
-        assertEquals(1, table.model.rowCount, "the model should hold the remaining row")
+        table.assertProperty(1, "the model should hold the remaining row") { model.rowCount }
         assertEquals(listOf("delete 0..0"), events.describe(), "the removed row is what changed")
     }
 
@@ -84,13 +88,18 @@ class TableStateListRowsTest : TracedTest() {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val events = recordEvents(table)
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        val events = recordEvents(table.fetch())
 
         rows[0] = Person("Alan", 41)
         awaitIdle()
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
 
-        assertEquals("Alan", table.model.getValueAt(0, 0), "the model should hold the replacing row")
+        table.assertProperty(
+            "Alan",
+            "the model should hold the replacing row",
+        ) { model.getValueAt(0, 0) }
         assertEquals(listOf("update 0..0"), events.describe(), "the replaced row is what changed")
     }
 
@@ -101,13 +110,15 @@ class TableStateListRowsTest : TracedTest() {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val events = recordEvents(table)
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        val events = recordEvents(table.fetch())
 
         rows.add(1, Person("Alan", 41))
         awaitIdle()
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
 
-        assertEquals(3, table.model.rowCount, "the model should hold all three rows")
+        table.assertProperty(3, "the model should hold all three rows") { model.rowCount }
         assertEquals(listOf("insert 1..1"), events.describe(), "the inserted row is what changed")
     }
 
@@ -118,14 +129,14 @@ class TableStateListRowsTest : TracedTest() {
             Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val events = recordEvents(table)
+        val table = onNodeOfType<JTable>()
+        val events = recordEvents(table.fetch())
 
         rows.clear()
         rows += listOf(Person("Marie", 66), Person("Rosalind", 37))
         awaitIdle()
 
-        assertEquals(2, table.model.rowCount, "the model should hold the new rows")
+        table.assertProperty(2, "the model should hold the new rows") { model.rowCount }
         assertEquals(
             listOf("update 0..${Int.MAX_VALUE}"),
             events.describe(),
@@ -142,8 +153,9 @@ class TableStateListRowsTest : TracedTest() {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(2, table.model.rowCount, "the table should start out showing both rows")
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        table.assertProperty(2, "the table should start out showing both rows") { model.rowCount }
 
         // The caller drops a row, and no pass has carried that yet. A model reading the caller's list
         // would report one row here while the table still paints two, so a repaint arriving before the
@@ -151,16 +163,16 @@ class TableStateListRowsTest : TracedTest() {
         rows.removeAt(1)
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             2,
-            table.model.rowCount,
             "the model must report the rows the table was last told about, not the caller's list",
-        )
-        assertEquals("Alan", table.model.getValueAt(1, 0), "the dropped row must still be readable")
+        ) { model.rowCount }
+        table.assertProperty("Alan", "the dropped row must still be readable") { model.getValueAt(1, 0) }
 
         mainClock.advanceTimeByFrame()
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
 
-        assertEquals(1, table.model.rowCount, "the pass carrying the change should leave the model with one row")
+        table.assertProperty(1, "the pass carrying the change should leave the model with one row") { model.rowCount }
     }
 
     @Test
@@ -177,7 +189,7 @@ class TableStateListRowsTest : TracedTest() {
         rowHeight = 24
         awaitIdle()
 
-        assertEquals(24, table.rowHeight, "the pass this asserts about has to have run")
+        onNodeOfType<JTable>().assertProperty(24, "the pass this asserts about has to have run") { this.rowHeight }
         assertTrue(events.isEmpty(), "a pass that changed no row should leave the table alone")
     }
 

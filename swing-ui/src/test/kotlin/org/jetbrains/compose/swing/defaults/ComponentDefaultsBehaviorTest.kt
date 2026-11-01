@@ -22,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -73,33 +74,31 @@ class ComponentDefaultsBehaviorTest {
         }
 
         val labels = onAllNodesOfType<JLabel>()
-        assertEquals(Color.RED, labels.fetchAll()[0].background, "outer node should receive outer default")
+        labels[0].assertProperty(Color.RED, "outer node should receive outer default") { background }
 
         // In inner provider, it receives innerColor (BLUE)
         // Check labels
         onAllNodesOfType<JLabel>().assertCountEquals(3)
-        assertEquals(
+        onAllNodesOfType<JLabel>()[1].assertProperty(
             Color.BLUE,
-            onAllNodesOfType<JLabel>().fetchAll()[1].background,
             "inner node should receive inner default",
-        )
+        ) { background }
 
         // Remove inner default by providing null
         innerColor = null
         awaitIdle()
         val baseline = JLabel().background
-        assertEquals(
+        onAllNodesOfType<JLabel>()[1].assertProperty(
             baseline,
-            onAllNodesOfType<JLabel>().fetchAll()[1].background,
             "inner node should revert to baseline when inner default is null",
-        )
+        ) { background }
 
         // Remove inner provider entirely
         showInner = false
         awaitIdle()
         onAllNodesOfType<JLabel>().assertCountEquals(2)
-        assertEquals(Color.RED, onAllNodesOfType<JLabel>().fetchAll()[0].background)
-        assertEquals(Color.RED, onAllNodesOfType<JLabel>().fetchAll()[1].background)
+        onAllNodesOfType<JLabel>()[0].assertProperty(Color.RED) { background }
+        onAllNodesOfType<JLabel>()[1].assertProperty(Color.RED) { background }
     }
 
     @Test
@@ -112,11 +111,7 @@ class ComponentDefaultsBehaviorTest {
                 Label("duplicate")
             }
         }
-        assertEquals(
-            Color.BLUE,
-            onNodeOfType<JLabel>().fetch().background,
-            "last argument for duplicate key should win",
-        )
+        onNodeOfType<JLabel>().assertProperty(Color.BLUE, "last argument for duplicate key should win") { background }
     }
 
     @Test
@@ -129,7 +124,7 @@ class ComponentDefaultsBehaviorTest {
                 Label("duplicateRemoved")
             }
         }
-        assertEquals(JLabel().background, onNodeOfType<JLabel>().fetch().background, "last removal should win")
+        onNodeOfType<JLabel>().assertProperty(JLabel().background, "last removal should win") { background }
     }
 
     @Test
@@ -145,7 +140,7 @@ class ComponentDefaultsBehaviorTest {
                 Label("competing")
             }
         }
-        assertEquals(Color.GREEN, onNodeOfType<JLabel>().fetch().background, "later key in provision order should win")
+        onNodeOfType<JLabel>().assertProperty(Color.GREEN, "later key in provision order should win") { background }
     }
 
     @Test
@@ -249,7 +244,7 @@ class ComponentDefaultsBehaviorTest {
 
         assertEquals(Color.RED, readKey1, "key1.current should report its provided value")
         assertEquals(Color.BLUE, readKey2, "key2.current should report its provided value")
-        assertEquals(Color.BLUE, onNodeOfType<JLabel>().fetch().background, "component background is won by key2")
+        onNodeOfType<JLabel>().assertProperty(Color.BLUE, "component background is won by key2") { background }
     }
 
     @Test
@@ -289,17 +284,18 @@ class ComponentDefaultsBehaviorTest {
             }
         }
 
-        val label = onNodeOfType<JLabel>().fetch()
-        val button = onNodeOfType<JButton>().fetch()
-
-        assertEquals(Color.DARK_GRAY, label.background)
-        assertEquals(Color.LIGHT_GRAY, label.foreground)
-        assertEquals(customFont, label.font)
-        assertFalse(label.isEnabled)
-        assertFalse(button.isEnabled, "DefaultEnabled provides false cascades to descendant buttons")
-        assertEquals(customCursor, label.cursor)
-        assertEquals(customOrientation, label.componentOrientation)
-        assertFalse(label.isOpaque)
+        onNodeOfType<JLabel>()
+            .assertProperty(Color.DARK_GRAY) { background }
+            .assertProperty(Color.LIGHT_GRAY) { foreground }
+            .assertProperty(customFont) { font }
+            .assertIsNotEnabled()
+            .assertProperty(customCursor) { cursor }
+            .assertProperty(customOrientation) { componentOrientation }
+            .assertProperty(false) { isOpaque }
+        onNodeOfType<JButton>().assertProperty(
+            false,
+            "DefaultEnabled provides false cascades to descendant buttons",
+        ) { isEnabled }
 
         // Verify without provider, defaults start empty with no implicit values
         assertNull(emptyBg)
@@ -327,12 +323,13 @@ class ComponentDefaultsBehaviorTest {
             }
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        val label = onNodeOfType<JLabel>().fetch()
-
-        assertEquals(Color.PINK, button.background, "matching background element applies to JButton")
-        assertEquals(Color.PINK, label.background, "matching background element applies to JLabel")
-        assertEquals("inherited", label.text, "label-only element applies to JLabel")
+        onNodeOfType<JButton>().assertProperty(
+            Color.PINK,
+            "matching background element applies to JButton",
+        ) { background }
+        onNodeOfType<JLabel>()
+            .assertProperty(Color.PINK, "matching background element applies to JLabel") { background }
+            .assertProperty("inherited", "label-only element applies to JLabel") { text }
     }
 
     @Test
@@ -346,7 +343,7 @@ class ComponentDefaultsBehaviorTest {
             }
         }
 
-        assertEquals(SwingConstants.RIGHT, onNodeOfType<JLabel>().fetch().horizontalAlignment)
+        onNodeOfType<JLabel>().assertProperty(SwingConstants.RIGHT) { horizontalAlignment }
     }
 
     @Test
@@ -362,10 +359,10 @@ class ComponentDefaultsBehaviorTest {
         provided = DefaultBackground provides Color.BLUE
         awaitIdle()
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(Color.BLUE, button.background)
-        assertEquals(Color.RED, button.foreground)
-        assertEquals("tip", button.toolTipText)
+        onNodeOfType<JButton>()
+            .assertProperty(Color.BLUE) { background }
+            .assertProperty(Color.RED) { foreground }
+            .assertProperty("tip") { toolTipText }
     }
 
     @Test
@@ -482,16 +479,8 @@ class ComponentDefaultsBehaviorTest {
         val uiResource = ColorUIResource(Color.ORANGE)
 
         setContent {
-            if (hasDefault) {
-                ProvideComponentDefaults(DefaultBackground provides Color.RED) {
-                    SwingNode(
-                        factory = { JLabel("uiResource").apply { background = uiResource } },
-                    )
-                }
-            } else {
-                SwingNode(
-                    factory = { JLabel("uiResource").apply { background = uiResource } },
-                )
+            ProvideComponentDefaults(DefaultBackground provides if (hasDefault) Color.RED else null) {
+                SwingNode(factory = { JLabel("uiResource").apply { background = uiResource } })
             }
         }
 
@@ -500,7 +489,7 @@ class ComponentDefaultsBehaviorTest {
 
         hasDefault = false
         awaitIdle()
-        assertEquals(uiResource, label.background, "removing default background restores UIResource baseline")
+        assertSame(uiResource, label.background, "removing default background restores UIResource baseline")
     }
 
     @Test
@@ -524,8 +513,9 @@ class ComponentDefaultsBehaviorTest {
 
         // Initially 1 + 2 = 3 labels
         onAllNodesOfType<JLabel>().assertCountEquals(3)
-        onAllNodesOfType<JLabel>().fetchAll().forEach {
-            assertEquals(Color.MAGENTA, it.background)
+        val labels = onAllNodesOfType<JLabel>()
+        for (index in 0 until 3) {
+            labels[index].assertProperty(Color.MAGENTA, "label $index inherits the provided default") { background }
         }
 
         // Dynamically inserted node inherits default
@@ -585,9 +575,9 @@ class ComponentDefaultsBehaviorTest {
             }
         }
 
-        val labels = onAllNodesOfType<JLabel>().fetchAll()
-        assertEquals(Color.BLUE, labels[0].background, "in outer scope, keyB comes last so BLUE wins")
-        assertEquals(Color.RED, labels[1].background, "in inner scope, re-provided keyA moves to end so RED wins")
+        val labels = onAllNodesOfType<JLabel>()
+        labels[0].assertProperty(Color.BLUE, "in outer scope, keyB comes last so BLUE wins") { background }
+        labels[1].assertProperty(Color.RED, "in inner scope, re-provided keyA moves to end so RED wins") { background }
     }
 
     @Test
@@ -616,11 +606,10 @@ class ComponentDefaultsBehaviorTest {
         active = true
         awaitIdle()
         onNodeOfType<JLabel>().assertExists()
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             Color.MAGENTA,
-            onNodeOfType<JLabel>().fetch().background,
             "reactivated node must inherit active defaults",
-        )
+        ) { background }
     }
 
     @Test
@@ -640,7 +629,7 @@ class ComponentDefaultsBehaviorTest {
         }
 
         onNodeOfType<JLabel>().assertExists()
-        assertEquals(Color.GREEN, onNodeOfType<JLabel>().fetch().background)
+        onNodeOfType<JLabel>().assertProperty(Color.GREEN) { background }
         assertFalse(released)
 
         show = false

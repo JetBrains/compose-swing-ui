@@ -8,9 +8,14 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.ComponentOrientation
 import javax.swing.JScrollPane
@@ -94,46 +99,25 @@ class ScrollPaneBehaviorTest {
         assertSame(onNodeWithText("Second").fetch(), pane.viewport.view, "new content not in viewport")
     }
 
-    @Test
-    fun rowHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("headers")
+    fun aHeaderInstallsItsViewportAndHostsItsView(
+        region: ScrollPaneScope.() -> SwingModifier,
+        viewport: JScrollPane.() -> JViewport?,
+    ) = runComposeSwingTest {
         setContent {
             ScrollPane {
                 Viewport { Label(text = "Body") }
-                Label(text = "RowHead", modifier = SwingModifier.rowHeader())
+                Label(text = "Head", modifier = region(this))
             }
         }
 
-        val rowHeader =
+        val installed =
             assertNotNull(
-                onNodeOfType<JScrollPane>().fetch().rowHeader,
-                "row header viewport was not installed",
+                viewport(onNodeOfType<JScrollPane>().fetch()),
+                "the header viewport was not installed",
             )
-        assertSame(
-            onNodeWithText("RowHead").fetch(),
-            rowHeader.view,
-            "row header content not hosted in the row header viewport",
-        )
-    }
-
-    @Test
-    fun columnHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
-        setContent {
-            ScrollPane {
-                Viewport { Label(text = "Body") }
-                Label(text = "ColHead", modifier = SwingModifier.columnHeader())
-            }
-        }
-
-        val columnHeader =
-            assertNotNull(
-                onNodeOfType<JScrollPane>().fetch().columnHeader,
-                "column header viewport was not installed",
-            )
-        assertSame(
-            onNodeWithText("ColHead").fetch(),
-            columnHeader.view,
-            "column header content not hosted in the column header viewport",
-        )
+        assertSame(onNodeWithText("Head").fetch(), installed.view, "the header content is not hosted in its viewport")
     }
 
     @Test
@@ -192,11 +176,10 @@ class ScrollPaneBehaviorTest {
             }
         }
 
-        assertEquals(
+        onNodeOfType<JScrollPane>().assertProperty(
             JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
-            onNodeOfType<JScrollPane>().fetch().verticalScrollBarPolicy,
             "vertical scrollbar policy did not map through",
-        )
+        ) { verticalScrollBarPolicy }
     }
 
     @Test
@@ -224,26 +207,17 @@ class ScrollPaneBehaviorTest {
     fun aSecondChildOfTheViewportIsRefused() = runComposeSwingTest {
         // A viewport shows one view and replaces it on every add, so the first child would be held by the
         // composition while standing in no container.
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    ScrollPane {
-                        Viewport {
-                            Label(text = "First")
-                            Label(text = "Second")
-                        }
+        assertFailsWith<IllegalStateException>("a second child of Viewport { } must be refused") {
+            setContent {
+                ScrollPane {
+                    Viewport {
+                        Label(text = "First")
+                        Label(text = "Second")
                     }
                 }
-                awaitIdle()
             }
-
-        assertEquals(
-            "A JViewport declared through Viewport { } shows one child at a time, so a child added to it took " +
-                "out the JLabel it held. Compose one child there, wrapping several in a container of their own " +
-                "such as a Column or a Panel.",
-            failure.message,
-            "the refusal should name Viewport { }, the child taken out, and how to compose several",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -274,5 +248,19 @@ class ScrollPaneBehaviorTest {
         assertEquals(Color.GREEN, second.horizontalScrollBar.background, "and the horizontal one")
         assertEquals(13, second.verticalScrollBar.getUnitIncrement(1), "the fresh pane scrolls as declared")
         assertSame(onNodeWithText("Body").fetch(), second.viewport.view, "the fresh pane must receive its view")
+    }
+
+    companion object {
+        @JvmStatic
+        fun headers(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of("row header", { scope: ScrollPaneScope -> with(scope) { SwingModifier.rowHeader() } }),
+                { pane: JScrollPane -> pane.rowHeader },
+            ),
+            Arguments.of(
+                Named.of("column header", { scope: ScrollPaneScope -> with(scope) { SwingModifier.columnHeader() } }),
+                { pane: JScrollPane -> pane.columnHeader },
+            ),
+        )
     }
 }

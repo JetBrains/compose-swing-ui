@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -23,10 +24,8 @@ import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertIs
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * The row space of [Table] splits in two once sorting or filtering is on.
@@ -58,7 +57,7 @@ class TableRowSortingTest {
             Table(rows = people, columns = { column("Name") { it.name } })
         }
 
-        assertNull(onNodeOfType<JTable>().fetch().rowSorter, "a table sorts nothing until sortable turns it on")
+        onNodeOfType<JTable>().assertProperty(null, "a table sorts nothing until sortable turns it on") { rowSorter }
     }
 
     @Test
@@ -76,12 +75,12 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTable>().performClick(table.rowCenter(2))
+        val table = onNodeOfType<JTable>()
+        table.performClick(table.fetch().rowCenter(2))
         awaitIdle()
 
         assertEquals(setOf(2), received.last(), "the row the user picked is reported by its model index")
-        assertEquals(listOf(2), table.selectedRows.toList(), "which is the row the table has selected")
+        table.assertProperty(listOf(2), "which is the row the table has selected") { selectedRows.toList() }
     }
 
     @Test
@@ -102,10 +101,13 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
-        assertEquals(listOf(2), table.selectedRows.toList(), "the declared model row is selected where it is drawn")
-        assertEquals("Ada", table.getValueAt(2, 0), "and that screen row is the one the declared index names")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the state's order should reach the rows") { shownNames() }
+        table.assertProperty(
+            listOf(2),
+            "the declared model row is selected where it is drawn",
+        ) { selectedRows.toList() }
+        table.assertProperty("Ada", "and that screen row is the one the declared index names") { getValueAt(2, 0) }
     }
 
     @Test
@@ -126,8 +128,8 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTable>().performClick(table.rowCenter(0))
+        val table = onNodeOfType<JTable>()
+        table.performClick(table.fetch().rowCenter(0))
         awaitIdle()
 
         assertEquals(setOf(2), state.selectedRowIndices, "the top row on screen is the last row of the model")
@@ -153,16 +155,16 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTable>().performClick(table.rowCenter(0))
-        onNodeOfType<JTable>().performClick(table.rowCenter(2), modifiers = InputEvent.SHIFT_DOWN_MASK)
+        val table = onNodeOfType<JTable>()
+        table.performClick(table.fetch().rowCenter(0))
+        table.performClick(table.fetch().rowCenter(2), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
         assertEquals(setOf(0, 1, 2), received.last(), "every row is selected to start with")
 
         filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
 
-        assertEquals(listOf("Ada"), table.shownNames(), "only the rows the filter admits are shown")
+        table.assertProperty(listOf("Ada"), "only the rows the filter admits are shown") { shownNames() }
         assertEquals(setOf(0), received.last(), "the rows it hides leave the selection and are reported gone")
     }
 
@@ -185,18 +187,18 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(setOf(0, 1), table.selectedModelRows(), "the declared rows should be selected to start with")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(setOf(0, 1), "the declared rows should be selected to start with") { selectedModelRows() }
 
         // A filter takes hidden rows out of the table's selection - the wrapper's own write. The rows it drops
         // are re-selected once the filter admits them again, and reach no callback.
         filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
-        assertEquals(setOf(0), table.selectedModelRows(), "the row the filter hides has no screen row to hold")
+        table.assertProperty(setOf(0), "the row the filter hides has no screen row to hold") { selectedModelRows() }
 
         filter = null
         awaitIdle()
-        assertEquals(setOf(0, 1), table.selectedModelRows(), "the declared selection should be back in full")
+        table.assertProperty(setOf(0, 1), "the declared selection should be back in full") { selectedModelRows() }
         assertEquals(emptyList(), received, "a selection the filter moved is the wrapper's doing, not the user's")
     }
 
@@ -215,14 +217,14 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(setOf(0), table.selectedModelRows(), "the first declared selection should be applied")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(setOf(0), "the first declared selection should be applied") { selectedModelRows() }
 
         // Grace never matches the filter, whether or not the caller declares her selected.
         selection = setOf(0, 1, 2)
         awaitIdle()
 
-        assertEquals(setOf(0, 1), table.selectedModelRows(), "the row the filter hides should be left out")
+        table.assertProperty(setOf(0, 1), "the row the filter hides should be left out") { selectedModelRows() }
     }
 
     @Test
@@ -233,15 +235,16 @@ class TableRowSortingTest {
             Table(rows = rows, columns = { column("Name") { it.name } }, sortable = true, rowFilter = filter)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Ada", "Alan"), table.shownNames(), "the declared filter should reach the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Ada", "Alan"), "the declared filter should reach the rows") { shownNames() }
 
         rows = people + Person("Alonzo", 33)
         awaitIdle()
 
-        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        val installed: Any? =
+            assertIs<TableRowSorter<*>>(table.fetch().rowSorter, "expected a table row sorter").rowFilter
         assertSame(filter, installed, "the same filter should still be in place")
-        assertEquals(listOf("Ada", "Alan", "Alonzo"), table.shownNames(), "and should admit the new row")
+        table.assertProperty(listOf("Ada", "Alan", "Alonzo"), "and should admit the new row") { shownNames() }
     }
 
     @Test
@@ -258,16 +261,17 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(people.map { it.name }, table.shownNames(), "every row is shown before a filter is declared")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(people.map { it.name }, "every row is shown before a filter is declared") { shownNames() }
 
         filter = RowFilter.regexFilter("Ada", 0)
         selection = setOf(1)
         awaitIdle()
 
-        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        val installed: Any? =
+            assertIs<TableRowSorter<*>>(table.fetch().rowSorter, "expected a table row sorter").rowFilter
         assertSame(filter, installed, "a filter declared alongside a selection change should still reach the sorter")
-        assertEquals(listOf("Ada"), table.shownNames(), "and be applied to the rows the table shows")
+        table.assertProperty(listOf("Ada"), "and be applied to the rows the table shows") { shownNames() }
     }
 
     @Test
@@ -278,15 +282,16 @@ class TableRowSortingTest {
             Table(rows = people, columns = { column("Name") { it.name } }, sortable = sortable, rowFilter = filter)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(people.map { it.name }, table.shownNames(), "a table with no sorter filters nothing")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(people.map { it.name }, "a table with no sorter filters nothing") { shownNames() }
 
         sortable = true
         awaitIdle()
 
-        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        val installed: Any? =
+            assertIs<TableRowSorter<*>>(table.fetch().rowSorter, "expected a table row sorter").rowFilter
         assertSame(filter, installed, "the sorter sorting turns on should carry the declared filter")
-        assertEquals(listOf("Ada", "Alan"), table.shownNames(), "and hide the rows it rejects")
+        table.assertProperty(listOf("Ada", "Alan"), "and hide the rows it rejects") { shownNames() }
     }
 
     @Test
@@ -295,16 +300,17 @@ class TableRowSortingTest {
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
         setContent { Table(model = model, sortable = true, rowFilter = filter) }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Ada", "Alan"), table.shownNames(), "the declared filter should reach the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Ada", "Alan"), "the declared filter should reach the rows") { shownNames() }
 
         // A sorter is welded to its model, so the swap takes this one off and builds another.
         model = tableModel("Ada", "Bob")
         awaitIdle()
 
-        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        val installed: Any? =
+            assertIs<TableRowSorter<*>>(table.fetch().rowSorter, "expected a table row sorter").rowFilter
         assertSame(filter, installed, "the sorter built for the new model should carry the declared filter")
-        assertEquals(listOf("Ada"), table.shownNames(), "and hide the rows it rejects")
+        table.assertProperty(listOf("Ada"), "and hide the rows it rejects") { shownNames() }
     }
 
     @Test
@@ -349,19 +355,18 @@ class TableRowSortingTest {
         val state = TableState(initialSortKeys = declared)
         setContent { Table(model = model, state = state, sortable = true) }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the state's order should reach the rows") { shownNames() }
 
         // The sorter the swap builds starts out unsorted, so the state's order has to be put back onto it.
         model = tableModel("Bob", "Zoe", "Ada")
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             declared,
-            table.rowSorter.sortKeys.toList(),
             "the sorter built for the new model should carry the state's order",
-        )
-        assertEquals(listOf("Zoe", "Bob", "Ada"), table.shownNames(), "and should order the new rows by it")
+        ) { rowSorter.sortKeys.toList() }
+        table.assertProperty(listOf("Zoe", "Bob", "Ada"), "and should order the new rows by it") { shownNames() }
         assertEquals(declared, state.sortKeys, "an order the wrapper put back is its own doing, not the user's")
     }
 
@@ -381,18 +386,20 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(1))
+        val table = onNodeOfType<JTable>()
+        onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(1))
 
         rows = people + Person("Nikola", 25)
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf(SortKey(1, SortOrder.ASCENDING)),
-            table.rowSorter.sortKeys.toList(),
             "the user's own order should survive a refresh of the rows",
-        )
-        assertEquals(listOf("Nikola", "Ada", "Alan", "Grace"), table.shownNames(), "and should order the new row too")
+        ) { rowSorter.sortKeys.toList() }
+        table.assertProperty(
+            listOf("Nikola", "Ada", "Alan", "Grace"),
+            "and should order the new row too",
+        ) { shownNames() }
     }
 
     @Test
@@ -408,9 +415,13 @@ class TableRowSortingTest {
             )
         }
 
-        val sorter = onNodeOfType<JTable>().fetch().rowSorter as TableRowSorter<*>
-        assertFalse(sorter.isSortable(0), "a column declared unsortable should not sort")
-        assertTrue(sorter.isSortable(1), "while its neighbor still does")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(false, "a column declared unsortable should not sort") {
+            assertIs<TableRowSorter<*>>(rowSorter).isSortable(0)
+        }
+        table.assertProperty(true, "while its neighbor still does") {
+            assertIs<TableRowSorter<*>>(rowSorter).isSortable(1)
+        }
     }
 
     @Test
@@ -427,12 +438,10 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             listOf("Grace", "Alan", "Ada"),
-            table.shownNames(),
             "the column's own comparator should order it, not the ordering its class would get",
-        )
+        ) { shownNames() }
     }
 
     @Test
@@ -451,13 +460,13 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the declared comparator orders the rows") { shownNames() }
 
         comparator = byLastLetter
         awaitIdle()
 
-        assertEquals(listOf("Ada", "Grace", "Alan"), table.shownNames(), "and a new one reorders them by itself")
+        table.assertProperty(listOf("Ada", "Grace", "Alan"), "and a new one reorders them by itself") { shownNames() }
     }
 
     @Test
@@ -472,17 +481,16 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the declared comparator orders the rows") { shownNames() }
 
         header = "Person"
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf("Grace", "Alan", "Ada"),
-            table.shownNames(),
             "and still orders them once a new header has rebuilt the columns",
-        )
+        ) { shownNames() }
     }
 
     @Test
@@ -498,17 +506,16 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the declared comparator orders the rows") { shownNames() }
 
         comparator = null
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf("Ada", "Alan", "Grace"),
-            table.shownNames(),
             "and taking it away puts them back in the order the column's own class gets",
-        )
+        ) { shownNames() }
     }
 
     @Test
@@ -528,8 +535,8 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val sorter = table.rowSorter
+        val table = onNodeOfType<JTable>()
+        val sorter = table.fetch().rowSorter
         var sorts = 0
         sorter.addRowSorterListener { event ->
             if (event.type == RowSorterEvent.Type.SORTED) sorts++
@@ -539,8 +546,11 @@ class TableRowSortingTest {
         state.sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))
         awaitIdle()
 
-        assertSame(sorter, table.rowSorter, "the sorter the count was taken on should still be the table's")
-        assertEquals(listOf("Alan", "Grace", "Ada"), table.shownNames(), "the new comparator orders them, reversed")
+        assertSame(sorter, table.fetch().rowSorter, "the sorter the count was taken on should still be the table's")
+        table.assertProperty(
+            listOf("Alan", "Grace", "Ada"),
+            "the new comparator orders them, reversed",
+        ) { shownNames() }
         assertEquals(1, sorts, "the order the keys ask for is already the new comparator's, so it is sorted once")
     }
 
@@ -557,8 +567,8 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val sorter = table.rowSorter
+        val table = onNodeOfType<JTable>()
+        val sorter = table.fetch().rowSorter
         var sorts = 0
         sorter.addRowSorterListener { event ->
             if (event.type == RowSorterEvent.Type.SORTED) sorts++
@@ -567,8 +577,8 @@ class TableRowSortingTest {
         rowHeight = 24
         awaitIdle()
 
-        assertEquals(24, table.rowHeight, "the pass the count is taken over should have reached the table")
-        assertSame(sorter, table.rowSorter, "on the sorter it was taken on, which the table still holds")
+        table.assertProperty(24, "the pass the count is taken over should have reached the table") { this.rowHeight }
+        assertSame(sorter, table.fetch().rowSorter, "on the sorter it was taken on, which the table still holds")
         assertEquals(0, sorts, "a pass that redeclares nothing about the ordering should not sort the rows again")
     }
 
@@ -588,10 +598,10 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val sorter = table.rowSorter
-        assertEquals(listOf("Ada", "Alan", "Grace"), table.shownNames())
-        assertEquals(listOf(SortKey(0, SortOrder.ASCENDING)), sorter.sortKeys)
+        val table = onNodeOfType<JTable>()
+        val sorter = table.fetch().rowSorter
+        table.assertProperty(listOf("Ada", "Alan", "Grace")) { shownNames() }
+        table.assertProperty(listOf(SortKey(0, SortOrder.ASCENDING))) { rowSorter.sortKeys }
         var sorts = 0
         sorter.addRowSorterListener { event ->
             if (event.type == RowSorterEvent.Type.SORTED) sorts++
@@ -600,8 +610,8 @@ class TableRowSortingTest {
         rowHeight = 24
         awaitIdle()
 
-        assertEquals(24, table.rowHeight, "the pass the count is taken over should have reached the table")
-        assertSame(sorter, table.rowSorter, "on the sorter it was taken on, which the table still holds")
+        table.assertProperty(24, "the pass the count is taken over should have reached the table") { this.rowHeight }
+        assertSame(sorter, table.fetch().rowSorter, "on the sorter it was taken on, which the table still holds")
         assertEquals(0, sorts, "a pass that redeclares nothing about the ordering should not sort the rows again")
     }
 
@@ -622,22 +632,21 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTable>().performClick(table.rowCenter(2))
-        onNodeOfType<JTable>().performClick(table.rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
+        val table = onNodeOfType<JTable>()
+        table.performClick(table.fetch().rowCenter(2))
+        table.performClick(table.fetch().rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
-        assertEquals((2..5).toList(), table.selectedRows.toList(), "the shift-click covers the rows it spans")
+        table.assertProperty((2..5).toList(), "the shift-click covers the rows it spans") { selectedRows.toList() }
 
         rowHeight = 24
         awaitIdle()
 
-        onNodeOfType<JTable>().performClick(table.rowCenter(8), modifiers = InputEvent.SHIFT_DOWN_MASK)
+        table.performClick(table.fetch().rowCenter(8), modifiers = InputEvent.SHIFT_DOWN_MASK)
 
-        assertEquals(
+        table.assertProperty(
             (2..8).toList(),
-            table.selectedRows.toList(),
             "the next shift-click should extend the selection from the row it was anchored on",
-        )
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -662,17 +671,17 @@ class TableRowSortingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
-        onNodeOfType<JTable>().performClick(table.rowCenter(2))
-        onNodeOfType<JTable>().performClick(table.rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
+        val table = onNodeOfType<JTable>()
+        onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
+        table.performClick(table.fetch().rowCenter(2))
+        table.performClick(table.fetch().rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
         val reported = received.size
 
         comparator = byNameAgain
         awaitIdle()
 
-        assertEquals(2, table.selectionModel.anchorSelectionIndex, "the anchor is put back across the re-sort")
+        table.assertProperty(2, "the anchor is put back across the re-sort") { selectionModel.anchorSelectionIndex }
         assertEquals(reported, received.size, "putting it back is the wrapper's own write, not a selection change")
     }
 
@@ -684,14 +693,14 @@ class TableRowSortingTest {
             Table(rows = people, columns = { column("Name") { it.name } }, sortable = sortable)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        onNodeOfType<JTable>().performClick(table.rowCenter(1))
+        val table = onNodeOfType<JTable>()
+        table.performClick(table.fetch().rowCenter(1))
         awaitIdle()
 
         sortable = true
         awaitIdle()
 
-        assertEquals(listOf(1), table.selectedRows.toList(), "installing a sorter should not empty the selection")
+        table.assertProperty(listOf(1), "installing a sorter should not empty the selection") { selectedRows.toList() }
     }
 
     @Test
@@ -705,14 +714,18 @@ class TableRowSortingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the state's order should reach the rows")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf("Grace", "Alan", "Ada"), "the state's order should reach the rows") { shownNames() }
 
         model = tableModel("Nikola", "Marie")
         awaitIdle()
 
-        assertSame(model, (table.rowSorter as TableRowSorter<*>).model, "the sorter should follow the new model")
-        assertEquals(listOf("Nikola", "Marie"), table.shownNames(), "the state's order should survive the swap")
+        assertSame(
+            model,
+            assertIs<TableRowSorter<*>>(table.fetch().rowSorter, "expected a table row sorter").model,
+            "the sorter should follow the new model",
+        )
+        table.assertProperty(listOf("Nikola", "Marie"), "the state's order should survive the swap") { shownNames() }
     }
 }
 
@@ -742,18 +755,19 @@ private fun assertOnlyHeaderGesturesReachOnSortChange(
         }
     }
 
-    val table = onNodeOfType<JTable>().fetch()
+    val table = onNodeOfType<JTable>()
     val ascending = listOf(SortKey(0, SortOrder.ASCENDING))
     val descending = listOf(SortKey(0, SortOrder.DESCENDING))
     assertEquals(emptyList(), received, "installing the table reports no user gesture")
 
-    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
     assertEquals(listOf(ascending), received, "one header click reports its order exactly once")
 
-    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
     assertEquals(listOf(ascending, descending), received, "another click reports the new order exactly once")
-    assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the user's order reaches the rows")
+    table.assertProperty(listOf("Grace", "Alan", "Ada"), "the user's order reaches the rows") { shownNames() }
 
+    val before = table.fetch()
     if (modelDriven) {
         model = tableModel("Ada", "Alan", "Grace", "Bob")
     } else {
@@ -767,18 +781,17 @@ private fun assertOnlyHeaderGesturesReachOnSortChange(
         received,
         "putting the user's order back after a content refresh reports no new gesture",
     )
-    assertSame(table, onNodeOfType<JTable>().fetch(), "the content refresh updates the same table")
-    assertEquals(listOf("Grace", "Bob", "Alan", "Ada"), table.shownNames(), "the new rows keep the user's order")
+    assertSame(before, table.fetch(), "the content refresh updates the same table")
+    table.assertProperty(listOf("Grace", "Bob", "Alan", "Ada"), "the new rows keep the user's order") { shownNames() }
 
-    onNodeOfType<JTableHeader>().performClick(table.headerCenterOf(0))
+    onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
     assertEquals(
         listOf(ascending, descending, ascending),
         received,
         "header gestures are still reported after the refresh",
     )
-    assertEquals(
+    table.assertProperty(
         listOf("Ada", "Alan", "Bob", "Grace"),
-        table.shownNames(),
         "the next gesture sorts the refreshed rows",
-    )
+    ) { shownNames() }
 }

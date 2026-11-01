@@ -8,12 +8,13 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.menu.ContextMenu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.popupAnchor
-import org.jetbrains.compose.swing.components.menu.popupTrigger
 import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -23,7 +24,6 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertContains
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
@@ -78,8 +78,7 @@ class ModifierRestoreCheckWiringTest {
         }
         // A menu composes its content when the popup is built, so the declaration only reaches an
         // item once the trigger has opened one.
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         awaitIdle()
 
         declared = false
@@ -121,11 +120,10 @@ class ModifierRestoreCheckWiringTest {
         failing = false
         text = "second"
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             "second",
-            onNodeOfType<JLabel>().fetch<JLabel>().text,
             "the composition should go on recomposing after a read that threw",
-        )
+        ) { this.text }
     }
 }
 

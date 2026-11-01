@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
@@ -28,15 +29,14 @@ class PropertyTest {
             )
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(DECLARED_TIP, label.fetch().toolTipText, "the declared value should reach the widget")
+        label.assertProperty(DECLARED_TIP, "the declared value should reach the widget") { toolTipText }
 
         declared = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             WIDGET_TIP,
-            label.fetch().toolTipText,
             "withdrawing the declaration should hand back what the widget was carrying",
-        )
+        ) { toolTipText }
     }
 
     @Test
@@ -53,8 +53,8 @@ class PropertyTest {
                 modifier = if (declared) SwingModifier.declaredTipDerivingName(DECLARED_TIP) else SwingModifier,
             )
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(DECLARED_TIP, label.toolTipText, "the declared value should reach the widget")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(DECLARED_TIP, "the declared value should reach the widget") { toolTipText }
 
         declared = false
         // The write derives `name` from the tooltip too, the way a look and feel derives a property of
@@ -62,12 +62,11 @@ class PropertyTest {
         // name ("toolTipText") alone, so the restore check the harness runs does not fail even though
         // `name` is left standing at what the write derived rather than at what it carried before.
         awaitIdle()
-        assertEquals(WIDGET_TIP, label.toolTipText, "the declared property is still put back")
-        assertEquals(
+        label.assertProperty(WIDGET_TIP, "the declared property is still put back") { toolTipText }
+        label.assertProperty(
             "derived from $WIDGET_TIP",
-            label.name,
             "a property the policy does not own is left as the write derived it, not restored",
-        )
+        ) { name }
     }
 
     @Test

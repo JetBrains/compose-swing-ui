@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.type
@@ -34,6 +35,7 @@ import javax.swing.text.PlainDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -68,15 +70,15 @@ class DeclaredTextPushTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
         value = "world"
         awaitIdle()
 
-        assertEquals("hello", field.text, "publishing a declaration is not itself what writes it")
+        field.assertTextEquals("hello")
 
         mainClock.advanceTimeByFrame()
 
-        assertEquals("world", field.text, "the pass declaring the value should leave the field holding it")
+        field.assertTextEquals("world")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
     }
 
@@ -119,11 +121,11 @@ class DeclaredTextPushTest {
         value = "world"
         awaitIdle()
 
-        assertEquals("hello", area.text, "publishing a declaration is not itself what writes it")
+        onNodeOfType<JTextArea>().assertTextEquals("hello")
 
         mainClock.advanceTimeByFrame()
 
-        assertEquals("world", area.text, "the pass declaring the value should leave the area holding it")
+        onNodeOfType<JTextArea>().assertTextEquals("world")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
         // The keystroke below is answered by a settling pass, which the harness sends for itself again.
@@ -164,15 +166,17 @@ class DeclaredTextPushTest {
         value = "secret".toCharArray()
         awaitIdle()
 
-        assertEquals("hunter2", String(field.password), "publishing a declaration is not itself what writes it")
+        onNodeOfType<JPasswordField>().assertProperty(
+            "hunter2",
+            "publishing a declaration is not itself what writes it",
+        ) { String(password) }
 
         mainClock.advanceTimeByFrame()
 
-        assertEquals(
+        onNodeOfType<JPasswordField>().assertProperty(
             "secret",
-            String(field.password),
             "the pass declaring the value should leave the field holding it",
-        )
+        ) { String(password) }
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
         mainClock.autoAdvance = true
@@ -207,11 +211,11 @@ class DeclaredTextPushTest {
         value = "world"
         awaitIdle()
 
-        assertEquals("hello", pane.text, "publishing a declaration is not itself what writes it")
+        onNodeOfType<JTextPane>().assertTextEquals("hello")
 
         mainClock.advanceTimeByFrame()
 
-        assertEquals("world", pane.text, "the pass declaring the value should leave the pane holding it")
+        onNodeOfType<JTextPane>().assertTextEquals("world")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
         mainClock.autoAdvance = true
@@ -231,16 +235,22 @@ class DeclaredTextPushTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val field = onNodeOfType<JFormattedTextField>().fetch()
+        val field = onNodeOfType<JFormattedTextField>()
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
         value = 250
         awaitIdle()
 
-        assertEquals(1, field.value, "publishing a declaration is not itself what writes it")
+        field.assertProperty(1, "publishing a declaration is not itself what writes it") { this.value }
 
         mainClock.advanceTimeByFrame()
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
+        )
 
-        assertEquals(250, field.value, "the pass declaring the value should leave the field holding it")
-        assertEquals("250", field.text, "and the field should render the value that pass settled it on")
+        field.assertProperty(250, "the pass declaring the value should leave the field holding it") { this.value }
+        field.assertTextEquals("250")
         assertEquals(emptyList(), reported, "applying a value is not a commit the field made from an edit")
     }
 
@@ -285,7 +295,8 @@ class DeclaredTextPushTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
+        val fieldBefore = onNodeOfType<JTextField>().fetch()
         seen.clear()
         value = "world"
         awaitIdle()
@@ -293,13 +304,14 @@ class DeclaredTextPushTest {
         assertEquals(emptyList(), seen, "publishing a declaration is not itself what writes it")
 
         mainClock.advanceTimeByFrame()
+        assertSame(fieldBefore, onNodeOfType<JTextField>().fetch(), "the component is updated in place, not rebuilt")
 
         assertEquals(
             listOf("remove@0", "insert@5"),
             seen,
             "a listener attached as-is observes the applied value as a removal of the document then an insertion",
         )
-        assertEquals("world", field.text, "the pass declaring the value should leave the field holding it")
+        field.assertTextEquals("world")
     }
 
     @Test
@@ -386,7 +398,9 @@ class DeclaredTextPushTest {
         awaitIdle()
 
         onNodeOfType<JTextField>().assertTextEquals("hello")
-        assertEquals(2, field.caretPosition, "the caret stays where the refused keystroke was typed")
+        onNodeOfType<JTextField>().assertProperty(2, "the caret stays where the refused keystroke was typed") {
+            caretPosition
+        }
     }
 
     @Test
@@ -421,8 +435,11 @@ class DeclaredTextPushTest {
         field.commitEdit()
         awaitIdle()
 
-        assertEquals(1, field.value, "the declared value is written back over a commit nothing adopted")
-        assertEquals("1", field.text, "and the field renders the value it was left on")
+        onNodeOfType<JFormattedTextField>().assertProperty(
+            1,
+            "the declared value is written back over a commit nothing adopted",
+        ) { value }
+        onNodeOfType<JFormattedTextField>().assertTextEquals("1")
     }
 
     @Test
@@ -477,7 +494,10 @@ class DeclaredTextPushTest {
         field.commitEdit()
         awaitIdle()
 
-        assertEquals(1, field.value, "the wrapper's own mirror settles the commit back with no callback in play")
+        onNodeOfType<JFormattedTextField>().assertProperty(
+            1,
+            "the wrapper's own mirror settles the commit back with no callback in play",
+        ) { value }
     }
 
     @Test

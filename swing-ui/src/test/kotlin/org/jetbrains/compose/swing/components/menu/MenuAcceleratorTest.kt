@@ -66,6 +66,7 @@ class MenuAcceleratorTest {
                 RadioButtonMenuItem("Compact", selected = false, onSelectedChange = {})
             }
 
+        assertEquals(3, popup.componentCount, "the menu holds the three declared items")
         repeat(popup.componentCount) { index ->
             assertEquals(
                 bare.accelerator,

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.AbstractButton
@@ -30,10 +31,10 @@ class ComponentPropertyDescriptorTest {
             SwingNode(factory = { JLabel("label") }, modifier = SwingModifier.property(GreetingProperty, "hi"))
             SwingNode(factory = { JButton("button") }, modifier = SwingModifier.property(GreetingProperty, "hi"))
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals("hi", label.text, "the JLabel accessor serves a label")
-        assertEquals("hi", button.text, "the AbstractButton accessor serves a button")
+        val label = onNodeOfType<JLabel>()
+        val button = onNodeOfType<JButton>()
+        label.assertProperty("hi", "the JLabel accessor serves a label") { text }
+        button.assertProperty("hi", "the AbstractButton accessor serves a button") { text }
     }
 
     @Test

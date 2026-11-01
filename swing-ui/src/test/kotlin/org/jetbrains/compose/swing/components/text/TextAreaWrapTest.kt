@@ -3,12 +3,12 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextArea
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertSame
 
 /**
  * Behavioral tests for [TextArea]'s two wrapping parameters. They are independent: `lineWrap` decides
@@ -23,9 +23,9 @@ class TextAreaWrapTest {
             TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = true, wrapStyleWord = true)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertTrue(area.lineWrap)
-        assertTrue(area.wrapStyleWord)
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(true) { lineWrap }
+        area.assertProperty(true) { wrapStyleWord }
     }
 
     @Test
@@ -33,16 +33,18 @@ class TextAreaWrapTest {
         var lineWrap by mutableStateOf(true)
         setContent { TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = lineWrap) }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertTrue(area.lineWrap)
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(true) { this.lineWrap }
+        val areaBefore = onNodeOfType<JTextArea>().fetch()
 
         lineWrap = false
         awaitIdle()
-        assertFalse(area.lineWrap)
+        area.assertProperty(false) { this.lineWrap }
 
         lineWrap = true
         awaitIdle()
-        assertTrue(area.lineWrap)
+        assertSame(areaBefore, onNodeOfType<JTextArea>().fetch(), "the component is updated in place, not rebuilt")
+        area.assertProperty(true) { this.lineWrap }
     }
 
     @Test
@@ -50,13 +52,15 @@ class TextAreaWrapTest {
         var wrapStyleWord by mutableStateOf(true)
         setContent { TextArea(value = "a long line of prose", onValueChange = {}, wrapStyleWord = wrapStyleWord) }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertTrue(area.wrapStyleWord)
-        assertFalse(area.lineWrap, "wrapStyleWord must not switch wrapping on")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(true) { this.wrapStyleWord }
+        area.assertProperty(false, "wrapStyleWord must not switch wrapping on") { lineWrap }
+        val areaBefore = onNodeOfType<JTextArea>().fetch()
 
         wrapStyleWord = false
         awaitIdle()
-        assertFalse(area.wrapStyleWord)
+        assertSame(areaBefore, onNodeOfType<JTextArea>().fetch(), "the component is updated in place, not rebuilt")
+        area.assertProperty(false) { this.wrapStyleWord }
     }
 
     @Test
@@ -64,15 +68,17 @@ class TextAreaWrapTest {
         var lineWrap by mutableStateOf(true)
         setContent { TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = lineWrap) }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertTrue(
-            area.scrollableTracksViewportWidth,
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(
+            true,
             "a wrapping area tracks its viewport's width instead of scrolling sideways",
-        )
+        ) { scrollableTracksViewportWidth }
+        val areaBefore = onNodeOfType<JTextArea>().fetch()
 
         lineWrap = false
         awaitIdle()
-        assertFalse(area.scrollableTracksViewportWidth)
+        assertSame(areaBefore, onNodeOfType<JTextArea>().fetch(), "the component is updated in place, not rebuilt")
+        area.assertProperty(false) { scrollableTracksViewportWidth }
     }
 
     @Test
@@ -83,8 +89,8 @@ class TextAreaWrapTest {
             TextArea(state = state, lineWrap = true, wrapStyleWord = true)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertTrue(area.lineWrap)
-        assertTrue(area.wrapStyleWord)
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(true) { lineWrap }
+        area.assertProperty(true) { wrapStyleWord }
     }
 }

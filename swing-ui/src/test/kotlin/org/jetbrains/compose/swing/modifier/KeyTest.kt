@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -42,24 +43,25 @@ class KeyTest {
                 modifier = if (declared) SwingModifier.key(token).then(ProbeElement(counts)) else SwingModifier,
             )
         }
-        val label = onNodeOfType<JLabel>().fetch()
+        val label = onNodeOfType<JLabel>()
+        val labelBefore = onNodeOfType<JLabel>().fetch()
         assertEquals(1, counts.attaches.get(), "the modifier's one slot attaches on the first apply")
-        assertEquals(PROBE, label.toolTipText, "and writes what it declares")
+        label.assertProperty(PROBE, "and writes what it declares") { toolTipText }
 
         token = 1
         awaitIdle()
         assertEquals(1, counts.detaches.get(), "a changed token should take the standing slot apart")
         assertEquals(2, counts.attaches.get(), "and attach it afresh")
-        assertEquals(PROBE, label.toolTipText, "the rebuilt modifier declares what it declared before")
+        label.assertProperty(PROBE, "the rebuilt modifier declares what it declared before") { toolTipText }
 
         declared = false
         awaitIdle()
+        assertSame(labelBefore, onNodeOfType<JLabel>().fetch(), "the component is updated in place, not rebuilt")
         assertEquals(2, counts.detaches.get(), "dropping the modifier takes the rebuilt slot apart")
-        assertEquals(
+        label.assertProperty(
             FOUND,
-            label.toolTipText,
             "the slot re-attached after the restore, so it captured the value the modifier found, not its own write",
-        )
+        ) { toolTipText }
     }
 
     @Test
@@ -74,7 +76,7 @@ class KeyTest {
                 modifier = if (declared) chain.then(ProbeElement(counts)) else chain,
             )
         }
-        val label = onNodeOfType<JLabel>().fetch()
+        val label = onNodeOfType<JLabel>()
 
         token = 1
         awaitIdle()
@@ -84,14 +86,14 @@ class KeyTest {
         declared = true
         awaitIdle()
         assertEquals(1, counts.attaches.get(), "a changed token over no standing slot attaches the declared one")
-        assertEquals(PROBE, label.toolTipText, "which writes what it declares")
+        label.assertProperty(PROBE, "which writes what it declares") { toolTipText }
 
         token = 3
         declared = false
         awaitIdle()
         assertEquals(1, counts.detaches.get(), "a changed token declaring no slot takes the standing one apart")
         assertEquals(1, counts.attaches.get(), "and attaches nothing")
-        assertEquals(FOUND, label.toolTipText, "the detached slot puts back what the component carried")
+        label.assertProperty(FOUND, "the detached slot puts back what the component carried") { toolTipText }
     }
 
     @Test
@@ -102,14 +104,14 @@ class KeyTest {
         setContent {
             Label("tick $tick", modifier = SwingModifier.key(THEME).background(color).then(ProbeElement(counts)))
         }
-        val label = onNodeOfType<JLabel>().fetch()
+        val label = onNodeOfType<JLabel>()
 
         repeat(passes) {
             tick++
             awaitIdle()
         }
 
-        assertEquals("tick $passes", label.text, "the label must re-execute on every pass")
+        label.assertProperty("tick $passes", "the label must re-execute on every pass") { text }
         assertEquals(
             1,
             counts.updates.get(),
@@ -120,7 +122,7 @@ class KeyTest {
         // they are.
         color = Color.GREEN
         awaitIdle()
-        assertEquals(Color.GREEN, label.background, "the changed declaration must reach the component")
+        label.assertProperty(Color.GREEN, "the changed declaration must reach the component") { background }
         assertEquals(1, counts.attaches.get(), "an unchanged token attaches nothing afresh")
         assertEquals(0, counts.detaches.get(), "and takes nothing apart")
     }

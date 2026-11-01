@@ -24,6 +24,7 @@ import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -44,7 +45,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -131,30 +131,29 @@ class DebugInspectorInfoTest {
         selectedTab = 1
         awaitIdle()
 
-        val typedText = onNodeOfType<JTextField>().fetch().text
-        assertEquals("what the user typed", typedText, "the text field shows what was typed into it")
-        assertEquals(70, onNodeOfType<JSlider>().fetch().value, "the slider shows the value it was moved to")
-        assertEquals(1, onNodeOfType<JTabbedPane>().fetch().selectedIndex, "the pane shows the selected tab")
+        onNodeOfType<JTextField>().assertProperty(
+            "what the user typed",
+            "the text field shows what was typed into it",
+        ) { text }
+        onNodeOfType<JSlider>().assertProperty(70, "the slider shows the value it was moved to") { value }
+        onNodeOfType<JTabbedPane>().assertProperty(1, "the pane shows the selected tab") { selectedIndex }
 
         isDebugInspectorInfoEnabled = true
         awaitIdle()
 
         assertEquals(2, buildsOfTheContent, "turning inspection on builds the content afresh")
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             "what the user typed",
-            onNodeOfType<JTextField>().fetch().text,
             "what the user typed is held above the content, so the re-inserted text field shows it again",
-        )
-        assertEquals(
+        ) { text }
+        onNodeOfType<JSlider>().assertProperty(
             70,
-            onNodeOfType<JSlider>().fetch().value,
             "the value it was moved to is held above the content, so the re-inserted slider shows it again",
-        )
-        assertEquals(
+        ) { value }
+        onNodeOfType<JTabbedPane>().assertProperty(
             1,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "the selected tab is held above the content, so the re-inserted pane shows it again",
-        )
+        ) { selectedIndex }
     }
 
     @Test
@@ -450,11 +449,9 @@ class DebugInspectorInfoTest {
 
     @Test
     fun theSwitchMustBeSetOnTheEventDispatchThread() {
-        val failure = assertFailsWith<IllegalStateException> { isDebugInspectorInfoEnabled = true }
-        assertTrue(
-            failure.message.orEmpty().contains("Event Dispatch Thread"),
-            "the failure must name the thread the switch belongs to, but was: ${failure.message}",
-        )
+        assertFailsWith<IllegalStateException>("the switch must be set on the event dispatch thread") {
+            isDebugInspectorInfoEnabled = true
+        }
     }
 }
 

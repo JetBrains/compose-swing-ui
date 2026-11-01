@@ -18,7 +18,6 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests asserting that a [Window] or [Dialog] created without an explicit size is sized to
@@ -45,8 +44,6 @@ class WindowPackToContentTest {
             frame.contentPane.size,
             "the packed content pane must realize at the content's preferred size",
         )
-        assertTrue(frame.width > 0 && frame.height > 0, "a packed window must have a non-zero size")
-        assertTrue(frame.size != INVENTED_WINDOW_SIZE, "a packed window must not fall back to an invented default")
     }
 
     @Test
@@ -68,8 +65,6 @@ class WindowPackToContentTest {
             dialog.contentPane.size,
             "the packed content pane must realize at the content's preferred size",
         )
-        assertTrue(dialog.width > 0 && dialog.height > 0, "a packed dialog must have a non-zero size")
-        assertTrue(dialog.size != INVENTED_DIALOG_SIZE, "a packed dialog must not fall back to an invented default")
     }
 
     @Test
@@ -118,7 +113,6 @@ class WindowPackToContentTest {
             frame.size
         }
         assertReaches("the realized packed size must flow back into the two-way state", { frame.size }) { state.size }
-        assertTrue(state.width > 0 && state.height > 0, "the written-back size must be non-zero")
     }
 
     @Test
@@ -191,10 +185,3 @@ class WindowPackToContentTest {
 
 private const val CONTENT_WIDTH = 321
 private const val CONTENT_HEIGHT = 211
-
-/**
- * Sizes no content asks for, standing in for a default a peer could be given instead of being sized to
- * what it holds.
- */
-private val INVENTED_WINDOW_SIZE = Dimension(800, 600)
-private val INVENTED_DIALOG_SIZE = Dimension(400, 300)

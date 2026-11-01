@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListCellRenderer
@@ -92,7 +94,10 @@ class SelectionDeclarationTest {
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(1), table.selectedRows.toList(), "an undeclared selection is the user's")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(1),
+            "an undeclared selection is the user's",
+        ) { selectedRows.toList() }
         assertEquals(emptyList(), received, "a recomposition reported a selection change")
     }
 
@@ -115,7 +120,10 @@ class SelectionDeclarationTest {
         rows[2] = Person("Grace Hopper", 50)
         awaitIdle()
 
-        assertEquals(listOf(1), table.selectedRows.toList(), "an undeclared selection survives new rows")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(1),
+            "an undeclared selection survives new rows",
+        ) { selectedRows.toList() }
         assertEquals(emptyList(), received, "a rows refresh reported a selection change")
     }
 
@@ -134,7 +142,10 @@ class SelectionDeclarationTest {
         model = tableModel("Barbara", "Edsger", "Ada")
         awaitIdle()
 
-        assertEquals(listOf(1), table.selectedRows.toList(), "an undeclared selection survives a model swap")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(1),
+            "an undeclared selection survives a model swap",
+        ) { selectedRows.toList() }
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
@@ -153,7 +164,10 @@ class SelectionDeclarationTest {
         items.add("violet")
         awaitIdle()
 
-        assertEquals(listOf(1), list.selectedIndices.toList(), "an undeclared selection survives new items")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(1),
+            "an undeclared selection survives new items",
+        ) { selectedIndices.toList() }
         assertEquals(emptyList(), received, "an items change reported a selection change")
     }
 
@@ -172,7 +186,10 @@ class SelectionDeclarationTest {
         model = listModel("cyan", "magenta")
         awaitIdle()
 
-        assertEquals(listOf(1), list.selectedIndices.toList(), "an undeclared selection survives a model swap")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(1),
+            "an undeclared selection survives a model swap",
+        ) { selectedIndices.toList() }
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
@@ -196,7 +213,10 @@ class SelectionDeclarationTest {
         label = "trunk"
         awaitIdle()
 
-        assertEquals(listOf("fruit"), tree.selectedLabels(), "an undeclared selection survives a structure change")
+        onNodeOfType<JTree>().assertProperty(
+            listOf("fruit"),
+            "an undeclared selection survives a structure change",
+        ) { selectedLabels() }
         assertEquals(emptyList(), received, "a structure change reported a selection change")
     }
 
@@ -215,7 +235,10 @@ class SelectionDeclarationTest {
         model = treeModel("trunk")
         awaitIdle()
 
-        assertEquals(listOf("apple"), tree.selectedLabels(), "an undeclared selection survives a model swap")
+        onNodeOfType<JTree>().assertProperty(
+            listOf("apple"),
+            "an undeclared selection survives a model swap",
+        ) { selectedLabels() }
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
@@ -233,12 +256,18 @@ class SelectionDeclarationTest {
 
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.setSelectionInterval(2, 2)
-        assertEquals(listOf(2), table.selectedRows.toList(), "the user's choice reaches the widget")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(2),
+            "the user's choice reaches the widget",
+        ) { selectedRows.toList() }
 
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(0), table.selectedRows.toList(), "the declared selection is re-applied")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0),
+            "the declared selection is re-applied",
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -259,7 +288,10 @@ class SelectionDeclarationTest {
         label = "second"
         awaitIdle()
 
-        assertEquals(emptyList(), table.selectedRows.toList(), "an empty selection is a declaration like any other")
+        onNodeOfType<JTable>().assertProperty(
+            emptyList(),
+            "an empty selection is a declaration like any other",
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -276,7 +308,10 @@ class SelectionDeclarationTest {
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(0), table.selectedRows.toList(), "the declared selection is re-applied")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0),
+            "the declared selection is re-applied",
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -296,8 +331,9 @@ class SelectionDeclarationTest {
         selection = setOf(1)
         awaitIdle()
 
-        val table = onNodeWithName("second").fetch<JTable>()
-        assertEquals(listOf(1), table.selectedRows.toList(), "the newly declared selection is applied")
+        onNodeWithName("second")
+            .assertIsOfType<JTable>()
+            .assertProperty(listOf(1), "the newly declared selection is applied") { selectedRows.toList() }
     }
 
     @Test
@@ -309,12 +345,18 @@ class SelectionDeclarationTest {
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(2, 2)
-        assertEquals(listOf(2), list.selectedIndices.toList(), "the user's choice reaches the widget")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(2),
+            "the user's choice reaches the widget",
+        ) { selectedIndices.toList() }
 
         count = 6
         awaitIdle()
 
-        assertEquals(listOf(0), list.selectedIndices.toList(), "the declared selection is re-applied")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0),
+            "the declared selection is re-applied",
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -331,7 +373,10 @@ class SelectionDeclarationTest {
         count = 6
         awaitIdle()
 
-        assertEquals(listOf(0), list.selectedIndices.toList(), "the declared selection is re-applied")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0),
+            "the declared selection is re-applied",
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -340,9 +385,9 @@ class SelectionDeclarationTest {
             Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = linkedSetOf(2, 0, 1))
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
-        assertEquals(2, table.selectionModel.leadSelectionIndex, "the highest declared row is selected last")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
+        table.assertProperty(2, "the highest declared row is selected last") { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -351,9 +396,9 @@ class SelectionDeclarationTest {
             ListBox(items = listOf("red", "green", "blue"), selectedIndices = linkedSetOf(2, 0, 1))
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the declared rows reach the list")
-        assertEquals(2, list.selectionModel.leadSelectionIndex, "the highest declared row is selected last")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(0, 1, 2), "the declared rows reach the list") { selectedIndices.toList() }
+        list.assertProperty(2, "the highest declared row is selected last") { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -370,12 +415,12 @@ class SelectionDeclarationTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         combo.selectedIndex = 2
-        assertEquals("blue", combo.selectedItem, "the user's choice reaches the widget")
+        onNodeOfType<JComboBox<*>>().assertProperty("blue", "the user's choice reaches the widget") { selectedItem }
 
         label = "second"
         awaitIdle()
 
-        assertEquals("red", combo.selectedItem, "the declared selection is re-applied")
+        onNodeOfType<JComboBox<*>>().assertProperty("red", "the declared selection is re-applied") { selectedItem }
     }
 
     @Test
@@ -390,17 +435,19 @@ class SelectionDeclarationTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.setSelectionRow(2)
-        assertEquals(listOf("pear"), tree.selectedLabels(), "the user's choice reaches the widget")
+        onNodeOfType<JTree>().assertProperty(
+            listOf("pear"),
+            "the user's choice reaches the widget",
+        ) { selectedLabels() }
 
         label = "second"
         mainClock.advanceTimeByFrame()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             listOf("apple"),
-            tree.selectedLabels(),
             "the one pass that re-declares the selection should already have taken the tree off the node " +
                 "the user moved it to",
-        )
+        ) { selectedLabels() }
     }
 
     @Test
@@ -413,17 +460,16 @@ class SelectionDeclarationTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("apple"), tree.selectedLabels(), "the tree opens on the node it first names")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("apple"), "the tree opens on the node it first names") { selectedLabels() }
 
         selection = setOf(listOf(1))
         mainClock.advanceTimeByFrame()
 
-        assertEquals(
+        tree.assertProperty(
             listOf("pear"),
-            tree.selectedLabels(),
             "the one pass that declares the new node should already have moved the selection onto it",
-        )
+        ) { selectedLabels() }
     }
 
     @Test

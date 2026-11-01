@@ -56,11 +56,12 @@ class WindowRecomposerFailureTest {
         val enclosingHandler = thread.uncaughtExceptionHandler
         thread.setUncaughtExceptionHandler { _, raised -> reported += raised }
         try {
+            val failure = IllegalStateException("boom")
             var broken by mutableStateOf(false)
             val first = JPanel().also { frame.contentPane.add(it) }
             first.setContent {
                 Button(text = "break", onClick = { broken = true })
-                if (broken) error("boom")
+                if (broken) throw failure
             }
             awaitUntil("the first content composes in the window") { first.componentCount == 1 }
             val ended = assertNotNull(frame.swingRecomposerOrNull(), "the window drives its content")
@@ -71,8 +72,9 @@ class WindowRecomposerFailureTest {
             awaitUntil("the failed pass is reported to the thread's uncaught-exception handler") {
                 reported.isNotEmpty()
             }
-            val failure = reported.single()
-            assertEquals("boom", failure.message, "the failure reported is the one the pass raised")
+            val raised = reported.single()
+            assertEquals(failure::class, raised::class, "the reported failure has the type the pass raised")
+            assertEquals(failure.message, raised.message, "the failure reported is the one the pass raised")
             awaitUntil("the failed pass ends the window's recomposer") { frame.swingRecomposerOrNull() == null }
             assertTrue(ended.isDisposed, "the recomposer that failed is disposed")
             assertEquals(0, first.componentCount, "the content the window held is torn down")
@@ -95,7 +97,7 @@ class WindowRecomposerFailureTest {
             awaitUntil("the fresh recomposer keeps the content updating") {
                 (second.getComponent(1) as JLabel).text == "1"
             }
-            assertEquals(listOf(failure), reported, "the failure is reported once")
+            assertEquals(listOf(raised), reported, "the failure is reported once")
         } finally {
             thread.setUncaughtExceptionHandler(enclosingHandler)
             frame.dispose()
@@ -111,10 +113,11 @@ class WindowRecomposerFailureTest {
         val enclosingHandler = thread.uncaughtExceptionHandler
         thread.setUncaughtExceptionHandler { _, raised -> reported += raised }
         try {
+            val failure = IllegalStateException("boom")
             val first = JPanel().also { frame.contentPane.add(it) }
             first.setContent {
                 Label(text = "content")
-                LaunchedEffect(Unit) { error("boom") }
+                LaunchedEffect(Unit) { throw failure }
             }
             awaitUntil("the first content composes in the window") { first.componentCount == 1 }
             val ended = assertNotNull(frame.swingRecomposerOrNull(), "the window drives its content")
@@ -122,8 +125,9 @@ class WindowRecomposerFailureTest {
             awaitUntil("the effect's failure is reported to the thread's uncaught-exception handler") {
                 reported.isNotEmpty()
             }
-            val failure = reported.single()
-            assertEquals("boom", failure.message, "the failure reported is the one the effect raised")
+            val raised = reported.single()
+            assertEquals(failure::class, raised::class, "the reported failure has the type the effect raised")
+            assertEquals(failure.message, raised.message, "the failure reported is the one the effect raised")
             awaitUntil("the failed effect ends the window's recomposer") { frame.swingRecomposerOrNull() == null }
             assertTrue(ended.isDisposed, "the recomposer whose effect failed is disposed")
 
@@ -144,7 +148,7 @@ class WindowRecomposerFailureTest {
             awaitUntil("the fresh recomposer keeps the content updating") {
                 (second.getComponent(1) as JLabel).text == "1"
             }
-            assertEquals(listOf(failure), reported, "the failure is reported once")
+            assertEquals(listOf(raised), reported, "the failure is reported once")
         } finally {
             thread.setUncaughtExceptionHandler(enclosingHandler)
             frame.dispose()
@@ -253,8 +257,10 @@ class WindowRecomposerFailureTest {
             Snapshot.withMutableSnapshot { watched.value = 1 }
             assertEquals(1, answers, "the observer of a live content composition answers a change to what it read")
 
-            val failure = assertFailsWith<IllegalStateException> { composition.setContent { error("boom") } }
-            assertEquals("boom", failure.message, "the first pass's failure reaches the caller as it is")
+            val failure = IllegalStateException("boom")
+            val raised = assertFailsWith<IllegalStateException> { composition.setContent { throw failure } }
+            assertEquals(failure::class, raised::class, "the caller receives the first pass's failure type")
+            assertEquals(failure.message, raised.message, "the caller receives the first pass's failure message")
 
             // Observed again, so the reads the disposal dropped stand once more: only being off the
             // global apply observers can keep the change below from reaching this observer.

@@ -1,6 +1,10 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.runSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Container
 import java.awt.Rectangle
 import javax.swing.JButton
@@ -170,96 +174,29 @@ class SwingApplierTest {
         assertEquals(listOf("a", "d"), childNames(root))
     }
 
-    @Test
-    fun move_forwardReordersCorrectly() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("moves")
+    fun aMoveReordersTheChildren(
+        children: List<String>,
+        from: Int,
+        to: Int,
+        count: Int,
+        expected: List<String>,
+    ) {
         val root = JPanel()
         val applier = applierFor(root)
-
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            listOf("a", "b", "c", "d").forEachIndexed { i, n ->
-                insertChild(i, CreatedNodeHolder(namedButton(n)))
-            }
+            children.forEachIndexed { i, n -> insertChild(i, CreatedNodeHolder(namedButton(n))) }
         }
         applier.onEndChanges()
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            // Move single item "a" (index 0) to index 3 (after the run removal, mirrors Compose math).
-            move(0, 3, 1)
+            move(from, to, count)
         }
         applier.onEndChanges()
-
-        assertEquals(listOf("b", "c", "a", "d"), childNames(root))
-    }
-
-    @Test
-    fun move_backwardReordersCorrectly() {
-        val root = JPanel()
-        val applier = applierFor(root)
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            listOf("a", "b", "c", "d").forEachIndexed { i, n ->
-                insertChild(i, CreatedNodeHolder(namedButton(n)))
-            }
-        }
-        applier.onEndChanges()
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            // Move "d" (index 3) to index 1.
-            move(3, 1, 1)
-        }
-        applier.onEndChanges()
-
-        assertEquals(listOf("a", "d", "b", "c"), childNames(root))
-    }
-
-    @Test
-    fun move_multiCountForwardReordersWholeRun() {
-        val root = JPanel()
-        val applier = applierFor(root)
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            listOf("a", "b", "c", "d", "e").forEachIndexed { i, n ->
-                insertChild(i, CreatedNodeHolder(namedButton(n)))
-            }
-        }
-        applier.onEndChanges()
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            // Move the run [a, b] (indices 0..1, count 2) to index 4.
-            move(0, 4, 2)
-        }
-        applier.onEndChanges()
-
-        assertEquals(listOf("c", "d", "a", "b", "e"), childNames(root))
-    }
-
-    @Test
-    fun move_multiCountBackwardReordersWholeRun() {
-        val root = JPanel()
-        val applier = applierFor(root)
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            listOf("a", "b", "c", "d", "e").forEachIndexed { i, n ->
-                insertChild(i, CreatedNodeHolder(namedButton(n)))
-            }
-        }
-        applier.onEndChanges()
-
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            // Move the run [d, e] (indices 3..4, count 2) to index 0.
-            move(3, 0, 2)
-        }
-        applier.onEndChanges()
-
-        assertEquals(listOf("d", "e", "a", "b", "c"), childNames(root))
+        assertEquals(expected, childNames(root), "the move must leave the declared order")
     }
 
     @Test
@@ -495,6 +432,40 @@ class SwingApplierTest {
             rootRevalidatesAfterFirstPass,
             root.revalidateCount,
             "the untouched root should not be revalidated",
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun moves(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of("one child forward", listOf("a", "b", "c", "d")),
+                0,
+                3,
+                1,
+                listOf("b", "c", "a", "d"),
+            ),
+            Arguments.of(
+                Named.of("one child backward", listOf("a", "b", "c", "d")),
+                3,
+                1,
+                1,
+                listOf("a", "d", "b", "c"),
+            ),
+            Arguments.of(
+                Named.of("run forward", listOf("a", "b", "c", "d", "e")),
+                0,
+                4,
+                2,
+                listOf("c", "d", "a", "b", "e"),
+            ),
+            Arguments.of(
+                Named.of("run backward", listOf("a", "b", "c", "d", "e")),
+                3,
+                0,
+                2,
+                listOf("d", "e", "a", "b", "c"),
+            ),
         )
     }
 }

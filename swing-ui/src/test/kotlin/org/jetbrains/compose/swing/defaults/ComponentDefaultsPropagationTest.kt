@@ -12,13 +12,13 @@ import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.menu.ContextMenu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.popupAnchor
-import org.jetbrains.compose.swing.components.menu.popupTrigger
 import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -175,8 +175,7 @@ class ComponentDefaultsPropagationTest {
                 }
             }
         }
-        val target = onNodeWithText("target").fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val item = (captured ?: error("the popup trigger did not open the menu")).getComponent(0)
         assertEquals(Color.MAGENTA, item.background)
 

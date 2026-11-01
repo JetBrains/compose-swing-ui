@@ -25,7 +25,8 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.io.PrintWriter
@@ -84,15 +85,14 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        val label = taggedLabel()
-        assertNotNull(
-            label.findDeclaringGroup(),
-            "the composition answers for what it declared whatever the application set",
-        )
-        assertFalse(
-            label.attachComposeStackTrace(RuntimeException("boom")),
+        onNodeWithTag(LABEL_TAG).assertIsOfType<JLabel>().assertProperty(
+            true,
+            "the group of what the composition declared is found whatever the application set",
+        ) { findDeclaringGroup() != null }
+        onNodeWithTag(LABEL_TAG).assertProperty(
+            false,
             "and the switch sets that mode no more than it reads it, so no trace can be built",
-        )
+        ) { attachComposeStackTrace(RuntimeException("boom")) }
     }
 
     @Test
@@ -111,18 +111,18 @@ class ComponentInspectionTest {
             }
         }
 
-        assertDeclaredBy(taggedLabel(), "Label.kt")
+        assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
         assertDeclaredBy(onNodeWithTag(BUTTON_TAG).fetch(), "Button.kt")
         assertDeclaredBy(onNodeWithTag(CHECKBOX_TAG).fetch(), "CheckBox.kt")
-        assertTrue(
-            declarationTraceOf(taggedLabel()).contains(OWN_FILE),
+        onNodeWithTag(LABEL_TAG).assertProperty(
+            true,
             "the trace must reach the call site that declared the component, not only the library file " +
                 "the composable is defined in",
-        )
-        assertTrue(
-            declarationTraceOf(onNodeWithTag(CHECKBOX_TAG).fetch()).contains(OWN_FILE),
+        ) { declarationTraceOf(this).contains(OWN_FILE) }
+        onNodeWithTag(CHECKBOX_TAG).assertProperty(
+            true,
             "the CheckBox trace must reach the call site that declared the component",
-        )
+        ) { declarationTraceOf(this).contains(OWN_FILE) }
     }
 
     @Test
@@ -130,13 +130,16 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        val label = taggedLabel()
         val throwable = RuntimeException("a failure raised outside composition")
-        assertTrue(label.attachComposeStackTrace(throwable), "the first attach names where it was declared")
-        assertFalse(
-            label.attachComposeStackTrace(throwable),
+        val label = onNodeWithTag(LABEL_TAG)
+        label.assertProperty(
+            true,
+            "the first attach names where it was declared",
+        ) { attachComposeStackTrace(throwable) }
+        label.assertProperty(
+            false,
             "a throwable already carrying a composition stack trace is given no second one",
-        )
+        ) { attachComposeStackTrace(throwable) }
         assertEquals(1, throwable.suppressedExceptions.size, "so it carries the one trace it was given")
     }
 
@@ -150,7 +153,7 @@ class ComponentInspectionTest {
             }
         }
         val panel = onNodeWithTag(PANEL_TAG).fetch()
-        val label = taggedLabel()
+        val label = onNodeWithTag(LABEL_TAG).fetch()
         val button = onNodeWithTag(BUTTON_TAG).fetch()
 
         for (component in listOf(panel, label, button)) {
@@ -249,7 +252,7 @@ class ComponentInspectionTest {
             remember { buildsOfTheContent++ }
             Label(text = shown, modifier = SwingModifier.testTag(LABEL_TAG))
         }
-        val label = taggedLabel()
+        val label = onNodeWithTag(LABEL_TAG).fetch()
         val anchor =
             assertNotNull(
                 assertNotNull(label.findDeclaringGroup()).identity,
@@ -261,7 +264,7 @@ class ComponentInspectionTest {
 
         assertEquals(1, buildsOfTheContent, "a recomposition does not build the content afresh")
         onNodeWithTag(LABEL_TAG).assertTextEquals("second")
-        assertSame(label, taggedLabel(), "the recomposed pass keeps the same component")
+        assertSame(label, onNodeWithTag(LABEL_TAG).fetch(), "the recomposed pass keeps the same component")
         assertSame(
             anchor,
             assertNotNull(label.findDeclaringGroup()).identity,
@@ -288,7 +291,7 @@ class ComponentInspectionTest {
         try {
             awaitIdle()
 
-            assertDeclaredBy(taggedLabel(), "Label.kt")
+            assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
             val nested = onNodeWithTag(NESTED_TAG).fetch()
             assertDeclaredBy(nested, "Label.kt")
             assertSame(
@@ -340,10 +343,10 @@ class ComponentInspectionTest {
     fun withInspectionOffAComponentsOwnNodeAnswersNull() = runComposeSwingTest {
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        assertNull(
-            taggedLabel().composedNode(),
+        onNodeWithTag(LABEL_TAG).assertIsOfType<JLabel>().assertProperty(
+            null,
             "off is the default, so no node was ever published",
-        )
+        ) { composedNode() }
     }
 
     @Test
@@ -351,7 +354,7 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        val label = taggedLabel()
+        val label = onNodeWithTag(LABEL_TAG).fetch<JLabel>()
         val node = assertNotNull(label.composedNode(), "the component was declared while inspection was on")
         assertSame(label, node.component, "the node holds the very component it was read off")
         assertSame(
@@ -366,7 +369,7 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         var shown by mutableStateOf(true)
         setContent { if (shown) Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
-        val label = taggedLabel()
+        val label = onNodeWithTag(LABEL_TAG).fetch<JLabel>()
         assertNotNull(label.composedNode(), "the component is declared while it stands in the content")
 
         shown = false
@@ -419,7 +422,7 @@ class ComponentInspectionTest {
         }
         // Fetched while the composition still drives it: a parked component is out of the tree a tag
         // lookup walks.
-        val label = taggedLabel()
+        val label = onNodeWithTag(LABEL_TAG).fetch<JLabel>()
         assertNotNull(label.composedNode(), "the component is declared while the content is active")
 
         active = false
@@ -450,42 +453,33 @@ class ComponentInspectionTest {
     fun turningInspectionOffMakesEveryComponentAnswerNullAgain() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
-        assertNotNull(taggedLabel().composedNode())
+        onNodeWithTag(LABEL_TAG).assertIsOfType<JLabel>().assertProperty(true) { composedNode() != null }
 
         isDebugInspectorInfoEnabled = false
         awaitIdle()
 
-        assertNull(
-            taggedLabel().composedNode(),
+        onNodeWithTag(LABEL_TAG).assertIsOfType<JLabel>().assertProperty(
+            null,
             "the switch going off re-inserts the content into a fresh, unpublished component",
-        )
+        ) { composedNode() }
     }
 
     @Test
     fun theAnswersMustBeReadOnTheEventDispatchThread() {
         val component = JPanel()
 
-        val groupFailure = assertFailsWith<IllegalStateException> { component.findDeclaringGroup() }
-        assertTrue(
-            groupFailure.message.orEmpty().contains("Event Dispatch Thread"),
-            "the read must name the thread it belongs to, but was: ${groupFailure.message}",
-        )
-        val dataFailure = assertFailsWith<IllegalStateException> { component.findCompositionData() }
-        assertTrue(
-            dataFailure.message.orEmpty().contains("Event Dispatch Thread"),
-            "and so must the composition it stands in, but was: ${dataFailure.message}",
-        )
-        val traceFailure =
-            assertFailsWith<IllegalStateException> { component.attachComposeStackTrace(RuntimeException("boom")) }
-        assertTrue(
-            traceFailure.message.orEmpty().contains("Event Dispatch Thread"),
-            "and so must attaching a trace, but was: ${traceFailure.message}",
-        )
-        val nodeFailure = assertFailsWith<IllegalStateException> { component.composedNode() }
-        assertTrue(
-            nodeFailure.message.orEmpty().contains("Event Dispatch Thread"),
-            "and so must reading a component's own node, but was: ${nodeFailure.message}",
-        )
+        assertFailsWith<IllegalStateException>("the read must name the thread it belongs to") {
+            component.findDeclaringGroup()
+        }
+        assertFailsWith<IllegalStateException>("and so must the composition it stands in") {
+            component.findCompositionData()
+        }
+        assertFailsWith<IllegalStateException>("and so must attaching a trace") {
+            component.attachComposeStackTrace(RuntimeException("boom"))
+        }
+        assertFailsWith<IllegalStateException>("and so must reading a component's own node") {
+            component.composedNode()
+        }
     }
 
     @Test
@@ -513,9 +507,6 @@ class ComponentInspectionTest {
         )
     }
 }
-
-/** The tagged [JLabel] in the harness content, typed for the reads a component's own node needs. */
-private fun ComposeSwingTest.taggedLabel(): JLabel = onNodeWithTag(LABEL_TAG).fetch() as JLabel
 
 /**
  * Asserts [component] is answered for with its own node group, and that the trace of where it was

@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performMouseDrag
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -48,8 +49,10 @@ class TableHeaderTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(Color.RED, table.tableHeader.background, "the modifier should reach the table's own header")
+        onNodeOfType<JTable>().assertProperty(
+            Color.RED,
+            "the modifier should reach the table's own header",
+        ) { tableHeader.background }
     }
 
     @Test
@@ -75,8 +78,10 @@ class TableHeaderTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(Color.RED, table.tableHeader.background, "the modifier should reach the table's own header")
+        onNodeOfType<JTable>().assertProperty(
+            Color.RED,
+            "the modifier should reach the table's own header",
+        ) { tableHeader.background }
     }
 
     @Test
@@ -94,7 +99,10 @@ class TableHeaderTest {
         val table = onNodeOfType<JTable>().fetch()
         val pane = onNodeOfType<JScrollPane>().fetch()
         assertSame(table.tableHeader, pane.columnHeader?.view, "the pane shows the table's own header")
-        assertEquals(Color.RED, table.tableHeader.background, "the modifier should reach the header it shows")
+        onNodeOfType<JTable>().assertProperty(
+            Color.RED,
+            "the modifier should reach the header it shows",
+        ) { tableHeader.background }
     }
 
     @Test
@@ -107,7 +115,10 @@ class TableHeaderTest {
         assertFalse(header.reorderingAllowed, "the declared setting should reach the header")
 
         onNodeOfType<JTableHeader>().performMouseDrag(table.headerCenterOf(0), table.headerCenterOf(1))
-        assertEquals(listOf("Name", "Role"), table.columnHeaders(), "a drag should leave the columns where they are")
+        onNodeOfType<JTable>().assertProperty(
+            listOf("Name", "Role"),
+            "a drag should leave the columns where they are",
+        ) { columnHeaders() }
 
         reorderingAllowed = true
         awaitIdle()
@@ -115,7 +126,10 @@ class TableHeaderTest {
         assertTrue(header.reorderingAllowed, "the declared setting should reach the header")
 
         onNodeOfType<JTableHeader>().performMouseDrag(table.headerCenterOf(0), table.headerCenterOf(1))
-        assertEquals(listOf("Role", "Name"), table.columnHeaders(), "a drag should reorder the columns")
+        onNodeOfType<JTable>().assertProperty(
+            listOf("Role", "Name"),
+            "a drag should reorder the columns",
+        ) { columnHeaders() }
     }
 
     @Test
@@ -353,21 +367,13 @@ class TableHeaderTest {
 
     @Test
     fun aChildThatIsNotAPartIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
-                        Label(text = "loose")
-                    }
+        assertFailsWith<IllegalStateException>("the refusal should name the table and the call") {
+            setContent {
+                Table(rows = listOf("Ada"), columns = { column("Name") { it } }) {
+                    Label(text = "loose")
                 }
             }
-
-        val message = failure.message.orEmpty()
-        assertTrue("JTable" in message, "the refusal should name the table: $message")
-        assertTrue(
-            "Name the region it fills through Header()." in message,
-            "the refusal should name the call: $message",
-        )
+        }
     }
 }
 

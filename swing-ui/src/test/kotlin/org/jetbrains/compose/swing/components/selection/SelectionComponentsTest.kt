@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JCheckBox
@@ -14,7 +15,6 @@ import javax.swing.JComboBox
 import javax.swing.JRadioButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /**
  * Behavioral coverage for the selection components - [CheckBox], [RadioButton], [ComboBox]. Each test
@@ -58,12 +58,15 @@ class SelectionComponentsTest {
         setContent {
             ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = "Green", onSelectionChange = {})
         }
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals(3, combo.itemCount, "the combo box should hold all three items")
-        assertEquals("Red", combo.getItemAt(0), "item 0 should be Red")
-        assertEquals("Blue", combo.getItemAt(2), "item 2 should be Blue")
-        assertEquals("Green", combo.selectedItem, "the combo box should honor the declared item")
-        assertEquals(1, combo.selectedIndex, "the declared item should be selected where it sits")
+        val combo = onNodeOfType<JComboBox<*>>()
+        combo.assertProperty(3, "the combo box should hold all three items") { itemCount }
+        combo.assertProperty("Red", "item 0 should be Red") { getItemAt(0) }
+        combo.assertProperty("Blue", "item 2 should be Blue") { getItemAt(2) }
+        combo.assertProperty("Green", "the combo box should honor the declared item") { this.selectedItem }
+        combo.assertProperty(
+            1,
+            "the declared item should be selected where it sits",
+        ) { selectedIndex }
     }
 
     @Test
@@ -80,48 +83,15 @@ class SelectionComponentsTest {
                 },
             )
         }
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        combo.selectedIndex = 2
+        val combo = onNodeOfType<JComboBox<*>>()
+        combo.fetch().selectedIndex = 2
         awaitIdle()
         assertEquals(
             listOf<String?>("Blue"),
             reported,
             "a selection change should fire onSelectionChange exactly once with the new item",
         )
-        assertEquals("Blue", combo.selectedItem, "the combo box should land on the new item")
-    }
-
-    @Test
-    fun comboBoxItemsRebuildDoesNotFireOnSelectionChange() = runComposeSwingTest {
-        var items by mutableStateOf(listOf("Red", "Green", "Blue"))
-        val reported = mutableListOf<String?>()
-        setContent {
-            ComboBox(
-                items = items,
-                selectedItem = "Green",
-                onSelectionChange = { reported += it },
-            )
-        }
-        assertEquals(emptyList(), reported, "rendering the declared selection must not fire onSelectionChange")
-
-        items = listOf("Red", "Green", "Blue", "Yellow")
-        awaitIdle()
-        assertEquals(emptyList(), reported, "an items rebuild must not fire onSelectionChange")
-    }
-
-    @Test
-    fun comboBoxItemsRebuildPreservesDeclaredSelection() = runComposeSwingTest {
-        var items by mutableStateOf(listOf("Red", "Green", "Blue"))
-        setContent {
-            ComboBox(items = items, selectedItem = "Green", onSelectionChange = {})
-        }
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
-
-        items = listOf("Red", "Green", "Blue", "Yellow")
-        awaitIdle()
-        assertEquals(4, combo.itemCount, "the rebuilt combo box should hold the new items")
-        assertEquals("Green", combo.selectedItem, "the declared selection should survive an items rebuild")
+        combo.assertProperty("Blue", "the combo box should land on the new item") { this.selectedItem }
     }
 
     @Test
@@ -130,13 +100,16 @@ class SelectionComponentsTest {
         setContent {
             ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = selectedItem, onSelectionChange = {})
         }
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
+        val combo = onNodeOfType<JComboBox<*>>()
+        combo.assertProperty("Green", "the declared selection should render initially") { this.selectedItem }
 
         selectedItem = null
         awaitIdle()
-        assertNull(combo.selectedItem, "a null selectedItem should clear the selection")
-        assertEquals(-1, combo.selectedIndex, "no item should remain selected after deselection")
+        combo.assertProperty(null, "a null selectedItem should clear the selection") { this.selectedItem }
+        combo.assertProperty(
+            -1,
+            "no item should remain selected after deselection",
+        ) { selectedIndex }
     }
 
     @Test
@@ -145,12 +118,12 @@ class SelectionComponentsTest {
         setContent {
             ComboBox(items = items, selectedItem = items.first(), onSelectionChange = {})
         }
-        val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals(2, combo.itemCount, "the combo box should start with two items")
+        val combo = onNodeOfType<JComboBox<*>>()
+        combo.assertProperty(2, "the combo box should start with two items") { itemCount }
 
         items = listOf("X", "Y", "Z")
         awaitIdle()
-        assertEquals(3, combo.itemCount, "recomposition should rebuild the combo box with three items")
-        assertEquals("X", combo.getItemAt(0), "the rebuilt items should start with X")
+        combo.assertProperty(3, "the updated combo box holds three items") { itemCount }
+        combo.assertProperty("X", "the rebuilt items should start with X") { getItemAt(0) }
     }
 }

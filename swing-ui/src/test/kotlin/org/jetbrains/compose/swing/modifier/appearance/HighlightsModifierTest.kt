@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
@@ -37,9 +38,9 @@ class HighlightsModifierTest {
                 modifier = SwingModifier.highlights(listOf(TextRange(0, 5), TextRange(6, 11)), Painter),
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
+        val area = onNodeOfType<JTextArea>()
 
-        assertEquals(listOf(0 to 5, 6 to 11), area.paintedSpans(), "both declared ranges should be painted")
+        area.assertProperty(listOf(0 to 5, 6 to 11), "both declared ranges should be painted") { paintedSpans() }
     }
 
     @Test
@@ -48,17 +49,16 @@ class HighlightsModifierTest {
         setContent {
             TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the first declaration should be painted")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(0 to 5), "the first declaration should be painted") { paintedSpans() }
 
         ranges = listOf(TextRange(6, 11))
         awaitIdle()
 
-        assertEquals(
+        area.assertProperty(
             listOf(6 to 11),
-            area.paintedSpans(),
             "the new declaration should replace the previous marks rather than accumulate onto them",
-        )
+        ) { paintedSpans() }
     }
 
     @Test
@@ -67,17 +67,16 @@ class HighlightsModifierTest {
         setContent {
             TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the first declaration should be painted")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(0 to 5), "the first declaration should be painted") { paintedSpans() }
 
         ranges.add(TextRange(6, 11))
         awaitIdle()
 
-        assertEquals(
+        area.assertProperty(
             listOf(0 to 5, 6 to 11),
-            area.paintedSpans(),
             "a range added to the declared list should be painted",
-        )
+        ) { paintedSpans() }
     }
 
     @Test
@@ -89,9 +88,9 @@ class HighlightsModifierTest {
                 modifier = SwingModifier.highlights(listOf(TextRange(11, 6)), Painter),
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
+        val area = onNodeOfType<JTextArea>()
 
-        assertEquals(listOf(6 to 11), area.paintedSpans(), "a reversed range should paint the span it covers")
+        area.assertProperty(listOf(6 to 11), "a reversed range should paint the span it covers") { paintedSpans() }
     }
 
     @Test
@@ -103,13 +102,12 @@ class HighlightsModifierTest {
                 modifier = SwingModifier.highlights(listOf(TextRange(6, 400)), Painter),
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
+        val area = onNodeOfType<JTextArea>()
 
-        assertEquals(
+        area.assertProperty(
             listOf(6 to TEXT.length),
-            area.paintedSpans(),
             "a range running past the document should be clamped to it",
-        )
+        ) { paintedSpans() }
     }
 
     @Test
@@ -142,13 +140,16 @@ class HighlightsModifierTest {
                 modifier = if (marked) SwingModifier.highlights(listOf(TextRange(0, 5)), Painter) else SwingModifier,
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the declaration should be painted while present")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(0 to 5), "the declaration should be painted while present") { paintedSpans() }
 
         marked = false
         awaitIdle()
 
-        assertEquals(emptyList(), area.paintedSpans(), "leaving the modifier should take the declaration's marks away")
+        area.assertProperty(
+            emptyList(),
+            "leaving the modifier should take the declaration's marks away",
+        ) { paintedSpans() }
     }
 
     @Test
@@ -157,13 +158,13 @@ class HighlightsModifierTest {
         setContent {
             TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the declaration should be painted while it has a range")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(0 to 5), "the declaration should be painted while it has a range") { paintedSpans() }
 
         ranges = emptyList()
         awaitIdle()
 
-        assertEquals(emptyList(), area.paintedSpans(), "declaring no ranges should leave the area unmarked")
+        area.assertProperty(emptyList(), "declaring no ranges should leave the area unmarked") { paintedSpans() }
     }
 
     @Test
@@ -173,14 +174,17 @@ class HighlightsModifierTest {
         setContent {
             TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, painter))
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the first painter should paint the declared range")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(0 to 5), "the first painter should paint the declared range") { paintedSpans() }
 
         painter = ForeignPainter
         awaitIdle()
 
-        assertEquals(listOf(0 to 5), area.paintedSpans(ForeignPainter), "the new painter should paint the same range")
-        assertEquals(emptyList(), area.paintedSpans(), "the previous painter's mark should be gone")
+        area.assertProperty(
+            listOf(0 to 5),
+            "the new painter should paint the same range",
+        ) { paintedSpans(ForeignPainter) }
+        area.assertProperty(emptyList(), "the previous painter's mark should be gone") { paintedSpans() }
     }
 
     @Test
@@ -189,9 +193,12 @@ class HighlightsModifierTest {
             val source = rememberDocumentState(TEXT)
             TextArea(state = source, modifier = SwingModifier.highlights(listOf(TextRange(0, 5)), Painter))
         }
-        val area = onNodeOfType<JTextArea>().fetch()
+        val area = onNodeOfType<JTextArea>()
 
-        assertEquals(listOf(0 to 5), area.paintedSpans(), "the declared range should paint over the state's document")
+        area.assertProperty(
+            listOf(0 to 5),
+            "the declared range should paint over the state's document",
+        ) { paintedSpans() }
     }
 
     @Test
@@ -230,18 +237,17 @@ class HighlightsModifierTest {
                 modifier = SwingModifier.highlights(listOf(TextRange(6, 11)), Painter),
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(6 to 11), area.paintedSpans(), "the declared range should be painted")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(6 to 11), "the declared range should be painted") { paintedSpans() }
 
         // Rewrites exactly the span the declaration marks.
         text = "hello there"
         awaitIdle()
 
-        assertEquals(
+        area.assertProperty(
             listOf(6 to 11),
-            area.paintedSpans(),
             "the declared range should still be painted after the text under it was rewritten",
-        )
+        ) { paintedSpans() }
     }
 
     @Test
@@ -254,18 +260,17 @@ class HighlightsModifierTest {
                 modifier = SwingModifier.highlights(listOf(TextRange(6, 11)), Painter),
             )
         }
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(listOf(6 to 11), area.paintedSpans(), "the declared range should be painted")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(listOf(6 to 11), "the declared range should be painted") { paintedSpans() }
 
         // Inserts ahead of the marked span, which drags a mark anchored to the document along with it.
         text = "x$TEXT"
         awaitIdle()
 
-        assertEquals(
+        area.assertProperty(
             listOf(6 to 11),
-            area.paintedSpans(),
             "the declared offsets should still be what is painted after text was inserted before them",
-        )
+        ) { paintedSpans() }
     }
 
     /** The spans [painter] currently marks on this component, in the order the highlighter holds them. */

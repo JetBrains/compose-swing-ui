@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -39,17 +40,15 @@ class TableModelBehaviorTest {
         val model = tableModel("Ada", "Alan", "Grace")
         setContent { Table(model = model, selectedRowIndices = setOf(0)) }
 
-        val table = onNodeOfType<JTable>().fetch()
-        repeat(2) {
-            table.setRowSelectionInterval(1, 1)
+        val table = onNodeOfType<JTable>()
+        repeat(2) { attempt ->
+            table.fetch().setRowSelectionInterval(1, 1)
             awaitIdle()
+            table.assertProperty(
+                listOf(0),
+                "attempt ${attempt + 1}: an unadopted selection change does not stand, however often it is made",
+            ) { selectedRows.toList() }
         }
-
-        assertEquals(
-            listOf(0),
-            table.selectedRows.toList(),
-            "an unadopted selection change does not stand, however often it is made",
-        )
     }
 
     @Test
@@ -57,11 +56,11 @@ class TableModelBehaviorTest {
         val model = tableModel("Ada", "Alan", "Grace")
         setContent { Table(model = model) }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertSame(model, table.model, "the caller-supplied model should back the table as-is")
-        assertEquals(3, table.rowCount, "all rows should render")
-        assertEquals("Ada", table.getValueAt(0, 0), "cell (0,0) should render the model value")
-        assertEquals("Grace", table.getValueAt(2, 0), "cell (2,0) should render the model value")
+        val table = onNodeOfType<JTable>()
+        assertSame(model, table.fetch().model, "the caller-supplied model should back the table as-is")
+        table.assertProperty(3, "all rows should render") { rowCount }
+        table.assertProperty("Ada", "cell (0,0) should render the model value") { getValueAt(0, 0) }
+        table.assertProperty("Grace", "cell (2,0) should render the model value") { getValueAt(2, 0) }
     }
 
     @Test
@@ -75,9 +74,9 @@ class TableModelBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(0, 0)
-        table.addRowSelectionInterval(2, 2)
+        val table = onNodeOfType<JTable>()
+        table.fetch().setRowSelectionInterval(0, 0)
+        table.fetch().addRowSelectionInterval(2, 2)
         awaitIdle()
 
         assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
@@ -93,16 +92,19 @@ class TableModelBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(1), table.selectedRows.toList(), "initial selection applied")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(1), "initial selection applied") { selectedRows.toList() }
 
         // A model swap runs setModel, which clears selection; the controlled selection must
         // re-apply so the selection survives the swap.
         model = tableModel("Nikola", "Marie", "Rosalind")
         awaitIdle()
 
-        assertSame(model, table.model, "the swapped-in model should back the table")
-        assertEquals(listOf(1), table.selectedRows.toList(), "controlled selection survives the model swap")
+        assertSame(model, table.fetch().model, "the swapped-in model should back the table")
+        table.assertProperty(
+            listOf(1),
+            "controlled selection survives the model swap",
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -112,10 +114,13 @@ class TableModelBehaviorTest {
             Table(model = tableModel("Ada", "Alan", "Grace"), state = state, sortable = true)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals("Grace", table.getValueAt(0, 0), "the state's order should put the last row on top")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(
+            "Grace",
+            "the state's order should put the last row on top",
+        ) { getValueAt(0, 0) }
 
-        table.setRowSelectionInterval(0, 0)
+        table.fetch().setRowSelectionInterval(0, 0)
         awaitIdle()
 
         assertEquals(setOf(2), state.selectedRowIndices, "the row on top is reported by its place in the model")
@@ -137,13 +142,13 @@ class TableModelBehaviorTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0), table.selectedRows.toList(), "initial selection applied")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0), "initial selection applied") { selectedRows.toList() }
 
         selection = setOf(2)
         awaitIdle()
 
-        assertEquals(listOf(2), table.selectedRows.toList(), "external selection applied")
+        table.assertProperty(listOf(2), "external selection applied") { selectedRows.toList() }
         assertEquals(setOf(2), selection, "controlled state settled on the new selection")
         assertTrue(received.all { it == setOf(2) }, "selection oscillated instead of converging: $received")
 

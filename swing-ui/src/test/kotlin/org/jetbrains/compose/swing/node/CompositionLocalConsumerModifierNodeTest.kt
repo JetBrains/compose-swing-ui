@@ -16,6 +16,8 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -115,7 +117,7 @@ class CompositionLocalConsumerModifierNodeTest {
                 SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalDynamic))
             }
         }
-        assertEquals("hello", onNodeOfType<JLabel>().fetch().name)
+        onNodeOfType<JLabel>().assert(SwingMatcher.hasName("hello"))
     }
 
     @Test
@@ -128,7 +130,7 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         value = "changed"
         awaitIdle()
-        assertEquals("changed", onNodeOfType<JLabel>().fetch().name)
+        onNodeOfType<JLabel>().assert(SwingMatcher.hasName("changed"))
     }
 
     @Test
@@ -141,7 +143,7 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         value = "changed"
         awaitIdle()
-        assertEquals("changed", onNodeOfType<JLabel>().fetch().name)
+        onNodeOfType<JLabel>().assert(SwingMatcher.hasName("changed"))
     }
 
     @Test
@@ -231,7 +233,7 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         value = "changed"
         awaitIdle()
-        assertEquals("changed", onNodeOfType<JLabel>().fetch().name, "the modifier writes after the update block")
+        onNodeOfType<JLabel>().assertProperty("changed", "the modifier writes after the update block") { name }
     }
 
     @Test
@@ -244,7 +246,7 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         value = "changed"
         awaitIdle()
-        assertEquals("later", onNodeOfType<JLabel>().fetch().name, "the later declaration stands")
+        onNodeOfType<JLabel>().assertProperty("later", "the later declaration stands") { name }
     }
 
     @Test
@@ -257,7 +259,7 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         value = "changed"
         awaitIdle()
-        assertEquals("later", onNodeOfType<JLabel>().fetch().name, "the later declaration stands")
+        onNodeOfType<JLabel>().assertProperty("later", "the later declaration stands") { name }
     }
 
     @Test
@@ -271,10 +273,10 @@ class CompositionLocalConsumerModifierNodeTest {
                 )
             }
         }
-        assertEquals("hello", onNodeOfType<JLabel>().fetch().name)
+        onNodeOfType<JLabel>().assert(SwingMatcher.hasName("hello"))
         value = "changed"
         awaitIdle()
-        assertEquals("changed", onNodeOfType<JLabel>().fetch().name, "additive elements apply after property elements")
+        onNodeOfType<JLabel>().assertProperty("changed", "additive elements apply after property elements") { name }
     }
 
     @Test
@@ -327,16 +329,10 @@ class CompositionLocalConsumerModifierNodeTest {
         }
         val createdReference = assertNotNull(created, "the consuming modifier must create a node")
         assertEquals(true, createdReference.get()?.isAttached, "the consuming node must attach before withdrawal")
-        assertEquals("hello", onNodeOfType<JLabel>().fetch().name)
+        onNodeOfType<JLabel>().assert(SwingMatcher.hasName("hello"))
         consuming = false
         awaitIdle()
-        // One System.gc() is a hint, so a collection is asked for several times before giving up.
-        repeat(20) {
-            if (createdReference.get() == null) return@runComposeSwingTest
-            System.gc()
-            awaitIdle()
-        }
-        assertNull(createdReference.get(), "a detached node must not stay reachable from the composition")
+        assertTrue(isCollected(createdReference), "a detached node must not stay reachable from the composition")
     }
 
     @Test

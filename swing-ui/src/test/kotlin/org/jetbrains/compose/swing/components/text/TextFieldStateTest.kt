@@ -6,12 +6,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextInput
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -61,18 +66,28 @@ class TextFieldStateTest {
         onNodeOfType<JTextField>().assertTextEquals("abc")
     }
 
-    @Test
-    fun assigningTextUpdatesTheFieldAndState() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("textAssignments")
+    fun assigningTheTextReplacesWhatTheFieldShows(
+        seed: String,
+        assigned: String,
+    ) = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState("hello")
+            state = rememberDocumentState(seed)
             TextField(state = state)
         }
-
-        state.text = "help"
+        state.text = assigned
         awaitIdle()
-        onNodeOfType<JTextField>().assertTextEquals("help")
-        assertEquals("help", state.text.toString())
+        onNodeOfType<JTextField>().assertTextEquals(assigned)
+    }
+
+    companion object {
+        @JvmStatic
+        fun textAssignments(): List<Arguments> = listOf(
+            Arguments.of(Named.of("new text", "hello"), "help"),
+            Arguments.of(Named.of("empty text", "something"), ""),
+        )
     }
 
     @Test
@@ -116,13 +131,13 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
         state.selection = TextRange(0, 5)
         awaitIdle()
 
-        assertEquals(0, field.selectionStart)
-        assertEquals(5, field.selectionEnd)
-        assertEquals("hello", field.selectedText)
+        field.assertProperty(0) { selectionStart }
+        field.assertProperty(5) { selectionEnd }
+        field.assertProperty("hello") { selectedText }
     }
 
     @Test
@@ -141,21 +156,6 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun emptyingTheTextEmptiesTheField() = runComposeSwingTest {
-        lateinit var state: DocumentState
-        setContent {
-            state = rememberDocumentState("something")
-            TextField(state = state)
-        }
-
-        state.text = ""
-        awaitIdle()
-
-        onNodeOfType<JTextField>().assertTextEquals("")
-        assertEquals("", state.text.toString())
-    }
-
-    @Test
     fun writingTheTextAndThenTheSelectionPlacesTheCaret() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
@@ -169,7 +169,7 @@ class TextFieldStateTest {
 
         val field = onNodeOfType<JTextField>()
         field.assertTextEquals("filled")
-        assertEquals(6, field.fetch().caretPosition)
+        field.assertProperty(6) { caretPosition }
         assertEquals(TextRange(6, 6), state.selection)
     }
 
@@ -286,12 +286,12 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
         state.edit { selectAll() }
         awaitIdle()
 
         assertEquals(TextRange(0, 5), state.selection)
-        assertEquals("abcde", field.selectedText)
+        field.assertProperty("abcde") { selectedText }
     }
 
     @Test
@@ -320,7 +320,7 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
         state.edit {
             selectAll()
             append("cd")
@@ -328,7 +328,7 @@ class TextFieldStateTest {
         awaitIdle()
 
         assertEquals(TextRange(0, 4), state.selection)
-        assertEquals("abcd", field.selectedText)
+        field.assertProperty("abcd") { selectedText }
     }
 
     @Test

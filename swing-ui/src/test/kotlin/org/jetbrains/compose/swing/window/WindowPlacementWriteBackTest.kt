@@ -6,8 +6,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
-import javax.swing.JDialog
-import javax.swing.JFrame
+import java.awt.Window
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -34,10 +33,10 @@ class WindowPlacementWriteBackTest {
     fun aMoveOffScreenLeavesADeclaredWindowPositionStanding() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = WINDOW_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-declared", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -56,10 +55,10 @@ class WindowPlacementWriteBackTest {
     fun aMoveOffScreenResolvesAWindowPositionThatNamesNoCoordinates() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = WINDOW_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-platform-default", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -78,10 +77,10 @@ class WindowPlacementWriteBackTest {
     fun aRepositionAfterAResolvedPositionStandsAgainstAReportOfTheCoordinatesItSuperseded() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = WINDOW_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-after-resolution", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -119,10 +118,10 @@ class WindowPlacementWriteBackTest {
     fun aRepositionAfterAUserMoveStandsAgainstAReportOfTheCoordinatesItSuperseded() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = WINDOW_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-after-user-move", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -162,10 +161,10 @@ class WindowPlacementWriteBackTest {
     fun aRepositionAfterAUserMoveOverAnUnperformedPlacementSupersedesThatPlacement() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = WINDOW_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-superseded-by-user", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -211,10 +210,10 @@ class WindowPlacementWriteBackTest {
     fun aMoveOffScreenLeavesADeclaredDialogPositionStanding() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(position = WindowPosition.Absolute(140, 90), size = WINDOW_SIZE)
-        lateinit var dialog: JDialog
+        lateinit var dialog: Window
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "placement-declared-dialog", visible = false) {
-                dialog = LocalWindow.current as JDialog
+                dialog = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }

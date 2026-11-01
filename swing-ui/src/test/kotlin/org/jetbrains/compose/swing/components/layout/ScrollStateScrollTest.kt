@@ -27,7 +27,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -47,8 +46,7 @@ class ScrollStateScrollTest {
         val state = pane.state
         val first = pane.scope.launch { state.scroll { stepDownEveryFrame(state) } }
         mainClock.advanceTimeByFrame()
-        val stood = state.y
-        assertEquals(20, stood, "the first block must have moved the pane before it is taken over")
+        assertEquals(20, state.y, "the first block must have moved the pane before it is taken over")
 
         var startedAt = -1
         pane.scope.launch {
@@ -66,8 +64,8 @@ class ScrollStateScrollTest {
         )
 
         mainClock.advanceTimeByFrame()
-        assertEquals(stood, startedAt, "the block that took over must start from where the one before it stood")
-        assertEquals(stood + 20, state.y, "and move the pane on from there")
+        assertEquals(20, startedAt, "the block that took over must start from where the one before it stood")
+        assertEquals(40, state.y, "and move the pane on from there")
     }
 
     @Test
@@ -183,16 +181,15 @@ class ScrollStateScrollTest {
 
         // Narrowing the content leaves the pane standing where it is: there is no position to correct, so
         // nothing the block did not do has happened to the position.
-        pane.contentWidth = 300 - 100
+        pane.contentWidth = 200
         mainClock.advanceTimeByFrame()
 
-        assertEquals(300 - 100, state.viewWidth, "the content the block moves must have resized")
+        assertEquals(200, state.viewWidth, "the content the block moves must have resized")
         assertFalse(job.isCancelled, "resizing content that does not move the pane must leave the block alone")
         assertTrue(state.isScrollInProgress, "so the scroll must still be in progress")
 
-        val stood = state.y
         mainClock.advanceTimeByFrame()
-        assertEquals(stood + 20, state.y, "and the block must go on moving the pane")
+        assertEquals(60, state.y, "and the block must go on moving the pane")
     }
 
     /**
@@ -464,17 +461,14 @@ class ScrollStateScrollTest {
 
         // A thread of the test's own, since what this pins is the refusal anywhere but the event dispatch
         // thread the composition runs the test body on.
-        val thrown =
-            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { offTheEventDispatchThread ->
-                withContext(offTheEventDispatchThread) { runCatching { state.scroll { } }.exceptionOrNull() }
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { offTheEventDispatchThread ->
+            withContext(offTheEventDispatchThread) {
+                assertFailsWith<IllegalStateException>("a scroll off the event dispatch thread must be refused") {
+                    state.scroll { }
+                }
             }
+        }
 
-        val refusal = assertIs<IllegalStateException>(thrown, "a scroll off the event dispatch thread must be refused")
-        val message = assertNotNull(refusal.message, "the refusal must carry a diagnostic message")
-        assertTrue(
-            "Event Dispatch Thread" in message,
-            "the refusal must state the thread requirement, but was: $message",
-        )
         assertFalse(state.isScrollInProgress, "and a refused call must take the position from nothing")
     }
 

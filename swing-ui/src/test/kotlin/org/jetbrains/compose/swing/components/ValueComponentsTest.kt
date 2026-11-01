@@ -1,18 +1,24 @@
 package org.jetbrains.compose.swing.components
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.KeyEvent
 import javax.swing.DefaultBoundedRangeModel
 import javax.swing.JLabel
@@ -153,25 +159,16 @@ class ValueComponentsTest {
         assertEquals(30, slider.value, "a change the caller does not adopt does not stand")
     }
 
-    @Test
-    fun aDragReportsEveryStepAndSettlesOnceOnReleaseWithoutReassertingMidDrag() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sliderDeclarations")
+    fun aDragReportsEveryStepAndSettlesOnceOnRelease(
+        declaration: @Composable (onValueChange: (Int) -> Unit, onValueSettled: (Int) -> Unit) -> Unit,
+    ) = runComposeSwingTest {
         val changed = mutableListOf<Int>()
         val settled = mutableListOf<Int>()
-        setContent {
-            // The declaration is left at 0 throughout and never adopts the drag, so a widget write mid-
-            // drag standing unreverted is what shows the fixed value is not reasserted while adjusting.
-            Slider(
-                value = 0,
-                onValueChange = { changed += it },
-                onValueSettled = { settled += it },
-                min = 0,
-                max = 100,
-            )
-        }
+        setContent { declaration({ changed += it }, { settled += it }) }
         val slider = onNodeOfType<JSlider>().fetch()
 
-        // What a drag does to a JSlider: valueIsAdjusting true for every step it passes through, and
-        // false again for the value it is released on.
         slider.setValueIsAdjusting(true)
         slider.value = 10
         slider.value = 20
@@ -180,11 +177,7 @@ class ValueComponentsTest {
 
         assertEquals(listOf(10, 20, 30), changed, "onValueChange should see every value the drag passed through")
         assertEquals(emptyList(), settled, "onValueSettled should not fire while the drag is still adjusting")
-        assertEquals(
-            30,
-            slider.value,
-            "the fixed declaration should not be reasserted onto a slider the user is still dragging",
-        )
+        onNodeOfType<JSlider>().assertProperty(30, "the drag's own value stands while adjusting") { value }
 
         slider.setValueIsAdjusting(false)
         awaitIdle()
@@ -201,38 +194,29 @@ class ValueComponentsTest {
         )
     }
 
-    @Test
-    fun aDragOnAModelDrivenSliderReportsEveryStepAndSettlesOnceOnRelease() = runComposeSwingTest {
-        val model = DefaultBoundedRangeModel(0, 0, 0, 100)
-        val changed = mutableListOf<Int>()
-        val settled = mutableListOf<Int>()
-        setContent {
-            Slider(model = model, onValueChange = { changed += it }, onValueSettled = { settled += it })
-        }
-        val slider = onNodeOfType<JSlider>().fetch()
+    companion object {
+        private const val SIGNED_MINIMUM = -50
+        private const val SIGNED_MAXIMUM = 50
 
-        slider.setValueIsAdjusting(true)
-        slider.value = 10
-        slider.value = 20
-        slider.value = 30
-        awaitIdle()
-
-        assertEquals(listOf(10, 20, 30), changed, "onValueChange should see every value the drag passed through")
-        assertEquals(emptyList(), settled, "onValueSettled should not fire while the drag is still adjusting")
-        assertEquals(30, model.value, "nothing is declared over a caller's model, so the drag's own value stands")
-
-        slider.setValueIsAdjusting(false)
-        awaitIdle()
-
-        assertEquals(
-            listOf(10, 20, 30),
-            changed,
-            "releasing should not re-report the steps the drag already published",
-        )
-        assertEquals(
-            listOf(30),
-            settled,
-            "onValueSettled should fire exactly once, with the value the drag released on",
+        @JvmStatic
+        fun sliderDeclarations(): List<Named<@Composable ((Int) -> Unit, (Int) -> Unit) -> Unit>> = listOf(
+            // The declaration never adopts the drag, so its value must not be reasserted while adjusting.
+            Named.of("fixed declaration") { onValueChange, onValueSettled ->
+                Slider(
+                    value = 0,
+                    onValueChange = onValueChange,
+                    onValueSettled = onValueSettled,
+                    min = 0,
+                    max = 100,
+                )
+            },
+            Named.of("caller's model") { onValueChange, onValueSettled ->
+                Slider(
+                    model = remember { DefaultBoundedRangeModel(0, 0, 0, 100) },
+                    onValueChange = onValueChange,
+                    onValueSettled = onValueSettled,
+                )
+            },
         )
     }
 
@@ -398,11 +382,10 @@ class ValueComponentsTest {
         setContent {
             Separator(orientation = SwingConstants.VERTICAL)
         }
-        assertEquals(
+        onNodeOfType<JSeparator>().assertProperty(
             SwingConstants.VERTICAL,
-            onNodeOfType<JSeparator>().fetch().orientation,
             "the separator should render the declared orientation",
-        )
+        ) { orientation }
     }
 
     @Test
@@ -471,10 +454,5 @@ class ValueComponentsTest {
             change = { it.value = 5 },
             read = { it.value },
         )
-    }
-
-    private companion object {
-        const val SIGNED_MINIMUM = -50
-        const val SIGNED_MAXIMUM = 50
     }
 }

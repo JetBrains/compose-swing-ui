@@ -6,14 +6,13 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Font
 import javax.swing.JComponent
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 
 /**
  * Cursor, font, background and foreground are inherited: a component that declares none of its own takes
@@ -44,14 +43,14 @@ class InheritedAppearanceRestoreTest {
 
         styled = true
         awaitIdle()
-        assertEquals(declared, surface.fetch<JComponent>().cursor, "the declared cursor should apply while present")
+        surface.assertProperty(declared, "the declared cursor should apply while present") { cursor }
 
         styled = false
         awaitIdle()
-        assertFalse(
-            surface.fetch<JComponent>().isCursorSet,
+        surface.assertProperty(
+            false,
             "dropping the modifier should leave no cursor of its own",
-        )
+        ) { isCursorSet }
     }
 
     @Test
@@ -76,11 +75,11 @@ class InheritedAppearanceRestoreTest {
 
         styled = true
         awaitIdle()
-        assertEquals(declared, surface.fetch<JComponent>().font, "the declared font should apply while present")
+        surface.assertProperty(declared, "the declared font should apply while present") { font }
 
         styled = false
         awaitIdle()
-        assertFalse(surface.fetch<JComponent>().isFontSet, "dropping the modifier should leave no font of its own")
+        surface.assertProperty(false, "dropping the modifier should leave no font of its own") { isFontSet }
     }
 
     @Test
@@ -105,18 +104,17 @@ class InheritedAppearanceRestoreTest {
 
         styled = true
         awaitIdle()
-        assertEquals(
+        surface.assertProperty(
             declared,
-            surface.fetch<JComponent>().background,
             "the declared color should apply while present",
-        )
+        ) { background }
 
         styled = false
         awaitIdle()
-        assertFalse(
-            surface.fetch<JComponent>().isBackgroundSet,
+        surface.assertProperty(
+            false,
             "dropping the modifier should leave no background of its own",
-        )
+        ) { isBackgroundSet }
     }
 
     @Test
@@ -141,17 +139,16 @@ class InheritedAppearanceRestoreTest {
 
         styled = true
         awaitIdle()
-        assertEquals(
+        surface.assertProperty(
             declared,
-            surface.fetch<JComponent>().foreground,
             "the declared color should apply while present",
-        )
+        ) { foreground }
 
         styled = false
         awaitIdle()
-        assertFalse(
-            surface.fetch<JComponent>().isForegroundSet,
+        surface.assertProperty(
+            false,
             "dropping the modifier should leave no foreground of its own",
-        )
+        ) { isForegroundSet }
     }
 }

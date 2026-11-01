@@ -51,6 +51,7 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
@@ -104,14 +105,13 @@ class ModifierInspectionTest {
             )
         }
 
-        assertEquals(
+        onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             listOf(
                 "testTag" to mapOf("testTag" to CHAIN_LABEL_TAG),
                 "background" to mapOf("background" to Color.RED),
             ),
-            onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain(),
             "the chain should report every element it declares, in declaration order",
-        )
+        ) { declaredChain() }
     }
 
     @Test
@@ -121,20 +121,18 @@ class ModifierInspectionTest {
         setContent {
             Label(text = "hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).background(color))
         }
-        assertEquals(
+        onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             mapOf("background" to Color.RED),
-            onNodeWithTag(CHAIN_LABEL_TAG).fetch().valuesOf("background"),
             "the chain starts on what the first pass declared",
-        )
+        ) { valuesOf("background") }
 
         color = Color.BLUE
         awaitIdle()
 
-        assertEquals(
+        onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             mapOf("background" to Color.BLUE),
-            onNodeWithTag(CHAIN_LABEL_TAG).fetch().valuesOf("background"),
             "and follows the composition onto what a later pass declares",
-        )
+        ) { valuesOf("background") }
     }
 
     @Test
@@ -142,13 +140,12 @@ class ModifierInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello") }
 
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals("hello", label.text)
-        assertNotNull(
-            label.findDeclaringGroup()?.node as? SwingComponentNode<*>,
-            "the live label has a declaring group",
-        )
-        assertEquals(emptyList(), label.declaredChain(), "a modifier-free label carries an empty inspected chain")
+        val label = onNodeOfType<JLabel>()
+        label.assertTextEquals("hello")
+        label.assertProperty(
+            emptyList<Pair<String, Map<String, Any?>>>(),
+            "a modifier-free label carries an empty inspected chain",
+        ) { declaredChain() }
     }
 
     @Test
@@ -161,11 +158,10 @@ class ModifierInspectionTest {
             )
         }
 
-        assertEquals(
+        onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             listOf("testTag", "mouseListener"),
-            onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain().map { it.first },
             "a listener element names the event source it registers on, not the class backing it",
-        )
+        ) { declaredChain().map { it.first } }
     }
 
     @Test
@@ -183,14 +179,13 @@ class ModifierInspectionTest {
             }
         }
 
-        assertEquals(
+        onNodeWithTag(PLACED_TAG).assertProperty(
             listOf(
                 "testTag" to mapOf("testTag" to PLACED_TAG),
                 "layoutConstraint" to mapOf("constraint" to BorderLayout.NORTH),
             ),
-            onNodeWithTag(PLACED_TAG).fetch().declaredChain(),
             "where a component sits is declared by the same chain as what it looks like",
-        )
+        ) { declaredChain() }
     }
 
     @Test
@@ -492,11 +487,10 @@ class ModifierInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG) then UnnamedElement()) }
 
-        assertEquals(
+        onNodeWithTag(CHAIN_LABEL_TAG).assertProperty(
             listOf("testTag", "UnnamedElement"),
-            onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain().map { it.first },
             "an element that names no property of its own is reported by the class it is declared as",
-        )
+        ) { declaredChain().map { it.first } }
     }
 
     @Test

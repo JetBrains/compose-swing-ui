@@ -7,23 +7,18 @@ import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
-import java.awt.Container
 import java.awt.DisplayMode
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsDevice
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
-import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -31,7 +26,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for a recomposer hosted by a plain [java.awt.Component] - the one a caller creates
@@ -57,11 +51,13 @@ class ComponentRecomposerTest {
         var content: DisposableHandle? = null
         try {
             content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
-            awaitUntil("the component-hosted recomposer composes its content") { labelTextOrNull(composition) == "v0" }
+            awaitUntil("the component-hosted recomposer composes its content") {
+                labelTexts(composition).singleOrNull() == "v0"
+            }
 
             text = "v1"
             awaitUntil("the component-hosted recomposer recomposes on a state change") {
-                labelTextOrNull(composition) == "v1"
+                labelTexts(composition).singleOrNull() == "v1"
             }
         } finally {
             content?.dispose()
@@ -121,7 +117,11 @@ class ComponentRecomposerTest {
             // recomposer still running would have applied the change well inside it.
             text = "v1"
             delay(QUIET_PERIOD)
-            assertEquals("v0", labelTextOrNull(composition), "content of a disposed recomposer stops recomposing")
+            assertEquals(
+                "v0",
+                labelTexts(composition).singleOrNull(),
+                "content of a disposed recomposer stops recomposing",
+            )
 
             recomposer.dispose()
             assertEquals(
@@ -174,7 +174,7 @@ class ComponentRecomposerTest {
                 )
             try {
                 awaitUntil("both content compositions render") {
-                    labelTextOrNull(compositionA) == "a" && labelTextOrNull(compositionB) == "b"
+                    labelTexts(compositionA).singleOrNull() == "a" && labelTexts(compositionB).singleOrNull() == "b"
                 }
                 assertSame(context, compositionA.findParentCompositionContext(), "composition A joined another context")
                 assertSame(context, compositionB.findParentCompositionContext(), "composition B joined another context")
@@ -203,7 +203,9 @@ class ComponentRecomposerTest {
 
             val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the in-window content composition renders") { labelTextOrNull(composition) == "in-window" }
+                awaitUntil("the in-window content composition renders") {
+                    labelTexts(composition).singleOrNull() == "in-window"
+                }
                 assertSame(
                     frame.compositionContext(),
                     composition.findParentCompositionContext(),
@@ -273,49 +275,11 @@ class ComponentRecomposerTest {
         pack()
     }
 
-    /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun childOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
-
-    /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
-    private fun labelTextOrNull(container: Container): String? {
-        val labels = mutableListOf<JLabel>()
-
-        fun visit(c: Container) {
-            for (child in c.components) {
-                if (child is JLabel) labels += child
-                if (child is Container) visit(child)
-            }
-        }
-        visit(container)
-        return labels.singleOrNull()?.text
-    }
-
-    /**
-     * Suspends on the EDT until [condition] holds, yielding the EDT back between checks so the
-     * frame-clock timer can fire and the composition can mount and recompose. A condition that never
-     * becomes true fails the test at the deadline, naming [description], instead of hanging.
-     */
-    private suspend fun awaitUntil(
-        description: String,
-        condition: () -> Boolean,
-    ) {
-        try {
-            withTimeout(SETTLE_TIMEOUT) {
-                while (!condition()) {
-                    yield()
-                }
-            }
-        } catch (timedOut: TimeoutCancellationException) {
-            throw AssertionError("Timed out after $SETTLE_TIMEOUT waiting until $description", timedOut)
-        }
-    }
-
     private companion object {
         const val GRAPHICS_CONFIGURATION_PROPERTY: String = "graphicsConfiguration"
         const val FRAME_SIZE: Int = 200
         const val FPS_60: Int = 60
         const val FPS_120: Int = 120
-        val SETTLE_TIMEOUT = 10.seconds
         val QUIET_PERIOD = 250.milliseconds
     }
 }

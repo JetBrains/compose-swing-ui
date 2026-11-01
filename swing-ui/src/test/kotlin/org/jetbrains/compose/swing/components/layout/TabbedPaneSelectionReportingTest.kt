@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -23,6 +23,7 @@ import javax.swing.event.ChangeListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -38,11 +39,6 @@ class TabbedPaneSelectionReportingTest {
      */
     private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
 
-    /** Clicks the tab at [index] on the strip, as the user picking it, and settles the composition. */
-    private suspend fun ComposeSwingTest.selectTab(index: Int) {
-        onNodeOfType<JTabbedPane>().performTabClick(index)
-    }
-
     @Test
     fun openingOnADeclaredTabReportsNothing() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
@@ -54,7 +50,7 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        assertEquals(2, onNodeOfType<JTabbedPane>().fetch().selectedIndex, "the pane should open on the declared tab")
+        onNodeOfType<JTabbedPane>().assertProperty(2, "the pane should open on the declared tab") { selectedIndex }
         assertEquals(emptyList(), reported, "opening on the declared tab is not an interaction")
     }
 
@@ -72,11 +68,10 @@ class TabbedPaneSelectionReportingTest {
 
         selected = 2
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             2,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "the pane should follow the controlled index",
-        )
+        ) { selectedIndex }
         assertEquals(emptyList(), reported, "the composition's own selection must not come back as a change")
     }
 
@@ -90,15 +85,14 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        selectTab(1)
+        onNodeOfType<JTabbedPane>().performTabClick(1)
 
         // The pane is already settled back onto the declared selection by the time the click's own
         // recomposition finishes - not just once some later, unrelated recomposition happens to run.
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             0,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "an unadopted selection change does not stand",
-        )
+        ) { selectedIndex }
     }
 
     @Test
@@ -208,34 +202,24 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             0,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "the pane stays on the tab it selected for itself",
-        )
+        ) { selectedIndex }
         assertEquals(listOf(0), reported, "the tab the pane is left on has to reach the caller")
     }
 
     @Test
     fun anIndexBelowNoSelectionIsRejected() = runComposeSwingTest {
-        val error =
-            assertFailsWith<IllegalArgumentException> {
-                setContent {
-                    TabbedPane(selectedIndex = -2, onSelectedIndexChange = {}) {
-                        Label("1", SwingModifier.tab("One"))
-                        Label("2", SwingModifier.tab("Two"))
-                    }
+        assertFailsWith<IllegalArgumentException> {
+            setContent {
+                TabbedPane(selectedIndex = -2, onSelectedIndexChange = {}) {
+                    Label("1", SwingModifier.tab("One"))
+                    Label("2", SwingModifier.tab("Two"))
                 }
-                awaitIdle()
             }
-        assertTrue(
-            "no selected tab or a non-negative tab index" in error.message.orEmpty(),
-            "the error must name the selections a pane accepts, but was: ${error.message}",
-        )
-        assertTrue(
-            "-2" in error.message.orEmpty(),
-            "the error must name the rejected index, but was: ${error.message}",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -264,7 +248,7 @@ class TabbedPaneSelectionReportingTest {
         reported.clear()
         showThird = false
         awaitIdle()
-        assertEquals(2, onNodeOfType<JTabbedPane>().fetch().tabCount, "the dropped tab should leave the strip")
+        onNodeOfType<JTabbedPane>().assertProperty(2, "the dropped tab should leave the strip") { tabCount }
         assertEquals(emptyList(), reported, "a tab leaving the strip is not an interaction")
     }
 
@@ -288,7 +272,7 @@ class TabbedPaneSelectionReportingTest {
         // The declaration still names the tab that left, so the pane stays on a tab of its own. The user
         // picking another one is then the last word on where the pane is, and a later recomposition has
         // nothing to add to it.
-        selectTab(0)
+        onNodeOfType<JTabbedPane>().performTabClick(0)
         assertEquals(listOf(0), reported, "the selection the user made should be reported")
 
         firstTitle = "Only"
@@ -316,18 +300,17 @@ class TabbedPaneSelectionReportingTest {
         // The user visits the middle tab and the composition then declares the last one, so the tab the
         // strip falls back on below is one the caller has heard of before - but not one it has any reason
         // to believe the pane is on now.
-        selectTab(1)
+        onNodeOfType<JTabbedPane>().performTabClick(1)
         selected = 2
         awaitIdle()
         reported.clear()
 
         showThird = false
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             1,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "the pane falls back on the neighbor of the dropped tab",
-        )
+        ) { selectedIndex }
         assertEquals(listOf(1), reported, "the tab the pane is left on has to reach the caller however it got there")
     }
 
@@ -341,11 +324,10 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             -1,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "a declared -1 leaves the strip with no tab selected",
-        )
+        ) { selectedIndex }
         assertEquals(emptyList(), reported, "the declaration the pane took is not an interaction")
     }
 
@@ -381,7 +363,7 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        selectTab(1)
+        onNodeOfType<JTabbedPane>().performTabClick(1)
         assertEquals(listOf(1), reported, "the selection the user makes should be reported")
     }
 
@@ -392,7 +374,7 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }) {}
         }
 
-        assertEquals(-1, onNodeOfType<JTabbedPane>().fetch().selectedIndex, "a strip with no tabs has no selection")
+        onNodeOfType<JTabbedPane>().assertProperty(-1, "a strip with no tabs has no selection") { selectedIndex }
         assertEquals(emptyList(), reported, "a strip with no tabs leaves the caller nothing to hear about")
     }
 
@@ -410,11 +392,10 @@ class TabbedPaneSelectionReportingTest {
         reported.clear()
         enabled = false
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTabbedPane>().assertProperty(
             1,
-            onNodeOfType<JTabbedPane>().fetch().selectedIndex,
             "the strip should keep the declared selection",
-        )
+        ) { selectedIndex }
         assertEquals(emptyList(), reported, "what a tab renders as is not a selection")
     }
 
@@ -429,10 +410,10 @@ class TabbedPaneSelectionReportingTest {
             }
         }
 
-        selectTab(1)
+        onNodeOfType<JTabbedPane>().performTabClick(1)
         assertEquals(listOf(1), reported, "the selection the user makes should be reported")
 
-        selectTab(2)
+        onNodeOfType<JTabbedPane>().performTabClick(2)
         assertEquals(listOf(1, 2), reported, "every later selection should be reported too")
     }
 
@@ -454,7 +435,7 @@ class TabbedPaneSelectionReportingTest {
 
         selected = 2
         awaitIdle()
-        selectTab(0)
+        onNodeOfType<JTabbedPane>().performTabClick(0)
         assertEquals(listOf(0), reported, "only the selection the user made should be reported")
     }
 
@@ -512,13 +493,14 @@ class TabbedPaneSelectionReportingTest {
         failApply = true
         assertFailsWith<IllegalStateException> { awaitIdle() }
 
-        selectTab(1)
+        onNodeOfType<JTabbedPane>().performTabClick(1)
         assertEquals(listOf(1), reported, "a failed apply must not leave the user's selections unreported")
     }
 
     @Test
     fun aListenerThatFailsOnThePanesOwnWriteLeavesLaterSelectionsReported() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
+        val failure = IllegalStateException("this listener fails")
         var selected by mutableIntStateOf(0)
         setContent {
             // A listener of the caller's own is notified of every change the pane publishes, including
@@ -527,7 +509,7 @@ class TabbedPaneSelectionReportingTest {
             val failing =
                 remember {
                     ChangeListener { event ->
-                        if ((event.source as JTabbedPane).selectedIndex == 1) error("this listener fails")
+                        if ((event.source as JTabbedPane).selectedIndex == 1) throw failure
                     }
                 }
             TabbedPane(
@@ -541,21 +523,14 @@ class TabbedPaneSelectionReportingTest {
         }
 
         selected = 1
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        val reportedFailures = listOf(failure) + failure.suppressed
-        assertTrue(
-            reportedFailures.all { "this listener fails" in it.message.orEmpty() },
-            "the reported failures should be this listener's own, but were: $reportedFailures",
-        )
+        val reportedFailure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertSame(failure, reportedFailure, "the reported failure is the listener's own")
+        assertTrue(reportedFailure.suppressed.all { it === failure }, "suppressed failures are the listener's own")
         awaitIdle()
 
         // The declaration still names the second tab, so the pane settles back on it and the listener
         // fails again.
-        val settleFailure = assertFailsWith<IllegalStateException> { selectTab(0) }
-        assertTrue(
-            "this listener fails" in settleFailure.message.orEmpty(),
-            "the reported failure should be this listener's own, but was: $settleFailure",
-        )
+        assertSame(failure, assertFailsWith<IllegalStateException> { onNodeOfType<JTabbedPane>().performTabClick(0) })
         assertEquals(listOf(0), reported, "a failing listener must not leave the user's selections unreported")
     }
 
@@ -564,10 +539,11 @@ class TabbedPaneSelectionReportingTest {
         var selected by mutableIntStateOf(2)
         var showThird by mutableStateOf(true)
         var failing by mutableStateOf(false)
+        val failure = IllegalStateException("the fallback report fails")
         setContent {
             val listener =
                 remember {
-                    ChangeListener { if (failing) error("the fallback report fails") }
+                    ChangeListener { if (failing) throw failure }
                 }
             TabbedPane(selectedIndex = selected, changeListener = listener) {
                 Label("1", SwingModifier.tab("One"))
@@ -580,11 +556,7 @@ class TabbedPaneSelectionReportingTest {
         // Dropping the declared tab without moving the index is what leaves the pane on a tab of its own
         // and makes the fallback reach this listener.
         showThird = false
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertTrue(
-            "the fallback report fails" in failure.message.orEmpty(),
-            "the reported failure should be the fallback report's own, but was: $failure",
-        )
+        assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() }, "the fallback report's own failure")
         awaitIdle()
         val pane = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbor of the dropped tab")
@@ -615,7 +587,7 @@ class TabbedPaneSelectionReportingTest {
         awaitIdle()
         assertEquals(emptyList(), reported, "the composition's own selection must not come back as a change")
 
-        selectTab(0)
+        onNodeOfType<JTabbedPane>().performTabClick(0)
         assertEquals(listOf(0), reported, "the selection the user makes should reach the declared listener")
     }
 

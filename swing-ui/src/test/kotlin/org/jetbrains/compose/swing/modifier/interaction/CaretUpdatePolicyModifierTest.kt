@@ -32,7 +32,7 @@ class CaretUpdatePolicyModifierTest {
         area.document.insertString(0, PREFIX, null)
         awaitIdle()
 
-        assertEquals(TEXT.length, area.caretPosition, "the caret should stay at its offset while text arrives above")
+        assertEquals(11, area.caretPosition, "the caret should stay at its offset while text arrives above")
     }
 
     @Test
@@ -44,7 +44,7 @@ class CaretUpdatePolicyModifierTest {
         awaitIdle()
 
         assertEquals(
-            TEXT.length + PREFIX.length,
+            21,
             area.caretPosition,
             "a caret left to its own policy follows an edit made on the event thread",
         )
@@ -59,7 +59,7 @@ class CaretUpdatePolicyModifierTest {
         awaitIdle()
 
         assertEquals(
-            TEXT.length + PREFIX.length,
+            21,
             area.caretPosition,
             "ALWAYS_UPDATE should carry the caret along with an edit made off the event thread",
         )
@@ -74,7 +74,7 @@ class CaretUpdatePolicyModifierTest {
         awaitIdle()
 
         assertEquals(
-            TEXT.length,
+            11,
             area.caretPosition,
             "UPDATE_WHEN_ON_EDT should leave the caret alone for an edit made off the event thread",
         )
@@ -93,16 +93,15 @@ class CaretUpdatePolicyModifierTest {
         area.caretPosition = TEXT.length
         area.document.insertString(0, PREFIX, null)
         awaitIdle()
-        assertEquals(TEXT.length, area.caretPosition, "the caret should be held while NEVER_UPDATE is declared")
+        assertEquals(11, area.caretPosition, "the caret should be held while NEVER_UPDATE is declared")
 
         policy = DefaultCaret.ALWAYS_UPDATE
         awaitIdle()
-        val held = area.caretPosition
         area.document.insertString(0, PREFIX, null)
         awaitIdle()
 
         assertEquals(
-            held + PREFIX.length,
+            21,
             area.caretPosition,
             "the recomposed policy should reach the caret and let the next edit carry it along",
         )
@@ -126,7 +125,7 @@ class CaretUpdatePolicyModifierTest {
         awaitIdle()
 
         assertEquals(
-            TEXT.length + PREFIX.length,
+            21,
             area.caretPosition,
             "leaving the modifier should put back the policy the caret carried, which follows the edit again",
         )
@@ -200,7 +199,7 @@ class CaretUpdatePolicyModifierTest {
         awaitIdle()
 
         assertEquals(
-            TEXT.length,
+            11,
             area.caretPosition,
             "the policy still declared should hold the caret that replaced the first one where it is",
         )

@@ -12,7 +12,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -113,7 +112,6 @@ class OnDetachedContractTest {
         assertEquals(null, detached.observeFailure, "the listener may observe reads under the node")
         assertEquals(null, detached.requestFailure, "the listener may request an after-validation action")
         panel.state.intValue = 1
-        Snapshot.sendApplyNotifications()
         awaitIdle()
         assertEquals(0, panel.changes, "a read observed while detaching runs no callback once the node detached")
         assertEquals(0, panel.requested, "an action requested while detaching never runs")

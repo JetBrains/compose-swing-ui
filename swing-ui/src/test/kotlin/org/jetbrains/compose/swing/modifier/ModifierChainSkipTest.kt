@@ -29,10 +29,15 @@ import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performMouseEnter
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Component
 import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
@@ -78,6 +83,80 @@ private val DeclaredNameProperty =
  * [org.jetbrains.compose.swing.modifier.listener.LiveCallbackListenerTest].
  */
 class ModifierChainSkipTest {
+    companion object {
+        private fun callbackOfPass(tick: Int): (Any) -> Unit = { check(tick >= 0) }
+
+        private fun actionOfPass(tick: Int): () -> Unit = { check(tick >= 0) }
+
+        private fun skipped(
+            name: String,
+            factory: () -> JComponent,
+            declare: SwingModifier.() -> SwingModifier,
+        ): Arguments = Arguments.of(Named.of(name, factory), declare)
+
+        @JvmStatic
+        fun listenersKeepingTheirCallbacks(): List<Arguments> = listOf(
+            skipped("typed action listener", { JButton() }) { actionListener<JButton>(onButtonAction) },
+            skipped("typed item listener", { JCheckBox() }) { itemListener<JCheckBox>(onCheckBoxItem) },
+            skipped("typed change listener", { JSlider() }) { changeListener<JSlider>(onSliderChange) },
+            skipped("typed list selection listener", { JList<String>() }) {
+                listSelectionListener<JList<*>>(onListSelection)
+            },
+            skipped("typed property change listener", { JPanel() }) {
+                propertyChangeListener<JPanel>("name", onPanelProperty)
+            },
+            skipped("component listener, one callback", { JPanel() }) { componentListener(onAnyEvent) },
+            skipped("component listener, every callback", { JPanel() }) {
+                componentListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent)
+            },
+            skipped("container listener", { JPanel() }) { containerListener(onAnyEvent, onAnyEvent) },
+            skipped("document listener", { JTextField() }) { documentListener(onAnyEvent, onAnyEvent, onAnyEvent) },
+            skipped("focus listener", { JPanel() }) { focusListener(onAnyEvent, onAnyEvent) },
+            skipped("internal frame listener", { JInternalFrame() }) {
+                internalFrameListener(
+                    onAnyEvent,
+                    onAnyEvent,
+                    onAnyEvent,
+                    onAnyEvent,
+                    onAnyEvent,
+                    onAnyEvent,
+                    onAnyEvent,
+                )
+            },
+            skipped("key listener", { JPanel() }) { keyListener(onAnyEvent, onAnyEvent, onAnyEvent) },
+            skipped("mouse listener", { JPanel() }) {
+                mouseListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent)
+            },
+            skipped("mouse motion listener", { JPanel() }) { mouseMotionListener(onAnyEvent, onAnyEvent) },
+            skipped("tree expansion listener", { JTree() }) { treeExpansionListener(onAnyEvent, onAnyEvent) },
+            skipped("tree will-expand listener", { JTree() }) {
+                treeWillExpandListener(onAnyAnswer, onAnyAnswer)
+            },
+            skipped("onHover", { JPanel() }) { onHover(onAnyAction, onAnyAction) },
+            skipped("onFocus", { JPanel() }) { onFocus(onAnyAction, onAnyAction) },
+            skipped("onPointerEvent", { JPanel() }) { onPointerEvent(onAnyEvent, onAnyEvent, onAnyEvent) },
+        )
+
+        private fun changed(
+            name: String,
+            factory: () -> JComponent,
+            declare: SwingModifier.(Int) -> SwingModifier,
+        ): Arguments = Arguments.of(Named.of(name, factory), declare)
+
+        @JvmStatic
+        fun callbacksOfANewIdentity(): List<Arguments> = listOf(
+            changed("onHover", { JPanel() }) { tick -> onHover(onExit = actionOfPass(tick)) },
+            changed("onFocus", { JPanel() }) { tick -> onFocus(onLost = actionOfPass(tick)) },
+            changed("onPointerEvent", { JPanel() }) { tick -> onPointerEvent(onClick = callbackOfPass(tick)) },
+            changed("typed listener", { JButton() }) { tick ->
+                actionListener<JButton> { callbackOfPass(tick)(it) }
+            },
+            changed("multi-method listener", { JPanel() }) { tick ->
+                mouseListener(onMouseExited = callbackOfPass(tick))
+            },
+        )
+    }
+
     private val passes = 20
 
     @Test
@@ -194,102 +273,19 @@ class ModifierChainSkipTest {
             mouseListener(onMouseEntered = receiver::onEvent)
         }
 
-    @Test
-    fun aTypedActionListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JButton() }) { actionListener<JButton>(onButtonAction) }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("listenersKeepingTheirCallbacks")
+    fun aListenerKeepingItsCallbacksIsSkippedWhole(
+        factory: () -> JComponent,
+        declare: SwingModifier.() -> SwingModifier,
+    ) = assertSkippedWhole(factory, declare)
 
-    @Test
-    fun aTypedItemListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JCheckBox() }) { itemListener<JCheckBox>(onCheckBoxItem) }
-
-    @Test
-    fun aTypedChangeListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JSlider() }) { changeListener<JSlider>(onSliderChange) }
-
-    @Test
-    fun aTypedListSelectionListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JList<String>() }) { listSelectionListener<JList<*>>(onListSelection) }
-
-    @Test
-    fun aTypedPropertyChangeListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { propertyChangeListener<JPanel>("name", onPanelProperty) }
-
-    @Test
-    fun aComponentListenerKeepingItsCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { componentListener(onAnyEvent) }
-
-    @Test
-    fun aComponentListenerKeepingEachCallbackIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { componentListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aContainerListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { containerListener(onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aDocumentListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JTextField() }) { documentListener(onAnyEvent, onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aFocusListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { focusListener(onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun anInternalFrameListenerKeepingItsCallbacksIsSkippedWhole() = assertSkippedWhole({ JInternalFrame() }) {
-        internalFrameListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent)
-    }
-
-    @Test
-    fun aKeyListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { keyListener(onAnyEvent, onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aMouseListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { mouseListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aMouseMotionListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { mouseMotionListener(onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aTreeExpansionListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JTree() }) { treeExpansionListener(onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun aTreeWillExpandListenerKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JTree() }) { treeWillExpandListener(onAnyAnswer, onAnyAnswer) }
-
-    @Test
-    fun anOnHoverKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { onHover(onAnyAction, onAnyAction) }
-
-    @Test
-    fun anOnFocusKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { onFocus(onAnyAction, onAnyAction) }
-
-    @Test
-    fun anOnPointerEventKeepingItsCallbacksIsSkippedWhole() =
-        assertSkippedWhole({ JPanel() }) { onPointerEvent(onAnyEvent, onAnyEvent, onAnyEvent) }
-
-    @Test
-    fun anOnHoverGivenANewCallbackReExecutesItsComponent() =
-        assertReExecutedForANewCallback({ JPanel() }) { tick -> onHover(onExit = actionOfPass(tick)) }
-
-    @Test
-    fun anOnFocusGivenANewCallbackReExecutesItsComponent() =
-        assertReExecutedForANewCallback({ JPanel() }) { tick -> onFocus(onLost = actionOfPass(tick)) }
-
-    @Test
-    fun anOnPointerEventGivenANewCallbackReExecutesItsComponent() =
-        assertReExecutedForANewCallback({ JPanel() }) { tick -> onPointerEvent(onClick = callbackOfPass(tick)) }
-
-    @Test
-    fun aTypedListenerGivenANewCallbackReExecutesItsComponent() =
-        assertReExecutedForANewCallback({ JButton() }) { tick -> actionListener<JButton> { callbackOfPass(tick)(it) } }
-
-    @Test
-    fun aMultiMethodListenerGivenANewCallbackReExecutesItsComponent() =
-        assertReExecutedForANewCallback({ JPanel() }) { tick -> mouseListener(onMouseExited = callbackOfPass(tick)) }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("callbacksOfANewIdentity")
+    fun aCallbackOfANewIdentityReExecutesItsComponent(
+        factory: () -> JComponent,
+        declare: SwingModifier.(tick: Int) -> SwingModifier,
+    ) = assertReExecutedForANewCallback(factory, declare)
 
     @Test
     fun aComponentListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
@@ -365,11 +361,10 @@ class ModifierChainSkipTest {
             awaitIdle()
         }
 
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             "tick $passes",
-            onNodeOfType<JLabel>().fetch().text,
             "the label must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
-        )
+        ) { text }
         assertEquals(1, counts.walks.get(), "a component declaring no callback of its own leaves the modifier equal")
         assertEquals(1, counts.updates.get(), "an unchanged element is written once")
     }
@@ -394,11 +389,10 @@ class ModifierChainSkipTest {
             awaitIdle()
         }
 
-        assertEquals(
+        onNodeOfType<JList<*>>().assertProperty(
             passes,
-            onNodeOfType<JList<*>>().fetch().visibleRowCount,
             "the list must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
-        )
+        ) { visibleRowCount }
         assertEquals(1, counts.walks.get(), "the list's own selection callback leaves its modifier declaring the same")
         assertEquals(1, counts.updates.get(), "the caller's element is written once all the same")
     }
@@ -423,11 +417,10 @@ class ModifierChainSkipTest {
             awaitIdle()
         }
 
-        assertEquals(
+        onNodeOfType<JTextField>().assertProperty(
             passes,
-            onNodeOfType<JTextField>().fetch().columns,
             "the field must re-execute on every pass, so the counts read a skipped modifier, not one never re-applied",
-        )
+        ) { columns }
         assertEquals(1, counts.walks.get(), "the field's own edit callback leaves its modifier declaring the same")
         assertEquals(1, counts.updates.get(), "the caller's element is written once all the same")
     }
@@ -508,12 +501,6 @@ class ModifierChainSkipTest {
             "the component is skipped exactly when its chain declares the callbacks it declared last",
         )
     }
-
-    /** A callback that captures [tick], so each pass's is of a new identity. */
-    private fun callbackOfPass(tick: Int): (Any) -> Unit = { check(tick >= 0) }
-
-    /** An action that captures [tick], so each pass's is of a new identity. */
-    private fun actionOfPass(tick: Int): () -> Unit = { check(tick >= 0) }
 
     /** An answer that captures [tick], so each pass's is of a new identity. */
     private fun answerOfPass(tick: Int): (Any) -> Boolean = { tick >= 0 }

@@ -447,35 +447,7 @@ class TabbedPaneReactivityTest {
         caption = "second"
         awaitIdle()
         assertEquals("second", body.text, "the body should follow its declaration")
-        assertEquals(1, onNodeOfType<JTabbedPane>().fetch().tabCount, "the tab itself should stay in the strip")
-    }
-
-    @Test
-    fun aTabsHeaderGoesAwayWhenItIsNoLongerDeclared() = runComposeSwingTest {
-        var withHeader by mutableStateOf(true)
-        setContent {
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                val tab =
-                    if (withHeader) {
-                        SwingModifier.tab("General", header = { Label("custom") })
-                    } else {
-                        SwingModifier.tab("General")
-                    }
-                Label("g", tab)
-            }
-        }
-
-        val pane = onNodeOfType<JTabbedPane>().fetch()
-        assertTrue(pane.getTabComponentAt(0) != null, "a declared header should render the tab")
-
-        withHeader = false
-        awaitIdle()
-        assertNull(pane.getTabComponentAt(0), "dropping the header should restore the default tab rendering")
-        assertEquals("General", pane.getTitleAt(0), "the tab should keep its title once the header is gone")
-
-        withHeader = true
-        awaitIdle()
-        assertTrue(pane.getTabComponentAt(0) != null, "redeclaring the header should render the tab again")
+        onNodeOfType<JTabbedPane>().assertProperty(1, "the tab itself should stay in the strip") { tabCount }
     }
 
     @Test

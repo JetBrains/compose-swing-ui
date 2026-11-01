@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -86,9 +87,9 @@ class DocumentStateEdgeCaseTest {
         mounted = true
         awaitIdle()
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(0, field.selectionStart, "the stored selection should reach the caret on bind")
-        assertEquals(5, field.selectionEnd, "the stored selection should reach the caret on bind")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(0, "the stored selection should reach the caret on bind") { selectionStart }
+        field.assertProperty(5, "the stored selection should reach the caret on bind") { selectionEnd }
     }
 
     @Test
@@ -104,8 +105,8 @@ class DocumentStateEdgeCaseTest {
         state.selection = TextRange(99, 99)
         awaitIdle()
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(3, field.caretPosition, "the field settles a caret past the end at the document's end")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(3, "the field settles a caret past the end at the document's end") { caretPosition }
         assertEquals(TextRange(3, 3), state.selection, "the state reports the range the field settled on")
     }
 
@@ -126,8 +127,8 @@ class DocumentStateEdgeCaseTest {
         mounted = true
         awaitIdle()
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(3, field.caretPosition, "the caret lands at the end of the document the field renders")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(3, "the caret lands at the end of the document the field renders") { caretPosition }
         assertEquals(TextRange(3, 3), state.selection, "the state reports the range the field settled on at bind")
     }
 

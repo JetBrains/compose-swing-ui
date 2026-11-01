@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.composeInNestedComposition
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -28,12 +30,10 @@ import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite:
@@ -116,11 +116,11 @@ class AppearanceMetadataModifierTest {
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().font
-        assertEquals(custom, styledLabel.fetch<JLabel>().font, "the custom font should apply while present")
+        styledLabel.assertProperty(custom, "the custom font should apply while present") { font }
 
         styled = false
         awaitIdle()
-        assertEquals(default, styledLabel.fetch<JLabel>().font, "removing the modifier should restore the default font")
+        styledLabel.assertProperty(default, "removing the modifier should restore the default font") { font }
     }
 
     @Test
@@ -163,43 +163,45 @@ class AppearanceMetadataModifierTest {
     @Test
     fun lineBorderAppliesTheColorAndThickness() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.lineBorder(Color.RED, 3)) }
-        val border = onNodeOfType<JLabel>().fetch<JLabel>().border
-        assertIs<LineBorder>(border, "the builder should install a line border")
-        assertEquals(Color.RED, border.lineColor, "the declared color should reach the border")
-        assertEquals(3, border.thickness, "the declared thickness should reach the border")
+        onNodeOfType<JLabel>()
+            .assertProperty(Color.RED, "the declared color should reach the border") {
+                assertIs<LineBorder>(border, "the builder should install a line border").lineColor
+            }.assertProperty(3, "the declared thickness should reach the border") {
+                assertIs<LineBorder>(border).thickness
+            }
     }
 
     @Test
     fun lineBorderDefaultsToASingleThickness() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.lineBorder(Color.BLUE)) }
-        val border = onNodeOfType<JLabel>().fetch<JLabel>().border
-        assertIs<LineBorder>(border, "the builder should install a line border")
-        assertEquals(1, border.thickness, "the default thickness should match the line Swing itself draws")
+        onNodeOfType<JLabel>().assertProperty(1, "the default thickness should match the line Swing itself draws") {
+            assertIs<LineBorder>(border, "the builder should install a line border").thickness
+        }
     }
 
     @Test
     fun emptyBorderAppliesTheInsets() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.emptyBorder(1, 2, 3, 4)) }
-        val label = onNodeOfType<JLabel>().fetch<JLabel>()
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             Insets(1, 2, 3, 4),
-            label.border.getBorderInsets(label),
             "the sides should be taken in top, left, bottom, right order",
-        )
+        ) { border.getBorderInsets(this) }
     }
 
     @Test
     fun emptyBorderInsetsFormAppliesTheInsets() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.emptyBorder(Insets(1, 2, 3, 4))) }
-        val label = onNodeOfType<JLabel>().fetch<JLabel>()
-        assertEquals(Insets(1, 2, 3, 4), label.border.getBorderInsets(label), "the insets should reach the border")
+        onNodeOfType<JLabel>().assertProperty(Insets(1, 2, 3, 4), "the insets should reach the border") {
+            border.getBorderInsets(this)
+        }
     }
 
     @Test
     fun emptyBorderUniformFormAppliesEverySide() = runComposeSwingTest {
         setContent { Label("X", modifier = SwingModifier.emptyBorder(5)) }
-        val label = onNodeOfType<JLabel>().fetch<JLabel>()
-        assertEquals(Insets(5, 5, 5, 5), label.border.getBorderInsets(label), "one count should cover every side")
+        onNodeOfType<JLabel>().assertProperty(Insets(5, 5, 5, 5), "one count should cover every side") {
+            border.getBorderInsets(this)
+        }
     }
 
     @Test
@@ -263,14 +265,12 @@ class AppearanceMetadataModifierTest {
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().border
-        val label = styledLabel.fetch<JLabel>()
         // A line border of the default thickness would report 1 on every side, and the two of them
         // compounded would report 5: the component carries the last declaration alone.
-        assertEquals(
+        styledLabel.assertIsOfType<JLabel>().assertProperty(
             Insets(4, 4, 4, 4),
-            label.border.getBorderInsets(label),
             "the last declaration should own the component's one border",
-        )
+        ) { border.getBorderInsets(this) }
 
         styled = false
         awaitIdle()
@@ -293,15 +293,14 @@ class AppearanceMetadataModifierTest {
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().cursor
-        assertEquals(hand, styledLabel.fetch<JLabel>().cursor, "the custom cursor should apply while present")
+        styledLabel.assertProperty(hand, "the custom cursor should apply while present") { cursor }
 
         styled = false
         awaitIdle()
-        assertEquals(
+        styledLabel.assertProperty(
             default,
-            styledLabel.fetch<JLabel>().cursor,
             "removing the modifier should restore the default cursor",
-        )
+        ) { cursor }
     }
 
     @Test
@@ -312,18 +311,17 @@ class AppearanceMetadataModifierTest {
             Label("X", modifier = if (styled) SwingModifier.clientProperty(key, "small") else SwingModifier)
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(
+        label.assertProperty(
             "small",
-            label.fetch<JLabel>().getClientProperty(key),
             "the client property should apply while present",
-        )
+        ) { getClientProperty(key) }
 
         styled = false
         awaitIdle()
-        assertNull(
-            label.fetch<JLabel>().getClientProperty(key),
+        label.assertProperty(
+            null,
             "removing the modifier should clear the client property",
-        )
+        ) { getClientProperty(key) }
     }
 
     @Test
@@ -387,9 +385,9 @@ class AppearanceMetadataModifierTest {
         setContent {
             Label("X", modifier = SwingModifier.clientProperty("k1", "v1").clientProperty("k2", "v2"))
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals("v1", label.getClientProperty("k1"), "key k1 should hold its own value")
-        assertEquals("v2", label.getClientProperty("k2"), "key k2 should hold its own value")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty("v1", "key k1 should hold its own value") { getClientProperty("k1") }
+        label.assertProperty("v2", "key k2 should hold its own value") { getClientProperty("k2") }
     }
 
     @Test
@@ -404,15 +402,14 @@ class AppearanceMetadataModifierTest {
         // what says otherwise. Were the default false, both assertions below would pass with no modifier
         // applied at all.
         val default = onNodeWithText("untouched").fetch<JLabel>().isFocusable
-        assertFalse(styledLabel.fetch<JLabel>().isFocusable, "the modifier should make the label unfocusable")
+        styledLabel.assertProperty(false, "the modifier should make the label unfocusable") { isFocusable }
 
         styled = false
         awaitIdle()
-        assertEquals(
+        styledLabel.assertProperty(
             default,
-            styledLabel.fetch<JLabel>().isFocusable,
             "removing the modifier should restore the default focusability",
-        )
+        ) { isFocusable }
     }
 
     @Test
@@ -421,16 +418,16 @@ class AppearanceMetadataModifierTest {
         setContent {
             Label("X", modifier = if (sized) SwingModifier.preferredSize(Dimension(123, 45)) else SwingModifier)
         }
-        val sizedLabel = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(123, 45), sizedLabel.preferredSize, "the preferred size should apply while present")
-        assertTrue(sizedLabel.isPreferredSizeSet, "the preferred-size-set flag should be on while present")
+        val sizedLabel = onNodeOfType<JLabel>()
+        sizedLabel.assertProperty(Dimension(123, 45), "the preferred size should apply while present") { preferredSize }
+        sizedLabel.assertProperty(true, "the preferred-size-set flag should be on while present") { isPreferredSizeSet }
 
         sized = false
         awaitIdle()
-        assertFalse(
-            onNodeOfType<JLabel>().fetch().isPreferredSizeSet,
+        onNodeOfType<JLabel>().assertProperty(
+            false,
             "removing the modifier should clear the preferred-size-set flag",
-        )
+        ) { isPreferredSizeSet }
     }
 
     @Test
@@ -438,9 +435,9 @@ class AppearanceMetadataModifierTest {
         setContent {
             Label("X", modifier = SwingModifier.preferredSize(123, 45))
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(123, 45), label.preferredSize, "the overload should apply the dimension")
-        assertTrue(label.isPreferredSizeSet, "the overload should set the preferred-size-set flag")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(Dimension(123, 45), "the overload should apply the dimension") { preferredSize }
+        label.assertProperty(true, "the overload should set the preferred-size-set flag") { isPreferredSizeSet }
     }
 
     @Test
@@ -451,15 +448,15 @@ class AppearanceMetadataModifierTest {
             Label("tagged", modifier = if (tagged) SwingModifier.testTag("the-tag") else SwingModifier)
         }
         val label = onNodeWithText("tagged")
-        assertEquals("the-tag", label.fetch<JLabel>().testTagOrNull(), "the applied tag should read back")
-        assertNull(
-            onNodeWithText("untagged").fetch<JLabel>().testTagOrNull(),
+        label.assertProperty("the-tag", "the applied tag should read back") { testTagOrNull() }
+        onNodeWithText("untagged").assertProperty(
+            null,
             "a component the modifier was never applied to should carry no tag",
-        )
+        ) { testTagOrNull() }
 
         tagged = false
         awaitIdle()
-        assertNull(label.fetch<JLabel>().testTagOrNull(), "removing the modifier should clear the tag")
+        label.assertProperty(null, "removing the modifier should clear the tag") { testTagOrNull() }
     }
 
     @Test

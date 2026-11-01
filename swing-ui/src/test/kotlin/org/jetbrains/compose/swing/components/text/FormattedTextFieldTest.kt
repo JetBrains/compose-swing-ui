@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -18,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -42,32 +44,9 @@ class FormattedTextFieldTest {
                 formatterFactory = integerFactory(),
             )
         }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals(42, field.value, "the field should hold the committed value")
-        assertEquals("42", field.text, "the field should render the value formatted as text")
-    }
-
-    @Test
-    fun committingValidEditFiresOnValueChangeWithParsedValue() = runComposeSwingTest {
-        var value by mutableStateOf(1 as Any?)
-        val reported = mutableListOf<Any?>()
-        setContent {
-            FormattedTextField(
-                value = value,
-                onValueChange = {
-                    reported += it
-                    value = it
-                },
-                formatterFactory = integerFactory(),
-            )
-        }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        field.text = "99"
-        field.commitEdit()
-        awaitIdle()
-
-        assertEquals(99, reported.last(), "onValueChange should report the parsed committed value")
-        assertEquals(99, field.value, "the field should hold the committed value")
+        val field = onNodeOfType<JFormattedTextField>()
+        field.assertProperty(42, "the field should hold the committed value") { value }
+        field.assertTextEquals("42")
     }
 
     @Test
@@ -104,17 +83,23 @@ class FormattedTextFieldTest {
                 formatterFactory = integerFactory(),
             )
         }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals("1", field.text, "the field should render the initial value")
+        val field = onNodeOfType<JFormattedTextField>()
+        field.assertTextEquals("1")
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
 
         value = 250
         awaitIdle()
-        assertEquals(250, field.value, "an external value change should reflect into the field value")
-        assertEquals("250", field.text, "an external value change should reflect into the field text")
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
+        )
+        field.assertProperty(250, "an external value change should reflect into the field value") { this.value }
+        field.assertTextEquals("250")
     }
 
     @Test
-    fun writingValueBackInCallbackDoesNotLoop() = runComposeSwingTest {
+    fun committingAValidEditReportsTheParsedValueExactlyOnce() = runComposeSwingTest {
         var value by mutableStateOf(0 as Any?)
         val reported = mutableListOf<Any?>()
         setContent {
@@ -240,8 +225,7 @@ class FormattedTextFieldTest {
                 focusLostBehavior = JFormattedTextField.PERSIST,
             )
         }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals(JFormattedTextField.PERSIST, field.focusLostBehavior)
+        onNodeOfType<JFormattedTextField>().assertProperty(JFormattedTextField.PERSIST) { focusLostBehavior }
     }
 
     @Test
@@ -258,14 +242,20 @@ class FormattedTextFieldTest {
                 formatterFactory = factory,
             )
         }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals("1234567", field.text, "the field renders the value through the composed formatter")
+        val field = onNodeOfType<JFormattedTextField>()
+        field.assertTextEquals("1234567")
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
 
         grouped = true
         awaitIdle()
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
+        )
 
-        assertEquals("1,234,567", field.text, "a new formatter re-renders the committed value")
-        assertEquals(1234567, field.value, "the value survives the formatter it is rendered through")
+        field.assertTextEquals("1,234,567")
+        field.assertProperty(1234567, "the value survives the formatter it is rendered through") { value }
         assertTrue(reported.isEmpty(), "re-rendering the value is not a commit")
     }
 

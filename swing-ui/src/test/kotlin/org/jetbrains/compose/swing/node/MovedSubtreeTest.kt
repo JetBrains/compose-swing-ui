@@ -310,7 +310,6 @@ class MovedSubtreeTest {
                 )
                 changes.clear()
                 newState.intValue = 1
-                Snapshot.sendApplyNotifications()
                 awaitIdle()
                 assertEquals(
                     listOf("moved"),

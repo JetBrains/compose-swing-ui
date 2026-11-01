@@ -7,13 +7,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import javax.swing.JLabel
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * One modifier value handed to several components: each keeps its own applied state, follows the
@@ -31,43 +29,48 @@ class SharedModifierElementTest {
         }
 
         for (id in listOf("a", "b", "c")) {
-            val label = onNodeWithName(id).fetch<JLabel>()
-            assertTrue(label.isVisible, "$id starts visible")
-            assertEquals(Color.RED, label.foreground, "$id took the shared foreground")
+            val label = onNodeWithName(id)
+            label.assertProperty(true, "$id starts visible") { isVisible }
+            label.assertProperty(Color.RED, "$id took the shared foreground") { foreground }
         }
 
         shown = false
         awaitIdle()
 
         for (id in listOf("a", "b", "c")) {
-            assertFalse(onNodeWithName(id).fetch<JLabel>().isVisible, "$id followed the shared change")
+            onNodeWithName(id).assertProperty(false, "$id followed the shared change") { isVisible }
         }
 
         shown = true
         awaitIdle()
 
         for (id in listOf("a", "b", "c")) {
-            assertTrue(onNodeWithName(id).fetch<JLabel>().isVisible, "$id followed the shared change back")
+            onNodeWithName(id).assertProperty(true, "$id followed the shared change back") { isVisible }
         }
     }
 
     @Test
     fun aSharedElementLeavingTheChainRestoresEveryComponentThatCarriedIt() = runComposeSwingTest {
         var styled by mutableStateOf(true)
-        lateinit var originals: List<Color>
         setContent {
             val shared = SwingModifier.foreground(Color.RED)
             Label(text = "a", modifier = SwingModifier.name("a").let { if (styled) it then shared else it })
             Label(text = "b", modifier = SwingModifier.name("b").let { if (styled) it then shared else it })
         }
 
-        originals = listOf("a", "b").map { onNodeWithName(it).fetch<JLabel>().foreground }
-        assertEquals(listOf(Color.RED, Color.RED), originals)
+        for (id in listOf("a", "b")) {
+            onNodeWithName(id).assertProperty(Color.RED, "$id took the shared foreground") { foreground }
+        }
 
         styled = false
         awaitIdle()
 
-        val restored = listOf("a", "b").map { onNodeWithName(it).fetch<JLabel>().foreground }
-        assertTrue(restored.none { it == Color.RED }, "both were restored, got $restored")
+        val lookAndFeelForeground = JLabel().foreground
+        for (id in listOf("a", "b")) {
+            onNodeWithName(id).assertProperty(
+                lookAndFeelForeground,
+                "$id is restored to the foreground it had before the shared element",
+            ) { foreground }
+        }
     }
 }

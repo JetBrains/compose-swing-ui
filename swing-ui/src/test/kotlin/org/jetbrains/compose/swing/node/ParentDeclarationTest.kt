@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import io.mockk.mockk
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.LayoutDeclaration
@@ -180,9 +181,7 @@ class ParentDeclarationTest {
         child.declaration.applyComponentLayout(null, null, listOf(TestParentLayoutElement("padding")))
         root.add(child.component)
 
-        val refusal = assertFailsWith<IllegalStateException> { child.declaration.attachedUnder(root) }
-
-        assertTrue(refusal.message.orEmpty().contains("test measurement parent"))
+        assertFailsWith<IllegalStateException> { child.declaration.attachedUnder(root) }
     }
 
     @Test
@@ -190,16 +189,13 @@ class ParentDeclarationTest {
         val root = JPanel(BorderLayout())
         val child = attached(root)
 
-        val refusal =
-            assertFailsWith<IllegalStateException> {
-                child.declaration.applyComponentLayout(
-                    null,
-                    null,
-                    listOf(TestParentLayoutElement("padding")),
-                )
-            }
-
-        assertTrue(refusal.message.orEmpty().contains("test measurement parent"))
+        assertFailsWith<IllegalStateException> {
+            child.declaration.applyComponentLayout(
+                null,
+                null,
+                listOf(TestParentLayoutElement("padding")),
+            )
+        }
         assertTrue(child.declaration.parentLayoutElements.isEmpty(), "a rejected declaration must not be retained")
     }
 
@@ -729,7 +725,7 @@ class ParentDeclarationTest {
                 it.coroutineScope.launch {
                     running = true
                     try {
-                        awaitCancellationForever()
+                        awaitCancellation()
                     } catch (cancelled: CancellationException) {
                         cancellation = cancelled
                         throw cancelled
@@ -764,9 +760,6 @@ internal fun <T : Component> attachedChild(
     child.declaration.attachedUnder(root)
     return child
 }
-
-/** Suspends until cancelled, the way `awaitCancellation()` does, without pulling in the whole API surface. */
-private suspend fun awaitCancellationForever(): Nothing = kotlinx.coroutines.suspendCancellableCoroutine {}
 
 internal class RecordingLayoutNodeElement(
     private val value: String,

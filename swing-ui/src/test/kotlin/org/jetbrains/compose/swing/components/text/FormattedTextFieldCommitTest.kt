@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.UserChange
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.FocusEvent
@@ -19,6 +20,7 @@ import javax.swing.text.NumberFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -72,16 +74,22 @@ class FormattedTextFieldCommitTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val field = onNodeOfType<JFormattedTextField>().fetch()
+        val field = onNodeOfType<JFormattedTextField>()
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
         state.value = 250
         awaitIdle()
 
-        assertEquals(1, field.value, "publishing a declaration is not itself what writes it")
+        field.assertProperty(1, "publishing a declaration is not itself what writes it") { value }
 
         mainClock.advanceTimeByFrame()
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
+        )
 
-        assertEquals(250, field.value, "the pass declaring the value should leave the field holding it")
-        assertEquals("250", field.text, "and the field should render the value that pass settled it on")
+        field.assertProperty(250, "the pass declaring the value should leave the field holding it") { value }
+        field.assertTextEquals("250")
     }
 
     @Test

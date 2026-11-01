@@ -138,13 +138,9 @@ class RadioGroupTest {
         selectedIndex = 2
         mainClock.advanceTimeByFrame()
 
-        val selected = onAllNodesOfType<JRadioButton>().fetchAll().map { it.isSelected }
-        assertEquals(
-            listOf(false, false, true),
-            selected,
-            "the pass declaring the index should leave the group on that option alone, not on the one " +
-                "it stood on before",
-        )
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Large")
     }
 
     @Test

@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPanel
@@ -383,7 +384,7 @@ class CaretModifierTest {
                     },
             )
         }
-        val field = onNodeOfType<JTextField>().fetch()
+        val field = onNodeOfType<JTextField>()
         assertEquals(BLINK_RATE, mine.blinkRate, "the declared rate reaches the declared caret")
 
         // The caret leaves the modifier and comes back, so the slot holding it is no longer the older
@@ -398,7 +399,7 @@ class CaretModifierTest {
         awaitIdle()
 
         assertEquals(0, mine.blinkRate, "the declared caret is left at the rate it had")
-        assertEquals(BLINK_RATE, field.caret.blinkRate, "the caret given the rate while it stood keeps it")
+        field.assertProperty(BLINK_RATE, "the caret given the rate while it stood keeps it") { caret.blinkRate }
     }
 
     @Test
@@ -411,8 +412,8 @@ class CaretModifierTest {
 
         // A look and feel takes its own caret off the field before putting the next one on, so the field
         // carries none for the span of the swap and the rate has nothing to be written to until it ends.
-        // It gives the caret it installs the rate its own defaults name, and reports the look and feel it
-        // took only once that is done.
+        // It gives the caret it installs the rate its own defaults name, and fires the UI property change
+        // only once that is done.
         SwingUtilities.updateComponentTreeUI(field)
         awaitIdle()
 

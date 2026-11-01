@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -25,6 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
@@ -67,7 +69,7 @@ class ContextMenuTest {
         )
         assertNull(captured, "no popup before the trigger fires")
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
 
         val popup = captured ?: error("popup-trigger event did not build a popup")
         assertEquals(
@@ -124,11 +126,10 @@ class ContextMenuTest {
                 MenuItem("Paste", onClick = { pasted++ })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
 
         val popup = captured ?: error("popup-trigger event did not build a popup")
-        val paste = popup.getComponent(1) as JMenuItem
+        val paste = assertIs<JMenuItem>(popup.getComponent(1))
         assertEquals("Paste", paste.text, "the second popup item should be Paste")
 
         paste.doClick()
@@ -150,10 +151,9 @@ class ContextMenuTest {
             }
             Label("Last action: $lastAction")
         }
-        val target = onNodeWithText("target").fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val popup = captured ?: error("popup-trigger event did not build a popup")
-        val item = popup.getComponent(0) as JMenuItem
+        val item = assertIs<JMenuItem>(popup.getComponent(0))
 
         // The look and feel clears the selection path before it clicks the item, so the close arrives
         // first and the selection lands on a menu already on its way out.
@@ -193,7 +193,7 @@ class ContextMenuTest {
 
         // Let the dismissed menu's release take its turn, then use the menu that is actually open.
         awaitIdle()
-        (reopened.getComponent(0) as JMenuItem).doClick()
+        assertIs<JMenuItem>(reopened.getComponent(0)).doClick()
         awaitIdle()
 
         onNodeWithText("Last action: Cut").assertExists()
@@ -214,11 +214,10 @@ class ContextMenuTest {
                 }
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
 
         val popup = captured ?: error("popup-trigger event did not build a popup")
-        val submenu = popup.getComponent(0) as JMenu
+        val submenu = assertIs<JMenu>(popup.getComponent(0))
         assertEquals("More", submenu.text, "the submenu should carry its title")
         assertEquals("Nested", submenu.getItem(0).text, "the submenu should contain its nested item")
     }
@@ -238,9 +237,8 @@ class ContextMenuTest {
                 if (enabledExtra) MenuItem("Extra", onClick = { })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(
             listOf("Always"),
             (captured ?: error("no popup")).menuItemTexts(),
@@ -250,7 +248,7 @@ class ContextMenuTest {
         enabledExtra = true
         awaitIdle()
         captured = null
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(
             listOf("Always", "Extra"),
             (captured ?: error("no popup")).menuItemTexts(),
@@ -301,10 +299,9 @@ class ContextMenuTest {
                 CheckBoxMenuItem("Wrap", checked = wrap, onCheckedChange = { wrap = it })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
-        val item = (captured ?: error("no popup")).getComponent(0) as JCheckBoxMenuItem
+        onNodeWithText("target").performContextClick()
+        val item = assertIs<JCheckBoxMenuItem>((captured ?: error("no popup")).getComponent(0))
         assertEquals("Wrap", item.text, "the checkbox menu item should carry its label")
         assertTrue(item.isSelected, "the checkbox item must reflect the initial checked state")
 
@@ -313,8 +310,8 @@ class ContextMenuTest {
         assertFalse(wrap, "clicking the checkbox item must drive its hoisted state to unchecked")
 
         captured = null
-        target.dispatchEvent(popupTrigger(target))
-        val reopened = (captured ?: error("no popup")).getComponent(0) as JCheckBoxMenuItem
+        onNodeWithText("target").performContextClick()
+        val reopened = assertIs<JCheckBoxMenuItem>((captured ?: error("no popup")).getComponent(0))
         assertFalse(reopened.isSelected, "the reopened checkbox item must reflect the new state")
     }
 
@@ -333,12 +330,11 @@ class ContextMenuTest {
                 RadioButtonMenuItem("Second", selected = selected == 1, onSelectedChange = { selected = 1 })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val popup = captured ?: error("no popup")
-        val first = popup.getComponent(0) as JRadioButtonMenuItem
-        val second = popup.getComponent(1) as JRadioButtonMenuItem
+        val first = assertIs<JRadioButtonMenuItem>(popup.getComponent(0))
+        val second = assertIs<JRadioButtonMenuItem>(popup.getComponent(1))
         assertEquals(
             listOf("First", "Second"),
             listOf(first.text, second.text),
@@ -352,14 +348,14 @@ class ContextMenuTest {
         assertEquals(1, selected, "selecting the second radio item must drive the hoisted index")
 
         captured = null
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val reopened = captured ?: error("no popup")
         assertFalse(
-            (reopened.getComponent(0) as JRadioButtonMenuItem).isSelected,
+            assertIs<JRadioButtonMenuItem>(reopened.getComponent(0)).isSelected,
             "First must deselect once Second is chosen",
         )
         assertTrue(
-            (reopened.getComponent(1) as JRadioButtonMenuItem).isSelected,
+            assertIs<JRadioButtonMenuItem>(reopened.getComponent(1)).isSelected,
             "Second must reflect the new hoisted selection",
         )
     }
@@ -380,12 +376,11 @@ class ContextMenuTest {
                 MenuItem("Paste", onClick = { handled = generation })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
         declared = 2
         awaitIdle()
-        target.dispatchEvent(popupTrigger(target))
-        val paste = (captured ?: error("no popup")).getComponent(0) as JMenuItem
+        onNodeWithText("target").performContextClick()
+        val paste = assertIs<JMenuItem>((captured ?: error("no popup")).getComponent(0))
         paste.doClick()
         assertEquals(
             2,
@@ -412,14 +407,13 @@ class ContextMenuTest {
                 MenuItem(itemText, onClick = { })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
         itemText = "Copy"
         awaitIdle()
         itemText = "Paste"
         awaitIdle()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(1, popups, "recompositions must not stack popup triggers: one gesture must build one popup")
         assertEquals(
             listOf("Paste"),
@@ -445,9 +439,8 @@ class ContextMenuTest {
                 MenuItem("Paste", onClick = { })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
 
         assertEquals(
             listOf<String?>("Paste"),
@@ -473,7 +466,7 @@ class ContextMenuTest {
         }
         val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         target.componentPopupMenu.show(target, 3, 4)
 
         assertEquals(
@@ -500,7 +493,7 @@ class ContextMenuTest {
         }
         val target = onNodeOfType<JLabel>().fetch()
 
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         assertEquals(0, closes, "a menu that is up has not closed")
         publishClose(captured.lastOrNull() ?: error("the pointer gesture did not build a popup"))
         assertEquals(1, closes, "the user closing the menu the pointer opened must be reported")
@@ -528,8 +521,7 @@ class ContextMenuTest {
                 MenuItem("Cut", onClick = { })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
+        onNodeWithText("target").performContextClick()
         val popup = captured ?: error("popup-trigger event did not build a popup")
 
         // A menu dismissed by clicking away goes invisible, and its close is published as it goes; the
@@ -565,19 +557,20 @@ class ContextMenuTest {
                 MenuItem("Cut", onClick = { })
             }
         }
-        val target = onNodeOfType<JLabel>().fetch()
 
-        repeat(2) { round ->
+        repeat(2) {
+            val releasedBefore = released
             failures.clear()
-            target.dispatchEvent(popupTrigger(target))
+            onNodeWithText("target").performContextClick()
             publishClose(captured.last())
             val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
             assertEquals(failures, listOf(failure) + failure.suppressed, "the close failure is reported, not thrown")
             assertEquals(1, failures.size, "and it is reported once")
             awaitIdle()
-            assertEquals(round + 1, released, "the closed menu's composition is released all the same")
+            assertEquals(1, released - releasedBefore, "the closed menu's composition is released all the same")
         }
         assertEquals(2, closes, "a menu opened after the throw reports its close again")
+        assertEquals(2, released, "and each of the two menus released its composition")
     }
 
     @Test

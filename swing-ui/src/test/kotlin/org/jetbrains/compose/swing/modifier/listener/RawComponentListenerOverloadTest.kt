@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier.listener
 
+import androidx.compose.runtime.Composable
 import io.mockk.mockk
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
@@ -23,28 +24,25 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.ActionListener
 import java.beans.PropertyChangeListener
-import javax.swing.JButton
-import javax.swing.JCheckBox
+import javax.swing.AbstractButton
 import javax.swing.JComboBox
 import javax.swing.JEditorPane
 import javax.swing.JFormattedTextField
 import javax.swing.JList
-import javax.swing.JPasswordField
-import javax.swing.JRadioButton
 import javax.swing.JSlider
 import javax.swing.JSpinner
 import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
 import javax.swing.JTable
-import javax.swing.JTextArea
-import javax.swing.JTextField
-import javax.swing.JTextPane
-import javax.swing.JToggleButton
 import javax.swing.JTree
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
@@ -76,45 +74,17 @@ class RawComponentListenerOverloadTest {
         return document is AbstractDocument && document.documentListeners.any { it === listener }
     }
 
-    @Test
-    fun buttonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = ActionListener { }
-        setContent { Button("X", actionListener = listener) }
-        assertTrue(
-            onNodeOfType<JButton>().fetch().actionListeners.any { it === listener },
-            "the declared listener instance should be registered on the widget",
-        )
-    }
-
-    @Test
-    fun checkBoxActionListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = ActionListener { }
-        setContent { CheckBox("X", checked = false, actionListener = listener) }
-        assertTrue(
-            onNodeOfType<JCheckBox>().fetch().actionListeners.any { it === listener },
-            "the declared listener instance should be registered on the widget",
-        )
-    }
-
-    @Test
-    fun radioButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = ActionListener { }
-        setContent { RadioButton("X", selected = false, actionListener = listener) }
-        assertTrue(
-            onNodeOfType<JRadioButton>().fetch().actionListeners.any { it === listener },
-            "the declared listener instance should be registered on the widget",
-        )
-    }
-
-    @Test
-    fun toggleButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = ActionListener { }
-        setContent { ToggleButton("X", selected = false, actionListener = listener) }
-        assertTrue(
-            onNodeOfType<JToggleButton>().fetch().actionListeners.any { it === listener },
-            "the declared listener instance should be registered on the widget",
-        )
-    }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("actionListenerOverloads")
+    fun anActionListenerOverloadRegistersTheInstance(content: @Composable (ActionListener) -> Unit) =
+        runComposeSwingTest {
+            val listener = ActionListener { }
+            setContent { content(listener) }
+            onNodeOfType<AbstractButton>().assertProperty(
+                true,
+                "the declared listener instance should be registered on the widget",
+            ) { actionListeners.any { it === listener } }
+        }
 
     @Test
     fun comboBoxActionListenerOverloadNotifiesInstance() = runComposeSwingTest {
@@ -266,35 +236,17 @@ class RawComponentListenerOverloadTest {
         )
     }
 
-    @Test
-    fun textFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = mockk<DocumentListener>(relaxed = true)
-        setContent { TextField("hi", documentListener = listener) }
-        assertTrue(
-            onNodeOfType<JTextField>().fetch().documentHas(listener),
-            "the declared listener instance should be registered on the widget",
-        )
-    }
-
-    @Test
-    fun textAreaDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = mockk<DocumentListener>(relaxed = true)
-        setContent { TextArea("hi", documentListener = listener) }
-        assertTrue(
-            onNodeOfType<JTextArea>().fetch().documentHas(listener),
-            "the declared listener instance should be registered on the widget",
-        )
-    }
-
-    @Test
-    fun passwordFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = mockk<DocumentListener>(relaxed = true)
-        setContent { PasswordField(value = charArrayOf('a'), documentListener = listener) }
-        assertTrue(
-            onNodeOfType<JPasswordField>().fetch().documentHas(listener),
-            "the declared listener instance should be registered on the widget",
-        )
-    }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("documentListenerOverloads")
+    fun aDocumentListenerOverloadRegistersTheInstanceOnTheDocument(content: @Composable (DocumentListener) -> Unit) =
+        runComposeSwingTest {
+            val listener = mockk<DocumentListener>(relaxed = true)
+            setContent { content(listener) }
+            onNodeOfType<JTextComponent>().assertProperty(
+                true,
+                "the declared listener instance should be registered on the widget",
+            ) { documentHas(listener) }
+        }
 
     @Test
     fun editorPaneHyperlinkListenerOverloadRegistersInstance() = runComposeSwingTest {
@@ -306,13 +258,29 @@ class RawComponentListenerOverloadTest {
         )
     }
 
-    @Test
-    fun textPaneDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = mockk<DocumentListener>(relaxed = true)
-        setContent { TextPane("hi", documentListener = listener) }
-        assertTrue(
-            onNodeOfType<JTextPane>().fetch().documentHas(listener),
-            "the declared listener instance should be registered on the widget",
+    companion object {
+        @JvmStatic
+        fun actionListenerOverloads(): List<Named<@Composable (ActionListener) -> Unit>> = listOf(
+            Named.of<@Composable (ActionListener) -> Unit>("Button") { Button("X", actionListener = it) },
+            Named.of<@Composable (ActionListener) -> Unit>("CheckBox") {
+                CheckBox("X", checked = false, actionListener = it)
+            },
+            Named.of<@Composable (ActionListener) -> Unit>("RadioButton") {
+                RadioButton("X", selected = false, actionListener = it)
+            },
+            Named.of<@Composable (ActionListener) -> Unit>("ToggleButton") {
+                ToggleButton("X", selected = false, actionListener = it)
+            },
+        )
+
+        @JvmStatic
+        fun documentListenerOverloads(): List<Named<@Composable (DocumentListener) -> Unit>> = listOf(
+            Named.of<@Composable (DocumentListener) -> Unit>("TextField") { TextField("hi", documentListener = it) },
+            Named.of<@Composable (DocumentListener) -> Unit>("TextArea") { TextArea("hi", documentListener = it) },
+            Named.of<@Composable (DocumentListener) -> Unit>("PasswordField") {
+                PasswordField(value = charArrayOf('a'), documentListener = it)
+            },
+            Named.of<@Composable (DocumentListener) -> Unit>("TextPane") { TextPane("hi", documentListener = it) },
         )
     }
 }

@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.KeyEvent
@@ -29,7 +30,6 @@ import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 /**
@@ -50,18 +50,17 @@ class AccessibilityModifierTest {
         }
         val field = onNodeOfType<JTextField>()
         // A JTextField has no intrinsic accessible name, so the pre-modifier default is null.
-        assertEquals(
+        field.assertProperty(
             "City field",
-            field.fetch().accessibleContext.accessibleName,
             "the accessible name should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleName }
 
         named = false
         awaitIdle()
-        assertNull(
-            field.fetch().accessibleContext.accessibleName,
+        field.assertProperty(
+            null,
             "removing the modifier should restore the null accessible name",
-        )
+        ) { accessibleContext.accessibleName }
     }
 
     @Test
@@ -76,18 +75,17 @@ class AccessibilityModifierTest {
             )
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(
+        button.assertProperty(
             "Persist the document",
-            button.fetch().accessibleContext.accessibleDescription,
             "the accessible description should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleDescription }
 
         described = false
         awaitIdle()
-        assertNull(
-            button.fetch().accessibleContext.accessibleDescription,
+        button.assertProperty(
+            null,
             "removing the modifier should restore the null accessible description",
-        )
+        ) { accessibleContext.accessibleDescription }
     }
 
     @Test
@@ -102,22 +100,20 @@ class AccessibilityModifierTest {
             )
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(
+        button.assertProperty(
             "Persist the document",
-            button.fetch().accessibleContext.accessibleName,
             "the accessible name should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleName }
 
         // A button answers with its text while it holds no name of its own, so a name pinned on removal
         // would go on being announced after the text moved on.
         named = false
         text = "Store"
         awaitIdle()
-        assertEquals(
+        button.assertProperty(
             "Store",
-            button.fetch().accessibleContext.accessibleName,
             "removing the modifier should hand the name back to the button's own text",
-        )
+        ) { accessibleContext.accessibleName }
     }
 
     @Test
@@ -130,22 +126,20 @@ class AccessibilityModifierTest {
             )
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(
+        label.assertProperty(
             "Named by the declaration",
-            label.fetch().accessibleContext.accessibleName,
             "the declared name should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleName }
 
         // A context answers a name it was set and, where it was set none, one it derives - and cannot be
         // asked which. A name the widget was built carrying is the widget's own, so it is put back rather
         // than left to the derivation.
         named = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             WIDGET_NAME,
-            label.fetch().accessibleContext.accessibleName,
             "removing the modifier should put back the name the widget carried",
-        )
+        ) { accessibleContext.accessibleName }
     }
 
     @Test
@@ -165,19 +159,17 @@ class AccessibilityModifierTest {
             )
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(
+        label.assertProperty(
             "Described by the declaration",
-            label.fetch().accessibleContext.accessibleDescription,
             "the declared description should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleDescription }
 
         described = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             WIDGET_DESCRIPTION,
-            label.fetch().accessibleContext.accessibleDescription,
             "removing the modifier should put back the description the widget carried",
-        )
+        ) { accessibleContext.accessibleDescription }
     }
 
     @Test
@@ -195,20 +187,18 @@ class AccessibilityModifierTest {
             )
         }
         val field = onNodeOfType<JTextField>()
-        assertEquals(
+        field.assertProperty(
             "The address to deliver to",
-            field.fetch().accessibleContext.accessibleDescription,
             "the accessible description should apply while the modifier is present",
-        )
+        ) { accessibleContext.accessibleDescription }
 
         described = false
         tip = "Where you work"
         awaitIdle()
-        assertEquals(
+        field.assertProperty(
             "Where you work",
-            field.fetch().accessibleContext.accessibleDescription,
             "removing the modifier should hand the description back to the field's own tooltip",
-        )
+        ) { accessibleContext.accessibleDescription }
     }
 
     @Test
@@ -235,11 +225,11 @@ class AccessibilityModifierTest {
             Button("Save", onClick = { }, modifier = if (withMnemonic) SwingModifier.mnemonic('S') else SwingModifier)
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(KeyEvent.VK_S, button.fetch().mnemonic, "the mnemonic should apply while present")
+        button.assertProperty(KeyEvent.VK_S, "the mnemonic should apply while present") { mnemonic }
 
         withMnemonic = false
         awaitIdle()
-        assertEquals(0, button.fetch().mnemonic, "removing the modifier should restore the zero mnemonic")
+        button.assertProperty(0, "removing the modifier should restore the zero mnemonic") { mnemonic }
     }
 
     @Test
@@ -247,11 +237,10 @@ class AccessibilityModifierTest {
         setContent {
             Label("Name", modifier = SwingModifier.mnemonic('N'))
         }
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             KeyEvent.VK_N,
-            onNodeOfType<JLabel>().fetch().displayedMnemonic,
             "the mnemonic should reach a label as its displayed mnemonic",
-        )
+        ) { displayedMnemonic }
     }
 
     @Test
@@ -314,11 +303,10 @@ class AccessibilityModifierTest {
         setContent {
             CheckBox(text = "Agree", checked = false, onCheckedChange = {}, modifier = SwingModifier.mnemonic('A'))
         }
-        assertEquals(
+        onNodeOfType<JCheckBox>().assertProperty(
             KeyEvent.VK_A,
-            onNodeOfType<JCheckBox>().fetch().mnemonic,
             "the mnemonic should reach a check box",
-        )
+        ) { mnemonic }
     }
 
     @Test
@@ -327,8 +315,8 @@ class AccessibilityModifierTest {
             Button("Help", onClick = { }, modifier = SwingModifier.mnemonic(KeyEvent.VK_F2))
             Label("Name", modifier = SwingModifier.mnemonic(KeyEvent.VK_F3))
         }
-        assertEquals(KeyEvent.VK_F2, onNodeOfType<JButton>().fetch().mnemonic, "the button's key code")
-        assertEquals(KeyEvent.VK_F3, onNodeOfType<JLabel>().fetch().displayedMnemonic, "the label's key code")
+        onNodeOfType<JButton>().assertProperty(KeyEvent.VK_F2, "the button's key code") { mnemonic }
+        onNodeOfType<JLabel>().assertProperty(KeyEvent.VK_F3, "the label's key code") { displayedMnemonic }
     }
 
     @Test
@@ -342,8 +330,8 @@ class AccessibilityModifierTest {
                 modifier = SwingModifier.mnemonic('S'),
             )
         }
-        assertEquals(KeyEvent.VK_S, onNodeOfType<JButton>().fetch().mnemonic, "the lower-case character")
-        assertEquals(KeyEvent.VK_S, onNodeOfType<JCheckBox>().fetch().mnemonic, "the upper-case character")
+        onNodeOfType<JButton>().assertProperty(KeyEvent.VK_S, "the lower-case character") { mnemonic }
+        onNodeOfType<JCheckBox>().assertProperty(KeyEvent.VK_S, "the upper-case character") { mnemonic }
     }
 
     @Test
@@ -360,16 +348,16 @@ class AccessibilityModifierTest {
                     },
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(1, button.displayedMnemonicIndex, "the first occurrence is Swing's own answer")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(1, "the first occurrence is Swing's own answer") { displayedMnemonicIndex }
 
         chosen = true
         awaitIdle()
-        assertEquals(5, button.displayedMnemonicIndex, "the declared index names the second occurrence")
+        button.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         chosen = false
         awaitIdle()
-        assertEquals(1, button.displayedMnemonicIndex, "dropping the index restores Swing's own answer")
+        button.assertProperty(1, "dropping the index restores Swing's own answer") { displayedMnemonicIndex }
     }
 
     @Test
@@ -387,16 +375,15 @@ class AccessibilityModifierTest {
                         ).displayedMnemonicIndex(if (underlined) 5 else -1),
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(5, button.displayedMnemonicIndex, "the declared index names the second occurrence")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         underlined = false
         awaitIdle()
-        assertEquals(
+        button.assertProperty(
             -1,
-            button.displayedMnemonicIndex,
             "-1 leaves the mnemonic letter undecorated rather than falling back to an occurrence",
-        )
+        ) { displayedMnemonicIndex }
     }
 
     @Test
@@ -406,17 +393,16 @@ class AccessibilityModifierTest {
             Button(text, onClick = { }, modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+        button.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         // Writing the text makes the button derive the index again - "Save Any" would underline the 'a'
         // of "Save" - while the declared index has not changed and so declares nothing new.
         text = "Save Any"
         awaitIdle()
-        assertEquals(
+        button.assertProperty(
             5,
-            button.fetch().displayedMnemonicIndex,
             "the declared index should still name the second occurrence after the text changed",
-        )
+        ) { displayedMnemonicIndex }
     }
 
     @Test
@@ -426,17 +412,16 @@ class AccessibilityModifierTest {
             Button("Save As", onClick = { }, modifier = SwingModifier.mnemonic(key).displayedMnemonicIndex(5))
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+        button.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         // Writing the mnemonic makes the button derive the index again - 'S' would underline the 'S' of
         // "Save" - and the index is declared after the mnemonic, so it is written back over it.
         key = 'S'
         awaitIdle()
-        assertEquals(
+        button.assertProperty(
             5,
-            button.fetch().displayedMnemonicIndex,
             "the declared index should still name the second occurrence after the mnemonic changed",
-        )
+        ) { displayedMnemonicIndex }
     }
 
     @Test
@@ -446,15 +431,14 @@ class AccessibilityModifierTest {
             Label(text, modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(5, label.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+        label.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         text = "Save Any"
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             5,
-            label.fetch().displayedMnemonicIndex,
             "the declared index should still name the second occurrence after the label's text changed",
-        )
+        ) { displayedMnemonicIndex }
     }
 
     @Test
@@ -483,18 +467,17 @@ class AccessibilityModifierTest {
             )
         }
         val button = onNodeOfType<JButton>()
-        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+        button.assertProperty(5, "the declared index names the second occurrence") { displayedMnemonicIndex }
 
         // The index Swing derived when the modifier attached was derived for the text of the time, and
         // underlines a letter this one does not carry: "Ok" has no occurrence of the mnemonic at all.
         text = "Ok"
         chosen = false
         awaitIdle()
-        assertEquals(
+        button.assertProperty(
             -1,
-            button.fetch().displayedMnemonicIndex,
             "removing the modifier should leave the underline Swing derives for the text that stands",
-        )
+        ) { displayedMnemonicIndex }
     }
 
     @Test

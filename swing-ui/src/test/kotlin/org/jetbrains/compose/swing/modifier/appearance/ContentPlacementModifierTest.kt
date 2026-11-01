@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JButton
@@ -39,9 +40,9 @@ class ContentPlacementModifierTest {
             )
         }
 
-        assertEquals(SwingConstants.RIGHT, onNodeOfType<JLabel>().fetch().horizontalAlignment, "label")
-        assertEquals(SwingConstants.LEFT, onNodeOfType<JButton>().fetch().horizontalAlignment, "button")
-        assertEquals(SwingConstants.CENTER, onNodeOfType<JTextField>().fetch().horizontalAlignment, "field")
+        onNodeOfType<JLabel>().assertProperty(SwingConstants.RIGHT, "label") { horizontalAlignment }
+        onNodeOfType<JButton>().assertProperty(SwingConstants.LEFT, "button") { horizontalAlignment }
+        onNodeOfType<JTextField>().assertProperty(SwingConstants.CENTER, "field") { horizontalAlignment }
     }
 
     @Test
@@ -51,8 +52,8 @@ class ContentPlacementModifierTest {
             Button("Save", onClick = { }, modifier = SwingModifier.verticalAlignment(SwingConstants.BOTTOM))
         }
 
-        assertEquals(SwingConstants.TOP, onNodeOfType<JLabel>().fetch().verticalAlignment, "label")
-        assertEquals(SwingConstants.BOTTOM, onNodeOfType<JButton>().fetch().verticalAlignment, "button")
+        onNodeOfType<JLabel>().assertProperty(SwingConstants.TOP, "label") { verticalAlignment }
+        onNodeOfType<JButton>().assertProperty(SwingConstants.BOTTOM, "button") { verticalAlignment }
     }
 
     @Test
@@ -89,10 +90,10 @@ class ContentPlacementModifierTest {
             )
         }
 
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(SwingConstants.LEADING, label.horizontalTextPosition, "horizontalTextPosition")
-        assertEquals(SwingConstants.BOTTOM, label.verticalTextPosition, "verticalTextPosition")
-        assertEquals(GAP, label.iconTextGap, "iconTextGap")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(SwingConstants.LEADING, "horizontalTextPosition") { horizontalTextPosition }
+        label.assertProperty(SwingConstants.BOTTOM, "verticalTextPosition") { verticalTextPosition }
+        label.assertProperty(GAP, "iconTextGap") { iconTextGap }
     }
 
     @Test
@@ -109,10 +110,10 @@ class ContentPlacementModifierTest {
             )
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(SwingConstants.LEADING, button.horizontalTextPosition, "horizontalTextPosition")
-        assertEquals(SwingConstants.TOP, button.verticalTextPosition, "verticalTextPosition")
-        assertEquals(GAP, button.iconTextGap, "iconTextGap")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(SwingConstants.LEADING, "horizontalTextPosition") { horizontalTextPosition }
+        button.assertProperty(SwingConstants.TOP, "verticalTextPosition") { verticalTextPosition }
+        button.assertProperty(GAP, "iconTextGap") { iconTextGap }
     }
 
     @Test
@@ -120,13 +121,13 @@ class ContentPlacementModifierTest {
         var alignment by mutableIntStateOf(SwingConstants.LEFT)
         setContent { Label("Legend", modifier = SwingModifier.horizontalAlignment(alignment)) }
 
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(SwingConstants.LEFT, label.horizontalAlignment, "the declared alignment")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(SwingConstants.LEFT, "the declared alignment") { horizontalAlignment }
 
         alignment = SwingConstants.RIGHT
         awaitIdle()
 
-        assertEquals(SwingConstants.RIGHT, label.horizontalAlignment, "the alignment follows its state")
+        label.assertProperty(SwingConstants.RIGHT, "the alignment follows its state") { horizontalAlignment }
     }
 
     @Test

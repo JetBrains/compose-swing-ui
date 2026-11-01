@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -44,12 +45,12 @@ class TableStateProjectionTest {
             )
         }
 
-        assertEquals(people.size, state.rowCount, "every declared row is a row the table shows")
+        assertEquals(3, state.rowCount, "every declared row is a row the table shows")
 
         filter = hidingRow(1)
         awaitIdle()
 
-        assertEquals(people.size - 1, state.rowCount, "a filtered row is one the table no longer shows")
+        assertEquals(2, state.rowCount, "a filtered row is one the table no longer shows")
     }
 
     @Test
@@ -95,13 +96,14 @@ class TableStateProjectionTest {
         state.selectedRowIndices = setOf(0, 1, 2)
         awaitIdle()
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(1, table.selectedRowCount, "a table holding one row at a time kept one of the three")
-        assertEquals(
-            table.selectedRows.toSet(),
+        onNodeOfType<JTable>().assertProperty(
+            1,
+            "a table holding one row at a time kept one of the three",
+        ) { selectedRowCount }
+        onNodeOfType<JTable>().assertProperty(
             state.shownSelectedRowIndices,
             "and that is the row the projection reports",
-        )
+        ) { selectedRows.toSet() }
         assertNotEquals(
             state.selectedRowIndices,
             state.shownSelectedRowIndices,

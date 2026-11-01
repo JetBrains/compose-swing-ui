@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,7 +31,6 @@ import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for the initial-focus declaration: the window's focus goes to the declared
@@ -64,12 +64,12 @@ class InitialFocusTest {
                 modifier = if (declared) SwingModifier.initialFocus() else SwingModifier,
             )
         }
-        val field = onNodeOfType<JTextField>().fetch()
-        assertTrue(field.isFocusable, "the declaration must not change what the component allows")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(true, "the declaration must not change what the component allows") { isFocusable }
 
         declared = false
         awaitIdle()
-        assertTrue(field.isFocusable, "withdrawing the declaration must not change it either")
+        field.assertProperty(true, "withdrawing the declaration must not change it either") { isFocusable }
     }
 
     @Test

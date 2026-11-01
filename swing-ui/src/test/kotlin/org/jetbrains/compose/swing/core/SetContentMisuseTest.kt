@@ -119,14 +119,10 @@ class SetContentMisuseTest {
                 panel.findRecomposer(),
                 "a swept container must still answer for the content standing in it",
             )
-            val refused =
-                assertFailsWith<IllegalStateException> {
-                    panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
-                }
-            assertTrue(
-                "two content compositions cannot both be" in refused.message.orEmpty(),
-                "a swept container must still refuse a second content composition, and said: ${refused.message}",
-            )
+            assertFailsWith<IllegalStateException> {
+                panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
+            }
+            assertEquals(1, panel.componentCount, "a refused call must leave the first content mounted")
         } finally {
             recomposer.dispose()
         }
@@ -140,15 +136,10 @@ class SetContentMisuseTest {
         val panel = JPanel()
         val pending = panel.setContent { Label(text = "first") }
 
-        val refused =
-            assertFailsWith<IllegalStateException> {
-                panel.setContent { Label(text = "second") }
-            }
-        assertTrue(
-            "two content compositions cannot both be" in refused.message.orEmpty(),
-            "the refusal must say why a container answers for one content composition only, " +
-                "and said: ${refused.message}",
-        )
+        assertFailsWith<IllegalStateException> {
+            panel.setContent { Label(text = "second") }
+        }
+        assertEquals(0, panel.componentCount, "a refused call must leave the pending content unmounted")
 
         // Disposing the pending handle frees the container, so the next call is accepted and defers as
         // the first one did.
@@ -233,15 +224,19 @@ class SetContentMisuseTest {
             // for the first time inside the hierarchy event the add below fires, and that pass throws.
             val panel = JPanel()
             var passes = 0
+            val failure = IllegalStateException("boom")
             panel.setContent {
                 passes++
-                error("boom")
+                throw failure
             }
             assertEquals(0, passes, "a content composition waiting for a window composes nothing until it reaches one")
 
-            val failure = assertFailsWith<IllegalStateException> { frame.contentPane.add(panel) }
+            assertSame(
+                failure,
+                assertFailsWith<IllegalStateException> { frame.contentPane.add(panel) },
+                "the failure reaches whoever put the container in the window",
+            )
 
-            assertEquals("boom", failure.message, "the failure reaches whoever put the container in the window")
             assertEquals(1, passes, "the content composes once, as its container arrives")
             assertEquals(
                 0,
@@ -284,9 +279,10 @@ class SetContentMisuseTest {
             // pass is the only one that can: a move states the new window nowhere but in the rejoin.
             val panel = JPanel().also { first.contentPane.add(it) }
             var passes = 0
+            val failure = IllegalStateException("boom")
             panel.setContent {
                 passes++
-                if (LocalWindow.current === second) error("boom")
+                if (LocalWindow.current === second) throw failure
                 Label(text = "content")
             }
             assertEquals(listOf("content"), labelTexts(panel), "the content composes in the window it starts in")
@@ -299,7 +295,7 @@ class SetContentMisuseTest {
             awaitUntil("the failed rejoin is reported to the thread's uncaught-exception handler") {
                 reported.isNotEmpty()
             }
-            assertEquals("boom", reported.single().message, "the failure reported is the one the pass raised")
+            assertSame(failure, reported.single(), "the failure reported is the one the pass raised")
             assertEquals(emptyList(), labelTexts(panel), "the composition the move left behind is gone")
             assertEquals(
                 0,
@@ -330,9 +326,14 @@ class SetContentMisuseTest {
         try {
             // The failure lands in the event the recomposer was created in, before its coroutine has had
             // a turn: the recomposer must still end, and nothing may recompose under it in between.
-            assertFailsWith<IllegalStateException> {
-                panel.setContent(parent = recomposer.compositionContext) { error("boom") }
-            }
+            val failure = IllegalStateException("boom")
+            assertSame(
+                failure,
+                assertFailsWith<IllegalStateException> {
+                    panel.setContent(parent = recomposer.compositionContext) { throw failure }
+                },
+                "the first pass's failure reaches the caller as it is",
+            )
 
             var caption by mutableStateOf("first")
             var passes = 0
@@ -360,14 +361,9 @@ class SetContentMisuseTest {
         val ended = recomposer.compositionContext
         recomposer.dispose()
 
-        val refused =
-            assertFailsWith<IllegalArgumentException> {
-                panel.setContent(parent = ended) { Label(text = "never composes") }
-            }
-        assertTrue(
-            "would never recompose" in refused.message.orEmpty(),
-            "the refusal must say what composing under an ended recomposer would cost, and said: ${refused.message}",
-        )
+        assertFailsWith<IllegalArgumentException> {
+            panel.setContent(parent = ended) { Label(text = "never composes") }
+        }
         assertEquals(0, panel.componentCount, "a refused call must leave the container empty")
         assertEquals(0, panel.hierarchyListeners.size, "a refused call must leave no listener behind")
     }
@@ -396,14 +392,10 @@ class SetContentMisuseTest {
         neverRan.cancel()
 
         val panel = JPanel()
-        val refused =
-            assertFailsWith<IllegalArgumentException> {
-                panel.setContent(parent = neverRan) { Label(text = "never composes") }
-            }
-        assertTrue(
-            "would never recompose" in refused.message.orEmpty(),
-            "a cancelled recomposer must be refused whatever state it reports, and said: ${refused.message}",
-        )
+        assertFailsWith<IllegalArgumentException> {
+            panel.setContent(parent = neverRan) { Label(text = "never composes") }
+        }
+        assertEquals(0, panel.componentCount, "a refused call must leave the container empty")
     }
 
     @Test
@@ -425,14 +417,10 @@ class SetContentMisuseTest {
         )
 
         val panel = JPanel()
-        val refused =
-            assertFailsWith<IllegalArgumentException> {
-                panel.setContent(parent = ended) { Label(text = "never composes") }
-            }
-        assertTrue(
-            "would never recompose" in refused.message.orEmpty(),
-            "a closed window's context must be refused as an ended recomposer, and said: ${refused.message}",
-        )
+        assertFailsWith<IllegalArgumentException> {
+            panel.setContent(parent = ended) { Label(text = "never composes") }
+        }
+        assertEquals(0, panel.componentCount, "a refused call must leave the container empty")
     }
 
     @Test
@@ -442,14 +430,10 @@ class SetContentMisuseTest {
         val recomposer = SwingRecomposer.create(JPanel())
         try {
             val panel = Panel()
-            val refused =
-                assertFailsWith<IllegalArgumentException> {
-                    panel.setContentAsInteropHost(recomposer.compositionContext) { }
-                }
-            assertTrue(
-                "JComponent" in refused.message.orEmpty(),
-                "the refusal must name what the host must be, but said: ${refused.message}",
-            )
+            assertFailsWith<IllegalArgumentException> {
+                panel.setContentAsInteropHost(recomposer.compositionContext) { }
+            }
+            assertEquals(0, panel.componentCount, "a refused call must leave the host empty")
         } finally {
             recomposer.dispose()
         }
@@ -462,14 +446,10 @@ class SetContentMisuseTest {
         // pane on which to mount the composition. The precondition names the constraint.
         val frame = Frame()
         try {
-            val refused =
-                assertFailsWith<IllegalArgumentException> {
-                    frame.setContent { }
-                }
-            assertTrue(
-                "RootPaneContainer" in refused.message.orEmpty(),
-                "the refusal must name what a Window must be to host a composition, but said: ${refused.message}",
-            )
+            assertFailsWith<IllegalArgumentException> {
+                frame.setContent { }
+            }
+            assertEquals(0, frame.componentCount, "a refused call must leave the window without content")
         } finally {
             frame.dispose()
         }
@@ -482,15 +462,12 @@ class SetContentMisuseTest {
         // the default JPanel content pane with a raw AWT Panel to confirm the second precondition.
         val dialog = JDialog()
         try {
-            dialog.contentPane = Panel()
-            val refused =
-                assertFailsWith<IllegalArgumentException> {
-                    dialog.setContent { }
-                }
-            assertTrue(
-                "JComponent" in refused.message.orEmpty(),
-                "the refusal must name what the content pane must be, but said: ${refused.message}",
-            )
+            val pane = Panel()
+            dialog.contentPane = pane
+            assertFailsWith<IllegalArgumentException> {
+                dialog.setContent { }
+            }
+            assertSame(pane, dialog.contentPane, "a refused call must leave the content pane in place")
         } finally {
             dialog.dispose()
         }

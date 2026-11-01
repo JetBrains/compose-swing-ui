@@ -5,7 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -29,13 +31,12 @@ class ListBoxBehaviorTest {
     fun itemsRenderIntoTheModel() = runComposeSwingTest {
         setContent { ListBox(items = listOf("a", "b", "c")) }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(3, list.model.size, "the model should hold all three items")
-        assertEquals(
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(3, "the model should hold all three items") { model.size }
+        list.assertProperty(
             listOf("a", "b", "c"),
-            (0 until list.model.size).map { list.model.getElementAt(it) },
             "the model elements should match the declared items in order",
-        )
+        ) { (0 until model.size).map { model.getElementAt(it) } }
     }
 
     @Test
@@ -45,8 +46,7 @@ class ListBoxBehaviorTest {
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.valueIsAdjusting = true
-        list.selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JList<*>>().performAddSelection(1)
         assertEquals(emptyList(), events, "an adjusting selection must not fire onSelectionChange")
 
         list.selectionModel.valueIsAdjusting = false
@@ -66,14 +66,14 @@ class ListBoxBehaviorTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the controlled selection should render initially")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(1), "the controlled selection should render initially") { selectedIndices.toList() }
 
         // setListData clears the JList selection; the wrapper must re-apply selectedIndices after the
         // model swap so the controlled selection survives an items change.
         items = listOf("a", "b", "c", "d")
         awaitIdle()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "selection lost on items change")
+        list.assertProperty(listOf(1), "selection lost on items change") { selectedIndices.toList() }
     }
 
     /**
@@ -91,11 +91,10 @@ class ListBoxBehaviorTest {
             awaitIdle()
         }
 
-        assertEquals(
+        onNodeOfType<JList<*>>().assertProperty(
             listOf(0),
-            list.selectedIndices.toList(),
             "an unadopted selection change does not stand, however often it is made",
-        )
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -105,12 +104,18 @@ class ListBoxBehaviorTest {
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(listOf(2), list.selectedIndices.toList(), "a single-selection list holds one row at a time")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(2),
+            "a single-selection list holds one row at a time",
+        ) { selectedIndices.toList() }
 
         selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         awaitIdle()
         list.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the widened mode admits a whole range")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0, 1, 2),
+            "the widened mode admits a whole range",
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -139,8 +144,7 @@ class ListBoxBehaviorTest {
         useSecond = true
         awaitIdle()
 
-        onNodeOfType<JList<*>>().fetch().selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JList<*>>().performAddSelection(1)
 
         assertEquals(listOf("second"), reported, "a callback the recomposition replaced is not the one that runs")
     }
@@ -197,8 +201,7 @@ class ListBoxBehaviorTest {
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.valueIsAdjusting = true
         list.selectionModel.setSelectionInterval(1, 1)
-        list.selectionModel.addSelectionInterval(2, 2)
-        awaitIdle()
+        onNodeOfType<JList<*>>().performAddSelection(2)
 
         assertEquals(0, changes, "a selection still under the user's hand is not the one to report")
         list.selectionModel.valueIsAdjusting = false

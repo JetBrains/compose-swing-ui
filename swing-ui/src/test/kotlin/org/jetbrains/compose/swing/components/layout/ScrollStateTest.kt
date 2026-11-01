@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
@@ -18,6 +19,7 @@ import javax.swing.JViewport
 import javax.swing.event.ChangeListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -192,10 +194,12 @@ class ScrollStateTest {
             declared = state
             ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
                 Viewport {
-                    Label(
-                        if (second) "second" else "first",
-                        modifier = SwingModifier.preferredSize(300, 400),
-                    )
+                    key(second) {
+                        Label(
+                            if (second) "second" else "first",
+                            modifier = SwingModifier.preferredSize(300, 400),
+                        )
+                    }
                 }
             }
         }
@@ -203,9 +207,11 @@ class ScrollStateTest {
         state.y = 55
         awaitIdle()
 
+        val first = onNodeWithText("first").fetch()
         second = true
         awaitIdle()
 
+        assertNotSame(first, onNodeWithText("second").fetch(), "the content was replaced, not relabeled")
         assertEquals(55, state.y, "replacing the content must not move the position the state holds")
         assertEquals(
             55,

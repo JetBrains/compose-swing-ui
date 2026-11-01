@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -36,20 +37,18 @@ class TableColumnLayoutModelTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
         model = modelWithColumns("Given", "Years", "Town")
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf(2, 0, 1),
-            table.columnModel.modelIndices(),
             "the state's order should survive a model swap",
-        )
-        assertEquals(
+        ) { columnModel.modelIndices() }
+        table.assertProperty(
             60,
-            table.columnModel.getColumn(0).preferredWidth,
             "the state's width should survive a model swap",
-        )
+        ) { columnModel.getColumn(0).preferredWidth }
     }
 
     @Test
@@ -87,8 +86,8 @@ class TableColumnLayoutModelTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val before = table.columnModel.preferredWidths()
+        val table = onNodeOfType<JTable>()
+        val before = table.fetch().columnModel.preferredWidths()
         dragColumnDivider(position = 0, dx = 40)
         val resized = listOf(before[0] + 40, before[1], before[2])
 
@@ -102,7 +101,10 @@ class TableColumnLayoutModelTest {
             "the widths the drag left the columns at should be reported",
         )
         assertEquals(listOf(0, 1, 2), received.last().modelIndices, "a resize should leave the order alone")
-        assertEquals(resized, table.columnModel.preferredWidths(), "the user's resize should stand")
+        table.assertProperty(
+            resized,
+            "the user's resize should stand",
+        ) { columnModel.preferredWidths() }
     }
 
     @Test
@@ -111,7 +113,6 @@ class TableColumnLayoutModelTest {
         val received = mutableListOf<TableColumnLayout>()
         setContent { HeaderPane { Table(model = model, onColumnLayoutChange = { received += it }) } }
 
-        val table = onNodeOfType<JTable>().fetch()
         dragColumn(from = 2, to = 0)
         awaitIdle()
         received.clear()
@@ -119,7 +120,10 @@ class TableColumnLayoutModelTest {
         model = modelWithColumns("Given", "Years", "Town")
         awaitIdle()
 
-        assertEquals(listOf(2, 0, 1), table.columnModel.modelIndices(), "the user's order should survive a model swap")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(2, 0, 1),
+            "the user's order should survive a model swap",
+        ) { columnModel.modelIndices() }
         assertEquals(emptyList(), received, "a model swap the layout survives should report nothing")
     }
 
@@ -129,7 +133,6 @@ class TableColumnLayoutModelTest {
         val received = mutableListOf<TableColumnLayout>()
         setContent { HeaderPane { Table(model = model, onColumnLayoutChange = { received += it }) } }
 
-        val table = onNodeOfType<JTable>().fetch()
         dragColumn(from = 2, to = 0)
         awaitIdle()
         received.clear()
@@ -137,7 +140,10 @@ class TableColumnLayoutModelTest {
         model = modelWithColumns("Given", "Years")
         awaitIdle()
 
-        assertEquals(listOf(0, 1), table.columnModel.modelIndices(), "only the surviving columns should be left")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0, 1),
+            "only the surviving columns should be left",
+        ) { columnModel.modelIndices() }
         assertEquals(
             listOf(listOf(0, 1)),
             received.map { it.modelIndices },

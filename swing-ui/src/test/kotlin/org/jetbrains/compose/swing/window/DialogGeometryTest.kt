@@ -6,6 +6,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
@@ -55,45 +59,21 @@ class DialogGeometryTest {
         ) { dialog.location }
     }
 
-    @Test
-    fun sizeReactsToStateChange() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sizeChanges")
+    fun aSizeStateChangeResizesTheRealizedDialog(
+        change: DialogState.() -> Unit,
+        expected: Dimension,
+    ) = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertReaches(Dimension(360, 260)) { dialog.size }
-        state.size = Dimension(520, 420)
+        assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
+        state.change()
         // Applying size to the peer is an asynchronous native resize; wait for the dialog to reach the
         // target rather than assert right after the compose frame that requests it.
-        assertReaches(Dimension(520, 420)) { dialog.size }
-    }
-
-    @Test
-    fun widthReactsToStateChange() = runComposeSwingTest {
-        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = DialogState(size = Dimension(360, 260))
-        setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-width-react") {} }
-        val dialog = onWindow().fetch<JDialog>()
-        assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
-        state.width = 520
-        assertReaches(
-            Dimension(520, 260),
-            "assigning width must resize the realized dialog, leaving its height unchanged",
-        ) { dialog.size }
-    }
-
-    @Test
-    fun heightReactsToStateChange() = runComposeSwingTest {
-        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = DialogState(size = Dimension(360, 260))
-        setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-height-react") {} }
-        val dialog = onWindow().fetch<JDialog>()
-        assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
-        state.height = 420
-        assertReaches(
-            Dimension(360, 420),
-            "assigning height must resize the realized dialog, leaving its width unchanged",
-        ) { dialog.size }
+        assertReaches(expected, "the realized dialog must take the size the state's change declares") { dialog.size }
     }
 
     @Test
@@ -262,6 +242,21 @@ class DialogGeometryTest {
             Point(240, 170),
             dialog.location,
             "assigning an absolute position over PlatformDefault must move the dialog",
+        )
+    }
+
+    companion object {
+        private fun sizeChange(
+            name: String,
+            change: DialogState.() -> Unit,
+            expected: Dimension,
+        ): Arguments = Arguments.of(Named.of(name, change), expected)
+
+        @JvmStatic
+        fun sizeChanges(): List<Arguments> = listOf(
+            sizeChange("size", { size = Dimension(520, 420) }, Dimension(520, 420)),
+            sizeChange("width", { width = 520 }, Dimension(520, 260)),
+            sizeChange("height", { height = 420 }, Dimension(360, 420)),
         )
     }
 }

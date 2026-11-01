@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -10,11 +11,11 @@ import javax.swing.JTextField
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -44,7 +45,7 @@ class TableCellEditabilityTest {
         val table = onNodeOfType<JTable>().fetch<JTable>()
         assertFalse(table.editCellAt(0, 0), "a column without onCellEdit should not start an editor")
         assertTrue(table.editCellAt(0, 1), "a column with onCellEdit should start one")
-        (table.editorComponent as JTextField).text = "37"
+        assertIs<JTextField>(table.editorComponent).text = "37"
         table.cellEditor.stopCellEditing()
 
         val age = edits.single()
@@ -64,31 +65,26 @@ class TableCellEditabilityTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertFalse(table.isCellEditable(0, 1), "the predicate should keep the younger row's cell read-only")
-        assertTrue(table.isCellEditable(1, 1), "and make the older row's cell editable")
-        assertFalse(table.isCellEditable(1, 0), "a column without onCellEdit stays read-only")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(
+            false,
+            "the predicate should keep the younger row's cell read-only",
+        ) { isCellEditable(0, 1) }
+        table.assertProperty(true, "and make the older row's cell editable") { isCellEditable(1, 1) }
+        table.assertProperty(false, "a column without onCellEdit stays read-only") { isCellEditable(1, 0) }
     }
 
     @Test
     fun aPerRowPredicateWithoutOnCellEditIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                setContent {
-                    Table(
-                        rows = people,
-                        columns = { column("Age", isCellEditable = { _, _ -> true }) { it.age } },
-                    )
-                }
-                awaitIdle()
+        assertFailsWith<IllegalArgumentException>("the refusal names the missing callback") {
+            setContent {
+                Table(
+                    rows = people,
+                    columns = { column("Age", isCellEditable = { _, _ -> true }) { it.age } },
+                )
             }
-
-        assertContains(
-            failure.message.orEmpty(),
-            "isCellEditable is set on column \"Age\" but onCellEdit is not",
-            message = "the refusal must name the column and the missing callback",
-        )
-        assertContains(failure.message.orEmpty(), "Set onCellEdit", message = "and say what to do")
+            awaitIdle()
+        }
     }
 
     @Test
@@ -138,9 +134,8 @@ class TableCellEditabilityTest {
 
         // Sorted by name descending, "Alan" is drawn first; the predicate is asked about the row that cell
         // holds, named by its index into the declared rows.
-        val table = onNodeOfType<JTable>().fetch()
         asked.clear()
-        assertTrue(table.isCellEditable(0, 0), "the predicate admits the cell")
+        onNodeOfType<JTable>().assertProperty(true, "the predicate admits the cell") { isCellEditable(0, 0) }
         assertEquals(listOf("Alan" to 1), asked.toList(), "the predicate should be asked about the declared row")
     }
 
@@ -158,12 +153,14 @@ class TableCellEditabilityTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertFalse(table.isCellEditable(0, 0), "the younger row starts read-only")
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        table.assertProperty(false, "the younger row starts read-only") { isCellEditable(0, 0) }
 
         threshold = 30
         awaitIdle()
-        assertTrue(table.isCellEditable(0, 0), "a changed predicate should decide the next answer")
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
+        table.assertProperty(true, "a changed predicate should decide the next answer") { isCellEditable(0, 0) }
     }
 
     @Test

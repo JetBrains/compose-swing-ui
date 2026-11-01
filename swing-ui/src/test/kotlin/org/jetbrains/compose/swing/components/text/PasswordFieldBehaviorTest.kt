@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -34,8 +35,7 @@ class PasswordFieldBehaviorTest {
     fun controlledValueRoundTripsThroughGetPassword() = runComposeSwingTest {
         setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals("hunter2", String(field.password))
+        onNodeOfType<JPasswordField>().assertProperty("hunter2") { String(password) }
     }
 
     @Test
@@ -76,29 +76,17 @@ class PasswordFieldBehaviorTest {
         var echoChar by mutableStateOf<Char?>('#')
         setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}, echoChar = echoChar) }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals('#', field.echoChar, "a non-null echo character should be applied")
+        val field = onNodeOfType<JPasswordField>()
+        field.assertProperty('#', "a non-null echo character should be applied") { this.echoChar }
 
         // Re-applying null must revert to the look-and-feel default rather than leaving the custom mask.
         echoChar = null
         awaitIdle()
-        assertEquals(defaultEchoChar, field.echoChar, "null should reset to the look-and-feel default")
+        field.assertProperty(defaultEchoChar, "null should reset to the look-and-feel default") { this.echoChar }
 
         echoChar = '\u0000'
         awaitIdle()
-        assertEquals('\u0000', field.echoChar, "NUL should be applied to show clear text")
-    }
-
-    @Test
-    fun anEditTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
-        setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
-
-        val field = onNodeOfType<JPasswordField>()
-        field.performTextReplacement("intruder")
-
-        // The declared value is written back on the pass the edit itself provokes, so the field never
-        // stands on characters the caller has not adopted.
-        assertEquals("hunter2", String(field.fetch().password))
+        field.assertProperty('\u0000', "NUL should be applied to show clear text") { this.echoChar }
     }
 
     @Test
@@ -107,12 +95,14 @@ class PasswordFieldBehaviorTest {
 
         val field = onNodeOfType<JPasswordField>()
         field.performTextReplacement("intruder")
-        assertEquals("hunter2", String(field.fetch().password))
+        // The declared value is written back on the pass the edit itself provokes, so the field never
+        // stands on characters the caller has not adopted.
+        field.assertProperty("hunter2") { String(password) }
 
         // A settlement measures against the characters the field holds on its own pass, so the second
         // edit is settled back just as the first was rather than being taken for one already answered.
         field.performTextReplacement("interloper")
-        assertEquals("hunter2", String(field.fetch().password))
+        field.assertProperty("hunter2") { String(password) }
     }
 
     @Test
@@ -126,7 +116,7 @@ class PasswordFieldBehaviorTest {
 
         // The wrapper's own mirror listener, attached alongside the caller's raw one, is what keeps the
         // declared value settling back with no onValueChange callback to report through.
-        assertEquals("hunter2", String(field.fetch().password))
+        field.assertProperty("hunter2") { String(password) }
     }
 
     @Test

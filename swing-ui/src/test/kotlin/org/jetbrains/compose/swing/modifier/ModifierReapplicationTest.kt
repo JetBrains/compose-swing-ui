@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -60,8 +61,8 @@ class ModifierReapplicationTest {
                         .then(CountingToolTipElement("hello", writes)),
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals("hello", button.toolTipText, "the element should apply its value on first composition")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty("hello", "the element should apply its value on first composition") { toolTipText }
         assertEquals(1, writes.get(), "the first composition should write once")
 
         tick++
@@ -69,8 +70,8 @@ class ModifierReapplicationTest {
         tick++
         awaitIdle()
 
-        assertEquals(Color.GREEN, button.background, "the applied background should still hold")
-        assertEquals("hello", button.toolTipText, "the applied value should still hold")
+        button.assertProperty(Color.GREEN, "the applied background should still hold") { background }
+        button.assertProperty("hello", "the applied value should still hold") { toolTipText }
         assertEquals(1, writes.get(), "a declaration that did not change is written once, not once per recomposition")
     }
 
@@ -81,14 +82,14 @@ class ModifierReapplicationTest {
         setContent {
             Button("X", onClick = { }, modifier = SwingModifier.then(CountingToolTipElement(text, writes)))
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals("first", button.toolTipText, "the element should apply its initial value")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty("first", "the element should apply its initial value") { toolTipText }
         assertEquals(1, writes.get(), "the first composition should write once")
 
         text = "second"
         awaitIdle()
 
-        assertEquals("second", button.toolTipText, "a changed value must reach the widget")
+        button.assertProperty("second", "a changed value must reach the widget") { toolTipText }
         assertEquals(2, writes.get(), "a changed value costs exactly one further write")
     }
 
@@ -106,8 +107,8 @@ class ModifierReapplicationTest {
                         .background(accent),
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(Color.GREEN, button.background, "the background element should apply its initial value")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(Color.GREEN, "the background element should apply its initial value") { background }
         assertEquals(1, writes.get(), "the tooltip element should write once on first composition")
 
         accent = Color.BLUE
@@ -116,8 +117,8 @@ class ModifierReapplicationTest {
         // The modifier as a whole changed, so it is diffed element by element: the background slot takes
         // the new color while the tooltip slot, declared ahead of it and untouched, is left alone.
         // Nothing has written when that slot is reached.
-        assertEquals(Color.BLUE, button.background, "the changed element must take its new value")
-        assertEquals("hello", button.toolTipText, "the unchanged element's value must still hold")
+        button.assertProperty(Color.BLUE, "the changed element must take its new value") { background }
+        button.assertProperty("hello", "the unchanged element's value must still hold") { toolTipText }
         assertEquals(1, writes.get(), "an unchanged element declared before a changed one is not written again")
     }
 
@@ -249,14 +250,14 @@ class ModifierReapplicationTest {
                     },
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
+        val button = onNodeOfType<JButton>()
         val original = JButton("X").toolTipText
-        assertEquals("hello", button.toolTipText, "the element should apply while present")
+        button.assertProperty("hello", "the element should apply while present") { toolTipText }
 
         styled = false
         awaitIdle()
 
-        assertEquals(original, button.toolTipText, "dropping the element restores the value it found")
+        button.assertProperty(original, "dropping the element restores the value it found") { toolTipText }
         assertEquals(1, writes.get(), "an element that left the modifier is not written again")
     }
 
@@ -552,8 +553,8 @@ class ModifierReapplicationTest {
                     },
             )
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals("declared", button.toolTipText, "the tooltip element should apply while present")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty("declared", "the tooltip element should apply while present") { toolTipText }
 
         // The tooltip leaves the modifier and is declared again, so its slot is the newer of the two while
         // the modifier still declares it first. What the modifier declares is what the unwind follows.
@@ -588,8 +589,8 @@ class ModifierReapplicationTest {
                 )
             }
         }
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals("declared", button.toolTipText, "the tooltip element should apply while present")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty("declared", "the tooltip element should apply while present") { toolTipText }
 
         // Parking drains the whole modifier at once, in the order a removal takes it apart in.
         tipped = false

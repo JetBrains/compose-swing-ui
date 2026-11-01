@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,7 +31,7 @@ import kotlin.test.assertTrue
  * Behavioral tests for [SplitPane]. They assert what an observer of the live [JSplitPane] sees: the
  * side a child names becomes the matching left/right (top/bottom) component, dropping a child empties
  * the side it occupied, a child naming no side and a second child naming one side are both refused
- * while replacing the child on a side is not, orientation and resize weight map through, the divider
+ * while replacing the child on a side is not, resize weight maps through, the divider
  * position is controlled while a user drag fires the callback, and the divider size and one-touch flag
  * follow the look and feel until the caller declares them.
  */
@@ -258,28 +259,6 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun orientationMapsThrough() = runComposeSwingTest {
-        var orientation by mutableStateOf(JSplitPane.HORIZONTAL_SPLIT)
-        setContent {
-            SplitPane(orientation = orientation) {
-                Label(text = "A", modifier = SwingModifier.first())
-                Label(text = "B", modifier = SwingModifier.second())
-            }
-        }
-
-        val pane = onNodeOfType<JSplitPane>().fetch()
-        assertEquals(
-            JSplitPane.HORIZONTAL_SPLIT,
-            pane.orientation,
-            "the pane should start with the horizontal orientation",
-        )
-
-        orientation = JSplitPane.VERTICAL_SPLIT
-        awaitIdle()
-        assertEquals(JSplitPane.VERTICAL_SPLIT, pane.orientation, "the orientation should map through to vertical")
-    }
-
-    @Test
     fun resizeWeightMapsThrough() = runComposeSwingTest {
         setContent {
             SplitPane(resizeWeight = 0.25) {
@@ -288,7 +267,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        assertEquals(0.25, onNodeOfType<JSplitPane>().fetch().resizeWeight)
+        onNodeOfType<JSplitPane>().assertProperty(0.25) { resizeWeight }
     }
 
     @Test

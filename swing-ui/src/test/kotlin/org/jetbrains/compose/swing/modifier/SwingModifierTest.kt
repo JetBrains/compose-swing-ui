@@ -59,6 +59,7 @@ import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -80,7 +81,6 @@ import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -115,11 +115,11 @@ class SwingModifierTest {
             Label("X", modifier = SwingModifier.foreground(if (accent) Color.RED else Color.BLUE))
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(Color.RED, label.fetch<JLabel>().foreground, "the modifier should apply the initial color")
+        label.assertProperty(Color.RED, "the modifier should apply the initial color") { foreground }
 
         accent = false
         awaitIdle()
-        assertEquals(Color.BLUE, label.fetch<JLabel>().foreground, "the modifier should react to the state change")
+        label.assertProperty(Color.BLUE, "the modifier should react to the state change") { foreground }
     }
 
     @Test
@@ -134,10 +134,10 @@ class SwingModifierTest {
                         .opaque(true),
             )
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(Color.RED, label.foreground, "the foreground element should apply")
-        assertEquals(Color.BLUE, label.background, "the background element should apply")
-        assertTrue(label.isOpaque, "the opaque element should apply")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(Color.RED, "the foreground element should apply") { foreground }
+        label.assertProperty(Color.BLUE, "the background element should apply") { background }
+        label.assertProperty(true, "the opaque element should apply") { isOpaque }
     }
 
     @Test
@@ -149,21 +149,19 @@ class SwingModifierTest {
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().background
-        assertEquals(
+        styledLabel.assertProperty(
             Color.YELLOW,
-            styledLabel.fetch<JLabel>().background,
             "the element should apply the background while present",
-        )
+        ) { background }
 
         styled = false
         awaitIdle()
         // The element left the modifier, so the background is restored to what it was before the
         // modifier first touched it (the same default the untouched control still shows).
-        assertEquals(
+        styledLabel.assertProperty(
             default,
-            styledLabel.fetch<JLabel>().background,
             "removing the element should restore the prior default",
-        )
+        ) { background }
     }
 
     @Test
@@ -249,17 +247,23 @@ class SwingModifierTest {
         setContent {
             Label("X", modifier = if (constrained) SwingModifier.minimumSize(120, 40) else SwingModifier)
         }
-        val constrainedLabel = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(120, 40), constrainedLabel.minimumSize, "the modifier should apply the minimum size")
-        assertTrue(constrainedLabel.isMinimumSizeSet, "the minimum-size-set flag should be on while present")
+        val constrainedLabel = onNodeOfType<JLabel>()
+        constrainedLabel.assertProperty(
+            Dimension(120, 40),
+            "the modifier should apply the minimum size",
+        ) { minimumSize }
+        constrainedLabel.assertProperty(
+            true,
+            "the minimum-size-set flag should be on while present",
+        ) { isMinimumSizeSet }
 
         constrained = false
         awaitIdle()
         // The element left the modifier, so the explicit minimum size is cleared again.
-        assertFalse(
-            onNodeOfType<JLabel>().fetch().isMinimumSizeSet,
+        onNodeOfType<JLabel>().assertProperty(
+            false,
             "removing the modifier should clear the minimum-size-set flag",
-        )
+        ) { isMinimumSizeSet }
     }
 
     @Test
@@ -268,17 +272,23 @@ class SwingModifierTest {
         setContent {
             Label("X", modifier = if (constrained) SwingModifier.maximumSize(Dimension(200, 80)) else SwingModifier)
         }
-        val constrainedLabel = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(200, 80), constrainedLabel.maximumSize, "the modifier should apply the maximum size")
-        assertTrue(constrainedLabel.isMaximumSizeSet, "the maximum-size-set flag should be on while present")
+        val constrainedLabel = onNodeOfType<JLabel>()
+        constrainedLabel.assertProperty(
+            Dimension(200, 80),
+            "the modifier should apply the maximum size",
+        ) { maximumSize }
+        constrainedLabel.assertProperty(
+            true,
+            "the maximum-size-set flag should be on while present",
+        ) { isMaximumSizeSet }
 
         constrained = false
         awaitIdle()
         // The element left the modifier, so the explicit maximum size is cleared again.
-        assertFalse(
-            onNodeOfType<JLabel>().fetch().isMaximumSizeSet,
+        onNodeOfType<JLabel>().assertProperty(
+            false,
             "removing the modifier should clear the maximum-size-set flag",
-        )
+        ) { isMaximumSizeSet }
     }
 
     @Test
@@ -286,9 +296,9 @@ class SwingModifierTest {
         setContent {
             Label("X", modifier = SwingModifier.maximumSize(200, 80))
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(Dimension(200, 80), label.maximumSize, "the overload should apply the dimension")
-        assertTrue(label.isMaximumSizeSet, "the overload should set the maximum-size-set flag")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty(Dimension(200, 80), "the overload should apply the dimension") { maximumSize }
+        label.assertProperty(true, "the overload should set the maximum-size-set flag") { isMaximumSizeSet }
     }
 
     @Test
@@ -296,11 +306,10 @@ class SwingModifierTest {
         setContent {
             Label("X", modifier = SwingModifier.alignmentX(0.0f))
         }
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             0.0f,
-            onNodeOfType<JLabel>().fetch().alignmentX,
             "the modifier should set the x alignment",
-        )
+        ) { alignmentX }
     }
 
     @Test
@@ -308,11 +317,10 @@ class SwingModifierTest {
         setContent {
             Label("X", modifier = SwingModifier.alignmentY(1.0f))
         }
-        assertEquals(
+        onNodeOfType<JLabel>().assertProperty(
             1.0f,
-            onNodeOfType<JLabel>().fetch().alignmentY,
             "the modifier should set the y alignment",
-        )
+        ) { alignmentY }
     }
 
     @Test
@@ -324,17 +332,16 @@ class SwingModifierTest {
             }
         }
         val panel = onNodeWithText("child").onParent()
-        assertEquals(0.5f, panel.fetch<JComponent>().alignmentX, "the modifier should set the x alignment")
+        panel.assertProperty(0.5f, "the modifier should set the x alignment") { alignmentX }
 
         declared = false
         awaitIdle()
         // The element left the modifier, so the panel takes its x alignment from its child again - the
         // value a panel without the modifier reports.
-        assertEquals(
+        panel.assertProperty(
             1.0f,
-            panel.fetch<JComponent>().alignmentX,
             "removing the modifier should hand the x alignment back to the one the layout derives",
-        )
+        ) { alignmentX }
     }
 
     @Test
@@ -349,16 +356,15 @@ class SwingModifierTest {
             }
         }
         val panel = onNodeWithText("child").onParent()
-        assertEquals(0.5f, panel.fetch<JComponent>().alignmentY, "the modifier should set the y alignment")
+        panel.assertProperty(0.5f, "the modifier should set the y alignment") { alignmentY }
 
         declared = false
         awaitIdle()
         // A horizontal BoxLayout derives the y alignment from its children.
-        assertEquals(
+        panel.assertProperty(
             1.0f,
-            panel.fetch<JComponent>().alignmentY,
             "removing the modifier should hand the y alignment back to the one the layout derives",
-        )
+        ) { alignmentY }
     }
 
     @Test
@@ -373,15 +379,14 @@ class SwingModifierTest {
             )
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(1.0f, label.fetch().alignmentX, "the modifier should set the x alignment")
+        label.assertProperty(1.0f, "the modifier should set the x alignment") { alignmentX }
 
         declared = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             0.25f,
-            label.fetch().alignmentX,
             "removing the modifier should restore the alignment the label carried of its own",
-        )
+        ) { alignmentX }
     }
 
     @Test
@@ -397,21 +402,19 @@ class SwingModifierTest {
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().componentOrientation
-        assertEquals(
+        styledLabel.assertProperty(
             ComponentOrientation.RIGHT_TO_LEFT,
-            styledLabel.fetch<JLabel>().componentOrientation,
             "the modifier should apply the RTL orientation",
-        )
+        ) { componentOrientation }
 
         rtl = false
         awaitIdle()
         // The element left the modifier, so the orientation is restored to the pre-modifier default
         // (the same one the untouched control still shows).
-        assertEquals(
+        styledLabel.assertProperty(
             default,
-            styledLabel.fetch<JLabel>().componentOrientation,
             "removing the modifier should restore the default orientation",
-        )
+        ) { componentOrientation }
     }
 
     @Test
@@ -464,7 +467,7 @@ class SwingModifierTest {
             Label("X", modifier = SwingModifier.background(Color.RED).background(Color.BLUE))
         }
         // Property elements keep last-wins semantics: two backgrounds collapse, the later wins.
-        assertEquals(Color.BLUE, onNodeOfType<JLabel>().fetch().background)
+        onNodeOfType<JLabel>().assertProperty(Color.BLUE) { background }
     }
 
     @Test
@@ -673,7 +676,7 @@ class SwingModifierTest {
     @Test
     fun customElementWrapsAnArbitraryProperty() = runComposeSwingTest {
         setContent { Button("X", onClick = { }, modifier = SwingModifier.then(ToolTipElement("hello"))) }
-        assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
+        onNodeOfType<JButton>().assertProperty("hello") { toolTipText }
     }
 
     @Test
@@ -688,7 +691,7 @@ class SwingModifierTest {
                 modifier = if (styled) SwingModifier.then(ToolTipElement("declared")).then(probe) else SwingModifier,
             )
         }
-        assertEquals("declared", onNodeOfType<JButton>().fetch().toolTipText)
+        onNodeOfType<JButton>().assertProperty("declared") { toolTipText }
         assertTrue(seen.isEmpty(), "a node stands while its element does")
 
         // The later element was installed over the tooltip declaration, so it comes apart while that
@@ -729,7 +732,7 @@ class SwingModifierTest {
                     },
             )
         }
-        assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
+        onNodeOfType<JButton>().assertProperty("hello") { toolTipText }
         val node = nodes.single()
 
         // The element leaves the modifier, so its node no longer owns the component: reading the target

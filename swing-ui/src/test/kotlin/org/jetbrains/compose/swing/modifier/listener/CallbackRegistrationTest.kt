@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -149,17 +150,16 @@ class CallbackRegistrationTest {
                 )
             }
         }
-        val button = onNodeOfType<JButton>().fetch<JButton>()
-        assertEquals(1, button.getPropertyChangeListeners("enabled").size, "declared on the enabled property")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(1, "declared on the enabled property") { getPropertyChangeListeners("enabled").size }
 
         onBackgroundNow = true
         awaitIdle()
 
-        assertEquals(
+        button.assertProperty(
             1,
-            button.getPropertyChangeListeners("background").size,
             "a different property name moves the registration to that property",
-        )
-        assertEquals(0, button.getPropertyChangeListeners("enabled").size, "leaving the one it was on")
+        ) { getPropertyChangeListeners("background").size }
+        button.assertProperty(0, "leaving the one it was on") { getPropertyChangeListeners("enabled").size }
     }
 }

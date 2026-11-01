@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListModel
@@ -40,8 +42,7 @@ class ListBoxModelBehaviorTest {
         val list = onNodeOfType<JList<*>>().fetch()
         // An adjusting run must not fire interim callbacks.
         list.selectionModel.valueIsAdjusting = true
-        list.selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JList<*>>().performAddSelection(1)
         assertEquals(emptyList(), events, "an adjusting selection must not fire onSelectionChange")
 
         // Settling the run delivers exactly one callback with the final selection.
@@ -65,14 +66,17 @@ class ListBoxModelBehaviorTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the controlled selection should render initially")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(1),
+            "the controlled selection should render initially",
+        ) { selectedIndices.toList() }
 
         // setModel clears the JList selection; the wrapper must re-apply selectedIndices after the
         // model swap so the controlled selection survives.
         model = second
         awaitIdle()
         assertSame(second, list.model, "the swapped-in model should be installed on the list")
-        assertEquals(listOf(1), list.selectedIndices.toList(), "selection lost on model swap")
+        onNodeOfType<JList<*>>().assertProperty(listOf(1), "selection lost on model swap") { selectedIndices.toList() }
     }
 
     @Test
@@ -95,11 +99,10 @@ class ListBoxModelBehaviorTest {
         trigger = 1
         awaitIdle()
         assertEquals(emptyList(), reported, "re-applying an unchanged controlled selection must not echo")
-        assertEquals(
+        onNodeOfType<JList<*>>().assertProperty(
             listOf(1),
-            onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
             "the controlled selection should remain applied",
-        )
+        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -110,12 +113,18 @@ class ListBoxModelBehaviorTest {
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(listOf(2), list.selectedIndices.toList(), "a single-selection list holds one row at a time")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(2),
+            "a single-selection list holds one row at a time",
+        ) { selectedIndices.toList() }
 
         selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         awaitIdle()
         list.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the widened mode admits a whole range")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0, 1, 2),
+            "the widened mode admits a whole range",
+        ) { selectedIndices.toList() }
     }
 
     @Test

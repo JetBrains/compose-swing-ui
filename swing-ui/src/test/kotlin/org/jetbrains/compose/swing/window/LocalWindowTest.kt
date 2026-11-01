@@ -216,11 +216,14 @@ class LocalWindowTest {
         val peer = onWindowWithTitle(COMPOSITION_HOST_WINDOW_TITLE).fetch<JFrame>()
         val composition = WindowReader()
         val handle = host.setContent { composition.Read() }
-        awaitIdle()
+        try {
+            awaitIdle()
 
-        assertTrue(composition.composed, "content mounted in a composed window must compose")
-        assertSame(peer, composition.seen, "content mounted inside a composed window must read that window")
-        handle.dispose()
+            assertTrue(composition.composed, "content mounted in a composed window must compose")
+            assertSame(peer, composition.seen, "content mounted inside a composed window must read that window")
+        } finally {
+            handle.dispose()
+        }
     }
 
     @Test
@@ -242,11 +245,14 @@ class LocalWindowTest {
         val peer = onWindowWithTitle(COMPOSITION_HOST_DIALOG_TITLE).fetch<JDialog>()
         val composition = WindowReader()
         val handle = host.setContent { composition.Read() }
-        awaitIdle()
+        try {
+            awaitIdle()
 
-        assertTrue(composition.composed, "content mounted in a composed dialog must compose")
-        assertSame(peer, composition.seen, "content mounted inside a composed dialog must read that dialog")
-        handle.dispose()
+            assertTrue(composition.composed, "content mounted in a composed dialog must compose")
+            assertSame(peer, composition.seen, "content mounted inside a composed dialog must read that dialog")
+        } finally {
+            handle.dispose()
+        }
     }
 
     /**

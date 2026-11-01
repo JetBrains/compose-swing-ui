@@ -17,6 +17,10 @@ import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -27,6 +31,7 @@ import javax.swing.JLabel
 import javax.swing.JScrollPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -118,19 +123,20 @@ class ParkedContentTest : TracedTest() {
             }
         }
 
-        val body = onNodeWithTag(BODY).fetch<JLabel>()
-        assertTrue(!body.isVisible, "The component the factory built is hidden and no chain declares otherwise.")
+        onNodeWithTag(BODY).assertProperty(
+            false,
+            "The component the factory built is hidden and no chain declares otherwise.",
+        ) { isVisible }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        val reactivated = onNodeWithTag(BODY).fetch<JLabel>()
-        assertTrue(
-            !reactivated.isVisible,
+        onNodeWithTag(BODY).assertProperty(
+            false,
             "Reactivation builds a fresh component from the same factory, which hides it the same way.",
-        )
+        ) { isVisible }
     }
 
     @Test
@@ -230,18 +236,15 @@ class ParkedContentTest : TracedTest() {
             }
         }
 
-        val host = onNodeWithTag(HOST).fetch<JComponent>()
-
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeWithTag(HOST).assertIsOfType<JComponent>().assertProperty(
             listOf("anchor", "parked"),
-            host.components.filterIsInstance<JLabel>().map { it.text },
             "an indexed host shows exactly what the composition declares once parked content reactivates",
-        )
+        ) { components.filterIsInstance<JLabel>().map { it.text } }
     }
 
     @Test
@@ -257,8 +260,9 @@ class ParkedContentTest : TracedTest() {
             }
         }
 
-        val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals("first", (pane.viewport.view as JLabel).text, "the driven child fills the region")
+        onNodeOfType<JScrollPane>().assertProperty("first", "the driven child fills the region") {
+            assertIs<JLabel>(viewport.view).text
+        }
 
         active = false
         awaitIdle()
@@ -267,11 +271,10 @@ class ParkedContentTest : TracedTest() {
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JScrollPane>().assertProperty(
             "revived",
-            (pane.viewport.view as JLabel).text,
             "the viewport holds the fresh component reactivation built, carrying the current declaration",
-        )
+        ) { assertIs<JLabel>(viewport.view).text }
     }
 
     @Test
@@ -293,9 +296,8 @@ class ParkedContentTest : TracedTest() {
         extra = true
         awaitIdle()
 
-        val panel = onNodeWithTag(HOST).fetch<JComponent>()
-        assertEquals(1, panel.componentCount, "the parked child left, so the arriving one is alone")
-        assertEquals(FIRST, (panel.getComponent(0) as JLabel).text, "and it is the one composed second")
+        onNodeWithTag(HOST).onChildren().assertCountEquals(1)
+        onNodeWithTag(HOST).onChild().assertIsOfType<JLabel>().assertTextEquals(FIRST)
     }
 
     @Test

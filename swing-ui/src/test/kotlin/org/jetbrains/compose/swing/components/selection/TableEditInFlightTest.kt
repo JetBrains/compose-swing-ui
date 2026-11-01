@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -12,7 +14,6 @@ import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -37,14 +38,14 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         rows = listOf(Person("Ada", 36))
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the row it was opened on")
+        table.assertProperty(false, "the edit should end with the row it was opened on") { isEditing }
         assertEquals(emptyList(), edited, "and commit nothing, since the row it named is gone")
     }
 
@@ -55,14 +56,14 @@ class TableEditInFlightTest {
             Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row's cell should open for editing")
 
         // The row being edited is rewritten in place.
         rows = listOf(Person("Ada", 36), Person("Grace", 45))
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the row it was opened on")
+        table.assertProperty(false, "the edit should end with the row it was opened on") { isEditing }
     }
 
     @Test
@@ -72,16 +73,16 @@ class TableEditInFlightTest {
             Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it.name } })
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         // A row the editor does not stand on, so what the user is typing is none of its business.
         rows = listOf(Person("Grace", 45), Person("Alan", 41))
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row that did not change should stand")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(true, "an edit on a row that did not change should stand") { isEditing }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
     }
 
     @Test
@@ -103,19 +104,19 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // Sorted by name descending, the model's second row is drawn on top.
-        assertTrue(table.editCellAt(0, 0), "the top row on screen should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        assertTrue(table.fetch().editCellAt(0, 0), "the top row on screen should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         rows = listOf(Person("Grace", 45), Person("Ada", 36), Person("Alan", 41))
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row that only moved should stand")
-        assertEquals(1, table.editingRow, "on the row it was opened on, where the insert left it")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(true, "an edit on a row that only moved should stand") { isEditing }
+        table.assertProperty(1, "on the row it was opened on, where the insert left it") { editingRow }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
 
-        table.cellEditor.stopCellEditing()
+        table.fetch().cellEditor.stopCellEditing()
 
         assertEquals(Person("Alan", 41) to "Turing", edited.single(), "committing onto that same row")
     }
@@ -137,18 +138,18 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         rows = listOf(Person("Grace", 45), Person("Ada", 36), Person("Alan", 41))
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row that only moved should stand")
-        assertEquals(2, table.editingRow, "on the row it was opened on, where the insert left it")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(true, "an edit on a row that only moved should stand") { isEditing }
+        table.assertProperty(2, "on the row it was opened on, where the insert left it") { editingRow }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
 
-        table.cellEditor.stopCellEditing()
+        table.fetch().cellEditor.stopCellEditing()
 
         assertEquals(Person("Alan", 41) to "Turing", edited.single(), "committing onto that same row")
     }
@@ -166,18 +167,18 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // Sorted by name descending the rows are drawn Grace, Alan, Ada, so the model's last row is the
         // second one on screen, and the row taken away below is the one above it.
-        assertTrue(table.editCellAt(1, 0), "the second row on screen should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row on screen should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         rows = listOf(Person("Ada", 36), Person("Alan", 41))
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row that only moved should stand")
-        assertEquals(0, table.editingRow, "on the row it was opened on, where the delete left it")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(true, "an edit on a row that only moved should stand") { isEditing }
+        table.assertProperty(0, "on the row it was opened on, where the delete left it") { editingRow }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
     }
 
     @Test
@@ -197,15 +198,18 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // Sorted by name descending the rows are drawn Grace, Alan, Ada, so the model's first row - the
         // one the two lists still share - is the last one on screen.
-        assertTrue(table.editCellAt(2, 0), "the last row on screen should open for editing")
+        assertTrue(table.fetch().editCellAt(2, 0), "the last row on screen should open for editing")
 
         rows = listOf(Person("Ada", 36), Person("Zoe", 30), Person("Bob", 52), Person("Cy", 28))
         awaitIdle()
 
-        assertFalse(table.isEditing, "a sorted table should cancel the edit over the wholesale change")
+        table.assertProperty(
+            false,
+            "a sorted table should cancel the edit over the wholesale change",
+        ) { isEditing }
     }
 
     @Test
@@ -216,13 +220,16 @@ class TableEditInFlightTest {
             Table(rows = rows, columns = { column("Name", onCellEdit = { _, _, _ -> }) { it } })
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the null row's cell should open for editing")
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the null row's cell should open for editing")
 
         rows = listOf("Ada")
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the row that went out of range")
+        table.assertProperty(
+            false,
+            "the edit should end with the row that went out of range",
+        ) { isEditing }
     }
 
     @Test
@@ -246,11 +253,11 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // The last row is past the run the two lists differ over: shifting it by what the change added
         // and removed would leave it standing.
-        assertTrue(table.editCellAt(3, 0), "the last row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        assertTrue(table.fetch().editCellAt(3, 0), "the last row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         rows =
             listOf(
@@ -262,7 +269,7 @@ class TableEditInFlightTest {
             )
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end where the change both adds and removes rows")
+        table.assertProperty(false, "the edit should end where the change both adds and removes rows") { isEditing }
         assertEquals(emptyList(), edited, "and commit nothing into the row that took its place")
     }
 
@@ -283,17 +290,20 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the null row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the null row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         // Only the row ahead of it is rewritten.
         rows = listOf("Grace", null)
         awaitIdle()
 
-        assertTrue(table.isEditing, "the edit should stand on a null row the change left where it was")
+        table.assertProperty(
+            true,
+            "the edit should stand on a null row the change left where it was",
+        ) { isEditing }
 
-        table.cellEditor.stopCellEditing()
+        table.fetch().cellEditor.stopCellEditing()
 
         assertEquals(listOf<Pair<String?, Any?>>(null to "Turing"), edited, "and commit against that row")
     }
@@ -312,14 +322,17 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // Sorted by name descending, the model's second row is drawn on top.
-        assertTrue(table.editCellAt(0, 0), "the top row on screen should open for editing")
+        assertTrue(table.fetch().editCellAt(0, 0), "the top row on screen should open for editing")
 
         rows = listOf(Person("Ada", 36), Person("Grace", 45))
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the model row it was opened on")
+        table.assertProperty(
+            false,
+            "the edit should end with the model row it was opened on",
+        ) { isEditing }
     }
 
     @Test
@@ -341,15 +354,18 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
+        val table = onNodeOfType<JTable>()
         // Sorted by name descending, the model's second row is drawn on top.
-        assertTrue(table.editCellAt(0, 0), "the top row on screen should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        assertTrue(table.fetch().editCellAt(0, 0), "the top row on screen should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         sortable = false
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the ordering it was opened under")
+        table.assertProperty(
+            false,
+            "the edit should end with the ordering it was opened under",
+        ) { isEditing }
         assertEquals(emptyList(), edited, "and commit nothing, rather than onto the row that took its place")
     }
 
@@ -366,14 +382,14 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(1, 0), "the second row's cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(1, 0), "the second row's cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         editable = false
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the column that stopped taking edits")
+        table.assertProperty(false, "the edit should end with the column that stopped taking edits") { isEditing }
     }
 
     @Test
@@ -397,14 +413,17 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(0, 0), "the name cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(0, 0), "the name cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         state.columnLayout = TableColumnLayout(listOf(0, 1), listOf(150, 100))
         awaitIdle()
 
-        assertEquals(150, table.columnModel.getColumn(0).preferredWidth, "the assigned width should reach the column")
+        table.assertProperty(
+            150,
+            "the assigned width should reach the column",
+        ) { columnModel.getColumn(0).preferredWidth }
         assertEquals(
             listOf<Pair<String, Any?>>("Name" to "Turing"),
             edited,
@@ -433,16 +452,22 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(0, 0), "the name cell should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(0, 0), "the name cell should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         state.columnLayout = TableColumnLayout(listOf(1, 0), listOf(100, 100))
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the column order it was opened under")
+        table.assertProperty(
+            false,
+            "the edit should end with the column order it was opened under",
+        ) { isEditing }
         assertEquals(emptyList(), edited, "and commit nothing, rather than into the column that took its place")
-        assertEquals("Ada", table.getValueAt(0, 1), "leaving the name the row was declared with standing")
+        table.assertProperty(
+            "Ada",
+            "leaving the name the row was declared with standing",
+        ) { getValueAt(0, 1) }
     }
 
     @Test
@@ -465,18 +490,21 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(0, 0), "the top row on screen should open for editing")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(0, 0), "the top row on screen should open for editing")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         sortable = false
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row the sorter drew where it stands should stand")
-        assertEquals(0, table.editingRow, "on the row it was opened on")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(
+            true,
+            "an edit on a row the sorter drew where it stands should stand",
+        ) { isEditing }
+        table.assertProperty(0, "on the row it was opened on") { editingRow }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
 
-        table.cellEditor.stopCellEditing()
+        table.fetch().cellEditor.stopCellEditing()
 
         assertEquals(Person("Ada", 36) to "Turing", edited.single(), "committing onto that same row")
     }
@@ -501,19 +529,19 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(0, 0), "the top row should open for editing while the rows are unsorted")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(0, 0), "the top row should open for editing while the rows are unsorted")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         sortable = true
         awaitIdle()
 
-        assertTrue(table.isEditing, "an edit on a row that only moved should stand")
+        table.assertProperty(true, "an edit on a row that only moved should stand") { isEditing }
         // Sorted by name descending, the row the editor was opened on is drawn second.
-        assertEquals(1, table.editingRow, "on the row it was opened on, where the sort left it")
-        assertEquals("Turing", (table.editorComponent as JTextField).text, "with what was typed into it")
+        table.assertProperty(1, "on the row it was opened on, where the sort left it") { editingRow }
+        onNodeOfType<JTextField>().assertTextEquals("Turing")
 
-        table.cellEditor.stopCellEditing()
+        table.fetch().cellEditor.stopCellEditing()
 
         assertEquals(Person("Ada", 36) to "Turing", edited.single(), "committing onto that same row")
     }
@@ -538,14 +566,17 @@ class TableEditInFlightTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch<JTable>()
-        assertTrue(table.editCellAt(0, 0), "the first row should open for editing while nothing is filtered")
-        (table.editorComponent as JTextField).text = "Turing"
+        val table = onNodeOfType<JTable>()
+        assertTrue(table.fetch().editCellAt(0, 0), "the first row should open for editing while nothing is filtered")
+        onNodeOfType<JTextField>().performTextReplacement("Turing")
 
         sortable = true
         awaitIdle()
 
-        assertFalse(table.isEditing, "the edit should end with the row the filter takes away")
+        table.assertProperty(
+            false,
+            "the edit should end with the row the filter takes away",
+        ) { isEditing }
         assertEquals(emptyList(), edited, "and commit nothing, rather than onto the row that took its place")
     }
 }

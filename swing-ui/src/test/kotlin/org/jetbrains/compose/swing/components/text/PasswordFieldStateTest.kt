@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.text
 
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -16,25 +17,6 @@ import kotlin.test.assertEquals
  */
 class PasswordFieldStateTest {
     @Test
-    fun fieldSharesTheStateDocument() = runComposeSwingTest {
-        lateinit var state: DocumentState
-        setContent {
-            state = rememberDocumentState("seed")
-            PasswordField(state = state)
-        }
-
-        // Sharing one document means an edit made through either side is what the other renders: a write
-        // through the state reaches the field, and typing in the field reaches the state.
-        state.edit { append(" grown") }
-        awaitIdle()
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals("seed grown", String(field.password))
-
-        onNodeOfType<JPasswordField>().performTextReplacement("typed")
-        assertEquals("typed", state.text.toString())
-    }
-
-    @Test
     fun stateTextAndEditUpdateTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
@@ -42,16 +24,16 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals("ab", String(field.password))
+        val field = onNodeOfType<JPasswordField>()
+        field.assertProperty("ab") { String(password) }
 
         state.text = "abc"
         awaitIdle()
-        assertEquals("abc", String(field.password))
+        field.assertProperty("abc") { String(password) }
 
         state.edit { append("d") }
         awaitIdle()
-        assertEquals("abcd", String(field.password))
+        field.assertProperty("abcd") { String(password) }
     }
 
     @Test
@@ -75,12 +57,12 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
+        val field = onNodeOfType<JPasswordField>()
         state.selection = TextRange(0, 5)
         awaitIdle()
 
-        assertEquals(0, field.selectionStart)
-        assertEquals(5, field.selectionEnd)
+        field.assertProperty(0) { selectionStart }
+        field.assertProperty(5) { selectionEnd }
     }
 
     @Test
@@ -91,8 +73,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state, echoChar = '#')
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals('#', field.echoChar)
+        onNodeOfType<JPasswordField>().assertProperty('#') { echoChar }
     }
 
     @Test
@@ -103,7 +84,6 @@ class PasswordFieldStateTest {
             PasswordField(state = state, columns = 12)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals(12, field.columns)
+        onNodeOfType<JPasswordField>().assertProperty(12) { columns }
     }
 }

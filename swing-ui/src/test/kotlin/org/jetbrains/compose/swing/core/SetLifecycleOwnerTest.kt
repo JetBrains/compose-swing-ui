@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import javax.swing.JPanel
 import kotlin.test.Test
+import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 
 /**
@@ -37,7 +38,7 @@ class SetLifecycleOwnerTest {
 
             assertNotSame(
                 published,
-                read,
+                assertNotNull(read, "the root must have read an owner"),
                 "a cleared owner must leave a root minting one of its own, so a host's teardown gives the " +
                     "tree back the way it found it",
             )

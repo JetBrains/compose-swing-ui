@@ -44,8 +44,8 @@ public class ServedRepaints internal constructor(
     }
 
     /**
-     * Asserts the regions cover the pixels the change moved and no others: the union of what was asked
-     * for is exactly the area where [host] came to look different.
+     * Asserts the regions reach no further than the change: the bounds of what was asked for are exactly
+     * the bounds of the area where [host] came to look different.
      *
      * @param change what was expected to provoke the repaints, named for the failure message.
      */

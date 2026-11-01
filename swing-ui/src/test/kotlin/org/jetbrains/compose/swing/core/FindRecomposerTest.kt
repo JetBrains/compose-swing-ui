@@ -4,20 +4,15 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.rememberCompositionContext
 import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Button
-import java.awt.Container
 import java.awt.GraphicsEnvironment
 import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JFrame
-import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -25,8 +20,6 @@ import kotlin.test.assertIsNot
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for [findRecomposer]: walking the component hierarchy to discover the recomposer
@@ -41,7 +34,7 @@ class FindRecomposerTest {
             val composition = childOf(frame)
             val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the content composition renders") { labelTextOrNull(composition) == "in-window" }
+                awaitUntil("the content composition renders") { labelTexts(composition).singleOrNull() == "in-window" }
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
 
                 assertSame(
@@ -93,7 +86,7 @@ class FindRecomposerTest {
                 )
 
                 nested = host.setContent(parent = parent) { Label(text = "nested") }
-                awaitUntil("the nested content composes") { labelTextOrNull(host) == "nested" }
+                awaitUntil("the nested content composes") { labelTexts(host).singleOrNull() == "nested" }
 
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
                 assertSame(
@@ -166,7 +159,9 @@ class FindRecomposerTest {
             var content: DisposableHandle? = null
             try {
                 content = composition.setContent(parent = recomposer.compositionContext) { Label(text = "hello") }
-                awaitUntil("the caller's recomposer composes its content") { labelTextOrNull(composition) == "hello" }
+                awaitUntil("the caller's recomposer composes its content") {
+                    labelTexts(composition).singleOrNull() == "hello"
+                }
 
                 assertSame(
                     recomposer.recomposer,
@@ -200,7 +195,7 @@ class FindRecomposerTest {
         var content: DisposableHandle? = null
         try {
             content = composition.setContent(parent = recomposer.compositionContext) { Label(text = "detached") }
-            awaitUntil("the detached content composes") { labelTextOrNull(composition) == "detached" }
+            awaitUntil("the detached content composes") { labelTexts(composition).singleOrNull() == "detached" }
 
             assertSame(
                 recomposer.recomposer,
@@ -235,7 +230,9 @@ class FindRecomposerTest {
                 )
 
                 inner = composed.setContent { Label(text = "owned") }
-                awaitUntil("the dialog's content composes") { labelTextOrNull(composed.contentPane) == "owned" }
+                awaitUntil("the dialog's content composes") {
+                    labelTexts(composed.contentPane).singleOrNull() == "owned"
+                }
                 val ownRecomposer = assertNotNull(composed.swingRecomposerOrNull()).recomposer
 
                 assertSame(
@@ -257,11 +254,9 @@ class FindRecomposerTest {
 
     @Test
     fun findingARecomposerMustHappenOnTheEventDispatchThread() {
-        val failure = assertFailsWith<IllegalStateException> { JPanel().findRecomposer() }
-        assertTrue(
-            failure.message.orEmpty().contains("Event Dispatch Thread"),
-            "the read must name the thread it belongs to, but was: ${failure.message}",
-        )
+        assertFailsWith<IllegalStateException>("finding a recomposer must be refused off the event dispatch thread") {
+            JPanel().findRecomposer()
+        }
     }
 
     /**
@@ -289,7 +284,7 @@ class FindRecomposerTest {
             )
 
             nested = joining.setContent(parent = assertNotNull(captured)) { Label(text = "joined") }
-            awaitUntil("the joined content composes") { labelTextOrNull(joining) == "joined" }
+            awaitUntil("the joined content composes") { labelTexts(joining).singleOrNull() == "joined" }
 
             assertSame(
                 recomposer.recomposer,
@@ -317,7 +312,7 @@ class FindRecomposerTest {
             var content: DisposableHandle? = null
             try {
                 content = contentPane.setContent(parent = recomposer.compositionContext) { Label(text = "named") }
-                awaitUntil("the named content composes") { labelTextOrNull(frame.contentPane) == "named" }
+                awaitUntil("the named content composes") { labelTexts(frame.contentPane).singleOrNull() == "named" }
 
                 assertNull(
                     frame.swingRecomposerOrNull(),
@@ -348,45 +343,7 @@ class FindRecomposerTest {
         pack()
     }
 
-    /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun childOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
-
-    /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
-    private fun labelTextOrNull(container: Container): String? {
-        val labels = mutableListOf<JLabel>()
-
-        fun visit(c: Container) {
-            for (child in c.components) {
-                if (child is JLabel) labels += child
-                if (child is Container) visit(child)
-            }
-        }
-        visit(container)
-        return labels.singleOrNull()?.text
-    }
-
-    /**
-     * Suspends on the EDT until [condition] holds, yielding the EDT back between checks so the
-     * frame-clock timer can fire and the composition can mount and recompose. A condition that never
-     * becomes true fails the test at the deadline, naming [description], instead of hanging.
-     */
-    private suspend fun awaitUntil(
-        description: String,
-        condition: () -> Boolean,
-    ) {
-        try {
-            withTimeout(SETTLE_TIMEOUT) {
-                while (!condition()) {
-                    yield()
-                }
-            }
-        } catch (timedOut: TimeoutCancellationException) {
-            throw AssertionError("Timed out after $SETTLE_TIMEOUT waiting until $description", timedOut)
-        }
-    }
-
     private companion object {
         const val FRAME_SIZE: Int = 200
-        val SETTLE_TIMEOUT = 10.seconds
     }
 }

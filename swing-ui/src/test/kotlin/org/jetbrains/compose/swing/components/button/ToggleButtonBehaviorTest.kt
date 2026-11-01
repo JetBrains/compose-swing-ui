@@ -10,15 +10,18 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /**
  * Behavioral tests for [ToggleButton], driven through the real composition pipeline and asserting
@@ -86,16 +89,18 @@ class ToggleButtonBehaviorTest {
             )
         }
 
-        val button = onNodeOfType<JToggleButton>().fetch()
-        assertEquals("Bold text", button.toolTipText, "the modifier applies to the button")
+        val button = onNodeOfType<JToggleButton>()
+        button.assertProperty("Bold text", "the modifier applies to the button") { toolTipText }
 
         tip = "Heavier weight"
         awaitIdle()
-        assertEquals("Heavier weight", button.toolTipText, "the modifier follows the state driving it")
+        button.assertProperty("Heavier weight", "the modifier follows the state driving it") { toolTipText }
 
         tip = null
         awaitIdle()
-        assertNull(button.toolTipText, "dropping the element restores the tooltip the button had without it")
+        button.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
+            toolTipText
+        }
     }
 
     @Test
@@ -130,11 +135,9 @@ class ToggleButtonBehaviorTest {
         text = "Three"
         awaitIdle()
 
-        assertEquals(
-            1,
-            onNodeOfType<JToggleButton>().fetch().actionListeners.size,
-            "recomposition must not stack up action listeners",
-        )
+        onNodeOfType<JToggleButton>().assertProperty(1, "recomposition must not stack up action listeners") {
+            actionListeners.size
+        }
         onNodeOfType<JToggleButton>().performClick()
         assertEquals(listOf(true), reported, "a single click reports exactly once")
     }
@@ -184,9 +187,10 @@ class ToggleButtonBehaviorTest {
         awaitIdle()
         toggle.assertTextEquals("Strong")
         toggle.assert(SwingMatcher.isSelected())
-        val button = toggle.fetch()
-        assertNull(button.toolTipText, "dropping the element restores the tooltip the button had without it")
-        assertEquals(1, button.actionListeners.size, "a stable listener instance stays attached exactly once")
+        toggle.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
+            toolTipText
+        }
+        toggle.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         selected = false
         awaitIdle()
@@ -216,11 +220,9 @@ class ToggleButtonBehaviorTest {
 
         second = true
         awaitIdle()
-        assertEquals(
-            1,
-            onNodeOfType<JToggleButton>().fetch().actionListeners.size,
-            "the replaced listener must be detached, not stacked",
-        )
+        onNodeOfType<JToggleButton>().assertProperty(1, "the replaced listener must be detached, not stacked") {
+            actionListeners.size
+        }
 
         onNodeOfType<JToggleButton>().performClick()
         assertEquals(1, latest, "the newly declared listener receives the click")
@@ -246,34 +248,21 @@ class ToggleButtonBehaviorTest {
         assertEquals(emptyList(), received, "a controlled update must not fire onSelectedChange")
     }
 
-    @Test
-    fun aSelectingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("declaredSelections")
+    fun aClickTheCallerDoesNotAdoptDoesNotStand(declared: Boolean) = runComposeSwingTest {
         var text by mutableStateOf("Bold")
-        setContent { ToggleButton(text = text, selected = false, onSelectedChange = {}) }
+        setContent { ToggleButton(text = text, selected = declared, onSelectedChange = {}) }
 
         val toggle = onNodeOfType<JToggleButton>()
         toggle.performClick()
-        toggle.assert(SwingMatcher.isSelected(false))
+        toggle.assert(SwingMatcher.isSelected(declared))
 
         // An unrelated recomposition changes nothing here: the button was already showing the
         // declared state right after the click, not just once this pass ran.
         text = "Strong"
         awaitIdle()
-        toggle.assert(SwingMatcher.isSelected(false))
-    }
-
-    @Test
-    fun aClearingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
-        var text by mutableStateOf("Bold")
-        setContent { ToggleButton(text = text, selected = true, onSelectedChange = {}) }
-
-        val toggle = onNodeOfType<JToggleButton>()
-        toggle.performClick()
-        toggle.assert(SwingMatcher.isSelected())
-
-        text = "Strong"
-        awaitIdle()
-        toggle.assert(SwingMatcher.isSelected())
+        toggle.assert(SwingMatcher.isSelected(declared))
     }
 
     @Test
@@ -284,6 +273,14 @@ class ToggleButtonBehaviorTest {
             content = { report -> ToggleButton(text = "Bold", selected = false, onSelectedChange = { report() }) },
             change = { it.click() },
             read = { it.isSelected },
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun declaredSelections(): List<Named<Boolean>> = listOf(
+            Named.of("a selecting click", false),
+            Named.of("a clearing click", true),
         )
     }
 }

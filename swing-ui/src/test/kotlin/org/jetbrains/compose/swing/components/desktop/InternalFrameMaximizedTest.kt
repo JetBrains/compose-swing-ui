@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -192,9 +193,10 @@ class InternalFrameMaximizedTest {
         tip = "Holds the open document"
         awaitIdle()
 
-        val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Holds the open document", frame.toolTipText, "the recomposition should have reached the frame")
-        assertTrue(frame.isMaximum, "a recomposition should leave a maximized frame maximized")
+        onNodeOfType<JInternalFrame>()
+            .assertProperty("Holds the open document", "the recomposition should have reached the frame") {
+                toolTipText
+            }.assertProperty(true, "a recomposition should leave a maximized frame maximized") { isMaximum }
         assertEquals(
             Rectangle(10, 20, 100, 80),
             state.bounds,
@@ -243,10 +245,10 @@ class InternalFrameMaximizedTest {
 
         state.iconified = false
         awaitIdle()
-        assertTrue(
-            onNodeOfType<JInternalFrame>().fetch().isMaximum,
+        onNodeOfType<JInternalFrame>().assertProperty(
+            true,
             "deiconifying should bring back a maximized frame",
-        )
+        ) { isMaximum }
         assertEquals(
             Rectangle(10, 20, 100, 80),
             state.bounds,
@@ -265,10 +267,10 @@ class InternalFrameMaximizedTest {
 
         state.iconified = false
         awaitIdle()
-        assertTrue(
-            onNodeOfType<JInternalFrame>().fetch().isMaximum,
+        onNodeOfType<JInternalFrame>().assertProperty(
+            true,
             "deiconifying should bring back a maximized frame",
-        )
+        ) { isMaximum }
         assertTrue(state.maximized, "the state should still report the frame maximized")
     }
 
@@ -279,10 +281,10 @@ class InternalFrameMaximizedTest {
 
         state.maximized = false
         awaitIdle()
-        assertTrue(
-            onNodeOfType<JDesktopIcon>().fetch().internalFrame.isIcon,
+        onNodeOfType<JDesktopIcon>().assertProperty(
+            true,
             "restoring should leave the frame standing as its icon",
-        )
+        ) { internalFrame.isIcon }
 
         state.iconified = false
         awaitIdle()

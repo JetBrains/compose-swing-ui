@@ -122,20 +122,18 @@ class PanelLayoutExtensionTest {
         val manager = panel.layout
 
         withRecordedRepaints { recorded ->
-            val before = child.x
             shift = 7
             awaitIdle()
 
             assertSame(manager, panel.layout, "a parameter change should keep the manager")
-            assertEquals(before + 7, child.x, "a placement parameter should move the child")
+            assertEquals(7, child.x, "a placement parameter should move the child")
             recorded.assertAskedForNoLayout(panel, "a placement parameter")
         }
         withRecordedRepaints { recorded ->
-            val before = child.x
             inset = 11
             awaitIdle()
 
-            assertEquals(before + 11, child.x, "a measured parameter should move the child")
+            assertEquals(18, child.x, "a measured parameter should move the child")
             recorded.assertAskedForLayout(panel, "a measured parameter")
         }
     }

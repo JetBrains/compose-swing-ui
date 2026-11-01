@@ -13,11 +13,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.lang.ref.WeakReference
 import javax.swing.JPanel
 import kotlin.concurrent.thread
@@ -156,7 +158,6 @@ class SwingComponentNodeObservationTest {
         nodes.forEach { node -> node.observeReads(onChanged) { state.intValue } }
 
         state.intValue = 1
-        Snapshot.sendApplyNotifications()
         awaitIdle()
 
         assertEquals(nodes.toSet(), changes.toSet(), "each unchanged descendant observes through its new composition")
@@ -167,76 +168,61 @@ class SwingComponentNodeObservationTest {
         }
     }
 
-    @Test
-    fun aMovedModifierReplacesItsPreviousCompositionsReads() = assertMovedModifierReplacesReads(nested = false)
-
-    @Test
-    fun aNestedMovedModifierReplacesItsPreviousCompositionsReads() = assertMovedModifierReplacesReads(nested = true)
-
-    private fun assertMovedModifierReplacesReads(nested: Boolean) = runComposeSwingTest {
-        var inOuter by mutableStateOf(false)
-        val host = JPanel()
-        lateinit var modifierNode: SwingModifier.Node
-        val modifier = PanelProbe { modifierNode = it }
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
-        setContent {
-            context = rememberCompositionContext()
-            content =
-                remember {
-                    movableContentOf {
-                        if (nested) {
-                            SwingNode(factory = { JPanel() }) {
-                                SwingNode(factory = { ListeningPanel() }, modifier = modifier)
-                            }
-                        } else {
-                            SwingNode(factory = { ListeningPanel() }, modifier = modifier)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("placements")
+    fun aMovedModifierReplacesItsPreviousCompositionsReads(placement: @Composable (@Composable () -> Unit) -> Unit) =
+        runComposeSwingTest {
+            var inOuter by mutableStateOf(false)
+            val host = JPanel()
+            lateinit var modifierNode: SwingModifier.Node
+            val modifier = PanelProbe { modifierNode = it }
+            lateinit var context: CompositionContext
+            lateinit var content: @Composable () -> Unit
+            setContent {
+                context = rememberCompositionContext()
+                content =
+                    remember {
+                        movableContentOf {
+                            placement { SwingNode(factory = { ListeningPanel() }, modifier = modifier) }
                         }
                     }
-                }
-            SwingNode(factory = { host })
-            if (inOuter) content()
+                SwingNode(factory = { host })
+                if (inOuter) content()
+            }
+            awaitIdle()
+            val handle = host.setContent(parent = context) { if (!inOuter) content() }
+            try {
+                awaitIdle()
+                val node = modifierNode
+                val first = mutableIntStateOf(0)
+                val second = mutableIntStateOf(0)
+                val changes = ArrayList<SwingModifier.Node>()
+                val onChanged: (SwingModifier.Node) -> Unit = { changes += it }
+                node.observeReads(onChanged) { first.intValue }
+
+                inOuter = true
+                awaitIdle()
+                assertSame(node, modifierNode, "moving preserves the modifier node")
+                node.observeReads(onChanged) { second.intValue }
+                changes.clear()
+
+                first.intValue = 1
+                awaitIdle()
+                assertEquals(emptyList(), changes, "reobserving drops the former composition's reads")
+
+                second.intValue = 1
+                awaitIdle()
+                assertEquals(listOf(node), changes, "the replacement reads stay observed")
+            } finally {
+                handle.dispose()
+            }
         }
-        awaitIdle()
-        val handle = host.setContent(parent = context) { if (!inOuter) content() }
-        try {
-            awaitIdle()
-            val node = modifierNode
-            val first = mutableIntStateOf(0)
-            val second = mutableIntStateOf(0)
-            val changes = ArrayList<SwingModifier.Node>()
-            val onChanged: (SwingModifier.Node) -> Unit = { changes += it }
-            node.observeReads(onChanged) { first.intValue }
 
-            inOuter = true
-            awaitIdle()
-            assertSame(node, modifierNode, "moving preserves the modifier node")
-            node.observeReads(onChanged) { second.intValue }
-            changes.clear()
-
-            first.intValue = 1
-            Snapshot.sendApplyNotifications()
-            awaitIdle()
-            assertEquals(emptyList(), changes, "reobserving drops the former composition's reads")
-
-            second.intValue = 1
-            Snapshot.sendApplyNotifications()
-            awaitIdle()
-            assertEquals(listOf(node), changes, "the replacement reads stay observed")
-        } finally {
-            handle.dispose()
-        }
-    }
-
-    @Test
-    fun pendingComponentAndModifierActionsAreCanceledWhenTheirNodeMoves() =
-        assertMovedActionsAreCanceled(nested = false)
-
-    @Test
-    fun pendingComponentAndModifierActionsAreCanceledWhenTheirParentMoves() =
-        assertMovedActionsAreCanceled(nested = true)
-
-    private fun assertMovedActionsAreCanceled(nested: Boolean) = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("placements")
+    fun pendingComponentAndModifierActionsAreCanceledWhenTheirNodeOrParentMoves(
+        placement: @Composable (@Composable () -> Unit) -> Unit,
+    ) = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
         val child = ListeningPanel()
         val host = JPanel()
@@ -253,13 +239,7 @@ class SwingComponentNodeObservationTest {
             content =
                 remember {
                     movableContentOf {
-                        if (nested) {
-                            SwingNode(factory = { JPanel() }) {
-                                SwingNode(factory = { child }, modifier = modifier)
-                            }
-                        } else {
-                            SwingNode(factory = { child }, modifier = modifier)
-                        }
+                        placement { SwingNode(factory = { child }, modifier = modifier) }
                     }
                 }
             SwingNode(factory = { host })
@@ -457,47 +437,6 @@ class SwingComponentNodeObservationTest {
     }
 
     @Test
-    fun aRequestPendingWhenItsNodeMovesToAnotherCompositionNeverRuns() = runComposeSwingTest {
-        var inOuter by mutableStateOf(false)
-        val moved = ListeningPanel()
-        val host = JPanel()
-        var calls = 0
-        val action: (SwingComponentNode<*>) -> Unit = { calls++ }
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
-        setContent {
-            context = rememberCompositionContext()
-            content = remember { movableContentOf { SwingNode(factory = { moved }) } }
-            SwingNode(factory = { host })
-            if (inOuter) {
-                // Queued in the composition the node stands in, so the move this pass applies comes before the drain.
-                synchronized(moved.treeLock) {
-                    moved.events
-                        .first()
-                        .node
-                        .requestAfterValidation(action)
-                }
-                content()
-            }
-        }
-        awaitIdle()
-        val handle = host.setContent(parent = context) { if (!inOuter) content() }
-        awaitIdle()
-        val node = moved.events.single().node
-
-        inOuter = true
-        awaitIdle()
-
-        assertEquals(0, calls, "a request pending when its node moves to another composition never runs")
-
-        synchronized(moved.treeLock) { node.requestAfterValidation(action) }
-        awaitIdle()
-
-        assertEquals(1, calls, "the moved node takes requests in its new composition")
-        handle.dispose()
-    }
-
-    @Test
     fun requestsWithDifferentCallbacksUnderTheLockEachRunOnce() = runComposeSwingTest {
         val component = ListeningPanel()
         setContent { SwingNode(factory = { component }) }
@@ -558,7 +497,7 @@ class SwingComponentNodeObservationTest {
             // Moves the global snapshot forward, so the next observeReads replaces reads recorded under an earlier
             // snapshot even when nothing else applied one in between.
             unrelated.intValue = 1
-            Snapshot.sendApplyNotifications()
+            awaitIdle()
             node.observeReads(a) { third.intValue }
 
             first.intValue = 1
@@ -612,5 +551,13 @@ class SwingComponentNodeObservationTest {
         private val observe: (SwingComponentNode<*>) -> Unit,
     ) : SwingModifier.ComponentNode<ListeningPanel>() {
         override fun onDetach() = observe(component.events.first().node)
+    }
+
+    companion object {
+        @JvmStatic
+        fun placements(): List<Named<@Composable (@Composable () -> Unit) -> Unit>> = listOf(
+            Named.of("direct") { leaf -> leaf() },
+            Named.of("nested") { leaf -> SwingNode(factory = { JPanel() }) { leaf() } },
+        )
     }
 }

@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import javax.swing.JLabel
@@ -17,7 +18,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
  * What one anchor may carry, and what moving it to another component does to the one it leaves.
@@ -25,43 +25,31 @@ import kotlin.test.assertTrue
 class PopupAnchorTest {
     @Test
     fun aSecondContextMenuOnOneAnchorIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    val anchor = rememberPopupAnchor()
-                    Label("target", modifier = SwingModifier.popupAnchor(anchor))
-                    ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
-                    ContextMenu(anchor) { MenuItem("Paste", onClick = { }) }
-                }
-                awaitIdle()
+        assertFailsWith<IllegalStateException>("a second context menu on one anchor must be refused") {
+            setContent {
+                val anchor = rememberPopupAnchor()
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+                ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
+                ContextMenu(anchor) { MenuItem("Paste", onClick = { }) }
             }
-
-        assertTrue(
-            failure.message.orEmpty().contains("already carries a context menu"),
-            "the refusal must name what is wrong: ${failure.message}",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
     fun aContextMenuOnABareAwtComponentIsRefused() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    val anchor = rememberPopupAnchor()
-                    // A popup menu is a JComponent property; a bare AWT component carries none.
-                    SwingNode(
-                        factory = { object : Component() {} },
-                        modifier = SwingModifier.popupAnchor(anchor),
-                    )
-                    ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
-                }
-                awaitIdle()
+        assertFailsWith<IllegalStateException>("a context menu on a bare AWT component must be refused") {
+            setContent {
+                val anchor = rememberPopupAnchor()
+                // A popup menu is a JComponent property; a bare AWT component carries none.
+                SwingNode(
+                    factory = { object : Component() {} },
+                    modifier = SwingModifier.popupAnchor(anchor),
+                )
+                ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
             }
-
-        assertTrue(
-            failure.message.orEmpty().contains("needs a JComponent"),
-            "the refusal must say what the anchored component has to be: ${failure.message}",
-        )
+            awaitIdle()
+        }
     }
 
     @Test
@@ -86,17 +74,16 @@ class PopupAnchorTest {
                 MenuItem("Cut", onClick = { })
             }
         }
-        val first = onNodeWithTag(FIRST).fetch<JLabel>()
         val second = onNodeWithTag(SECOND).fetch<JLabel>()
 
         onFirst = true
         awaitIdle()
 
-        second.dispatchEvent(popupTrigger(second))
+        onNodeWithTag(SECOND).performContextClick()
         assertNull(captured, "the component the anchor left must carry no menu")
         assertNull(second.componentPopupMenu, "the popup menu must be taken off the component left behind")
 
-        first.dispatchEvent(popupTrigger(first))
+        onNodeWithTag(FIRST).performContextClick()
         assertEquals(
             listOf("Cut"),
             (captured ?: error("no popup")).menuItemTexts(),

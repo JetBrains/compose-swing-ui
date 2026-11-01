@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
@@ -89,22 +90,22 @@ class TreeExpansionTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo(1)), "the node the state names should be expanded")
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "a node it does not name should be collapsed")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(true, "the node the state names should be expanded") { isExpanded(pathTo(1)) }
+        tree.assertProperty(false, "a node it does not name should be collapsed") { isExpanded(pathTo(0)) }
 
         // Every node the state leaves out collapses again: the expansion is set, not only added to.
         state.expandedPaths = setOf(emptyList(), listOf(0))
         mainClock.advanceTimeByFrame()
 
-        assertTrue(
-            tree.isExpanded(tree.pathTo(0)),
+        tree.assertProperty(
+            true,
             "the one pass that carries the assignment should already have opened the node",
-        )
-        assertFalse(
-            tree.isExpanded(tree.pathTo(1)),
+        ) { isExpanded(pathTo(0)) }
+        tree.assertProperty(
+            false,
             "the one pass that carries the assignment should already have closed the node it drops",
-        )
+        ) { isExpanded(pathTo(1)) }
         assertEquals(
             setOf(emptyList(), listOf(0)),
             state.expandedPaths,
@@ -117,9 +118,9 @@ class TreeExpansionTest {
         val state = TreeState(initialExpandedPaths = setOf(listOf(0)))
         setContent { Tree(root = sample, children = { it.children }, state = state, label = { it.name }) }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the state names should be expanded")
-        assertTrue(tree.isExpanded(tree.pathTo()), "its ancestor has to stay expanded to reach it")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(true, "the node the state names should be expanded") { isExpanded(pathTo(0)) }
+        tree.assertProperty(true, "its ancestor has to stay expanded to reach it") { isExpanded(pathTo()) }
         assertEquals(setOf(listOf(0)), state.expandedPaths, "the ancestor opened on the way is not written back")
     }
 
@@ -131,13 +132,13 @@ class TreeExpansionTest {
             Tree(root = sample.copy(name = label), children = { it.children }, state = state, label = { it.name })
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the state names should be expanded")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(true, "the node the state names should be expanded") { isExpanded(pathTo(0)) }
 
         label = "trunk"
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "expansion survives a structure change")
+        tree.assertProperty(true, "expansion survives a structure change") { isExpanded(pathTo(0)) }
         assertEquals(setOf(emptyList(), listOf(0)), state.expandedPaths, "and the state still holds it")
     }
 
@@ -147,13 +148,13 @@ class TreeExpansionTest {
         val state = TreeState(initialExpandedPaths = setOf(emptyList(), listOf(2)))
         setContent { Tree(root = root, children = { it.children }, state = state, label = { it.name }) }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("root", "fruit", "veg"), tree.rowLabels(), "the structure has no node the state names")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("root", "fruit", "veg"), "the structure has no node the state names") { rowLabels() }
 
         root = sample.copy(children = sample.children + Entry("nuts", listOf(Entry("almond"))))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(2)), "the structure that gains the node opens it")
+        tree.assertProperty(true, "the structure that gains the node opens it") { isExpanded(pathTo(2)) }
         assertEquals(setOf(emptyList(), listOf(2)), state.expandedPaths, "the state named it all along")
     }
 
@@ -172,7 +173,10 @@ class TreeExpansionTest {
         awaitIdle()
 
         assertEquals(setOf(emptyList<Int>()), state.expandedPaths, "and so does the node the user closed")
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the closed node stays closed, the state holding it so")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the closed node stays closed, the state holding it so",
+        ) { isExpanded(pathTo(1)) }
     }
 
     @Test
@@ -189,7 +193,10 @@ class TreeExpansionTest {
 
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the state holds the collapse, so it stands")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the state holds the collapse, so it stands",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(listOf(tree.pathTo(0)), tree.selectionPaths?.toList(), "and the closed node stays selected")
     }
 
@@ -208,7 +215,10 @@ class TreeExpansionTest {
         state.expandedPaths = setOf(emptyList(), listOf(0))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the expansion the caller assigned back is applied")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the expansion the caller assigned back is applied",
+        ) { isExpanded(pathTo(0)) }
     }
 
     @Test
@@ -253,7 +263,10 @@ class TreeExpansionTest {
         rootVisible = false
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the user's expansion should be left alone")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the user's expansion should be left alone",
+        ) { isExpanded(pathTo(0)) }
     }
 
     @Test
@@ -276,7 +289,7 @@ class TreeExpansionTest {
         label = "trunk"
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the user's expansion is theirs to keep")
+        onNodeOfType<JTree>().assertProperty(true, "the user's expansion is theirs to keep") { isExpanded(pathTo(0)) }
         assertEquals(emptyList(), received, "a structure change reported an expansion change")
     }
 
@@ -295,7 +308,7 @@ class TreeExpansionTest {
         model = sampleModel("trunk")
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the user's expansion is theirs to keep")
+        onNodeOfType<JTree>().assertProperty(true, "the user's expansion is theirs to keep") { isExpanded(pathTo(0)) }
         assertEquals(emptyList(), received, "a model swap reported an expansion change")
     }
 
@@ -314,13 +327,16 @@ class TreeExpansionTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.collapsePath(tree.pathTo())
-        assertFalse(tree.isExpanded(tree.pathTo()), "the user's collapse reaches the tree")
+        onNodeOfType<JTree>().assertProperty(false, "the user's collapse reaches the tree") { isExpanded(pathTo()) }
         received.clear()
 
         label = "trunk"
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo()), "a collapse the user made survives a structure change")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "a collapse the user made survives a structure change",
+        ) { isExpanded(pathTo()) }
         assertEquals(emptyList(), received, "a structure change reported an expansion change")
     }
 
@@ -334,13 +350,16 @@ class TreeExpansionTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.collapsePath(tree.pathTo())
-        assertFalse(tree.isExpanded(tree.pathTo()), "the user's collapse reaches the tree")
+        onNodeOfType<JTree>().assertProperty(false, "the user's collapse reaches the tree") { isExpanded(pathTo()) }
         received.clear()
 
         model = sampleModel("trunk")
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo()), "a collapse the user made survives a model swap")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "a collapse the user made survives a model swap",
+        ) { isExpanded(pathTo()) }
         assertEquals(emptyList(), received, "a model swap reported an expansion change")
     }
 
@@ -349,15 +368,15 @@ class TreeExpansionTest {
         val state = TreeState(initialExpandedPaths = setOf(emptyList(), listOf(0), listOf(0, 0)))
         setContent { Tree(root = deep, children = { it.children }, state = state, label = { it.name }) }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertTrue(tree.isExpanded(tree.pathTo(0, 0)), "the nodes the state names should be expanded")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(true, "the nodes the state names should be expanded") { isExpanded(pathTo(0, 0)) }
 
         state.expandedPaths = setOf(emptyList())
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo()), "the root the state still names stays expanded")
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node dropped from the state collapses")
-        assertFalse(tree.isExpanded(tree.pathTo(0, 0)), "its dropped child collapses too")
+        tree.assertProperty(true, "the root the state still names stays expanded") { isExpanded(pathTo()) }
+        tree.assertProperty(false, "the node dropped from the state collapses") { isExpanded(pathTo(0)) }
+        tree.assertProperty(false, "its dropped child collapses too") { isExpanded(pathTo(0, 0)) }
     }
 
     /**
@@ -375,17 +394,16 @@ class TreeExpansionTest {
         tree.expandPath(tree.pathTo(0, 0))
         tree.collapsePath(tree.pathTo(0))
         awaitIdle()
-        assertEquals(listOf("root", "a"), tree.rowLabels(), "the user's collapse stands")
+        onNodeOfType<JTree>().assertProperty(listOf("root", "a"), "the user's collapse stands") { rowLabels() }
 
         state.expandedPaths = setOf(emptyList(), listOf(0))
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             listOf("root", "a", "b"),
-            tree.rowLabels(),
             "the node the state leaves out is closed even where reopening its ancestor brought it back",
-        )
-        assertFalse(tree.isExpanded(tree.pathTo(0, 0)), "so its own child has no row")
+        ) { rowLabels() }
+        onNodeOfType<JTree>().assertProperty(false, "so its own child has no row") { isExpanded(pathTo(0, 0)) }
     }
 
     @Test
@@ -395,13 +413,19 @@ class TreeExpansionTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         assertEquals(listOf(tree.pathTo(0, 0)), tree.selectionPaths?.toList(), "the node the state names is selected")
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "and the tree opens the node above it to show it")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "and the tree opens the node above it to show it",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(setOf(emptyList(), listOf(0)), state.expandedPaths, "the state takes the node the tree opened")
 
         state.selectedPaths = setOf(listOf(1, 0))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(1)), "a selection assigned under a closed node opens it as well")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "a selection assigned under a closed node opens it as well",
+        ) { isExpanded(pathTo(1)) }
         assertEquals(
             setOf(emptyList(), listOf(0), listOf(1)),
             state.expandedPaths,
@@ -425,7 +449,10 @@ class TreeExpansionTest {
         awaitIdle()
 
         verify(exactly = 0) { expansionListener.treeExpanded(any()) }
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the state keeps closed stays closed")
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "the node the state keeps closed stays closed",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(listOf(tree.pathTo(1)), tree.selectionPaths?.toList(), "and the selection goes back on")
     }
 
@@ -442,7 +469,7 @@ class TreeExpansionTest {
         state.expandedPaths = setOf(emptyList())
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the state closes is closed")
+        onNodeOfType<JTree>().assertProperty(false, "the node the state closes is closed") { isExpanded(pathTo(0)) }
         assertEquals(listOf(tree.pathTo(0)), tree.selectionPaths?.toList(), "the closed node takes the selection")
         assertEquals(setOf(listOf(0)), state.selectedPaths, "and the state takes what the tree selected")
     }
@@ -478,7 +505,7 @@ class TreeExpansionTest {
         state.expandedPaths = setOf(emptyList())
         awaitIdle()
 
-        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the state closes is closed")
+        onNodeOfType<JTree>().assertProperty(false, "the node the state closes is closed") { isExpanded(pathTo(0)) }
         assertEquals(listOf(tree.pathTo(1)), tree.selectionPaths?.toList(), "the selection assigned with it stands")
         assertEquals(setOf(listOf(1)), state.selectedPaths, "and the state keeps it")
     }
@@ -501,7 +528,7 @@ class TreeExpansionTest {
             "the declared selection reaches the tree",
         )
         // A tree keeps what it selects reachable, so the ancestors of the selection end up open.
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the selection's ancestor is open")
+        onNodeOfType<JTree>().assertProperty(true, "the selection's ancestor is open") { isExpanded(pathTo(0)) }
     }
 
     @Test
@@ -529,7 +556,10 @@ class TreeExpansionTest {
             tree.selectionPaths?.toList(),
             "the declared selection the caller kept goes back on",
         )
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "and the tree opens the node again to show it")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "and the tree opens the node again to show it",
+        ) { isExpanded(pathTo(0)) }
         assertEquals(setOf(emptyList(), listOf(0)), expansions.last(), "and reports the node it opened")
     }
 
@@ -540,12 +570,14 @@ class TreeExpansionTest {
         val expansions = mutableListOf<Set<List<Int>>>()
         setContent { Tree(model = model, selectedPaths = selection, onExpansionChange = { expansions += it }) }
 
-        val tree = onNodeOfType<JTree>().fetch()
         model = sampleModel("trunk")
         selection = setOf(listOf(1, 0))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.pathTo(1)), "the tree opens the node above the selection to show it")
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the tree opens the node above the selection to show it",
+        ) { isExpanded(pathTo(1)) }
         assertEquals(setOf(emptyList(), listOf(1)), expansions.last(), "and reports the node it opened")
     }
 
@@ -614,12 +646,11 @@ class TreeExpansionTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(
             1,
-            tree.libraryExpansionListeners().size,
             "the wrapper keeps its own listener installed to track expansion even with no listener declared",
-        )
+        ) { libraryExpansionListeners().size }
 
         listener =
             object : TreeExpansionListener {
@@ -629,20 +660,18 @@ class TreeExpansionTest {
             }
         awaitIdle()
 
-        assertEquals(
+        tree.assertProperty(
             1,
-            tree.libraryExpansionListeners().size,
             "a declared listener replaces the wrapper's, not adds to it",
-        )
+        ) { libraryExpansionListeners().size }
 
         listener = null
         awaitIdle()
 
-        assertEquals(
+        tree.assertProperty(
             1,
-            tree.libraryExpansionListeners().size,
             "dropping the listener leaves the wrapper's own in place",
-        )
+        ) { libraryExpansionListeners().size }
     }
 
     @Test

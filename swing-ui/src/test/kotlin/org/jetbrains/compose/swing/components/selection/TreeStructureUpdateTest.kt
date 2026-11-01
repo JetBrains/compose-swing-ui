@@ -3,13 +3,12 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /** A value tree: each entry yields its [children], and its [name] is what the row renders. */
 private data class Folder(
@@ -43,25 +42,26 @@ class TreeStructureUpdateTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.expandPath(tree.pathTo(0))
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             listOf("root", "opened", "leaf", "sibling"),
-            tree.rowLabels(),
             "the node the user opened shows its child as a row",
-        )
+        ) { rowLabels() }
 
         root = Folder("root", listOf(Folder("added")) + root.children)
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
             listOf("root", "added", "opened", "leaf", "sibling"),
-            tree.rowLabels(),
             "the added node takes a row of its own and pushes the rows below it down",
-        )
-        assertTrue(
-            tree.isExpanded(tree.getPathForRow(2)),
+        ) { rowLabels() }
+        onNodeOfType<JTree>().assertProperty(
+            true,
             "the node the user opened is open where the structure put it",
-        )
-        assertFalse(tree.isExpanded(tree.getPathForRow(1)), "and the added node arrives closed")
+        ) { isExpanded(getPathForRow(2)) }
+        onNodeOfType<JTree>().assertProperty(
+            false,
+            "and the added node arrives closed",
+        ) { isExpanded(getPathForRow(1)) }
     }
 
     @Test
@@ -74,18 +74,23 @@ class TreeStructureUpdateTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.selectionPath = tree.pathTo(0)
-        assertEquals(listOf(1), tree.selectionRows?.toList(), "the row the user selected is selected")
+        onNodeOfType<JTree>().assertProperty(
+            listOf(1),
+            "the row the user selected is selected",
+        ) { selectionRows?.toList() }
         received.clear()
 
         root = Folder("root", listOf(Folder("added")) + root.children)
         awaitIdle()
 
-        assertEquals(listOf("opened"), tree.selectedLabels(), "the selected node is the one the data still has")
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
+            listOf("opened"),
+            "the selected node is the one the data still has",
+        ) { selectedLabels() }
+        onNodeOfType<JTree>().assertProperty(
             listOf(2),
-            tree.selectionRows?.toList(),
             "and it is selected on the row the added node pushed it down to",
-        )
+        ) { selectionRows?.toList() }
         assertEquals(emptyList(), received, "a structure change that takes no node away reports nothing")
     }
 
@@ -100,12 +105,14 @@ class TreeStructureUpdateTest {
         root = Folder("root", listOf(Folder("opened", opened.children + Folder("late")), root.children[1]))
         awaitIdle()
 
-        assertTrue(tree.isExpanded(tree.getPathForRow(1)), "the node whose children changed stays open")
-        assertEquals(
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "the node whose children changed stays open",
+        ) { isExpanded(getPathForRow(1)) }
+        onNodeOfType<JTree>().assertProperty(
             listOf("root", "opened", "leaf", "late", "sibling"),
-            tree.rowLabels(),
             "and the child it gained shows as a row under it",
-        )
+        ) { rowLabels() }
     }
 
     @Test
@@ -123,8 +130,14 @@ class TreeStructureUpdateTest {
         root = Folder("root", listOf(root.children[1]))
         awaitIdle()
 
-        assertEquals(listOf("root", "sibling"), tree.rowLabels(), "the node the data dropped leaves the rows")
-        assertEquals(listOf(1), tree.selectionRows?.toList(), "the node the new structure still has stays selected")
+        onNodeOfType<JTree>().assertProperty(
+            listOf("root", "sibling"),
+            "the node the data dropped leaves the rows",
+        ) { rowLabels() }
+        onNodeOfType<JTree>().assertProperty(
+            listOf(1),
+            "the node the new structure still has stays selected",
+        ) { selectionRows?.toList() }
         assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
@@ -142,17 +155,16 @@ class TreeStructureUpdateTest {
             Tree(root = start, children = { it.children }, label = { it.name + current })
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("root", "opened", "sibling"), tree.rowLabels(), "each row reads what the label says")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("root", "opened", "sibling"), "each row reads what the label says") { rowLabels() }
 
         suffix = " *"
         awaitIdle()
 
-        assertEquals(
+        tree.assertProperty(
             listOf("root *", "opened *", "sibling *"),
-            tree.rowLabels(),
             "every row follows the label accessor even though no value object moved",
-        )
+        ) { rowLabels() }
     }
 
     @Test
@@ -164,21 +176,22 @@ class TreeStructureUpdateTest {
         tree.expandPath(tree.pathTo(0))
         val measured = tree.getPathBounds(tree.pathTo(0))?.width
 
-        root = Folder("root", listOf(Folder(LONGER_NAME, opened.children), root.children[1]))
+        // A label far wider than the one it replaces, so a row measured again is a row of another width.
+        val longerName = "opened, under a name several times as wide as the one before it"
+        root = Folder("root", listOf(Folder(longerName, opened.children), root.children[1]))
         awaitIdle()
 
-        assertEquals(
-            listOf("root", LONGER_NAME, "leaf", "sibling"),
-            tree.rowLabels(),
+        onNodeOfType<JTree>().assertProperty(
+            listOf("root", longerName, "leaf", "sibling"),
             "the row reads what the data says",
-        )
-        assertTrue(
-            tree.getPathBounds(tree.pathTo(0))!!.width > measured!!,
+        ) { rowLabels() }
+        onNodeOfType<JTree>().assertProperty(
+            true,
             "the tree measured that row again, so the width it draws is the new text's",
-        )
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "and the node it renamed is the node that was open")
+        ) { getPathBounds(pathTo(0))!!.width > measured!! }
+        onNodeOfType<JTree>().assertProperty(
+            true,
+            "and the node it renamed is the node that was open",
+        ) { isExpanded(pathTo(0)) }
     }
 }
-
-/** A label far wider than the one it replaces, so a row measured again is a row of another width. */
-private const val LONGER_NAME = "opened, under a name several times as wide as the one before it"

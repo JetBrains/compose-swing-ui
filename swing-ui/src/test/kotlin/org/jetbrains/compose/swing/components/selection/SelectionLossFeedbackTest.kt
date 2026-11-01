@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -72,7 +73,10 @@ class SelectionLossFeedbackTest {
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(listOf(0), list.selectedIndices.toList(), "the row the narrower mode still holds stays selected")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0),
+            "the row the narrower mode still holds stays selected",
+        ) { selectedIndices.toList() }
         assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
@@ -96,7 +100,10 @@ class SelectionLossFeedbackTest {
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(listOf(0), table.selectedRows.toList(), "the row the narrower mode still holds stays selected")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0),
+            "the row the narrower mode still holds stays selected",
+        ) { selectedRows.toList() }
         assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
@@ -116,7 +123,10 @@ class SelectionLossFeedbackTest {
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(listOf(0), table.selectedRows.toList(), "the row the narrower mode still holds stays selected")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0),
+            "the row the narrower mode still holds stays selected",
+        ) { selectedRows.toList() }
         assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
@@ -136,7 +146,10 @@ class SelectionLossFeedbackTest {
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the node the narrower mode still holds stays selected")
+        onNodeOfType<JTree>().assertProperty(
+            1,
+            "the node the narrower mode still holds stays selected",
+        ) { selectionCount }
         assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
@@ -161,7 +174,10 @@ class SelectionLossFeedbackTest {
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the node the narrower mode still holds stays selected")
+        onNodeOfType<JTree>().assertProperty(
+            1,
+            "the node the narrower mode still holds stays selected",
+        ) { selectionCount }
         assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
@@ -181,7 +197,7 @@ class SelectionLossFeedbackTest {
         rootVisible = false
         awaitIdle()
 
-        assertEquals(0, tree.selectionCount, "a hidden root cannot stay selected")
+        onNodeOfType<JTree>().assertProperty(0, "a hidden root cannot stay selected") { selectionCount }
         assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
@@ -206,7 +222,7 @@ class SelectionLossFeedbackTest {
         rootVisible = false
         awaitIdle()
 
-        assertEquals(0, tree.selectionCount, "a hidden root cannot stay selected")
+        onNodeOfType<JTree>().assertProperty(0, "a hidden root cannot stay selected") { selectionCount }
         assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
@@ -228,14 +244,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(1, tree.selectionCount, "the declared root reaches the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
         received.clear()
 
         rootVisible = false
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the declared selection should still stand")
+        tree.assertProperty(1, "the declared selection should still stand") { selectionCount }
         assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
     }
@@ -259,14 +275,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(1, tree.selectionCount, "the declared root reaches the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
         received.clear()
 
         rootVisible = false
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the declared selection should still stand")
+        tree.assertProperty(1, "the declared selection should still stand") { selectionCount }
         assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
     }
@@ -289,14 +305,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
         received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(1, table.selectedRows.size, "a single-selection table can still hold one declared row")
+        table.assertProperty(listOf(2), "the declared row a single-selection table can hold") { selectedRows.toList() }
         assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
@@ -319,14 +335,17 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
         received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(1, table.selectedRows.size, "a single-selection model-driven table still holds one declared row")
+        table.assertProperty(
+            1,
+            "a single-selection model-driven table still holds one declared row",
+        ) { selectedRows.size }
         assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
@@ -344,39 +363,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the declared rows reach the list")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(0, 1, 2), "the declared rows reach the list") { selectedIndices.toList() }
         received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(listOf(2), list.selectedIndices.toList(), "the declared row a single-selection list can hold")
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
-    }
-
-    @Test
-    fun aNarrowerTableSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
-        var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            Table(
-                rows = people,
-                columns = { column("Name") { it.name } },
-                selectedRowIndices = setOf(0, 1, 2),
-                onSelectionChange = { received += it },
-                selectionMode = mode,
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
-        received.clear()
-
-        mode = ListSelectionModel.SINGLE_SELECTION
-        awaitIdle()
-
-        assertEquals(listOf(2), table.selectedRows.toList(), "the declared row a single-selection table can hold")
+        list.assertProperty(listOf(2), "the declared row a single-selection list can hold") { selectedIndices.toList() }
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
 
@@ -394,14 +388,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(2, tree.selectionCount, "both declared nodes reach the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(2, "both declared nodes reach the tree") { selectionCount }
         received.clear()
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the declared node a single-selection tree can hold")
+        tree.assertProperty(1, "the declared node a single-selection tree can hold") { selectionCount }
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
 
@@ -420,40 +414,15 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(2, tree.selectionCount, "both declared nodes reach the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(2, "both declared nodes reach the tree") { selectionCount }
         received.clear()
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the declared node a single-selection tree can hold")
+        tree.assertProperty(1, "the declared node a single-selection tree can hold") { selectionCount }
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
-    }
-
-    @Test
-    fun hidingTheRootLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
-        var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<Set<List<Int>>>()
-        val model = treeModel()
-        setContent {
-            Tree(
-                model = model,
-                selectedPaths = setOf(emptyList()),
-                onSelectionChange = { received += it },
-                rootVisible = rootVisible,
-            )
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(1, tree.selectionCount, "the declared root reaches the tree")
-        received.clear()
-
-        rootVisible = false
-        awaitIdle()
-
-        assertEquals(1, tree.selectionCount, "a declared root stays selected while it is hidden")
-        assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
     }
 
     @Test
@@ -470,18 +439,17 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the declared rows reach the list")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(0, 1, 2), "the declared rows reach the list") { selectedIndices.toList() }
         adjusting.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(
+        list.assertProperty(
             listOf(2),
-            list.selectedIndices.toList(),
             "the narrower mode moves the selection, so there is a change for the listener to be silent about",
-        )
+        ) { selectedIndices.toList() }
         assertEquals(emptyList(), adjusting, "a narrower mode reached the raw listener")
     }
 
@@ -500,18 +468,17 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
         adjusting.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf(2),
-            table.selectedRows.toList(),
             "the narrower mode moves the selection, so there is a change for the listener to be silent about",
-        )
+        ) { selectedRows.toList() }
         assertEquals(emptyList(), adjusting, "a narrower mode reached the raw listener")
     }
 
@@ -530,14 +497,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(1, tree.selectionCount, "the declared root reaches the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
         paths.clear()
 
         rootVisible = false
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "a declared root stays selected while it is hidden")
+        tree.assertProperty(1, "a declared root stays selected while it is hidden") { selectionCount }
         assertEquals(emptyList(), paths, "hiding the root reached the raw listener")
     }
 
@@ -556,18 +523,17 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
         adjusting.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
-        assertEquals(
+        table.assertProperty(
             listOf(2),
-            table.selectedRows.toList(),
             "the narrower mode moves the selection, so there is a change for the listener to be silent about",
-        )
+        ) { selectedRows.toList() }
         assertEquals(emptyList(), adjusting, "a narrower mode reached the raw listener")
     }
 
@@ -587,14 +553,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(2, tree.selectionCount, "both declared nodes reach the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(2, "both declared nodes reach the tree") { selectionCount }
         paths.clear()
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "the declared node a single-selection tree can hold")
+        tree.assertProperty(1, "the declared node a single-selection tree can hold") { selectionCount }
         assertEquals(emptyList(), paths, "a narrower mode reached the raw listener")
     }
 
@@ -614,14 +580,14 @@ class SelectionLossFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(1, tree.selectionCount, "the declared root reaches the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
         paths.clear()
 
         rootVisible = false
         awaitIdle()
 
-        assertEquals(1, tree.selectionCount, "a declared root stays selected while it is hidden")
+        tree.assertProperty(1, "a declared root stays selected while it is hidden") { selectionCount }
         assertEquals(emptyList(), paths, "hiding the root reached the raw listener")
     }
 }

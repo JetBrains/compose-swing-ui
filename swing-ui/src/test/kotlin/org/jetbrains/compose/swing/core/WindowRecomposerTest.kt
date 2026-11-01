@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
@@ -18,10 +17,8 @@ import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.awaitApplication
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.BorderLayout
-import java.awt.Container
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
-import javax.swing.JLabel
 import javax.swing.JMenuBar
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -30,7 +27,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.time.Duration.Companion.seconds
 import java.awt.Window as AwtWindow
 
 /**
@@ -54,13 +50,13 @@ class WindowRecomposerTest {
             // recomposer, one state change recomposes both; if each had spun up its own recomposer,
             // one clock could not drive the other.
             var shared by mutableStateOf("v0")
-            val compositionA = childPanelOf(frame)
-            val compositionB = childPanelOf(frame)
+            val compositionA = childOf(frame)
+            val compositionB = childOf(frame)
             compositionA.setContent { Label(text = "a=$shared") }
             compositionB.setContent { Label(text = "b=$shared") }
 
             awaitUntil("both content compositions render the initial shared state") {
-                labelTextOrNull(compositionA) == "a=v0" && labelTextOrNull(compositionB) == "b=v0"
+                labelTexts(compositionA).singleOrNull() == "a=v0" && labelTexts(compositionB).singleOrNull() == "b=v0"
             }
 
             val windowRecomposer = frame.swingRecomposerOrNull()
@@ -78,7 +74,7 @@ class WindowRecomposerTest {
 
             shared = "v1"
             awaitUntil("both content compositions recompose to the changed shared state") {
-                labelTextOrNull(compositionA) == "a=v1" && labelTextOrNull(compositionB) == "b=v1"
+                labelTexts(compositionA).singleOrNull() == "a=v1" && labelTexts(compositionB).singleOrNull() == "b=v1"
             }
         } finally {
             frame.dispose()
@@ -116,7 +112,7 @@ class WindowRecomposerTest {
     fun aClosedWindowHoldsARecomposerOnlyWhileContentComposesInIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
-        val composition = childPanelOf(frame)
+        val composition = childOf(frame)
         try {
             frame.getOrCreateRecomposer()
             frame.dispose()
@@ -128,7 +124,7 @@ class WindowRecomposerTest {
             // a window is realized around it.
             val handle = composition.setContent { Label(text = "composed") }
             awaitUntil("content mounted into a closed window composes where it stands") {
-                labelTextOrNull(composition) == "composed"
+                labelTexts(composition).singleOrNull() == "composed"
             }
             assertNotNull(
                 frame.swingRecomposerOrNull(),
@@ -165,16 +161,20 @@ class WindowRecomposerTest {
             first.setContent { Label(text = caption) }
             second.setContent { Label(text = "second") }
 
-            assertEquals("first", labelTextOrNull(first), "a content composition in a window with no peer must compose")
+            assertEquals(
+                "first",
+                labelTexts(first).singleOrNull(),
+                "a content composition in a window with no peer must compose",
+            )
             assertEquals(
                 "second",
-                labelTextOrNull(second),
+                labelTexts(second).singleOrNull(),
                 "a content composition in a window with no peer must compose",
             )
 
             caption = "changed"
             awaitUntil("content in a window with no peer goes on recomposing") {
-                labelTextOrNull(first) == "changed"
+                labelTexts(first).singleOrNull() == "changed"
             }
         } finally {
             // Realized before it is disposed, so the window posts the windowClosed its recomposers end from.
@@ -211,9 +211,9 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = childPanelOf(frame)
+            val composition = childOf(frame)
             val handle = composition.setContent { Label(text = "only") }
-            awaitUntil("the window's only content composes") { labelTextOrNull(composition) == "only" }
+            awaitUntil("the window's only content composes") { labelTexts(composition).singleOrNull() == "only" }
             val first = assertNotNull(frame.swingRecomposerOrNull())
             val listenersWhileDriven = frame.windowListeners.size
 
@@ -227,7 +227,7 @@ class WindowRecomposerTest {
             // afresh. A published context left standing would compose this content under an ended context, which
             // would never recompose.
             composition.setContent { Label(text = "again") }
-            awaitUntil("the emptied window takes content again") { labelTextOrNull(composition) == "again" }
+            awaitUntil("the emptied window takes content again") { labelTexts(composition).singleOrNull() == "again" }
             // Read as non-null before it is compared: swingRecomposerOrNull answers null for a window
             // holding none, which is the very state this has to tell a fresh recomposer apart from.
             val second = assertNotNull(frame.swingRecomposerOrNull(), "the window must hold a recomposer again")
@@ -252,12 +252,12 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         val other = realizedFrame()
         try {
-            val holder = childPanelOf(frame)
+            val holder = childOf(frame)
             val composition = JPanel().also { holder.add(it) }
             var text by mutableStateOf("before")
             composition.setContent { Label(text = text) }
             awaitUntil("the content composes in the window it starts in") {
-                labelTextOrNull(composition) == "before"
+                labelTexts(composition).singleOrNull() == "before"
             }
             val recomposer = assertNotNull(frame.swingRecomposerOrNull())
 
@@ -274,7 +274,7 @@ class WindowRecomposerTest {
             holder.add(composition)
 
             text = "after"
-            awaitUntil("the returned content goes on recomposing") { labelTextOrNull(composition) == "after" }
+            awaitUntil("the returned content goes on recomposing") { labelTexts(composition).singleOrNull() == "after" }
             assertSame(
                 recomposer,
                 frame.swingRecomposerOrNull(),
@@ -291,7 +291,7 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = childPanelOf(frame)
+            val composition = childOf(frame)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -299,7 +299,7 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the content composition renders") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the content composition renders") { labelTexts(composition).singleOrNull() == "composed" }
 
             // Disposing the window fires windowClosed, whose teardown disposes the content
             // compositions in it - not only the recomposer they recomposed on.
@@ -313,7 +313,7 @@ class WindowRecomposerTest {
             composition.setContent { Label(text = "remounted") }
             frame.pack()
             awaitUntil("the container takes content again") {
-                labelTextOrNull(composition) == "remounted"
+                labelTexts(composition).singleOrNull() == "remounted"
             }
         } finally {
             frame.dispose()
@@ -332,7 +332,7 @@ class WindowRecomposerTest {
         // closing window's tree reaches it.
         val own = SwingRecomposer.create(JPanel())
         try {
-            val composition = childPanelOf(frame)
+            val composition = childOf(frame)
             var effectDisposed = false
             composition.setContent(parent = own.compositionContext) {
                 DisposableEffect(Unit) {
@@ -340,7 +340,7 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the content composition renders") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the content composition renders") { labelTexts(composition).singleOrNull() == "composed" }
 
             frame.dispose()
             awaitUntil("closing the window disposes content composing on its caller's own recomposer") {
@@ -354,7 +354,7 @@ class WindowRecomposerTest {
             composition.setContent { Label(text = "remounted") }
             frame.pack()
             awaitUntil("the container takes content again") {
-                labelTextOrNull(composition) == "remounted"
+                labelTexts(composition).singleOrNull() == "remounted"
             }
         } finally {
             frame.dispose()
@@ -367,7 +367,7 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = childPanelOf(frame)
+            val composition = childOf(frame)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -375,7 +375,7 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the content composition renders") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the content composition renders") { labelTexts(composition).singleOrNull() == "composed" }
 
             // Taken out of the window but not disposed: a container in no window has arrived nowhere,
             // so the composition keeps composing under the window's recomposer while hanging off no
@@ -395,7 +395,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         try {
             var host: CompositionContext? = null
-            childPanelOf(frame).setContent {
+            childOf(frame).setContent {
                 host = rememberCompositionContext()
                 Label(text = "host")
             }
@@ -413,7 +413,9 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the detached content composes on the call") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the detached content composes on the call") {
+                labelTexts(composition).singleOrNull() == "composed"
+            }
 
             // Adopt the window, then leave it again: the container is out of every tree the window's
             // teardown can walk, so only the registration taken on adoption reaches this composition.
@@ -445,7 +447,9 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the detached content composes on the call") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the detached content composes on the call") {
+                labelTexts(composition).singleOrNull() == "composed"
+            }
 
             frame.dispose()
             awaitUntil("closing the window ends content that named its context and stood nowhere") {
@@ -462,7 +466,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         try {
             var host: CompositionContext? = null
-            childPanelOf(frame).setContent {
+            childOf(frame).setContent {
                 host = rememberCompositionContext()
                 Label(text = "host")
             }
@@ -471,7 +475,7 @@ class WindowRecomposerTest {
             // A container standing in the window beside the host content rather than inside it, given a
             // context that names no window: what reaches it is the recomposer the window it stands in
             // shares, taken on the call.
-            val composition = childPanelOf(frame)
+            val composition = childOf(frame)
             var effectDisposed = false
             composition.setContent(parent = host ?: error("no host context")) {
                 DisposableEffect(Unit) {
@@ -479,7 +483,7 @@ class WindowRecomposerTest {
                 }
                 Label(text = "composed")
             }
-            awaitUntil("the content composes beside the host") { labelTextOrNull(composition) == "composed" }
+            awaitUntil("the content composes beside the host") { labelTexts(composition).singleOrNull() == "composed" }
 
             // Out of the window, so no walk over its tree reaches this content any more.
             frame.contentPane.remove(composition)
@@ -498,10 +502,10 @@ class WindowRecomposerTest {
         val second = realizedFrame()
         try {
             var text by mutableStateOf("v0")
-            val composition = childPanelOf(first)
+            val composition = childOf(first)
             composition.setContent { Label(text = text) }
             awaitUntil("the content composition renders in its first window") {
-                labelTextOrNull(composition) == "v0"
+                labelTexts(composition).singleOrNull() == "v0"
             }
 
             // One EDT turn, close first: the windowClosed event is queued before the move queues its
@@ -511,7 +515,7 @@ class WindowRecomposerTest {
 
             text = "v1"
             awaitUntil("the content composition keeps recomposing in the window it joined") {
-                labelTextOrNull(composition) == "v1"
+                labelTexts(composition).singleOrNull() == "v1"
             }
         } finally {
             first.dispose()
@@ -525,7 +529,7 @@ class WindowRecomposerTest {
         val first = realizedFrame()
         val second = realizedFrame()
         try {
-            val composition = childPanelOf(first)
+            val composition = childOf(first)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -534,7 +538,7 @@ class WindowRecomposerTest {
                 Label(text = "composed")
             }
             awaitUntil("the content composition renders in its first window") {
-                labelTextOrNull(composition) == "composed"
+                labelTexts(composition).singleOrNull() == "composed"
             }
 
             // One EDT turn: the composition enters the second window and leaves it again before the
@@ -572,7 +576,7 @@ class WindowRecomposerTest {
                 Label(text = "composed")
             }
             awaitUntil("the menu bar composition renders its content") {
-                labelTextOrNull(composition) == "composed"
+                labelTexts(composition).singleOrNull() == "composed"
             }
 
             frame.dispose()
@@ -591,43 +595,6 @@ class WindowRecomposerTest {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         setBounds(0, 0, FRAME_SIZE, FRAME_SIZE)
         pack()
-    }
-
-    /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun childPanelOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
-
-    /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
-    private fun labelTextOrNull(container: Container): String? {
-        val labels = mutableListOf<JLabel>()
-
-        fun visit(c: Container) {
-            for (child in c.components) {
-                if (child is JLabel) labels += child
-                if (child is Container) visit(child)
-            }
-        }
-        visit(container)
-        return labels.singleOrNull()?.text
-    }
-
-    /**
-     * Suspends on the EDT until [condition] holds, yielding the EDT back between checks so the window's
-     * frame-clock timer can fire and mount or recompose content. A condition that never becomes true
-     * fails the test at the deadline, naming [description], instead of hanging.
-     */
-    private suspend fun awaitUntil(
-        description: String,
-        condition: () -> Boolean,
-    ) {
-        try {
-            withTimeout(SETTLE_TIMEOUT) {
-                while (!condition()) {
-                    yield()
-                }
-            }
-        } catch (timedOut: TimeoutCancellationException) {
-            throw AssertionError("Timed out after $SETTLE_TIMEOUT waiting until $description", timedOut)
-        }
     }
 
     @Test
@@ -669,6 +636,5 @@ class WindowRecomposerTest {
 
     private companion object {
         const val FRAME_SIZE: Int = 200
-        val SETTLE_TIMEOUT = 10.seconds
     }
 }

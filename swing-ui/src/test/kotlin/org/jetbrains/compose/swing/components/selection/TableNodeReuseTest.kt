@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -55,24 +56,24 @@ class TableNodeReuseTest {
                 )
             }
         }
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(1, table.model.rowCount, "the table should start on the declared row")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(1, "the table should start on the declared row") { model.rowCount }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        val reactivated = onNodeOfType<JTable>().fetch().model
-        assertEquals(2, reactivated.columnCount, "the fresh table should present both columns")
-        assertEquals("Ada", reactivated.getValueAt(0, 0), "the fresh table should render the declared row")
+        table.assertProperty(2, "the fresh table should present both columns") { model.columnCount }
+        table.assertProperty("Ada", "the fresh table should render the declared row") { model.getValueAt(0, 0) }
 
         rows = rows + Person("Alan", 41)
         awaitIdle()
 
-        val updated = onNodeOfType<JTable>().fetch().model
-        assertEquals(2, updated.rowCount, "a row added after reactivation should reach the rendered model")
-        assertEquals("Alan", updated.getValueAt(1, 0), "the added row should render through the declared columns")
+        table.assertProperty(2, "a row added after reactivation should reach the rendered model") { model.rowCount }
+        table.assertProperty("Alan", "the added row should render through the declared columns") {
+            model.getValueAt(1, 0)
+        }
     }
 
     @Test
@@ -87,19 +88,20 @@ class TableNodeReuseTest {
                 )
             }
         }
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(1), table.selectedRows.toList(), "the controlled selection should be applied")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(1),
+            "the controlled selection should be applied",
+        ) { selectedRows.toList() }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             listOf(1),
-            onNodeOfType<JTable>().fetch().selectedRows.toList(),
             "the fresh table should hold the controlled selection",
-        )
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -111,19 +113,20 @@ class TableNodeReuseTest {
                 Table(model = model, selectedRowIndices = setOf(1))
             }
         }
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(1), table.selectedRows.toList(), "the controlled selection should be applied")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(1),
+            "the controlled selection should be applied",
+        ) { selectedRows.toList() }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             listOf(1),
-            onNodeOfType<JTable>().fetch().selectedRows.toList(),
             "the fresh model-driven table should hold the controlled selection",
-        )
+        ) { selectedRows.toList() }
     }
 
     @Test
@@ -138,7 +141,10 @@ class TableNodeReuseTest {
             }
         }
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals("<Ada>", table.renderCell(row = 0).firstLabelText(), "the composable cell should render row 0")
+        onNodeOfType<JTable>().assertProperty(
+            "<Ada>",
+            "the composable cell should render row 0",
+        ) { renderCell(row = 0).firstLabelText() }
 
         active = false
         awaitIdle()
@@ -150,10 +156,9 @@ class TableNodeReuseTest {
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             "<Alan>",
-            onNodeOfType<JTable>().fetch().renderCell(row = 1).firstLabelText(),
             "the fresh table should render the composable cell",
-        )
+        ) { renderCell(row = 1).firstLabelText() }
     }
 }

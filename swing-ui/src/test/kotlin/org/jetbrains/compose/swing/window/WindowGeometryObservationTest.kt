@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
-import javax.swing.JDialog
-import javax.swing.JFrame
+import java.awt.Window
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -33,10 +32,10 @@ class WindowGeometryObservationTest {
     fun aDeclaredWindowSizeIsAppliedWithNoCompositionFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-size", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -56,10 +55,10 @@ class WindowGeometryObservationTest {
     fun aDeclaredWindowPositionIsAppliedWithNoCompositionFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-position", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -79,10 +78,10 @@ class WindowGeometryObservationTest {
     fun aDeclaredWindowPositionIsAppliedInsideTheNotificationOfItsWrite() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-inline", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -103,10 +102,10 @@ class WindowGeometryObservationTest {
     fun aDeclaredDialogSizeIsAppliedWithNoCompositionFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = DECLARED_SIZE)
-        lateinit var dialog: JDialog
+        lateinit var dialog: Window
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "geometry-observed-dialog-size", visible = false) {
-                dialog = LocalWindow.current as JDialog
+                dialog = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -126,10 +125,10 @@ class WindowGeometryObservationTest {
     fun aWindowResizeTheWindowSystemReportsRecomposesNothing() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-resize", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -151,10 +150,10 @@ class WindowGeometryObservationTest {
     fun aWindowMoveTheWindowSystemReportsRecomposesNothing() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition.Absolute(140, 90), size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-move", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -184,10 +183,10 @@ class WindowGeometryObservationTest {
     fun aDialogResizeTheWindowSystemReportsRecomposesNothing() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = DECLARED_SIZE)
-        lateinit var dialog: JDialog
+        lateinit var dialog: Window
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "geometry-observed-dialog-resize", visible = false) {
-                dialog = LocalWindow.current as JDialog
+                dialog = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }
@@ -209,10 +208,10 @@ class WindowGeometryObservationTest {
     fun aReportedResizeStandsAndASizeDeclaredAfterItStillApplies() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = DECLARED_SIZE)
-        lateinit var frame: JFrame
+        lateinit var frame: Window
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-settles", visible = false) {
-                frame = LocalWindow.current as JFrame
+                frame = checkNotNull(LocalWindow.current)
                 Panel {}
             }
         }

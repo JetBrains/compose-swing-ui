@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
@@ -221,9 +222,10 @@ class LayerTest {
 
         val layer = onNodeOfType<JLayer<*>>().fetch()
         val own = assertNotNull(layer.glassPane, "a layer builds a glass pane of its own in its constructor")
-        assertEquals(
-            VIEW_COLOR.rgb,
-            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+        onNodeOfType<JLayer<*>>().captureToImage().assertPixelColor(
+            VIEW_COLOR,
+            SIZE.width / 2,
+            SIZE.height / 2,
             "with no pane declared the view is what shows",
         )
 
@@ -232,9 +234,10 @@ class LayerTest {
 
         assertSame(own, layer.glassPane, "the declaration should show the layer's own pane")
         assertFalse(own.isOpaque, "the pane must be transparent where its content paints nothing")
-        assertEquals(
-            PANE_COLOR.rgb,
-            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+        onNodeOfType<JLayer<*>>().captureToImage().assertPixelColor(
+            PANE_COLOR,
+            SIZE.width / 2,
+            SIZE.height / 2,
             "the pane's content must paint over the view",
         )
 
@@ -243,9 +246,10 @@ class LayerTest {
 
         assertSame(own, layer.glassPane, "the layer should keep its own pane")
         assertFalse(own.isVisible, "hidden again once the declaration leaves")
-        assertEquals(
-            VIEW_COLOR.rgb,
-            onNodeOfType<JLayer<*>>().captureToImage().getRGB(SIZE.width / 2, SIZE.height / 2),
+        onNodeOfType<JLayer<*>>().captureToImage().assertPixelColor(
+            VIEW_COLOR,
+            SIZE.width / 2,
+            SIZE.height / 2,
             "the view shows again once the pane is gone",
         )
     }
@@ -375,8 +379,8 @@ class LayerTest {
 
     @Test
     fun aLayerAlwaysCarriesADelegateAndTakesItsPreferredSizeFromItsView() = runComposeSwingTest {
-        // Without a delegate a layer paints nothing, lays its view out never, and answers 0x0 for itself,
-        // so the view's own preferred size never reaches the parent. Both overloads must leave one in.
+        // Without a delegate a layer paints nothing, lays its view out never, and returns 0x0 as its
+        // preferred size, so the view's own preferred size never reaches the parent. Both overloads must leave one in.
         setContent {
             Panel(PanelLayout.Box()) {
                 Layer(
@@ -394,7 +398,11 @@ class LayerTest {
         for (tag in listOf(CALLBACK_LAYER, RAW_LAYER)) {
             val layer = onNodeWithTag(tag).fetch<JLayer<*>>()
             assertNotNull(layer.ui, "$tag should carry a delegate")
-            assertEquals(VIEW_SIZE, layer.preferredSize, "$tag should answer for its view rather than collapse")
+            assertEquals(
+                VIEW_SIZE,
+                layer.preferredSize,
+                "$tag should return its view's size as its preferred size rather than collapse",
+            )
         }
     }
 

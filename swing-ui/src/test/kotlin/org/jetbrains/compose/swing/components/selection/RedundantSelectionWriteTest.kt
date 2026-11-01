@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -14,7 +15,6 @@ import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
 import javax.swing.table.TableModel
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * Re-applying a selection the widget already holds would rewrite it interval by interval. That rewrite
@@ -44,13 +44,22 @@ class RedundantSelectionWriteTest {
         val list = onNodeOfType<JList<*>>().fetch()
         // A drag upwards from the last row: it ends - and so leaves the lead - on the first one.
         list.selectionModel.setSelectionInterval(2, 0)
-        assertEquals(0, list.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+        onNodeOfType<JList<*>>().assertProperty(
+            0,
+            "the drag left the lead on the row it ended on",
+        ) { selectionModel.leadSelectionIndex }
 
         count = 6
         awaitIdle()
 
-        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the selection is the one already applied")
-        assertEquals(0, list.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+        onNodeOfType<JList<*>>().assertProperty(
+            listOf(0, 1, 2),
+            "the selection is the one already applied",
+        ) { selectedIndices.toList() }
+        onNodeOfType<JList<*>>().assertProperty(
+            0,
+            "the lead the user left is where it was",
+        ) { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -68,13 +77,22 @@ class RedundantSelectionWriteTest {
         val table = onNodeOfType<JTable>().fetch()
         // A drag upwards from the last row: it ends - and so leaves the lead - on the first one.
         table.selectionModel.setSelectionInterval(2, 0)
-        assertEquals(0, table.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+        onNodeOfType<JTable>().assertProperty(
+            0,
+            "the drag left the lead on the row it ended on",
+        ) { selectionModel.leadSelectionIndex }
 
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the selection is the one already applied")
-        assertEquals(0, table.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0, 1, 2),
+            "the selection is the one already applied",
+        ) { selectedRows.toList() }
+        onNodeOfType<JTable>().assertProperty(
+            0,
+            "the lead the user left is where it was",
+        ) { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -97,17 +115,29 @@ class RedundantSelectionWriteTest {
         // The declared rows are the model's; the descending sort draws them bottom to top, the reverse of
         // declared order.
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf("Grace", "Alan", "Ada"), (0..2).map { table.getValueAt(it, 0) }, "sorted top to bottom")
+        onNodeOfType<JTable>().assertProperty(
+            listOf("Grace", "Alan", "Ada"),
+            "sorted top to bottom",
+        ) { (0..2).map { getValueAt(it, 0) } }
 
         // A drag downwards from the first row: it ends - and so leaves the lead - on the last one.
         table.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(2, table.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+        onNodeOfType<JTable>().assertProperty(
+            2,
+            "the drag left the lead on the row it ended on",
+        ) { selectionModel.leadSelectionIndex }
 
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the selection is the one already applied")
-        assertEquals(2, table.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0, 1, 2),
+            "the selection is the one already applied",
+        ) { selectedRows.toList() }
+        onNodeOfType<JTable>().assertProperty(
+            2,
+            "the lead the user left is where it was",
+        ) { selectionModel.leadSelectionIndex }
     }
 
     @Test
@@ -130,12 +160,21 @@ class RedundantSelectionWriteTest {
         val table = onNodeOfType<JTable>().fetch()
         // A drag downwards from the first row: it ends - and so leaves the lead - on the last one.
         table.selectionModel.setSelectionInterval(0, 2)
-        assertEquals(2, table.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+        onNodeOfType<JTable>().assertProperty(
+            2,
+            "the drag left the lead on the row it ended on",
+        ) { selectionModel.leadSelectionIndex }
 
         label = "second"
         awaitIdle()
 
-        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the selection is the one already applied")
-        assertEquals(2, table.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+        onNodeOfType<JTable>().assertProperty(
+            listOf(0, 1, 2),
+            "the selection is the one already applied",
+        ) { selectedRows.toList() }
+        onNodeOfType<JTable>().assertProperty(
+            2,
+            "the lead the user left is where it was",
+        ) { selectionModel.leadSelectionIndex }
     }
 }

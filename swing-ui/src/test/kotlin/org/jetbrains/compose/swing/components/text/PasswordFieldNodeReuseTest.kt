@@ -4,11 +4,11 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * A parked [ReusableContentHost] child detaches its `JPasswordField`, and reactivation builds a fresh
@@ -26,22 +26,20 @@ class PasswordFieldNodeReuseTest {
                 PasswordField(value = "hunter2".toCharArray(), onValueChange = {})
             }
         }
-        assertEquals(
+        onNodeOfType<JPasswordField>().assertProperty(
             lookAndFeelEchoChar,
-            onNodeOfType<JPasswordField>().fetch().echoChar,
             "the field should start on the look-and-feel mask",
-        )
+        ) { echoChar }
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JPasswordField>().assertProperty(
             lookAndFeelEchoChar,
-            onNodeOfType<JPasswordField>().fetch().echoChar,
             "a reactivated field should still mask with the look-and-feel echo character",
-        )
+        ) { echoChar }
     }
 
     @Test
@@ -54,11 +52,10 @@ class PasswordFieldNodeReuseTest {
                 PasswordField(value = "hunter2".toCharArray(), onValueChange = {}, echoChar = echoChar)
             }
         }
-        assertEquals(
+        onNodeOfType<JPasswordField>().assertProperty(
             '#',
-            onNodeOfType<JPasswordField>().fetch().echoChar,
             "the declared echo character should be applied",
-        )
+        ) { this.echoChar }
 
         active = false
         awaitIdle()
@@ -68,10 +65,9 @@ class PasswordFieldNodeReuseTest {
         echoChar = null
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<JPasswordField>().assertProperty(
             lookAndFeelEchoChar,
-            onNodeOfType<JPasswordField>().fetch().echoChar,
             "null should still restore the look-and-feel echo character on a reactivated field",
-        )
+        ) { this.echoChar }
     }
 }

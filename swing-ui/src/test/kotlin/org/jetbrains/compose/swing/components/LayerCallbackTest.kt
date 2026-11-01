@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.assertPixels
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -14,13 +15,19 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.AWTEvent
 import java.awt.AlphaComposite
 import java.awt.Color
@@ -64,10 +71,7 @@ class LayerCallbackTest {
             pixelsOf(bare).any { it != 0 },
             "the bare label should paint something, or the comparison below pins nothing",
         )
-        assertSamePixels(
-            bare,
-            layered,
-        )
+        assertImagesPixelPerfect(bare, layered)
     }
 
     @Test
@@ -152,10 +156,7 @@ class LayerCallbackTest {
         val painted = onNodeWithTag(LAYER).captureToImage()
 
         assertEquals(SIZE, handed, "the callback should be handed the layer's own size")
-        assertTrue(
-            rowsAre(painted, 0 until SIZE.height, OVERLAY),
-            "filling the handed area should cover the whole layer",
-        )
+        painted.assertPixels(SIZE, "filling the handed area should cover the whole layer") { OVERLAY }
     }
 
     @Test
@@ -177,14 +178,12 @@ class LayerCallbackTest {
 
         val painted = onNodeWithTag(LAYER).captureToImage()
 
-        assertTrue(
-            rowsAre(painted, 0 until SIZE.height / 2, OVERLAY),
-            "drawing after paintView should cover the view where it draws",
-        )
-        assertTrue(
-            rowsAre(painted, SIZE.height / 2 until SIZE.height, VIEW_FILL),
-            "the view should still show where the callback drew nothing over it",
-        )
+        painted.assertPixels(
+            SIZE,
+            "drawing after paintView covers the top half and leaves the view in the bottom half",
+        ) {
+            if (it.y < SIZE.height / 2) OVERLAY else VIEW_FILL
+        }
     }
 
     @Test
@@ -373,47 +372,49 @@ class LayerCallbackTest {
         )
     }
 
-    @Test
-    fun theEventMaskIsTheUnionOfTheDeclaredCallbacks() = runComposeSwingTest {
-        setContent {
-            Panel(PanelLayout.Box()) {
-                Layer(modifier = SwingModifier.testTag(MOUSE_ONLY), onMouseEvent = {}) { FilledView() }
-                Layer(
-                    modifier = SwingModifier.testTag(MOUSE_AND_MOTION),
-                    onMouseEvent = {},
-                    onMouseMotionEvent = {},
-                ) {
-                    FilledView()
-                }
-                Layer(modifier = SwingModifier.testTag(WHEEL_ONLY), onMouseWheelEvent = {}) { FilledView() }
-                Layer(
-                    modifier = SwingModifier.testTag(PAINT_ONLY),
-                    onPaint = { _, _, _, paintView -> paintView() },
-                ) {
-                    FilledView()
-                }
-            }
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("eventMasks")
+    fun theEventMaskIsTheUnionOfTheDeclaredCallbacks(
+        layer: @Composable () -> Unit,
+        mask: Long,
+        message: String,
+    ) = runComposeSwingTest {
+        setContent { layer() }
+        onNodeOfType<JLayer<*>>().assertProperty(mask, message) { layerEventMask }
+    }
 
-        assertEquals(
-            AWTEvent.MOUSE_EVENT_MASK,
-            maskOf(MOUSE_ONLY),
-            "declaring the mouse callback alone should have the layer observe mouse events alone",
-        )
-        assertEquals(
-            AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK,
-            maskOf(MOUSE_AND_MOTION),
-            "declaring the motion callback beside the mouse one should add exactly the motion bit",
-        )
-        assertEquals(
-            AWTEvent.MOUSE_WHEEL_EVENT_MASK,
-            maskOf(WHEEL_ONLY),
-            "declaring the wheel callback alone should have the layer observe wheel events alone",
-        )
-        assertEquals(
-            0L,
-            maskOf(PAINT_ONLY),
-            "a layer that only paints should observe nothing",
+    companion object {
+        @JvmStatic
+        fun eventMasks(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of<@Composable () -> Unit>("mouse") { Layer(onMouseEvent = {}) { FilledView() } },
+                AWTEvent.MOUSE_EVENT_MASK,
+                "declaring the mouse callback observes mouse events",
+            ),
+            Arguments.of(
+                Named.of<@Composable () -> Unit>("mouse and motion") {
+                    Layer(onMouseEvent = {}, onMouseMotionEvent = {}) { FilledView() }
+                },
+                AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK,
+                "declaring both callbacks adds exactly the motion bit",
+            ),
+            Arguments.of(
+                Named.of<@Composable () -> Unit>("motion") { Layer(onMouseMotionEvent = {}) { FilledView() } },
+                AWTEvent.MOUSE_MOTION_EVENT_MASK,
+                "declaring motion observes motion events",
+            ),
+            Arguments.of(
+                Named.of<@Composable () -> Unit>("wheel") { Layer(onMouseWheelEvent = {}) { FilledView() } },
+                AWTEvent.MOUSE_WHEEL_EVENT_MASK,
+                "declaring wheel observes wheel events",
+            ),
+            Arguments.of(
+                Named.of<@Composable () -> Unit>("paint only") {
+                    Layer(onPaint = { _, _, _, paintView -> paintView() }) { FilledView() }
+                },
+                0L,
+                "a layer that only paints should observe nothing",
+            ),
         )
     }
 
@@ -444,12 +445,9 @@ class LayerCallbackTest {
             layer.layerEventMask,
             "both declared event callbacks should be observed",
         )
-        assertTrue(
-            pixelsOf(onNodeWithTag(LAYER).captureToImage()).all {
-                it == OVERLAY.rgb
-            },
-            "the declared paint should replace the view",
-        )
+        onNodeWithTag(LAYER).captureToImage().assertPixels(SIZE, "the declared paint should replace the view") {
+            OVERLAY
+        }
 
         declared = false
         awaitIdle()
@@ -459,10 +457,10 @@ class LayerCallbackTest {
             layer.layerEventMask,
             "a withdrawn motion callback should take its bit off the mask and leave the one still declared",
         )
-        assertTrue(
-            pixelsOf(onNodeWithTag(LAYER).captureToImage()).all { it == VIEW_FILL.rgb },
+        onNodeWithTag(LAYER).captureToImage().assertPixels(
+            SIZE,
             "a withdrawn paint callback should leave the layer painting the view unchanged",
-        )
+        ) { VIEW_FILL }
     }
 
     @Test
@@ -518,35 +516,9 @@ private fun LayerScope.FilledView() {
     }
 }
 
-/** The events the layer tagged [tag] observes, as the layer itself reports them. */
-private fun ComposeSwingTest.maskOf(tag: String): Long = onNodeWithTag(tag).fetch<JLayer<*>>().layerEventMask
-
 /** Every pixel of [image], row by row, as the packed ARGB values the assertions read. */
 private fun pixelsOf(image: BufferedImage): IntArray =
     image.getRGB(0, 0, image.width, image.height, null, 0, image.width)
-
-/** Whether every pixel of [image] in the rows [rows] is exactly [color]. */
-private fun rowsAre(
-    image: BufferedImage,
-    rows: IntRange,
-    color: Color,
-): Boolean = rows.all { y -> (0 until image.width).all { x -> image.getRGB(x, y) == color.rgb } }
-
-/** Fails unless [actual] holds the same pixels as [expected], reporting how many differ. */
-private fun assertSamePixels(
-    expected: BufferedImage,
-    actual: BufferedImage,
-) {
-    val expectedPixels = pixelsOf(expected)
-    val actualPixels = pixelsOf(actual)
-    val differing = expectedPixels.indices.count { expectedPixels[it] != actualPixels[it] }
-    assertEquals(
-        0,
-        differing,
-        "a layer whose paint callback is undeclared should paint its view exactly as the view paints itself " +
-            "($differing of ${expectedPixels.size} pixels differ)",
-    )
-}
 
 private fun alphaOf(pixel: Int): Int = (pixel shr 24) and 0xFF
 
@@ -572,10 +544,6 @@ private const val LAYER = "layer-under-test"
 private const val PLAIN = "plain-layer"
 private const val BARE = "bare-label"
 private const val VIEW = "layer-view"
-private const val MOUSE_ONLY = "mouse-only-layer"
-private const val MOUSE_AND_MOTION = "mouse-and-motion-layer"
-private const val WHEEL_ONLY = "wheel-only-layer"
-private const val PAINT_ONLY = "paint-only-layer"
 private const val VIEW_TEXT = "wrapped"
 private const val OPAQUE = 0xFF
 private val SIZE = Dimension(64, 48)

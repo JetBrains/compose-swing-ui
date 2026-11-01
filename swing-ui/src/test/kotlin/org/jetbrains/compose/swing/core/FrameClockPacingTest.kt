@@ -16,8 +16,6 @@ import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
-import java.awt.Container
-import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.math.abs
 import kotlin.test.Test
@@ -26,7 +24,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for the two cadences a composition runs on: recomposition, which follows the event
@@ -51,14 +48,16 @@ class FrameClockPacingTest {
                     Label(text = "n=$counter")
                     SideEffect { passes++ }
                 }
-            awaitUntil("the content mounts") { labelTextOrNull(composition) == "n=0" }
+            awaitUntil("the content mounts") { labelTexts(composition).singleOrNull() == "n=0" }
             val passesBefore = passes
 
             // No suspension point between the writes, so all of them are made while the event
             // dispatch thread is handling a single event, exactly as a Swing listener would.
             repeat(WRITES_PER_EVENT) { counter = it + 1 }
 
-            awaitUntil("the writes reach the widget") { labelTextOrNull(composition) == "n=$WRITES_PER_EVENT" }
+            awaitUntil("the writes reach the widget") {
+                labelTexts(composition).singleOrNull() == "n=$WRITES_PER_EVENT"
+            }
             delay(QUIET_PERIOD)
             assertEquals(
                 1,
@@ -79,13 +78,15 @@ class FrameClockPacingTest {
         var content: DisposableHandle? = null
         try {
             content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
-            awaitUntil("the content mounts") { labelTextOrNull(composition) == "v0" }
+            awaitUntil("the content mounts") { labelTexts(composition).singleOrNull() == "v0" }
 
             repeat(WRITES_TIMED) { round ->
                 val expected = "v${round + 1}"
                 text = expected
                 val cycles =
-                    cyclesUntil("write $expected reaches the widget") { labelTextOrNull(composition) == expected }
+                    cyclesUntil("write $expected reaches the widget") {
+                        labelTexts(composition).singleOrNull() == expected
+                    }
                 assertTrue(
                     cycles <= MAX_CYCLES_TO_APPLY,
                     "a write must apply on the cycles right after the event that made it, " +
@@ -102,7 +103,6 @@ class FrameClockPacingTest {
     fun anAnimationAdvancesAtTheClockCadenceRatherThanAsFastAsTheEventQueueTurns() = runSwingTest {
         val composition = JPanel()
         val recomposer = SwingRecomposer.create(composition)
-        val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
         var target by mutableStateOf(0f)
         val steps = mutableListOf<Float>()
         val frameNanos = mutableListOf<Long>()
@@ -110,7 +110,7 @@ class FrameClockPacingTest {
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target, cadenceFrames) { frameNanos += it }
+                    val fraction = linearRamp(target, RAMP_STEPS) { frameNanos += it }
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -124,7 +124,7 @@ class FrameClockPacingTest {
                 "the animation must advance in steps rather than snap to its target; it went $steps",
             )
             assertFramesSpanTheirCadence(recomposer.clock.frameDelayMillis, frameNanos)
-            assertEveryFrameAdvancedOneStep(steps, cadenceFrames)
+            assertEveryFrameAdvancedOneStep(steps)
         } finally {
             content?.dispose()
             recomposer.dispose()
@@ -135,7 +135,6 @@ class FrameClockPacingTest {
     fun aWriteLandingMidAnimationAppliesAtOnceAndTheAnimationNeitherSkipsNorJumps() = runSwingTest {
         val composition = JPanel()
         val recomposer = SwingRecomposer.create(composition)
-        val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
         var target by mutableStateOf(0f)
         var counter by mutableStateOf(0)
         val steps = mutableListOf<Float>()
@@ -144,7 +143,7 @@ class FrameClockPacingTest {
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target, cadenceFrames) { frameNanos += it }
+                    val fraction = linearRamp(target, RAMP_STEPS) { frameNanos += it }
                     Label(text = "n=$counter f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -161,7 +160,7 @@ class FrameClockPacingTest {
                     maxOf(
                         worstCycles,
                         cyclesUntil("write $writes reaches the widget") {
-                            labelTextOrNull(composition)?.startsWith("n=$writes ") == true
+                            labelTexts(composition).singleOrNull()?.startsWith("n=$writes ") == true
                         },
                     )
             }
@@ -173,7 +172,7 @@ class FrameClockPacingTest {
                     "the slowest took $worstCycles event-dispatch cycles",
             )
             assertFramesSpanTheirCadence(recomposer.clock.frameDelayMillis, frameNanos)
-            assertEveryFrameAdvancedOneStep(steps, cadenceFrames)
+            assertEveryFrameAdvancedOneStep(steps)
         } finally {
             content?.dispose()
             recomposer.dispose()
@@ -199,7 +198,7 @@ class FrameClockPacingTest {
                         }
                     }
                 }
-            awaitUntil("the content mounts") { labelTextOrNull(composition) == "n=0" }
+            awaitUntil("the content mounts") { labelTexts(composition).singleOrNull() == "n=0" }
             awaitUntil("the frame-driven work takes its first frame") { frameNanos.isNotEmpty() }
 
             var worstCycles = 0
@@ -209,7 +208,7 @@ class FrameClockPacingTest {
                     maxOf(
                         worstCycles,
                         cyclesUntil("write ${round + 1} reaches the widget") {
-                            labelTextOrNull(composition) == "n=${round + 1}"
+                            labelTexts(composition).singleOrNull() == "n=${round + 1}"
                         },
                     )
             }
@@ -256,7 +255,7 @@ class FrameClockPacingTest {
                         }
                     }
                 }
-            awaitUntil("the content mounts") { labelTextOrNull(composition) == "frames=0" }
+            awaitUntil("the content mounts") { labelTexts(composition).singleOrNull() == "frames=0" }
             // Read partway into the gap, while the effect is still waiting it out: a read taken at the
             // end of the gap races the first frame the effect then asks for, which a composition that
             // settles inside the event that woke it can win.
@@ -284,7 +283,7 @@ class FrameClockPacingTest {
         try {
             content =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    val fraction = linearRamp(target, ANIMATION_MILLIS / recomposer.clock.frameDelayMillis) {}
+                    val fraction = linearRamp(target, RAMP_STEPS) {}
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
@@ -362,17 +361,14 @@ class FrameClockPacingTest {
     }
 
     /**
-     * Asserts that each of [steps] after the first moved the ramp by one of its [stepCount] equal steps:
-     * no frame was skipped and none was served twice.
+     * Asserts that each of [steps] after the first moved the ramp by one of its [RAMP_STEPS] equal
+     * steps: no frame was skipped and none was served twice.
      */
-    private fun assertEveryFrameAdvancedOneStep(
-        steps: List<Float>,
-        stepCount: Int,
-    ) {
-        assertEquals(stepCount + 1, steps.size, "every frame's value must reach the composed widget")
+    private fun assertEveryFrameAdvancedOneStep(steps: List<Float>) {
+        assertEquals(RAMP_STEPS + 1, steps.size, "every frame must compose its own ramp value")
         assertTrue(
-            steps.zipWithNext().all { (previous, next) -> abs(next - previous - 1f / stepCount) <= 1e-4f },
-            "each step must be exactly one of $stepCount equal steps; it went $steps",
+            steps.zipWithNext().all { (previous, next) -> abs(next - previous - 1f / RAMP_STEPS) <= 1e-4f },
+            "each step must be exactly one of $RAMP_STEPS equal steps; it went $steps",
         )
     }
 
@@ -399,27 +395,6 @@ class FrameClockPacingTest {
         return cycles
     }
 
-    private suspend fun awaitUntil(
-        description: String,
-        condition: () -> Boolean,
-    ) {
-        cyclesUntil(description, condition)
-    }
-
-    /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
-    private fun labelTextOrNull(container: Container): String? {
-        val labels = mutableListOf<JLabel>()
-
-        fun visit(c: Container) {
-            for (child in c.components) {
-                if (child is JLabel) labels += child
-                if (child is Container) visit(child)
-            }
-        }
-        visit(container)
-        return labels.singleOrNull()?.text
-    }
-
     private companion object {
         const val WRITES_PER_EVENT: Int = 10
         const val WRITES_TIMED: Int = 20
@@ -430,7 +405,9 @@ class FrameClockPacingTest {
          * a handful of cycles - while a write held back to a frame interval spends thousands here.
          */
         const val MAX_CYCLES_TO_APPLY: Int = 50
-        const val ANIMATION_MILLIS: Int = 400
+
+        /** Steps the test ramp takes, one per frame the clock sends. */
+        const val RAMP_STEPS: Int = 25
 
         /**
          * The measured frame span must be at least one quarter of its nominal cadence span.
@@ -440,6 +417,5 @@ class FrameClockPacingTest {
         const val LATE_FRAMES: Int = 3
         val LATE_START = 300.milliseconds
         val QUIET_PERIOD = 200.milliseconds
-        val SETTLE_TIMEOUT = 10.seconds
     }
 }

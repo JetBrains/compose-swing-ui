@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -23,9 +24,7 @@ import javax.swing.text.html.HTMLDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -54,12 +53,11 @@ class EditorTextPaneTest {
             EditorPane(markup = "<h2>Title</h2><p>Body.</p>", onLinkActivate = {}, contentType = "text/html")
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch()
-        assertEquals("text/html", pane.contentType, "the pane renders through the kit its content type names")
-        assertIs<HTMLDocument>(pane.document, "text/html renders into an HTML document")
-        val rendered = pane.document.getText(0, pane.document.length)
-        assertTrue(rendered.contains("Title"), "the parsed markup keeps its text content")
-        assertFalse(rendered.contains("<h2>"), "the markup was parsed, not held as characters")
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty("text/html", "the pane renders through the kit its content type names") { contentType }
+        pane.assertProperty(true, "text/html renders into an HTML document") { document is HTMLDocument }
+        pane.assertProperty(true, "the parsed markup keeps its text content") { document.textContains("Title") }
+        pane.assertProperty(false, "the markup was parsed, not held as characters") { document.textContains("<h2>") }
     }
 
     @Test
@@ -69,7 +67,7 @@ class EditorTextPaneTest {
         }
 
         val pane = onNodeOfType<JEditorPane>()
-        assertEquals("text/plain", pane.fetch().contentType, "the pane renders its content type")
+        pane.assertProperty("text/plain", "the pane renders its content type") { contentType }
         pane.assertTextEquals("<h2>Title</h2>")
     }
 
@@ -80,18 +78,22 @@ class EditorTextPaneTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val pane = onNodeOfType<JEditorPane>().fetch()
-        assertTrue(pane.document.textContains("before"), "the pane renders the declared markup")
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty(true, "the pane renders the declared markup") { document.textContains("before") }
+        val paneBefore = onNodeOfType<JEditorPane>().fetch()
 
         markup = "<p>after</p>"
         awaitIdle()
 
-        assertTrue(pane.document.textContains("before"), "publishing a declaration is not itself what renders it")
+        pane.assertProperty(true, "publishing a declaration is not itself what renders it") {
+            document.textContains("before")
+        }
 
         mainClock.advanceTimeByFrame()
+        assertSame(paneBefore, onNodeOfType<JEditorPane>().fetch(), "the component is updated in place, not rebuilt")
 
-        assertTrue(pane.document.textContains("after"), "the pass declaring the markup should render it")
-        assertFalse(pane.document.textContains("before"), "the previous content is replaced")
+        pane.assertProperty(true, "the pass declaring the markup should render it") { document.textContains("after") }
+        pane.assertProperty(false, "the previous content is replaced") { document.textContains("before") }
     }
 
     @Test
@@ -105,17 +107,20 @@ class EditorTextPaneTest {
             )
         }
 
-        val plain = onNodeOfType<JEditorPane>().fetch().document.getText(0, 14)
-        assertEquals("<b>keep me</b>", plain, "plain text holds the markup as characters")
+        onNodeOfType<JEditorPane>().assertProperty("<b>keep me</b>", "plain text holds the markup as characters") {
+            document.getText(0, 14)
+        }
 
         // A content type brings the kit's own empty document with it, so the markup has to be rendered
         // into that document again even though the declaration itself did not change.
         html = true
         awaitIdle()
 
-        val pane = onNodeOfType<JEditorPane>().fetch()
-        assertEquals("text/html", pane.contentType, "the pane switches to the new content type")
-        assertTrue(pane.document.textContains("keep me"), "the markup is rendered under the new content type")
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty("text/html", "the pane switches to the new content type") { contentType }
+        pane.assertProperty(true, "the markup is rendered under the new content type") {
+            document.textContains("keep me")
+        }
     }
 
     @Test
@@ -143,9 +148,9 @@ class EditorTextPaneTest {
         }
 
         // The kit registry is keyed by media type alone, so the parameters are dropped before the lookup.
-        val pane = onNodeOfType<JEditorPane>().fetch()
-        assertIs<HTMLDocument>(pane.document, "the parameters name a charset, not another language")
-        assertTrue(pane.document.textContains("Title"), "the markup is rendered through the HTML kit")
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty(true, "the parameters name a charset, not another language") { document is HTMLDocument }
+        pane.assertProperty(true, "the markup is rendered through the HTML kit") { document.textContains("Title") }
     }
 
     @Test
@@ -245,19 +250,22 @@ class EditorTextPaneTest {
             )
         }
 
-        val document = onNodeOfType<JEditorPane>().fetch().document as HTMLDocument
-        assertNull(document.base, "without a base there is nothing for a relative href to resolve against")
+        onNodeOfType<JEditorPane>().assertProperty(
+            null,
+            "without a base there is nothing for a relative href to resolve against",
+        ) { assertIs<HTMLDocument>(document, "expected an HTML document").base }
 
         baseUrl = URI("https://example.org/reports/").toURL()
         awaitIdle()
 
-        val based = onNodeOfType<JEditorPane>().fetch().document as HTMLDocument
-        assertEquals(
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertProperty(
             "https://example.org/reports/",
-            based.base.toString(),
             "the declared base is what the document resolves against",
-        )
-        assertTrue(based.textContains("details"), "the markup is rendered again under the new base")
+        ) { assertIs<HTMLDocument>(document, "expected an HTML document").base.toString() }
+        pane.assertProperty(true, "the markup is rendered again under the new base") {
+            document.textContains("details")
+        }
     }
 
     @Test
@@ -286,11 +294,10 @@ class EditorTextPaneTest {
         baseUrl = URI("http://never-resolved.invalid/other/").toURL()
         awaitIdle()
         assertTrue(edits > 0, "changing only the baseUrl re-renders the document")
-        assertEquals(
+        onNodeOfType<JEditorPane>().assertProperty(
             "http://never-resolved.invalid/other/",
-            (onNodeOfType<JEditorPane>().fetch().document as HTMLDocument).base.toString(),
             "the new base is written into the document",
-        )
+        ) { assertIs<HTMLDocument>(this.document, "expected an HTML document").base.toString() }
     }
 
     @Test

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
@@ -16,6 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 
 /**
  * The class a field with no declared formatter factory edits in. `JFormattedTextField` derives its
@@ -54,29 +56,37 @@ class FormattedTextFieldValueClassTest {
         val moment = Date(0)
         var value by mutableStateOf(10 as Any?)
         setContent { FormattedTextField(value = value, onValueChange = {}) }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
+        val field = onNodeOfType<JFormattedTextField>()
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
 
         value = moment
         awaitIdle()
-
-        assertEquals(
-            DateFormat.getDateInstance().format(moment),
-            field.text,
-            "a date declared after a number should be rendered as a date",
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
         )
+
+        field.assertTextEquals(DateFormat.getDateInstance().format(moment))
     }
 
     @Test
     fun aNumberDeclaredAfterADateIsRenderedAsANumber() = runComposeSwingTest {
         var value by mutableStateOf(Date(0) as Any?)
         setContent { FormattedTextField(value = value, onValueChange = {}) }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
+        val field = onNodeOfType<JFormattedTextField>()
+        val fieldBefore = onNodeOfType<JFormattedTextField>().fetch()
 
         value = 10
         awaitIdle()
+        assertSame(
+            fieldBefore,
+            onNodeOfType<JFormattedTextField>().fetch(),
+            "the component is updated in place, not rebuilt",
+        )
 
-        assertEquals("10", field.text, "a number declared after a date should be rendered as a number")
-        assertEquals(10, field.value, "and the field should hold it")
+        field.assertTextEquals("10")
+        field.assertProperty(10, "and the field should hold it") { this.value }
     }
 
     @Test

@@ -4,8 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JTable
@@ -18,7 +23,7 @@ import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.assertSame
 
 /**
  * The selection callbacks of [Table], [ListBox] and [Tree] report user interaction only. Re-rendering
@@ -66,15 +71,15 @@ class SelectionFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(1), table.selectedRows.toList(), "declared selection applied")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(1), "declared selection applied") { selectedRows.toList() }
         received.clear()
 
         // A rows-only refresh: the column shape is unchanged, so only the data differs.
         rows[2] = Person("Grace Hopper", 50)
         awaitIdle()
 
-        assertEquals(listOf(1), table.selectedRows.toList(), "selection survives a rows-only refresh")
+        table.assertProperty(listOf(1), "selection survives a rows-only refresh") { selectedRows.toList() }
         assertEquals(setOf(1), selection, "controlled selection survives a rows-only refresh")
         assertEquals(emptyList(), received, "a rows-only refresh reported a selection change")
     }
@@ -124,13 +129,12 @@ class SelectionFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
         received.clear()
 
         selection = setOf(2)
         awaitIdle()
 
-        assertEquals(listOf(2), table.selectedRows.toList(), "declared selection applied")
+        onNodeOfType<JTable>().assertProperty(listOf(2), "declared selection applied") { selectedRows.toList() }
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
     }
 
@@ -150,15 +154,15 @@ class SelectionFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "declared selection applied")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(1), "declared selection applied") { selectedIndices.toList() }
         received.clear()
 
         items.add("violet")
         awaitIdle()
 
-        assertEquals(4, list.model.size, "the added item reached the list")
-        assertEquals(listOf(1), list.selectedIndices.toList(), "selection survives an items change")
+        list.assertProperty(4, "the added item reached the list") { model.size }
+        list.assertProperty(listOf(1), "selection survives an items change") { selectedIndices.toList() }
         assertEquals(setOf(1), selection, "controlled selection survives an items change")
         assertEquals(emptyList(), received, "an items change reported a selection change")
     }
@@ -175,13 +179,12 @@ class SelectionFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
         received.clear()
 
         selection = setOf(2)
         awaitIdle()
 
-        assertEquals(listOf(2), list.selectedIndices.toList(), "declared selection applied")
+        onNodeOfType<JList<*>>().assertProperty(listOf(2), "declared selection applied") { selectedIndices.toList() }
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
     }
 
@@ -201,14 +204,14 @@ class SelectionFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(1), list.selectedIndices.toList(), "declared selection applied")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(1), "declared selection applied") { selectedIndices.toList() }
         received.clear()
 
         model = listModel("cyan", "magenta")
         awaitIdle()
 
-        assertEquals(listOf(1), list.selectedIndices.toList(), "selection survives a model swap")
+        list.assertProperty(listOf(1), "selection survives a model swap") { selectedIndices.toList() }
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
@@ -257,54 +260,34 @@ class SelectionFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("pear"), tree.selectedLabels(), "declared selection applied")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("pear"), "declared selection applied") { selectedLabels() }
         received.clear()
 
         model = treeModel("trunk")
         awaitIdle()
 
-        assertEquals(listOf("pear"), tree.selectedLabels(), "selection survives a model swap")
+        tree.assertProperty(listOf("pear"), "selection survives a model swap") { selectedLabels() }
         assertEquals(setOf(listOf(1)), selection, "controlled selection survives a model swap")
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
-    @Test
-    fun itemsTooFewForTheListSelectionReportTheNarrowing() = runComposeSwingTest {
-        var items by mutableStateOf(listOf("red", "green", "blue", "violet"))
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("listSelectionLossCases")
+    fun itemsThatLoseListRowsReportTheNewSelection(case: ListSelectionLossCase) = runComposeSwingTest {
+        var items by mutableStateOf(case.initial)
         val received = mutableListOf<Set<Int>>()
-        setContent {
-            ListBox(items = items, onSelectionChange = { received += it })
-        }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.selectionModel.setSelectionInterval(1, 3)
+        setContent { ListBox(items = items, onSelectionChange = { received += it }) }
+        val list = onNodeOfType<JList<*>>()
+        list.fetch().selectionModel.setSelectionInterval(case.selection.first, case.selection.last)
         received.clear()
-
-        items = listOf("red", "green")
+        items = case.remaining
         awaitIdle()
-
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the rows the new items still hold stay selected")
-        assertEquals(listOf(setOf(1)), received, "the rows the user loses are reported once, as the new selection")
-    }
-
-    @Test
-    fun itemsThatHoldNoneOfTheListSelectionReportTheLoss() = runComposeSwingTest {
-        var items by mutableStateOf(listOf("red", "green", "blue"))
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            ListBox(items = items, onSelectionChange = { received += it })
-        }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.selectionModel.setSelectionInterval(2, 2)
-        received.clear()
-
-        items = listOf("red")
-        awaitIdle()
-
-        assertEquals(emptyList(), list.selectedIndices.toList(), "no row of the old selection is left to select")
-        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
+        list.assertProperty(
+            case.outcome.expected,
+            "${case.name}: ${case.outcome.selectionMessage}",
+        ) { selectedIndices.toList() }
+        assertEquals(case.outcome.reported, received, "${case.name}: ${case.outcome.reportMessage}")
     }
 
     @Test
@@ -315,14 +298,14 @@ class SelectionFeedbackTest {
             ListBox(model = model, onSelectionChange = { received += it })
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.selectionModel.setSelectionInterval(1, 2)
+        val list = onNodeOfType<JList<*>>()
+        list.fetch().selectionModel.setSelectionInterval(1, 2)
         received.clear()
 
         model = listModel("cyan", "magenta")
         awaitIdle()
 
-        assertEquals(listOf(1), list.selectedIndices.toList(), "the row the new model still holds stays selected")
+        list.assertProperty(listOf(1), "the row the new model still holds stays selected") { selectedIndices.toList() }
         assertEquals(listOf(setOf(1)), received, "the rows the user loses are reported once, as the new selection")
     }
 
@@ -342,14 +325,17 @@ class SelectionFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(2), list.selectedIndices.toList(), "the declared row reaches the list")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(2), "the declared row reaches the list") { selectedIndices.toList() }
         received.clear()
 
         items = listOf("red", "green")
         awaitIdle()
 
-        assertEquals(emptyList(), list.selectedIndices.toList(), "the new items hold none of the declared selection")
+        list.assertProperty(
+            emptyList(),
+            "the new items hold none of the declared selection",
+        ) { selectedIndices.toList() }
         assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "an items change reported the wrapper's own write")
     }
@@ -370,54 +356,36 @@ class SelectionFeedbackTest {
             )
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        assertEquals(listOf(2), list.selectedIndices.toList(), "the declared row reaches the list")
+        val list = onNodeOfType<JList<*>>()
+        list.assertProperty(listOf(2), "the declared row reaches the list") { selectedIndices.toList() }
         received.clear()
 
         model = listModel("cyan", "magenta")
         awaitIdle()
 
-        assertEquals(emptyList(), list.selectedIndices.toList(), "the new model holds none of the declared selection")
+        list.assertProperty(
+            emptyList(),
+            "the new model holds none of the declared selection",
+        ) { selectedIndices.toList() }
         assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
 
-    @Test
-    fun rowsTooFewForTheTableSelectionReportTheNarrowing() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tableSelectionLossCases")
+    fun rowsThatLoseTableRowsReportTheNewSelection(case: TableSelectionLossCase) = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
         val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = rows, columns = { column("Name") { it.name } }, onSelectionChange = { received += it })
         }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(0, 2)
+        val table = onNodeOfType<JTable>()
+        table.fetch().selectionModel.setSelectionInterval(case.first, 2)
         received.clear()
-
-        rows = listOf(Person("Ada", 36), Person("Alan", 41))
+        rows = case.remaining
         awaitIdle()
-
-        assertEquals(listOf(0, 1), table.selectedRows.toList(), "the rows the new data still holds stay selected")
-        assertEquals(listOf(setOf(0, 1)), received, "the rows the user loses are reported once, as the new selection")
-    }
-
-    @Test
-    fun rowsThatHoldNoneOfTheTableSelectionReportTheLoss() = runComposeSwingTest {
-        var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            Table(rows = rows, columns = { column("Name") { it.name } }, onSelectionChange = { received += it })
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(2, 2)
-        received.clear()
-
-        rows = listOf(Person("Ada", 36))
-        awaitIdle()
-
-        assertEquals(emptyList(), table.selectedRows.toList(), "no row of the old selection is left to select")
-        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
+        table.assertProperty(case.outcome.expected, case.outcome.selectionMessage) { selectedRows.toList() }
+        assertEquals(case.outcome.reported, received, "${case.name}: ${case.outcome.reportMessage}")
     }
 
     @Test
@@ -428,14 +396,14 @@ class SelectionFeedbackTest {
             Table(model = model, onSelectionChange = { received += it })
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(0, 2)
+        val table = onNodeOfType<JTable>()
+        table.fetch().selectionModel.setSelectionInterval(0, 2)
         received.clear()
 
         model = tableModel("Ada", "Alan")
         awaitIdle()
 
-        assertEquals(listOf(0, 1), table.selectedRows.toList(), "the rows the new model still holds stay selected")
+        table.assertProperty(listOf(0, 1), "the rows the new model still holds stay selected") { selectedRows.toList() }
         assertEquals(listOf(setOf(0, 1)), received, "the rows the user loses are reported once, as the new selection")
     }
 
@@ -456,14 +424,14 @@ class SelectionFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(2), table.selectedRows.toList(), "the declared row reaches the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(2), "the declared row reaches the table") { selectedRows.toList() }
         received.clear()
 
         rows = listOf(Person("Ada", 36), Person("Alan", 41))
         awaitIdle()
 
-        assertEquals(emptyList(), table.selectedRows.toList(), "the new rows hold none of the declared selection")
+        table.assertProperty(emptyList(), "the new rows hold none of the declared selection") { selectedRows.toList() }
         assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a rows change reported the wrapper's own write")
     }
@@ -484,14 +452,17 @@ class SelectionFeedbackTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(listOf(2), table.selectedRows.toList(), "the declared row reaches the table")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(listOf(2), "the declared row reaches the table") { selectedRows.toList() }
         received.clear()
 
         model = tableModel("Ada", "Alan")
         awaitIdle()
 
-        assertEquals(emptyList(), table.selectedRows.toList(), "the new model holds none of the declared selection")
+        table.assertProperty(
+            emptyList(),
+            "the new model holds none of the declared selection",
+        ) { selectedRows.toList() }
         assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
@@ -558,14 +529,14 @@ class SelectionFeedbackTest {
             Tree(model = model, onSelectionChange = { received += it })
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        tree.selectionPaths = arrayOf(tree.pathTo(0), tree.pathTo(1))
+        val tree = onNodeOfType<JTree>()
+        tree.fetch().selectionPaths = arrayOf(tree.fetch().pathTo(0), tree.fetch().pathTo(1))
         received.clear()
 
         model = treeModel("root", leafCount = 1)
         awaitIdle()
 
-        assertEquals(listOf("apple"), tree.selectedLabels(), "the node the new model still holds stays selected")
+        tree.assertProperty(listOf("apple"), "the node the new model still holds stays selected") { selectedLabels() }
         assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
@@ -616,14 +587,14 @@ class SelectionFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("pear"), tree.selectedLabels(), "the declared node reaches the tree")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("pear"), "the declared node reaches the tree") { selectedLabels() }
         received.clear()
 
         model = treeModel("trunk", leafCount = 1)
         awaitIdle()
 
-        assertEquals(emptyList(), tree.selectedLabels(), "the new model holds none of the declared selection")
+        tree.assertProperty(emptyList(), "the new model holds none of the declared selection") { selectedLabels() }
         assertEquals(setOf(listOf(1)), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
@@ -641,14 +612,14 @@ class SelectionFeedbackTest {
             )
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(listOf("apple"), tree.selectedLabels(), "declared selection applied")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(listOf("apple"), "declared selection applied") { selectedLabels() }
         received.clear()
 
         selection = setOf(listOf(1))
         awaitIdle()
 
-        assertEquals(listOf("pear"), tree.selectedLabels(), "the new declared selection applied")
+        tree.assertProperty(listOf("pear"), "the new declared selection applied") { selectedLabels() }
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
     }
 
@@ -656,7 +627,8 @@ class SelectionFeedbackTest {
     fun aListenerThatFailsOnTheListNarrowingReportLeavesLaterItemsApplied() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green", "blue"))
         var failing by mutableStateOf(false)
-        val listener = ListSelectionListener { if (failing) error("the list narrowing report fails") }
+        val failure = IllegalStateException("the list narrowing report fails")
+        val listener = ListSelectionListener { if (failing) throw failure }
         setContent {
             ListBox(items = items, listSelectionListener = listener)
         }
@@ -667,10 +639,10 @@ class SelectionFeedbackTest {
         failing = true
         // Shrinking below the selected row is what makes the narrowing reach this listener.
         items = listOf("red")
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertTrue(
-            "the list narrowing report fails" in failure.message.orEmpty(),
-            "the reported failure should be the narrowing report's own, but was: $failure",
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> { awaitIdle() },
+            "the reported failure is the narrowing report's own",
         )
         awaitIdle()
         assertEquals(emptyList(), list.selectedIndices.toList(), "no row of the old selection is left to select")
@@ -686,7 +658,8 @@ class SelectionFeedbackTest {
     fun aListenerThatFailsOnTheTreeNarrowingReportLeavesLaterStructureApplied() = runComposeSwingTest {
         var leafCount by mutableStateOf(2)
         var failing by mutableStateOf(false)
-        val listener = TreeSelectionListener { if (failing) error("the tree narrowing report fails") }
+        val failure = IllegalStateException("the tree narrowing report fails")
+        val listener = TreeSelectionListener { if (failing) throw failure }
         setContent {
             Tree(
                 root = "root of $leafCount",
@@ -701,10 +674,10 @@ class SelectionFeedbackTest {
         failing = true
         // Dropping every leaf is what makes the narrowing reach this listener.
         leafCount = 0
-        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertTrue(
-            "the tree narrowing report fails" in failure.message.orEmpty(),
-            "the reported failure should be the narrowing report's own, but was: $failure",
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> { awaitIdle() },
+            "the reported failure is the narrowing report's own",
         )
         awaitIdle()
         assertEquals(emptyList(), tree.selectedLabels(), "no node of the old selection is left to select")
@@ -719,4 +692,102 @@ class SelectionFeedbackTest {
             "a later declared structure change must still reach the tree",
         )
     }
+
+    companion object {
+        @JvmStatic
+        fun listSelectionLossCases(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of(
+                    "partial loss",
+                    ListSelectionLossCase(
+                        "partial loss",
+                        listOf("red", "green", "blue", "violet"),
+                        listOf("red", "green"),
+                        1..3,
+                        SelectionLossOutcome(
+                            listOf(1),
+                            listOf(setOf(1)),
+                            "the rows the new items still hold stay selected",
+                            "the rows the user loses are reported once, as the new selection",
+                        ),
+                    ),
+                ),
+            ),
+            Arguments.of(
+                Named.of(
+                    "total loss",
+                    ListSelectionLossCase(
+                        "total loss",
+                        listOf("red", "green", "blue"),
+                        listOf("red"),
+                        2..2,
+                        SelectionLossOutcome(
+                            emptyList<Int>(),
+                            listOf(emptySet<Int>()),
+                            "no row of the old selection is left to select",
+                            "losing the whole selection is reported once",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        @JvmStatic
+        fun tableSelectionLossCases(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of(
+                    "partial loss",
+                    TableSelectionLossCase(
+                        "partial loss",
+                        listOf(Person("Ada", 36), Person("Alan", 41)),
+                        0,
+                        SelectionLossOutcome(
+                            listOf(0, 1),
+                            listOf(setOf(0, 1)),
+                            "the rows the new data still holds stay selected",
+                            "the rows the user loses are reported once, as the new selection",
+                        ),
+                    ),
+                ),
+            ),
+            Arguments.of(
+                Named.of(
+                    "total loss",
+                    TableSelectionLossCase(
+                        "total loss",
+                        listOf(Person("Ada", 36)),
+                        2,
+                        SelectionLossOutcome(
+                            emptyList<Int>(),
+                            listOf(emptySet<Int>()),
+                            "no row of the old selection is left to select",
+                            "losing the whole selection is reported once",
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
 }
+
+class ListSelectionLossCase(
+    val name: String,
+    val initial: List<String>,
+    val remaining: List<String>,
+    val selection: IntRange,
+    val outcome: SelectionLossOutcome,
+)
+
+class TableSelectionLossCase internal constructor(
+    val name: String,
+    internal val remaining: List<Person>,
+    val first: Int,
+    val outcome: SelectionLossOutcome,
+)
+
+class SelectionLossOutcome(
+    val expected: List<Int>,
+    val reported: List<Set<Int>>,
+    val selectionMessage: String,
+    val reportMessage: String,
+)

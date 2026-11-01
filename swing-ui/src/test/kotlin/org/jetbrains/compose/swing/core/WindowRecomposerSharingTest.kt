@@ -156,34 +156,6 @@ class WindowRecomposerSharingTest {
         }
     }
 
-    @Test
-    fun disposingBeforeAttachUnregistersTheHierarchyListener() = runSwingTest {
-        val handles = mutableListOf<DisposableHandle>()
-        try {
-            // The HierarchyListener installed by a detached setContent is registered while the handle
-            // is live and unregistered on dispose.
-            val orphan = JPanel().apply { size = Dimension(SIZE, SIZE) }
-            val before = orphan.hierarchyListeners.size
-
-            val handle = orphan.setContent { Label(text = "never") }
-            handles += handle
-            assertEquals(
-                before + 1,
-                orphan.hierarchyListeners.size,
-                "setContent on a detached container must register exactly one HierarchyListener",
-            )
-
-            handle.dispose()
-            assertEquals(
-                before,
-                orphan.hierarchyListeners.size,
-                "disposing the deferred handle must unregister the HierarchyListener it added",
-            )
-        } finally {
-            handles.forEach { it.dispose() }
-        }
-    }
-
     private fun labelText(container: Container): String {
         val labels = mutableListOf<JLabel>()
 

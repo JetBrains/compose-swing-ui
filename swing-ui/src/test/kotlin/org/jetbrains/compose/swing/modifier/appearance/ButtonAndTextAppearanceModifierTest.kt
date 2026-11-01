@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
@@ -31,6 +32,7 @@ import javax.swing.plaf.nimbus.NimbusLookAndFeel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -62,10 +64,10 @@ class ButtonAndTextAppearanceModifierTest {
             )
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertFalse(button.isBorderPainted, "borderPainted")
-        assertFalse(button.isContentAreaFilled, "contentAreaFilled")
-        assertFalse(button.isFocusPainted, "focusPainted")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(false, "borderPainted") { isBorderPainted }
+        button.assertProperty(false, "contentAreaFilled") { isContentAreaFilled }
+        button.assertProperty(false, "focusPainted") { isFocusPainted }
     }
 
     @Test
@@ -75,13 +77,13 @@ class ButtonAndTextAppearanceModifierTest {
             Button("Save", onClick = { }, modifier = if (flat) SwingModifier.borderPainted(false) else SwingModifier)
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertFalse(button.isBorderPainted, "the flag applies while declared")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(false, "the flag applies while declared") { isBorderPainted }
 
         flat = false
         awaitIdle()
 
-        assertTrue(button.isBorderPainted, "dropping it restores the button's own painting")
+        button.assertProperty(true, "dropping it restores the button's own painting") { isBorderPainted }
     }
 
     @Test
@@ -92,8 +94,8 @@ class ButtonAndTextAppearanceModifierTest {
                 Button("Save", onClick = { }, modifier = SwingModifier.opaque(true).contentAreaFilled(filled))
             }
 
-            val button = onNodeOfType<JButton>().fetch()
-            assertTrue(button.isOpaque, "the declared flag is what the button carries")
+            val button = onNodeOfType<JButton>()
+            button.assertProperty(true, "the declared flag is what the button carries") { isOpaque }
 
             filled = false
             awaitIdle()
@@ -101,7 +103,10 @@ class ButtonAndTextAppearanceModifierTest {
             // A look and feel's button listener writes the opaque flag from the fill every time the fill
             // changes. Only the fill is declared anew on this pass, so nothing rewrites the flag unless
             // the declaration answers the button's own change.
-            assertTrue(button.isOpaque, "the declared flag stands after the look and feel answers the new fill")
+            button.assertProperty(
+                true,
+                "the declared flag stands after the look and feel answers the new fill",
+            ) { isOpaque }
         }
     }
 
@@ -120,15 +125,15 @@ class ButtonAndTextAppearanceModifierTest {
                 )
             }
 
-            val button = onNodeOfType<JButton>().fetch()
-            assertTrue(button.isOpaque, "the declared flag is what the button carries")
+            val button = onNodeOfType<JButton>()
+            button.assertProperty(true, "the declared flag is what the button carries") { isOpaque }
 
             declared = false
             awaitIdle()
 
             // A look and feel keeps the flag in step with the fill, so the flag a button holds while
             // they agree is that rule's and not its own to hand back.
-            assertFalse(button.isOpaque, "dropping the flag leaves the button at the fill it declares")
+            button.assertProperty(false, "dropping the flag leaves the button at the fill it declares") { isOpaque }
         }
     }
 
@@ -145,17 +150,17 @@ class ButtonAndTextAppearanceModifierTest {
                 )
             }
 
-            val button = onNodeOfType<JButton>().fetch()
-            assertFalse(button.isContentAreaFilled, "the declared fill is what the button carries")
-            assertFalse(button.isOpaque, "the button is left at the flag it carried")
+            val button = onNodeOfType<JButton>()
+            button.assertProperty(false, "the declared fill is what the button carries") { isContentAreaFilled }
+            button.assertProperty(false, "the button is left at the flag it carried") { isOpaque }
 
             declared = false
             awaitIdle()
 
-            assertTrue(button.isContentAreaFilled, "dropping the fill restores the one the button had")
+            button.assertProperty(true, "dropping the fill restores the one the button had") { isContentAreaFilled }
             // Putting the fill back writes the flag kept in step with it, so the flag is put back
             // after it.
-            assertFalse(button.isOpaque, "the flag nothing declares is left where the button carried it")
+            button.assertProperty(false, "the flag nothing declares is left where the button carried it") { isOpaque }
         }
     }
 
@@ -206,9 +211,9 @@ class ButtonAndTextAppearanceModifierTest {
                 )
             }
 
-            val button = onNodeOfType<JButton>().fetch()
-            assertTrue(button.isContentAreaFilled, "the button starts filled")
-            assertFalse(button.isOpaque, "and transparent, which is not the flag the fill implies")
+            val button = onNodeOfType<JButton>()
+            button.assertProperty(true, "the button starts filled") { isContentAreaFilled }
+            button.assertProperty(false, "and transparent, which is not the flag the fill implies") { isOpaque }
 
             // The flag is declared first, so the fill joins the modifier over a flag that already stands
             // written. What the fill puts back has to be the flag the button came with, not that one.
@@ -221,8 +226,8 @@ class ButtonAndTextAppearanceModifierTest {
             fill = false
             awaitIdle()
 
-            assertTrue(button.isContentAreaFilled, "dropping the fill restores the one the button had")
-            assertFalse(button.isOpaque, "and the flag it came with rather than the one that fill implies")
+            button.assertProperty(true, "dropping the fill restores the one the button had") { isContentAreaFilled }
+            button.assertProperty(false, "and the flag it came with rather than the one that fill implies") { isOpaque }
         }
     }
 
@@ -295,8 +300,8 @@ class ButtonAndTextAppearanceModifierTest {
             ToolBar(modifier = SwingModifier.borderPainted(false), floatable = false)
         }
 
-        assertFalse(onNodeOfType<JProgressBar>().fetch().isBorderPainted, "progress bar")
-        assertFalse(onNodeOfType<JToolBar>().fetch().isBorderPainted, "tool bar")
+        onNodeOfType<JProgressBar>().assertProperty(false, "progress bar") { isBorderPainted }
+        onNodeOfType<JToolBar>().assertProperty(false, "tool bar") { isBorderPainted }
     }
 
     @Test
@@ -314,11 +319,11 @@ class ButtonAndTextAppearanceModifierTest {
             )
         }
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(Color.RED, field.caretColor, "caretColor")
-        assertEquals(Color.GREEN, field.selectionColor, "selectionColor")
-        assertEquals(Color.BLUE, field.selectedTextColor, "selectedTextColor")
-        assertEquals(Color.GRAY, field.disabledTextColor, "disabledTextColor")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(Color.RED, "caretColor") { caretColor }
+        field.assertProperty(Color.GREEN, "selectionColor") { selectionColor }
+        field.assertProperty(Color.BLUE, "selectedTextColor") { selectedTextColor }
+        field.assertProperty(Color.GRAY, "disabledTextColor") { disabledTextColor }
     }
 
     @Test
@@ -326,13 +331,13 @@ class ButtonAndTextAppearanceModifierTest {
         var color by mutableStateOf(Color.RED)
         setContent { TextField(value = "", onValueChange = {}, modifier = SwingModifier.caretColor(color)) }
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(Color.RED, field.caretColor, "the declared color")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(Color.RED, "the declared color") { caretColor }
 
         color = Color.BLUE
         awaitIdle()
 
-        assertEquals(Color.BLUE, field.caretColor, "the color follows its state")
+        field.assertProperty(Color.BLUE, "the color follows its state") { caretColor }
     }
 
     @Test
@@ -368,28 +373,32 @@ class ButtonAndTextAppearanceModifierTest {
             TextField(value = "", onValueChange = {}, modifier = SwingModifier.margin(margin))
         }
 
-        assertEquals(margin, onNodeOfType<JButton>().fetch().margin, "button")
-        assertEquals(margin, onNodeOfType<JTextField>().fetch().margin, "field")
+        onNodeOfType<JButton>().assertProperty(margin, "button") { this.margin }
+        onNodeOfType<JTextField>().assertProperty(margin, "field") { this.margin }
     }
 
     @Test
     fun droppingAMarginRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
+        val declaredMargin = Insets(9, 9, 9, 9)
+        // A button built the plain Swing way carries the look and feel's margin.
+        val lookAndFeelsMargin = JButton().margin
+        assertNotEquals(declaredMargin, lookAndFeelsMargin, "the declared margin must differ from the look and feel's")
         var inset by mutableStateOf(true)
         setContent {
             Button(
                 "Save",
                 onClick = { },
-                modifier = if (inset) SwingModifier.margin(Insets(9, 9, 9, 9)) else SwingModifier,
+                modifier = if (inset) SwingModifier.margin(declaredMargin) else SwingModifier,
             )
         }
 
-        val button = onNodeOfType<JButton>().fetch()
-        assertEquals(Insets(9, 9, 9, 9), button.margin, "the margin applies while declared")
+        val button = onNodeOfType<JButton>()
+        button.assertProperty(declaredMargin, "the margin applies while declared") { margin }
 
         inset = false
         awaitIdle()
 
-        assertTrue(button.margin != Insets(9, 9, 9, 9), "dropping it restores the look and feel's margin")
+        button.assertProperty(lookAndFeelsMargin, "dropping it restores the look and feel's margin") { margin }
     }
 
     @Test
@@ -428,10 +437,10 @@ class ButtonAndTextAppearanceModifierTest {
                     modifier = SwingModifier.contentAreaFilled(false),
                 )
             }
-            val button = onNodeOfType<JButton>().fetch()
-            val box = onNodeOfType<JCheckBox>().fetch()
-            assertTrue(button.isContentAreaFilled, "the button shows the declared fill")
-            assertFalse(box.isContentAreaFilled, "the check box shows the declared fill")
+            val button = onNodeOfType<JButton>()
+            val box = onNodeOfType<JCheckBox>()
+            button.assertProperty(true, "the button shows the declared fill") { isContentAreaFilled }
+            box.assertProperty(false, "the check box shows the declared fill") { isContentAreaFilled }
 
             // A Synth look and feel installs this property, filling the content area unless a default
             // answers otherwise, so both components are offered an answer of their own.
@@ -440,8 +449,8 @@ class ButtonAndTextAppearanceModifierTest {
                 SwingUtilities.updateComponentTreeUI(root)
             }
 
-            assertFalse(button.isContentAreaFilled, "nothing was written, so the look and feel answers")
-            assertFalse(box.isContentAreaFilled, "the declared fill outlasts a look and feel that fills")
+            button.assertProperty(false, "nothing was written, so the look and feel answers") { isContentAreaFilled }
+            box.assertProperty(false, "the declared fill outlasts a look and feel that fills") { isContentAreaFilled }
         }
     }
 
@@ -459,10 +468,10 @@ class ButtonAndTextAppearanceModifierTest {
                     modifier = SwingModifier.iconTextGap(DECLARED_GAP),
                 )
             }
-            val button = onNodeOfType<JButton>().fetch()
-            val box = onNodeOfType<JCheckBox>().fetch()
-            assertEquals(INSTALLED_GAP, button.iconTextGap, "the button shows the declared gap")
-            assertEquals(DECLARED_GAP, box.iconTextGap, "the check box shows the declared gap")
+            val button = onNodeOfType<JButton>()
+            val box = onNodeOfType<JCheckBox>()
+            button.assertProperty(INSTALLED_GAP, "the button shows the declared gap") { iconTextGap }
+            box.assertProperty(DECLARED_GAP, "the check box shows the declared gap") { iconTextGap }
 
             // A Synth look and feel takes this gap from a default of its own, so both components are
             // offered a gap neither of them declared.
@@ -474,8 +483,8 @@ class ButtonAndTextAppearanceModifierTest {
                 SwingUtilities.updateComponentTreeUI(root)
             }
 
-            assertEquals(CHANGED_GAP, button.iconTextGap, "nothing was written, so the look and feel answers")
-            assertEquals(DECLARED_GAP, box.iconTextGap, "the declared gap outlasts the look and feel's own")
+            button.assertProperty(CHANGED_GAP, "nothing was written, so the look and feel answers") { iconTextGap }
+            box.assertProperty(DECLARED_GAP, "the declared gap outlasts the look and feel's own") { iconTextGap }
         }
     }
 

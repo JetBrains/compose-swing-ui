@@ -1,14 +1,17 @@
 package org.jetbrains.compose.swing.components.text
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import javax.swing.JFormattedTextField
-import javax.swing.JPasswordField
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import kotlin.test.Test
@@ -25,141 +28,88 @@ class TextSizeHintsTest {
     @Test
     fun aFieldIsBuiltWithTheColumnsItIsGiven() = runComposeSwingTest {
         setContent {
-            TextField(value = "", onValueChange = {}, columns = WIDE_COLUMNS)
+            TextField(value = "", onValueChange = {}, columns = 28)
         }
 
-        assertEquals(WIDE_COLUMNS, onNodeOfType<JTextField>().fetch().columns)
+        onNodeOfType<JTextField>().assertProperty(28) { columns }
     }
 
-    @Test
-    fun aFieldFollowsItsColumnsAfterTheFirstComposition() = runComposeSwingTest {
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            TextField(value = "", onValueChange = {}, columns = columns)
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("fieldCases")
+    fun aFieldFollowsItsColumns(content: @Composable (Int) -> Unit) = runComposeSwingTest {
+        var columns by mutableIntStateOf(8)
+        setContent { content(columns) }
 
         val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(8, field.columns, "the field should be built with the columns it is given")
         val widthBefore = field.preferredSize.width
-
-        columns = WIDE_COLUMNS
+        columns = 28
         awaitIdle()
-
-        assertEquals(WIDE_COLUMNS, field.columns)
+        assertEquals(28, field.columns, "the field should follow its columns")
         // The size a parent would give the field is derived from the hint, so it moves with it.
-        assertTrue(field.preferredSize.width > widthBefore, "the field should ask for a wider size")
-    }
-
-    @Test
-    fun aStateDrivenFieldFollowsItsColumns() = runComposeSwingTest {
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            TextField(state = rememberDocumentState(), columns = columns)
-        }
-
-        val field = onNodeOfType<JTextField>().fetch()
-        val widthBefore = field.preferredSize.width
-
-        columns = WIDE_COLUMNS
-        awaitIdle()
-
-        assertEquals(WIDE_COLUMNS, field.columns)
         assertTrue(field.preferredSize.width > widthBefore, "the field should ask for a wider size")
     }
 
     @Test
     fun anAreaIsBuiltWithTheRowsAndColumnsItIsGiven() = runComposeSwingTest {
         setContent {
-            TextArea(value = "", onValueChange = {}, rows = TALL_ROWS, columns = WIDE_COLUMNS)
+            TextArea(value = "", onValueChange = {}, rows = 12, columns = 28)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(TALL_ROWS, area.rows, "rows")
-        assertEquals(WIDE_COLUMNS, area.columns, "columns")
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(12, "rows") { rows }
+        area.assertProperty(28, "columns") { columns }
     }
 
-    @Test
-    fun anAreaFollowsItsRowsAndColumnsAfterTheFirstComposition() = runComposeSwingTest {
-        var rows by mutableIntStateOf(SHORT_ROWS)
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            TextArea(value = "", onValueChange = {}, rows = rows, columns = columns)
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("areaCases")
+    fun anAreaFollowsItsRowsAndColumns(content: @Composable (Int, Int) -> Unit) = runComposeSwingTest {
+        var rows by mutableIntStateOf(2)
+        var columns by mutableIntStateOf(8)
+        setContent { content(rows, columns) }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        val sizeBefore = area.preferredSize
-
-        rows = TALL_ROWS
-        columns = WIDE_COLUMNS
+        val area = onNodeOfType<JTextArea>()
+        val sizeBefore = area.fetch().preferredSize
+        rows = 12
+        columns = 28
         awaitIdle()
-
-        assertEquals(TALL_ROWS, area.rows, "rows")
-        assertEquals(WIDE_COLUMNS, area.columns, "columns")
+        area.assertProperty(12, "rows") { this.rows }
+        area.assertProperty(28, "columns") { this.columns }
         // Only growth is asserted: an area's preferred size is the larger of its hint and its content.
-        assertTrue(area.preferredSize.height > sizeBefore.height, "the area should ask for a taller size")
-        assertTrue(area.preferredSize.width > sizeBefore.width, "the area should ask for a wider size")
+        area.assertProperty(true, "the area should ask for a taller size") { preferredSize.height > sizeBefore.height }
+        area.assertProperty(true, "the area should ask for a wider size") { preferredSize.width > sizeBefore.width }
     }
 
-    @Test
-    fun aStateDrivenAreaFollowsItsRowsAndColumns() = runComposeSwingTest {
-        var rows by mutableIntStateOf(SHORT_ROWS)
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            TextArea(state = rememberDocumentState(), rows = rows, columns = columns)
-        }
+    companion object {
+        @JvmStatic
+        fun fieldCases(): List<Named<@Composable (Int) -> Unit>> = listOf(
+            Named.of("TextField", { columns -> TextField(value = "", onValueChange = {}, columns = columns) }),
+            Named.of("state-driven TextField", { columns ->
+                TextField(state = rememberDocumentState(), columns = columns)
+            }),
+            Named.of("FormattedTextField", { columns ->
+                FormattedTextField(value = null, onValueChange = {}, columns = columns)
+            }),
+            Named.of("PasswordField", { columns ->
+                PasswordField(value = CharArray(0), onValueChange = {}, columns = columns)
+            }),
+        )
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        val heightBefore = area.preferredSize.height
-        val widthBefore = area.preferredSize.width
-
-        rows = TALL_ROWS
-        columns = WIDE_COLUMNS
-        awaitIdle()
-
-        assertEquals(TALL_ROWS, area.rows)
-        assertEquals(WIDE_COLUMNS, area.columns)
-        assertTrue(area.preferredSize.height > heightBefore, "the area should ask for a taller size")
-        assertTrue(area.preferredSize.width > widthBefore, "the area should ask for a wider size")
-    }
-
-    @Test
-    fun aFormattedFieldFollowsItsColumns() = runComposeSwingTest {
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            FormattedTextField(value = null, onValueChange = {}, columns = columns)
-        }
-
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals(NARROW_COLUMNS, field.columns, "the field should be built with the columns it is given")
-        val widthBefore = field.preferredSize.width
-
-        columns = WIDE_COLUMNS
-        awaitIdle()
-
-        assertEquals(WIDE_COLUMNS, field.columns)
-        assertTrue(field.preferredSize.width > widthBefore, "the field should ask for a wider size")
-    }
-
-    @Test
-    fun aPasswordFieldFollowsItsColumns() = runComposeSwingTest {
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
-        setContent {
-            PasswordField(value = CharArray(0), onValueChange = {}, columns = columns)
-        }
-
-        val field = onNodeOfType<JPasswordField>().fetch()
-        val widthBefore = field.preferredSize.width
-
-        columns = WIDE_COLUMNS
-        awaitIdle()
-
-        assertEquals(WIDE_COLUMNS, field.columns)
-        assertTrue(field.preferredSize.width > widthBefore, "the field should ask for a wider size")
+        @JvmStatic
+        fun areaCases(): List<Named<@Composable (Int, Int) -> Unit>> = listOf(
+            Named.of("TextArea", { rows, columns ->
+                TextArea(value = "", onValueChange = {}, rows = rows, columns = columns)
+            }),
+            Named.of("state-driven TextArea", { rows, columns ->
+                TextArea(state = rememberDocumentState(), rows = rows, columns = columns)
+            }),
+        )
     }
 
     @Test
     fun aReactivatedFieldAdoptsTheColumnsItWasGivenWhileParked() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        var columns by mutableIntStateOf(NARROW_COLUMNS)
+        var columns by mutableIntStateOf(8)
         setContent {
             ReusableContentHost(active) {
                 TextField(value = "", onValueChange = {}, columns = columns)
@@ -169,19 +119,12 @@ class TextSizeHintsTest {
 
         active = false
         awaitIdle()
-        columns = WIDE_COLUMNS
+        columns = 28
         active = true
         awaitIdle()
 
         val reactivated = onNodeOfType<JTextField>().fetch()
         assertNotSame(parked, reactivated, "reactivation builds a fresh component rather than reusing the parked one")
-        assertEquals(WIDE_COLUMNS, reactivated.columns, "the fresh component carries the hint the composition holds")
-    }
-
-    private companion object {
-        const val NARROW_COLUMNS = 8
-        const val WIDE_COLUMNS = 28
-        const val SHORT_ROWS = 2
-        const val TALL_ROWS = 12
+        assertEquals(28, reactivated.columns, "the fresh component carries the hint the composition holds")
     }
 }

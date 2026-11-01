@@ -3,15 +3,15 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 
 /**
  * What decides how much room a [Table] gives its rows and its columns: the height every row is drawn at,
@@ -50,18 +50,22 @@ class TableSizingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(24, table.rowHeight, "the declared row height should reach the table")
-        assertEquals(JTable.AUTO_RESIZE_ALL_COLUMNS, table.autoResizeMode, "the declared auto-resize mode too")
-        assertTrue(table.fillsViewportHeight, "and the declared viewport fill")
+        val table = onNodeOfType<JTable>()
+        table.assertProperty(24, "the declared row height should reach the table") { this.rowHeight }
+        table.assertProperty(JTable.AUTO_RESIZE_ALL_COLUMNS, "the declared auto-resize mode too") {
+            this.autoResizeMode
+        }
+        table.assertProperty(true, "and the declared viewport fill") { this.fillsViewportHeight }
 
         rowHeight = 40
         autoResizeMode = JTable.AUTO_RESIZE_OFF
         fillsViewportHeight = false
         awaitIdle()
-        assertEquals(40, table.rowHeight, "a changed row height should be re-applied")
-        assertEquals(JTable.AUTO_RESIZE_OFF, table.autoResizeMode, "a changed auto-resize mode should be re-applied")
-        assertFalse(table.fillsViewportHeight, "a changed viewport fill should be re-applied")
+        table.assertProperty(40, "a changed row height should be re-applied") { this.rowHeight }
+        table.assertProperty(JTable.AUTO_RESIZE_OFF, "a changed auto-resize mode should be re-applied") {
+            this.autoResizeMode
+        }
+        table.assertProperty(false, "a changed viewport fill should be re-applied") { this.fillsViewportHeight }
     }
 
     @Test
@@ -71,23 +75,23 @@ class TableSizingTest {
             Table(rows = people, columns = { column("Name") { it.name } }, rowHeight = declared)
         }
 
-        val table = onNodeOfType<JTable>().fetch()
         // The height the look and feel gave this table, whatever the host's happens to be. Declaring a
-        // different one is what lets the withdrawal tell the two apart: a fixed constant would match
-        // the look and feel's own height on some host, and both assertions would pass vacuously.
-        val ownHeight = table.rowHeight
+        // different one is what lets the withdrawal tell the two apart, so the declared height is asserted
+        // away from it: on a host whose own height matched, both assertions below would pass vacuously.
+        val ownHeight = onNodeOfType<JTable>().fetch().rowHeight
 
-        declared = ownHeight + 9
+        val declaredHeight = 31
+        assertNotEquals(declaredHeight, ownHeight, "the declared height must differ from the look and feel's")
+        declared = declaredHeight
         awaitIdle()
-        assertEquals(ownHeight + 9, table.rowHeight, "a declared row height should be applied")
+        onNodeOfType<JTable>().assertProperty(declaredHeight, "a declared row height should be applied") { rowHeight }
 
         declared = null
         awaitIdle()
-        assertEquals(
+        onNodeOfType<JTable>().assertProperty(
             ownHeight,
-            table.rowHeight,
             "withdrawing the declaration should give the look and feel's own height back",
-        )
+        ) { rowHeight }
     }
 
     @Test
@@ -104,24 +108,43 @@ class TableSizingTest {
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val column = table.columnModel.getColumn(0)
-        assertEquals(80, column.minWidth, "the declared minimum width should reach the column")
-        assertEquals(200, column.maxWidth, "the declared maximum width should reach the column")
+        val table = onNodeOfType<JTable>()
+        val tableBefore = table.fetch()
+        table.assertProperty(
+            80,
+            "the declared minimum width should reach the column",
+        ) { columnModel.getColumn(0).minWidth }
+        table.assertProperty(
+            200,
+            "the declared maximum width should reach the column",
+        ) { columnModel.getColumn(0).maxWidth }
 
         // Both widths move at once, and a column holds each inside the other, so a pass that widens the
         // range has to leave the column on both declared widths rather than on one clamped by the other.
         minWidth = 300
         maxWidth = 400
         awaitIdle()
-        assertEquals(300, table.columnModel.getColumn(0).minWidth, "a changed minimum width should be re-applied")
-        assertEquals(400, table.columnModel.getColumn(0).maxWidth, "a changed maximum width should be re-applied")
+        table.assertProperty(
+            300,
+            "a changed minimum width should be re-applied",
+        ) { columnModel.getColumn(0).minWidth }
+        table.assertProperty(
+            400,
+            "a changed maximum width should be re-applied",
+        ) { columnModel.getColumn(0).maxWidth }
 
         minWidth = 20
         maxWidth = 60
         awaitIdle()
-        assertEquals(20, table.columnModel.getColumn(0).minWidth, "a narrowed minimum width should be re-applied")
-        assertEquals(60, table.columnModel.getColumn(0).maxWidth, "a narrowed maximum width should be re-applied")
+        assertSame(tableBefore, table.fetch(), "the component is updated in place, not rebuilt")
+        table.assertProperty(
+            20,
+            "a narrowed minimum width should be re-applied",
+        ) { columnModel.getColumn(0).minWidth }
+        table.assertProperty(
+            60,
+            "a narrowed maximum width should be re-applied",
+        ) { columnModel.getColumn(0).maxWidth }
     }
 
     @Test
@@ -136,7 +159,9 @@ class TableSizingTest {
 
         // A state's layout is put back after the widths that bound the column, so the width it asks for is
         // the one the column can actually hold.
-        val table = onNodeOfType<JTable>().fetch()
-        assertEquals(120, table.columnModel.getColumn(0).preferredWidth, "a preferred width beyond the maximum")
+        onNodeOfType<JTable>().assertProperty(
+            120,
+            "a preferred width beyond the maximum",
+        ) { columnModel.getColumn(0).preferredWidth }
     }
 }

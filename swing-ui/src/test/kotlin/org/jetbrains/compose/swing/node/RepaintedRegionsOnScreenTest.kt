@@ -105,7 +105,7 @@ class RepaintedRegionsOnScreenTest {
      * A window's sRGB pixels are converted to the display's color profile on the way to the screen, and
      * [Robot] converts what it reads back to sRGB. Unless the display profile is sRGB itself, that round
      * trip rounds: on a wide-gamut display, pure green reads back as (3, 255, 0). The delta absorbs that
-     * rounding and stays far below the distance between any two colors the scene paints.
+     * rounding and stays far below the distance between any two colors the content paints.
      */
     private fun assertShows(
         expected: Color,

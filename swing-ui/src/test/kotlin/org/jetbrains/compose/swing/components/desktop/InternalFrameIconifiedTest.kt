@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
@@ -43,10 +44,12 @@ class InternalFrameIconifiedTest {
             }
         }
 
-        val frame = onNodeOfType<JDesktopIcon>().fetch().internalFrame
-        assertTrue(frame.isIcon, "the frame should open iconified as its state declares")
+        onNodeOfType<JDesktopIcon>()
+            .assertProperty(true, "the frame should open iconified as its state declares") { internalFrame.isIcon }
+            .assertProperty(Rectangle(10, 20, 300, 200), "the frame keeps the geometry it reappears on") {
+                internalFrame.bounds
+            }
         onNodeOfType<JInternalFrame>().assertDoesNotExist()
-        assertEquals(Rectangle(10, 20, 300, 200), frame.bounds, "the frame keeps the geometry it reappears on")
         assertTrue(state.iconified, "the declaration should stand")
     }
 
@@ -68,17 +71,17 @@ class InternalFrameIconifiedTest {
 
         state.iconified = true
         awaitIdle()
-        assertTrue(
-            onNodeOfType<JDesktopIcon>().fetch().internalFrame.isIcon,
+        onNodeOfType<JDesktopIcon>().assertProperty(
+            true,
             "assigning iconified should iconify the frame",
-        )
+        ) { internalFrame.isIcon }
         onNodeOfType<JInternalFrame>().assertDoesNotExist()
 
         state.iconified = false
         awaitIdle()
-        val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertFalse(frame.isIcon, "assigning iconified back should deiconify the frame")
-        assertEquals(Rectangle(10, 20, 300, 200), frame.bounds, "the frame should reappear on the geometry it kept")
+        onNodeOfType<JInternalFrame>()
+            .assertProperty(false, "assigning iconified back should deiconify the frame") { isIcon }
+            .assertProperty(Rectangle(10, 20, 300, 200), "the frame should reappear on the geometry it kept") { bounds }
     }
 
     @Test
@@ -126,9 +129,10 @@ class InternalFrameIconifiedTest {
         tip = "Holds the open document"
         awaitIdle()
 
-        val frame = onNodeOfType<JDesktopIcon>().fetch().internalFrame
-        assertEquals("Holds the open document", frame.toolTipText, "the recomposition should have reached the frame")
-        assertTrue(frame.isIcon, "a recomposition should leave an iconified frame iconified")
+        onNodeOfType<JDesktopIcon>()
+            .assertProperty("Holds the open document", "the recomposition should have reached the frame") {
+                internalFrame.toolTipText
+            }.assertProperty(true, "a recomposition should leave an iconified frame iconified") { internalFrame.isIcon }
         onNodeOfType<JInternalFrame>().assertDoesNotExist()
     }
 

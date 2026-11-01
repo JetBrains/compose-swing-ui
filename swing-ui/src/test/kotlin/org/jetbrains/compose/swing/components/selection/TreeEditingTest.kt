@@ -3,14 +3,13 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /** A value tree: each chapter yields its [children], and its [title] is what the row renders. */
 private data class Chapter(
@@ -53,14 +52,14 @@ class TreeEditingTest {
             Tree(root = sample, children = { it.children }, label = { it.title }, isEditable = editable)
         }
 
-        val tree = onNodeOfType<JTree>().fetch()
-        assertFalse(tree.isEditable, "a tree edits nothing until editing is declared")
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(false, "a tree edits nothing until editing is declared") { isEditable }
 
         editable = true
         awaitIdle()
 
-        assertTrue(tree.isEditable, "the declared editability reaches the tree")
-        assertTrue(tree.isPathEditable(tree.pathTo(0)), "which is what opens a node's row to the user")
+        tree.assertProperty(true, "the declared editability reaches the tree") { isEditable }
+        tree.assertProperty(true, "which is what opens a node's row to the user") { isPathEditable(pathTo(0)) }
     }
 
     @Test
@@ -85,7 +84,7 @@ class TreeEditingTest {
             edits.single(),
             "the value edited, its index path, and what was entered",
         )
-        assertEquals("first", tree.labelAt(1, 0), "the row still shows what the data says")
+        onNodeOfType<JTree>().assertProperty("first", "the row still shows what the data says") { labelAt(1, 0) }
     }
 
     @Test
@@ -104,10 +103,10 @@ class TreeEditingTest {
         val tree = onNodeOfType<JTree>().fetch()
         tree.model.valueForPathChanged(tree.pathTo(0), "opening")
 
-        assertEquals("first", tree.labelAt(0), "the edit alone leaves the row where it was")
+        onNodeOfType<JTree>().assertProperty("first", "the edit alone leaves the row where it was") { labelAt(0) }
 
         awaitIdle()
 
-        assertEquals("opening", tree.labelAt(0), "the data the caller updated is what moves it")
+        onNodeOfType<JTree>().assertProperty("opening", "the data the caller updated is what moves it") { labelAt(0) }
     }
 }

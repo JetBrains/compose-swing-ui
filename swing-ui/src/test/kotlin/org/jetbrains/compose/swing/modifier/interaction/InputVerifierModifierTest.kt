@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.InputVerifier
@@ -13,8 +14,6 @@ import javax.swing.JComponent
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -41,25 +40,13 @@ class InputVerifierModifierTest {
         }
         val field = onNodeOfType<JTextField>().fetch()
         val elsewhere = JTextField()
+        val installed = field.inputVerifier
 
         assertFalse(field.yieldsFocusTo(elsewhere), "a predicate answering false must hold the focus")
 
         valid = true
         awaitIdle()
         assertTrue(field.yieldsFocusTo(elsewhere), "a predicate answering true must let the focus go")
-    }
-
-    @Test
-    fun theVerifierIsTheSameObjectAcrossRecompositions() = runComposeSwingTest {
-        var valid by mutableStateOf(false)
-        setContent {
-            TextField("port", onValueChange = {}, modifier = SwingModifier.inputVerifier { valid })
-        }
-        val field = onNodeOfType<JTextField>().fetch()
-        val installed = field.inputVerifier
-
-        valid = true
-        awaitIdle()
         assertSame(
             installed,
             field.inputVerifier,
@@ -98,12 +85,18 @@ class InputVerifierModifierTest {
                 modifier = if (gated) SwingModifier.inputVerifier { false } else SwingModifier,
             )
         }
-        val field = onNodeOfType<JTextField>().fetch()
-        assertNotNull(field.inputVerifier, "the gate must be installed while it is declared")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(
+            true,
+            "the gate must be installed while it is declared",
+        ) { inputVerifier != null }
 
         gated = false
         awaitIdle()
-        assertNull(field.inputVerifier, "a text field gates nothing of its own, so nothing must be left behind")
+        field.assertProperty(
+            null,
+            "a text field gates nothing of its own, so nothing must be left behind",
+        ) { inputVerifier }
     }
 
     @Test
@@ -112,12 +105,12 @@ class InputVerifierModifierTest {
         setContent {
             TextField("cancel", onValueChange = {}, modifier = SwingModifier.verifyInputWhenFocusTarget(declared))
         }
-        val field = onNodeOfType<JTextField>().fetch()
-        assertFalse(field.verifyInputWhenFocusTarget, "the declared value must be written through")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(false, "the declared value must be written through") { verifyInputWhenFocusTarget }
 
         declared = true
         awaitIdle()
-        assertTrue(field.verifyInputWhenFocusTarget, "the changed declaration must be written through")
+        field.assertProperty(true, "the changed declaration must be written through") { verifyInputWhenFocusTarget }
     }
 
     @Test
@@ -130,14 +123,14 @@ class InputVerifierModifierTest {
                 modifier = if (declared) SwingModifier.verifyInputWhenFocusTarget(false) else SwingModifier,
             )
         }
-        val field = onNodeOfType<JTextField>().fetch()
-        assertFalse(field.verifyInputWhenFocusTarget, "the declaration must be in force while it is made")
+        val field = onNodeOfType<JTextField>()
+        field.assertProperty(false, "the declaration must be in force while it is made") { verifyInputWhenFocusTarget }
 
         declared = false
         awaitIdle()
-        assertTrue(
-            field.verifyInputWhenFocusTarget,
+        field.assertProperty(
+            true,
             "a component consults the focused field's gate unless told otherwise, so removal must restore that",
-        )
+        ) { verifyInputWhenFocusTarget }
     }
 }

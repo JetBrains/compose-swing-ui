@@ -6,14 +6,17 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Point
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * Behavioral tests for the actual-location modifiers (`location`/`x`/`y`). They set the component's
@@ -23,68 +26,19 @@ import kotlin.test.assertEquals
  * `getLocation`/`getX`/`getY`.
  */
 class PositionModifierTest {
-    /** Hosts a single [LayeredPane] child carrying [modifier] and returns its live component. */
-    private fun ComposeSwingTest.positionedChild(modifier: SwingModifier): JLabel {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("locationCases")
+    fun aLocationDeclarationSetsTheActualLocation(
+        message: String,
+        modifier: SwingModifier,
+        expected: Point,
+    ) = runComposeSwingTest {
         setContent {
             LayeredPane {
                 Label(text = "child", modifier = modifier.layer(JLayeredPane.DEFAULT_LAYER))
             }
         }
-        return onNodeOfType<JLabel>().fetch()
-    }
-
-    @Test
-    fun locationSetsTheActualLocation() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.location(120, 40))
-        assertEquals(Point(120, 40), child.location, "location should set the component's actual location")
-    }
-
-    @Test
-    fun locationPointOverloadSetsTheActualLocation() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.location(Point(90, 30)))
-        assertEquals(Point(90, 30), child.location, "the Point overload should set the actual location")
-    }
-
-    @Test
-    fun xSetsTheXKeepingY() = runComposeSwingTest {
-        // Establish a known y first, then move x: the y must survive.
-        val child = positionedChild(SwingModifier.location(50, 33).x(150))
-        assertEquals(150, child.x, "x should set the actual x")
-        assertEquals(33, child.y, "x must keep the current y")
-    }
-
-    @Test
-    fun ySetsTheYKeepingX() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.location(44, 50).y(55))
-        assertEquals(55, child.y, "y should set the actual y")
-        assertEquals(44, child.x, "y must keep the current x")
-    }
-
-    @Test
-    fun xAndYCombineIntoAFullLocation() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.x(10).y(20))
-        // Each axis comes from its own modifier; they combine into a full location.
-        assertEquals(Point(10, 20), child.location, "x+y combine into a full location")
-    }
-
-    @Test
-    fun yThenXAlsoCombinesRegardlessOfOrder() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.y(20).x(10))
-        assertEquals(Point(10, 20), child.location, "distinct axes combine regardless of order")
-    }
-
-    @Test
-    fun locationAfterXWinsTheXAxis() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.x(10).location(20, 30))
-        // location is applied later in the modifier chain, so its x wins over the earlier x(10).
-        assertEquals(Point(20, 30), child.location, "later location wins the x axis")
-    }
-
-    @Test
-    fun xAfterLocationWinsTheXAxis() = runComposeSwingTest {
-        val child = positionedChild(SwingModifier.location(20, 30).x(10))
-        // x is applied later, so it wins the x axis; the y axis stays from location.
-        assertEquals(Point(10, 30), child.location, "later x wins the x axis, y stays from location")
+        onNodeOfType<JLabel>().assertProperty(expected, message) { location }
     }
 
     @Test
@@ -99,22 +53,20 @@ class PositionModifierTest {
                 )
             }
         }
-        val positionedComponent = onNodeOfType<JLabel>().fetch()
-        assertEquals(
+        val positionedComponent = onNodeOfType<JLabel>()
+        positionedComponent.assertProperty(
             Point(120, 40),
-            positionedComponent.location,
             "location should set the actual location while applied",
-        )
+        ) { location }
 
         positioned = false
         awaitIdle()
         // The location declaration is gone, so the component returns to the location it had before it.
-        val restored = onNodeOfType<JLabel>().fetch()
-        assertEquals(
+        val restored = onNodeOfType<JLabel>()
+        restored.assertProperty(
             Point(0, 0),
-            restored.location,
             "removing the location modifier restores the component's original location",
-        )
+        ) { location }
     }
 
     @Test
@@ -129,15 +81,15 @@ class PositionModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(Point(20, 50), child.location, "the later y wins its axis, x stays from location")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(Point(20, 50), "the later y wins its axis, x stays from location") { location }
 
         whole = false
         awaitIdle()
 
         // Restoring a location puts both axes back, y included, so the modifier declaring that axis
         // alone writes it again on the same pass.
-        assertEquals(Point(0, 50), child.location, "the declared y stands after the location is dropped")
+        child.assertProperty(Point(0, 50), "the declared y stands after the location is dropped") { location }
     }
 
     @Test
@@ -152,15 +104,15 @@ class PositionModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(10, child.x, "the declared x is what the child carries")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(10, "the declared x is what the child carries") { x }
 
         // The bounds arrive ahead of the x declaration and write the axis it declares, so the later
         // declaration is written again over them.
         whole = true
         awaitIdle()
 
-        assertEquals(10, child.x, "the declared x stands after the bounds arrive under it")
+        child.assertProperty(10, "the declared x stands after the bounds arrive under it") { x }
     }
 
     @Test
@@ -178,16 +130,16 @@ class PositionModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(10, child.x, "the declared x is what the child carries")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(10, "the declared x is what the child carries") { x }
 
         // Nothing joins or leaves the modifier: the bounds simply declare a new value, which writes the
         // x axis on its way past.
         top = 60
         awaitIdle()
 
-        assertEquals(60, child.y, "the redeclared bounds reach the axis they own")
-        assertEquals(10, child.x, "the declared x stands after the bounds are written again")
+        child.assertProperty(60, "the redeclared bounds reach the axis they own") { y }
+        child.assertProperty(10, "the declared x stands after the bounds are written again") { x }
     }
 
     @Test
@@ -202,13 +154,13 @@ class PositionModifierTest {
                 )
             }
         }
-        val child = onNodeOfType<JLabel>().fetch()
-        assertEquals(10, child.x, "the later x wins its axis")
+        val child = onNodeOfType<JLabel>()
+        child.assertProperty(10, "the later x wins its axis") { x }
 
         whole = false
         awaitIdle()
 
-        assertEquals(10, child.x, "the declared x stands after the bounds are dropped")
+        child.assertProperty(10, "the declared x stands after the bounds are dropped") { x }
     }
 
     @Test
@@ -223,18 +175,62 @@ class PositionModifierTest {
             }
         }
         val label = onNodeOfType<JLabel>()
-        assertEquals(
+        label.assertProperty(
             Point(120, 40),
-            label.fetch().location,
             "location should set the actual location before the state changes",
-        )
+        ) { location }
 
         shifted = false
         awaitIdle()
-        assertEquals(
+        label.assertProperty(
             Point(60, 40),
-            label.fetch().location,
             "location should react to the state change",
+        ) { location }
+    }
+
+    companion object {
+        @JvmStatic
+        fun locationCases(): List<Arguments> = listOf(
+            Arguments.of(
+                Named.of("location", "location should set the component's actual location"),
+                SwingModifier.location(120, 40),
+                Point(120, 40),
+            ),
+            Arguments.of(
+                Named.of("Point overload", "the Point overload should set the actual location"),
+                SwingModifier.location(Point(90, 30)),
+                Point(90, 30),
+            ),
+            Arguments.of(
+                Named.of("x keeps y", "x must keep the current y"),
+                SwingModifier.location(50, 33).x(150),
+                Point(150, 33),
+            ),
+            Arguments.of(
+                Named.of("y keeps x", "y must keep the current x"),
+                SwingModifier.location(44, 50).y(55),
+                Point(44, 55),
+            ),
+            Arguments.of(
+                Named.of("x then y", "x+y combine into a full location"),
+                SwingModifier.x(10).y(20),
+                Point(10, 20),
+            ),
+            Arguments.of(
+                Named.of("y then x", "distinct axes combine regardless of order"),
+                SwingModifier.y(20).x(10),
+                Point(10, 20),
+            ),
+            Arguments.of(
+                Named.of("location after x", "later location wins the x axis"),
+                SwingModifier.x(10).location(20, 30),
+                Point(20, 30),
+            ),
+            Arguments.of(
+                Named.of("x after location", "later x wins the x axis, y stays from location"),
+                SwingModifier.location(20, 30).x(10),
+                Point(10, 30),
+            ),
         )
     }
 }

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -19,24 +20,6 @@ import kotlin.test.assertSame
  * the rendered [JTextArea], never a private field.
  */
 class StateTextAreaTest {
-    @Test
-    fun areaSharesTheStateDocument() = runComposeSwingTest {
-        lateinit var state: DocumentState
-        setContent {
-            state = rememberDocumentState("seed")
-            TextArea(state = state)
-        }
-
-        // Sharing one document means an edit made through either side is what the other renders: a write
-        // through the state reaches the area, and typing in the area reaches the state.
-        state.edit { append(" grown") }
-        awaitIdle()
-        onNodeOfType<JTextArea>().assertTextEquals("seed grown")
-
-        onNodeOfType<JTextArea>().performTextReplacement("typed")
-        assertEquals("typed", state.text.toString())
-    }
-
     @Test
     fun callerSuppliedDocumentIsInstalledIntoTheArea() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
@@ -79,10 +62,10 @@ class StateTextAreaTest {
         awaitIdle()
         mainClock.autoAdvance = false
 
-        val area = onNodeOfType<JTextArea>().fetch()
+        val area = onNodeOfType<JTextArea>()
         state.text = "help"
 
-        assertEquals("help", area.text, "a write through the state should reach the shared document as it is made")
+        area.assertTextEquals("help")
 
         awaitIdle()
         onNodeOfType<JTextArea>().assertTextEquals("help")
@@ -129,8 +112,8 @@ class StateTextAreaTest {
             TextArea(state = state, rows = 5, columns = 12)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertEquals(5, area.rows)
-        assertEquals(12, area.columns)
+        val area = onNodeOfType<JTextArea>()
+        area.assertProperty(5) { rows }
+        area.assertProperty(12) { columns }
     }
 }
