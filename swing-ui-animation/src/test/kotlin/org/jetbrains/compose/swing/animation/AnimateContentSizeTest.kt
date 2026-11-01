@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -28,6 +29,8 @@ import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -137,8 +140,8 @@ class AnimateContentSizeTest {
 
             val painted = onNodeWithTag(CONTAINER).captureToImage()
 
-            assertEquals(Color.RED.rgb, painted.getRGB(traveled - 1, 2), "inside the traveled box")
-            assertEquals(0, painted.getRGB(traveled + 1, 2), "outside the traveled box")
+            painted.assertPixelColor(Color.RED, traveled - 1, 2, "inside the traveled box")
+            painted.assertPixelColor(Color(0, true), traveled + 1, 2, "outside the traveled box")
         }
 
     @Test
@@ -226,11 +229,10 @@ class AnimateContentSizeTest {
             layoutRow()
 
             assertEquals(EXPANDED.width, sibling.x, "the container came back at a size other than its content's")
-            assertEquals(
+            onNodeWithTag(CONTAINER).assertProperty(
                 Rectangle(0, 0, EXPANDED.width, EXPANDED.height),
-                onNodeWithTag(CONTAINER).fetch().bounds,
                 "the container came back placing its content somewhere the animation it gave up left it",
-            )
+            ) { bounds }
         }
 
     /**
@@ -296,27 +298,27 @@ class AnimateContentSizeTest {
                 }
             }
 
-            assertEquals(COLLAPSED, container.size)
+            onRoot().onChild().assertProperty(COLLAPSED) { size }
             expanded = true
             awaitIdle()
 
             assertTrue(finished.isNotEmpty(), "the animation reported completion")
             assertEquals(COLLAPSED to EXPANDED, finished.first(), "the callback received both measured sizes")
-            assertEquals(EXPANDED, container.size, "a callback must not change the settled native size")
+            onRoot().onChild().assertProperty(EXPANDED, "a callback must not change the settled native size") { size }
             assertEquals(1, finished.size, "a callback must not start another animation")
 
             retained.first().first.setSize(1103, 1301)
             retained.first().second.setSize(1709, 1907)
-            container.invalidate()
-            container.validate()
+            onRoot().onChild().fetch().invalidate()
+            onRoot().onChild().fetch().validate()
             awaitIdle()
-            assertEquals(EXPANDED, container.size)
+            onRoot().onChild().assertProperty(EXPANDED) { size }
             assertEquals(1, finished.size, "retained callback arguments must not restart the animation")
 
             expanded = false
             awaitIdle()
             assertEquals(listOf(COLLAPSED to EXPANDED, EXPANDED to COLLAPSED), finished)
-            assertEquals(COLLAPSED, container.size)
+            onRoot().onChild().assertProperty(COLLAPSED) { size }
         }
 
     @Test
@@ -471,13 +473,13 @@ class AnimateContentSizeTest {
             assertTrue(
                 partway > COLLAPSED.width && partway < EXPANDED.width,
                 "the container was not partway through the animation, so this test cannot tell a pass-through " +
-                    "answer apart from one that merely settled: $partway",
+                    "result apart from one that merely settled: $partway",
             )
 
             assertEquals(
                 EXPANDED,
                 column.preferredSize,
-                "a policy container's own preferred size must answer with the target the content is traveling " +
+                "a policy container's own preferred size must report with the target the content is traveling " +
                     "to, not the size a frame of that travel currently stands at",
             )
         }
@@ -594,7 +596,7 @@ class AnimateContentSizeTest {
                 PLAIN_HEIGHT,
                 row.height,
                 "the row's height must come from the plain baseline child alone, since a chain carrying a " +
-                    "layout-modifier node cannot answer a baseline without measuring the offset it applies",
+                    "layout-modifier node cannot report a baseline without measuring the offset it applies",
             )
 
             mainClock.autoAdvance = false
@@ -702,7 +704,7 @@ class AnimateContentSizeTest {
 
 /**
  * A layout modifier passing its child's measurement through, counting how often it is measured. Its
- * intrinsic answers pass through too, so an intrinsic query is not counted as a measurement.
+ * intrinsic results pass through too, so an intrinsic query is not counted as a measurement.
  */
 private class MeasureCountingElement : LayoutModifierNodeElement<MeasureCountingNode>() {
     var measures: Int = 0
@@ -733,7 +735,7 @@ private class MeasureCountingNode(
 }
 
 /**
- * A layout-modifier node that passes its child's measurement and intrinsic answers straight through,
+ * A layout-modifier node that passes its child's measurement and intrinsic results straight through,
  * standing in for a stateful node - an animation, most of all - wherever a test only needs one in a
  * child's layout-modifier chain.
  */

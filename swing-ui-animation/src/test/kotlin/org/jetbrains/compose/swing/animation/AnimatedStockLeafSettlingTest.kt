@@ -27,8 +27,9 @@ import javax.swing.JScrollPane
 import kotlin.test.assertEquals
 
 /**
- * An [AnimatedContent] under a stock parent, around a stock leaf whose answer follows the size it holds. The size
- * animation aims at the leaf's height at its natural width, which does not follow the size the animation gives it.
+ * An [AnimatedContent] under a stock parent, around a stock leaf whose preferred size follows the size it holds.
+ * The size animation aims at the leaf's height at its natural width, which does not follow the size the animation
+ * gives it.
  */
 class AnimatedStockLeafSettlingTest {
     @ParameterizedTest(name = "{0}")

@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -221,7 +222,7 @@ class EnterExitTransitionTest {
         mainClock.autoAdvance = false
         visible = true
         repeat(3) { mainClock.advanceTimeByFrame() }
-        return animatedContainer().captureToImage().getRGB(2, 2)
+        return onRoot().onChild().captureToImage().getRGB(2, 2)
     }
 }
 

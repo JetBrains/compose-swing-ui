@@ -1,11 +1,10 @@
 package org.jetbrains.compose.swing.animation
 
 import org.jetbrains.compose.swing.animation.Stretch.FRAME_MILLIS
-import org.jetbrains.compose.swing.animation.Stretch.FillingContent
 import org.jetbrains.compose.swing.animation.Stretch.FlowLayoutParent
-import org.jetbrains.compose.swing.animation.Stretch.InViewport
 import org.jetbrains.compose.swing.animation.Stretch.NARROW
 import org.jetbrains.compose.swing.animation.Stretch.ParentCase
+import org.jetbrains.compose.swing.animation.Stretch.RATIO
 import org.jetbrains.compose.swing.animation.Stretch.ResizeCase
 import org.jetbrains.compose.swing.animation.Stretch.ResizedFrames
 import org.jetbrains.compose.swing.animation.Stretch.TRANSITION_MILLIS
@@ -15,9 +14,16 @@ import org.jetbrains.compose.swing.animation.Stretch.atAspect
 import org.jetbrains.compose.swing.animation.Stretch.observeFrameSizes
 import org.jetbrains.compose.swing.animation.Stretch.recordEntering
 import org.jetbrains.compose.swing.animation.Stretch.resizedFrames
-import org.jetbrains.compose.swing.animation.Stretch.visibility
 import org.jetbrains.compose.swing.animation.core.tween
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.aspectRatio
+import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
@@ -137,7 +143,14 @@ internal class AnimatedVisibilityStretchTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("enters")
     fun `in a viewport an enter lays content that fills its width out at the viewport's width`(enter: EnterCase) {
-        val entering = recordEntering(InViewport, visibility(enter.enter, FillingContent))
+        val entering =
+            recordEntering(
+                InViewport,
+                // Prefers the width of its text, and fills the width it is offered at a 16:9 aspect ratio.
+                visibility(enter.enter) { modifier ->
+                    Label("Preview", modifier = modifier.fillMaxWidth().aspectRatio(RATIO))
+                },
+            )
 
         val extent = checkNotNull(entering.viewportExtent) { "precondition: the view was in a viewport" }
         assertEquals(atAspect(extent.width), entering.whileEntering, "the content's size while entering")
@@ -218,5 +231,24 @@ internal class AnimatedVisibilityStretchTest {
 
         @JvmStatic
         fun enters(): List<EnterCase> = WidthKeepingEnters + WidthChangingEnters
+    }
+}
+
+private fun visibility(
+    enter: EnterTransition,
+    content: TaggedContent,
+): EnteringContainer =
+    { modifier, shown, contentModifier ->
+        AnimatedVisibility(visible = shown, modifier = modifier, enter = enter, exit = ExitTransition.None) {
+            content(contentModifier)
+        }
+    }
+
+/** A viewport narrower than [WIDE] that scrolls both ways. */
+private val InViewport: StockParent = { child ->
+    Panel(PanelLayout.Flow()) {
+        ScrollPane(modifier = SwingModifier.preferredSize(NARROW, NARROW + NARROW / 4)) {
+            Viewport { child(SwingModifier) }
+        }
     }
 }

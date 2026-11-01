@@ -18,6 +18,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -96,7 +98,7 @@ class AnimatedContentInLayoutTest {
         state = "large"
         mainClock.advanceTimeByFrame()
 
-        assertEquals(parent.expected, onNodeWithTag("large-half-fill").fetch().size, parent.claim)
+        onNodeWithTag("large-half-fill").assertProperty(parent.expected, parent.claim) { size }
     }
 
     @Test
@@ -129,11 +131,10 @@ class AnimatedContentInLayoutTest {
             state = "b"
             mainClock.advanceTimeByFrame()
 
-            val animated = onNodeWithTag("animated").fetch<Container>()
-            val content = onNodeWithTag("content-b").fetch<JComponent>()
-            assertEquals(Dimension(200, 150), animated.preferredSize)
-            assertEquals(Dimension(400, 300), animated.size)
-            assertEquals(Dimension(400, 300), content.size)
+            onNodeWithTag("animated")
+                .assertProperty(Dimension(200, 150)) { preferredSize }
+                .assertProperty(Dimension(400, 300)) { size }
+            onNodeWithTag("content-b").assertProperty(Dimension(400, 300)) { size }
         }
 
     @Test
@@ -142,15 +143,24 @@ class AnimatedContentInLayoutTest {
             var state by mutableStateOf("a")
             setContent {
                 Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
-                    AnimatedContent(targetState = state, modifier = SwingModifier.center()) { Body(state = it) }
+                    AnimatedContent(
+                        targetState = state,
+                        modifier = SwingModifier.center().testTag("animated-0"),
+                    ) { Body(state = it) }
                 }
                 Row(modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
-                    AnimatedContent(targetState = state, modifier = SwingModifier.weight(1f)) { Body(state = it) }
+                    AnimatedContent(
+                        targetState = state,
+                        modifier = SwingModifier.weight(1f).testTag("animated-1"),
+                    ) { Body(state = it) }
                 }
                 Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(REGION_WIDTH, REGION_HEIGHT)) {
                     AnimatedContent(
                         targetState = state,
-                        modifier = SwingModifier.item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.BOTH),
+                        modifier =
+                            SwingModifier
+                                .item(weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.BOTH)
+                                .testTag("animated-2"),
                     ) {
                         Body(state = it)
                     }
@@ -167,7 +177,7 @@ class AnimatedContentInLayoutTest {
             for ((index, parent) in PARENTS.withIndex()) {
                 val container = containerIn(index)
                 assertEquals(1, container.componentCount, "$parent: the content that finished exiting stands still")
-                assertEquals("b", container.contentText(0), "$parent: the container did not settle on the target")
+                onNodeWithTag("animated-$index").onChild().onChild().assertTextEquals("b")
                 assertEquals(regions[index], container.bounds, "$parent: the parent reshaped its region after all")
             }
         }

@@ -12,10 +12,9 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** Pins the parent-scoped defaults and the top-level overload at marked or receiver-less call sites. */
 class AnimationOverloadSelectionTest {
@@ -34,17 +33,13 @@ class AnimationOverloadSelectionTest {
             visible = true
             repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
-            val rightSibling = onNodeWithTag(RIGHT).fetch()
-            assertTrue(
-                rightSibling.x in 1 until BODY_WIDTH,
-                "the row did not allocate animated width before its sibling: ${rightSibling.bounds}",
-            )
-            assertEquals(0, rightSibling.y, "the row changed the cross-axis position: ${rightSibling.bounds}")
-            assertEquals(
-                BODY_HEIGHT,
-                onNodeWithTag(PARENT).fetch().preferredSize.height,
-                "the row changed the cross-axis size",
-            )
+            onNodeWithTag(RIGHT).assertProperty(true, "the row did not allocate animated width before its sibling") {
+                x in 1 until BODY_WIDTH
+            }
+            onNodeWithTag(RIGHT).assertProperty(0, "the row changed the cross-axis position") { y }
+            onNodeWithTag(PARENT).assertProperty(BODY_HEIGHT, "the row changed the cross-axis size") {
+                preferredSize.height
+            }
         }
 
     @Test
@@ -62,17 +57,16 @@ class AnimationOverloadSelectionTest {
             visible = true
             repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
-            val belowSibling = onNodeWithTag(BELOW).fetch()
-            assertEquals(0, belowSibling.x, "the column changed the cross-axis position: ${belowSibling.bounds}")
-            assertTrue(
-                belowSibling.y in 1 until BODY_HEIGHT,
-                "the column did not allocate animated height before its sibling: ${belowSibling.bounds}",
-            )
-            assertEquals(
-                BODY_WIDTH,
-                onNodeWithTag(PARENT).fetch().preferredSize.width,
-                "the column changed the cross-axis size",
-            )
+            onNodeWithTag(BELOW).assertProperty(0, "the column changed the cross-axis position") { x }
+            onNodeWithTag(BELOW).assertProperty(
+                true,
+                "the column did not allocate animated height before its sibling",
+            ) {
+                y in 1 until BODY_HEIGHT
+            }
+            onNodeWithTag(PARENT).assertProperty(BODY_WIDTH, "the column changed the cross-axis size") {
+                preferredSize.width
+            }
         }
 
     @Test
@@ -95,16 +89,12 @@ class AnimationOverloadSelectionTest {
             visible = true
             repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
-            val rightSibling = onNodeWithTag(RIGHT).fetch()
-            val belowSibling = onNodeWithTag(BELOW).fetch()
-            assertTrue(
-                rightSibling.x in 1 until BODY_WIDTH,
-                "the box did not allocate animated width before its sibling: ${rightSibling.bounds}",
-            )
-            assertTrue(
-                belowSibling.y in 1 until BODY_HEIGHT,
-                "the box did not allocate animated height before its sibling: ${belowSibling.bounds}",
-            )
+            onNodeWithTag(RIGHT).assertProperty(true, "the box did not allocate animated width before its sibling") {
+                x in 1 until BODY_WIDTH
+            }
+            onNodeWithTag(BELOW).assertProperty(true, "the box did not allocate animated height before its sibling") {
+                y in 1 until BODY_HEIGHT
+            }
         }
 
     @Test
@@ -126,12 +116,12 @@ class AnimationOverloadSelectionTest {
             visible = true
             repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
-            val preferredSize = onNodeWithTag(CONTAINER).fetch().preferredSize
-            assertTrue(preferredSize.width in 1 until BODY_WIDTH, "the panel child did not report its animated width")
-            assertTrue(
-                preferredSize.height in 1 until BODY_HEIGHT,
-                "the panel child did not report its animated height",
-            )
+            onNodeWithTag(CONTAINER).assertProperty(true, "the panel child did not report its animated width") {
+                preferredSize.width in 1 until BODY_WIDTH
+            }
+            onNodeWithTag(CONTAINER).assertProperty(true, "the panel child did not report its animated height") {
+                preferredSize.height in 1 until BODY_HEIGHT
+            }
         }
 
     @Test
@@ -150,7 +140,7 @@ class AnimationOverloadSelectionTest {
                 }
             }
 
-            assertTrue(onNodeWithTag(ANIMATED_CONTENT).fetch().isVisible)
+            onNodeWithTag(ANIMATED_CONTENT).assertProperty(true) { isVisible }
         }
 
     @Test
@@ -167,16 +157,24 @@ class AnimationOverloadSelectionTest {
             visible = true
             repeat(FRAMES_INTO_TRANSITION) { mainClock.advanceTimeByFrame() }
 
-            val container = onNodeWithTag(CONTAINER).fetch()
-            assertTrue(container.isVisible, "the extracted composable did not mount its top-level container")
-            assertTrue(
-                container.preferredSize.width in 1 until BODY_WIDTH,
-                "the extracted top-level overload did not animate its width: ${container.preferredSize}",
-            )
-            assertTrue(
-                container.preferredSize.height in 1 until BODY_HEIGHT,
-                "the extracted top-level overload did not animate its height: ${container.preferredSize}",
-            )
+            onNodeWithTag(CONTAINER).assertProperty(
+                true,
+                "the extracted composable did not mount its top-level container",
+            ) {
+                isVisible
+            }
+            onNodeWithTag(CONTAINER).assertProperty(
+                true,
+                "the extracted top-level overload did not animate its width",
+            ) {
+                preferredSize.width in 1 until BODY_WIDTH
+            }
+            onNodeWithTag(CONTAINER).assertProperty(
+                true,
+                "the extracted top-level overload did not animate its height",
+            ) {
+                preferredSize.height in 1 until BODY_HEIGHT
+            }
         }
 
     @Composable

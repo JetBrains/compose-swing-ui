@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.core.MotionDurationScale
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Point
@@ -154,7 +155,10 @@ class ScrollStateAnimationTest {
             val fixture = paneWithRoomToScroll()
             val state = fixture.state
             runScrollToCompletion(fixture.launchScroll { animateScrollTo(10, 10, snap()) })
-            assertEquals(Point(10, 10), viewportPosition(), "the pane starts away from either edge")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(10, 10),
+                "the pane starts away from either edge",
+            ) { viewport.viewPosition }
 
             var consumed: Point? = null
             runScrollToCompletion(
@@ -163,7 +167,10 @@ class ScrollStateAnimationTest {
                 },
             )
 
-            assertEquals(Point(state.maxX, state.maxY), viewportPosition(), "positive deltas reach the end")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(state.maxX, state.maxY),
+                "positive deltas reach the end",
+            ) { viewport.viewPosition }
             assertEquals(Point(state.maxX - 10, state.maxY - 10), consumed, "only the distance traveled is returned")
         }
 
@@ -201,11 +208,17 @@ class ScrollStateAnimationTest {
             val job = fixture.launchScroll { animateScrollTo(target.x, target.y, snap()) }
             awaitIdle()
             assertTrue(state.isScrollInProgress, "the animation holds the position before its first frame")
-            assertEquals(Point(0, 0), viewportPosition(), "no movement happens before a frame")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(0, 0),
+                "no movement happens before a frame",
+            ) { viewport.viewPosition }
 
             mainClock.advanceTimeByFrame()
 
-            assertEquals(target, viewportPosition(), "the supplied snap spec reaches both coordinates in one frame")
+            onNodeOfType<JScrollPane>().assertProperty(
+                target,
+                "the supplied snap spec reaches both coordinates in one frame",
+            ) { viewport.viewPosition }
             assertTrue(job.isCompleted, "the snap animation completes on that frame")
             assertFalse(job.isCancelled, "the animation completes normally")
             assertFalse(state.isScrollInProgress, "completion releases the position")
@@ -219,11 +232,17 @@ class ScrollStateAnimationTest {
             var consumed: Point? = null
             val job = fixture.launchScroll { consumed = animateScrollBy(10, 20, snap()) }
             awaitIdle()
-            assertEquals(Point(0, 0), viewportPosition(), "the delta waits for its first frame")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(0, 0),
+                "the delta waits for its first frame",
+            ) { viewport.viewPosition }
 
             mainClock.advanceTimeByFrame()
 
-            assertEquals(Point(10, 20), viewportPosition(), "the supplied snap spec moves both axes in one frame")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(10, 20),
+                "the supplied snap spec moves both axes in one frame",
+            ) { viewport.viewPosition }
             assertEquals(Point(10, 20), consumed, "the completed call returns both consumed distances")
             assertTrue(job.isCompleted, "the delta animation completes on that frame")
             assertFalse(job.isCancelled, "the delta animation completes normally")
@@ -234,15 +253,24 @@ class ScrollStateAnimationTest {
         runComposeSwingTest {
             val fixture = paneWithRoomToScroll()
             runScrollToCompletion(fixture.launchScroll { animateScrollTo(30, 40, snap()) })
-            assertEquals(Point(30, 40), viewportPosition(), "the pane starts with room to scroll backward")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(30, 40),
+                "the pane starts with room to scroll backward",
+            ) { viewport.viewPosition }
 
             var consumed: Point? = null
             runScrollToCompletion(fixture.launchScroll { consumed = animateScrollBy(-10, -20, snap()) })
-            assertEquals(Point(20, 20), viewportPosition(), "both axes move backward by their requested distances")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(20, 20),
+                "both axes move backward by their requested distances",
+            ) { viewport.viewPosition }
             assertEquals(Point(-10, -20), consumed, "the returned distance keeps the negative direction")
 
             runScrollToCompletion(fixture.launchScroll { consumed = animateScrollBy(-1_000, -1_000, snap()) })
-            assertEquals(Point(0, 0), viewportPosition(), "a delta beyond the beginning stops at the beginning")
+            onNodeOfType<JScrollPane>().assertProperty(
+                Point(0, 0),
+                "a delta beyond the beginning stops at the beginning",
+            ) { viewport.viewPosition }
             assertEquals(Point(-20, -20), consumed, "only the distance to the beginning is returned")
         }
 
@@ -258,12 +286,15 @@ class ScrollStateAnimationTest {
 
             job.cancel()
             awaitIdle()
-            val stopped = viewportPosition()
+            val stopped = onNodeOfType<JScrollPane>().fetch().viewport.viewPosition
             repeat(5) { mainClock.advanceTimeByFrame() }
 
             assertTrue(job.isCancelled, "the caller remains cancelled")
             assertFalse(state.isScrollInProgress, "cancellation releases the position")
-            assertEquals(stopped, viewportPosition(), "later frames cannot continue the cancelled animation")
+            onNodeOfType<JScrollPane>().assertProperty(
+                stopped,
+                "later frames cannot continue the cancelled animation",
+            ) { viewport.viewPosition }
         }
 
     @Test
@@ -380,8 +411,6 @@ private fun ComposeSwingTest.paneWithRoomToScroll(): ScrollFixture {
 
 /** Launches [block] from the composition's scope, the way a caller launches a scroll, without waiting. */
 private fun ScrollFixture.launchScroll(block: suspend ScrollState.() -> Unit): Job = scope.launch { state.block() }
-
-private fun ComposeSwingTest.viewportPosition(): Point = onNodeOfType<JScrollPane>().fetch().viewport.viewPosition
 
 /**
  * Drives [job] to its end under automatic frames and asserts it got there rather than being ended: every

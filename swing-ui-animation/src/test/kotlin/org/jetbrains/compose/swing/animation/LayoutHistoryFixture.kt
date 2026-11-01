@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.Arguments
 import java.awt.Component
 import java.awt.Dimension
 import javax.swing.JLabel
-import kotlin.math.roundToInt
 import kotlin.test.assertEquals
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -71,7 +70,7 @@ internal data class LayoutObservation<S>(
  * Its [content] animates once its flag is set, and has a label tagged `body` whose size the run changes. The run
  * records what [observe] reads, and [assertSettled] states the completion it ends in.
  */
-internal class LayoutScene<S>(
+internal class LayoutFixture<S>(
     val content: @Composable (Boolean) -> Unit,
     val observe: ComposeSwingTest.() -> LayoutObservation<S>,
     val assertSettled: (completion: S) -> Unit,
@@ -81,32 +80,32 @@ internal class LayoutScene<S>(
  * Asserts that [layouts] layouts in which nothing changed leave the history of [resizes] as it is without them.
  *
  * The layouts come between frames, before a resize is placed, and before the first frame. The history without
- * them ends at the last size of [resizes], in the completion [LayoutScene.assertSettled] states.
+ * them ends at the last size of [resizes], in the completion [LayoutFixture.assertSettled] states.
  */
 internal fun <S> assertUnchangedLayoutsChangeNothing(
     resizes: FrameResizes,
     layouts: Int,
-    newScene: () -> LayoutScene<S>,
+    newFixture: () -> LayoutFixture<S>,
 ) {
-    val scene = newScene()
-    val acrossFrames = historyAcrossFrames(scene, resizes, layoutsBetweenFrames = 0)
-    val beforePlacement = historyBeforePlacement(newScene(), resizes, layouts = 0)
+    val fixture = newFixture()
+    val acrossFrames = historyAcrossFrames(fixture, resizes, layoutsBetweenFrames = 0)
+    val beforePlacement = historyBeforePlacement(newFixture(), resizes, layouts = 0)
     assertEquals(resizes.perFrame.last().last(), acrossFrames.last().size, "the size the history ends at")
-    scene.assertSettled(acrossFrames.last().completion)
+    fixture.assertSettled(acrossFrames.last().completion)
 
     assertEquals(
         acrossFrames,
-        historyAcrossFrames(newScene(), resizes, layoutsBetweenFrames = layouts),
+        historyAcrossFrames(newFixture(), resizes, layoutsBetweenFrames = layouts),
         "$layouts unchanged layouts between frames",
     )
     assertEquals(
         beforePlacement,
-        historyBeforePlacement(newScene(), resizes, layouts),
+        historyBeforePlacement(newFixture(), resizes, layouts),
         "$layouts unchanged layouts before placement",
     )
     assertEquals(
         acrossFrames,
-        historyAcrossFrames(newScene(), resizes, layoutsBetweenFrames = 0, layoutsBeforeFirstFrame = layouts),
+        historyAcrossFrames(newFixture(), resizes, layoutsBetweenFrames = 0, layoutsBeforeFirstFrame = layouts),
         "$layouts unchanged layouts before the first frame",
     )
 }
@@ -133,69 +132,13 @@ internal fun ComposeSwingTest.assertEndsAt(
     ended()
 }
 
-/** [layouts] sizes, each larger than the one before. */
-internal fun growingSizes(layouts: Int): List<Dimension> = List(layouts) { Dimension(160 + it * 8, 80 + it * 4) }
-
-/** Gives [body] each of [sizes] in turn, waiting for idle after each, and asserts the size it takes. */
-internal suspend fun ComposeSwingTest.resizeBeforeFrame(
-    body: JLabel,
-    sizes: List<Dimension>,
-) {
-    for (size in sizes) {
-        body.preferredSize = size
-        body.revalidate()
-        awaitIdle()
-        val parent = requireNotNull(body.parent)
-        assertEquals(
-            Dimension(minOf(size.width, parent.width), minOf(size.height, parent.height)),
-            body.size,
-        )
-    }
-}
-
-/**
- * Asserts the curve of a 1000 ms linear tween on a scene whose `body` was resized [layouts] times before the frame
- * that starts it.
- *
- * 680 ms after that frame [allocatedWidth] has covered 68% of the way from [startWidth] to the body's size, and it
- * reaches that size at the deadline, 1000 ms after the frame, and not 1 ms before. [completion] is told whether
- * the animation has ended, and the size the body has.
- */
-internal suspend fun ComposeSwingTest.assertRetargetedCurve(
-    layouts: Int,
-    allocatedWidth: () -> Int,
-    startWidth: Int = 0,
-    completion: (ended: Boolean, target: Dimension) -> Unit,
-) {
-    val body = onNodeWithTag("body").fetch<JLabel>()
-    resizeBeforeFrame(body, growingSizes(layouts))
-    mainClock.advanceTimeByFrame()
-    val firstFrame = mainClock.currentTime
-    mainClock.advanceTimeByFrame(300.milliseconds)
-    val target = body.preferredSize
-    mainClock.advanceTimeByFrame(380.milliseconds)
-    assertEquals(
-        (startWidth + (target.width - startWidth) * 0.68f).roundToInt(),
-        allocatedWidth(),
-        "the width 680 ms into the tween",
-    )
-    assertEndsAt(
-        firstFrame + 1000.milliseconds,
-        stillRunning = { completion(false, target) },
-        ended = {
-            assertEquals(target.width, allocatedWidth(), "the width at the deadline")
-            completion(true, target)
-        },
-    )
-}
-
 private fun <S> historyAcrossFrames(
-    scene: LayoutScene<S>,
+    fixture: LayoutFixture<S>,
     resizes: FrameResizes,
     layoutsBetweenFrames: Int,
     layoutsBeforeFirstFrame: Int = 0,
 ): List<LayoutObservation<S>> {
-    val observe = scene.observe
+    val observe = fixture.observe
     val history = mutableListOf<LayoutObservation<S>>()
     runComposeSwingTest {
         mainClock.autoAdvance = false
@@ -206,7 +149,7 @@ private fun <S> historyAcrossFrames(
                 history += retargetWithoutFrame(checkNotNull(body), target, layoutsBetweenFrames, observe)
             }
         setContent {
-            scene.content(changed)
+            fixture.content(changed)
             resizeOnNextFrame.Install()
         }
         changed = true
@@ -239,11 +182,11 @@ private fun <S> historyAcrossFrames(
 }
 
 private fun <S> historyBeforePlacement(
-    scene: LayoutScene<S>,
+    fixture: LayoutFixture<S>,
     resizes: FrameResizes,
     layouts: Int,
 ): List<LayoutObservation<S>> {
-    val observe = scene.observe
+    val observe = fixture.observe
     val history = mutableListOf<LayoutObservation<S>>()
     runComposeSwingTest {
         mainClock.autoAdvance = false
@@ -258,7 +201,7 @@ private fun <S> historyBeforePlacement(
                 root.validate()
             }
         setContent {
-            scene.content(changed)
+            fixture.content(changed)
             resizeOnNextFrame.Install()
         }
         changed = true
@@ -277,7 +220,7 @@ private fun <S> historyBeforePlacement(
     return history
 }
 
-fun <T> ComposeSwingTest.retargetWithoutFrame(
+private fun <T> ComposeSwingTest.retargetWithoutFrame(
     child: JLabel,
     target: Dimension,
     extraLayouts: Int,

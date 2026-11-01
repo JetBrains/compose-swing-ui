@@ -7,15 +7,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
-import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
-import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -29,7 +26,6 @@ import javax.swing.JComponent
 import javax.swing.JViewport
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The sizes at the end of a frame: of the content, and of the container it stood in.
@@ -97,9 +93,6 @@ internal class Entering(
 internal fun List<Dimension>.shrinkages(): List<Pair<Dimension, Dimension>> =
     zipWithNext().filter { (before, after) -> after.width < before.width || after.height < before.height }
 
-/** Whether no size is smaller than the one before it on either axis. */
-internal fun List<Dimension>.neverShrinks(): Boolean = shrinkages().isEmpty()
-
 internal typealias StockParent = @Composable (child: @Composable (SwingModifier) -> Unit) -> Unit
 
 /** An animated container under `modifier` that enters content declared with `contentModifier` once `shown`. */
@@ -160,39 +153,6 @@ internal object Stretch {
         val all: List<FrameSizes>,
         val afterResize: List<FrameSizes>,
     )
-
-    /** A change of [AnimatedContent]'s content. */
-    class TransformCase(
-        val name: String,
-        val transform: ContentTransform,
-    ) {
-        override fun toString(): String = name
-    }
-
-    fun visibility(
-        enter: EnterTransition,
-        content: TaggedContent,
-    ): EnteringContainer =
-        { modifier, shown, contentModifier ->
-            AnimatedVisibility(visible = shown, modifier = modifier, enter = enter, exit = ExitTransition.None) {
-                content(contentModifier)
-            }
-        }
-
-    /** An [AnimatedContent] that replaces a short label with [content] by [transform]. */
-    fun replacing(
-        transform: ContentTransform,
-        content: TaggedContent = WideContent,
-    ): EnteringContainer =
-        { modifier, shown, contentModifier ->
-            AnimatedContent(shown, modifier, transitionSpec = { transform }) { wide ->
-                if (wide) {
-                    content(contentModifier)
-                } else {
-                    Label("Other", modifier = SwingModifier.preferredSize(NARROW / 4, 20))
-                }
-            }
-        }
 
     /** Each grants its one child the whole of a fixed panel, whatever the child prefers. */
     val StretchingParents: List<ParentCase> =
@@ -270,32 +230,9 @@ internal object Stretch {
             ResizeCase("shrinking under BoxLayout Y_AXIS", BoxYAtPreferredSize, WIDE, NARROW, Dimension(160, 90)),
         )
 
-    val Transforms: List<TransformCase> =
-        listOf(
-            TransformCase("fade", fadeIn(tween(TRANSITION_MILLIS)) togetherWith fadeOut(tween(TRANSITION_MILLIS))),
-            TransformCase(
-                "expand and shrink",
-                expandIn(tween(TRANSITION_MILLIS)) togetherWith shrinkOut(tween(TRANSITION_MILLIS)),
-            ),
-        )
-
-    /** A viewport narrower than [WIDE] that scrolls both ways. */
-    val InViewport: StockParent = { child ->
-        Panel(PanelLayout.Flow()) {
-            ScrollPane(modifier = SwingModifier.preferredSize(NARROW, NARROW + NARROW / 4)) {
-                Viewport { child(SwingModifier) }
-            }
-        }
-    }
-
     /** Prefers [WIDE] by 20, and keeps a 16:9 aspect ratio at the width it is offered. */
     val WideContent: TaggedContent = { modifier ->
         Label("", modifier = modifier.aspectRatio(RATIO).preferredSize(WIDE, 20))
-    }
-
-    /** Prefers the width of its text, and fills the width it is offered at a 16:9 aspect ratio. */
-    val FillingContent: TaggedContent = { modifier ->
-        Label("Preview", modifier = modifier.fillMaxWidth().aspectRatio(RATIO))
     }
 
     fun atAspect(width: Int): Dimension = Dimension(width, (width / RATIO).roundToInt())
@@ -320,12 +257,6 @@ internal object Stretch {
             }
         return Entering(frames, viewportExtent)
     }
-
-    /** [recordEntering] that also asserts that the layout settles on every frame. */
-    fun observeEntering(
-        parent: StockParent,
-        container: EnteringContainer,
-    ): Entering = recordEntering(parent, container).also { assertLayoutsSettle(it.frames) }
 
     /**
      * The sizes of the content and its container on each frame of an enter, and on each of [frames] frames from the
@@ -412,30 +343,3 @@ internal fun InitiallyExiting(
     val state = remember { MutableTransitionState(true).apply { targetState = false } }
     AnimatedVisibility(state, modifier, enter, exit, content = content)
 }
-
-internal suspend fun ComposeSwingTest.assertExitDuration(
-    tag: String,
-    name: String,
-) {
-    mainClock.advanceTimeBy((EXIT_DURATION_MILLIS - 320).milliseconds)
-    awaitIdle()
-    assertEquals(1, onAllNodesWithTag(tag).fetchAll<JComponent>().size, "$name: the exit is still running")
-    mainClock.advanceTimeBy(EXIT_DURATION_MILLIS.milliseconds)
-    awaitIdle()
-    onNodeWithTag(tag).assertDoesNotExist()
-}
-
-internal fun runEnteringScene(
-    scene: @Composable (Boolean) -> Unit,
-    frames: Int = 0,
-    assertions: suspend ComposeSwingTest.() -> Unit,
-) = runComposeSwingTest {
-    var visible by mutableStateOf(false)
-    setContent { scene(visible) }
-    mainClock.autoAdvance = false
-    visible = true
-    repeat(frames) { mainClock.advanceTimeByFrame() }
-    assertions()
-}
-
-internal const val EXIT_DURATION_MILLIS = 1000

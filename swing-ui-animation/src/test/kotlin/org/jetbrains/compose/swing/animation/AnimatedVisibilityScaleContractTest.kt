@@ -15,20 +15,17 @@ import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.click
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
-import java.awt.event.InputEvent
-import java.awt.event.MouseEvent
-import javax.swing.JFrame
-import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -150,15 +147,11 @@ class AnimatedVisibilityScaleContractTest {
             mainClock.autoAdvance = false
             visible = true
             mainClock.advanceTimeBy(80.milliseconds)
-            val window = onWindowWithTitle("scoped-scale-hit-test").fetch<JFrame>()
-            val button =
-                onWindowWithTitle(
-                    "scoped-scale-hit-test",
-                ).onNodeWithTag("scaledButton").fetch<Component>()
-            clickAt(window, SwingUtilities.convertPoint(button, Point(50, 20), window))
+            val button = onWindowWithTitle("scoped-scale-hit-test").onNodeWithTag("scaledButton")
+            button.performMouseInput { click(Point(50, 20)) }
             assertEquals(1, clicks, "input inside the scaled paint must reach the button")
 
-            clickAt(window, SwingUtilities.convertPoint(button, Point(3, 20), window))
+            button.performMouseInput { click(Point(3, 20)) }
             assertEquals(1, clicks, "input inside only the unscaled bounds must miss")
         }
 
@@ -172,13 +165,13 @@ class AnimatedVisibilityScaleContractTest {
                     rememberTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         mutableTransform = transform,
-                    ) { Block() }
+                    ) { Block(SwingModifier.testTag("block")) }
                 }
             }
 
             state.defer(true)
             awaitIdle()
-            assertEquals(1, root.componentCount)
+            onNodeWithTag("block").assertExists()
         }
 
     @Test
@@ -239,38 +232,6 @@ class AnimatedVisibilityScaleContractTest {
             mainClock.autoAdvance = false
             visible = true
             mainClock.advanceTimeByFrame()
-            assertTrue(animatedContainer().paintedWidth() in 1 until 40)
+            assertTrue(onRoot().onChild().paintedWidth() in 1 until 40)
         }
-}
-
-private suspend fun ComposeSwingTest.clickAt(
-    frame: JFrame,
-    point: Point,
-) {
-    val screen = Point(point).apply { SwingUtilities.convertPointToScreen(this, frame) }
-    for (
-    (id, modifiers, button) in
-    listOf(
-        Triple(MouseEvent.MOUSE_PRESSED, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1),
-        Triple(MouseEvent.MOUSE_RELEASED, 0, MouseEvent.BUTTON1),
-        Triple(MouseEvent.MOUSE_CLICKED, 0, MouseEvent.BUTTON1),
-    )
-    ) {
-        frame.toolkit.systemEventQueue.postEvent(
-            MouseEvent(
-                frame,
-                id,
-                System.currentTimeMillis(),
-                modifiers,
-                point.x,
-                point.y,
-                screen.x,
-                screen.y,
-                1,
-                false,
-                button,
-            ),
-        )
-        awaitIdle()
-    }
 }

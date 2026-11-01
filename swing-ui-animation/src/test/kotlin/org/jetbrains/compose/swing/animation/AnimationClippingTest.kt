@@ -26,6 +26,8 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Insets
@@ -66,133 +68,79 @@ class AnimationClippingTest {
             assertStockPanelPaint(CONTENT_B)
         }
 
-    @Test
-    fun `unscoped expand clip false is honored under a constrained box`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent { ConstrainedHost { UnscopedVisibility(visible, clip = false) } }
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
+    @ParameterizedTest(name = "clip = {0}")
+    @MethodSource("constrainedClipCases")
+    fun `unscoped expand under a constrained box paints past the box only when clipping is disabled`(
+        clip: Boolean,
+        expected: Color,
+    ) = runComposeSwingTest {
+        var visible by mutableStateOf(false)
+        setContent { ConstrainedHost { UnscopedVisibility(visible, clip = clip) } }
+        mainClock.autoAdvance = false
+        visible = true
+        repeat(10) { mainClock.advanceTimeByFrame() }
 
-            assertHostPixel(Color.RED, y = 30)
-        }
+        assertHostPixel(expected, y = 30)
+    }
 
-    @Test
-    fun `unscoped expand clips by default under a constrained box`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent { ConstrainedHost { UnscopedVisibility(visible) } }
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
+    @ParameterizedTest(name = "clip = {0}")
+    @MethodSource("constrainedClipCases")
+    fun `unscoped content size transform under a constrained box paints past the box only when clipping is disabled`(
+        clip: Boolean,
+        expected: Color,
+    ) = runComposeSwingTest {
+        var state by mutableStateOf(false)
+        setContent { ConstrainedHost { UnscopedContent(state, clip = clip) } }
+        mainClock.autoAdvance = false
+        state = true
+        repeat(10) { mainClock.advanceTimeByFrame() }
 
-            assertHostPixel(Color.BLUE, y = 30)
-        }
+        assertHostPixel(expected, y = 30)
+    }
 
-    @Test
-    fun `unscoped content size transform clip false is honored under a constrained box`() =
-        runComposeSwingTest {
-            var state by mutableStateOf(false)
-            setContent { ConstrainedHost { UnscopedContent(state, clip = false) } }
-            mainClock.autoAdvance = false
-            state = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            assertHostPixel(Color.RED, y = 30)
-        }
-
-    @Test
-    fun `unscoped content size transform clips by default under a constrained box`() =
-        runComposeSwingTest {
-            var state by mutableStateOf(false)
-            setContent { ConstrainedHost { UnscopedContent(state, clip = true) } }
-            mainClock.autoAdvance = false
-            state = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            assertHostPixel(Color.BLUE, y = 30)
-        }
-
-    @Test
-    fun `an expansion with clipping disabled exposes child pixels inside a constrained foundation box`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent {
-                Box(
-                    modifier =
-                        SwingModifier
-                            .testTag(HOST)
-                            .preferredSize(80, 40)
-                            .maximumSize(80, 40)
-                            .opaque(true)
-                            .background(Color.BLUE),
-                ) {
-                    Column(SwingModifier.preferredSize(80, 40).maximumSize(80, 40)) {
-                        this.AnimatedVisibility(
-                            visible = visible,
-                            enter = expandVertically(tween(DURATION), Alignment.Top, clip = false),
-                            exit = ExitTransition.None,
-                        ) {
-                            RedBlock(80, 80, CONTENT)
-                        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("expandClipCases")
+    fun `an expansion inside a constrained foundation box exposes child pixels only when clipping is disabled`(
+        name: String,
+        enter: EnterTransition,
+        expected: Color,
+    ) = runComposeSwingTest {
+        var visible by mutableStateOf(false)
+        setContent {
+            Box(
+                modifier =
+                    SwingModifier
+                        .testTag(HOST)
+                        .preferredSize(80, 40)
+                        .maximumSize(80, 40)
+                        .opaque(true)
+                        .background(Color.BLUE),
+            ) {
+                Column(SwingModifier.preferredSize(80, 40).maximumSize(80, 40)) {
+                    this.AnimatedVisibility(
+                        visible = visible,
+                        enter = enter,
+                        exit = ExitTransition.None,
+                    ) {
+                        RedBlock(80, 80, CONTENT)
                     }
                 }
             }
-
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            val host = onNodeWithTag(HOST).fetch<JComponent>()
-            val point = Point(host.insets.left + 10, host.insets.top + 20)
-            host.captureToImage().assertPixelColor(
-                Color.RED,
-                point.x,
-                point.y,
-                "host=${host.bounds}, insets=${host.insets}, point=$point",
-            )
         }
 
-    @Test
-    fun `the default expansion clip keeps child pixels inside its constrained animated box`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent {
-                Box(
-                    modifier =
-                        SwingModifier
-                            .testTag(HOST)
-                            .preferredSize(80, 40)
-                            .maximumSize(80, 40)
-                            .opaque(true)
-                            .background(Color.BLUE),
-                ) {
-                    Column(SwingModifier.preferredSize(80, 40).maximumSize(80, 40)) {
-                        this.AnimatedVisibility(
-                            visible = visible,
-                            enter = expandVertically(tween(DURATION), Alignment.Top),
-                            exit = ExitTransition.None,
-                        ) {
-                            RedBlock(80, 80, CONTENT)
-                        }
-                    }
-                }
-            }
+        mainClock.autoAdvance = false
+        visible = true
+        repeat(10) { mainClock.advanceTimeByFrame() }
 
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            val host = onNodeWithTag(HOST).fetch<JComponent>()
-            val point = Point(host.insets.left + 10, host.insets.top + 20)
-            host.captureToImage().assertPixelColor(
-                Color.BLUE,
-                point.x,
-                point.y,
-                "host=${host.bounds}, insets=${host.insets}, point=$point",
-            )
-        }
+        val host = onNodeWithTag(HOST).fetch<JComponent>()
+        val point = Point(host.insets.left + 10, host.insets.top + 20)
+        host.captureToImage().assertPixelColor(
+            expected,
+            point.x,
+            point.y,
+            "$name: host=${host.bounds}, insets=${host.insets}, point=$point",
+        )
+    }
 
     @Test
     fun `an expanding child paints past its animated size when clipping is disabled`() =
@@ -244,107 +192,64 @@ class AnimationClippingTest {
             assertBelowPixel(Color.BLUE)
         }
 
-    @Test
-    fun `a shrinking child paints past its animated size when clipping is disabled`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(true)
-            setContent {
-                Column {
-                    this.AnimatedVisibility(
-                        visible = visible,
-                        modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
-                        enter = EnterTransition.None,
-                        exit = shrinkVertically(tween(DURATION), Alignment.Top, clip = false),
-                    ) {
-                        RedBlock(80, 80, CONTENT)
-                    }
-                    BlueBlock()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("shrinkClipCases")
+    fun `a shrinking child paints past its animated size only when clipping is disabled`(
+        name: String,
+        exit: ExitTransition,
+        expected: Color,
+    ) = runComposeSwingTest {
+        var visible by mutableStateOf(true)
+        setContent {
+            Column {
+                this.AnimatedVisibility(
+                    visible = visible,
+                    modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
+                    enter = EnterTransition.None,
+                    exit = exit,
+                ) {
+                    RedBlock(80, 80, CONTENT)
                 }
+                BlueBlock()
             }
-
-            mainClock.autoAdvance = false
-            visible = false
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            assertContentOverlapsBelow(CONTENT)
-            assertBelowPixel(Color.RED, y = 0)
         }
 
-    @Test
-    fun `a shrinking child stays clipped by default`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(true)
-            setContent {
-                Column {
-                    this.AnimatedVisibility(
-                        visible = visible,
-                        modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
-                        enter = EnterTransition.None,
-                        exit = shrinkVertically(tween(DURATION), Alignment.Top),
-                    ) {
-                        RedBlock(80, 80, CONTENT)
-                    }
-                    BlueBlock()
-                }
+        mainClock.autoAdvance = false
+        visible = false
+        repeat(10) { mainClock.advanceTimeByFrame() }
+
+        assertContentOverlapsBelow(CONTENT)
+        assertBelowPixel(expected, y = 0, message = name)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sizeTransformClipCases")
+    fun `animated content paints past its size transform only when clipping is disabled`(
+        name: String,
+        sizeTransform: SizeTransform,
+        expected: Color,
+    ) = runComposeSwingTest {
+        var state by mutableStateOf(false)
+        setContent {
+            Column {
+                this.AnimatedContent(
+                    targetState = state,
+                    modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
+                    transitionSpec = {
+                        EnterTransition.None togetherWith ExitTransition.None using
+                            sizeTransform
+                    },
+                ) { RedBlock(80, if (it) 80 else 20, "content-$it") }
+                BlueBlock()
             }
-
-            mainClock.autoAdvance = false
-            visible = false
-            repeat(10) { mainClock.advanceTimeByFrame() }
-
-            assertContentOverlapsBelow(CONTENT)
-            assertBelowPixel(Color.BLUE, y = 0)
         }
+        mainClock.autoAdvance = false
+        state = true
+        repeat(2) { mainClock.advanceTimeByFrame() }
 
-    @Test
-    fun `animated content reserves overflow when its size transform disables clipping`() =
-        runComposeSwingTest {
-            var state by mutableStateOf(false)
-            setContent {
-                Column {
-                    this.AnimatedContent(
-                        targetState = state,
-                        modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
-                        transitionSpec = {
-                            EnterTransition.None togetherWith ExitTransition.None using
-                                SizeTransform(clip = false, sizeAnimationSpec = { _, _ -> tween(DURATION) })
-                        },
-                    ) { RedBlock(80, if (it) 80 else 20, "content-$it") }
-                    BlueBlock()
-                }
-            }
-            mainClock.autoAdvance = false
-            state = true
-            repeat(2) { mainClock.advanceTimeByFrame() }
-
-            assertContentOverlapsBelow(CONTENT_B)
-            assertBelowPixel(Color.RED)
-        }
-
-    @Test
-    fun `animated content size transform clips by default`() =
-        runComposeSwingTest {
-            var state by mutableStateOf(false)
-            setContent {
-                Column {
-                    this.AnimatedContent(
-                        targetState = state,
-                        modifier = SwingModifier.testTag(ANIMATED).zIndex(1f),
-                        transitionSpec = {
-                            EnterTransition.None togetherWith ExitTransition.None using
-                                SizeTransform(sizeAnimationSpec = { _, _ -> tween(DURATION) })
-                        },
-                    ) { RedBlock(80, if (it) 80 else 20, "content-$it") }
-                    BlueBlock()
-                }
-            }
-            mainClock.autoAdvance = false
-            state = true
-            repeat(2) { mainClock.advanceTimeByFrame() }
-
-            assertContentOverlapsBelow(CONTENT_B)
-            assertBelowPixel(Color.BLUE)
-        }
+        assertContentOverlapsBelow(CONTENT_B)
+        assertBelowPixel(expected, message = name)
+    }
 
     @Test
     fun `animated content scaled inside its default size clip takes no paint room`() =
@@ -376,6 +281,48 @@ class AnimationClippingTest {
             assertBelowPixel(Color.BLUE)
         }
 
+    companion object {
+        @JvmStatic
+        fun constrainedClipCases() = listOf(Arguments.of(false, Color.RED), Arguments.of(true, Color.BLUE))
+
+        @JvmStatic
+        fun expandClipCases() =
+            listOf(
+                Arguments.of(
+                    "clipping disabled",
+                    expandVertically(tween(DURATION), Alignment.Top, clip = false),
+                    Color.RED,
+                ),
+                Arguments.of("the default clip", expandVertically(tween(DURATION), Alignment.Top), Color.BLUE),
+            )
+
+        @JvmStatic
+        fun shrinkClipCases() =
+            listOf(
+                Arguments.of(
+                    "clipping disabled",
+                    shrinkVertically(tween(DURATION), Alignment.Top, clip = false),
+                    Color.RED,
+                ),
+                Arguments.of("the default clip", shrinkVertically(tween(DURATION), Alignment.Top), Color.BLUE),
+            )
+
+        @JvmStatic
+        fun sizeTransformClipCases() =
+            listOf(
+                Arguments.of(
+                    "clipping disabled",
+                    SizeTransform(clip = false, sizeAnimationSpec = { _, _ -> tween(DURATION) }),
+                    Color.RED,
+                ),
+                Arguments.of(
+                    "the default clip",
+                    SizeTransform(sizeAnimationSpec = { _, _ -> tween(DURATION) }),
+                    Color.BLUE,
+                ),
+            )
+    }
+
     private fun ComposeSwingTest.assertStockPanelPaint(contentTag: String) {
         val outer = onNodeWithTag(STOCK).fetch<JComponent>()
         val host = onNodeWithTag(HOST).fetch<JComponent>()
@@ -400,6 +347,7 @@ class AnimationClippingTest {
     private fun ComposeSwingTest.assertBelowPixel(
         expected: Color,
         y: Int = 1,
+        message: String = "pixel below the animated content",
     ) {
         val below = onNodeWithTag(BELOW).fetch<JComponent>()
         val point = SwingUtilities.convertPoint(below, Point(below.width / 2, y), root)
@@ -407,7 +355,7 @@ class AnimationClippingTest {
             expected,
             point.x,
             point.y,
-            "below=${below.bounds}, point=$point",
+            "$message: below=${below.bounds}, point=$point",
         )
     }
 

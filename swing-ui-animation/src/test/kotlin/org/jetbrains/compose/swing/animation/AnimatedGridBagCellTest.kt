@@ -29,8 +29,12 @@ import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import javax.swing.JComponent
@@ -59,214 +63,150 @@ private val AtNaturalWidth = Dimension(WIDTH, (2 * WIDTH * 9f / 16f).roundToInt(
  * height there, whatever the transition it shows, or showed, the content with.
  */
 class AnimatedGridBagCellTest {
-    @Test
-    fun `all geometry entry points fit the cell at rest and completion`() {
-        val enters =
-            mapOf(
-                "no transition" to EnterTransition.None,
-                "fadeIn" to fadeIn(spec()),
-                "slideInHorizontally" to slideInHorizontally(spec()),
-                "slideInVertically" to slideInVertically(spec()),
-                "expandIn" to expandIn(spec()),
-                "expandHorizontally" to expandHorizontally(spec()),
-                "expandVertically" to expandVertically(spec()),
-            )
-        val containers =
-            buildMap<String, @Composable (SwingModifier) -> Unit> {
-                for (scoped in listOf(false, true)) {
-                    // Scale requires a Foundation parent.
-                    for ((kind, enter) in if (scoped) enters + ("scaleIn" to scaleIn(spec())) else enters) {
-                        this["Visibility scoped=$scoped, $kind"] = { modifier ->
-                            VisibilityCell(modifier, entering = true, scoped = scoped, enter = enter)
-                        }
-                    }
-                }
-            }
-        assertCellSizes(containers)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("entryContainers")
+    fun `all geometry entry points fit the cell at rest and completion`(
+        name: String,
+        container: @Composable (SwingModifier) -> Unit,
+    ) {
+        assertCellSizes(name, container)
     }
 
-    @Test
-    fun `size keeping exits fit the cell halfway through the transition`() {
-        val containers =
-            mapOf<String, @Composable (SwingModifier) -> Unit>(
-                "fadeOut" to { modifier -> VisibilityCell(modifier, entering = false, exit = fadeOut(spec())) },
-                "slideOutHorizontally" to { modifier ->
-                    VisibilityCell(modifier, entering = false, exit = slideOutHorizontally(spec()))
-                },
-                "slideOutVertically" to { modifier ->
-                    VisibilityCell(modifier, entering = false, exit = slideOutVertically(spec()))
-                },
-            )
-        assertCellSizes(containers, partWay = true)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("exitContainers")
+    fun `size keeping exits fit the cell halfway through the transition`(
+        name: String,
+        container: @Composable (SwingModifier) -> Unit,
+    ) {
+        assertCellSizes(name, container, partWay = true)
     }
 
-    @Test
-    fun `replacement and animateContentSize fit the cell at rest and after growth`() {
-        val containers =
-            buildMap<String, @Composable (SwingModifier) -> Unit> {
-                this["Content at rest"] = { modifier -> AnimatedContent(true, modifier) { if (it) Content() } }
-                for ((kind, transform) in mapOf(
-                    "fade" to (fadeIn(spec()) togetherWith fadeOut(spec())),
-                    "expand and shrink" to (expandIn(spec()) togetherWith shrinkOut(spec())),
-                )) {
-                    this["Content after $kind"] = { modifier -> ReplacementCell(modifier, transform) }
-                }
-                for (growing in listOf(false, true)) {
-                    this["animateContentSize growing=$growing"] = { modifier ->
-                        Box(modifier) {
-                            if (growing) {
-                                val grown = rememberGrown()
-                                Column(SwingModifier.animateContentSize(spec())) {
-                                    Content()
-                                    if (grown) Label("Added")
-                                }
-                            } else {
-                                Box(SwingModifier.animateContentSize(spec())) { Content() }
-                            }
-                        }
-                    }
-                }
-            }
-        assertCellSizes(containers)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("replacementContainers")
+    fun `replacement and animateContentSize fit the cell at rest and after growth`(
+        name: String,
+        container: @Composable (SwingModifier) -> Unit,
+    ) {
+        assertCellSizes(name, container)
     }
 
     private fun assertCellSizes(
-        containers: Map<String, @Composable (SwingModifier) -> Unit>,
+        name: String,
+        container: @Composable (SwingModifier) -> Unit,
         partWay: Boolean = false,
     ) {
         val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
-        for ((name, container) in containers) {
-            runComposeSwingTest {
-                mainClock.autoAdvance = !partWay
-                setContent { cell(WIDTH) { modifier -> container(modifier.testTag(CONTAINER)) } }
-                if (partWay) mainClock.advanceTimeBy((TRANSITION_MILLIS / 2).milliseconds)
-                awaitIdle()
-                val holder = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                cyclesUntilStable(holder)
-                assertEquals(WIDTH, holder.width, name)
-                assertEquals(AtCellWidth, onNodeWithTag(CONTENT).fetch<JComponent>().size, name)
-            }
+        runComposeSwingTest {
+            mainClock.autoAdvance = !partWay
+            setContent { cell(WIDTH) { modifier -> container(modifier.testTag(CONTAINER)) } }
+            if (partWay) mainClock.advanceTimeBy((TRANSITION_MILLIS / 2).milliseconds)
+            awaitIdle()
+            val holder = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            cyclesUntilStable(holder)
+            assertEquals(WIDTH, holder.width, name)
+            onNodeWithTag(CONTENT).assertProperty(AtCellWidth, name) { size }
         }
     }
 
     /** Every enter lays the content out within the rectangle the cell grants the container, and fits at completion. */
-    @Test
-    fun `delayed entry lays the content out within the granted rectangle and fits at completion`() {
-        val enters =
-            mapOf(
-                "expandIn" to expandIn(delayedSpec()),
-                "expandVertically" to expandVertically(delayedSpec()),
-                "expandHorizontally" to expandHorizontally(delayedSpec()),
-                "fadeIn" to fadeIn(delayedSpec()),
-            )
-        for ((kind, enter) in enters) {
-            runComposeSwingTest {
-                var visible by mutableStateOf(false)
-                setContent { EnteringCell(visible, enter) }
-                mainClock.autoAdvance = false
-                visible = true
-                mainClock.advanceTimeBy((TRANSITION_MILLIS + TRANSITION_MILLIS / 2).milliseconds)
-                awaitIdle()
-                val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                assertEquals(WIDTH, container.width, "$kind: precondition: the cell grants the container its width")
-                if (kind != "fadeIn") {
-                    assertTrue(container.size != AtCellWidth, "$kind: precondition: the size change was under way")
-                }
-                assertEquals(atAspectWithin(container.size), onNodeWithTag(CONTENT).fetch().size, kind)
-                mainClock.autoAdvance = true
-                awaitIdle()
-                val settled = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                assertEquals(AtCellWidth, onNodeWithTag(CONTENT).fetch().size, kind)
-                assertEquals(WIDTH, settled.width, kind)
-                // Content wider than the cell leaves the cell short of its preferred width, so the cell is laid out
-                // by the container's minimum height, which is read at the content's natural width.
-                val natural = (settled as Constrainable).maxIntrinsicWidth(Constraints.Infinity)
-                assertTrue(natural > WIDTH, "$kind: precondition: the cell is short of the preferred width: $natural")
-                assertEquals(AtNaturalWidth.height, settled.height, kind)
-                assertEquals(settled.minimumSize.height, settled.height, kind)
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("delayedEnters")
+    fun `delayed entry lays the content out within the granted rectangle and fits at completion`(
+        kind: String,
+        enter: EnterTransition,
+    ) {
+        runComposeSwingTest {
+            var visible by mutableStateOf(false)
+            setContent { EnteringCell(visible, enter) }
+            mainClock.autoAdvance = false
+            visible = true
+            mainClock.advanceTimeBy((TRANSITION_MILLIS + TRANSITION_MILLIS / 2).milliseconds)
+            awaitIdle()
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            assertEquals(WIDTH, container.width, "$kind: precondition: the cell grants the container its width")
+            if (kind != "fadeIn") {
+                assertTrue(container.size != AtCellWidth, "$kind: precondition: the size change was under way")
             }
+            onNodeWithTag(CONTENT).assertProperty(atAspectWithin(container.size), kind) { size }
+            mainClock.autoAdvance = true
+            awaitIdle()
+            val settled = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            onNodeWithTag(CONTENT).assertProperty(AtCellWidth, kind) { size }
+            assertEquals(WIDTH, settled.width, kind)
+            // Content wider than the cell leaves the cell short of its preferred width, so the cell is laid out
+            // by the container's minimum height, which is read at the content's natural width.
+            val natural = (settled as Constrainable).maxIntrinsicWidth(Constraints.Infinity)
+            assertTrue(natural > WIDTH, "$kind: precondition: the cell is short of the preferred width: $natural")
+            assertEquals(AtNaturalWidth.height, settled.height, kind)
+            assertEquals(settled.minimumSize.height, settled.height, kind)
         }
     }
 
     /** The content fits the cell's grant on every frame, from no room or from the container's minimum size. */
-    @Test
-    fun `zero cell entry preserves the minimum size and fits the granted rectangle on every frame`() {
-        val enters = mapOf("expandIn" to expandIn(delayedSpec()), "expandVertically" to expandVertically(delayedSpec()))
-        for ((kind, enter) in enters) {
-            runComposeSwingTest {
-                var visible by mutableStateOf(false)
-                setContent { EnteringCell(visible, enter) }
-                mainClock.autoAdvance = false
-                visible = true
-                val fitted = mutableListOf<Pair<Dimension, Dimension>>()
-                val frames =
-                    List(2 * TRANSITION_MILLIS / 16 + 2) { frame ->
-                        mainClock.advanceTimeByFrame()
-                        val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                        if (kind == "expandIn" && frame == 2) {
-                            assertEquals(AtCellWidth.height, (container as Constrainable).minIntrinsicHeight(WIDTH))
-                        }
-                        if (kind == "expandVertically") {
-                            assertEquals(AtNaturalWidth, container.size, "$kind: frame $frame")
-                        }
-                        if (container.width > 0 && container.height > 0) {
-                            fitted += container.size to onNodeWithTag(CONTENT).fetch().size
-                        }
-                        container.size
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("zeroCellEnters")
+    fun `zero cell entry preserves the minimum size and fits the granted rectangle on every frame`(
+        kind: String,
+        enter: EnterTransition,
+    ) {
+        runComposeSwingTest {
+            var visible by mutableStateOf(false)
+            setContent { EnteringCell(visible, enter) }
+            mainClock.autoAdvance = false
+            visible = true
+            val fitted = mutableListOf<Pair<Dimension, Dimension>>()
+            val frames =
+                List(2 * TRANSITION_MILLIS / 16 + 2) { frame ->
+                    mainClock.advanceTimeByFrame()
+                    val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+                    if (kind == "expandIn" && frame == 2) {
+                        assertEquals(AtCellWidth.height, (container as Constrainable).minIntrinsicHeight(WIDTH))
                     }
-                if (kind == "expandIn") {
-                    assertTrue(fitted.size < frames.size, "$kind: precondition: the container began without room")
+                    if (kind == "expandVertically") {
+                        assertEquals(AtNaturalWidth, container.size, "$kind: frame $frame")
+                    }
+                    if (container.width > 0 && container.height > 0) {
+                        fitted += container.size to onNodeWithTag(CONTENT).fetch().size
+                    }
+                    container.size
                 }
-                for ((granted, size) in fitted) {
-                    assertEquals(atAspectWithin(granted), size, "$kind: the content in $granted")
-                }
-                val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                assertEquals(0, cyclesUntilStable(container), "a paint requests no layout")
+            if (kind == "expandIn") {
+                assertTrue(fitted.size < frames.size, "$kind: precondition: the container began without room")
             }
+            for ((granted, size) in fitted) {
+                assertEquals(atAspectWithin(granted), size, "$kind: the content in $granted")
+            }
+            val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            assertEquals(0, cyclesUntilStable(container), "a paint requests no layout")
         }
     }
 
-    @Test
-    fun `visibility and replacement content fill the space a cell narrowed during a size change grants`() {
-        val transform = expandIn(spec()) togetherWith shrinkOut(spec())
-        val containers: Map<String, @Composable (SwingModifier) -> Unit> =
-            buildMap {
-                for (entering in listOf(true, false)) {
-                    this["Visibility entering=$entering"] = { modifier ->
-                        VisibilityCell(
-                            modifier,
-                            entering = entering,
-                            enter = if (entering) expandIn(spec()) else EnterTransition.None,
-                            exit = if (entering) ExitTransition.None else shrinkOut(spec()),
-                        ) { TallContent() }
-                    }
-                    this["Content entering=$entering"] = { modifier ->
-                        ReplacementCell(modifier, transform, entering) { TallContent() }
-                    }
-                }
-            }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("narrowedContainers")
+    fun `visibility and replacement content fill the space a cell narrowed during a size change grants`(
+        name: String,
+        container: @Composable (SwingModifier) -> Unit,
+    ) {
         val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
-        for ((name, container) in containers) {
-            runComposeSwingTest {
-                var width by mutableIntStateOf(WIDTH)
-                mainClock.autoAdvance = false
-                setContent { cell(width) { modifier -> container(modifier.testTag(CONTAINER)) } }
-                mainClock.advanceTimeBy((TRANSITION_MILLIS / 4).milliseconds)
-                awaitIdle()
-                width = InNarrowedCell.width
-                // Applying the new width moves no time, so the animated width remains the wider one.
-                mainClock.advanceTimeByFrame(Duration.ZERO)
-                cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
-                val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-                val content = onNodeWithTag(CONTENT).fetch<JComponent>()
-                assertEquals(InNarrowedCell.width, container.width, "$name: precondition: the cell was narrowed")
-                assertTrue(container.height > 0, "$name: precondition: the container has room: ${container.size}")
-                assertEquals(
-                    Dimension(container.width, minOf(content.preferredSize.height, container.height)),
-                    content.size,
-                    name,
-                )
-            }
+        runComposeSwingTest {
+            var width by mutableIntStateOf(WIDTH)
+            mainClock.autoAdvance = false
+            setContent { cell(width) { modifier -> container(modifier.testTag(CONTAINER)) } }
+            mainClock.advanceTimeBy((TRANSITION_MILLIS / 4).milliseconds)
+            awaitIdle()
+            width = InNarrowedCell.width
+            // Applying the new width moves no time, so the animated width remains the wider one.
+            mainClock.advanceTimeByFrame(Duration.ZERO)
+            cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
+            val holder = onNodeWithTag(CONTAINER).fetch<JComponent>()
+            val content = onNodeWithTag(CONTENT).fetch<JComponent>()
+            assertEquals(InNarrowedCell.width, holder.width, "$name: precondition: the cell was narrowed")
+            assertTrue(holder.height > 0, "$name: precondition: the container has room: ${holder.size}")
+            assertEquals(
+                Dimension(holder.width, minOf(content.preferredSize.height, holder.height)),
+                content.size,
+                name,
+            )
         }
     }
 
@@ -433,6 +373,123 @@ class AnimatedGridBagCellTest {
                     Content(onContentSize)
                 }
             }
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun entryContainers(): List<Arguments> {
+            val enters =
+                mapOf(
+                    "no transition" to EnterTransition.None,
+                    "fadeIn" to fadeIn(spec()),
+                    "slideInHorizontally" to slideInHorizontally(spec()),
+                    "slideInVertically" to slideInVertically(spec()),
+                    "expandIn" to expandIn(spec()),
+                    "expandHorizontally" to expandHorizontally(spec()),
+                    "expandVertically" to expandVertically(spec()),
+                )
+            val containers =
+                buildMap<String, @Composable (SwingModifier) -> Unit> {
+                    for (scoped in listOf(false, true)) {
+                        // Scale requires a Foundation parent.
+                        for ((kind, enter) in if (scoped) enters + ("scaleIn" to scaleIn(spec())) else enters) {
+                            this["Visibility scoped=$scoped, $kind"] = { modifier ->
+                                VisibilityCell(modifier, entering = true, scoped = scoped, enter = enter)
+                            }
+                        }
+                    }
+                }
+            return containers.map { (name, container) -> Arguments.of(name, container) }
+        }
+
+        @JvmStatic
+        fun exitContainers(): List<Arguments> {
+            val containers =
+                mapOf<String, @Composable (SwingModifier) -> Unit>(
+                    "fadeOut" to { modifier -> VisibilityCell(modifier, entering = false, exit = fadeOut(spec())) },
+                    "slideOutHorizontally" to { modifier ->
+                        VisibilityCell(modifier, entering = false, exit = slideOutHorizontally(spec()))
+                    },
+                    "slideOutVertically" to { modifier ->
+                        VisibilityCell(modifier, entering = false, exit = slideOutVertically(spec()))
+                    },
+                )
+            return containers.map { (name, container) -> Arguments.of(name, container) }
+        }
+
+        @JvmStatic
+        fun replacementContainers(): List<Arguments> {
+            val containers =
+                buildMap<String, @Composable (SwingModifier) -> Unit> {
+                    this["Content at rest"] = { modifier -> AnimatedContent(true, modifier) { if (it) Content() } }
+                    for ((kind, transform) in mapOf(
+                        "fade" to (fadeIn(spec()) togetherWith fadeOut(spec())),
+                        "expand and shrink" to (expandIn(spec()) togetherWith shrinkOut(spec())),
+                    )) {
+                        this["Content after $kind"] = { modifier -> ReplacementCell(modifier, transform) }
+                    }
+                    for (growing in listOf(false, true)) {
+                        this["animateContentSize growing=$growing"] = { modifier ->
+                            Box(modifier) {
+                                if (growing) {
+                                    val grown = rememberGrown()
+                                    Column(SwingModifier.animateContentSize(spec())) {
+                                        Content()
+                                        if (grown) Label("Added")
+                                    }
+                                } else {
+                                    Box(SwingModifier.animateContentSize(spec())) { Content() }
+                                }
+                            }
+                        }
+                    }
+                }
+            return containers.map { (name, container) -> Arguments.of(name, container) }
+        }
+
+        @JvmStatic
+        fun delayedEnters(): List<Arguments> {
+            val enters =
+                mapOf(
+                    "expandIn" to expandIn(delayedSpec()),
+                    "expandVertically" to expandVertically(delayedSpec()),
+                    "expandHorizontally" to expandHorizontally(delayedSpec()),
+                    "fadeIn" to fadeIn(delayedSpec()),
+                )
+            return enters.map { (kind, enter) -> Arguments.of(kind, enter) }
+        }
+
+        @JvmStatic
+        fun zeroCellEnters(): List<Arguments> {
+            val enters =
+                mapOf(
+                    "expandIn" to expandIn(delayedSpec()),
+                    "expandVertically" to expandVertically(delayedSpec()),
+                )
+            return enters.map { (kind, enter) -> Arguments.of(kind, enter) }
+        }
+
+        @JvmStatic
+        fun narrowedContainers(): List<Arguments> {
+            val transform = expandIn(spec()) togetherWith shrinkOut(spec())
+            val containers: Map<String, @Composable (SwingModifier) -> Unit> =
+                buildMap {
+                    for (entering in listOf(true, false)) {
+                        this["Visibility entering=$entering"] = { modifier ->
+                            VisibilityCell(
+                                modifier,
+                                entering = entering,
+                                enter = if (entering) expandIn(spec()) else EnterTransition.None,
+                                exit = if (entering) ExitTransition.None else shrinkOut(spec()),
+                            ) { TallContent() }
+                        }
+                        this["Content entering=$entering"] = { modifier ->
+                            ReplacementCell(modifier, transform, entering) { TallContent() }
+                        }
+                    }
+                }
+            return containers.map { (name, container) -> Arguments.of(name, container) }
         }
     }
 }

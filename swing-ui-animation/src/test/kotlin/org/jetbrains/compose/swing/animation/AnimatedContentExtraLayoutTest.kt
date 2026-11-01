@@ -18,11 +18,11 @@ class AnimatedContentExtraLayoutTest {
     fun `unchanged layouts cannot change a size transform or the replacement it runs`(
         resizes: FrameResizes,
         layouts: Int,
-    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::replacementScene)
+    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::replacementFixture)
 }
 
-private fun replacementScene(): LayoutScene<Boolean> =
-    LayoutScene(
+private fun replacementFixture(): LayoutFixture<Boolean> =
+    LayoutFixture(
         content = { changed -> TweenContent(changed) },
         observe = {
             LayoutObservation(

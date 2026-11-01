@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.tween
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -17,6 +18,8 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -65,7 +68,7 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(160, onNodeWithTag(SIBLING).fetch().x, "the row did not settle on the arriving size")
+            onNodeWithTag(SIBLING).assertProperty(160, "the row did not settle on the arriving size") { x }
         }
 
     /**
@@ -87,7 +90,10 @@ class AnimatedContentContainerTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { mainClock.advanceTimeByFrame() }
-            assertEquals(Dimension(45, 22), container.size, "the size stood part-way when the third state arrived")
+            onRoot().onChild().assertProperty(
+                Dimension(45, 22),
+                "the size stood part-way when the third state arrived",
+            ) { size }
             arguments.clear()
             state = "c"
 
@@ -124,7 +130,10 @@ class AnimatedContentContainerTest {
                 "the size transform was asked toward a size other than the measured target: $arguments",
             )
             repeat(30) { mainClock.advanceTimeByFrame() }
-            assertEquals(Dimension(120, 60), container.size, "the interrupted transition settled at its content size")
+            onRoot().onChild().assertProperty(
+                Dimension(120, 60),
+                "the interrupted transition settled at its content size",
+            ) { size }
         }
 
     @Test
@@ -146,19 +155,22 @@ class AnimatedContentContainerTest {
             state = "b"
             repeat(4) { mainClock.advanceTimeByFrame() }
             assertEquals(Dimension(40, 20) to Dimension(200, 100), received.first(), "the measured sizes it received")
-            assertEquals(Dimension(45, 22), container.size, "the callback moved the traveling size")
+            onRoot().onChild().assertProperty(Dimension(45, 22), "the callback moved the traveling size") { size }
             retained.forEach { (initialSize, targetSize) ->
                 initialSize.setSize(1103, 1301)
                 targetSize.setSize(1709, 1907)
             }
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(Dimension(200, 100), container.size, "the retained arguments moved the settled size")
+            onRoot().onChild().assertProperty(
+                Dimension(200, 100),
+                "the retained arguments moved the settled size",
+            ) { size }
         }
 
     /**
-     * The scoped overload answers intrinsics by passing through to its contents, so a row under a Swing parent asks at
-     * once for the room of the content arriving; the unscoped overload would answer the size as it travels.
+     * The scoped overload reports intrinsics by passing through to its contents, so a row under a Swing parent asks at
+     * once for the room of the content arriving; the unscoped overload would report the size as it travels.
      */
     @Test
     fun `a row under a swing parent asks at once for the size of the content arriving`() =
@@ -211,11 +223,7 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(
-                340,
-                onNodeWithTag(CONTAINER).fetch().width,
-                "the container did not settle on the arriving size",
-            )
+            onNodeWithTag(CONTAINER).assertProperty(340, "the container did not settle on the arriving size") { width }
         }
 
     @Test
@@ -255,9 +263,10 @@ class AnimatedContentContainerTest {
                         "the sibling below at $belowBounds",
                 )
                 val point = SwingUtilities.convertPoint(below, below.width / 2, 1, root)
-                assertEquals(
-                    Color.BLUE.rgb,
-                    captureToImage().getRGB(point.x, point.y),
+                captureToImage().assertPixelColor(
+                    Color.BLUE,
+                    point.x,
+                    point.y,
                     "frame $it: the growing container painted over the sibling below it",
                 )
             }
@@ -291,7 +300,7 @@ class AnimatedContentContainerTest {
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(80, onNodeWithTag(CONTAINER).fetch().height, "the region settled short of its content")
+            onNodeWithTag(CONTAINER).assertProperty(80, "the region settled short of its content") { height }
         }
 
     /**

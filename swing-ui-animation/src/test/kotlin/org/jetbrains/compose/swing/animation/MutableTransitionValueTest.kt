@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -177,7 +178,9 @@ class MutableTransitionValueTest {
         fraction = 0.5f
         awaitIdle()
         assertEquals(20, paintedDeferredContentLeft(), "$name: content moves by half its measured width")
-        assertEquals(Dimension(40, 20), content().size, "$name: content keeps its measured size")
+        onNodeWithTag("deferredVisibility")
+            .onChildAt(0)
+            .assertProperty(Dimension(40, 20), "$name: content keeps its measured size") { size }
         assertEquals(
             setOf(Dimension(40, 20)),
             received.toSet(),

@@ -13,9 +13,16 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Dimension
+import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -53,11 +60,11 @@ class DeferredContainerTransitionTest {
                     ) { Body(text = "body") }
                 }
             }
-            assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
 
             state.defer(true)
             awaitIdle()
-            assertEquals(1, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
             assertEquals(
                 Dimension(0, 0),
                 animatedSize,
@@ -68,7 +75,7 @@ class DeferredContainerTransitionTest {
             awaitIdle()
             assertEquals(
                 1f,
-                animatedContainer().paintedAlpha(),
+                onRoot().onChild().paintedAlpha(),
                 "the content did not enter once the deferred phase ended",
             )
         }
@@ -84,19 +91,39 @@ class DeferredContainerTransitionTest {
                     Body(text = it)
                 }
             }
-            assertEquals(1, container.componentCount)
+            onRoot().onChild().onChildren().assertCountEquals(1)
 
             state.defer("b")
             awaitIdle()
-            assertEquals(2, container.componentCount, "the content of the pending state was not composed")
+            onRoot().onChild().onChildren().assertCountEquals(2)
             // Swing paints the highest index first, so index 0 lands on top.
-            assertEquals("b", container.contentText(0), "the pending content did not stand over the content on screen")
-            assertEquals("a", container.contentText(1), "the content on screen left before the transition started")
+            onRoot()
+                .onChild()
+                .onChildAt(
+                    0,
+                ).onChild()
+                .assertIsOfType<JLabel>()
+                .assertProperty("b", "the pending content did not stand over the content on screen") {
+                    text
+                }
+            onRoot()
+                .onChild()
+                .onChildAt(
+                    1,
+                ).onChild()
+                .assertIsOfType<JLabel>()
+                .assertProperty("a", "the content on screen left before the transition started") {
+                    text
+                }
 
             state.animateTo("b")
             awaitIdle()
-            assertEquals(1, container.componentCount, "the content that was left behind stayed in the tree")
-            assertEquals("b", container.contentText(0))
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            onRoot()
+                .onChild()
+                .onChildAt(0)
+                .onChild()
+                .assertTextEquals("b")
         }
 
     @Test
@@ -118,21 +145,21 @@ class DeferredContainerTransitionTest {
 
             state.defer(true)
             awaitIdle()
-            assertEquals(1, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
 
             // Announcing the state the transition already stands on ends the phase without a transition.
             state.defer(false)
             awaitIdle()
-            assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
 
             // The abandoned phase left no latch holding content: a plain change still enters and settles.
             state.animateTo(true)
             awaitIdle()
-            assertEquals(1f, animatedContainer().paintedAlpha())
+            assertEquals(1f, onRoot().onChild().paintedAlpha())
 
             state.animateTo(false)
             awaitIdle()
-            assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
         }
 
     @Test
@@ -146,13 +173,21 @@ class DeferredContainerTransitionTest {
             state.defer(1)
             awaitIdle()
             // Index 0 is the hit-test overlay the default enter's scale adds; the two contents follow it.
-            assertEquals(3, container.componentCount)
+            onRoot().onChild().onChildren().assertCountEquals(3)
 
             state.defer(2)
             awaitIdle()
-            assertEquals(3, container.componentCount, "the state the first phase announced was left on screen")
-            assertEquals("2", container.contentText(1))
-            assertEquals("0", container.contentText(2))
+            onRoot().onChild().onChildren().assertCountEquals(3)
+            onRoot()
+                .onChild()
+                .onChildAt(1)
+                .onChild()
+                .assertTextEquals("2")
+            onRoot()
+                .onChild()
+                .onChildAt(2)
+                .onChild()
+                .assertTextEquals("0")
         }
 
     @Test
@@ -235,42 +270,26 @@ class DeferredContainerTransitionTest {
                     }
                 }
             }
-            assertEquals(0, onAllNodesWithTag("deferredVisibility").fetchAll().size)
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
 
             state.defer("b")
             awaitIdle()
-            assertEquals(
-                1,
-                onAllNodesWithTag("deferredVisibility").fetchAll().size,
-                "the content of the pending state was not composed",
-            )
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
 
             mainClock.autoAdvance = false
             state.animateTo("c")
             mainClock.advanceTimeByFrame()
-            assertEquals(
-                2,
-                onAllNodesWithTag("deferredVisibility").fetchAll().size,
-                "the content the deferred phase announced was dropped instead of being animated out",
-            )
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(2)
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(
-                1,
-                onAllNodesWithTag("deferredVisibility").fetchAll().size,
-                "the content that finished exiting was left in the tree",
-            )
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
 
             // The settled transition dropped the hold, so a later change composes nothing the phase named.
             mainClock.autoAdvance = false
             state.animateTo("a")
             mainClock.advanceTimeByFrame()
-            assertEquals(
-                1,
-                onAllNodesWithTag("deferredVisibility").fetchAll().size,
-                "the content the deferred phase named was composed again",
-            )
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
         }
 
     @Test
@@ -288,26 +307,28 @@ class DeferredContainerTransitionTest {
             mainClock.autoAdvance = false
             state.animateTo("b")
             mainClock.advanceTimeByFrame()
-            assertEquals(2, container.componentCount, "the content of the target state was not composed")
+            onRoot().onChild().onChildren().assertCountEquals(2)
 
             state.defer("c")
             mainClock.advanceTimeByFrame()
-            assertEquals(
-                3,
-                container.componentCount,
-                "the announced content was not composed beside the two the running transition holds",
-            )
-            assertEquals(
-                setOf("a", "b", "c"),
-                List(container.componentCount) { container.contentText(it) }.toSet(),
-                "the content composed was not one for the state on screen, the target state and the one announced",
-            )
+            onRoot().onChild().onChildren().assertCountEquals(3)
+            val contents = onRoot().onChild().onChildren()
+            for (text in setOf("a", "b", "c")) {
+                contents
+                    .filterToOne(SwingMatcher.hasAnyChild(SwingMatcher.hasText(text)))
+                    .onChild()
+                    .assertTextEquals(text)
+            }
 
             state.animateTo("c")
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(1, container.componentCount, "the two contents that were left behind stayed in the tree")
-            assertEquals("c", container.contentText(0))
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            onRoot()
+                .onChild()
+                .onChildAt(0)
+                .onChild()
+                .assertTextEquals("c")
         }
 
     @Test
@@ -321,12 +342,12 @@ class DeferredContainerTransitionTest {
                     Label(text = it, modifier = SwingModifier.preferredSize(WIDTHS.getValue(it), 20))
                 }
             }
-            assertEquals(WIDTHS.getValue("a"), container.width)
+            onRoot().onChild().assertProperty(WIDTHS.getValue("a")) { width }
 
             mainClock.autoAdvance = false
             state.animateTo("b")
             repeat(3) { mainClock.advanceTimeByFrame() }
-            val announcing = container.width
+            val announcing = onRoot().onChild().fetch().width
             assertTrue(
                 announcing in WIDTHS.getValue("a") + 1 until WIDTHS.getValue("b"),
                 "the container was not partway towards the size of the state it animates to: $announcing",
@@ -336,20 +357,18 @@ class DeferredContainerTransitionTest {
             // the size of the state it is animating to and not of the state the phase announces.
             state.defer("c")
             repeat(3) { mainClock.advanceTimeByFrame() }
-            assertTrue(
-                container.width > announcing,
-                "the announced state stopped the size the running transition was traveling towards, " +
-                    "which stood at ${container.width} after $announcing",
-            )
+            onRoot().onChild().assertProperty(
+                true,
+                "the announced state stopped the size traveling after $announcing",
+            ) { width > announcing }
 
             state.animateTo("c")
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(
+            onRoot().onChild().assertProperty(
                 WIDTHS.getValue("c"),
-                container.width,
                 "the container did not arrive at the size of the state the phase ended with",
-            )
+            ) { width }
         }
 
     @Test
@@ -395,11 +414,14 @@ class DeferredContainerTransitionTest {
                     Label(text = it, modifier = SwingModifier.preferredSize(if (it == "a") 40 else 80, 20))
                 }
             }
-            assertEquals(40, container.width)
+            onRoot().onChild().assertProperty(40) { width }
 
             state.defer("b")
             awaitIdle()
-            assertEquals(40, container.width, "the container grew to the pending content before the transition")
+            onRoot().onChild().assertProperty(
+                40,
+                "the container grew to the pending content before the transition",
+            ) { width }
         }
 }
 

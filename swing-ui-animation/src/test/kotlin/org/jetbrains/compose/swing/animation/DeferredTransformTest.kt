@@ -10,10 +10,12 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
-import java.awt.Container
 import java.awt.Point
 import java.awt.geom.Point2D
 import kotlin.test.Test
@@ -303,8 +305,9 @@ class DeferredTransformTest {
             state.animateTo(false)
             mainClock.advanceTimeByFrame()
             assertTrue(
-                sampledContent().alpha <= HELD_OPACITY,
-                "the content jumped back to full opacity as the exit took over, to ${sampledContent().alpha}",
+                sampledContent().alpha in 1..HELD_OPACITY,
+                "the content jumped back to full opacity or on to transparent as the exit took over, to " +
+                    "${sampledContent().alpha}",
             )
         }
 
@@ -388,33 +391,29 @@ class DeferredTransformTest {
 
             state.defer("b")
             awaitIdle()
-            assertEquals(2, container().componentCount, "the content of the announced state was not composed")
-            assertEquals(
+            onRoot().onChild().onChildren().assertCountEquals(2)
+            onRoot().onChild().onChildAt(0).assertProperty(
                 DEFERRED_BLOCK_WIDTH / 2,
-                announcedContent().x,
                 "the transform did not reach the content the phase announced",
-            )
+            ) { x }
 
             mainClock.autoAdvance = false
             state.animateTo("b")
             mainClock.advanceTimeByFrame()
-            assertTrue(
-                announcedContent().x in 1 until DEFERRED_BLOCK_WIDTH,
-                "the announced content jumped back as the transition took over, to ${announcedContent().x}",
-            )
+            onRoot().onChild().onChildAt(0).assertProperty(
+                true,
+                "the announced content jumped back as the transition took over",
+            ) { x in 1 until DEFERRED_BLOCK_WIDTH }
 
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(1, container().componentCount, "the content that was left behind stayed in the tree")
-            assertEquals(0, announcedContent().x, "the content never arrived where the transition places it")
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            onRoot().onChild().onChildAt(0).assertProperty(
+                0,
+                "the content never arrived where the transition places it",
+            ) { x }
         }
 }
-
-/** The container an animated container that animates between states stands on. */
-private fun ComposeSwingTest.container() = root.getComponent(0) as Container
-
-/** The panel holding the content of the state a deferred phase announced, which stands over the content on screen. */
-private fun ComposeSwingTest.announcedContent() = container().getComponent(0)
 
 /** How opaque the hand-driven phase paints the content. */
 private const val HELD_ALPHA = 0.5f

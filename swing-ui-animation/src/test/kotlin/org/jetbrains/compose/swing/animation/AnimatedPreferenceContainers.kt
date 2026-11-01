@@ -313,7 +313,14 @@ internal fun contentContainers(
     insideBox: Boolean,
     finished: Boolean,
     widthFromLeafHeight: Boolean,
-): Map<String, ContainerContent> {
+): Map<String, ContainerContent> = contentContainerGroups(leafEnters, insideBox, finished, widthFromLeafHeight).all
+
+internal fun contentContainerGroups(
+    leafEnters: Boolean,
+    insideBox: Boolean,
+    finished: Boolean,
+    widthFromLeafHeight: Boolean,
+): HeightGroups<ContainerContent> {
     val contentKinds =
         mapOf(
             "fade" to (fadeIn(transitionTween()) to fadeOut(transitionTween())),
@@ -327,44 +334,41 @@ internal fun contentContainers(
             "unclipped size transform" to SizeTransform(clip = false) { _, _ -> transitionTween() },
             "no size transform" to null,
         )
-    return buildMap<String, ContainerContent> {
-        for ((kind, transitions) in contentKinds) {
-            for ((sizing, sizeTransform) in sizeTransforms) {
-                val transitionSpec: AnimatedContentTransitionScope<Boolean>.() -> ContentTransform = {
-                    (transitions.first togetherWith transitions.second) using sizeTransform
-                }
-                for ((placement, leafModifier) in leafPlacements(widthFromLeafHeight, insideBox, finished).all) {
-                    this["AnimatedContent ${hostOf(insideBox)}, $kind, $sizing, $placement"] =
-                        if (insideBox) {
-                            { modifier, leaf ->
-                                Box(modifier = modifier) {
-                                    val state = rememberGrown()
-                                    AnimatedContent(targetState = state, transitionSpec = transitionSpec) { target ->
+    return leafPlacements(widthFromLeafHeight, insideBox, finished).map { placements ->
+        buildMap<String, ContainerContent> {
+            for ((kind, transitions) in contentKinds) {
+                for ((sizing, sizeTransform) in sizeTransforms) {
+                    val transitionSpec: AnimatedContentTransitionScope<Boolean>.() -> ContentTransform = {
+                        (transitions.first togetherWith transitions.second) using sizeTransform
+                    }
+                    for ((placement, leafModifier) in placements) {
+                        this["AnimatedContent ${hostOf(insideBox)}, $kind, $sizing, $placement"] =
+                            if (insideBox) {
+                                { modifier, leaf ->
+                                    Box(modifier = modifier) {
+                                        val state = rememberGrown()
+                                        AnimatedContent(
+                                            targetState = state,
+                                            transitionSpec = transitionSpec,
+                                        ) { target ->
+                                            if (target == leafEnters) leaf(leafModifier()) else Label("Other content")
+                                        }
+                                    }
+                                }
+                            } else {
+                                { modifier, leaf ->
+                                    val state = remember { MutableTransitionState(false).apply { targetState = true } }
+                                    rememberTransition(state).AnimatedContent(modifier, transitionSpec) { target ->
                                         if (target == leafEnters) leaf(leafModifier()) else Label("Other content")
                                     }
                                 }
                             }
-                        } else {
-                            { modifier, leaf ->
-                                val state = remember { MutableTransitionState(false).apply { targetState = true } }
-                                rememberTransition(state).AnimatedContent(modifier, transitionSpec) { target ->
-                                    if (target == leafEnters) leaf(leafModifier()) else Label("Other content")
-                                }
-                            }
-                        }
+                    }
                 }
             }
         }
     }
 }
-
-/** The containers of an [AnimatedContent] inside a Box under a stock parent that changes from a label to the leaf. */
-internal val ContentEnteringInBoxContainers: Map<String, ContainerContent> =
-    contentContainers(leafEnters = true, insideBox = true, finished = false, widthFromLeafHeight = false)
-
-/** The [ContentEnteringInBoxContainers] that take their width from the leaf's height. */
-internal val RatioContentEnteringInBoxContainers: Map<String, ContainerContent> =
-    contentContainers(leafEnters = true, insideBox = true, finished = false, widthFromLeafHeight = true)
 
 /** Containers with [animateContentSize] around a Column holding the leaf at a width. */
 internal val SizeAnimatingContainers: Map<String, ContainerContent> = sizeAnimatingContainers(WidthPlacements)

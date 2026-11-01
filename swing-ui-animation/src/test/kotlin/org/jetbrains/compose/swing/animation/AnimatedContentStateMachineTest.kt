@@ -25,8 +25,6 @@ import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.test.screenshot.captureToImage
-import java.awt.Color
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -55,7 +53,8 @@ class AnimatedContentStateMachineTest {
                     Body(text = it)
                 }
             }
-            val leaving = animatedContainer().onChildAt(0).fetch<Container>()
+            val leaving = panelShowing("a")
+            val leavingComponent = leaving.fetch<Container>()
 
             mainClock.autoAdvance = false
             state = "b"
@@ -70,8 +69,8 @@ class AnimatedContentStateMachineTest {
                     leaving.paintedAlpha()
                 }
             assertSame(
-                animatedContainer().fetch(),
-                leaving.parent,
+                onRoot().onChild().fetch(),
+                leavingComponent.parent,
                 "the content interrupted on its way out was rebuilt",
             )
             assertTrue(
@@ -83,8 +82,12 @@ class AnimatedContentStateMachineTest {
 
             mainClock.autoAdvance = true
             awaitIdle()
-            animatedContainer().onChildren().assertCountEquals(1)
-            assertSame(leaving, animatedContainer().onChildAt(0).fetch(), "the container settled on a rebuilt content")
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            assertSame(
+                leavingComponent,
+                leaving.fetch(),
+                "the container settled on a rebuilt content",
+            )
             assertEquals(1f, leaving.paintedAlpha(), "the content coming back did not reach full opacity")
         }
 
@@ -118,7 +121,7 @@ class AnimatedContentStateMachineTest {
                 Dimension(NARROW_WIDTH, BODY_HEIGHT) to Dimension(WIDE_WIDTH, BODY_HEIGHT) in asked,
                 "the transform was not asked how to travel between the sizes of the two contents: $asked",
             )
-            animatedContainer().assertProperty(
+            onRoot().onChild().assertProperty(
                 NARROW_WIDTH,
                 "the container's size traveled under a spec other than the one the transform gave",
             ) { preferredSize.width }
@@ -144,14 +147,17 @@ class AnimatedContentStateMachineTest {
             val widths =
                 List(8) {
                     mainClock.advanceTimeByFrame()
-                    animatedContainer().fetch().preferredSize.width
+                    onRoot()
+                        .onChild()
+                        .fetch()
+                        .preferredSize.width
                 }
 
             assertTrue(
                 widths.none { it in (NARROW_WIDTH + 1) until WIDE_WIDTH },
                 "the container animated a size after being given no size transform: $widths",
             )
-            animatedContainer().assertProperty(
+            onRoot().onChild().assertProperty(
                 WIDE_WIDTH,
                 "the container did not take the room the roomiest of the two contents needs",
             ) { preferredSize.width }
@@ -174,11 +180,10 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { mainClock.advanceTimeByFrame() }
-            assertEquals(
+            onRoot().onChild().assertProperty(
                 Dimension(57, BODY_HEIGHT),
-                animatedContainer().fetch().size,
                 "precondition: the container's size was mid-travel",
-            )
+            ) { size }
 
             panelShowing("a").assertProperty(
                 Point(17, 0),
@@ -214,12 +219,11 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { mainClock.advanceTimeByFrame() }
-            val container = animatedContainer().onChild()
-            assertEquals(
+            val container = onRoot().onChild().onChild()
+            container.assertProperty(
                 Dimension(57, BODY_HEIGHT),
-                container.fetch().size,
                 "precondition: the container's size was mid-travel",
-            )
+            ) { size }
 
             container.panelShowing("a").assertProperty(
                 Point(17, 0),
@@ -318,16 +322,20 @@ class AnimatedContentStateMachineTest {
             setContent {
                 AnimatedContent(targetState = state, contentKey = { it.length }) { Body(text = it) }
             }
-            val panel = animatedContainer().onChildAt(0).fetch<Container>()
+            val panel = onRoot().onChild().onChildAt(0).fetch<Container>()
             val label = panel.getComponent(0)
 
             state = "b"
             awaitIdle()
 
-            animatedContainer().onChildren().assertCountEquals(1)
-            assertSame(panel, animatedContainer().onChildAt(0).fetch(), "the shared key rebuilt the content it matched")
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            assertSame(panel, onRoot().onChild().onChildAt(0).fetch(), "the shared key rebuilt the content it matched")
             assertSame(label, panel.getComponent(0), "the shared key rebuilt the label the two states share")
-            animatedContainer().onChildAt(0).onChild().assertTextEquals("b")
+            onRoot()
+                .onChild()
+                .onChildAt(0)
+                .onChild()
+                .assertTextEquals("b")
         }
 
     @Test
@@ -337,14 +345,14 @@ class AnimatedContentStateMachineTest {
             setContent {
                 AnimatedContent(targetState = state) { if (it == "a") Body(text = it) }
             }
-            animatedContainer().assertProperty(Dimension(NARROW_WIDTH, BODY_HEIGHT)) { preferredSize }
+            onRoot().onChild().assertProperty(Dimension(NARROW_WIDTH, BODY_HEIGHT)) { preferredSize }
 
             mainClock.autoAdvance = false
             state = "b"
             repeat(4) { mainClock.advanceTimeByFrame() }
             // The default enter's scale is mid-travel, so a hit-test overlay stands alongside both contents.
-            animatedContainer().onChildren().assertCountEquals(3)
-            animatedContainer().assertProperty(
+            onRoot().onChild().onChildren().assertCountEquals(3)
+            onRoot().onChild().assertProperty(
                 true,
                 "the container's size did not travel towards the nothing the arriving state measures",
             ) { preferredSize.width < NARROW_WIDTH }
@@ -354,9 +362,13 @@ class AnimatedContentStateMachineTest {
             // out of frames like any other, so a container that waited on it would never let this return.
             awaitIdle()
 
-            animatedContainer().onChildren().assertCountEquals(1)
-            animatedContainer().onChildAt(0).onChildren().assertCountEquals(0)
-            animatedContainer().assertProperty(
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            onRoot()
+                .onChild()
+                .onChildAt(0)
+                .onChildren()
+                .assertCountEquals(0)
+            onRoot().onChild().assertProperty(
                 Dimension(0, 0),
                 "the container did not settle at the size of the content it holds",
             ) { preferredSize }
@@ -394,7 +406,7 @@ class AnimatedContentStateMachineTest {
             mainClock.autoAdvance = false
             state = "b"
             repeat(10) { mainClock.advanceTimeByFrame() }
-            animatedContainer().onChildren().assertCountEquals(1)
+            onRoot().onChild().onChildren().assertCountEquals(1)
 
             state = "a"
             repeat(3) { mainClock.advanceTimeByFrame() }
@@ -467,7 +479,7 @@ class AnimatedContentStateMachineTest {
 
             generation = 1
             awaitIdle()
-            animatedContainer().assertProperty(
+            onRoot().onChild().assertProperty(
                 NARROW_WIDTH,
                 "the container collapsed when it was handed a transition it had not seen before",
             ) { preferredSize.width }
@@ -477,7 +489,10 @@ class AnimatedContentStateMachineTest {
             val widths =
                 List(8) {
                     mainClock.advanceTimeByFrame()
-                    animatedContainer().fetch().preferredSize.width
+                    onRoot()
+                        .onChild()
+                        .fetch()
+                        .preferredSize.width
                 }
 
             assertTrue(
@@ -560,14 +575,11 @@ class AnimatedContentStateMachineTest {
 
     /** The panel holding the content of [state], whichever of the container's children that is. */
     private fun ComposeSwingTest.panelShowing(state: String): SwingNodeInteraction<Component> =
-        animatedContainer().panelShowing(state)
+        onRoot().onChild().panelShowing(state)
 
     private fun SwingNodeInteraction<*>.panelShowing(state: String): SwingNodeInteraction<Component> =
         onChildren().filterToOne(SwingMatcher.hasAnyChild(SwingMatcher.hasText(state)))
 }
-
-/** How opaque this content paints its opaque label at a pixel inside it, from `0f` to `1f`. */
-private fun Component.paintedAlpha(): Float = Color(captureToImage().getRGB(2, 2), true).alpha / 255f
 
 /** A content of a known size, wide for one state and narrow for the other. */
 @Composable

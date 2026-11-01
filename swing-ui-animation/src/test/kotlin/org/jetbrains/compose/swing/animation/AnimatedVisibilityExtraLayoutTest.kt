@@ -25,7 +25,11 @@ class AnimatedVisibilityExtraLayoutTest {
         resizes: FrameResizes,
         layouts: Int,
     ) = assertUnchangedLayoutsChangeNothing(resizes, layouts) {
-        visibilityScene(visibleBeforeChange = false, expandIn(tween(1000, easing = LinearEasing)), ExitTransition.None)
+        visibilityFixture(
+            visibleBeforeChange = false,
+            expandIn(tween(1000, easing = LinearEasing)),
+            ExitTransition.None,
+        )
     }
 
     @ParameterizedTest(name = "{0}, {1} unchanged layouts")
@@ -34,7 +38,7 @@ class AnimatedVisibilityExtraLayoutTest {
         resizes: FrameResizes,
         layouts: Int,
     ) = assertUnchangedLayoutsChangeNothing(resizes, layouts) {
-        visibilityScene(
+        visibilityFixture(
             visibleBeforeChange = false,
             expandIn(tween(1000, easing = LinearEasing)) + slideInVertically(tween(1000, easing = LinearEasing)),
             ExitTransition.None,
@@ -64,14 +68,14 @@ class AnimatedVisibilityExtraLayoutTest {
         }
 }
 
-/** A visibility whose content is shown when the scene's flag is set; it starts shown when [visibleBeforeChange]. */
-private fun visibilityScene(
+/** A visibility whose content is shown when the fixture's flag is set; it starts shown when [visibleBeforeChange]. */
+private fun visibilityFixture(
     visibleBeforeChange: Boolean,
     enter: EnterTransition,
     exit: ExitTransition,
-): LayoutScene<Boolean> {
+): LayoutFixture<Boolean> {
     val state = MutableTransitionState(visibleBeforeChange)
-    return LayoutScene(
+    return LayoutFixture(
         content = { changed ->
             state.targetState = if (visibleBeforeChange) !changed else changed
             FrameVisibility(state, enter, exit)

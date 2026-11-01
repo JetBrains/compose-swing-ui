@@ -7,9 +7,9 @@ import org.jetbrains.compose.swing.animation.AnimatedContentTransitionScope.Slid
 import org.jetbrains.compose.swing.animation.Stretch.NARROW
 import org.jetbrains.compose.swing.animation.Stretch.ParentCase
 import org.jetbrains.compose.swing.animation.Stretch.ResizeCase
-import org.jetbrains.compose.swing.animation.Stretch.TransformCase
+import org.jetbrains.compose.swing.animation.Stretch.TRANSITION_MILLIS
+import org.jetbrains.compose.swing.animation.Stretch.WideContent
 import org.jetbrains.compose.swing.animation.Stretch.recordEntering
-import org.jetbrains.compose.swing.animation.Stretch.replacing
 import org.jetbrains.compose.swing.animation.Stretch.resizedFrames
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
@@ -134,8 +134,25 @@ internal class AnimatedContentStretchTest {
         override fun toString(): String = name
     }
 
+    /** A change of [AnimatedContent]'s content. */
+    class TransformCase(
+        val name: String,
+        val transform: ContentTransform,
+    ) {
+        override fun toString(): String = name
+    }
+
     private companion object {
         const val ARRIVING_HEIGHT = 100
+
+        val Transforms: List<TransformCase> =
+            listOf(
+                TransformCase("fade", fadeIn(tween(TRANSITION_MILLIS)) togetherWith fadeOut(tween(TRANSITION_MILLIS))),
+                TransformCase(
+                    "expand and shrink",
+                    expandIn(tween(TRANSITION_MILLIS)) togetherWith shrinkOut(tween(TRANSITION_MILLIS)),
+                ),
+            )
 
         @JvmStatic
         fun stockParentsAndTransforms(): List<Arguments> = withTransforms(Stretch.StockParents)
@@ -147,7 +164,7 @@ internal class AnimatedContentStretchTest {
         @JvmStatic
         fun resizesAndTransforms(): List<Arguments> =
             Stretch.ResizeCases.flatMap { resize ->
-                Stretch.Transforms.map { transform -> Arguments.of(resize, transform) }
+                Transforms.map { transform -> Arguments.of(resize, transform) }
             }
 
         @JvmStatic
@@ -191,6 +208,21 @@ internal class AnimatedContentStretchTest {
             )
 
         private fun withTransforms(parents: List<ParentCase>): List<Arguments> =
-            parents.flatMap { parent -> Stretch.Transforms.map { transform -> Arguments.of(parent, transform) } }
+            parents.flatMap { parent -> Transforms.map { transform -> Arguments.of(parent, transform) } }
     }
 }
+
+/** An [AnimatedContent] that replaces a short label with [content] by [transform]. */
+private fun replacing(
+    transform: ContentTransform,
+    content: TaggedContent = WideContent,
+): EnteringContainer =
+    { modifier, shown, contentModifier ->
+        AnimatedContent(shown, modifier, transitionSpec = { transform }) { wide ->
+            if (wide) {
+                content(contentModifier)
+            } else {
+                Label("Other", modifier = SwingModifier.preferredSize(NARROW / 4, 20))
+            }
+        }
+    }

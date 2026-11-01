@@ -143,15 +143,15 @@ class AnimatedVisibilityNaturalSizeTest {
                 startsVisible = false,
                 enter = expandIn(tween(LONG)),
                 exit = fadeOut(tween(2 * LONG)),
-            ) { scene ->
-                scene.visible = true
+            ) { state ->
+                state.visible = true
                 repeat(3) { mainClock.advanceTimeByFrame() }
-                scene.visible = false
+                state.visible = false
                 repeat(LONG / FRAME_MILLIS + 3) { mainClock.advanceTimeByFrame() }
-                assertEquals(listOf(PARENT), scene.sizes, "actual size remains the parent's assigned region")
-                scene.visible = true
+                assertEquals(listOf(PARENT), state.sizes, "actual size remains the parent's assigned region")
+                state.visible = true
                 repeat(3) { mainClock.advanceTimeByFrame() }
-                assertEquals(listOf(PARENT), scene.sizes, "the interrupted transition keeps assigned content size")
+                assertEquals(listOf(PARENT), state.sizes, "the interrupted transition keeps assigned content size")
                 mainClock.autoAdvance = true
                 awaitIdle()
             }
@@ -166,13 +166,13 @@ class AnimatedVisibilityNaturalSizeTest {
                 startsVisible = true,
                 enter = fadeIn(tween(LONG)),
                 exit = shrinkOut(tween(LONG)) + fadeOut(tween(LONG)),
-            ) { scene ->
-                assertEquals(listOf(PARENT), scene.sizes, "settled content fits the parent's space")
-                scene.visible = false
+            ) { state ->
+                assertEquals(listOf(PARENT), state.sizes, "settled content fits the parent's space")
+                state.visible = false
                 repeat(LONG / 2 / FRAME_MILLIS) { mainClock.advanceTimeByFrame() }
-                scene.visible = true
+                state.visible = true
                 repeat(3) { mainClock.advanceTimeByFrame() }
-                assertEquals(listOf(PARENT), scene.sizes, "the interrupted transition keeps assigned content size")
+                assertEquals(listOf(PARENT), state.sizes, "the interrupted transition keeps assigned content size")
                 mainClock.autoAdvance = true
                 awaitIdle()
             }
@@ -188,10 +188,10 @@ class AnimatedVisibilityNaturalSizeTest {
                 startsVisible = false,
                 enter = fadeIn(tween(2 * LONG)),
                 exit = shrinkOut(tween(LONG)),
-            ) { scene ->
-                scene.visible = true
+            ) { state ->
+                state.visible = true
                 repeat(3) { mainClock.advanceTimeByFrame() }
-                scene.parent = narrowed
+                state.parent = narrowed
                 repeat(2 * LONG / FRAME_MILLIS + 3) { mainClock.advanceTimeByFrame() }
             }
 
@@ -266,28 +266,28 @@ class AnimatedVisibilityNaturalSizeTest {
 
     /**
      * The sizes [Block] reports while [script] drives an [AnimatedVisibility] in [PARENT] that [startsVisible] or not,
-     * with the clock stopped. The script reads the sizes reported so far from [Scene.sizes].
+     * with the clock stopped. The script reads the sizes reported so far from [VisibilityState.sizes].
      */
     private fun contentSizesDuring(
         startsVisible: Boolean,
         enter: EnterTransition,
         exit: ExitTransition,
-        script: suspend ComposeSwingTest.(scene: Scene) -> Unit,
+        script: suspend ComposeSwingTest.(state: VisibilityState) -> Unit,
     ): List<Dimension> {
-        val scene = Scene(startsVisible)
+        val state = VisibilityState(startsVisible)
         runComposeSwingTest {
-            setContent { Region(scene.parent, scene.visible, enter, exit, scene.sizes::add) }
+            setContent { Region(state.parent, state.visible, enter, exit, state.sizes::add) }
             mainClock.autoAdvance = false
-            script(scene)
+            script(state)
         }
-        return scene.sizes
+        return state.sizes
     }
 
     /**
      * What a [contentSizesDuring] script changes: whether the content is visible, and the size of its parent; and
      * what it reads: the sizes the content has reported.
      */
-    private class Scene(
+    private class VisibilityState(
         startsVisible: Boolean,
     ) {
         val sizes = mutableListOf<Dimension>()

@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.LinearEasing
 import org.jetbrains.compose.swing.animation.core.tween
-import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
+import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -16,14 +16,10 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
-import java.awt.AlphaComposite
 import java.awt.Color
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Graphics
-import java.awt.Graphics2D
-import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -51,57 +47,9 @@ internal class FadeLeaf : JComponent() {
     }
 }
 
-/** The outermost step of a fade's container: [shown] is what the container shows after the paints so far. */
-internal class FadeTapNode : DecorationModifierNode<Component>() {
-    private var surface: BufferedImage? = null
-    var paints = 0
-    val shown: BufferedImage get() = checkNotNull(surface) { "the container has not painted" }
-
-    override fun paint(
-        graphics: Graphics2D,
-        width: Int,
-        height: Int,
-        content: (Graphics2D, Int, Int) -> Unit,
-    ) {
-        paints++
-        val kept =
-            surface?.takeIf { it.width == width && it.height == height }
-                ?: BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB).also { surface = it }
-        val area = graphics.clipBounds ?: Rectangle(width, height)
-        val into = kept.createGraphics()
-        try {
-            into.composite = AlphaComposite.Clear
-            into.fillRect(area.x, area.y, area.width, area.height)
-            into.composite = AlphaComposite.SrcOver
-            into.clip = area
-            content(into, width, height)
-        } finally {
-            into.dispose()
-        }
-        graphics.drawImage(kept, 0, 0, null)
-    }
-}
-
-internal class FadeTap : SwingModifier.NodeElement<Component, FadeTapNode>() {
-    private val created = ArrayList<FadeTapNode>()
-    val node: FadeTapNode get() = created.single()
-
-    override val additive: Boolean get() = true
-
-    override val targetType: Class<Component> get() = Component::class.java
-
-    override fun create(): FadeTapNode = FadeTapNode().also { created += it }
-
-    override fun update(node: FadeTapNode) = Unit
-
-    override fun equals(other: Any?): Boolean = this === other
-
-    override fun hashCode(): Int = System.identityHashCode(this)
-}
-
 internal class FadeFixture {
     val leaf = FadeLeaf()
-    val tap = FadeTap()
+    val tap = TapElement()
     lateinit var host: JComponent
     var visible by mutableStateOf(true)
     val container: JComponent get() = leaf.parent as JComponent
@@ -145,12 +93,6 @@ internal suspend fun ComposeSwingTest.mountFade(
         fixture.host.validate()
     }
     mainClock.autoAdvance = false
-}
-
-/** Drives one frame and delivers the paints and repaint requests it caused. */
-internal suspend fun ComposeSwingTest.driveFrame() {
-    mainClock.advanceTimeByFrame()
-    awaitEventsDelivered()
 }
 
 private fun dominantChannel(color: Color): Int = listOf(color.red, color.green, color.blue).let { it.indexOf(it.max()) }

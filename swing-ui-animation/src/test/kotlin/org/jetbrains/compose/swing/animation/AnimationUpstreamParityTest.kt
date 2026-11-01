@@ -33,6 +33,7 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -121,7 +122,7 @@ class AnimationUpstreamParityTest {
             mainClock.advanceTimeByFrame()
 
             assertSlideEnter { visibilityTransition }
-            val content = animatedContainer().fetch<Container>().getComponent(0)
+            val content = onRoot().onChild().fetch<Container>().getComponent(0)
 
             visible = false
             mainClock.advanceTimeByFrame()
@@ -396,8 +397,8 @@ private fun ComposeSwingTest.assertSlideEnter(transition: () -> Transition<Enter
     for (frame in 0 until 12) {
         mainClock.advanceTimeByFrame()
         val currentTransition = requireNotNull(transition())
-        val content = animatedContainer().fetch<Container>().getComponent(0)
-        assertEquals(Dimension(100, 100), animatedContainer().fetch().preferredSize)
+        val content = onRoot().onChild().fetch<Container>().getComponent(0)
+        assertEquals(Dimension(100, 100), onRoot().onChild().fetch().preferredSize)
         if (currentTransition.currentState == EnterExitState.Visible) {
             assertEquals(Point(0, 0), content.location)
             return
@@ -442,7 +443,7 @@ private fun ComposeSwingTest.assertScaleRaster(
     transition: Transition<EnterExitState>,
     scale: Float,
 ) {
-    val image = animatedContainer().captureToImage()
+    val image = onRoot().onChild().captureToImage()
     var left = image.width
     var top = image.height
     var right = -1

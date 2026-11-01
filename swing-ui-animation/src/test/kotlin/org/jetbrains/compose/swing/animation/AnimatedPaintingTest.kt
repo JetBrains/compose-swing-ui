@@ -82,7 +82,7 @@ class AnimatedPaintingTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-            val panel = animatedContainer().fetch()
+            val panel = onRoot().onChild().fetch()
             val held = panel.paintScaled(DEVICE_SCALE)
             val pivotX = panel.width / 2.0
             val pivotY = panel.height / 2.0
@@ -92,7 +92,7 @@ class AnimatedPaintingTest {
             // A buffer measured in the unscaled space would be blitted at the wrong size once the scale is
             // concatenated, which the device scale multiplies rather than hides.
             val settled =
-                animatedContainer().fetch().paintScaled(DEVICE_SCALE) {
+                onRoot().onChild().fetch().paintScaled(DEVICE_SCALE) {
                     it.translate(pivotX, pivotY)
                     it.scale(HELD_SCALE.toDouble(), HELD_SCALE.toDouble())
                     it.translate(-pivotX, -pivotY)
@@ -181,7 +181,7 @@ class AnimatedPaintingTest {
      * block is not scaled along.
      */
     private fun ComposeSwingTest.paintedPivot(): TransformOrigin {
-        val image = animatedContainer().captureToImage()
+        val image = onRoot().onChild().captureToImage()
         val painted =
             (0 until image.width)
                 .flatMap { x -> (0 until image.height).map { y -> x to y } }
@@ -259,11 +259,11 @@ class AnimatedPaintingTest {
         mainClock.autoAdvance = false
         visible = true
         repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-        val faded = rendered(animatedContainer().fetch())
+        val faded = rendered(onRoot().onChild().fetch())
 
         mainClock.autoAdvance = true
         awaitIdle()
-        return faded to rendered(animatedContainer().fetch())
+        return faded to rendered(onRoot().onChild().fetch())
     }
 }
 

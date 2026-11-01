@@ -45,7 +45,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.animation.AnimatedContent
 import org.jetbrains.compose.swing.animation.AnimatedVisibility
-import org.jetbrains.compose.swing.animation.animatedContainer
 import org.jetbrains.compose.swing.animation.paintedAlpha
 import org.jetbrains.compose.swing.animation.fadeIn
 import org.jetbrains.compose.swing.animation.fadeOut
@@ -57,6 +56,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 
@@ -2196,7 +2196,7 @@ class SeekableTransitionStateTest {
     /** Asserts that the single animated container in the tree holds its content at full opacity. */
     private fun ComposeSwingTest.assertContentFullyEntered() {
         onNodeWithText("content").assertExists()
-        assertEquals(1f, animatedContainer().paintedAlpha())
+        assertEquals(1f, onRoot().onChild().paintedAlpha())
     }
 
     /** The [animateAfterSeekToZero] shape driven by a child transition rather than a container. */

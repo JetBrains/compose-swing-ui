@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
@@ -16,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -50,7 +52,7 @@ class FillContainerTest {
         case: FillCase,
     ) = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        setContent { case.scene(shown) }
+        setContent { case.content(shown) }
 
         val filled = case.filled(this)
         assertEquals(0 until FILLED_EXTENT, case.axis.span(filled), "the settled content did not take the extent")
@@ -64,9 +66,10 @@ class FillContainerTest {
         assertEquals(0 until FILLED_EXTENT, case.axis.span(filled), "the shrink took the filled extent with it")
         val (container, edge) = case.edge(filled)
         val onScreen = SwingUtilities.convertPoint(container, edge, root)
-        assertEquals(
-            Color.RED.rgb,
-            captureToImage().getRGB(onScreen.x, onScreen.y),
+        captureToImage().assertPixelColor(
+            Color.RED,
+            onScreen.x,
+            onScreen.y,
             "the shrinking container clipped the filled content short of its edge",
         )
     }
@@ -87,14 +90,16 @@ class FillContainerTest {
                 }
             }
 
-            val content = filledCanvas()
-            assertTrue(content.parent.width > CONTENT_WIDTH, "the container was not wider than the content prefers")
-            assertEquals(content.parent.width, content.width, "the content did not take the container's width")
-            assertEquals(CONTENT_HEIGHT, content.height, "the unfilled axis stopped preferring its own height")
-            val rightEdge = SwingUtilities.convertPoint(content.parent, content.parent.width - 1, 1, root)
-            assertEquals(
-                Color.RED.rgb,
-                captureToImage().getRGB(rightEdge.x, rightEdge.y),
+            val canvas = onNodeWithTag(CANVAS).fetch()
+            assertTrue(canvas.parent.width > CONTENT_WIDTH, "the container was not wider than the content prefers")
+            onNodeWithTag(CANVAS)
+                .assertProperty(canvas.parent.width, "the content did not take the container's width") { width }
+                .assertProperty(CONTENT_HEIGHT, "the unfilled axis stopped preferring its own height") { height }
+            val rightEdge = SwingUtilities.convertPoint(canvas.parent, canvas.parent.width - 1, 1, root)
+            captureToImage().assertPixelColor(
+                Color.RED,
+                rightEdge.x,
+                rightEdge.y,
                 "the filled width was not painted to the container's right edge",
             )
         }
@@ -104,12 +109,14 @@ class FillContainerTest {
         runComposeSwingTest {
             setContent { Region(shown = true) { TallScrollPane() } }
 
-            val scrollPane = onNodeOfType<JScrollPane>().fetch()
-            assertEquals(FILLED_EXTENT, scrollPane.height, "the filled scroll pane did not take the region's height")
-            assertTrue(scrollPane.verticalScrollBar.isVisible, "content taller than the filled height did not scroll")
+            onNodeOfType<JScrollPane>()
+                .assertProperty(FILLED_EXTENT, "the filled scroll pane did not take the region's height") { height }
+                .assertProperty(true, "content taller than the filled height did not scroll") {
+                    verticalScrollBar.isVisible
+                }
         }
 
-    /** The axis a scene fills. */
+    /** The axis that a case fills. */
     enum class FilledAxis(
         val span: (Component) -> IntRange,
     ) {
@@ -118,34 +125,34 @@ class FillContainerTest {
     }
 
     /**
-     * A scene whose content fills one axis of its animated container.
+     * A case whose content fills one axis of its animated container.
      *
-     * @property scene the container and its content, shrunk by setting `shown` to false.
+     * @property content the container and its content, shrunk by setting `shown` to false.
      * @property filled finds the node that fills the axis.
      * @property axis the axis the node fills.
      * @property underway whether the transition has begun to take the container's room from the filled node.
      * @property edge the point where the filled node ends, and the component whose coordinates it is in.
      */
     enum class FillCase(
-        val scene: @Composable (shown: Boolean) -> Unit,
+        val content: @Composable (shown: Boolean) -> Unit,
         val filled: ComposeSwingTest.() -> Component,
         val axis: FilledAxis,
         val underway: (Component) -> Boolean,
         val edge: (Component) -> Pair<Component, Point>,
     ) {
         FilledHeight(
-            scene = { shown ->
+            content = { shown ->
                 Region(shown) {
                     RedCanvas(SwingModifier.fillMaxHeight().preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
                 }
             },
-            filled = { filledCanvas() },
+            filled = { onNodeWithTag(CANVAS).fetch<Component>() },
             axis = FilledAxis.Height,
             underway = { it.parent.width < CONTENT_WIDTH },
             edge = { it.parent to Point(1, FILLED_EXTENT - 1) },
         ),
         ScrollPaneFillingHeight(
-            scene = { shown -> Region(shown) { TallScrollPane() } },
+            content = { shown -> Region(shown) { TallScrollPane() } },
             filled = { onNodeOfType<JScrollPane>().fetch() },
             axis = FilledAxis.Height,
             underway = { it.parent.width < CONTENT_WIDTH },
@@ -155,7 +162,7 @@ class FillContainerTest {
             },
         ),
         FilledWidthOfNorthRegion(
-            scene = { shown ->
+            content = { shown ->
                 Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(FILLED_EXTENT, 400)) {
                     AnimatedVisibility(
                         visible = shown,
@@ -167,13 +174,13 @@ class FillContainerTest {
                     }
                 }
             },
-            filled = { filledCanvas() },
+            filled = { onNodeWithTag(CANVAS).fetch<Component>() },
             axis = FilledAxis.Width,
             underway = { it.parent.height < CONTENT_HEIGHT },
             edge = { it.parent to Point(it.parent.width - 1, 1) },
         ),
         AnimatedContentFillingHeight(
-            scene = { shown ->
+            content = { shown ->
                 Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, FILLED_EXTENT)) {
                     AnimatedContent(
                         targetState = shown,
@@ -189,7 +196,7 @@ class FillContainerTest {
                     }
                 }
             },
-            filled = { filledCanvas() },
+            filled = { onNodeWithTag(CANVAS).fetch<Component>() },
             axis = FilledAxis.Height,
             underway = { it.parent.x < 0 },
             edge = { it.parent to Point(it.parent.width - 1, FILLED_EXTENT - 1) },
@@ -233,5 +240,3 @@ private fun RedCanvas(modifier: SwingModifier) {
         drawRect(Color.RED)
     }
 }
-
-private fun ComposeSwingTest.filledCanvas(): Component = onNodeWithTag(CANVAS).fetch()

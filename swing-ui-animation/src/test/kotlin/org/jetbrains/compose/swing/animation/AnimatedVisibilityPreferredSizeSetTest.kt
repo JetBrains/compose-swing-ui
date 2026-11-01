@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.NaturalSize.CONTAINER
 import org.jetbrains.compose.swing.animation.Stretch.TRANSITION_MILLIS
 import org.jetbrains.compose.swing.animation.core.LinearEasing
@@ -11,6 +14,9 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import kotlin.test.Test
@@ -24,8 +30,8 @@ import kotlin.test.assertTrue
 class AnimatedVisibilityPreferredSizeSetTest {
     @Test
     fun `under a Foundation parent a container with a preferred size set expands frame by frame`() =
-        runEnteringScene(
-            scene = { visible ->
+        runEnteringContent(
+            content = { visible ->
                 Column {
                     AnimatedVisibility(
                         visible = visible,
@@ -52,14 +58,14 @@ class AnimatedVisibilityPreferredSizeSetTest {
             assertTrue(moving.last() < 40, "the sibling moved to its final offset at once: $offsets")
             mainClock.autoAdvance = true
             awaitIdle()
-            assertEquals(40, onNodeWithTag("below").fetch().y, "the sibling settled below the whole container")
+            onNodeWithTag("below").assertProperty(40, "the sibling settled below the whole container") { y }
         }
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(HostingParent::class)
     fun `a container with a preferred size set paints one fade`(parent: HostingParent) =
-        runEnteringScene(
-            scene = { visible ->
+        runEnteringContent(
+            content = { visible ->
                 parent.Hosting {
                     FadingBlock(visible, SwingModifier.testTag("plain"))
                     FadingBlock(visible, SwingModifier.testTag("sized").preferredSize(120, 40))
@@ -115,4 +121,17 @@ private fun FadingBlock(
     exit = ExitTransition.None,
 ) {
     Block(width = 120, height = 40)
+}
+
+private fun runEnteringContent(
+    content: @Composable (Boolean) -> Unit,
+    frames: Int = 0,
+    assertions: suspend ComposeSwingTest.() -> Unit,
+) = runComposeSwingTest {
+    var visible by mutableStateOf(false)
+    setContent { content(visible) }
+    mainClock.autoAdvance = false
+    visible = true
+    repeat(frames) { mainClock.advanceTimeByFrame() }
+    assertions()
 }

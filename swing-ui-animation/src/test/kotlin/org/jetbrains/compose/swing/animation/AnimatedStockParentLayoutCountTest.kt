@@ -24,19 +24,19 @@ class AnimatedStockParentLayoutCountTest {
     fun `unchanged layouts cannot change an expand of a container in a stock flow panel`(
         resizes: FrameResizes,
         layouts: Int,
-    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::expandingVisibilityScene)
+    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::expandingVisibilityFixture)
 
     @ParameterizedTest(name = "{0}, {1} unchanged layouts")
     @MethodSource(UNCHANGED_LAYOUT_CASES)
     fun `unchanged layouts cannot change a size transform of a container in a stock flow panel`(
         resizes: FrameResizes,
         layouts: Int,
-    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::sizeTransformScene)
+    ) = assertUnchangedLayoutsChangeNothing(resizes, layouts, ::sizeTransformFixture)
 }
 
-private fun expandingVisibilityScene(): LayoutScene<Boolean> {
+private fun expandingVisibilityFixture(): LayoutFixture<Boolean> {
     val state = MutableTransitionState(false)
-    return LayoutScene(
+    return LayoutFixture(
         content = { changed ->
             state.targetState = changed
             Panel(PanelLayout.Flow()) {
@@ -53,8 +53,8 @@ private fun expandingVisibilityScene(): LayoutScene<Boolean> {
     )
 }
 
-private fun sizeTransformScene(): LayoutScene<Boolean> =
-    LayoutScene(
+private fun sizeTransformFixture(): LayoutFixture<Boolean> =
+    LayoutFixture(
         content = { changed -> Panel(PanelLayout.Flow()) { FlowTween(changed) } },
         observe = {
             LayoutObservation(

@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.Stretch.RATIO
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.tween
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -35,6 +36,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -62,6 +64,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Which container an [AnimatedVisibility] is: a Foundation parent lays the scoped overload out through the transition,
@@ -212,7 +215,7 @@ class AnimatedVisibilityContainerTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-            assertHalfBlueOverOpaqueRed(Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE), true))
+            assertHalfBlueOverOpaqueRed(Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE), true))
         }
 
     @Test
@@ -323,9 +326,10 @@ class AnimatedVisibilityContainerTest {
                 "precondition: the content stands partway through its slide, at ${content.x} in ${container.width}",
             )
             val outside = SwingUtilities.convertPoint(container, container.width + 2, container.height / 2, root)
-            assertEquals(
-                Color.GREEN.rgb,
-                captureToImage().getRGB(outside.x, outside.y),
+            captureToImage().assertPixelColor(
+                Color.GREEN,
+                outside.x,
+                outside.y,
                 "the slide painted past the container's bounds",
             )
         }
@@ -359,7 +363,10 @@ class AnimatedVisibilityContainerTest {
                     container.x in 1 until 40,
                     "$tag: the container did not move within its parent as it slid, it stands at ${container.x}",
                 )
-                assertEquals(0, container.getComponent(0).x, "$tag: the content slid inside the container instead")
+                onNodeWithTag(tag).onChild().assertProperty(
+                    0,
+                    "$tag: the content slid inside the container instead",
+                ) { x }
             }
         }
 
@@ -378,9 +385,10 @@ class AnimatedVisibilityContainerTest {
     private fun ComposeSwingTest.assertBelowUncovered(moment: String) {
         val below = onNodeWithTag(BELOW).fetch()
         val point = SwingUtilities.convertPoint(below, below.width / 2, 1, root)
-        assertEquals(
-            Color.BLUE.rgb,
-            captureToImage().getRGB(point.x, point.y),
+        captureToImage().assertPixelColor(
+            Color.BLUE,
+            point.x,
+            point.y,
             "$moment: the expanding container painted over the sibling below it",
         )
     }
@@ -420,7 +428,7 @@ class AnimatedVisibilityContainerTest {
 
     /**
      * An exit inside a stock parent that stretches the container to the width of a region without reading preferences
-     * its height there, with paints until the layout settles: the exit is still running part-way through it.
+     * its height there, with paints until the layout settles: the exit runs to its deadline and ends there.
      * The content's height follows its width: read before its first layout, it is as wide as its text, and laid out,
      * it fills the region.
      */
@@ -442,7 +450,7 @@ class AnimatedVisibilityContainerTest {
         }
         cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
 
-        assertExitDuration(CONTAINER, "$parent, $content")
+        assertExitDuration(CONTAINER)
     }
 
     @Test
@@ -629,6 +637,7 @@ private val HeldAlpha: FiniteAnimationSpec<Float> = tween(durationMillis = 320, 
 
 private const val HALF = 0.5f
 private const val SAMPLE = 4
+private const val EXIT_DURATION_MILLIS = 1000
 private const val FRAMES_TO_MEASURE = 3
 private const val FRAMES_INTO_THE_SIZE_CHANGE = 10
 private const val TRANSITION_MILLIS = 320
@@ -638,3 +647,13 @@ private const val FADED = "faded"
 private const val CONTAINER = "container"
 private const val CLIP_WINDOW = "expand-clip"
 private const val COLUMN = "column"
+
+private fun ComposeSwingTest.assertExitDuration(tag: String) {
+    mainClock.advanceTimeByFrame()
+    val firstFrame = mainClock.currentTime
+    assertEndsAt(
+        firstFrame + EXIT_DURATION_MILLIS.milliseconds,
+        stillRunning = { onNodeWithTag(tag).assertExists() },
+        ended = { onNodeWithTag(tag).assertDoesNotExist() },
+    )
+}

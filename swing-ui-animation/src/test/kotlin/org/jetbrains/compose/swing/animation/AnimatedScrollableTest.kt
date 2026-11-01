@@ -38,8 +38,8 @@ private data class Person(
 
 /**
  * How a scroll pane scrolls and lays out content that is wrapped in an animated container: as it scrolls
- * and lays out that content without one. A pane asks only the view it holds, so the container has to
- * answer on the content's behalf.
+ * and lays out that content without one. A pane queries only the view it holds, so the container has to
+ * forward the pane's scrolling queries to the content.
  */
 class AnimatedScrollableTest {
     private val people = List(ROWS) { Person("Person $it", it) }
@@ -144,7 +144,7 @@ class AnimatedScrollableTest {
         }
 
     @Test
-    fun `a container holding two contents at once answers a pane as a panel of its own`() =
+    fun `a container holding two contents at once serves a pane's scrolling as a panel of its own`() =
         runComposeSwingTest {
             var state by mutableStateOf(0)
             setContent {
@@ -168,12 +168,12 @@ class AnimatedScrollableTest {
             assertEquals(
                 view.getFontMetrics(view.font).height,
                 pane.verticalScrollBar.getUnitIncrement(1),
-                "a container with two contents has no single content to ask, and answers a line of its own font",
+                "a container with two contents has no single content to ask, and gives a line of its own font",
             )
             assertEquals(
                 pane.viewport.viewRect.height,
                 pane.verticalScrollBar.getBlockIncrement(1),
-                "a container with two contents answers a full viewport page",
+                "a container with two contents gives a full viewport page",
             )
         }
 
@@ -190,9 +190,10 @@ class AnimatedScrollableTest {
         assertLaidOutAsARawPaneWould(animated, Dimension(400, 400))
 
     /**
-     * That a pane lays the animated container out where it lays out any view answering nothing:
+     * That a pane lays the animated container out where it lays out any view that takes no part in scrolling:
      * at the viewport's extent where the viewport is the larger, at the container's own size where it is
-     * not. Answering a pane at all costs a view that stretch unless it answers for it too.
+     * not. Taking part in a pane's scrolling at all costs a view that stretch unless it also forwards whether it
+     * tracks the viewport.
      */
     private fun assertLaidOutAsARawPaneWould(
         animated: AnimatedContainer,

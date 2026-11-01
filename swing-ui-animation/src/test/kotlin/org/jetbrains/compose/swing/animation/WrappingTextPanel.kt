@@ -37,7 +37,7 @@ internal fun JPanel.recordSizesInto(sizes: MutableList<Dimension>): JPanel =
 /**
  * The size a [wrappingTextPanel] of [length] prefers once plain Swing, with no Compose around the panel, has given it
  * each of [sizes] in turn and read its preferred size after each. A wrapping text area's preferred width follows the
- * width it has, so the answer depends on that history.
+ * width it has, so the result depends on that history.
  */
 internal fun wrappingTextPanelPreferredAfter(
     length: Int,

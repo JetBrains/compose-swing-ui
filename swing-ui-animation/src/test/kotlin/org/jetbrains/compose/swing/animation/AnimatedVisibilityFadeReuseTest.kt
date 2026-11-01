@@ -59,17 +59,25 @@ class AnimatedVisibilityFadeReuseTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val fixture = FadeFixture()
         mountFade(parent, fixture, inWindow = true)
-        fixture.visible = false
-        repeat(3) { driveFrame() }
         val leaf = fixture.leaf
-        val tap = fixture.tap.node
+        val tap = fixture.tap.created.single()
+        fixture.visible = false
+        repeat(3) {
+            mainClock.advanceTimeByFrame()
+            awaitEventsDelivered()
+        }
         val painted = leaf.paints
         val frames = tap.paints
 
         val driven = signal(sequence, fixture)
 
         val content = leaf.bounds
-        tap.shown.assertShows(versionColor(leaf.version), content.centerX.toInt(), content.centerY.toInt(), "the fade")
+        tap.shown().assertShows(
+            versionColor(leaf.version),
+            content.centerX.toInt(),
+            content.centerY.toInt(),
+            "the fade",
+        )
         assertTrue(tap.paints >= frames + driven, "the container did not paint the $driven frames it was driven")
         if (sequence.reuses) assertEquals(painted, leaf.paints, "frames that change only the alpha painted the content")
     }
@@ -199,14 +207,18 @@ private suspend fun ComposeSwingTest.signal(
     val leaf = fixture.leaf
     return when (sequence) {
         AnimatedVisibilityFadeReuseTest.FadeSequence.AlphaOnly -> {
-            repeat(5) { driveFrame() }
+            repeat(5) {
+                mainClock.advanceTimeByFrame()
+                awaitEventsDelivered()
+            }
             5
         }
 
         AnimatedVisibilityFadeReuseTest.FadeSequence.StockChildRepaint -> {
             leaf.version++
             leaf.repaint()
-            driveFrame()
+            mainClock.advanceTimeByFrame()
+            awaitEventsDelivered()
             1
         }
 
@@ -215,7 +227,8 @@ private suspend fun ComposeSwingTest.signal(
             withRecordedRepaints(RecordedRepaints { _, _ -> }) {
                 leaf.version++
                 fixture.container.repaint()
-                driveFrame()
+                mainClock.advanceTimeByFrame()
+                awaitEventsDelivered()
             }
             1
         }

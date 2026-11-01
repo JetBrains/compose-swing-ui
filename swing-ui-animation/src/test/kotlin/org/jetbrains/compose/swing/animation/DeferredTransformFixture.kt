@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
-import javax.swing.JComponent
 
 /** A bounded parent for deferred transform tests that read pixels beyond the content's own extent. */
 @Composable
@@ -32,18 +31,9 @@ internal fun DeferredViewport(content: @Composable ConstrainedScope.() -> Unit) 
         content = { Box(content = content) },
     )
 
-/** The Foundation box that paints the animated container's placement layer. */
-internal fun ComposeSwingTest.deferredContainer() = onRoot().onChild()
-
-/** The animated container inside the Foundation box used by deferred tests. */
-internal fun ComposeSwingTest.deferredAnimatedContainer() = onNodeWithTag("deferredVisibility")
-
-/** The content of the one animated container the test mounts. */
-internal fun ComposeSwingTest.content() = deferredAnimatedContainer().fetch<JComponent>().getComponent(0)
-
 /** The left edge of the blue deferred content as painted through its Foundation placement layer. */
 internal fun ComposeSwingTest.paintedDeferredContentLeft(): Int {
-    val image = deferredContainer().captureToImage()
+    val image = onRoot().onChild().captureToImage()
     for (x in 0 until image.width) {
         for (y in 0 until image.height) {
             val color = Color(image.getRGB(x, y), true)
@@ -59,7 +49,7 @@ internal fun ComposeSwingTest.paintedDeferredContentLeft(): Int {
 internal fun ComposeSwingTest.sampledContent(
     x: Int = DEFERRED_SAMPLE,
     y: Int = DEFERRED_SAMPLE,
-) = Color(deferredContainer().captureToImage().getRGB(x, y), true)
+) = Color(onRoot().onChild().captureToImage().getRGB(x, y), true)
 
 /** A content that fills itself, so what the transform leaves of it can be read off one pixel. */
 @Composable

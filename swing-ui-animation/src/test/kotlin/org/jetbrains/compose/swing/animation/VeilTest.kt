@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -41,11 +42,11 @@ class VeilTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-            val veiled = Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE))
+            val veiled = Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE))
 
             mainClock.autoAdvance = true
             awaitIdle()
-            val settled = animatedContainer().captureToImage()
+            val settled = onRoot().onChild().captureToImage()
 
             assertTrue(veiled.blue < Content.blue, "the content was painted unveiled, as $veiled")
             assertImagesPixelPerfect(filled(settled.width, settled.height), settled)
@@ -64,7 +65,7 @@ class VeilTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-            val veiled = animatedContainer().captureToImage()
+            val veiled = onRoot().onChild().captureToImage()
 
             assertImagesPixelPerfect(filled(veiled.width, veiled.height, DefaultScrim), veiled)
         }
@@ -122,7 +123,7 @@ class VeilTest {
 
             assertEquals(
                 Content,
-                Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE)),
+                Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE)),
                 "the exit started from a scrim that already stood over the content",
             )
         }
@@ -147,7 +148,7 @@ class VeilTest {
 
             assertEquals(
                 0,
-                Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE), true).alpha,
+                Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE), true).alpha,
                 "the scrim stood on its own over content the fade had left nothing of",
             )
         }
@@ -204,7 +205,7 @@ class VeilTest {
         mainClock.autoAdvance = false
         visible = true
         repeat(FRAMES_TO_MEASURE) { mainClock.advanceTimeByFrame() }
-        val panel = animatedContainer().captureToImage()
+        val panel = onRoot().onChild().captureToImage()
         return Color(panel.getRGB(60, 30), true).alpha != 0
     }
 
@@ -212,7 +213,7 @@ class VeilTest {
     private fun ComposeSwingTest.sampledVeil(): List<Int> =
         List(6) {
             mainClock.advanceTimeByFrame()
-            Color(animatedContainer().captureToImage().getRGB(SAMPLE, SAMPLE)).blue
+            Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE)).blue
         }
 }
 

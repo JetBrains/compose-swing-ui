@@ -13,7 +13,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.ComponentOrientation
 import java.awt.Container
 import java.awt.Point
@@ -31,45 +35,47 @@ import kotlin.test.assertEquals
  * what is left is the slide.
  */
 class AnimatedContentGeometryTest {
-    @Test
-    fun `content sliding towards the left edge starts a full slide off the right one`() =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("slideDirections")
+    fun `content starts a full slide off the opposite edge`(case: DirectionCase) =
         runComposeSwingTest {
             assertEquals(
-                listOf(Point(200, 0), Point(120, 0), Point(40, 0)),
-                slideIn(HorizontalAlignments.map { SlideCase(SlideDirection.Left, alignment = it) }),
-                "content coming in over the right edge did not start the width the alignment leaves it",
+                case.expected,
+                slideIn(case.alignments.map { SlideCase(case.direction, alignment = it) }),
+                case.message,
             )
         }
 
-    @Test
-    fun `content sliding towards the right edge starts a full slide off the left one`() =
-        runComposeSwingTest {
-            assertEquals(
-                listOf(Point(-40, 0), Point(-120, 0), Point(-200, 0)),
-                slideIn(HorizontalAlignments.map { SlideCase(SlideDirection.Right, alignment = it) }),
-                "content coming in over the left edge did not start the width the alignment leaves it",
-            )
-        }
-
-    @Test
-    fun `content sliding towards the top edge starts a full slide off the bottom one`() =
-        runComposeSwingTest {
-            assertEquals(
-                listOf(Point(0, 100), Point(0, 60), Point(0, 20)),
-                slideIn(VerticalAlignments.map { SlideCase(SlideDirection.Up, alignment = it) }),
-                "content coming in over the bottom edge did not start the height the alignment leaves it",
-            )
-        }
-
-    @Test
-    fun `content sliding towards the bottom edge starts a full slide off the top one`() =
-        runComposeSwingTest {
-            assertEquals(
-                listOf(Point(0, -20), Point(0, -60), Point(0, -100)),
-                slideIn(VerticalAlignments.map { SlideCase(SlideDirection.Down, alignment = it) }),
-                "content coming in over the top edge did not start the height the alignment leaves it",
-            )
-        }
+    companion object {
+        @JvmStatic
+        fun slideDirections(): List<Named<DirectionCase>> =
+            listOf(
+                DirectionCase(
+                    SlideDirection.Left,
+                    HorizontalAlignments,
+                    listOf(Point(200, 0), Point(120, 0), Point(40, 0)),
+                    "content coming in over the right edge did not start the width the alignment leaves it",
+                ),
+                DirectionCase(
+                    SlideDirection.Right,
+                    HorizontalAlignments,
+                    listOf(Point(-40, 0), Point(-120, 0), Point(-200, 0)),
+                    "content coming in over the left edge did not start the width the alignment leaves it",
+                ),
+                DirectionCase(
+                    SlideDirection.Up,
+                    VerticalAlignments,
+                    listOf(Point(0, 100), Point(0, 60), Point(0, 20)),
+                    "content coming in over the bottom edge did not start the height the alignment leaves it",
+                ),
+                DirectionCase(
+                    SlideDirection.Down,
+                    VerticalAlignments,
+                    listOf(Point(0, -20), Point(0, -60), Point(0, -100)),
+                    "content coming in over the top edge did not start the height the alignment leaves it",
+                ),
+            ).map { Named.of(it.direction.toString(), it) }
+    }
 
     @Test
     fun `a right-to-left container sends the leading slide the way a left-to-right one sends the trailing`() =
@@ -98,7 +104,7 @@ class AnimatedContentGeometryTest {
      * Where the content arriving in each of [cases] starts.
      *
      * One container per case is composed side by side, all driven by the same state, so a single
-     * transition answers for the whole crossing.
+     * transition drives the whole crossing.
      */
     private fun ComposeSwingTest.slideIn(cases: List<SlideCase>): List<Point> {
         var state by mutableStateOf("a")
@@ -126,12 +132,19 @@ class AnimatedContentGeometryTest {
         // The slide is where the content stands past the place the alignment gives it in the container.
         return cases.mapIndexed { index, case ->
             val container = root.getComponent(index) as Container
-            val content = container.contentPanel(0)
+            val content = onRoot().onChildAt(index).onChildAt(0).fetch<Container>()
             val aligned = case.alignment.align(content.size, container.size, ComponentOrientation.LEFT_TO_RIGHT)
             Point(content.x - aligned.x, content.y - aligned.y)
         }
     }
 }
+
+class DirectionCase(
+    val direction: SlideDirection,
+    val alignments: List<Alignment>,
+    val expected: List<Point>,
+    val message: String,
+)
 
 /** One container of the crossing: which way its content slides in, and what it is placed by. */
 private class SlideCase(

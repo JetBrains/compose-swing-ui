@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -275,7 +276,7 @@ class DeferredTransformHandoffTest {
  * middle of the box: it is where a scale has left the content's leading edge.
  */
 private fun ComposeSwingTest.paintedLeftEdge(): Int {
-    val painted = deferredContainer().captureToImage()
+    val painted = onRoot().onChild().captureToImage()
     return (0 until painted.width).first { Color(painted.getRGB(it, DEFERRED_BLOCK_HEIGHT / 2), true).alpha > 0 }
 }
 
