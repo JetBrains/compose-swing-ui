@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.reconcileWithChildren
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.CardLayout
@@ -136,9 +137,7 @@ class PublicListenerApiTest {
                         ),
                 )
             }
-            val slider = onNodeOfType<JSlider>().fetch()
-            slider.value = 75
-            awaitIdle()
+            onNodeOfType<JSlider>().performSetValue(75)
             assertTrue(fired, "supertype registration must fire on subtype target")
         }
 

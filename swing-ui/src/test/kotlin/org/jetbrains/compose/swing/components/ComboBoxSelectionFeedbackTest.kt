@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionEvent
@@ -25,8 +26,8 @@ import kotlin.test.assertNull
  * a report of the wrapper's own write is indistinguishable from a choice the user made, so each test also
  * pins the other direction: the very next choice the user does make is still reported.
  *
- * Choosing an item from the popup reaches a `JComboBox` as `setSelectedIndex`, and committing its editor as
- * `postActionEvent` on the editor component, so the tests drive the widget those two ways.
+ * An accessible selection reaches a `JComboBox` as `setSelectedIndex`, as a popup choice does. Committing
+ * its editor reaches it as `postActionEvent` on the editor component.
  */
 class ComboBoxSelectionFeedbackTest {
     @Test
@@ -73,10 +74,9 @@ class ComboBoxSelectionFeedbackTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
 
-        // Choosing an item from the popup reaches the combo box the same way; with no
-        // onSelectionChange to adopt it, the choice does not stand past the settle awaitIdle drives.
-        combo.selectedIndex = 2
-        awaitIdle()
+        // Without an onSelectionChange callback that adopts the accessible selection,
+        // settlement restores the declaration.
+        onNodeOfType<JComboBox<*>>().performAddSelection(2)
 
         assertEquals("red", combo.selectedItem, "a choice the caller does not adopt does not stand")
     }

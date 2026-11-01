@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -189,8 +190,7 @@ class LambdaListenerModifierTest {
         }
 
         val slider = onNodeOfType<JSlider>().fetch<JSlider>()
-        slider.value = 20
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(20)
 
         assertEquals(slider, receiver, "a scoped change listener runs with the slider it fired on as its receiver")
     }

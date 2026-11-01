@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -129,9 +130,7 @@ class ItemListenerModifierTest {
         )
         reported.clear()
 
-        // Choosing from the popup reaches a JComboBox as a selected-index write.
-        combo.selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JComboBox<*>>().performAddSelection(1)
 
         assertEquals(
             listOf<Pair<Any?, Int>>("red" to ItemEvent.DESELECTED, "green" to ItemEvent.SELECTED),

@@ -23,6 +23,7 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
@@ -154,8 +155,7 @@ class RawComponentListenerOverloadTest {
                 Label("two", SwingModifier.tab("Two"))
             }
         }
-        onNodeOfType<JTabbedPane>().fetch().selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JTabbedPane>().performAddSelection(1)
         assertEquals(1, notified, "the declared listener should be notified of the selection")
     }
 

@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Rectangle
@@ -65,7 +66,7 @@ class PlacementOverflowTest {
     fun unclippedPlacementPaintsTheScaledOverflowAfterClippingAScale() =
         runComposeSwingTest {
             openSection("Foundation graphics")
-            setPlacementSlider(PLACEMENT_SCALE_TAG, 120)
+            onNodeWithTag(PLACEMENT_SCALE_TAG).performSetValue(120)
             onNodeWithText("Clip to dashed boundary").performClick()
             onNodeWithText("Clip to dashed boundary").performClick()
             assertPlacementOverflowPainted("scale 120, clip on and off")
@@ -95,8 +96,7 @@ class PlacementOverflowTest {
             val slider = onNodeWithTag(PLACEMENT_SCALE_TAG).fetch<JSlider>()
             slider.valueIsAdjusting = true
             for (scale in (100..140 step 5) + (135 downTo 60 step 5) + (65..125 step 5)) {
-                slider.value = scale
-                awaitIdle()
+                onNodeWithTag(PLACEMENT_SCALE_TAG).performSetValue(scale)
                 assertPlacementOverflowPainted("dragging to $scale")
             }
             slider.valueIsAdjusting = false
@@ -105,18 +105,10 @@ class PlacementOverflowTest {
         }
 }
 
-private suspend fun ComposeSwingTest.setPlacementSlider(
-    tag: String,
-    value: Int,
-) {
-    onNodeWithTag(tag).fetch<JSlider>().value = value
-    awaitIdle()
-}
-
 /** Sets each slider in turn and asserts the overflow paints after it, so a regression names the failing step. */
 private suspend fun ComposeSwingTest.assertOverflowAcross(vararg steps: Pair<String, Int>) {
     for ((tag, value) in steps) {
-        setPlacementSlider(tag, value)
+        onNodeWithTag(tag).performSetValue(value)
         assertPlacementOverflowPainted("$tag $value")
     }
 }

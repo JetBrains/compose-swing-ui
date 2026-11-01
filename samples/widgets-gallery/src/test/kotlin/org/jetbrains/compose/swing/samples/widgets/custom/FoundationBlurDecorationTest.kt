@@ -4,11 +4,11 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
 import javax.swing.JComponent
-import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,8 +24,7 @@ class FoundationBlurDecorationTest {
             val sharp = surface.captureToImage()
             val sharpBounds = decoratable.decoration.localLayoutBounds(surface)
             onNodeWithText("Blur").performClick()
-            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).fetch<JSlider>().value = 16
-            awaitIdle()
+            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).performSetValue(16)
             val blurred = surface.captureToImage()
             val blurredBounds = decoratable.decoration.localLayoutBounds(surface)
             // The gallery's default card blurred at this radius: the border at column 1, the gradient at column 20.

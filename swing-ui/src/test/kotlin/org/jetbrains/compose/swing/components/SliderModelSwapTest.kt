@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.BoundedRangeModel
@@ -57,15 +58,13 @@ class SliderModelSwapTest {
                 onValueSettled = { settled += it },
             )
         }
-        val slider = onNodeOfType<JSlider>().fetch()
 
         model = model(70)
         awaitIdle()
 
-        // Moving the knob directly is the same write path a drag takes; the channel should still be
-        // listening for it on the model the swap just left current.
-        slider.value = 55
-        awaitIdle()
+        // The accessible value reaches the slider through setValue, the same write path a drag takes; the
+        // channel should still be listening for it on the model the swap just left current.
+        onNodeOfType<JSlider>().performSetValue(55)
 
         assertEquals(listOf(55), changed, "a change on the model current after the swap should reach onValueChange")
         assertEquals(listOf(55), settled, "a change on the model current after the swap should reach onValueSettled")
@@ -79,15 +78,13 @@ class SliderModelSwapTest {
         setContent {
             Slider(model = model, changeListener = listener)
         }
-        val slider = onNodeOfType<JSlider>().fetch()
 
         model = model(70)
         awaitIdle()
 
         assertEquals(emptyList(), heard, "declaring a new model should not reach a raw change listener")
 
-        slider.value = 55
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(55)
 
         assertEquals(
             listOf(55),

@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -73,8 +74,7 @@ class RawEventListenerModifierTest {
             "the listener instance should be registered on the list",
         )
 
-        list.selectedIndex = 1
-        awaitIdle()
+        onNodeOfType<JList<*>>().performAddSelection(1)
         assertTrue(fired > 0, "the registered selection listener must fire on a selection change")
     }
 

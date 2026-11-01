@@ -3,11 +3,11 @@ package org.jetbrains.compose.swing.samples.widgets.animation
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
 import javax.swing.JLabel
-import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,8 +25,7 @@ class DeferredAnimationCardsTest {
             val card = onNodeWithText("Transfer #7716 · Ready").fetch<JLabel>()
             val restingX = card.xInContainer()
 
-            onNode(SwingMatcher.hasAccessibleName("Dismiss drag")).fetch<JSlider>().value = 60
-            awaitIdle()
+            onNode(SwingMatcher.hasAccessibleName("Dismiss drag")).performSetValue(60)
             val dragged = card.xInContainer() - restingX
             assertTrue(dragged > 0, "the hand-driven offset did not reach the card")
             val faded = paintedAlphaOf(card)
@@ -58,7 +57,6 @@ class DeferredAnimationCardsTest {
             onNodeWithText("Dragged: 0%").assertExists()
 
             onNodeWithText("Show again").performClick()
-            awaitIdle()
             val shownCard = onNodeWithText("Transfer #7716 · Ready").fetch<JLabel>()
             assertEquals(restingX, shownCard.xInContainer(), "the card came back offset")
         }
@@ -70,8 +68,7 @@ class DeferredAnimationCardsTest {
 
             val card = onNodeWithText("Transfer #7716 · Ready").fetch<JLabel>()
             val restingX = card.xInContainer()
-            onNode(SwingMatcher.hasAccessibleName("Dismiss drag")).fetch<JSlider>().value = 80
-            awaitIdle()
+            onNode(SwingMatcher.hasAccessibleName("Dismiss drag")).performSetValue(80)
             val dragged = card.xInContainer() - restingX
             assertTrue(dragged > 0, "the drag did not move the card")
             onNodeWithText("Show again").assertDoesNotExist()
@@ -97,11 +94,9 @@ class DeferredAnimationCardsTest {
             openSection("Animated containers")
 
             onNodeWithText("Commit").performClick()
-            awaitIdle()
             onNodeWithText("Transfer #7716 · Ready").assertDoesNotExist()
 
             onNodeWithText("Cancel").performClick()
-            awaitIdle()
             onNodeWithText("Transfer #7716 · Ready").assertDoesNotExist()
             onNodeWithText("Show again").assertExists()
         }
@@ -111,12 +106,10 @@ class DeferredAnimationCardsTest {
         runComposeSwingTest {
             openSection("Animated containers")
 
-            onNode(SwingMatcher.hasAccessibleName("Swipe drag")).fetch<JSlider>().value = 50
-            awaitIdle()
+            onNode(SwingMatcher.hasAccessibleName("Swipe drag")).performSetValue(50)
             onNodeWithText("Drafts · 1 unsent").assertExists()
 
             onNodeWithText("Cancel swipe").performClick()
-            awaitIdle()
             onNodeWithText("Drafts · 1 unsent").assertDoesNotExist()
             assertEquals(
                 0,
@@ -131,8 +124,7 @@ class DeferredAnimationCardsTest {
             openSection("Animated containers")
             onNodeWithText("Drafts · 1 unsent").assertDoesNotExist()
 
-            onNode(SwingMatcher.hasAccessibleName("Swipe drag")).fetch<JSlider>().value = 50
-            awaitIdle()
+            onNode(SwingMatcher.hasAccessibleName("Swipe drag")).performSetValue(50)
             val arriving = onNodeWithText("Drafts · 1 unsent").fetch<JLabel>()
             assertTrue(
                 onNodeWithText("Inbox · 3 unread").fetch<JLabel>().xInContainer() < 0,

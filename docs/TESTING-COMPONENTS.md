@@ -288,7 +288,7 @@ assertEquals(listOf("Copy", null, "Delete"), items)
 
 ## Driving interactions
 
-Actions are available on a `SwingNodeInteraction`. Each one delivers the events the toolkit delivers for
+Gesture actions are available on a `SwingNodeInteraction`. Each delivers the events the toolkit delivers for
 that gesture — a click is a press, a release and a `MOUSE_CLICKED`; a character is a `KEY_PRESSED`, a
 `KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and waits until the
 composition is idle afterwards. So the component's own UI decides what a gesture means, exactly as it does for a
@@ -325,6 +325,8 @@ onNodeWithText("Save").performClick()
 The typing gestures deliver real keystrokes, so the component's own key bindings decide what each one does: a tab types into a text area and traverses focus in a single-line field, exactly as it does for a user. `performTextPaste` runs no binding, so it carries content a component's keys will not produce. Where no gesture produces what a test needs, `fetch()` as the last resort hands back the widget to write to directly, which exercises nothing about input handling.
 
 <!--- KNIT example-testing-fragment-07.kt -->
+
+Accessible actions also wait for idle. Use `performAccessibleAction(description)` to invoke the action with that `AccessibleAction` description (such as `AccessibleAction.CLICK` or `INCREMENT`), `performSetValue(value)` to set an accessible value, and `performAddSelection(index)` to select an accessible child. Selection is checked immediately; settlement can restore the declared selection.
 
 ### Tabs
 

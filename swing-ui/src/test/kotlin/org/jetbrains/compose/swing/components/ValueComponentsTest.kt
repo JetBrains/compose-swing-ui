@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -67,10 +68,7 @@ class ValueComponentsTest {
         }
         val slider = onNodeOfType<JSlider>().fetch()
 
-        // Moving the knob reaches a JSlider as a write to its value; driving that write takes the same
-        // path the user's drag does.
-        slider.value = 42
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(42)
 
         assertEquals(listOf(42), reported, "the change should be reported once, with the value changed to")
         assertEquals(42, slider.value, "the slider should land on the value it was moved to")
@@ -95,8 +93,7 @@ class ValueComponentsTest {
         assertEquals(60, slider.value, "the slider should take the declared value")
         assertEquals(emptyList(), reported, "a value the slider was given should not come back as a change")
 
-        slider.value = 42
-        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(42)
         assertEquals(listOf(42), reported, "a value the slider is moved to should be reported")
     }
 
@@ -150,10 +147,8 @@ class ValueComponentsTest {
         }
         val slider = onNodeOfType<JSlider>().fetch()
 
-        // Moving the knob directly is the same write path a drag takes; with no onValueChange to
-        // adopt it, the change does not stand past the settle awaitIdle drives.
-        slider.value = 70
-        awaitIdle()
+        // Without an onValueChange callback that adopts the accessible value, settlement restores the declaration.
+        onNodeOfType<JSlider>().performSetValue(70)
 
         assertEquals(30, slider.value, "a change the caller does not adopt does not stand")
     }

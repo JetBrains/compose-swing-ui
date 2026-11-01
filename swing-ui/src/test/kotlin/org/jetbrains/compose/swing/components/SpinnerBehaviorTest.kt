@@ -5,8 +5,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.accessibility.AccessibleAction
 import javax.swing.AbstractSpinnerModel
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
@@ -62,9 +65,7 @@ class SpinnerBehaviorTest {
         }
         awaitIdle()
 
-        val spinner = onNodeOfType<JSpinner>().fetch()
-        spinner.value = spinner.model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
 
         assertEquals(6, stateValue, "a step through the spinner is reported through the state")
         assertTrue(6 in observed, "the recomposition observing state.value sees the stepped value")
@@ -100,9 +101,7 @@ class SpinnerBehaviorTest {
         }
         awaitIdle()
 
-        val spinner = onNodeOfType<JSpinner>().fetch()
-        spinner.value = spinner.model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
 
         assertEquals(1.25, stateValue, "a fractional step is reported through the state")
     }
@@ -164,9 +163,7 @@ class SpinnerBehaviorTest {
         setContent { Spinner(model = model, changeListener = listener) }
         awaitIdle()
 
-        val spinner = onNodeOfType<JSpinner>().fetch()
-        spinner.value = spinner.model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
 
         assertEquals(listOf<Any?>(6), received, "a step fires the raw change listener with the new value")
     }
@@ -208,8 +205,7 @@ class SpinnerBehaviorTest {
         assertEquals(20, model.maximum, "the raised maximum updates the model in place")
         assertEquals(8, stateValue, "the current value survives the bound change")
 
-        repeat(5) { spinner.value = spinner.model.nextValue }
-        awaitIdle()
+        repeat(5) { onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT) }
         assertEquals(13, stateValue, "the value can now step past the old maximum")
     }
 
@@ -332,8 +328,7 @@ class SpinnerBehaviorTest {
         val spinner = onNodeOfType<JSpinner>().fetch()
         val model = spinner.model as SpinnerNumberModel
         assertEquals(4, model.minimum, "the model starts at the original minimum")
-        spinner.value = model.previousValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.DECREMENT)
         assertEquals(4, stateValue, "the value steps down to the original floor")
         assertEquals(null, model.previousValue, "the original floor blocks a further step down")
 
@@ -343,8 +338,7 @@ class SpinnerBehaviorTest {
         assertEquals(0, model.minimum, "the lowered minimum updates the model in place")
         assertEquals(4, stateValue, "the current value survives the bound change")
 
-        repeat(3) { spinner.value = spinner.model.previousValue }
-        awaitIdle()
+        repeat(3) { onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.DECREMENT) }
         assertEquals(1, stateValue, "the value can now step below the old minimum")
     }
 
@@ -360,8 +354,7 @@ class SpinnerBehaviorTest {
         val spinner = onNodeOfType<JSpinner>().fetch()
         val model = spinner.model as SpinnerNumberModel
         assertEquals(2, model.stepSize, "the model starts at the original step")
-        spinner.value = model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
         assertEquals(2, stateValue, "a step advances by the original step size")
 
         step = 5
@@ -370,8 +363,7 @@ class SpinnerBehaviorTest {
         assertEquals(5, model.stepSize, "the new step updates the model in place")
         assertEquals(2, stateValue, "the current value survives the step change")
 
-        spinner.value = model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
         assertEquals(7, stateValue, "a later step advances by the new step size")
     }
 
@@ -387,8 +379,7 @@ class SpinnerBehaviorTest {
         val spinner = onNodeOfType<JSpinner>().fetch()
         val model = spinner.model as SpinnerNumberModel
         assertEquals(10, model.maximum, "the model starts at the original maximum")
-        spinner.value = model.nextValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
         assertEquals(null, model.nextValue, "the original ceiling blocks a further step up")
 
         max = null
@@ -397,8 +388,7 @@ class SpinnerBehaviorTest {
         assertEquals(null, model.maximum, "clearing the maximum leaves the upper side unbounded")
         assertEquals(10, stateValue, "the current value survives the bound being cleared")
 
-        repeat(3) { spinner.value = spinner.model.nextValue }
-        awaitIdle()
+        repeat(3) { onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT) }
         assertEquals(13, stateValue, "the value can now step past the cleared bound")
     }
 
@@ -414,8 +404,7 @@ class SpinnerBehaviorTest {
         val spinner = onNodeOfType<JSpinner>().fetch()
         val model = spinner.model as SpinnerNumberModel
         assertEquals(4, model.minimum, "the model starts at the original minimum")
-        spinner.value = model.previousValue
-        awaitIdle()
+        onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.DECREMENT)
         assertEquals(null, model.previousValue, "the original floor blocks a further step down")
 
         min = null
@@ -424,8 +413,7 @@ class SpinnerBehaviorTest {
         assertEquals(null, model.minimum, "clearing the minimum leaves the lower side unbounded")
         assertEquals(4, stateValue, "the current value survives the bound being cleared")
 
-        repeat(3) { spinner.value = spinner.model.previousValue }
-        awaitIdle()
+        repeat(3) { onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.DECREMENT) }
         assertEquals(1, stateValue, "the value can now step past the cleared bound")
     }
 
@@ -480,8 +468,7 @@ class SpinnerBehaviorTest {
 
         // The move below is the widget's own.
         mainClock.autoAdvance = true
-        spinner.value = 6
-        awaitIdle()
+        onNodeOfType<JSpinner>().performSetValue(6)
         assertEquals(6, stateValue, "the value is driven through the state")
     }
 
@@ -502,8 +489,7 @@ class SpinnerBehaviorTest {
         active = true
         awaitIdle()
 
-        onNodeOfType<JSpinner>().fetch().value = 8
-        awaitIdle()
+        onNodeOfType<JSpinner>().performSetValue(8)
         assertEquals(8, stateValue, "the reactivated spinner drives the state")
     }
 

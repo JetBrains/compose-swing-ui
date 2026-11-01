@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.BoundedRangeModel
@@ -83,9 +84,9 @@ class ProgressBarModelTest {
         assertSame(range, bar.model, "both widgets should render the one model they are handed")
         assertEquals(30, bar.value, "the bar should read out the range the slider starts on")
 
-        // Moving the knob directly is the same write path a drag takes, and it lands on the shared model.
-        slider.value = 55
-        awaitIdle()
+        // The accessible value reaches the slider through setValue, the same write path a drag takes, and
+        // it lands on the shared model.
+        onNodeOfType<JSlider>().performSetValue(55)
 
         assertEquals(55, bar.value, "one range driving both widgets should have the bar read out the slider's move")
     }

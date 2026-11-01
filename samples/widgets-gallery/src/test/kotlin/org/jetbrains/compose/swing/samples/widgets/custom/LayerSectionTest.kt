@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets.custom
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
-import org.jetbrains.compose.swing.test.onAllNodesOfType
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLayer
@@ -30,9 +30,7 @@ class LayerSectionTest {
         runComposeSwingTest {
             openSection("Layer")
 
-            val slider = onAllNodesOfType<JSlider>().fetchAll().single()
-            slider.value = 140
-            awaitIdle()
+            onNodeOfType<JSlider>().performSetValue(140)
 
             onNodeWithText("Tint: 140", substring = true).assertExists()
         }

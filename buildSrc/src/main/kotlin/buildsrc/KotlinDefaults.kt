@@ -64,6 +64,9 @@ public fun Project.kotlinDefaults() {
         systemProperty("junit.jupiter.execution.timeout.thread.mode.default", "SEPARATE_THREAD")
         // Test windows on macOS must not take the keyboard focus.
         systemProperty("apple.awt.UIElement", "true")
+        // Look-and-feel strings are localized by the JVM locale, so tests pin English to match their expected values.
+        systemProperty("user.language", "en")
+        systemProperty("user.country", "US")
         // The screenshot harness reads its switches, such as the one putting it in record mode, from system
         // properties of the JVM it runs in. Requesting one on the Gradle command line sets it on the daemon
         // instead, so the whole prefixed family is forwarded to the forked test JVM. Forwarding by prefix
