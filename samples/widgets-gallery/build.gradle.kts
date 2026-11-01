@@ -12,6 +12,7 @@ dependencies {
     implementation(libs.androidxNavigation3Runtime)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.junitJupiterParams)
     testImplementation(project(":swing-ui-test"))
     testImplementation(testFixtures(project(":swing-ui")))
 }

@@ -1,19 +1,24 @@
 package org.jetbrains.compose.swing.samples.widgets.layout
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Component
-import java.awt.Container
 import java.awt.Cursor
 import java.awt.Insets
-import java.awt.event.InputEvent
-import java.awt.event.MouseEvent
+import java.awt.Point
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JLabel
+import javax.swing.JSlider
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,9 +42,10 @@ class BoxAndWeightSectionsTest {
             assertFalse(button.isContentAreaFilled, "the look and feel does not paint over the swatch color")
             assertTrue(button.isOpaque, "the interactive swatch paints its full bounds")
             assertEquals(LayoutSampleColors.Text, button.foreground, "the shared dark text remains legible")
-            assertEquals(
-                LayoutSampleColors.Blue.rgb,
-                image.getRGB(4, 4),
+            image.assertPixelColor(
+                LayoutSampleColors.Blue,
+                4,
+                4,
                 "the button interior is the swatch color, not a colored gap around a LAF button",
             )
         }
@@ -52,8 +58,14 @@ class BoxAndWeightSectionsTest {
             onNodeWithText("contentAlignment = Center,", substring = true).assertExists()
             val centered = readoutNumbers("contentAlignment = ")
 
-            layoutParameterSelector("contentAlignment").selectedItem = "BottomEnd"
-            awaitIdle()
+            val contentAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("contentAlignment"))
+            contentAlignment.performAddSelection(
+                contentAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "BottomEnd" }
+                },
+            )
 
             onNodeWithText("contentAlignment = BottomEnd", substring = true).assertExists()
             val bottomEnd = readoutNumbers("contentAlignment = ")
@@ -75,11 +87,10 @@ class BoxAndWeightSectionsTest {
             awaitIdle()
 
             onNodeWithText("Unaligned child sits at BottomCenter", substring = true).assertExists()
-            assertEquals(
+            onNodeWithText("align(TopStart)").assertProperty(
                 cornerBefore,
-                onNodeWithText("align(TopStart)").fetch<JLabel>().location,
                 "the corner child keeps its own placement while the box moves the unaligned one",
-            )
+            ) { location }
         }
 
     @Test
@@ -102,9 +113,10 @@ class BoxAndWeightSectionsTest {
                 val child = node.fetch<JLabel>()
                 val image = node.captureToImage()
                 assertEquals(Insets(1, 1, 1, 1), child.border.getBorderInsets(child), "$name has a one-pixel border")
-                assertEquals(
-                    LayoutSampleColors.Border.rgb,
-                    image.getRGB(0, image.height / 2),
+                image.assertPixelColor(
+                    LayoutSampleColors.Border,
+                    0,
+                    image.height / 2,
                     "$name paints the shared boundary color at its outer edge",
                 )
             }
@@ -124,9 +136,10 @@ class BoxAndWeightSectionsTest {
             val matched = readoutNumbers("Blue backdrop: ")
             val matchedImage = box.captureToImage()
             assertTrue(matched[0] > 140 && matched[1] > 50, "the blue backdrop extends beyond the orange child")
-            assertEquals(
-                LayoutSampleColors.Blue.rgb,
-                matchedImage.getRGB(4, 4),
+            matchedImage.assertPixelColor(
+                LayoutSampleColors.Blue,
+                4,
+                4,
                 "matchParentSize leaves the blue backdrop visible around the smaller child",
             )
 
@@ -139,9 +152,10 @@ class BoxAndWeightSectionsTest {
                 unmatched[0] < matched[0] && unmatched[1] < matched[1],
                 "without matchParentSize the backdrop falls back to the extent it asks for on its own",
             )
-            assertEquals(
-                LayoutSampleColors.Track.rgb,
-                unmatchedImage.getRGB(4, 4),
+            unmatchedImage.assertPixelColor(
+                LayoutSampleColors.Track,
+                4,
+                4,
                 "without matchParentSize the box's neutral track is visible around the orange child",
             )
         }
@@ -160,10 +174,10 @@ class BoxAndWeightSectionsTest {
 
             assertEquals(
                 b,
-                clickAt(b.parent, b.x + b.width / 2, b.y + 1),
-                "the exposed top of layer B receives the pointer click",
+                SwingUtilities.getDeepestComponentAt(b.parent, b.x + b.width / 2, b.y + 1),
+                "the exposed top of layer B is the pointer target",
             )
-            awaitIdle()
+            onNodeWithText("B - crosshair").performClick(Point(b.width / 2, 1))
 
             onNodeWithText("Front child: B").assertExists()
             assertEquals(b, componentAtOverlap(a, b), "clicking B makes it the overlap's pointer target")
@@ -177,8 +191,10 @@ class BoxAndWeightSectionsTest {
             onNodeWithText("Second swatch weight: 3f").assertExists()
             val (lightBefore, heavyBefore, rowBefore) = readoutNumbers("Shares granted: ")
 
-            sliderNamed("Second swatch weight").value = 31
-            awaitIdle()
+            onAllNodesOfType<JSlider>()
+                .filterToOne(
+                    SwingMatcher.hasAccessibleName("Second swatch weight"),
+                ).performSetValue(31)
 
             onNodeWithText("Second swatch weight: 3.1f").assertExists()
             val (lightAfter, heavyAfter, rowAfter) = readoutNumbers("Shares granted: ")
@@ -281,8 +297,9 @@ class BoxAndWeightSectionsTest {
 
             val centered = readoutNumbers("Horizontal bias: ").last()
 
-            sliderNamed("Horizontal bias").value = 100
-            awaitIdle()
+            onAllNodesOfType<JSlider>()
+                .filterToOne(SwingMatcher.hasAccessibleName("Horizontal bias"))
+                .performSetValue(100)
 
             onNodeWithText("Horizontal bias: 1.0", substring = true).assertExists()
             val slid = readoutNumbers("Horizontal bias: ").last()
@@ -337,41 +354,4 @@ private fun componentAtOverlap(
     val bottom = minOf(first.y + first.height, second.y + second.height)
     require(left < right && top < bottom)
     return SwingUtilities.getDeepestComponentAt(first.parent, (left + right) / 2, (top + bottom) / 2)
-}
-
-private fun clickAt(
-    parent: Container,
-    x: Int,
-    y: Int,
-): Component? {
-    val target = SwingUtilities.getDeepestComponentAt(parent, x, y) ?: return null
-    val point = SwingUtilities.convertPoint(parent, x, y, target)
-    val whenMillis = System.currentTimeMillis()
-    target.dispatchEvent(
-        MouseEvent(
-            target,
-            MouseEvent.MOUSE_PRESSED,
-            whenMillis,
-            InputEvent.BUTTON1_DOWN_MASK,
-            point.x,
-            point.y,
-            1,
-            false,
-            MouseEvent.BUTTON1,
-        ),
-    )
-    target.dispatchEvent(
-        MouseEvent(
-            target,
-            MouseEvent.MOUSE_RELEASED,
-            whenMillis,
-            0,
-            point.x,
-            point.y,
-            1,
-            false,
-            MouseEvent.BUTTON1,
-        ),
-    )
-    return target
 }

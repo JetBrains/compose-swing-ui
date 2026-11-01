@@ -1,20 +1,21 @@
 package org.jetbrains.compose.swing.samples.widgets.modifier
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Cursor
 import java.awt.Rectangle
-import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ModifierGallerySectionTest {
@@ -44,7 +45,7 @@ class ModifierGallerySectionTest {
 
             onNodeWithText("Show the second button").performClick()
             awaitIdle()
-            assertEquals(before, onNodeWithText("Show the second button").fetch<JCheckBox>().bounds)
+            onNodeWithText("Show the second button").assertProperty(before) { bounds }
         }
 
     @Test
@@ -63,9 +64,9 @@ class ModifierGallerySectionTest {
             openSection("Modifier gallery")
 
             val target = onNodeWithText("Hover me", substring = true)
-            assertEquals(Cursor.HAND_CURSOR, target.fetch<JLabel>().cursor.type)
+            target.assertProperty(Cursor.HAND_CURSOR) { cursor.type }
             onNodeWithText("Hand cursor").performClick()
-            assertEquals(Cursor.DEFAULT_CURSOR, target.fetch<JLabel>().cursor.type)
+            target.assertProperty(Cursor.DEFAULT_CURSOR) { cursor.type }
         }
 
     @Test
@@ -73,10 +74,10 @@ class ModifierGallerySectionTest {
         runComposeSwingTest {
             openSection("Modifier gallery")
 
-            val target = onNodeWithText("Hover me", substring = true)
-            assertEquals("Click affordance: the hand cursor", target.fetch<JLabel>().toolTipText)
+            val target = onNodeWithText("Hover me", substring = true).assertIsOfType<JLabel>()
+            target.assertProperty("Click affordance: the hand cursor") { toolTipText }
             onNodeWithText("Hand cursor").performClick()
-            assertEquals("Plain pointer", target.fetch<JLabel>().toolTipText)
+            target.assertProperty("Plain pointer") { toolTipText }
         }
 
     @Test
@@ -84,10 +85,10 @@ class ModifierGallerySectionTest {
         runComposeSwingTest {
             openSection("Modifier gallery")
 
-            val carrier = onNodeWithText("Carries clientProperty", substring = true)
-            assertEquals("alpha", carrier.fetch<JLabel>().getClientProperty("role"))
+            val carrier = onNodeWithText("Carries clientProperty", substring = true).assertIsOfType<JLabel>()
+            carrier.assertProperty<JLabel, Any?>("alpha") { getClientProperty("role") }
             onNodeWithText("role = beta").performClick()
-            assertEquals("beta", carrier.fetch<JLabel>().getClientProperty("role"))
+            carrier.assertProperty<JLabel, Any?>("beta") { getClientProperty("role") }
         }
 
     @Test
@@ -96,9 +97,9 @@ class ModifierGallerySectionTest {
             openSection("Modifier gallery")
 
             val button = onNodeWithText("Tab reaches me only when focusable")
-            assertTrue(button.fetch<JButton>().isFocusable)
+            button.assertProperty(true) { isFocusable }
             onNodeWithText("Button is focusable").performClick()
-            assertFalse(button.fetch<JButton>().isFocusable)
+            button.assertProperty(false) { isFocusable }
         }
 
     @Test
@@ -106,9 +107,9 @@ class ModifierGallerySectionTest {
         runComposeSwingTest {
             openSection("Modifier gallery")
 
-            val button = onNodeWithText("Clamped button").fetch<JButton>()
-            assertEquals(240, button.maximumSize.width)
-            assertEquals(120, button.minimumSize.width)
+            onNodeWithText("Clamped button")
+                .assertProperty(240) { maximumSize.width }
+                .assertProperty(120) { minimumSize.width }
         }
 
     @Test
@@ -117,12 +118,14 @@ class ModifierGallerySectionTest {
             openSection("Modifier gallery")
 
             onNodeWithText("Raw change listener fired 0 time(s)", substring = true).assertExists()
-            val slider = onNodeOfType<JSlider>().fetch<JSlider>()
-            slider.value = 60
-            awaitIdle()
+            onNodeOfType<JSlider>().performSetValue(60)
             onNodeWithText("Value: 60", substring = true).assertExists()
-            val echo = onNodeWithText("Raw change listener fired", substring = true).fetch<JLabel>().text
-            assertTrue(echo.first { it.isDigit() } != '0', "the raw change listener fired at least once")
+            onNodeWithText("Raw change listener fired", substring = true)
+                .assertIsOfType<JLabel>()
+                .assertProperty(true, "the raw change listener fired at least once") {
+                    text.first { it.isDigit() } !=
+                        '0'
+                }
         }
 
     @Test
@@ -135,15 +138,11 @@ class ModifierGallerySectionTest {
             assertTrue(styled.width > 0 && styled.height > 0, "the styled label has real size")
             styledLabel.assertImageMatches(expected = styled)
 
-            assertTrue(
-                onNodeWithText("Styled when the box is checked", substring = true).fetch<JLabel>().isOpaque,
-                "the styled label paints its background fill (opaque)",
-            )
+            onNodeWithText("Styled when the box is checked", substring = true)
+                .assertProperty(true, "the styled label paints its background fill (opaque)") { isOpaque }
             onNodeWithText("Fancy styling").performClick()
-            assertFalse(
-                onNodeWithText("Styled when the box is checked", substring = true).fetch<JLabel>().isOpaque,
-                "removing the styling clears the opaque background fill",
-            )
+            onNodeWithText("Styled when the box is checked", substring = true)
+                .assertProperty(false, "removing the styling clears the opaque background fill") { isOpaque }
         }
 
     @Test

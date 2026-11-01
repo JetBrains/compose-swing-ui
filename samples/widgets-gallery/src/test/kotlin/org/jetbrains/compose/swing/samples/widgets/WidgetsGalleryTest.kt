@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.samples.widgets
 
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
@@ -50,8 +53,10 @@ class WidgetsGalleryTest {
 
             onNodeWithText("Enable feature").performClick()
             awaitIdle()
-            val after = onNodeWithText("Enable feature").fetch<JCheckBox>().bounds
-            assertEquals(before, after, "the checkbox must not move when toggled")
+            onNodeWithText("Enable feature").assertProperty(
+                before,
+                "the checkbox must not move when toggled",
+            ) { bounds }
         }
 
     @Test
@@ -61,9 +66,7 @@ class WidgetsGalleryTest {
 
             onNodeWithText("Selected: Kotlin", substring = true).assertExists()
 
-            val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>()
-            combo.selectedIndex = 2
-            awaitIdle()
+            onNodeOfType<JComboBox<*>>().performAddSelection(2)
             onNodeWithText("Selected: Scala", substring = true).assertExists()
         }
 
@@ -74,10 +77,8 @@ class WidgetsGalleryTest {
 
             onNodeWithText("Amount: 40", substring = true).assertExists()
 
-            val slider = onNodeOfType<JSlider>().fetch<JSlider>()
-            slider.value = 75
-            awaitIdle()
+            onNodeOfType<JSlider>().performSetValue(75)
             onNodeWithText("Amount: 75", substring = true).assertExists()
-            assertEquals(75, slider.value)
+            onNodeOfType<JSlider>().assertProperty(75) { value }
         }
 }

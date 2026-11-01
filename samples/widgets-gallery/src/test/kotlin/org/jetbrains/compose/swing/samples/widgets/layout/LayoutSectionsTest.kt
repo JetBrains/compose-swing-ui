@@ -2,7 +2,13 @@ package org.jetbrains.compose.swing.samples.widgets.layout
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -11,6 +17,7 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JScrollPane
@@ -76,8 +83,14 @@ class LayoutSectionsTest {
             val before = swatches.map { it.x }
             val verticalBefore = swatches.map { it.y }
 
-            layoutParameterSelector("horizontalArrangement").selectedItem = "End"
-            awaitIdle()
+            val horizontalArrangement =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("horizontalArrangement"))
+            horizontalArrangement.performAddSelection(
+                horizontalArrangement.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "End" }
+                },
+            )
 
             val shifts = swatches.mapIndexed { index, swatch -> swatch.x - before[index] }
             assertTrue(shifts.first() > 0, "End moves the packed row away from the leading edge")
@@ -86,8 +99,14 @@ class LayoutSectionsTest {
                 "the arrangement moves the packed group without reshaping it",
             )
 
-            layoutParameterSelector("verticalAlignment").selectedItem = "Bottom edge"
-            awaitIdle()
+            val verticalAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("verticalAlignment"))
+            verticalAlignment.performAddSelection(
+                verticalAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Bottom edge" }
+                },
+            )
 
             assertTrue(swatches.first().y > verticalBefore.first(), "Bottom aligns the shorter child lower")
             assertEquals(verticalBefore[1], swatches[1].y, "the tallest child already spans the row's height")
@@ -102,8 +121,14 @@ class LayoutSectionsTest {
             val before = swatches.map { it.y }
             val horizontalBefore = swatches.map { it.x }
 
-            layoutParameterSelector("verticalArrangement").selectedItem = "Bottom"
-            awaitIdle()
+            val verticalArrangement =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("verticalArrangement"))
+            verticalArrangement.performAddSelection(
+                verticalArrangement.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Bottom" }
+                },
+            )
 
             val shifts = swatches.mapIndexed { index, swatch -> swatch.y - before[index] }
             assertTrue(shifts.first() > 0, "Bottom moves the packed column away from the top edge")
@@ -112,8 +137,14 @@ class LayoutSectionsTest {
                 "the arrangement moves the packed group without reshaping it",
             )
 
-            layoutParameterSelector("horizontalAlignment").selectedItem = "End edge"
-            awaitIdle()
+            val horizontalAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("horizontalAlignment"))
+            horizontalAlignment.performAddSelection(
+                horizontalAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "End edge" }
+                },
+            )
 
             assertTrue(
                 swatches.indices.all { swatches[it].x > horizontalBefore[it] },
@@ -128,7 +159,7 @@ class LayoutSectionsTest {
 
             val fixed = onNodeWithText("fixed · 88 px").fetch<JButton>()
             val fixedBefore = fixed.width
-            fixed.doClick()
+            onNodeWithText("fixed · 88 px").performClick()
             awaitIdle()
             onNodeWithText("fixed · 120 px").assertExists()
             assertTrue(fixed.width > fixedBefore, "activating the fixed swatch changes its actual width")
@@ -137,7 +168,7 @@ class LayoutSectionsTest {
             val peer = onNodeWithText("peer · weight(1f)").fetch<JLabel>()
             val weightedBefore = weighted.width
             val peerBefore = peer.width
-            weighted.doClick()
+            onNodeWithText("weight(1f)").performClick()
             awaitIdle()
             onNodeWithText("weight(1.5f)").assertExists()
             assertTrue(weighted.width > weightedBefore, "a larger weight grants the swatch more width")
@@ -145,7 +176,7 @@ class LayoutSectionsTest {
 
             val aligned = onNodeWithText("align(End) · 144 px").fetch<JButton>()
             val alignedBefore = aligned.x
-            aligned.doClick()
+            onNodeWithText("align(End) · 144 px").performClick()
             awaitIdle()
             onNodeWithText("align(Start) · 144 px").assertExists()
             assertTrue(aligned.x < alignedBefore, "cycling End to Start moves the child to the leading edge")
@@ -162,14 +193,14 @@ class LayoutSectionsTest {
             val fieldHeightBefore = field.height
 
             val fontSizeLabel = onNodeWithText("Field font: 28 pt").fetch<JLabel>()
-            val slider = sliderNamed("Field font size")
+            val fieldFont = onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasAccessibleName("Field font size"))
+            val slider = fieldFont.fetch()
             assertTrue(
                 slider.x >= fontSizeLabel.x + fontSizeLabel.width,
                 "the font slider shares a row with its label instead of consuming another line",
             )
             slider.valueIsAdjusting = true
-            slider.value = 72
-            awaitIdle()
+            fieldFont.performSetValue(72)
 
             onNodeWithText("Field font: 72 pt").assertExists()
             assertTrue(field.height > fieldHeightBefore, "the slider makes the field visibly taller")
@@ -190,9 +221,12 @@ class LayoutSectionsTest {
             val boxChild = onNodeWithText("fills 1.0 of the box").fetch<JLabel>()
             val filledSizes = listOf(rowChild.size, columnChild.size, boxChild.size)
 
-            val fractionSlider = fillMaxFractionSlider()
-            fractionSlider.value = 0
-            awaitIdle()
+            val fractionSlider =
+                onAllNodesOfType<JSlider>()
+                    .filterToOne(
+                        SwingMatcher.hasAccessibleName("fillMax fraction"),
+                    )
+            fractionSlider.performSetValue(0)
 
             onNodeWithText("Row cross axis: fillMaxHeight(0.0)").assertExists()
             onNodeWithText("Column cross axis: fillMaxWidth(0.0)").assertExists()
@@ -201,8 +235,7 @@ class LayoutSectionsTest {
             assertEquals(0, columnChild.width, "fillMaxWidth(0f) must occupy no width")
             assertEquals(Dimension(), boxChild.size, "fillMaxSize(0f) must occupy neither axis")
 
-            fractionSlider.value = 5
-            awaitIdle()
+            fractionSlider.performSetValue(5)
 
             onNodeWithText("Row cross axis: fillMaxHeight(0.5)").assertExists()
             onNodeWithText("Column cross axis: fillMaxWidth(0.5)").assertExists()
@@ -215,8 +248,7 @@ class LayoutSectionsTest {
                 "fillMaxSize must apply the 0.5 fraction on both axes",
             )
 
-            fractionSlider.value = 10
-            awaitIdle()
+            fractionSlider.performSetValue(10)
 
             onNodeWithText("fillMax fraction: 1.0").assertExists()
             assertEquals(
@@ -257,8 +289,14 @@ class LayoutSectionsTest {
             val positionsBefore = swatches.map { it.location }
             val sizesBefore = swatches.map { it.size }
 
-            layoutParameterSelector("alignment").selectedItem = "Trailing"
-            awaitIdle()
+            val alignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("alignment"))
+            alignment.performAddSelection(
+                alignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Trailing" }
+                },
+            )
 
             val horizontalShifts = swatches.mapIndexed { index, swatch -> swatch.x - positionsBefore[index].x }
             assertTrue(horizontalShifts.all { it > 0 }, "Trailing moves every flow row away from the leading edge")
@@ -283,8 +321,7 @@ class LayoutSectionsTest {
             val flowA = onNodeWithText("A").fetch<JLabel>()
             val flowB = onNodeWithText("B").fetch<JLabel>()
             val flowGapBefore = flowB.x - (flowA.x + flowA.width)
-            sliderNamed("Flow gaps").value = 16
-            awaitIdle()
+            onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasAccessibleName("Flow gaps")).performSetValue(16)
             assertTrue(
                 flowB.x - (flowA.x + flowA.width) > flowGapBefore,
                 "increasing Flow hgap increases the visible space between adjacent children",
@@ -297,8 +334,7 @@ class LayoutSectionsTest {
                     .single { it.text == "center" && it.parent === west.parent }
             val borderGapBefore = center.x - (west.x + west.width)
             val centerWidthBefore = center.width
-            sliderNamed("Border gaps").value = 12
-            awaitIdle()
+            onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasAccessibleName("Border gaps")).performSetValue(12)
             assertTrue(
                 center.x - (west.x + west.width) > borderGapBefore,
                 "increasing Border hgap increases the visible space between regions",
@@ -337,8 +373,16 @@ class LayoutSectionsTest {
                 "the axis control restacks every adjacent pair without overlap on X",
             )
             val verticalCenter = first.y + first.height / 2
-            assertEquals(verticalCenter, second.y + second.height / 2, "the second X-axis child is centered")
-            assertEquals(verticalCenter, third.y + third.height / 2, "the third X-axis child is centered")
+            assertEquals(
+                verticalCenter,
+                second.y + second.height / 2,
+                "the second X-axis child is centered on the first",
+            )
+            assertEquals(
+                verticalCenter,
+                third.y + third.height / 2,
+                "the third X-axis child is centered on the first",
+            )
 
             val trailing = onNodeWithText("Trailing").fetch<JLabel>()
             val trailingWithGlue = trailing.x
@@ -422,13 +466,14 @@ class LayoutSectionsTest {
         runComposeSwingTest {
             openSection("Layout mechanics")
 
-            val aspect = buttonNamed("aspectRatio 2f")
+            val aspectButton = onAllNodesOfType<JButton>().filterToOne(SwingMatcher.hasAccessibleName("aspectRatio 2f"))
+            val aspect = aspectButton.fetch()
             val minimum = onNodeWithText("defaultMinSize<br>", substring = true).fetch<JLabel>()
             val wideAspect = aspect.size
             val roomyMinimum = minimum.size
             assertEquals("2", aspect.text, "the swatch shows only its current numeric ratio")
 
-            aspect.doClick()
+            aspectButton.performClick()
             awaitIdle()
 
             assertEquals("aspectRatio 0.5f", aspect.accessibleContext.accessibleName)
@@ -466,14 +511,13 @@ class LayoutSectionsTest {
             openSection("Split & ToolBar")
 
             onNodeWithText("Divider location: 140 px", substring = true).assertExists()
+            val controlled = onNodeWithText("Left side").onParent().assertIsOfType<JSplitPane>()
+            controlled.assertProperty(JSplitPane.HORIZONTAL_SPLIT) { orientation }
+            controlled.assertProperty(140) { dividerLocation }
 
             onNodeWithText("Move right").performClick()
             onNodeWithText("Divider location: 180 px", substring = true).assertExists()
-            val controlled =
-                onAllNodesOfType<JSplitPane>()
-                    .fetchAll<JSplitPane>()
-                    .single { it.orientation == JSplitPane.HORIZONTAL_SPLIT }
-            assertEquals(JSplitPane.HORIZONTAL_SPLIT, controlled.orientation)
+            controlled.assertProperty(180) { dividerLocation }
         }
 
     @Test
@@ -624,20 +668,10 @@ class LayoutSectionsTest {
         }
 }
 
-private fun ComposeSwingTest.buttonNamed(name: String): JButton =
-    onAllNodesOfType<JButton>()
-        .fetchAll<JButton>()
-        .single { it.accessibleContext.accessibleName == name }
-
 private fun ComposeSwingTest.animatedScrollPane(): JScrollPane {
     val card = onNodeWithText("scrolling:", substring = true).fetch<JLabel>().parent
     return onAllNodesOfType<JScrollPane>().fetchAll().single { it.parent === card }
 }
-
-private fun ComposeSwingTest.fillMaxFractionSlider(): JSlider =
-    onAllNodesOfType<JSlider>()
-        .fetchAll<JSlider>()
-        .single { it.accessibleContext.accessibleName == "fillMax fraction" }
 
 private fun assertHtmlFits(component: JComponent) {
     val view = component.getClientProperty(BasicHTML.propertyKey) as View

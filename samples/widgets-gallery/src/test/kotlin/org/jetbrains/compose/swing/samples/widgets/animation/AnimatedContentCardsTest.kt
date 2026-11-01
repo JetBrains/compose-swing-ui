@@ -11,10 +11,8 @@ import java.awt.Component
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.accessibility.AccessibleRole
-import javax.swing.JCheckBox
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -113,15 +111,13 @@ class AnimatedContentCardsTest {
 
             onNodeWithText("Next").performClick()
             onNodeWithText("Next").performClick()
-            val updates = onNodeWithText("Email shipping updates").fetch<JCheckBox>()
-            assertTrue(updates.isSelected, "shipping updates should be enabled initially")
+            onNodeWithText("Email shipping updates").assert(SwingMatcher.isSelected())
             onNodeWithText("Email shipping updates").performClick()
-            assertFalse(updates.isSelected, "the shipping updates control did not change state")
+            onNodeWithText("Email shipping updates").assert(SwingMatcher.isSelected(false))
 
-            val clip = onNodeWithText("Clip content").fetch<JCheckBox>()
-            assertTrue(clip.isSelected, "page content should be clipped by default")
+            onNodeWithText("Clip content").assert(SwingMatcher.isSelected())
             onNodeWithText("Clip content").performClick()
-            assertFalse(clip.isSelected, "the clip control did not turn clipping off")
+            onNodeWithText("Clip content").assert(SwingMatcher.isSelected(false))
             onNodeWithText("Prev").performClick()
             onNodeWithText("History").assertExists()
         }
@@ -143,17 +139,19 @@ class AnimatedContentCardsTest {
             val whileOverlapping = container.size
             val leavingPage = leaving.parent
             val arrivingPage = arriving.parent
+            val overlappingWidth = maxOf(leavingPage.width, arrivingPage.width)
+            val overlappingHeight = maxOf(leavingPage.height, arrivingPage.height)
 
             mainClock.autoAdvance = true
             awaitIdle()
 
             assertEquals(
-                maxOf(leavingPage.width, arrivingPage.width),
+                overlappingWidth,
                 whileOverlapping.width,
                 "the container did not take the width both panes need while they overlapped",
             )
             assertEquals(
-                maxOf(leavingPage.height, arrivingPage.height),
+                overlappingHeight,
                 whileOverlapping.height,
                 "the container did not take the height both panes need while they overlapped",
             )

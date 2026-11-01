@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.samples.widgets.custom
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.samples.widgets.ShowcaseShell
@@ -10,14 +11,19 @@ import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.samples.widgets.showcaseSections
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onAncestors
 import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performKeyPress
 import org.jetbrains.compose.swing.test.interaction.performMouseDrag
 import org.jetbrains.compose.swing.test.interaction.performMouseEnter
 import org.jetbrains.compose.swing.test.interaction.performMouseExit
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
+import org.jetbrains.compose.swing.test.interaction.performSetValue
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -26,6 +32,8 @@ import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -39,18 +47,15 @@ import java.awt.event.WindowEvent
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
-import javax.swing.JCheckBox
 import javax.swing.JColorChooser
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JDialog
-import javax.swing.JList
 import javax.swing.JSlider
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -63,14 +68,15 @@ class FoundationGraphicsSectionTest {
             val original = onNodeWithTag(DECORATION_TAG).captureToImage()
             val originalInsets = onNodeWithTag(DECORATION_TAG).fetch<JComponent>().insets
             val stageBounds = layoutBounds(DECORATION_STAGE_TAG)
-            val padded = onNodeWithText("Padding: 8 px").fetch<JCheckBox>()
-            assertFalse(padded.isSelected, "padding starts off")
+            onNodeWithText("Padding: 8 px").assert(SwingMatcher.isSelected(false))
 
             onNodeWithText("Padding: 8 px").performClick()
-            assertTrue(padded.isSelected, "clicking turns padding on")
+            onNodeWithText("Padding: 8 px").assert(SwingMatcher.isSelected())
             val paddedSurface = onNodeWithTag(DECORATION_TAG).captureToImage()
-            val paddedInsets = onNodeWithTag(DECORATION_TAG).fetch<JComponent>().insets
-            assertEquals(originalInsets, paddedInsets, "padding leaves paint outsets unchanged")
+            onAllNodesOfType<JComponent>().filterToOne(SwingMatcher.hasTestTag(DECORATION_TAG)).assertProperty(
+                originalInsets,
+                "padding leaves paint outsets unchanged",
+            ) { insets }
             assertEquals(original.width - 16, paddedSurface.width, "padding reserves 8 px at both horizontal edges")
             assertEquals(original.height - 16, paddedSurface.height, "padding reserves 8 px at both vertical edges")
             assertEquals(
@@ -80,7 +86,7 @@ class FoundationGraphicsSectionTest {
             )
 
             onNodeWithText("Padding: 8 px").performClick()
-            assertFalse(padded.isSelected, "clicking again turns padding off")
+            onNodeWithText("Padding: 8 px").assert(SwingMatcher.isSelected(false))
             val restored = onNodeWithTag(DECORATION_TAG).captureToImage()
             assertImagesPixelPerfect(original, restored)
         }
@@ -90,15 +96,15 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
 
-            onNodeWithTag(DECORATION_SHADOW_X_TAG).fetch<JSlider>().value = 0
-            onNodeWithTag(DECORATION_SHADOW_Y_TAG).fetch<JSlider>().value = 0
-            onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).fetch<JSlider>().value = 0
+            onNodeWithTag(DECORATION_SHADOW_X_TAG).performSetValue(0)
+            onNodeWithTag(DECORATION_SHADOW_Y_TAG).performSetValue(0)
+            onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).performSetValue(0)
             awaitIdle()
             val sharp = onNodeWithTag(DECORATION_TAG).captureToImage()
 
             val shadowSlider = onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).fetch<JSlider>()
             shadowSlider.valueIsAdjusting = true
-            shadowSlider.value = 18
+            onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).performSetValue(18)
             awaitIdle()
             val wide = onNodeWithTag(DECORATION_TAG).captureToImage()
             shadowSlider.valueIsAdjusting = false
@@ -129,16 +135,14 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
 
-            val blurSlider = onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).fetch<JSlider>()
-            assertFalse(blurSlider.isEnabled, "surface blur radius is inactive until surface blur is enabled")
+            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).assertIsNotEnabled()
 
             onNodeWithText("Blur").performClick()
-            val enabledSlider = onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).fetch<JSlider>()
-            assertTrue(enabledSlider.isEnabled, "surface blur radius becomes interactive when surface blur is enabled")
+            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).assertIsEnabled()
 
             val stageBounds = layoutBounds(DECORATION_STAGE_TAG)
             val before = onNodeWithTag(DECORATION_TAG).captureToImage()
-            enabledSlider.value = 12
+            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).performSetValue(12)
             awaitIdle()
             val after = onNodeWithTag(DECORATION_TAG).captureToImage()
             assertTrue(
@@ -174,10 +178,10 @@ class FoundationGraphicsSectionTest {
             openSection("Foundation graphics")
 
             val baseline = onNodeWithTag(CANVAS_TAG).captureToImage()
-            onNodeWithTag(CANVAS_PETALS_TAG).fetch<JSlider>().value = 12
+            onNodeWithTag(CANVAS_PETALS_TAG).performSetValue(12)
             awaitIdle()
             val petals = onNodeWithTag(CANVAS_TAG).captureToImage()
-            onNodeWithTag(CANVAS_ROTATION_TAG).fetch<JSlider>().value = 17
+            onNodeWithTag(CANVAS_ROTATION_TAG).performSetValue(17)
             awaitIdle()
             val changed = onNodeWithTag(CANVAS_TAG).captureToImage()
             assertTrue(changed.width > 0 && changed.height > 0, "the captured surface has real size")
@@ -202,14 +206,16 @@ class FoundationGraphicsSectionTest {
             openSection("Foundation graphics")
             val tags = listOf(DECORATION_SHADOW_RADIUS_TAG, DECORATION_SHADOW_X_TAG, DECORATION_SHADOW_Y_TAG)
             val values = listOf(18, -8, 12)
-            tags.zip(values).forEach { (tag, value) -> onNodeWithTag(tag).fetch<JSlider>().value = value }
+            tags.zip(values).forEach { (tag, value) -> onNodeWithTag(tag).performSetValue(value) }
             onNodeWithText("Shadow").performClick()
-            tags.forEach { assertFalse(onNodeWithTag(it).fetch<JSlider>().isEnabled, "$it is off with the shadow") }
+            tags.forEach { onNodeWithTag(it).assertIsNotEnabled() }
             onNodeWithText("Shadow").performClick()
             tags.zip(values).forEach { (tag, value) ->
-                val slider = onNodeWithTag(tag).fetch<JSlider>()
-                assertTrue(slider.isEnabled, "$tag is enabled again with the shadow")
-                assertEquals(value, slider.value, "$tag keeps its value while the shadow is off")
+                onNodeWithTag(tag).assertIsEnabled()
+                onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasTestTag(tag)).assertProperty(
+                    value,
+                    "$tag keeps its value while the shadow is off",
+                ) { this.value }
             }
         }
 
@@ -219,7 +225,7 @@ class FoundationGraphicsSectionTest {
             openSection("Foundation graphics")
             onNodeWithText("Shadow").performClick()
             val opaque = onNodeWithTag(DECORATION_TAG).captureToImage()
-            onNodeWithTag(DECORATION_OPACITY_TAG).fetch<JSlider>().value = 40
+            onNodeWithTag(DECORATION_OPACITY_TAG).performSetValue(40)
             awaitIdle()
             val faded = onNodeWithTag(DECORATION_TAG).captureToImage()
             for ((x, y) in listOf(20 to 60, 1 to 60, 90 to 90)) {
@@ -253,12 +259,17 @@ class FoundationGraphicsSectionTest {
             openSection("Foundation graphics")
             val before = layoutBounds(DECORATION_STAGE_TAG)
             val decorated = layoutBounds(DECORATION_TAG)
-            onNodeWithTag(DECORATION_SHAPE_TAG).fetch<JComboBox<*>>().selectedItem = "Circle"
-            onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).fetch<JSlider>().value = 24
-            onNodeWithTag(DECORATION_SHADOW_X_TAG).fetch<JSlider>().value = -16
-            onNodeWithTag(DECORATION_SHADOW_Y_TAG).fetch<JSlider>().value = 16
+            val shape = onNodeWithTag(DECORATION_SHAPE_TAG)
+            shape.performAddSelection(
+                shape.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Circle" }
+                },
+            )
+            onNodeWithTag(DECORATION_SHADOW_RADIUS_TAG).performSetValue(24)
+            onNodeWithTag(DECORATION_SHADOW_X_TAG).performSetValue(-16)
+            onNodeWithTag(DECORATION_SHADOW_Y_TAG).performSetValue(16)
             onNodeWithText("Blur").performClick()
-            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).fetch<JSlider>().value = 16
+            onNodeWithTag(DECORATION_BLUR_RADIUS_TAG).performSetValue(16)
             awaitIdle()
             assertEquals(
                 before,
@@ -268,19 +279,14 @@ class FoundationGraphicsSectionTest {
             assertEquals(decorated, layoutBounds(DECORATION_TAG), "effects must not change the decorated layout bounds")
         }
 
-    @Test
-    fun controlsFitTheNarrowGalleryViewport() = graphicsControlsFit(Dimension(640, 680))
+    @ParameterizedTest(name = "{0} px wide")
+    @ValueSource(ints = [640, 960])
+    fun controlsFitTheGalleryViewport(width: Int) = graphicsControlsFit(Dimension(width, 680))
 
-    @Test
-    fun controlsFitTheDefaultGalleryViewport() = graphicsControlsFit(Dimension(960, 680))
-
-    @Test
-    fun decorationPreviewAndControlsShareTheNarrowViewport() =
-        decorationPreviewAndControlsShareAViewport(Dimension(640, 680))
-
-    @Test
-    fun decorationPreviewAndControlsShareTheDefaultViewport() =
-        decorationPreviewAndControlsShareAViewport(Dimension(960, 680))
+    @ParameterizedTest(name = "{0} px wide")
+    @ValueSource(ints = [640, 960])
+    fun decorationPreviewAndControlsShareTheGalleryViewport(width: Int) =
+        decorationPreviewAndControlsShareAViewport(Dimension(width, 680))
 
     @Test
     fun placementClipCutsOverflowAgainstItsVisibleBoundary() =
@@ -294,7 +300,7 @@ class FoundationGraphicsSectionTest {
             val outsideY = center.y - 48
             val background = clipped.getRGB(0, 0)
             assertNotEquals(background, unclipped.getRGB(x, outsideY), "the canvas deliberately overflows")
-            assertEquals(background, clipped.getRGB(x, outsideY), "clip cuts outside the dashed window")
+            clipped.assertPixelColor(Color(background, true), x, outsideY, "clip cuts outside the dashed window")
             assertEquals(
                 unclipped.getRGB(x, center.y - 20),
                 clipped.getRGB(x, center.y - 20),
@@ -308,7 +314,7 @@ class FoundationGraphicsSectionTest {
             openSection("Foundation graphics")
             val center = placementCanvasCenter()
             val opaque = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
-            onNodeWithTag(PLACEMENT_OPACITY_TAG).fetch<JSlider>().value = 40
+            onNodeWithTag(PLACEMENT_OPACITY_TAG).performSetValue(40)
             awaitIdle()
             val faded = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
             val background = opaque.getRGB(0, 0)
@@ -328,7 +334,7 @@ class FoundationGraphicsSectionTest {
             val originalBounds = layoutBounds(PLACEMENT_STAGE_TAG)
             val center = placementCanvasCenter()
             val original = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
-            onNodeWithTag(PLACEMENT_SCALE_TAG).fetch<JSlider>().value = 60
+            onNodeWithTag(PLACEMENT_SCALE_TAG).performSetValue(60)
             awaitIdle()
             val small = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
             val x = center.x - 70
@@ -343,10 +349,10 @@ class FoundationGraphicsSectionTest {
                 small.getRGB(x, y),
                 "scaling shrinks the background as well as the artwork",
             )
-            onNodeWithTag(PLACEMENT_PIVOT_TAG).fetch<JSlider>().value = 0
+            onNodeWithTag(PLACEMENT_PIVOT_TAG).performSetValue(0)
             awaitIdle()
             val leftPivot = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
-            onNodeWithTag(PLACEMENT_PIVOT_TAG).fetch<JSlider>().value = 100
+            onNodeWithTag(PLACEMENT_PIVOT_TAG).performSetValue(100)
             awaitIdle()
             val rightPivot = onNodeWithTag(PLACEMENT_STAGE_TAG).captureToImage()
             val box = placementLayerBox()
@@ -373,7 +379,12 @@ class FoundationGraphicsSectionTest {
             val tiles = captureBrushTiles()
             val swatch = onNodeWithTag(GRADIENT_SWATCH_TAG_PREFIX + 0).captureToImage()
 
-            onNodeWithTag(GRADIENT_PRESET_TAG).fetch<JComboBox<*>>().selectedItem = "Ocean"
+            val preset = onNodeWithTag(GRADIENT_PRESET_TAG)
+            preset.performAddSelection(
+                preset.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Ocean" }
+                },
+            )
             awaitIdle()
 
             assertNotNull(
@@ -400,11 +411,7 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
             val horizontalTile = onNodeWithTag(BRUSH_TILE_TAG_PREFIX + "horizontal")
-            assertEquals(
-                Cursor.HAND_CURSOR,
-                horizontalTile.fetch<JComponent>().cursor.type,
-                "a brush tile shows a hand cursor",
-            )
+            horizontalTile.assertProperty(Cursor.HAND_CURSOR, "a brush tile shows a hand cursor") { cursor.type }
             // A tile's ring is paint outsets, which resizes the tile, so each tile is compared through its slot.
             val horizontalSlot = horizontalTile.onParent()
             val selectedTile = horizontalSlot.captureToImage()
@@ -444,8 +451,11 @@ class FoundationGraphicsSectionTest {
                 }
             }
             val window = onWindowWithTitle(FOCUS_WINDOW)
-            window.onNode(SwingMatcher.hasAccessibleName("Sections")).fetch<JList<*>>().selectedIndex =
-                showcaseSections.indexOfFirst { it.title == "Foundation graphics" }
+            window
+                .onNode(SwingMatcher.hasAccessibleName("Sections"))
+                .performAddSelection(
+                    showcaseSections.indexOfFirst { it.title == "Foundation graphics" },
+                )
             awaitIdle()
             val original = window.onNodeWithTag(DECORATION_TAG).captureToImage()
 
@@ -468,27 +478,29 @@ class FoundationGraphicsSectionTest {
     fun starPointsSliderShowsOnlyForTheStarAndKeepsTheRingsWidth() =
         runComposeSwingTest {
             openSection("Foundation graphics")
-            val shape = onNodeWithTag(DECORATION_SHAPE_TAG).fetch<JComboBox<*>>()
             val ringsWidth = onNodeWithTag(DECORATION_RINGS_TAG).fetch<JSlider>().width
             onNodeWithTag(DECORATION_STAR_POINTS_TAG).assertDoesNotExist()
 
-            shape.selectedItem = "Star"
+            val shape = onNodeWithTag(DECORATION_SHAPE_TAG)
+            shape.performAddSelection(
+                shape.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Star" }
+                },
+            )
             awaitIdle()
             onNodeWithText("Star points: 5").assertExists()
-            assertEquals(
-                ringsWidth,
-                onNodeWithTag(DECORATION_RINGS_TAG).fetch<JSlider>().width,
-                "showing the star points keeps the rings slider's width",
-            )
+            onNodeWithTag(DECORATION_RINGS_TAG)
+                .assertProperty(ringsWidth, "showing the star points keeps the rings slider's width") { width }
 
-            shape.selectedItem = "Hexagon"
+            shape.performAddSelection(
+                shape.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Hexagon" }
+                },
+            )
             awaitIdle()
             onNodeWithTag(DECORATION_STAR_POINTS_TAG).assertDoesNotExist()
-            assertEquals(
-                ringsWidth,
-                onNodeWithTag(DECORATION_RINGS_TAG).fetch<JSlider>().width,
-                "hiding the star points keeps the rings slider's width",
-            )
+            onNodeWithTag(DECORATION_RINGS_TAG)
+                .assertProperty(ringsWidth, "hiding the star points keeps the rings slider's width") { width }
         }
 
     @Test
@@ -496,7 +508,7 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
             val before = captureBrushTiles()
-            onNodeWithTag(GRADIENT_MIDDLE_TAG).fetch<JSlider>().value = 85
+            onNodeWithTag(GRADIENT_MIDDLE_TAG).performSetValue(85)
             awaitIdle()
             onNodeWithText("Middle: 85%").assertExists()
             captureBrushTiles().forEach { (name, tile) ->
@@ -511,16 +523,25 @@ class FoundationGraphicsSectionTest {
     fun middleStopPositionIsIndependentOfTheColorPreset() =
         runComposeSwingTest {
             openSection("Foundation graphics")
-            val presets = onNodeWithTag(GRADIENT_PRESET_TAG).fetch<JComboBox<*>>()
-            val middle = onNodeWithTag(GRADIENT_MIDDLE_TAG).fetch<JSlider>()
 
-            middle.value = 70
+            onNodeWithTag(GRADIENT_MIDDLE_TAG).performSetValue(70)
             awaitIdle()
-            assertEquals("Sunset", presets.selectedItem, "moving the middle stop keeps the preset selected")
+            onNodeWithTag(GRADIENT_PRESET_TAG)
+                .assertIsOfType<JComboBox<*>>()
+                .assertProperty<JComboBox<*>, Any?>("Sunset", "moving the middle stop keeps the preset selected") {
+                    selectedItem
+                }
 
-            presets.selectedItem = "Ocean"
+            val preset = onNodeWithTag(GRADIENT_PRESET_TAG)
+            preset.performAddSelection(
+                preset.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Ocean" }
+                },
+            )
             awaitIdle()
-            assertEquals(70, middle.value, "picking a preset keeps the middle stop where it is")
+            onNodeWithTag(GRADIENT_MIDDLE_TAG)
+                .assertIsOfType<JSlider>()
+                .assertProperty(70, "picking a preset keeps the middle stop where it is") { value }
         }
 
     @Test
@@ -573,11 +594,9 @@ class FoundationGraphicsSectionTest {
 
             declared = Color.GREEN
             awaitIdle()
-            assertEquals(
-                Color.GREEN,
-                onNodeWithTag(GRADIENT_CHOOSER_TAG).fetch<JColorChooser>().color,
-                "the chooser follows a declared color change",
-            )
+            onNodeWithTag(GRADIENT_CHOOSER_TAG)
+                .assertIsOfType<JColorChooser>()
+                .assertProperty(Color.GREEN, "the chooser follows a declared color change") { color }
         }
 
     @Test
@@ -585,11 +604,11 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
             onNodeWithText("Shadow").performClick()
-            onNodeWithTag(DECORATION_RINGS_TAG).fetch<JSlider>().value = 1
+            onNodeWithTag(DECORATION_RINGS_TAG).performSetValue(1)
             awaitIdle()
             val bounds = onNodeWithTag(DECORATION_TAG).fetch<JComponent>().bounds
             val single = onNodeWithTag(DECORATION_TAG).captureToImage()
-            onNodeWithTag(DECORATION_RINGS_TAG).fetch<JSlider>().value = 2
+            onNodeWithTag(DECORATION_RINGS_TAG).performSetValue(2)
             awaitIdle()
             val double = onNodeWithTag(DECORATION_TAG).captureToImage()
 
@@ -598,11 +617,8 @@ class FoundationGraphicsSectionTest {
             assertEquals(255, single.getRGB(6, y) ushr 24, "one ring leaves the surface right inside the border")
             assertEquals(0, double.getRGB(6, y) ushr 24, "a second ring leaves a transparent gap")
             assertNotEquals(0, double.getRGB(1, y) ushr 24, "the outer ring is painted at the edge")
-            assertEquals(
-                bounds,
-                onNodeWithTag(DECORATION_TAG).fetch<JComponent>().bounds,
-                "the rings paint inside the slot the surface alone took",
-            )
+            onNodeWithTag(DECORATION_TAG)
+                .assertProperty(bounds, "the rings paint inside the slot the surface alone took") { this.bounds }
         }
 
     @Test
@@ -610,7 +626,7 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
             val canvas = onNodeWithTag(DRAW_MODIFIERS_TAG)
-            assertEquals(Cursor.CROSSHAIR_CURSOR, canvas.fetch<JComponent>().cursor.type)
+            canvas.assertProperty(Cursor.CROSSHAIR_CURSOR) { cursor.type }
             val plain = canvas.captureToImage()
 
             canvas.performMouseMove(Point(40, 40))
@@ -670,7 +686,7 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             openSection("Foundation graphics")
             val tile = onNodeWithTag(SHADOW_STYLE_TAG_PREFIX + "Elevation")
-            assertEquals(Cursor.HAND_CURSOR, tile.fetch<JComponent>().cursor.type)
+            tile.assertProperty(Cursor.HAND_CURSOR) { cursor.type }
             val resting = tile.captureToImage()
 
             tile.performMouseEnter()
@@ -685,7 +701,7 @@ class FoundationGraphicsSectionTest {
         }
 
     @Test
-    fun theTransformedSceneHoldsATextFieldAndAButtonBesideTheCanvas() =
+    fun theTransformedContentHoldsATextFieldAndAButtonBesideTheCanvas() =
         runComposeSwingTest {
             openSection("Foundation graphics")
             onNodeWithTag(PLACEMENT_FIELD_TAG).assertTextEquals("Select this text")
@@ -719,7 +735,12 @@ private fun graphicsControlsFit(size: Dimension) =
     runComposeSwingTest(rootSize = size) {
         root.layout = BorderLayout()
         openSection("Foundation graphics")
-        onNodeWithTag(DECORATION_SHAPE_TAG).fetch<JComboBox<*>>().selectedItem = "Star"
+        val shape = onNodeWithTag(DECORATION_SHAPE_TAG)
+        shape.performAddSelection(
+            shape.fetch<JComboBox<*>>().let { combo ->
+                (0 until combo.itemCount).first { combo.getItemAt(it) == "Star" }
+            },
+        )
         awaitIdle()
         val tags =
             listOf(

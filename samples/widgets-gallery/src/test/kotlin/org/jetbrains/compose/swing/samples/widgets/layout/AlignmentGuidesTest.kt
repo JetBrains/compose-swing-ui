@@ -16,13 +16,22 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
+import org.jetbrains.compose.swing.test.interaction.performSetValue
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import java.awt.Rectangle
+import javax.accessibility.AccessibleAction
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JSlider
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,8 +59,9 @@ class AlignmentGuidesTest {
                 "a container does not define a baseline, so nothing crosses the gap",
             )
 
-            sliderNamed("Field font size").value = 72
-            awaitIdle()
+            onAllNodesOfType<JSlider>()
+                .filterToOne(SwingMatcher.hasAccessibleName("Field font size"))
+                .performSetValue(72)
 
             val moved = label.y + label.getBaseline(label.width, label.height)
             assertNotEquals(baseline, moved, "a larger field font moves the shared baseline")
@@ -87,8 +97,14 @@ class AlignmentGuidesTest {
                 )
             }
 
-            layoutParameterSelector("verticalAlignment").selectedItem = "Bottom edge"
-            awaitIdle()
+            val verticalAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("verticalAlignment"))
+            verticalAlignment.performAddSelection(
+                verticalAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Bottom edge" }
+                },
+            )
 
             val bottomed = stage.captureToImage()
             assertEquals(
@@ -125,8 +141,14 @@ class AlignmentGuidesTest {
                 assertEquals(listOf(center), centered.columnsWith(LINE_COLOR, it.ys), "${it.text} is on it")
             }
 
-            layoutParameterSelector("horizontalAlignment").selectedItem = "End edge"
-            awaitIdle()
+            val horizontalAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("horizontalAlignment"))
+            horizontalAlignment.performAddSelection(
+                horizontalAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "End edge" }
+                },
+            )
 
             val ended = stage.captureToImage()
             assertEquals(
@@ -147,20 +169,41 @@ class AlignmentGuidesTest {
             val stage = onNodeWithTag(BOX_CONTENT_ALIGNMENT_TAG)
             val box = stage.fetch<JComponent>()
 
-            layoutParameterSelector("contentAlignment").selectedItem = "TopStart"
-            awaitIdle()
+            val contentAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("contentAlignment"))
+            contentAlignment.performAddSelection(
+                contentAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "TopStart" }
+                },
+            )
 
             // Away from the corner the two lines meet in, a column of pixels crosses the horizontal line alone and
             // a row the vertical one.
             val beside = front.xs.last + 1 until box.width - box.insets.right - 1
             val below = front.ys.last + 1 until box.height - box.insets.bottom - 1
             val topStart = stage.captureToImage()
-            assertEquals(listOf(box.insets.top), topStart.rowsWith(LINE_COLOR, beside), "the top edge")
-            assertEquals(listOf(box.insets.left), topStart.columnsWith(LINE_COLOR, below), "the left edge")
-            assertEquals(listOf(front.y, front.x), listOf(box.insets.top, box.insets.left), "the child is on both")
+            assertEquals(
+                listOf(box.insets.top),
+                topStart.rowsWith(LINE_COLOR, beside),
+                "the top edge of the content box",
+            )
+            assertEquals(
+                listOf(box.insets.left),
+                topStart.columnsWith(LINE_COLOR, below),
+                "the left edge of the content box",
+            )
+            assertEquals(
+                listOf(box.insets.top, box.insets.left),
+                listOf(front.y, front.x),
+                "the child is on both content edges",
+            )
 
-            layoutParameterSelector("contentAlignment").selectedItem = "BottomEnd"
-            awaitIdle()
+            contentAlignment.performAddSelection(
+                contentAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "BottomEnd" }
+                },
+            )
 
             val bottomEnd = stage.captureToImage()
             val bottom = box.height - box.insets.bottom - 1
@@ -168,14 +211,18 @@ class AlignmentGuidesTest {
             assertEquals(
                 listOf(bottom),
                 bottomEnd.rowsWith(LINE_COLOR, box.insets.left + 1 until front.x),
-                "the bottom edge",
+                "the bottom edge of the content box",
             )
             assertEquals(
                 listOf(right),
                 bottomEnd.columnsWith(LINE_COLOR, box.insets.top + 1 until front.y),
-                "the right edge",
+                "the right edge of the content box",
             )
-            assertEquals(listOf(front.ys.last, front.xs.last), listOf(bottom, right), "the child is on both")
+            assertEquals(
+                listOf(bottom, right),
+                listOf(front.ys.last, front.xs.last),
+                "the child is on both content edges",
+            )
         }
 
     @Test
@@ -190,7 +237,7 @@ class AlignmentGuidesTest {
                 "checked: the layout boxes",
             )
 
-            switchAlignmentGuides()
+            onNodeWithText("Alignment guides").performAccessibleAction(AccessibleAction.CLICK)
 
             val plain = stage.captureToImage()
             assertEquals(emptyList(), plain.rowsWith(LINE_COLOR, 0 until plain.width), "unchecked: no line")
@@ -208,9 +255,22 @@ class AlignmentGuidesTest {
             openSection("Linear layouts")
             val (first, second) = listOf("A · 72 px", "B · 96 px").map { onNodeWithText(it).fetch<JLabel>() }
             val stage = onNodeWithTag(ROW_PLAYGROUND_TAG)
-            layoutParameterSelector("horizontalArrangement").selectedItem = "SpaceBetween"
-            layoutParameterSelector("verticalAlignment").selectedItem = "Bottom edge"
-            awaitIdle()
+            val horizontalArrangement =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("horizontalArrangement"))
+            horizontalArrangement.performAddSelection(
+                horizontalArrangement.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "SpaceBetween" }
+                },
+            )
+            val verticalAlignment =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("verticalAlignment"))
+            verticalAlignment.performAddSelection(
+                verticalAlignment.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "Bottom edge" }
+                },
+            )
 
             val gap = first.xs.last + 1 until second.x
             assertTrue(gap.count() > 16, "the arrangement leaves a gap between the first two children")
@@ -233,8 +293,14 @@ class AlignmentGuidesTest {
             val before = stage.captureToImage()
             val left = swatches.map { it.bounds }
 
-            layoutParameterSelector("horizontalArrangement").selectedItem = "End"
-            awaitIdle()
+            val horizontalArrangement =
+                onAllNodesOfType<JComboBox<*>>()
+                    .filterToOne(SwingMatcher.hasAccessibleName("horizontalArrangement"))
+            horizontalArrangement.performAddSelection(
+                horizontalArrangement.fetch<JComboBox<*>>().let { combo ->
+                    (0 until combo.itemCount).first { combo.getItemAt(it) == "End" }
+                },
+            )
 
             val moved = swatches.first()
             assertNotEquals(left.first().x, moved.x, "the arrangement moves the children inside the unchanged row")
@@ -349,7 +415,12 @@ class AlignmentGuidesTest {
             val whole = label to Rectangle(label.size)
             val inside = label.y + 1 until label.y + label.height - 1
 
-            val declared = repaintsAskedDuring { guided = true }
+            val declared =
+                withRecordedRepaints { recorded ->
+                    guided = true
+                    awaitIdle()
+                    recorded.requests.map { it.component to it.region }
+                }
 
             assertEquals(setOf(whole), declared.toSet(), "declared on a component that stands, the guide repaints it")
             assertEquals(
@@ -358,7 +429,12 @@ class AlignmentGuidesTest {
                 "and the row outlines it",
             )
 
-            val dropped = repaintsAskedDuring { guided = false }
+            val dropped =
+                withRecordedRepaints { recorded ->
+                    guided = false
+                    awaitIdle()
+                    recorded.requests.map { it.component to it.region }
+                }
 
             assertEquals(setOf(whole), dropped.toSet(), "dropped, the guide repaints it again")
             assertEquals(

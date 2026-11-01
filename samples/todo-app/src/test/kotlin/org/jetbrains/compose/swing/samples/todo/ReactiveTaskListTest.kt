@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.samples.todo
 
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -36,9 +37,9 @@ class ReactiveTaskListTest {
             setContent { ReactiveTaskList() }
 
             onNodeWithText("2 of 4 done").assertExists()
-            val progress = onNodeOfType<JProgressBar>().fetch<JProgressBar>()
-            assertEquals(2, progress.value, "the progress bar mirrors the done count")
-            assertEquals(4, progress.maximum, "the progress bar maximum mirrors the total count")
+            onNodeOfType<JProgressBar>()
+                .assertProperty(2, "the progress bar mirrors the done count") { value }
+                .assertProperty(4, "the progress bar maximum mirrors the total count") { maximum }
         }
 
     @Test
@@ -52,7 +53,7 @@ class ReactiveTaskListTest {
 
             onNodeWithText("3 of 4 done").assertExists()
             onNodeWithText("2 of 4 done").assertDoesNotExist()
-            assertEquals(3, onNodeOfType<JProgressBar>().fetch<JProgressBar>().value)
+            onNodeOfType<JProgressBar>().assertProperty(3) { value }
         }
 
     @Test
@@ -62,7 +63,7 @@ class ReactiveTaskListTest {
 
             onAddButton().assertIsNotEnabled()
 
-            onAddField().performTextReplacement("Write docs")
+            onNode(SwingMatcher.hasAccessibleName("New task")).performTextReplacement("Write docs")
             onAddButton().assertIsEnabled()
         }
 
@@ -75,15 +76,11 @@ class ReactiveTaskListTest {
             // the derived total grows from 4 to 5.
             onNodeWithTag(taskRowTag(5)).assertDoesNotExist()
 
-            onAddField().performTextReplacement("Ship the sample")
+            onNode(SwingMatcher.hasAccessibleName("New task")).performTextReplacement("Ship the sample")
             onAddButton().performClick()
 
             onNodeWithTag(taskRowTag(5)).assertExists()
-            assertEquals(
-                "Ship the sample",
-                onNodeWithTag(taskTitleTag(5)).fetch<JTextField>().text,
-                "the new row carries the typed title",
-            )
+            onNodeWithTag(taskTitleTag(5)).assertTextEquals("Ship the sample")
             onNodeWithText("2 of 5 done").assertExists()
         }
 
@@ -92,17 +89,13 @@ class ReactiveTaskListTest {
         runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
-            onAddField().performTextReplacement("Ship the sample")
-            onAddField().fetch<JTextField>().postActionEvent()
+            onNode(SwingMatcher.hasAccessibleName("New task")).performTextReplacement("Ship the sample")
+            onNode(SwingMatcher.hasAccessibleName("New task")).fetch<JTextField>().postActionEvent()
             awaitIdle()
 
             onNodeWithTag(taskRowTag(5)).assertExists()
             onNodeWithText("2 of 5 done").assertExists()
-            assertEquals(
-                "",
-                onAddField().fetch<JTextField>().text,
-                "the draft field clears once Enter commits the task",
-            )
+            onNode(SwingMatcher.hasAccessibleName("New task")).assertTextEquals("")
         }
 
     @Test
@@ -160,11 +153,10 @@ class ReactiveTaskListTest {
             // laid-out height stays exactly what it was with the fuller list.
             onNodeWithTag(taskRemoveTag(2)).performClick()
 
-            assertEquals(
+            onNodeWithTag(taskRowTag(3)).assertProperty(
                 heightWithFourTasks,
-                onNodeWithTag(taskRowTag(3)).fetch<JComponent>().height,
                 "a row's laid-out height does not depend on the task count",
-            )
+            ) { height }
         }
 
     @Test
@@ -195,7 +187,7 @@ class ReactiveTaskListTest {
 
             // Add enough tasks to overflow the fixed-height viewport.
             repeat(20) { index ->
-                onAddField().performTextReplacement("Task $index")
+                onNode(SwingMatcher.hasAccessibleName("New task")).performTextReplacement("Task $index")
                 onAddButton().performClick()
             }
 
@@ -219,21 +211,10 @@ class ReactiveTaskListTest {
 
             onNodeWithTag(taskTitleTag(3)).performTextReplacement("Renamed task")
 
-            assertEquals(
-                "Renamed task",
-                onNodeWithTag(taskTitleTag(3)).fetch<JTextField>().text,
-                "the edited row holds the new title",
-            )
-            assertEquals(
-                otherTitleBefore,
-                onNodeWithTag(taskTitleTag(1)).fetch<JTextField>().text,
-                "editing one keyed row must not disturb another row's content",
-            )
+            onNodeWithTag(taskTitleTag(3)).assertTextEquals("Renamed task")
+            onNodeWithTag(taskTitleTag(1)).assertTextEquals(otherTitleBefore)
         }
 }
-
-/** The add-a-task text field, located by its accessible name rather than a test tag. */
-private fun ComposeSwingTest.onAddField() = onNode(SwingMatcher.hasAccessibleName("New task"))
 
 /** The add button, located by its visible label and button type rather than a test tag. */
 private fun ComposeSwingTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())

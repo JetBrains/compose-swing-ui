@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.samples.widgets.animation
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -9,7 +10,6 @@ import java.awt.Color
 import java.awt.Component
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
-import javax.swing.JCheckBox
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -48,20 +48,16 @@ class AnimatedVisibilityCardsTest {
             onNodeWithText("Show order details").performClick()
             onNodeWithText("Mark as shipped").performClick()
             onNodeWithText("Undo shipment").assertExists()
-            val emailUpdates = onNodeWithText("Email me when it ships").fetch<JCheckBox>()
-            assertTrue(emailUpdates.isSelected, "email updates should be enabled initially")
+            onNodeWithText("Email me when it ships").assert(SwingMatcher.isSelected())
             onNodeWithText("Email me when it ships").performClick()
-            assertFalse(emailUpdates.isSelected, "the email updates control did not change state")
+            onNodeWithText("Email me when it ships").assert(SwingMatcher.isSelected(false))
 
             onNodeWithText("Hide order details").performClick()
             awaitIdle()
             onNodeWithText("Undo shipment").assertDoesNotExist()
             onNodeWithText("Show order details").performClick()
             awaitIdle()
-            assertFalse(
-                onNodeWithText("Email me when it ships").fetch<JCheckBox>().isSelected,
-                "closing the order reset its email preference",
-            )
+            onNodeWithText("Email me when it ships").assert(SwingMatcher.isSelected(false))
         }
 
     @Test

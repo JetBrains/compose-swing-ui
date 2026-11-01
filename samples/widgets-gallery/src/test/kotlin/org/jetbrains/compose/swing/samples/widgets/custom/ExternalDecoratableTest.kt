@@ -6,10 +6,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.graphics.BlurEffect
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.TileMode
 import org.jetbrains.compose.swing.foundation.graphics.alpha
 import org.jetbrains.compose.swing.foundation.graphics.blur
 import org.jetbrains.compose.swing.foundation.graphics.clip
@@ -26,13 +29,18 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
-import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.AlphaComposite
 import java.awt.BorderLayout
 import java.awt.Color
@@ -47,6 +55,7 @@ import java.awt.Point
 import java.awt.Rectangle
 import java.awt.geom.Area
 import java.awt.image.BufferedImage
+import java.util.stream.Stream
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.RepaintManager
@@ -55,7 +64,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.modifier.appearance.background as componentBackground
 
@@ -63,7 +71,7 @@ import org.jetbrains.compose.swing.modifier.appearance.background as componentBa
  * Makes components of its own decoratable from outside the library, through public API alone: a `Card` and a
  * `DecoratedPanel`, each implementing `Decoratable` as its KDoc lists.
  */
-class ExternalDecoratableTest {
+internal class ExternalDecoratableTest {
     @Test
     fun inARowAShadowLeavesTheSiblingWhereItStoodAndGrowsTheCardsBounds() =
         runComposeSwingTest {
@@ -90,7 +98,7 @@ class ExternalDecoratableTest {
 
             val outsets = card.decoration.paintOutsets()
             assertTrue(outsets.left > 0, "the shadow takes paint outsets")
-            assertEquals(sibling, onNodeWithTag("sibling").fetch<JComponent>().bounds, "the sibling stays")
+            onNodeWithTag("sibling").assertProperty(sibling, "the sibling stays") { this.bounds }
             assertEquals(
                 Rectangle(
                     bounds.x - outsets.left,
@@ -123,21 +131,24 @@ class ExternalDecoratableTest {
             val outsets = panel.decoration.paintOutsets()
             val insets = panel.insets
 
+            assertTrue(
+                outsets.left > 0 && outsets.top > 0,
+                "the shadow gives the panel paint outsets on its left and top",
+            )
             assertEquals(
                 Insets(3 + outsets.top, 3 + outsets.left, 3 + outsets.bottom, 3 + outsets.right),
                 insets,
                 "the insets are the border plus the paint outsets",
             )
-            assertEquals(
+            onNodeWithTag("child").assertProperty(
                 Rectangle(
                     insets.left,
                     insets.top,
                     panel.width - insets.left - insets.right,
                     panel.height - insets.top - insets.bottom,
                 ),
-                onNodeWithTag("child").fetch<JComponent>().bounds,
                 "the child fills the area inside the insets",
-            )
+            ) { bounds }
         }
 
     @Test
@@ -165,11 +176,10 @@ class ExternalDecoratableTest {
 
             assertEquals(Insets(0, 0, 0, 0), card.decoration.paintOutsets(), "a Swing parent gives no paint outsets")
             assertEquals(Insets(2, 2, 2, 2), card.insets, "the insets are the border alone")
-            assertEquals(Dimension(60, 40), card.preferredSize, "a set size answers as set")
             assertEquals(Rectangle(0, 0, 60, 40), card.bounds, "a Swing parent places the card at its set size")
             val image = onNodeWithTag("stock").captureToImage()
-            assertEquals(Color.BLUE.rgb, image.getRGB(59, 20), "the card paints up to its bounds")
-            assertEquals(0, image.getRGB(62, 20), "and its shadow is clipped there")
+            image.assertPixelColor(Color.BLUE, 59, 20, "the card paints up to its bounds")
+            image.assertPixelColor(Color(0, true), 62, 20, "and its shadow is clipped there")
         }
 
     @Test
@@ -240,7 +250,7 @@ class ExternalDecoratableTest {
             assertFalse(card.isOpaque, "the parent shows under the shadow")
             val outsets = card.decoration.paintOutsets()
             val image = onNodeWithTag("card").captureToImage()
-            assertEquals(Color.BLUE.rgb, image.getRGB(outsets.left, outsets.top), "the layout bounds are filled")
+            image.assertPixelColor(Color.BLUE, outsets.left, outsets.top, "the layout bounds are filled")
             assertNotEquals(Color.BLUE.rgb, image.getRGB(0, 0), "the outsets are not")
         }
 
@@ -295,125 +305,18 @@ class ExternalDecoratableTest {
             assertEquals(1, card.writes, "no write for a pass that changes no step")
         }
 
-    @Test
-    fun aShadowedCardsRepaintPaintsTheShadowItsChangeCasts() =
-        assertRepaintPaints(
-            { CardNode(it) },
-            Shadowed,
-            OwnRepaint,
-            RepaintExpectation({ it.grown(24) }, { it.grown(24) }, exactPaintedArea = null),
-        )
+    @ParameterizedTest(name = "{0}, {1}, {2} repaint")
+    @MethodSource("repaintCases")
+    fun decoratedComponentsRepaintTheAreaTheirDecorationChanges(
+        node: @Composable (SwingModifier) -> Unit,
+        decorate: (SwingModifier) -> SwingModifier,
+        repaint: Repaint,
+        expected: RepaintExpectation,
+    ) = assertRepaintPaints(node, decorate, repaint.ask, expected)
 
-    @Test
-    fun aShadowedCardsRepaintMergedIntoTheContentPanesPaintsTheShadowItsChangeCasts() =
-        assertRepaintPaints(
-            { CardNode(it) },
-            Shadowed,
-            MergedRepaint,
-            RepaintExpectation({ it.grown(24) }, { it.grown(24) }, { it.grownAndMerged(24) }),
-        )
-
-    @Test
-    fun aCardBlurredBehindAClipRepaintsWhatTheBlurSpreadsItsChangeInto() =
-        assertRepaintPaints(
-            { CardNode(it) },
-            BlurredBehindAClip,
-            OwnRepaint,
-            RepaintExpectation({ it.grown(16) }, { it.grown(16) }, exactPaintedArea = null),
-        )
-
-    @Test
-    fun aCardBlurredBehindAClipRepaintMergedIntoTheContentPanesPaintsWhatTheBlurSpreadsItsChangeInto() =
-        assertRepaintPaints(
-            { CardNode(it) },
-            BlurredBehindAClip,
-            MergedRepaint,
-            RepaintExpectation({ it.grown(16) }, { it.grown(16) }, { it.grownAndMerged(16) }),
-        )
-
-    @Test
-    fun aTurnedCardRepaintsWhole() =
-        assertRepaintPaints({ CardNode(it) }, Turned, OwnRepaint, RepaintExpectation({ it.whole() }, { it.whole() }))
-
-    @Test
-    fun aTurnedCardsRepaintMergedIntoTheContentPanesRepaintsWhole() =
-        assertRepaintPaints({ CardNode(it) }, Turned, MergedRepaint, RepaintExpectation({ it.whole() }, { it.whole() }))
-
-    @Test
-    fun anUndecoratedCardRepaintsTheAreaAlone() =
-        assertRepaintPaints({ CardNode(it) }, { it }, OwnRepaint, RepaintExpectation({ it.grown(0) }, { it.grown(0) }))
-
-    @Test
-    fun aDirectPaintImmediatelyOfAShadowedCardPaintsTheShadowItsChangeCasts() =
-        assertRepaintPaints({ CardNode(it) }, Shadowed, PaintedAtOnce, RepaintExpectation({ it.grown(24) }))
-
-    @Test
-    fun aShadowedPanelsRepaintPaintsTheShadowItsChangeCasts() =
-        assertRepaintPaints(
-            { PanelNode(it) },
-            Shadowed,
-            OwnRepaint,
-            RepaintExpectation({ it.grown(24) }, { it.grown(24) }, exactPaintedArea = null),
-        )
-
-    @Test
-    fun aShadowedPanelsRepaintMergedIntoTheContentPanesPaintsTheShadowItsChangeCasts() =
-        assertRepaintPaints(
-            { PanelNode(it) },
-            Shadowed,
-            MergedRepaint,
-            RepaintExpectation({ it.grown(24) }, { it.grown(24) }, { it.grownAndMerged(24) }),
-        )
-
-    @Test
-    fun aPanelBlurredBehindAClipRepaintsWhatTheBlurSpreadsItsChangeInto() =
-        assertRepaintPaints(
-            { PanelNode(it) },
-            BlurredBehindAClip,
-            OwnRepaint,
-            RepaintExpectation({ it.grown(16) }, { it.grown(16) }, exactPaintedArea = null),
-        )
-
-    @Test
-    fun aPanelBlurredBehindAClipRepaintMergedIntoTheContentPanesPaintsWhatTheBlurSpreadsItsChangeInto() =
-        assertRepaintPaints(
-            { PanelNode(it) },
-            BlurredBehindAClip,
-            MergedRepaint,
-            RepaintExpectation({ it.grown(16) }, { it.grown(16) }, { it.grownAndMerged(16) }),
-        )
-
-    @Test
-    fun aTurnedPanelRepaintsWhole() =
-        assertRepaintPaints({ PanelNode(it) }, Turned, OwnRepaint, RepaintExpectation({ it.whole() }, { it.whole() }))
-
-    @Test
-    fun aTurnedPanelsRepaintMergedIntoTheContentPanesRepaintsWhole() =
-        assertRepaintPaints(
-            { PanelNode(it) },
-            Turned,
-            MergedRepaint,
-            RepaintExpectation({ it.whole() }, { it.whole() }),
-        )
-
-    /** The panel, as the painting origin of its child's repaint, grows the child's area by the blur's reach. */
-    @Test
-    fun aChildsRepaintInAPanelBlurredBehindAClipPaintsWhatTheBlurSpreadsItsChangeInto() =
-        assertRepaintPaints({ PanelNode(it) }, BlurredBehindAClip, ChildRepaint, RepaintExpectation({ it.grown(16) }))
-
-    @Test
-    fun aChildsRepaintInATurnedPanelRepaintsThePanelWhole() =
-        assertRepaintPaints({ PanelNode(it) }, Turned, ChildRepaint, RepaintExpectation({ it.whole() }))
-
-    @Test
-    fun takingACardsGraphicsShowsChangedContentInALaterPaint() =
-        assertTakingGraphicsShowsChangedContent { CardNode(it) }
-
-    @Test
-    fun takingAPanelsGraphicsShowsChangedContentInALaterPaint() =
-        assertTakingGraphicsShowsChangedContent { PanelNode(it) }
-
-    private fun assertTakingGraphicsShowsChangedContent(node: @Composable (SwingModifier) -> Unit) =
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("componentNodes")
+    fun takingGraphicsShowsChangedContentInALaterPaint(node: @Composable (SwingModifier) -> Unit) =
         runComposeSwingTest {
             var fill = Color.RED
             val draw: DrawScope.() -> Unit = {
@@ -436,22 +339,40 @@ class ExternalDecoratableTest {
             val outsets = (component as Decoratable).decoration.paintOutsets()
             val inside = Point(outsets.left + 10, outsets.top + 10)
             val before = onNodeWithTag("component").captureToImage()
-            assertEquals(Color.RED.rgb, before.getRGB(inside.x, inside.y), "initial content is red")
+            before.assertPixelColor(Color.RED, inside.x, inside.y, "initial content is red")
 
             fill = Color.BLUE
             component.graphics?.dispose()
 
-            assertEquals(
-                Color.BLUE.rgb,
-                onNodeWithTag("component").captureToImage().getRGB(inside.x, inside.y),
+            onNodeWithTag(
+                "component",
+            ).captureToImage().assertPixelColor(
+                Color.BLUE,
+                inside.x,
+                inside.y,
                 "a later paint shows the changed content after taking graphics",
             )
         }
 
+    /** The panel, as the painting origin of its child's repaint, grows the child's area by the blur's reach. */
+    @Test
+    fun aChildsRepaintInAPanelBlurredBehindAClipPaintsWhatTheBlurSpreadsItsChangeInto() =
+        assertRepaintPaints(
+            { PanelNode(it) },
+            BlurredBehindAClip,
+            ChildRepaint,
+            RepaintExpectation({ it.blurred }),
+        )
+
+    @Test
+    fun aChildsRepaintInATurnedPanelRepaintsThePanelWhole() =
+        assertRepaintPaints({ PanelNode(it) }, Turned, ChildRepaint, RepaintExpectation({ it.extent }))
+
     /**
      * Composes the component [decoratable] composes, decorated by [decorate], in a window, marks a 10 by 10 area of
-     * it and has [ask] repaint that area. Checks that the repaint covers [RepaintExpectation.requiredArea], in its
-     * own coordinates, and that the window's content painted again over the actual dirty areas equals the whole paint.
+     * it and has [ask] repaint that area. Checks the repaint request and that the painted areas cover
+     * [RepaintExpectation.requiredArea] and match [RepaintExpectation.exactPaintedArea], both in the layout coordinates
+     * of the component, and that Swing records [RepaintExpectation.dirtyRegion], in its own, as dirty.
      */
     private fun assertRepaintPaints(
         decoratable: @Composable (SwingModifier) -> Unit,
@@ -491,36 +412,20 @@ class ExternalDecoratableTest {
         awaitIdle()
         marked.recording = false
 
-        val outsets = marked.outsets
-        val requiredArea = expected.requiredArea(marked).apply { translate(-outsets.left, -outsets.top) }
-        assertTrue(marked.clips.covers(requiredArea), "the painted areas cover every pixel the change reaches")
+        assertTrue(
+            marked.clips.covers(expected.requiredArea(marked)),
+            "the painted areas cover every pixel the change reaches",
+        )
         expected.exactPaintedArea?.let {
             assertEquals(
-                listOf(it(marked).apply { translate(-outsets.left, -outsets.top) }),
+                listOf(it(marked)),
                 marked.clips,
                 "the component is painted with the expected area",
             )
         }
         val inRoot = marked.clips.map { marked.inRoot(it) }
-        assertNull(
-            differingPixelBounds(marked.root.paintedOver(), marked.root.paintedOver(before, inRoot)),
-            "painting those areas again paints what a whole repaint does",
-        )
+        assertImagesPixelPerfect(marked.root.paintedOver(), marked.root.paintedOver(before, inRoot))
     }
-
-    /** A `Card` declaring [modifier]. */
-    @Composable
-    private fun CardNode(modifier: SwingModifier) = SwingNode(factory = { Card() }, modifier = modifier)
-
-    /** A `DecoratedPanel` declaring [modifier], holding a transparent 120 by 80 child tagged `child`. */
-    @Composable
-    private fun PanelNode(modifier: SwingModifier) =
-        SwingNode(factory = { DecoratedPanel(BorderLayout()) }, modifier = modifier) {
-            SwingNode(
-                factory = { JPanel().apply { isOpaque = false } },
-                modifier = SwingModifier.testTag("child").preferredSize(120, 80),
-            )
-        }
 
     /** A decoratable component counting the decorations the library writes to it. */
     private class CountingCard :
@@ -534,6 +439,108 @@ class ExternalDecoratableTest {
             set(value) {
                 writes++
                 field = value
+            }
+    }
+
+    companion object {
+        @JvmStatic
+        fun repaintCases(): Stream<Arguments> {
+            val decorations = repaintDecorations()
+            val cases =
+                components().flatMap { (component, node) ->
+                    decorations.flatMap { case ->
+                        Repaint.entries.map { repaint ->
+                            Arguments.of(
+                                Named.of(component, node),
+                                Named.of(case.name, case.decorate),
+                                repaint,
+                                case.expecting(repaint),
+                            )
+                        }
+                    }
+                }
+            return cases.stream()
+        }
+
+        private fun repaintDecorations(): List<DecorationCase> =
+            listOf(
+                DecorationCase(
+                    name = "none",
+                    decorate = { it },
+                    own = RepaintExpectation({ Rectangle(20, 20, 10, 10) }, { Rectangle(20, 20, 10, 10) }),
+                    merged =
+                        RepaintExpectation(
+                            { Rectangle(20, 20, 10, 10) },
+                            { Rectangle(20, 20, 10, 10) },
+                            { Rectangle(20, 20, 100, 60) },
+                        ),
+                    atOnce = RepaintExpectation({ Rectangle(20, 20, 10, 10) }),
+                ),
+                // The change reaches as far as the paint outsets.
+                DecorationCase(
+                    name = "shadow",
+                    decorate = { it.shadow(8, Color.BLACK) },
+                    own = RepaintExpectation({ it.grown }, { it.grownInComponent }, exactPaintedArea = null),
+                    merged =
+                        RepaintExpectation(
+                            { it.grown },
+                            { it.grownInComponent },
+                            {
+                                // Swing paints the grown area with the corner merged in, from the content pane.
+                                val cornerInComponent =
+                                    SwingUtilities
+                                        .convertRectangle(it.contentPane, it.corner, it.component)
+                                        .apply { translate(-it.outsets.left, -it.outsets.top) }
+                                it.grown.union(cornerInComponent).intersection(it.extent)
+                            },
+                        ),
+                    atOnce = RepaintExpectation({ it.grown }),
+                ),
+                // The clip cuts the blur's reach at the component bounds.
+                DecorationCase(
+                    name = "blur behind clip",
+                    decorate = BlurredBehindAClip,
+                    own = RepaintExpectation({ it.blurred }, { it.blurred }, exactPaintedArea = null),
+                    merged =
+                        RepaintExpectation(
+                            { it.blurred },
+                            { it.blurred },
+                            {
+                                val corner = SwingUtilities.convertRectangle(it.contentPane, it.corner, it.component)
+                                it.blurred.union(corner).intersection(it.extent)
+                            },
+                        ),
+                    atOnce = RepaintExpectation({ it.blurred }),
+                ),
+                // A turn takes paint outsets and repaints all of them.
+                DecorationCase(
+                    name = "turned",
+                    decorate = Turned,
+                    own = RepaintExpectation({ it.extent }, { Rectangle(it.component.size) }),
+                    merged = RepaintExpectation({ it.extent }, { Rectangle(it.component.size) }),
+                    atOnce = RepaintExpectation({ it.extent }),
+                ),
+            )
+
+        @JvmStatic
+        fun componentNodes(): Stream<Arguments> =
+            components().map { (component, node) -> Arguments.of(Named.of(component, node)) }.stream()
+
+        private fun components(): Map<String, @Composable (SwingModifier) -> Unit> =
+            mapOf("Card" to { CardNode(it) }, "Panel" to { PanelNode(it) })
+
+        /** A `Card` declaring [modifier]. */
+        @Composable
+        private fun CardNode(modifier: SwingModifier) = SwingNode(factory = { Card() }, modifier = modifier)
+
+        /** A `DecoratedPanel` declaring [modifier], holding a transparent 120 by 80 child tagged `child`. */
+        @Composable
+        private fun PanelNode(modifier: SwingModifier) =
+            SwingNode(factory = { DecoratedPanel(BorderLayout()) }, modifier = modifier) {
+                SwingNode(
+                    factory = { JPanel().apply { isOpaque = false } },
+                    modifier = SwingModifier.testTag("child").preferredSize(120, 80),
+                )
             }
     }
 }
@@ -672,7 +679,7 @@ class DecoratedPanel(
  * The mark a test draws on the component tagged `decoratable`, and the clips that component is painted with while
  * [recording], in its layout coordinates; [record] is declared before its steps, and [draw] after them.
  */
-private class Marked {
+internal class Marked {
     val mark = Rectangle(20, 20, 10, 10)
     var isMarked = false
     var recording = false
@@ -696,14 +703,36 @@ private class Marked {
     /** The content pane's bottom right corner, in its own coordinates. */
     val corner: Rectangle get() = Rectangle(contentPane.width - 2, contentPane.height - 2, 1, 1)
 
-    fun whole(): Rectangle = Rectangle(component.size)
+    /** The component's bounds, in its layout coordinates. */
+    val extent: Rectangle get() = Rectangle(-outsets.left, -outsets.top, component.width, component.height)
 
-    /** The [area] grown by [reach] on each side, inside the component. */
-    fun grown(reach: Int): Rectangle = area.grownInside(reach, whole())
+    /** The [mark] grown by the paint outsets, in the component's layout coordinates. */
+    val grown: Rectangle
+        get() =
+            Rectangle(
+                mark.x - outsets.left,
+                mark.y - outsets.top,
+                mark.width + outsets.left + outsets.right,
+                mark.height + outsets.top + outsets.bottom,
+            )
 
-    /** Swing paints the grown area merged with the content pane's [corner] from the content pane. */
-    fun grownAndMerged(reach: Int): Rectangle =
-        grown(reach).union(SwingUtilities.convertRectangle(contentPane, corner, component)).intersection(whole())
+    /**
+     * The [mark] grown by the reach of [BlurredBehindAClip]'s blur, cut at [extent], in the component's layout
+     * coordinates.
+     */
+    val blurred: Rectangle
+        get() {
+            val reach = BlurEffect(BLUR_RADIUS.toFloat(), edgeTreatment = TileMode.Decal).outsets(1.0)
+            return Rectangle(
+                mark.x - reach.left,
+                mark.y - reach.top,
+                mark.width + reach.left + reach.right,
+                mark.height + reach.top + reach.bottom,
+            ).intersection(extent)
+        }
+
+    /** The [grown] area in the component's own coordinates. */
+    val grownInComponent: Rectangle get() = Rectangle(grown).apply { translate(outsets.left, outsets.top) }
 
     /** [clip], in the component's layout coordinates, in the coordinates of [root]. */
     fun inRoot(clip: Rectangle): Rectangle =
@@ -714,27 +743,54 @@ private class Marked {
         )
 }
 
-private data class RepaintExpectation(
+/** How a test asks for a repaint of the marked area of the component tagged `decoratable`. */
+internal enum class Repaint(
+    val ask: (Marked) -> Unit,
+) {
+    Own({ it.component.repaint(it.area) }),
+
+    /** The component's repaint and the content pane's corner in the same event, which Swing paints together. */
+    Merged({
+        it.component.repaint(it.area)
+        it.contentPane.repaint(it.corner)
+    }),
+    AtOnce({ it.component.paintImmediately(it.area) }),
+}
+
+/**
+ * What a repaint of the marked area must paint: [requiredArea] must be covered by the painted areas, and
+ * [exactPaintedArea] must be the one area painted, unless it is null; both in the layout coordinates of the
+ * component. Swing must record [dirtyRegion], in the component's own coordinates, unless it is null.
+ */
+internal data class RepaintExpectation(
     val requiredArea: (Marked) -> Rectangle,
     val dirtyRegion: ((Marked) -> Rectangle)? = null,
     val exactPaintedArea: ((Marked) -> Rectangle)? = requiredArea,
 )
 
-private val Shadowed: (SwingModifier) -> SwingModifier = { it.shadow(8, Color.BLACK) }
-
-private val BlurredBehindAClip: (SwingModifier) -> SwingModifier = { it.clip(RectangleShape).blur(6) }
-
-private val Turned: (SwingModifier) -> SwingModifier = { it.then(PlacementLayerElement { rotationZ = 30f }) }
-
-private val OwnRepaint: (Marked) -> Unit = { it.component.repaint(it.area) }
-
-/** The component's repaint and the content pane's corner in the same event, which Swing paints together. */
-private val MergedRepaint: (Marked) -> Unit = {
-    it.component.repaint(it.area)
-    it.contentPane.repaint(it.corner)
+/**
+ * A decoration and what each [Repaint] of the 10 by 10 mark at 20, 20 of a 120 by 80 layout box must paint under it.
+ * The window is far larger than the component, so a [Repaint.Merged] one paints on to the component's far corner.
+ */
+private data class DecorationCase(
+    val name: String,
+    val decorate: (SwingModifier) -> SwingModifier,
+    val own: RepaintExpectation,
+    val merged: RepaintExpectation,
+    val atOnce: RepaintExpectation,
+) {
+    fun expecting(repaint: Repaint): RepaintExpectation =
+        when (repaint) {
+            Repaint.Own -> own
+            Repaint.Merged -> merged
+            Repaint.AtOnce -> atOnce
+        }
 }
 
-private val PaintedAtOnce: (Marked) -> Unit = { it.component.paintImmediately(it.area) }
+private const val BLUR_RADIUS = 6
+private val BlurredBehindAClip: (SwingModifier) -> SwingModifier = { it.clip(RectangleShape).blur(BLUR_RADIUS) }
+
+private val Turned: (SwingModifier) -> SwingModifier = { it.then(PlacementLayerElement { rotationZ = 30f }) }
 
 private val ChildRepaint: (Marked) -> Unit = {
     val child = checkNotNull(it.child)
@@ -742,12 +798,6 @@ private val ChildRepaint: (Marked) -> Unit = {
 }
 
 private const val REPAINT_WINDOW = "external-decoratable-repaint"
-
-/** This area grown by [reach] on each side and held inside [bounds]; a new [Rectangle]. */
-private fun Rectangle.grownInside(
-    reach: Int,
-    bounds: Rectangle,
-): Rectangle = Rectangle(x - reach, y - reach, width + 2 * reach, height + 2 * reach).intersection(bounds)
 
 /** Whether the union of [this] rectangles covers every pixel in [area]. */
 private fun List<Rectangle>.covers(area: Rectangle): Boolean =

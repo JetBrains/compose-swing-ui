@@ -1,9 +1,11 @@
 package org.jetbrains.compose.swing.samples.widgets.navigation
 
 import org.jetbrains.compose.swing.samples.widgets.ShowcaseShell
-import org.jetbrains.compose.swing.samples.widgets.onSectionList
 import org.jetbrains.compose.swing.samples.widgets.showcaseSections
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,19 +32,18 @@ class ShowcaseShellNavigationTest {
     }
 
     private suspend fun ComposeSwingTest.select(title: String) {
-        onSectionList().fetch<JList<*>>().selectedIndex = showcaseSections.indexOfFirst { it.title == title }
-        awaitIdle()
+        onNode(SwingMatcher.hasAccessibleName("Sections"))
+            .performAddSelection(showcaseSections.indexOfFirst { it.title == title })
     }
-
-    private fun ComposeSwingTest.selectedSection(): String =
-        showcaseSections[onSectionList().fetch<JList<*>>().selectedIndex].title
 
     @Test
     fun backReturnsToThePreviousSectionAndTheSidebarFollows() =
         runComposeSwingTest {
             setContent { ShowcaseShell() }
 
-            assertEquals(showcaseSections.first().title, selectedSection())
+            onAllNodesOfType<JList<*>>()
+                .filterToOne(SwingMatcher.hasAccessibleName("Sections"))
+                .assertProperty(showcaseSections.first().title) { showcaseSections[selectedIndex].title }
             onNodeWithText("Back").assertIsNotEnabled()
 
             select(TABLE)
@@ -54,7 +55,9 @@ class ShowcaseShellNavigationTest {
             awaitIdle()
 
             onNodeWithText("Section: $TABLE", substring = true).assertExists()
-            assertEquals(TABLE, selectedSection(), "the sidebar did not follow the pop")
+            onAllNodesOfType<JList<*>>()
+                .filterToOne(SwingMatcher.hasAccessibleName("Sections"))
+                .assertProperty(TABLE, "the sidebar did not follow the pop") { showcaseSections[selectedIndex].title }
         }
 
     /**
@@ -67,7 +70,7 @@ class ShowcaseShellNavigationTest {
         runComposeSwingTest {
             setContent { ShowcaseShell() }
 
-            val shown = onSectionList().fetch<Component>()
+            val shown = onNode(SwingMatcher.hasAccessibleName("Sections")).fetch<Component>()
             val shownWidth = shown.animatedContainer().width
             assertTrue(shownWidth > 0, "the sidebar was laid out with no width")
             val sidebar = shown.sidebarScrollPane()
@@ -79,13 +82,15 @@ class ShowcaseShellNavigationTest {
 
             mainClock.autoAdvance = false
             onNodeWithText("Hide sidebar").performClick()
-            mainClock.advanceTimeUntil { onSectionList().fetch<Component>().animatedContainer().width < shownWidth }
-            val midwayWidth = onSectionList().fetch<Component>().animatedContainer().width
-            assertTrue(midwayWidth in 1 until shownWidth, "the sidebar jumped straight to nothing: $midwayWidth")
+            val sections = onNode(SwingMatcher.hasAccessibleName("Sections"))
+            mainClock.advanceTimeUntil { sections.fetch<Component>().animatedContainer().width < shownWidth }
+            sections.assertProperty(true, "the sidebar jumped straight to nothing") {
+                animatedContainer().width in 1 until shownWidth
+            }
 
             mainClock.autoAdvance = true
             awaitIdle()
-            onSectionList().assertDoesNotExist()
+            onNode(SwingMatcher.hasAccessibleName("Sections")).assertDoesNotExist()
 
             onNodeWithText("Show sidebar").performClick()
             awaitIdle()
@@ -124,9 +129,11 @@ class ShowcaseShellNavigationTest {
 
             select(COMPONENTS)
             val field = onAllNodesOfType<JTextField>().fetchAll().first { it.isEditable }
-            val typed = field.text + "-edited"
+            val initial = field.text
+            val typed = "$initial-edited"
             field.text = typed
             awaitIdle()
+            assertEquals(typed, field.text, "the edit is in the field before navigating away")
 
             select(TABLE)
             onNodeWithText("Back").performClick()
@@ -134,7 +141,11 @@ class ShowcaseShellNavigationTest {
 
             val afterReturn = onAllNodesOfType<JTextField>().fetchAll().first { it.isEditable }
             assertTrue(afterReturn !== field, "the section's component survived navigation")
-            assertTrue(afterReturn.text != typed, "the typed text survived, so the section was not rebuilt")
+            assertEquals(
+                initial,
+                afterReturn.text,
+                "the rebuilt field starts from its declared text, not the typed one",
+            )
         }
 }
 

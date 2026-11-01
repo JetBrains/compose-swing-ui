@@ -1,9 +1,15 @@
 package org.jetbrains.compose.swing.samples.widgets.layout
 
+import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Component
@@ -11,14 +17,17 @@ import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
+import javax.accessibility.AccessibleAction
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JSlider
 import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
@@ -53,7 +62,7 @@ class PaintOutsetsSectionTest {
             val button = onNodeWithTag(PAINT_OUTSETS_BASELINE_BUTTON_TAG).fetch<JButton>()
             val gaps = HashSet<Int>()
 
-            for (value in layoutParameterSelector("paintOutsets").items()) {
+            for (value in declarationSelector().fetch<JComboBox<*>>().items()) {
                 declare(value)
                 assertEquals(
                     listOf(label.baselineY, label.baselineY),
@@ -75,7 +84,8 @@ class PaintOutsetsSectionTest {
             val spaced = stock.x + stock.width + 16
 
             declare("PaintOutsets.Decoration")
-            val outsets = (shadowed as Decoratable).decoration.paintOutsets()
+            assertIs<Decoratable>(shadowed, "expected the shadowed node to be decoratable")
+            val outsets = shadowed.decoration.paintOutsets()
             assertTrue(outsets.left > 0, "Decoration: the shadow is paint outsets")
             assertEquals(spaced, shadowed.x + outsets.left, "Decoration: the layout bounds keep the spacing")
 
@@ -128,9 +138,10 @@ class PaintOutsetsSectionTest {
             onNodeWithText("paintOutsets(value).width(120): field 120 px").assertExists()
 
             declare("PaintOutsets(n)")
-            sliderNamed("Fixed paint outsets").value = 2
-            awaitIdle()
-            awaitIdle()
+            onAllNodesOfType<JSlider>()
+                .filterToOne(
+                    SwingMatcher.hasAccessibleName("Fixed paint outsets"),
+                ).performSetValue(2)
 
             assertEquals(listOf(124, 120), listOf(widthFirst.width, widthLast.width), "PaintOutsets(2)")
         }
@@ -140,13 +151,13 @@ class PaintOutsetsSectionTest {
         runComposeSwingTest {
             openSection("Paint outsets")
             val shadowed = onNodeWithTag(PAINT_OUTSETS_SWING_PARENT_SHADOWED_TAG).fetch<JComponent>()
-            val border = shadowed.insets
+            val border = shadowed.border.getBorderInsets(shadowed)
             val size = shadowed.size
 
             declare("PaintOutsets.None")
-            awaitIdle()
 
-            val shadow = (shadowed as Decoratable).decoration.paintOutsets()
+            assertIs<Decoratable>(shadowed, "expected the shadowed node to be decoratable")
+            val shadow = shadowed.decoration.paintOutsets()
             assertTrue(shadow.left > 0, "None: the shadow is kept under a Swing parent")
             val insets = shadowed.insets
             assertEquals(
@@ -170,7 +181,6 @@ class PaintOutsetsSectionTest {
             onNodeWithText("Shadowed box: size = ${shadowed.width} × ${shadowed.height} px").assertExists()
 
             declare("PaintOutsets.Decoration")
-            awaitIdle()
 
             assertEquals(Insets(0, 0, 0, 0), shadowed.decoration.paintOutsets(), "Decoration: no paint outsets")
             assertEquals(border, shadowed.insets, "Decoration: the insets are the border")
@@ -186,11 +196,11 @@ class PaintOutsetsSectionTest {
             val stage = stageNode.fetch<JComponent>()
             val track = onNodeWithTag(PAINT_OUTSETS_TRACK_TAG).fetch<JComponent>()
             val button = onNodeWithTag(PAINT_OUTSETS_PAST_BUTTON_TAG).fetch<JButton>()
-            sliderNamed("Child offset").value = 120
-            awaitIdle()
+            onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasAccessibleName("Child offset")).performSetValue(120)
 
             val middle = SwingUtilities.convertPoint(button, button.width / 2, button.height / 2, stage)
-            val trackBox = (track as Decoratable).decoration.localLayoutBounds(track)
+            assertIs<Decoratable>(track, "expected the track node to be decoratable")
+            val trackBox = track.decoration.localLayoutBounds(track)
             assertTrue(
                 middle.x >= track.x + trackBox.x + trackBox.width,
                 "the button's middle is past the track's layout bounds",
@@ -207,9 +217,10 @@ class PaintOutsetsSectionTest {
             onNodeWithText("clipToBounds() on the track").performClick()
 
             assertNotSame(button, stage.findComponentAt(middle), "clipped, a click there misses it")
-            assertEquals(
-                LayoutSampleColors.Blue.rgb,
-                stageNode.captureToImage().getRGB(middle.x, middle.y),
+            stageNode.captureToImage().assertPixelColor(
+                LayoutSampleColors.Blue,
+                middle.x,
+                middle.y,
                 "clipped, the stage shows where the button was painted",
             )
         }
@@ -227,7 +238,7 @@ class PaintOutsetsSectionTest {
             val guided = form.captureToImage()
             declare("PaintOutsets.None")
             val guidedUnderNone = form.captureToImage()
-            switchAlignmentGuides()
+            onNodeWithText("Alignment guides").performAccessibleAction(AccessibleAction.CLICK)
             val plainUnderNone = form.captureToImage()
             declare("PaintOutsets.FullInsets")
             val plain = form.captureToImage()
@@ -262,7 +273,7 @@ class PaintOutsetsSectionTest {
         }
 
     @Test
-    fun theBandOfTheShadowedBoxIsItsShadowUnderDecorationAndItsLayoutBoxIsItsBoundsUnderNone() =
+    fun theBandOfTheShadowedBoxIsItsShadowUnderDecoration() =
         runComposeSwingTest {
             openSectionWithMenuBar("Paint outsets")
             val row = onNodeWithTag(PAINT_OUTSETS_DECORATED_TAG)
@@ -270,15 +281,11 @@ class PaintOutsetsSectionTest {
 
             declare("PaintOutsets.Decoration")
             val bounds = shadowed.bounds
-            val shadow = (shadowed as Decoratable).decoration.paintOutsets()
+            assertIs<Decoratable>(shadowed, "expected the shadowed node to be decoratable")
+            val shadow = shadowed.decoration.paintOutsets()
             assertTrue(shadow.left > 1 && shadow.top > 1, "the shadow is wider than an outline")
             val guided = row.captureToImage()
-            declare("PaintOutsets.None")
-            val boundsUnderNone = shadowed.bounds
-            val guidedUnderNone = row.captureToImage()
-            switchAlignmentGuides()
-            val plainUnderNone = row.captureToImage()
-            declare("PaintOutsets.Decoration")
+            onNodeWithText("Alignment guides").performAccessibleAction(AccessibleAction.CLICK)
             val plain = row.captureToImage()
 
             val lineColor = AlignmentGuideColors.Line.rgb
@@ -308,6 +315,19 @@ class PaintOutsetsSectionTest {
                     ).filter { it >= bounds.x },
                 "Decoration: the layout box is outlined at the layout bounds",
             )
+        }
+
+    @Test
+    fun theLayoutBoxOfTheShadowedBoxIsItsBoundsUnderNone() =
+        runComposeSwingTest {
+            openSectionWithMenuBar("Paint outsets")
+            val row = onNodeWithTag(PAINT_OUTSETS_DECORATED_TAG)
+            val shadowed = onNodeWithTag(PAINT_OUTSETS_SHADOWED_TAG).fetch<JComponent>()
+            declare("PaintOutsets.None")
+            val boundsUnderNone = shadowed.bounds
+            val guidedUnderNone = row.captureToImage()
+            onNodeWithText("Alignment guides").performAccessibleAction(AccessibleAction.CLICK)
+            val plainUnderNone = row.captureToImage()
             assertEquals(
                 listOf(boundsUnderNone.x, boundsUnderNone.x + boundsUnderNone.width - 1),
                 guidedUnderNone
@@ -350,11 +370,11 @@ class PaintOutsetsSectionTest {
             val trackNode = onNodeWithTag(PAINT_OUTSETS_TRACK_TAG)
             val track = trackNode.fetch<JComponent>()
             val button = onNodeWithTag(PAINT_OUTSETS_PAST_BUTTON_TAG).fetch<JButton>()
-            sliderNamed("Child offset").value = -60
-            awaitIdle()
+            onAllNodesOfType<JSlider>().filterToOne(SwingMatcher.hasAccessibleName("Child offset")).performSetValue(-60)
 
+            assertIs<Decoratable>(track, "expected the track node to be decoratable")
             assertTrue(
-                (track as Decoratable).decoration.paintOutsets().left > 0,
+                track.decoration.paintOutsets().left > 0,
                 "the track's bounds start before its layout bounds, where the button is",
             )
             assertEquals(
@@ -367,16 +387,19 @@ class PaintOutsetsSectionTest {
         }
 }
 
-private suspend fun ComposeSwingTest.declare(value: String) {
-    layoutParameterSelector("paintOutsets").selectedItem = value
-    awaitIdle()
-}
-
 /** Every pixel of this rectangle, row by row. */
 private fun Rectangle.points(): List<Point> =
     (y until y + height).flatMap { row -> (x until x + width).map { Point(it, row) } }
 
 private fun JComboBox<*>.items(): List<String> = (0 until itemCount).map { getItemAt(it) as String }
+
+private fun ComposeSwingTest.declarationSelector() =
+    onAllNodesOfType<JComboBox<*>>().filterToOne(SwingMatcher.hasAccessibleName("paintOutsets"))
+
+private suspend fun ComposeSwingTest.declare(value: String) {
+    val selector = declarationSelector()
+    selector.performAddSelection(selector.fetch<JComboBox<*>>().items().indexOf(value))
+}
 
 /** Where this component's first baseline is, in its parent's coordinates. */
 private val Component.baselineY: Int get() = y + getBaseline(width, height)
