@@ -1,11 +1,18 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JTree
 import kotlin.test.Test
@@ -28,8 +35,6 @@ private fun childrenOf(value: String): List<String> = when (value) {
  * writes to stand in for the user.
  */
 class SelectionStateTest {
-    private val colors = listOf("red", "green", "blue")
-
     @Test
     fun theRowsAStateStartsOnAreTheOnesTheListShows() = runComposeSwingTest {
         var declared: ListState? = null
@@ -208,5 +213,62 @@ class SelectionStateTest {
             true,
             "the node the user opened stays open, the state having adopted it",
         ) { isExpanded(pathTo(0)) }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stateDrivenSelectionWrites")
+    fun aStateSelectionWriteDoesNotRecomposeTheCaller(
+        declaration: Triple<@Composable (onPass: () -> Unit) -> Unit, () -> Unit, ComposeSwingTest.() -> Unit>,
+    ) = runComposeSwingTest {
+        var passes = 0
+        val (content, writeSelection, assertShown) = declaration
+        setContent { content { passes++ } }
+        awaitIdle()
+        val mounted = passes
+
+        writeSelection()
+        awaitIdle()
+
+        assertEquals(mounted, passes, "writing the state's selection should not run the caller's composable again")
+        assertShown()
+    }
+
+    companion object {
+        private val colors = listOf("red", "green", "blue")
+
+        private val listShown: ComposeSwingTest.() -> Unit = {
+            onNodeOfType<JList<*>>().assertProperty(listOf(1)) { selectedIndices.toList() }
+        }
+
+        private fun <S> selectionWrite(
+            name: String,
+            state: S,
+            write: S.() -> Unit,
+            shown: ComposeSwingTest.() -> Unit,
+            widget: @Composable (S) -> Unit,
+        ): Named<Triple<@Composable (() -> Unit) -> Unit, () -> Unit, ComposeSwingTest.() -> Unit>> = Named.of(
+            name,
+            Triple<@Composable (() -> Unit) -> Unit, () -> Unit, ComposeSwingTest.() -> Unit>(
+                { onPass ->
+                    SideEffect(onPass)
+                    widget(state)
+                },
+                { state.write() },
+                shown,
+            ),
+        )
+
+        @JvmStatic
+        fun stateDrivenSelectionWrites(): List<Named<*>> {
+            val colorModel = DefaultListModel<String>().apply { for (color in colors) addElement(color) }
+            return listOf(
+                selectionWrite("ListBox items", ListState(), { selectedIndices = setOf(1) }, listShown) { state ->
+                    ListBox(items = colors, state = state)
+                },
+                selectionWrite("ListBox model", ListState(), { selectedIndices = setOf(1) }, listShown) { state ->
+                    ListBox(model = colorModel, state = state)
+                },
+            )
+        }
     }
 }

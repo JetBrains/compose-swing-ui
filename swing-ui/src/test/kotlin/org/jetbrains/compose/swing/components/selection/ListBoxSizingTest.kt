@@ -1,13 +1,19 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import javax.swing.DefaultListModel
 import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -140,10 +146,45 @@ class ListBoxSizingTest {
         )
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("factoryListBoxes")
+    fun aDeclaredPrototypeStandsOverTheOneAFactorysListCarries(
+        listBox: @Composable (prototypeCellValue: String?) -> Unit,
+    ) = runComposeSwingTest {
+        var prototypeCellValue: String? by mutableStateOf("Ada")
+        setContent { listBox(prototypeCellValue) }
+
+        onNodeOfType<JList<String>>().assertProperty("Ada", "the declared prototype") { this.prototypeCellValue }
+
+        prototypeCellValue = null
+        awaitIdle()
+
+        onNodeOfType<JList<String>>().assertProperty(null, "a withdrawn prototype") { this.prototypeCellValue }
+    }
+
     /**
      * The size this list's renderer reports for a cell rendering [prototype], measured the way the list
      * measures a prototype: through whichever renderer is installed, at row 0, unselected and unfocused.
      */
     private fun JList<String>.measurePrototypeCell() =
         cellRenderer.renderCell(value = prototype, index = 0, list = this).preferredSize
+
+    companion object {
+        private val rows = listOf("Ada", "Alan", "Grace")
+
+        private fun presetList() = JList<String>().apply { prototypeCellValue = "Alexander" }
+
+        @JvmStatic
+        fun factoryListBoxes(): List<Named<@Composable (String?) -> Unit>> {
+            val model = DefaultListModel<String>().apply { rows.forEach { addElement(it) } }
+            return listOf(
+                Named.of("items") { prototype: String? ->
+                    ListBox(::presetList, rows, rememberListState(), prototypeCellValue = prototype)
+                },
+                Named.of("caller's model") { prototype: String? ->
+                    ListBox(::presetList, model, rememberListState(), prototypeCellValue = prototype)
+                },
+            )
+        }
+    }
 }

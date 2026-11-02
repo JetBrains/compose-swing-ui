@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
+import javax.swing.DefaultListModel
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 
@@ -162,6 +163,11 @@ class RestartScopeCountTest {
     @Test
     fun aStateDrivenListBoxOpensOneRestartScope() = runComposeSwingTest {
         assertRestartScopeCount(1) { ListBox(items = listOf("a", "b"), state = rememberListState()) }
+    }
+
+    @Test
+    fun aStateDrivenModelListBoxOpensOneRestartScope() = runComposeSwingTest {
+        assertRestartScopeCount(1) { ListBox(model = DefaultListModel<String>(), state = rememberListState()) }
     }
 
     @Test

@@ -29,6 +29,7 @@ import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
+import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.selection.rememberTableState
 import org.jetbrains.compose.swing.components.style.borderPainted
 import org.jetbrains.compose.swing.components.style.caret
@@ -561,6 +562,44 @@ class WidgetIdentityTest {
                         },
                     wheelScrollingEnabled = !changed,
                 ) {}
+            },
+            case<StandInList>(
+                "ListBox(factory, items)",
+                initial = {
+                    assertProperty(8) { this.visibleRowCount }
+                },
+                applied = {
+                    assertProperty(4) { this.visibleRowCount }
+                },
+            ) { changed ->
+                ListBox(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInList().apply { visibleRowCount = 3 }
+                        },
+                    items = listOf("a"),
+                    state = rememberListState(),
+                    visibleRowCount = if (changed) 4 else 8,
+                )
+            },
+            case<StandInList>(
+                "ListBox(factory, model)",
+                initial = {
+                    assertProperty(8) { this.visibleRowCount }
+                },
+                applied = {
+                    assertProperty(4) { this.visibleRowCount }
+                },
+            ) { changed ->
+                ListBox(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInList().apply { visibleRowCount = 3 }
+                        },
+                    model = remember { DefaultListModel<String>() },
+                    state = rememberListState(),
+                    visibleRowCount = if (changed) 4 else 8,
+                )
             },
         )
 
@@ -1714,3 +1753,5 @@ class WidgetIdentityTest {
 }
 
 private class StandInScrollPane : JScrollPane()
+
+private class StandInList : JList<String>()

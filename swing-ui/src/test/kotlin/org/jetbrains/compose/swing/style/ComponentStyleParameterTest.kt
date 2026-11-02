@@ -38,6 +38,7 @@ import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
+import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -55,6 +56,8 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Rectangle
 import javax.swing.BoxLayout
+import javax.swing.DefaultListModel
+import javax.swing.JList
 import javax.swing.JScrollPane
 import kotlin.test.assertEquals
 
@@ -230,6 +233,24 @@ private fun selectionAndTextComponentCases(): List<ComponentCase> = listOf(
         RadioGroup(selectedIndex = 0, onSelectionChange = {}) { option("option", modifier = modifier, style = style) }
     },
     ComponentCase("ListBox") { modifier, style -> ListBox(items = listOf("a"), modifier = modifier, style = style) },
+    ComponentCase("ListBox(factory, items)") { modifier, style ->
+        ListBox(
+            factory = { JList<String>() },
+            items = listOf("a"),
+            state = rememberListState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("ListBox(factory, model)") { modifier, style ->
+        ListBox(
+            factory = { JList<String>() },
+            model = DefaultListModel<String>(),
+            state = rememberListState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
     ComponentCase("Table") { modifier, style ->
         Table(rows = listOf("a"), columns = { column("c") { it } }, modifier = modifier, style = style)
     },
