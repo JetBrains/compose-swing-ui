@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -20,12 +21,16 @@ import org.jetbrains.compose.swing.test.interaction.performMouseDrag
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.event.MouseEvent
 import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.JTableHeader
+import javax.swing.table.TableColumnModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -83,6 +88,50 @@ class TableHeaderTest {
             Color.RED,
             "the modifier should reach the table's own header",
         ) { tableHeader.background }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("factoryTables")
+    fun theHeaderAFactorysTableBuildsIsTheOneHeaderConfigures(
+        table: @Composable (() -> JTable, @Composable TableContentScope.() -> Unit) -> Unit,
+    ) = runComposeSwingTest {
+        setContent {
+            table({ JTable(null, null, null).apply { tableHeader = FactoryHeader(columnModel) } }) {
+                Header(style = { background(Color.RED) })
+            }
+        }
+
+        val node = onNodeOfType<JTable>()
+        node.assertProperty(true, "the header the factory built is kept") { tableHeader is FactoryHeader }
+        node.assertProperty(Color.RED, "and Header configures it") { tableHeader.background }
+    }
+
+    private class FactoryHeader(
+        columnModel: TableColumnModel,
+    ) : JTableHeader(columnModel)
+
+    companion object {
+        @JvmStatic
+        fun factoryTables(): List<Named<@Composable (() -> JTable, @Composable TableContentScope.() -> Unit) -> Unit>> =
+            listOf(
+                Named.of("declared rows") { factory, content ->
+                    Table(
+                        factory = factory,
+                        rows = listOf("Ada"),
+                        columns = { column("Name") { it } },
+                        state = remember { TableState() },
+                        content = content,
+                    )
+                },
+                Named.of("caller's model") { factory, content ->
+                    Table(
+                        factory = factory,
+                        model = remember { DefaultTableModel(arrayOf(arrayOf<Any>("Ada")), arrayOf<Any>("Name")) },
+                        state = remember { TableState() },
+                        content = content,
+                    )
+                },
+            )
     }
 
     @Test

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -7,9 +8,15 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.Arguments.arguments
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.JTable
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 
@@ -23,8 +30,6 @@ import kotlin.test.assertSame
  * declaration moves; an undeclared row height stays the look and feel's to choose.
  */
 class TableSizingTest {
-    private val people = listOf(Person("Ada", 36), Person("Alan", 41))
-
     @Test
     fun undeclaredSizingLeavesTheTablesOwnDefaults() = runComposeSwingTest {
         setContent {
@@ -68,20 +73,23 @@ class TableSizingTest {
         table.assertProperty(false, "a changed viewport fill should be re-applied") { this.fillsViewportHeight }
     }
 
-    @Test
-    fun aWithdrawnRowHeightGoesBackToTheLookAndFeelsOwn() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rowHeightTables")
+    fun aWithdrawnRowHeightGoesBackToTheHeightTheTableCarriedBefore(
+        table: @Composable (rowHeight: Int?) -> Unit,
+        factoryHeight: Int?,
+    ) = runComposeSwingTest {
         var declared: Int? by mutableStateOf(null)
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, rowHeight = declared)
-        }
+        setContent { table(declared) }
 
-        // The height the look and feel gave this table, whatever the host's happens to be. Declaring a
-        // different one is what lets the withdrawal tell the two apart, so the declared height is asserted
-        // away from it: on a host whose own height matched, both assertions below would pass vacuously.
+        // The height the table carries before any declaration: its factory's, or the look and feel's on this host.
+        // Declaring a different one is what lets the withdrawal tell the two apart, so the declared height is
+        // asserted away from it: on a host whose own height matched, both assertions below would pass vacuously.
         val ownHeight = onNodeOfType<JTable>().fetch().rowHeight
+        if (factoryHeight != null) assertEquals(factoryHeight, ownHeight, "the factory's row height should stand")
 
         val declaredHeight = 31
-        assertNotEquals(declaredHeight, ownHeight, "the declared height must differ from the look and feel's")
+        assertNotEquals(declaredHeight, ownHeight, "the declared height must differ from the table's own")
         declared = declaredHeight
         awaitIdle()
         onNodeOfType<JTable>().assertProperty(declaredHeight, "a declared row height should be applied") { rowHeight }
@@ -90,7 +98,7 @@ class TableSizingTest {
         awaitIdle()
         onNodeOfType<JTable>().assertProperty(
             ownHeight,
-            "withdrawing the declaration should give the look and feel's own height back",
+            "withdrawing the declaration should give the height the table carried before back",
         ) { rowHeight }
     }
 
@@ -163,5 +171,37 @@ class TableSizingTest {
             120,
             "a preferred width beyond the maximum",
         ) { columnModel.getColumn(0).preferredWidth }
+    }
+
+    companion object {
+        @JvmStatic
+        fun rowHeightTables(): List<Arguments> = listOf(
+            arguments(
+                Named.of<@Composable (Int?) -> Unit>(
+                    "stock table",
+                    { rowHeight ->
+                        Table(rows = people, columns = { column("Name") { it.name } }, rowHeight = rowHeight)
+                    },
+                ),
+                null,
+            ),
+            arguments(
+                Named.of<@Composable (Int?) -> Unit>(
+                    "factory table",
+                    { rowHeight ->
+                        Table(
+                            factory = { JTable().apply { setRowHeight(33) } },
+                            rows = people,
+                            columns = { column("Name") { it.name } },
+                            state = rememberTableState(),
+                            rowHeight = rowHeight,
+                        )
+                    },
+                ),
+                33,
+            ),
+        )
+
+        private val people = listOf(Person("Ada", 36), Person("Alan", 41))
     }
 }

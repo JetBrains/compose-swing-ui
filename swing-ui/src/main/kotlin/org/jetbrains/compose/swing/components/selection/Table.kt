@@ -4,14 +4,14 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AutoResizeMode
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.components.style.Tables
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -157,6 +157,7 @@ public fun <R> Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
+        factory = { JTable(it) },
         block = columns,
         content = content,
     )
@@ -235,6 +236,7 @@ public fun <R> Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
+        factory = { JTable(it) },
         block = columns,
         content = content,
     )
@@ -263,6 +265,7 @@ private inline fun <R> TableRowsImpl(
     @AutoResizeMode autoResizeMode: Int,
     fillsViewportHeight: Boolean,
     tableColumnModelListener: TableColumnModelListener?,
+    crossinline factory: (TableModel) -> JTable,
     noinline block: TableScope<R>.() -> Unit,
     noinline content: (@Composable TableContentScope.() -> Unit)?,
 ) {
@@ -292,6 +295,7 @@ private inline fun <R> TableRowsImpl(
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
         model = model,
+        factory = factory,
         cellCompositions = cellCompositions,
         parts = content,
     ) { selectionMirror, columnMirror, sortChannel, columnChannel ->
@@ -449,6 +453,7 @@ public fun Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
+        factory = { JTable(it) },
         content = content,
     )
 }
@@ -523,6 +528,7 @@ public fun Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
+        factory = { JTable(it) },
         content = content,
     )
 }
@@ -548,6 +554,7 @@ private inline fun TableImpl(
     @AutoResizeMode autoResizeMode: Int,
     fillsViewportHeight: Boolean,
     tableColumnModelListener: TableColumnModelListener?,
+    crossinline factory: (TableModel) -> JTable,
     noinline content: (@Composable TableContentScope.() -> Unit)?,
 ) {
     val heldSortKeys = state?.sortKeys
@@ -566,6 +573,7 @@ private inline fun TableImpl(
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
         model = model,
+        factory = factory,
         cellCompositions = null,
         parts = content,
     ) { selectionMirror, _, sortChannel, columnChannel ->
@@ -630,8 +638,77 @@ private inline fun TableImpl(
  * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
  * @see javax.swing.JTable
  */
+@NonRestartableComposable
 @Composable
 public fun <R> Table(
+    rows: List<R>,
+    columns: TableScope<R>.() -> Unit,
+    state: TableState,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    sortable: Boolean = false,
+    rowFilter: RowFilter<in TableModel, in Int>? = null,
+    rowHeight: Int? = null,
+    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
+    fillsViewportHeight: Boolean = false,
+    content: (@Composable TableContentScope.() -> Unit)? = null,
+) {
+    Table(
+        factory = { JTable() },
+        rows = rows,
+        columns = columns,
+        state = state,
+        modifier = modifier,
+        style = style,
+        selectionMode = selectionMode,
+        sortable = sortable,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        content = content,
+    )
+}
+
+/**
+ * A [Table] driven by a [TableState] over [rows], built on the `JTable` that [factory] returns instead of a
+ * stock one.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ * That includes the columns: they are built from [columns] whatever column model or
+ * `autoCreateColumnsFromModel` the factory set. The header [TableContentScope.Header] configures is the one the
+ * component builds.
+ *
+ * @param factory builds the component this composable drives. Its model is replaced with the one [rows] fill
+ * @param rows the row data to display
+ * @param columns declares the columns; see [TableScope]
+ * @param state the hoistable state the table applies and reports its selection, sort order and column
+ *   layout into; see [TableState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
+ *   order [rows] declares and its column headers inert
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
+ * @param rowHeight the height of every row; `null` - the default - leaves the factory's row height, and
+ *   withdrawing a declared height restores that height
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
+ * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
+ * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
+ * @see javax.swing.JTable
+ */
+@InternalSwingUiApi
+@Composable
+public fun <R> Table(
+    factory: () -> JTable,
     rows: List<R>,
     columns: TableScope<R>.() -> Unit,
     state: TableState,
@@ -660,6 +737,12 @@ public fun <R> Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = columnLayoutListener { layout -> state.columnLayout = layout },
+        factory = { shown ->
+            factory().also {
+                it.autoCreateColumnsFromModel = true
+                it.model = shown
+            }
+        },
         block = columns,
         content = content,
     )
@@ -694,8 +777,74 @@ public fun <R> Table(
  * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
  * @see javax.swing.JTable
  */
+@NonRestartableComposable
 @Composable
 public fun Table(
+    model: TableModel,
+    state: TableState,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    sortable: Boolean = false,
+    rowFilter: RowFilter<in TableModel, in Int>? = null,
+    rowHeight: Int? = null,
+    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
+    fillsViewportHeight: Boolean = false,
+    content: (@Composable TableContentScope.() -> Unit)? = null,
+) {
+    Table(
+        factory = { JTable() },
+        model = model,
+        state = state,
+        modifier = modifier,
+        style = style,
+        selectionMode = selectionMode,
+        sortable = sortable,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        content = content,
+    )
+}
+
+/**
+ * A model-driven [Table] driven by a [TableState], built on the `JTable` that [factory] returns instead of a
+ * stock one.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ * The columns are the exception: the table keeps the column model the factory set, and [model]'s columns are
+ * built for it only where `autoCreateColumnsFromModel` is on. The header [TableContentScope.Header] configures
+ * is the one the component builds.
+ *
+ * @param factory builds the component this composable drives. Its model is replaced with [model]
+ * @param model the table model to display; owned by the caller and never mutated by the library
+ * @param state the hoistable state the table applies and reports its selection, sort order and column
+ *   layout into; see [TableState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
+ *   order [model] holds them in and its column headers inert
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
+ * @param rowHeight the height of every row; `null` - the default - leaves the factory's row height, and
+ *   withdrawing a declared height restores that height
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
+ * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
+ * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
+ * @see javax.swing.JTable
+ */
+@InternalSwingUiApi
+@Composable
+public fun Table(
+    factory: () -> JTable,
     model: TableModel,
     state: TableState,
     modifier: SwingModifier = SwingModifier,
@@ -723,6 +872,7 @@ public fun Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = columnLayoutListener { layout -> state.columnLayout = layout },
+        factory = { shown -> factory().also { it.model = shown } },
         content = content,
     )
 }
@@ -761,6 +911,7 @@ private inline fun TableNode(
     fillsViewportHeight: Boolean,
     tableColumnModelListener: TableColumnModelListener?,
     model: TableModel,
+    crossinline factory: (TableModel) -> JTable,
     cellCompositions: TableCellCompositions<*>?,
     noinline parts: (@Composable TableContentScope.() -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JTable>.(
@@ -784,7 +935,7 @@ private inline fun TableNode(
             .tableColumnModelListener(columnChannel.listener)
             .tableRowHeight(rowHeight)
     SwingNode(
-        factory = { JTable(model) },
+        factory = { factory(model) },
         modifier =
             (if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions))
                 .styleable(TableKind, style),
@@ -828,27 +979,3 @@ private class HeldArrangement(
     val sortKeys: List<SortKey>,
     val columnLayout: TableColumnLayout?,
 )
-
-/**
- * Folds in the row height a `JTable` leaves to the UI delegate of its look and feel as a modifier
- * element, while the caller declares one and dropped the moment the declaration goes back to `null`.
- *
- * A `JTable` takes an explicit row height as the client's own and stops accepting the one its look and
- * feel installs, which is what makes a folded-in element outrank the look and feel while it stays in the
- * modifier; removing the element restores the height the table carried before it was folded in - the one
- * its look and feel chose - through the same capture-on-attach, restore-on-detach every modifier
- * property follows. Detaching on release, reuse and deactivate as well as on withdrawal is what gives a
- * parked table its look and feel's height back too.
- *
- * One element carries the height for every [Table] overload, since a modifier element's slot is the
- * class of the accessor written here and two accessors would be two slots writing one property.
- */
-private val RowHeightProperty =
-    ComponentPropertyDescriptor<JTable, Int>(
-        name = "rowHeight",
-        read = { it.rowHeight },
-        write = { table, height -> table.rowHeight = height },
-    )
-
-private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
-    if (rowHeight == null) this else property(RowHeightProperty, rowHeight)

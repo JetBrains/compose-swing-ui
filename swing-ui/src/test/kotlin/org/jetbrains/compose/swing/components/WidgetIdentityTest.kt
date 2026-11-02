@@ -545,7 +545,9 @@ class WidgetIdentityTest {
      * over, and a new factory lambda is never called, so the held component is the first one built.
      */
     private object FactoryCases {
-        fun cases(): List<Case> = listOf(
+        fun cases(): List<Case> = listOf(scrollPaneCases(), listBoxCases(), tableCases()).flatten()
+
+        private fun scrollPaneCases(): List<Case> = listOf(
             case<StandInScrollPane>(
                 "ScrollPane(factory)",
                 initial = {
@@ -563,6 +565,9 @@ class WidgetIdentityTest {
                     wheelScrollingEnabled = !changed,
                 ) {}
             },
+        )
+
+        private fun listBoxCases(): List<Case> = listOf(
             case<StandInList>(
                 "ListBox(factory, items)",
                 initial = {
@@ -599,6 +604,48 @@ class WidgetIdentityTest {
                     model = remember { DefaultListModel<String>() },
                     state = rememberListState(),
                     visibleRowCount = if (changed) 4 else 8,
+                )
+            },
+        )
+
+        private fun tableCases(): List<Case> = listOf(
+            case<StandInTable>(
+                "Table(factory, rows)",
+                initial = {
+                    assertProperty(20) { this.rowHeight }
+                },
+                applied = {
+                    assertProperty(30) { this.rowHeight }
+                },
+            ) { changed ->
+                Table(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInTable().apply { rowHeight = 33 }
+                        },
+                    rows = listOf("a"),
+                    columns = { column("name") { it } },
+                    state = rememberTableState(),
+                    rowHeight = if (changed) 30 else 20,
+                )
+            },
+            case<StandInTable>(
+                "Table(factory, model)",
+                initial = {
+                    assertProperty(20) { this.rowHeight }
+                },
+                applied = {
+                    assertProperty(30) { this.rowHeight }
+                },
+            ) { changed ->
+                Table(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInTable().apply { rowHeight = 33 }
+                        },
+                    model = remember { DefaultTableModel() },
+                    state = rememberTableState(),
+                    rowHeight = if (changed) 30 else 20,
                 )
             },
         )
@@ -1755,3 +1802,5 @@ class WidgetIdentityTest {
 private class StandInScrollPane : JScrollPane()
 
 private class StandInList : JList<String>()
+
+private class StandInTable : JTable()

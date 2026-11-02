@@ -39,6 +39,7 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberListState
+import org.jetbrains.compose.swing.components.selection.rememberTableState
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -59,6 +60,8 @@ import javax.swing.BoxLayout
 import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JScrollPane
+import javax.swing.JTable
+import javax.swing.table.DefaultTableModel
 import kotlin.test.assertEquals
 
 class ComponentStyleParameterTest {
@@ -182,7 +185,8 @@ private fun componentCases(): List<ComponentCase> = listOf(
     ComponentCase("Spacer") { modifier, style -> Spacer(size = 1, modifier = modifier, style = style) },
     ComponentCase("Strut") { modifier, style -> Strut(BoxLayout.X_AXIS, size = 1, modifier = modifier, style = style) },
     ComponentCase("Glue") { modifier, style -> Glue(modifier = modifier, style = style) },
-) + containerComponentCases() + selectionAndTextComponentCases()
+) + containerComponentCases() + selectionAndTextComponentCases() +
+    factoryComponentCases()
 
 private fun containerComponentCases(): List<ComponentCase> = listOf(
     ComponentCase("Panel") { modifier, style -> Panel(modifier = modifier, style = style) {} },
@@ -233,24 +237,6 @@ private fun selectionAndTextComponentCases(): List<ComponentCase> = listOf(
         RadioGroup(selectedIndex = 0, onSelectionChange = {}) { option("option", modifier = modifier, style = style) }
     },
     ComponentCase("ListBox") { modifier, style -> ListBox(items = listOf("a"), modifier = modifier, style = style) },
-    ComponentCase("ListBox(factory, items)") { modifier, style ->
-        ListBox(
-            factory = { JList<String>() },
-            items = listOf("a"),
-            state = rememberListState(),
-            modifier = modifier,
-            style = style,
-        )
-    },
-    ComponentCase("ListBox(factory, model)") { modifier, style ->
-        ListBox(
-            factory = { JList<String>() },
-            model = DefaultListModel<String>(),
-            state = rememberListState(),
-            modifier = modifier,
-            style = style,
-        )
-    },
     ComponentCase("Table") { modifier, style ->
         Table(rows = listOf("a"), columns = { column("c") { it } }, modifier = modifier, style = style)
     },
@@ -283,6 +269,46 @@ private fun selectionAndTextComponentCases(): List<ComponentCase> = listOf(
     },
     ComponentCase("TextField") { modifier, style ->
         TextField(value = "x", onValueChange = {}, modifier = modifier, style = style)
+    },
+)
+
+private fun factoryComponentCases(): List<ComponentCase> = listOf(
+    ComponentCase("ListBox(factory, items)") { modifier, style ->
+        ListBox(
+            factory = { JList<String>() },
+            items = listOf("a"),
+            state = rememberListState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("ListBox(factory, model)") { modifier, style ->
+        ListBox(
+            factory = { JList<String>() },
+            model = DefaultListModel<String>(),
+            state = rememberListState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("Table(factory, rows)") { modifier, style ->
+        Table(
+            factory = { JTable() },
+            rows = listOf("a"),
+            columns = { column("c") { it } },
+            state = rememberTableState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("Table(factory, model)") { modifier, style ->
+        Table(
+            factory = { JTable() },
+            model = DefaultTableModel(),
+            state = rememberTableState(),
+            modifier = modifier,
+            style = style,
+        )
     },
 )
 

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -13,10 +14,15 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.ListSelectionModel
+import javax.swing.table.DefaultTableColumnModel
 import javax.swing.table.DefaultTableModel
+import javax.swing.table.TableColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -512,6 +518,46 @@ class TableBehaviorTest {
             },
             change = { it.setRowSelectionInterval(1, 1) },
             read = { it.selectedRows.toList() },
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("factoryTablesThatWouldNotBuildColumns")
+    fun theRowsOverloadShowsItsColumnsOnAFactorysTableThatWouldNotBuildThem(factory: () -> JTable) =
+        runComposeSwingTest {
+            setContent {
+                Table(
+                    factory = factory,
+                    rows = listOf("Ada"),
+                    columns = { column("Name") { it } },
+                    state = remember { TableState() },
+                )
+            }
+
+            onNodeOfType<JTable>().assertProperty(listOf<Any?>("Name"), "the declared columns") { columnHeaders() }
+        }
+
+    @Test
+    fun theModelOverloadKeepsTheColumnModelOfAFactorysTable() = runComposeSwingTest {
+        setContent {
+            Table(
+                factory = { JTable(null, columnModelOf("Mine"), null) },
+                model = remember { DefaultTableModel(arrayOf(arrayOf<Any?>("Ada")), arrayOf<Any?>("Name")) },
+                state = remember { TableState() },
+            )
+        }
+
+        onNodeOfType<JTable>().assertProperty(listOf<Any?>("Mine"), "the caller's column") { columnHeaders() }
+    }
+
+    private companion object {
+        fun columnModelOf(header: String) =
+            DefaultTableColumnModel().apply { addColumn(TableColumn(0).apply { headerValue = header }) }
+
+        @JvmStatic
+        fun factoryTablesThatWouldNotBuildColumns(): List<Named<() -> JTable>> = listOf(
+            Named.of("autoCreateColumnsFromModel off") { JTable().apply { autoCreateColumnsFromModel = false } },
+            Named.of("column model preset") { JTable(null, columnModelOf("Stale"), null) },
         )
     }
 }

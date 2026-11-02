@@ -14,7 +14,9 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import javax.swing.DefaultListModel
 import javax.swing.JList
+import javax.swing.JTable
 import javax.swing.JTree
+import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -240,6 +242,10 @@ class SelectionStateTest {
             onNodeOfType<JList<*>>().assertProperty(listOf(1)) { selectedIndices.toList() }
         }
 
+        private val tableShown: ComposeSwingTest.() -> Unit = {
+            onNodeOfType<JTable>().assertProperty(listOf(1)) { selectedRows.toList() }
+        }
+
         private fun <S> selectionWrite(
             name: String,
             state: S,
@@ -261,12 +267,20 @@ class SelectionStateTest {
         @JvmStatic
         fun stateDrivenSelectionWrites(): List<Named<*>> {
             val colorModel = DefaultListModel<String>().apply { for (color in colors) addElement(color) }
+            val colorTable =
+                DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (color in colors) addRow(arrayOf<Any>(color)) }
             return listOf(
                 selectionWrite("ListBox items", ListState(), { selectedIndices = setOf(1) }, listShown) { state ->
                     ListBox(items = colors, state = state)
                 },
                 selectionWrite("ListBox model", ListState(), { selectedIndices = setOf(1) }, listShown) { state ->
                     ListBox(model = colorModel, state = state)
+                },
+                selectionWrite("Table rows", TableState(), { selectedRowIndices = setOf(1) }, tableShown) { state ->
+                    Table(rows = colors, columns = { column("Name") { it } }, state = state)
+                },
+                selectionWrite("Table model", TableState(), { selectedRowIndices = setOf(1) }, tableShown) { state ->
+                    Table(model = colorTable, state = state)
                 },
             )
         }

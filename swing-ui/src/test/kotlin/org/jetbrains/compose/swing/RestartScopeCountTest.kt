@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
+import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.selection.rememberTableState
 import org.jetbrains.compose.swing.components.selection.rememberTreeState
@@ -163,6 +164,13 @@ class RestartScopeCountTest {
     @Test
     fun aStateDrivenListBoxOpensOneRestartScope() = runComposeSwingTest {
         assertRestartScopeCount(1) { ListBox(items = listOf("a", "b"), state = rememberListState()) }
+    }
+
+    @Test
+    fun aStateDrivenRowsTableOpensNoScopeBeyondItsContent() = runComposeSwingTest {
+        assertRestartScopeCount(1) {
+            Table(rows = listOf("a"), columns = { column("Name") { it } }, state = rememberTableState())
+        }
     }
 
     @Test
