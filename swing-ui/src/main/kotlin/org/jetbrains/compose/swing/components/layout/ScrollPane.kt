@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.HorizontalScrollbarPolicy
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.VerticalScrollbarPolicy
 import org.jetbrains.compose.swing.components.style.ScrollPanes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
@@ -81,10 +82,91 @@ public fun ScrollPane(
     wheelScrollingEnabled: Boolean = true,
     content: @Composable ScrollPaneScope.() -> Unit,
 ) {
+    ScrollPaneNode(
+        factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar) },
+        modifier = modifier,
+        style = style,
+        state = state,
+        verticalScrollbar = verticalScrollbar,
+        horizontalScrollbar = horizontalScrollbar,
+        viewportBorder = viewportBorder,
+        wheelScrollingEnabled = wheelScrollingEnabled,
+        content = content,
+    )
+}
+
+/**
+ * A [ScrollPane] on the `JScrollPane` that [factory] builds, such as a subclass with viewport, scroll bars
+ * or corners of its own.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ *
+ * A corner or header the factory built stands until a child fills that region, and is back in place when
+ * the child leaves. Declaring [ScrollPaneScope.Viewport] content replaces a view the factory installed.
+ *
+ * A scroll bar of the pane's own comes from overriding `createVerticalScrollBar` and
+ * `createHorizontalScrollBar`, since withdrawing an increment builds a new one.
+ *
+ * @param factory builds the component this composable drives.
+ * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
+ * @param style the [SwingStyle] applied to the underlying `JScrollPane`
+ * @param state the pane's two-way scroll position; see [ScrollState]. Left out, the pane gets a state
+ *   of its own, which nothing outside it reads or drives
+ * @param verticalScrollbar the vertical scrollbar policy; by default the bar is there only while the
+ *   content is taller than the viewport
+ * @param horizontalScrollbar the horizontal scrollbar policy; by default the bar is there only while
+ *   the content is wider than the viewport
+ * @param viewportBorder the border drawn around the viewport, inside the pane's own border and outside
+ *   the scrolled content; `null` leaves the factory's border, and withdrawing a declared border restores
+ *   that border
+ * @param wheelScrollingEnabled whether the mouse wheel scrolls the pane; `true` by default
+ * @param content the composable content of the pane; see [ScrollPaneScope]
+ * @see javax.swing.JScrollPane
+ */
+@InternalSwingUiApi
+@Composable
+public fun ScrollPane(
+    factory: () -> JScrollPane,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
+    state: ScrollState = rememberScrollState(),
+    @VerticalScrollbarPolicy verticalScrollbar: Int = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+    @HorizontalScrollbarPolicy horizontalScrollbar: Int = JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED,
+    viewportBorder: Border? = null,
+    wheelScrollingEnabled: Boolean = true,
+    content: @Composable ScrollPaneScope.() -> Unit,
+) {
+    ScrollPaneNode(
+        factory = factory,
+        modifier = modifier,
+        style = style,
+        state = state,
+        verticalScrollbar = verticalScrollbar,
+        horizontalScrollbar = horizontalScrollbar,
+        viewportBorder = viewportBorder,
+        wheelScrollingEnabled = wheelScrollingEnabled,
+        content = content,
+    )
+}
+
+@Composable
+private inline fun ScrollPaneNode(
+    crossinline factory: () -> JScrollPane,
+    modifier: SwingModifier,
+    style: SwingStyle<ContainerStyleScope>,
+    state: ScrollState,
+    verticalScrollbar: Int,
+    horizontalScrollbar: Int,
+    viewportBorder: Border?,
+    wheelScrollingEnabled: Boolean,
+    crossinline content: @Composable ScrollPaneScope.() -> Unit,
+) {
     val scope = remember { ScrollPaneScopeImpl() }
 
     SwingNode(
-        factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar).also { scope.pane = it } },
+        factory = { factory().also(scope::bind) },
         modifier =
             modifier
                 .scrollStateBinding(state)

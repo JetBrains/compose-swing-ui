@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import javax.swing.BorderFactory
+import javax.swing.JScrollBar
 import javax.swing.JScrollPane
 import javax.swing.border.Border
 import kotlin.test.Test
@@ -192,4 +193,50 @@ class ScrollPaneContainerPropertiesTest {
         assertEquals(Color.BLUE, pane.horizontalScrollBar.background, "and the fresh horizontal bar")
         assertEquals(earlier, initialBar.background, "the replaced bar gets its earlier background back")
     }
+
+    @Test
+    fun aViewportBorderTheFactorySetStandsWhileNoneIsDeclaredAndReturnsOnWithdrawal() = runComposeSwingTest {
+        val preset: Border = BorderFactory.createLineBorder(Color.RED)
+        val declared: Border = BorderFactory.createEmptyBorder(1, 2, 3, 4)
+        var border by mutableStateOf<Border?>(null)
+        setContent {
+            ScrollPane(factory = { JScrollPane().apply { viewportBorder = preset } }, viewportBorder = border) {
+                Viewport { Label(text = "Body") }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>()
+        pane.assertProperty(preset, "the factory's border while none is declared") { viewportBorder }
+        border = declared
+        awaitIdle()
+        pane.assertProperty(declared, "the declared border") { viewportBorder }
+        border = null
+        awaitIdle()
+        pane.assertProperty(preset, "the factory's border after the declaration is withdrawn") { viewportBorder }
+    }
+
+    @Test
+    fun aBarThePaneInstallsInPlaceOfAnotherIsTheOneItsFactoryBuildsAndCarriesTheDeclarations() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf<Int?>(17)
+        setContent {
+            ScrollPane(factory = { OwnBarScrollPane() }) {
+                Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
+                VerticalScrollbar(style = { background(Color.BLUE) })
+            }
+        }
+
+        unitIncrement = null
+        awaitIdle()
+
+        onNodeOfType<JScrollPane>()
+            .assertProperty(true, "the pane builds its fresh bar as it builds its own") {
+                verticalScrollBar is OwnVerticalBar
+            }.assertProperty(Color.BLUE, "the declared modifier reaches the fresh bar") { verticalScrollBar.background }
+    }
 }
+
+private class OwnBarScrollPane : JScrollPane() {
+    override fun createVerticalScrollBar(): JScrollBar = OwnVerticalBar()
+}
+
+private class OwnVerticalBar : JScrollBar(VERTICAL)

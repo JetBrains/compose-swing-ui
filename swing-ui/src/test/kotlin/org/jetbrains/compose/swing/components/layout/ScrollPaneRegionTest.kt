@@ -4,19 +4,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.confirmVerified
+import io.mockk.mockk
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.Named
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Component
+import java.awt.ComponentOrientation
+import java.awt.event.ContainerListener
 import java.awt.event.MouseEvent
 import javax.swing.JLabel
 import javax.swing.JScrollPane
+import javax.swing.JViewport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -153,37 +163,6 @@ class ScrollPaneRegionTest {
                     "$paneRepaints outside ${pane.viewport.bounds}",
             )
         }
-    }
-
-    @Test
-    fun removingARegionClearsTheJScrollPaneSlot() = runComposeSwingTest {
-        var showHeaders by mutableStateOf(true)
-        setContent {
-            ScrollPane {
-                Viewport { Label(text = "body") }
-                if (showHeaders) {
-                    Label(text = "rows", modifier = SwingModifier.rowHeader())
-                    Label(text = "cols", modifier = SwingModifier.columnHeader())
-                    Label(text = "corner", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
-                }
-            }
-        }
-
-        onNodeOfType<JScrollPane>()
-            .assertProperty(true, "row header should be installed before removal") { rowHeader != null }
-            .assertProperty(true, "column header should be installed before removal") { columnHeader != null }
-            .assertProperty(true, "corner should be installed before removal") {
-                getCorner(JScrollPane.UPPER_TRAILING_CORNER) != null
-            }
-
-        showHeaders = false
-        awaitIdle()
-
-        onNodeOfType<JScrollPane>()
-            .assertProperty(null, "row header slot leaked") { rowHeader }
-            .assertProperty(null, "column header slot leaked") { columnHeader }
-            .assertProperty(null, "corner slot leaked") { getCorner(JScrollPane.UPPER_TRAILING_CORNER) }
-            .assertProperty("body", "content should survive removing the headers") { labelTextOf(viewport.view) }
     }
 
     @Test
@@ -415,4 +394,260 @@ class ScrollPaneRegionTest {
             labelTextOf(viewport.view)
         }
     }
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("regionsOnPanes")
+    fun aRegionGivesBackWhatItReplacedWhenItsChildLeaves(
+        region: PaneRegion,
+        ownParts: Boolean,
+    ) = runComposeSwingTest {
+        var filled by mutableStateOf(false)
+        setContent {
+            ScrollPane(factory = { paneWith(ownParts) }) {
+                Viewport { Label(text = "Body") }
+                if (filled) Label(text = "child", modifier = region.declare(this))
+            }
+        }
+        val pane = onNodeOfType<JScrollPane>()
+
+        pane.assertProperty(if (ownParts) region.own else null, "before the child fills it") { region.textAt(this) }
+        filled = true
+        awaitIdle()
+        pane.assertProperty("child", "while the child fills it") { region.textAt(this) }
+        filled = false
+        awaitIdle()
+        pane.assertProperty(if (ownParts) region.own else null, "after the child leaves") { region.textAt(this) }
+        region.viewport?.let { viewportOf ->
+            pane.assertProperty(
+                if (ownParts) OwnHeaderViewport::class else null,
+                "in the header slot the pane held before",
+            ) { viewportOf(this)?.let { it::class } }
+        }
+        pane.assertProperty(ownParts to "Body", "the content stays in the viewport the pane's factory built") {
+            (viewport is OwnViewport) to labelTextOf(viewport.view)
+        }
+    }
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("regionsOnPanes")
+    fun aReplacementArrivingBeforeTheOutgoingChildLeavesDoesNotBringItBack(
+        region: PaneRegion,
+        ownParts: Boolean,
+    ) = runComposeSwingTest {
+        var stage by mutableStateOf(0)
+        setContent {
+            ScrollPane(factory = { paneWith(ownParts) }) {
+                Viewport { Label(text = "Body") }
+                // Emitted before the first child, the second is applied while the first still stands.
+                if (stage == 1) Label(text = "second", modifier = region.declare(this))
+                if (stage == 0) Label(text = "first", modifier = region.declare(this))
+            }
+        }
+        val pane = onNodeOfType<JScrollPane>()
+
+        stage = 1
+        awaitIdle()
+        pane.assertProperty("second", "the replacement fills the region") { region.textAt(this) }
+        stage = 2
+        awaitIdle()
+        pane.assertProperty(if (ownParts) region.own else null, "the pane's own part, not the first child") {
+            region.textAt(this)
+        }
+        region.viewport?.let { viewportOf ->
+            pane.assertProperty(
+                if (ownParts) OwnHeaderViewport::class else null,
+                "in the pane's own header slot",
+            ) { viewportOf(this)?.let { it::class } }
+        }
+    }
+
+    @ParameterizedTest(name = "{0} {1}, {2}")
+    @MethodSource("cornerKeysUnderOrientations")
+    fun aCornerGivesBackThePhysicalCornerItsKeyResolvedToUnderTheOrientationAtInstall(
+        key: String,
+        orientation: ComponentOrientation,
+        physical: String,
+        ownParts: Boolean,
+    ) = runComposeSwingTest {
+        var filled by mutableStateOf(false)
+        setContent {
+            ScrollPane(factory = { paneWith(ownParts) }, style = { componentOrientation(orientation) }) {
+                Viewport { Label(text = "Body") }
+                if (filled) Label(text = "child", modifier = SwingModifier.corner(key))
+            }
+        }
+        val pane = onNodeOfType<JScrollPane>()
+
+        filled = true
+        awaitIdle()
+        pane.assertProperty("child", "the child fills the corner the key resolves to") {
+            labelTextOf(getCorner(physical))
+        }
+        filled = false
+        awaitIdle()
+        pane.assertProperty(
+            if (ownParts) {
+                listOf("own upper left", "own upper right", "own lower left", "own lower right")
+            } else {
+                listOf(null, null, null, null)
+            },
+            "each corner is the pane's own after the child leaves",
+        ) {
+            listOf(
+                JScrollPane.UPPER_LEFT_CORNER,
+                JScrollPane.UPPER_RIGHT_CORNER,
+                JScrollPane.LOWER_LEFT_CORNER,
+                JScrollPane.LOWER_RIGHT_CORNER,
+            ).map { labelTextOf(getCorner(it)) }
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allRegions")
+    fun aChildOfAnInnerPaneNamingTheOuterScopesRegionIsRefused(region: PaneRegion) = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    ScrollPane {
+                        val outer = this
+                        Viewport {
+                            ScrollPane {
+                                Viewport { Label(text = "Inner body") }
+                                Label(text = "child", modifier = region.declare(outer))
+                            }
+                        }
+                    }
+                }
+                awaitIdle()
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(region.call in message, "the refusal should name the region call that was misplaced: $message")
+        assertTrue(
+            "Use the scope of the enclosing ScrollPane" in message,
+            "the refusal should say which scope to use: $message",
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("headerRegions")
+    fun aHeaderGivenBackIsNotReparentedWithinItsPane(region: PaneRegion) = runComposeSwingTest {
+        val listener = mockk<ContainerListener>(relaxed = true)
+        var filled by mutableStateOf(false)
+        setContent {
+            ScrollPane(factory = { paneWith(ownParts = true).also { it.addContainerListener(listener) } }) {
+                Viewport { Label(text = "Body") }
+                if (filled) Label(text = "child", modifier = region.declare(this))
+            }
+        }
+
+        filled = true
+        awaitIdle()
+        filled = false
+        awaitIdle()
+
+        confirmVerified(listener)
+    }
+
+    companion object {
+        private val headers =
+            listOf(
+                PaneRegion(
+                    "row header",
+                    "SwingModifier.rowHeader()",
+                    "own rows",
+                    { SwingModifier.rowHeader() },
+                    { it.rowHeader?.view },
+                    { it.rowHeader },
+                ),
+                PaneRegion(
+                    "column header",
+                    "SwingModifier.columnHeader()",
+                    "own columns",
+                    { SwingModifier.columnHeader() },
+                    { it.columnHeader?.view },
+                    { it.columnHeader },
+                ),
+            )
+
+        private val regions =
+            headers +
+                listOf(
+                    JScrollPane.UPPER_LEFT_CORNER to "own upper left",
+                    JScrollPane.UPPER_LEADING_CORNER to "own upper left",
+                    JScrollPane.UPPER_RIGHT_CORNER to "own upper right",
+                    JScrollPane.UPPER_TRAILING_CORNER to "own upper right",
+                    JScrollPane.LOWER_LEFT_CORNER to "own lower left",
+                    JScrollPane.LOWER_LEADING_CORNER to "own lower left",
+                    JScrollPane.LOWER_RIGHT_CORNER to "own lower right",
+                    JScrollPane.LOWER_TRAILING_CORNER to "own lower right",
+                ).map { (corner, own) ->
+                    PaneRegion(
+                        corner,
+                        "SwingModifier.corner($corner)",
+                        own,
+                        { SwingModifier.corner(corner) },
+                        { it.getCorner(corner) },
+                    )
+                }
+
+        private val panes = listOf(Named.of("stock pane", false), Named.of("pane with its own parts", true))
+
+        @JvmStatic
+        fun allRegions(): List<PaneRegion> = regions
+
+        @JvmStatic
+        fun headerRegions(): List<PaneRegion> = headers
+
+        @JvmStatic
+        fun regionsOnPanes(): List<Arguments> =
+            regions.flatMap { region -> panes.map { Arguments.of(Named.of(region.name, region), it) } }
+
+        @JvmStatic
+        fun cornerKeysUnderOrientations(): List<Arguments> = listOf(
+            Triple(JScrollPane.UPPER_LEADING_CORNER, JScrollPane.UPPER_LEFT_CORNER, JScrollPane.UPPER_RIGHT_CORNER),
+            Triple(JScrollPane.UPPER_TRAILING_CORNER, JScrollPane.UPPER_RIGHT_CORNER, JScrollPane.UPPER_LEFT_CORNER),
+            Triple(JScrollPane.LOWER_LEADING_CORNER, JScrollPane.LOWER_LEFT_CORNER, JScrollPane.LOWER_RIGHT_CORNER),
+            Triple(JScrollPane.LOWER_TRAILING_CORNER, JScrollPane.LOWER_RIGHT_CORNER, JScrollPane.LOWER_LEFT_CORNER),
+        ).flatMap { (key, leftToRight, rightToLeft) ->
+            listOf(
+                Triple(ComponentOrientation.LEFT_TO_RIGHT, "left-to-right", leftToRight),
+                Triple(ComponentOrientation.RIGHT_TO_LEFT, "right-to-left", rightToLeft),
+            ).flatMap { (orientation, name, physical) ->
+                panes.map { Arguments.of(key, Named.of(name, orientation), physical, it) }
+            }
+        }
+    }
+
+    /** A region a child fills, the [call] that names it, the [own] text a pane builds there, and where to read it. */
+    class PaneRegion(
+        val name: String,
+        val call: String,
+        val own: String,
+        val declare: ScrollPaneScope.() -> SwingModifier,
+        val read: (JScrollPane) -> Component?,
+        val viewport: ((JScrollPane) -> JViewport?)? = null,
+    ) {
+        override fun toString() = name
+
+        fun textAt(pane: JScrollPane): String? = (read(pane) as? JLabel)?.text
+    }
+
+    private fun paneWith(ownParts: Boolean): JScrollPane = JScrollPane().apply {
+        if (ownParts) {
+            setViewport(OwnViewport())
+            setRowHeader(OwnHeaderViewport())
+            setColumnHeader(OwnHeaderViewport())
+            setCorner(JScrollPane.UPPER_LEFT_CORNER, JLabel("own upper left"))
+            setCorner(JScrollPane.UPPER_RIGHT_CORNER, JLabel("own upper right"))
+            setCorner(JScrollPane.LOWER_LEFT_CORNER, JLabel("own lower left"))
+            setCorner(JScrollPane.LOWER_RIGHT_CORNER, JLabel("own lower right"))
+            setRowHeaderView(JLabel("own rows"))
+            setColumnHeaderView(JLabel("own columns"))
+        }
+    }
 }
+
+private class OwnViewport : JViewport()
+
+private class OwnHeaderViewport : JViewport()

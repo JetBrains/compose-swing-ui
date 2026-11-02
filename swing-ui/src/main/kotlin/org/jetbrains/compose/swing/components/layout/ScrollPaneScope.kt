@@ -180,7 +180,16 @@ internal val ScrollPaneRegions: ChildPlacement =
  */
 internal class ScrollPaneScopeImpl : ScrollPaneScope {
     /** The pane this scope configures, from when the [ScrollPane] node builds it until the pane's content leaves. */
-    internal var pane: JScrollPane? = null
+    private var pane: JScrollPane? = null
+
+    /** What [pane] has in its corners and headers when this scope binds it; see [OwnRegions]. */
+    private var ownRegions: OwnRegions = OwnRegions.None
+
+    /** Binds the pane the [ScrollPane] node built, and records its own regions before a child fills any of them. */
+    internal fun bind(pane: JScrollPane) {
+        this.pane = pane
+        ownRegions = OwnRegions.of(pane)
+    }
 
     /** The increments set on [pane]'s scroll bars. */
     private var applied: ScrollIncrements = ScrollIncrements.None
@@ -247,6 +256,20 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         DisposableEffect(Unit) { onDispose { pane = null } }
     }
 
+    /**
+     * The pane a region-filling child is installed into, which must be the pane this scope configures: the record
+     * of what the pane held is this scope's own, so a child reaching another pane through this scope's region
+     * would give back that pane's part from the wrong record.
+     */
+    private fun ownPane(
+        host: Container,
+        builder: String,
+    ): JScrollPane {
+        val hostPane = scrollPaneHost(host, builder)
+        check(hostPane === pane) { wrongScopeHost(builder) }
+        return hostPane
+    }
+
     /** Sets [increments] on both of the pane's scroll bars. */
     private fun declare(increments: ScrollIncrements) {
         val pane = pane ?: return
@@ -295,15 +318,68 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         horizontalScrollbar(modifier, style)
     }
 
+    /**
+     * Installs a child as the row header via `setRowHeaderView`; uninstall puts back the pane's own header, so a
+     * pane with none is left without a header viewport and an emptied header reserves no layout space.
+     */
+    private val rowHeaderAttachment =
+        SlotAttachment { host, component, _ ->
+            val pane = ownPane(host, ROW_HEADER_REGION)
+            val header = ownRegions.rowHeader
+            pane.setRowHeaderView(component)
+            return@SlotAttachment {
+                if (pane.rowHeader?.view === component) {
+                    if (pane.rowHeader !== header.viewport) pane.setRowHeader(header.viewport)
+                    header.viewport?.view = header.view
+                }
+            }
+        }
+
+    /** The column counterpart of [rowHeaderAttachment]. */
+    private val columnHeaderAttachment =
+        SlotAttachment { host, component, _ ->
+            val pane = ownPane(host, COLUMN_HEADER_REGION)
+            val header = ownRegions.columnHeader
+            pane.setColumnHeaderView(component)
+            return@SlotAttachment {
+                if (pane.columnHeader?.view === component) {
+                    if (pane.columnHeader !== header.viewport) pane.setColumnHeader(header.viewport)
+                    header.viewport?.view = header.view
+                }
+            }
+        }
+
+    /**
+     * One attachment per corner spelling [ScrollPaneCorner] allows, built once so two passes declaring the same
+     * corner hand [org.jetbrains.compose.swing.modifier.layout.SlotElement] the same attachment instance - the
+     * same treatment [rowHeaderAttachment] and [columnHeaderAttachment] get - and a chain naming an unchanged
+     * corner compares equal to the one applied last instead of forcing a re-diff every pass.
+     *
+     * A child installs through `setCorner` under the key it spelled, and uninstall puts back the pane's own
+     * component in the physical corner that key resolved to at install.
+     */
+    private val cornerAttachments: Map<String, SlotAttachment> =
+        CornerKeys.associateWith { corner ->
+            SlotAttachment { host, component, _ ->
+                val pane = ownPane(host, cornerRegion(corner))
+                val physical = physicalCorner(corner, pane)
+                val own = ownRegions.corners[physical]
+                pane.setCorner(corner, component)
+                return@SlotAttachment {
+                    if (pane.getCorner(physical) === component) pane.setCorner(physical, own)
+                }
+            }
+        }
+
     override fun SwingModifier.rowHeader(): SwingModifier =
-        slot(ScrollPaneParentProtocol, ROW_HEADER_REGION, RowHeaderAttachment)
+        slot(ScrollPaneParentProtocol, ROW_HEADER_REGION, rowHeaderAttachment)
 
     override fun SwingModifier.columnHeader(): SwingModifier =
-        slot(ScrollPaneParentProtocol, COLUMN_HEADER_REGION, ColumnHeaderAttachment)
+        slot(ScrollPaneParentProtocol, COLUMN_HEADER_REGION, columnHeaderAttachment)
 
     override fun SwingModifier.corner(
         @ScrollPaneCorner corner: String,
-    ): SwingModifier = slot(ScrollPaneParentProtocol, cornerRegion(corner), CornerAttachments.getValue(corner))
+    ): SwingModifier = slot(ScrollPaneParentProtocol, cornerRegion(corner), cornerAttachments.getValue(corner))
 }
 
 private val ScrollPaneParentProtocol = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
@@ -318,6 +394,11 @@ private fun scrollPaneHost(
     host: Container,
     builder: String,
 ): JScrollPane = host as? JScrollPane ?: error(wrongSlotHost(host, JScrollPane::class.java, builder))
+
+/** The refusal of a [builder] call installed on a pane other than the one its scope belongs to. */
+private fun wrongScopeHost(builder: String): String =
+    "$builder installs its child in the JScrollPane its scope belongs to, but the component declaring it here is " +
+        "held by another JScrollPane. Use the scope of the enclosing ScrollPane that holds the component instead."
 
 /** The increments one [ScrollPaneScope.Viewport] declaration sets on the pane's scroll bars. */
 private data class ScrollIncrements(
@@ -352,62 +433,74 @@ private fun JScrollBar.inPlaceOf(old: JScrollBar?): JScrollBar =
         componentOrientation = old.componentOrientation
     }
 
-/**
- * Installs a child as the row header via `setRowHeaderView`; uninstall removes the header viewport
- * entirely, so an emptied header reserves no layout space.
- */
-private val RowHeaderAttachment =
-    SlotAttachment { host, component, _ ->
-        val pane = scrollPaneHost(host, ROW_HEADER_REGION)
-        pane.setRowHeaderView(component)
-        return@SlotAttachment {
-            if (pane.rowHeader?.view === component) pane.setRowHeader(null)
-        }
-    }
+/** A header viewport of the pane's own and the view it shows. */
+private class Header(
+    val viewport: JViewport?,
+) {
+    val view: Component? = viewport?.view
+}
 
 /**
- * Installs a child as the column header via `setColumnHeaderView`; uninstall removes the header viewport
- * entirely, so an emptied header reserves no layout space.
- */
-private val ColumnHeaderAttachment =
-    SlotAttachment { host, component, _ ->
-        val pane = scrollPaneHost(host, COLUMN_HEADER_REGION)
-        pane.setColumnHeaderView(component)
-        return@SlotAttachment {
-            if (pane.columnHeader?.view === component) pane.setColumnHeader(null)
-        }
-    }
-
-/**
- * Installs a child into the [corner] slot via `setCorner`; uninstall clears that corner.
+ * The corners and headers [pane] has when its scope binds it. A child filling a region replaces what is there,
+ * and a region put back must not take it from whatever stands there when the child leaves, which may be an
+ * earlier child on its way out.
  *
- * The corner a child occupies is the slot's own name, so a child that comes to declare another corner
- * is moved by the name rather than by this attachment.
+ * The corners are recorded under the four physical keys only; a leading or trailing key is resolved against
+ * the pane's orientation by [physicalCorner].
  */
-private class CornerAttachment(
-    @param:ScrollPaneCorner val corner: String,
-) : SlotAttachment {
-    override fun install(
-        host: Container,
-        component: Component,
-        index: Int,
-    ): () -> Unit {
-        val pane = scrollPaneHost(host, cornerRegion(corner))
-        pane.setCorner(corner, component)
-        return {
-            if (pane.getCorner(corner) === component) pane.setCorner(corner, null)
+private class OwnRegions(
+    val corners: Map<String, Component?>,
+    val rowHeader: Header,
+    val columnHeader: Header,
+) {
+    companion object {
+        val None = OwnRegions(emptyMap(), Header(null), Header(null))
+
+        fun of(pane: JScrollPane) =
+            OwnRegions(
+                listOf(
+                    JScrollPane.UPPER_LEFT_CORNER,
+                    JScrollPane.UPPER_RIGHT_CORNER,
+                    JScrollPane.LOWER_LEFT_CORNER,
+                    JScrollPane.LOWER_RIGHT_CORNER,
+                ).associateWith { pane.getCorner(it) },
+                Header(pane.rowHeader),
+                Header(pane.columnHeader),
+            )
+    }
+}
+
+/** The physical corner [corner] names on [pane] under its component orientation now. */
+private fun physicalCorner(
+    @ScrollPaneCorner corner: String,
+    pane: JScrollPane,
+): String {
+    val leftToRight = pane.componentOrientation.isLeftToRight
+    return when (corner) {
+        JScrollPane.UPPER_LEADING_CORNER -> {
+            if (leftToRight) JScrollPane.UPPER_LEFT_CORNER else JScrollPane.UPPER_RIGHT_CORNER
+        }
+
+        JScrollPane.UPPER_TRAILING_CORNER -> {
+            if (leftToRight) JScrollPane.UPPER_RIGHT_CORNER else JScrollPane.UPPER_LEFT_CORNER
+        }
+
+        JScrollPane.LOWER_LEADING_CORNER -> {
+            if (leftToRight) JScrollPane.LOWER_LEFT_CORNER else JScrollPane.LOWER_RIGHT_CORNER
+        }
+
+        JScrollPane.LOWER_TRAILING_CORNER -> {
+            if (leftToRight) JScrollPane.LOWER_RIGHT_CORNER else JScrollPane.LOWER_LEFT_CORNER
+        }
+
+        else -> {
+            corner
         }
     }
 }
 
-/**
- * One [CornerAttachment] per corner spelling [ScrollPaneCorner] allows, held once so two passes
- * declaring the same corner hand [org.jetbrains.compose.swing.modifier.layout.SlotElement] the same
- * attachment instance - the same treatment [RowHeaderAttachment] and [ColumnHeaderAttachment] already
- * get - and a chain naming an unchanged corner compares equal to the one applied last instead of
- * forcing a re-diff every pass.
- */
-private val CornerAttachments: Map<String, SlotAttachment> =
+/** Every corner spelling [ScrollPaneCorner] allows. */
+private val CornerKeys: List<String> =
     listOf(
         JScrollPane.UPPER_LEADING_CORNER,
         JScrollPane.UPPER_TRAILING_CORNER,
@@ -417,7 +510,7 @@ private val CornerAttachments: Map<String, SlotAttachment> =
         JScrollPane.UPPER_RIGHT_CORNER,
         JScrollPane.LOWER_LEFT_CORNER,
         JScrollPane.LOWER_RIGHT_CORNER,
-    ).associateWith { corner -> CornerAttachment(corner) }
+    )
 
 /** The pane's viewport, as a caller declares it and as an error about it prints. */
 private const val VIEWPORT_REGION: String = "Viewport { }"

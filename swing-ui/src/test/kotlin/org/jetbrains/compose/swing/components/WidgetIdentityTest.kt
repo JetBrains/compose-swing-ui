@@ -216,6 +216,7 @@ class WidgetIdentityTest {
             ModifierCases.cases(),
             HighlightAndAppearanceCases.cases(),
             GeometryAndInteractionCases.cases(),
+            FactoryCases.cases(),
         ).flatten().map { Named.of(it.name, it) }
     }
 
@@ -536,6 +537,40 @@ class WidgetIdentityTest {
                 },
             ) { Tree(root = "root", children = { emptyList() }, isEditable = it) },
         )
+    }
+
+    /**
+     * The overloads that take a caller's factory: the factory presets what the declared parameter then writes
+     * over, and a new factory lambda is never called, so the held component is the first one built.
+     */
+    private object FactoryCases {
+        fun cases(): List<Case> = listOf(
+            case<StandInScrollPane>(
+                "ScrollPane(factory)",
+                initial = {
+                    assertProperty(true) { this.isWheelScrollingEnabled }
+                },
+                applied = {
+                    assertProperty(false) { this.isWheelScrollingEnabled }
+                },
+            ) { changed ->
+                ScrollPane(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInScrollPane().apply { isWheelScrollingEnabled = false }
+                        },
+                    wheelScrollingEnabled = !changed,
+                ) {}
+            },
+        )
+
+        private fun <T> factoryUnlessChanged(
+            changed: Boolean,
+            build: () -> T,
+        ): () -> T {
+            if (!changed) return build
+            return { error("A new factory lambda is not called") }
+        }
     }
 
     private object ModelAndDocumentCases {
@@ -1677,3 +1712,5 @@ class WidgetIdentityTest {
         )
     }
 }
+
+private class StandInScrollPane : JScrollPane()

@@ -55,6 +55,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import java.awt.Rectangle
 import javax.swing.BoxLayout
+import javax.swing.JScrollPane
 import kotlin.test.assertEquals
 
 class ComponentStyleParameterTest {
@@ -183,6 +184,9 @@ private fun componentCases(): List<ComponentCase> = listOf(
 private fun containerComponentCases(): List<ComponentCase> = listOf(
     ComponentCase("Panel") { modifier, style -> Panel(modifier = modifier, style = style) {} },
     ComponentCase("ScrollPane") { modifier, style -> ScrollPane(modifier = modifier, style = style) {} },
+    ComponentCase("ScrollPane(factory)") { modifier, style ->
+        ScrollPane(factory = { JScrollPane() }, modifier = modifier, style = style) {}
+    },
     ComponentCase("Viewport") { modifier, style ->
         ScrollPane { Viewport(modifier = modifier, style = style) { Label("view") } }
     },
