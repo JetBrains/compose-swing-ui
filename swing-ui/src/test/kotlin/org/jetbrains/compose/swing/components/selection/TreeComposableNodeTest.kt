@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -14,6 +15,7 @@ import javax.swing.JLabel
 import javax.swing.JTree
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
+import javax.swing.tree.DefaultTreeCellRenderer
 import javax.swing.tree.TreePath
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -288,5 +290,31 @@ class TreeComposableNodeTest {
             tree.renderRow(0).firstLabelText(),
             "declaring nodeContent again should render the composable node",
         )
+    }
+
+    @Test
+    fun nodeContentTakenAwayGivesAFactoryTreesRendererBack() = runComposeSwingTest {
+        val factorysRenderer = DefaultTreeCellRenderer()
+        var composableNodes by mutableStateOf(true)
+        setContent {
+            Tree(
+                factory = { JTree().apply { cellRenderer = factorysRenderer } },
+                root = sample,
+                children = { it.children },
+                state = remember { TreeState() },
+                nodeContent = if (composableNodes) ({ value -> Label(value.name) }) else null,
+            )
+        }
+
+        onNodeOfType<JTree>().assertProperty(true, "a composable node should replace the factory's renderer") {
+            cellRenderer is ComposingTreeCellRenderer<*>
+        }
+
+        composableNodes = false
+        awaitIdle()
+        onNodeOfType<JTree>().assertProperty(
+            factorysRenderer,
+            "taking nodeContent away should give the factory's renderer back",
+        ) { cellRenderer }
     }
 }

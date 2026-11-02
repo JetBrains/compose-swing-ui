@@ -30,6 +30,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.DefaultListModel
 import javax.swing.table.DefaultTableModel
+import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 
 /**
@@ -183,6 +184,11 @@ class RestartScopeCountTest {
         assertRestartScopeCount(1) {
             Tree(root = "root", children = { emptyList() }, state = rememberTreeState(), label = { it })
         }
+    }
+
+    @Test
+    fun aStateDrivenModelTreeOpensOneRestartScope() = runComposeSwingTest {
+        assertRestartScopeCount(1) { Tree(model = DefaultTreeModel(null), state = rememberTreeState()) }
     }
 
     // Two nested containers, each one scope of its own plus the content lambda the caller wrote.

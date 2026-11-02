@@ -2,7 +2,9 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
@@ -13,6 +15,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.LookAndFeel
 import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.TreeSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -264,6 +267,98 @@ class TreeBehaviorTest {
         }
         tree.assertProperty(5, "a changed visible row count should be re-applied") { this.visibleRowCount }
         tree.assertProperty(3, "a changed toggle click count should be re-applied") { this.toggleClickCount }
+    }
+
+    @Test
+    fun theDeclaredStructureReplacesTheModelAFactorysTreeCarried() = runComposeSwingTest {
+        setContent {
+            Tree(
+                factory = { JTree() },
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                state = remember { TreeState(initialExpandedPaths = setOf(emptyList())) },
+            )
+        }
+
+        onNodeOfType<JTree>().assertProperty(
+            listOf("root", "fruit", "veg"),
+            "the declared structure should replace the model the factory's tree started on",
+        ) { rowLabels() }
+    }
+
+    @Test
+    fun aRootHandleChoiceAndARowHeightWinOverAFactoryUntilTheyAreWithdrawn() = runComposeSwingTest {
+        var showsRootHandles: Boolean? by mutableStateOf(null)
+        var rowHeight: Int? by mutableStateOf(null)
+        setContent {
+            Tree(
+                factory = {
+                    JTree().apply {
+                        this.showsRootHandles = false
+                        this.rowHeight = 30
+                    }
+                },
+                root = sample,
+                children = { it.children },
+                state = remember { TreeState() },
+                showsRootHandles = showsRootHandles,
+                rowHeight = rowHeight,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(false, "an undeclared choice should leave the factory's") { this.showsRootHandles }
+        tree.assertProperty(30, "an undeclared height should leave the factory's") { this.rowHeight }
+
+        showsRootHandles = true
+        rowHeight = 40
+        awaitIdle()
+        tree.assertProperty(true, "a declared choice should win over the factory's") { this.showsRootHandles }
+        tree.assertProperty(40, "a declared height should win over the factory's") { this.rowHeight }
+
+        showsRootHandles = null
+        rowHeight = null
+        awaitIdle()
+        tree.assertProperty(false, "a withdrawn choice should give the factory's back") { this.showsRootHandles }
+        tree.assertProperty(30, "a withdrawn height should give the factory's back") { this.rowHeight }
+    }
+
+    @Test
+    fun aSelectionModeAndEditabilityAreWrittenOverAFactorys() = runComposeSwingTest {
+        var selectionMode by mutableIntStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
+        var isEditable by mutableStateOf(false)
+        setContent {
+            Tree(
+                factory = {
+                    JTree().apply {
+                        selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
+                        this.isEditable = true
+                    }
+                },
+                root = sample,
+                children = { it.children },
+                state = remember { TreeState() },
+                isEditable = isEditable,
+                selectionMode = selectionMode,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>()
+        tree.assertProperty(
+            TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
+            "the declared mode should be written over the factory's",
+        ) { selectionModel.selectionMode }
+        tree.assertProperty(false, "the declared editability should be written over the factory's") { this.isEditable }
+
+        selectionMode = TreeSelectionModel.CONTIGUOUS_TREE_SELECTION
+        isEditable = true
+        awaitIdle()
+        tree.assertProperty(
+            TreeSelectionModel.CONTIGUOUS_TREE_SELECTION,
+            "a recomposition should write the next declared mode",
+        ) { selectionModel.selectionMode }
+        tree.assertProperty(true, "a recomposition should write the next declared editability") { this.isEditable }
     }
 
     @Test

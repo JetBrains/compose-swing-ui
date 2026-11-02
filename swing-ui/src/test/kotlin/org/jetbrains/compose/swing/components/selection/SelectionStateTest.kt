@@ -17,6 +17,8 @@ import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
 import javax.swing.table.DefaultTableModel
+import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -246,6 +248,10 @@ class SelectionStateTest {
             onNodeOfType<JTable>().assertProperty(listOf(1)) { selectedRows.toList() }
         }
 
+        private val treeShown: ComposeSwingTest.() -> Unit = {
+            onNodeOfType<JTree>().assertProperty(listOf(1)) { selectionRows.toList() }
+        }
+
         private fun <S> selectionWrite(
             name: String,
             state: S,
@@ -269,6 +275,8 @@ class SelectionStateTest {
             val colorModel = DefaultListModel<String>().apply { for (color in colors) addElement(color) }
             val colorTable =
                 DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (color in colors) addRow(arrayOf<Any>(color)) }
+            val fruitTree =
+                DefaultTreeModel(DefaultMutableTreeNode("root").apply { add(DefaultMutableTreeNode("a")) })
             return listOf(
                 selectionWrite("ListBox items", ListState(), { selectedIndices = setOf(1) }, listShown) { state ->
                     ListBox(items = colors, state = state)
@@ -281,6 +289,12 @@ class SelectionStateTest {
                 },
                 selectionWrite("Table model", TableState(), { selectedRowIndices = setOf(1) }, tableShown) { state ->
                     Table(model = colorTable, state = state)
+                },
+                selectionWrite("Tree values", TreeState(), { selectedPaths = setOf(listOf(0)) }, treeShown) { state ->
+                    Tree(root = "root", children = { childrenOf(it) }, state = state)
+                },
+                selectionWrite("Tree model", TreeState(), { selectedPaths = setOf(listOf(0)) }, treeShown) { state ->
+                    Tree(model = fruitTree, state = state)
                 },
             )
         }

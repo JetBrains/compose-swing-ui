@@ -40,6 +40,7 @@ import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.selection.rememberTableState
+import org.jetbrains.compose.swing.components.selection.rememberTreeState
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -61,7 +62,10 @@ import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JScrollPane
 import javax.swing.JTable
+import javax.swing.JTree
 import javax.swing.table.DefaultTableModel
+import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.DefaultTreeModel
 import kotlin.test.assertEquals
 
 class ComponentStyleParameterTest {
@@ -297,6 +301,25 @@ private fun factoryComponentCases(): List<ComponentCase> = listOf(
             rows = listOf("a"),
             columns = { column("c") { it } },
             state = rememberTableState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("Tree(factory, values)") { modifier, style ->
+        Tree(
+            factory = { JTree() },
+            root = "r",
+            children = { emptyList() },
+            state = rememberTreeState(),
+            modifier = modifier,
+            style = style,
+        )
+    },
+    ComponentCase("Tree(factory, model)") { modifier, style ->
+        Tree(
+            factory = { JTree() },
+            model = DefaultTreeModel(DefaultMutableTreeNode("r")),
+            state = rememberTreeState(),
             modifier = modifier,
             style = style,
         )

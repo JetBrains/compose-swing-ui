@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTree
 import javax.swing.event.TreeSelectionEvent
@@ -42,4 +43,24 @@ internal fun JTree.selectionLoss(
     // Every flag is false: each of the nodes was removed from the selection.
     val removed = BooleanArray(nodes.size)
     return TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath)
+}
+
+/**
+ * Applies through [block] a property the tree answers by dropping nodes it can no longer hold, reporting to
+ * [target] the ones the user loses to it where [declared] leaves the selection theirs, and leaves [mirror]
+ * mirroring the selection the tree was left with.
+ *
+ * The read that records what survived the write stays outside any settlement of the mirror's, because what
+ * it records is news: the tree has dropped nodes the composition may still declare, and the pass that puts
+ * them back is the one this recording asks for. A settlement here would mark the loss as already answered
+ * and leave a declared selection lying where the write dropped it.
+ */
+internal fun JTree.settleNarrowing(
+    mirror: MirrorState<Set<List<Int>>?>,
+    declared: Set<List<Int>>?,
+    target: TreeSelectionListener,
+    block: () -> Unit,
+) {
+    narrowSelection(mirror, declared, target, block)
+    mirror.observed(readSelection(this, model))
 }

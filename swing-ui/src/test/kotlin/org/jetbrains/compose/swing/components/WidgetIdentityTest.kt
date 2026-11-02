@@ -31,6 +31,7 @@ import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.selection.rememberTableState
+import org.jetbrains.compose.swing.components.selection.rememberTreeState
 import org.jetbrains.compose.swing.components.style.borderPainted
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.caretBlinkRate
@@ -545,7 +546,7 @@ class WidgetIdentityTest {
      * over, and a new factory lambda is never called, so the held component is the first one built.
      */
     private object FactoryCases {
-        fun cases(): List<Case> = listOf(scrollPaneCases(), listBoxCases(), tableCases()).flatten()
+        fun cases(): List<Case> = listOf(scrollPaneCases(), listBoxCases(), tableCases(), treeCases()).flatten()
 
         private fun scrollPaneCases(): List<Case> = listOf(
             case<StandInScrollPane>(
@@ -646,6 +647,48 @@ class WidgetIdentityTest {
                     model = remember { DefaultTableModel() },
                     state = rememberTableState(),
                     rowHeight = if (changed) 30 else 20,
+                )
+            },
+        )
+
+        private fun treeCases(): List<Case> = listOf(
+            case<StandInTree>(
+                "Tree(factory, values)",
+                initial = {
+                    assertProperty(12) { this.visibleRowCount }
+                },
+                applied = {
+                    assertProperty(5) { this.visibleRowCount }
+                },
+            ) { changed ->
+                Tree(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInTree().apply { visibleRowCount = 3 }
+                        },
+                    root = "root",
+                    children = { emptyList() },
+                    state = rememberTreeState(),
+                    visibleRowCount = if (changed) 5 else 12,
+                )
+            },
+            case<StandInTree>(
+                "Tree(factory, model)",
+                initial = {
+                    assertProperty(12) { this.visibleRowCount }
+                },
+                applied = {
+                    assertProperty(5) { this.visibleRowCount }
+                },
+            ) { changed ->
+                Tree(
+                    factory =
+                        factoryUnlessChanged(changed) {
+                            StandInTree().apply { visibleRowCount = 3 }
+                        },
+                    model = remember { DefaultTreeModel(DefaultMutableTreeNode("root")) },
+                    state = rememberTreeState(),
+                    visibleRowCount = if (changed) 5 else 12,
                 )
             },
         )
@@ -1804,3 +1847,5 @@ private class StandInScrollPane : JScrollPane()
 private class StandInList : JList<String>()
 
 private class StandInTable : JTable()
+
+private class StandInTree : JTree()

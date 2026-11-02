@@ -4,17 +4,17 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.TreeSelectionMode
 import org.jetbrains.compose.swing.components.style.Trees
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.style.ComponentStyleScope
@@ -151,6 +151,8 @@ public fun <T> Tree(
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
 ) {
     TreeValuesImpl(
+        factory = { JTree(DefaultTreeModel(null)) },
+        rendererProperty = ComposingRendererProperty,
         root = root,
         children = children,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
@@ -245,6 +247,8 @@ public fun <T> Tree(
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
 ) {
     TreeValuesImpl(
+        factory = { JTree(DefaultTreeModel(null)) },
+        rendererProperty = ComposingRendererProperty,
         root = root,
         children = children,
         treeSelectionListener = treeSelectionListener,
@@ -278,6 +282,8 @@ public fun <T> Tree(
 @Suppress("NOTHING_TO_INLINE")
 @Composable
 private inline fun <T> TreeValuesImpl(
+    noinline factory: () -> JTree,
+    rendererProperty: ComponentPropertyDescriptor<JTree, TreeCellRenderer?>,
     root: T,
     noinline children: (T) -> List<T>,
     treeSelectionListener: TreeSelectionListener,
@@ -313,6 +319,8 @@ private inline fun <T> TreeValuesImpl(
     val builtModel = remember { arrayOfNulls<DeclaredTreeModel<T>>(1) }
     val content = TreeContent(root, children, label, hasChildren)
     TreeNode(
+        factory = factory,
+        rendererProperty = rendererProperty,
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
         style = style,
@@ -413,6 +421,7 @@ public fun Tree(
     toggleClickCount: Int = 2,
 ) {
     TreeModelImpl(
+        factory = { JTree(DefaultTreeModel(null)) },
         model = model,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -477,6 +486,7 @@ public fun Tree(
     toggleClickCount: Int = 2,
 ) {
     TreeModelImpl(
+        factory = { JTree(DefaultTreeModel(null)) },
         model = model,
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
@@ -503,6 +513,7 @@ public fun Tree(
 @Suppress("NOTHING_TO_INLINE")
 @Composable
 private inline fun TreeModelImpl(
+    noinline factory: () -> JTree,
     model: TreeModel,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
@@ -519,6 +530,8 @@ private inline fun TreeModelImpl(
     toggleClickCount: Int,
 ) {
     TreeNode(
+        factory = factory,
+        rendererProperty = ComposingRendererProperty,
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
         style = style,
@@ -616,6 +629,103 @@ public fun <T> Tree(
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
 ) {
     TreeValuesImpl(
+        factory = { JTree(DefaultTreeModel(null)) },
+        rendererProperty = ComposingRendererProperty,
+        root = root,
+        children = children,
+        treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
+        modifier = modifier.treeStateBinding(state),
+        style = style,
+        label = label,
+        hasChildren = hasChildren,
+        selectedPaths = state.selectedPaths,
+        state = state,
+        treeExpansionListener = null,
+        onExpansionChange = null,
+        treeWillExpandListener = rememberWillExpandListener(onWillExpand),
+        isEditable = isEditable,
+        onNodeEdit = onNodeEdit,
+        selectionMode = selectionMode,
+        rootVisible = rootVisible,
+        showsRootHandles = showsRootHandles,
+        rowHeight = rowHeight,
+        visibleRowCount = visibleRowCount,
+        toggleClickCount = toggleClickCount,
+        nodeContent = nodeContent,
+    )
+}
+
+/**
+ * A [Tree] driven by a [TreeState], built on the `JTree` that [factory] returns instead of a stock one.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ *
+ * While [nodeContent] is declared, the tree shows each node through it. Withdrawing [nodeContent] gives the
+ * tree back the renderer it carried before, whether the factory set it or the look and feel did.
+ *
+ * @param factory builds the component this composable drives. Its model is replaced with the declared one
+ * @param root the root value of the tree
+ * @param children yields the child values of a value, in display order
+ * @param state the hoistable selection and expansion state the tree applies and reports into; see
+ *   [TreeState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
+ * @param label renders a value's row text; a value's `toString` by default
+ * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
+ *   with children is a branch either way. `null` - the default - makes a childless value a leaf
+ * @param onWillExpand asked before a node opens - whether the user opened it or the tree did to show the
+ *   state's expansion or selection - with the value and the index path of that node, and vetoes the
+ *   expansion by returning `false`; `null` - the default - lets every expansion through
+ * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
+ *   the nodes read-only
+ * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
+ *   path, and the value entered; update the backing data from here so the next composition shows the edit.
+ *   An edit still open on a node a later composition hands another value to - or takes out of the
+ *   structure - ends there and commits nothing
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
+ * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
+ *   `null` leaves the factory's choice, and withdrawing a declared choice restores that choice
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
+ *   to be, which is what lets a composable node size itself. `null` - the default - leaves the factory's
+ *   height, and withdrawing a declared height restores that height
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
+ * @param nodeContent optional composable node rendered per row against a [TreeNodeScope]; `null` - the
+ *   default - renders each node's [label] through the renderer the tree carries
+ * @see javax.swing.JTree
+ */
+@InternalSwingUiApi
+@Composable
+public fun <T> Tree(
+    factory: () -> JTree,
+    root: T,
+    children: (T) -> List<T>,
+    state: TreeState,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    label: (T) -> @Nls String = { it.toString() },
+    hasChildren: ((T) -> Boolean)? = null,
+    onWillExpand: ((value: T, path: List<Int>) -> Boolean)? = null,
+    isEditable: Boolean = false,
+    onNodeEdit: (value: T, path: List<Int>, newValue: Any?) -> Unit = { _, _, _ -> },
+    @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
+    rootVisible: Boolean = true,
+    showsRootHandles: Boolean? = null,
+    rowHeight: Int? = null,
+    visibleRowCount: Int = 20,
+    toggleClickCount: Int = 2,
+    nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
+) {
+    TreeValuesImpl(
+        factory = factory,
+        rendererProperty = FactoryRendererProperty,
         root = root,
         children = children,
         treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
@@ -669,6 +779,7 @@ public fun <T> Tree(
  *   double click, and `0` takes that gesture away
  * @see javax.swing.JTree
  */
+@NonRestartableComposable
 @Composable
 public fun Tree(
     model: TreeModel,
@@ -682,7 +793,67 @@ public fun Tree(
     visibleRowCount: Int = 20,
     toggleClickCount: Int = 2,
 ) {
+    Tree(
+        factory = { JTree(DefaultTreeModel(null)) },
+        model = model,
+        state = state,
+        modifier = modifier,
+        style = style,
+        selectionMode = selectionMode,
+        rootVisible = rootVisible,
+        showsRootHandles = showsRootHandles,
+        rowHeight = rowHeight,
+        visibleRowCount = visibleRowCount,
+        toggleClickCount = toggleClickCount,
+    )
+}
+
+/**
+ * A model-driven [Tree] driven by a [TreeState], built on the `JTree` that [factory] returns instead of a
+ * stock one.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ *
+ * @param factory builds the component this composable drives. Its model is replaced with [model]
+ * @param model the tree model to display; owned by the caller and never mutated by the library
+ * @param state the hoistable selection and expansion state the tree applies and reports into; see
+ *   [TreeState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
+ * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
+ *   `null` leaves the factory's choice, and withdrawing a declared choice restores that choice
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
+ *   to be. `null` - the default - leaves the factory's height, and withdrawing a declared height restores
+ *   that height
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
+ * @see javax.swing.JTree
+ */
+@InternalSwingUiApi
+@Composable
+public fun Tree(
+    factory: () -> JTree,
+    model: TreeModel,
+    state: TreeState,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
+    @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
+    rootVisible: Boolean = true,
+    showsRootHandles: Boolean? = null,
+    rowHeight: Int? = null,
+    visibleRowCount: Int = 20,
+    toggleClickCount: Int = 2,
+) {
     TreeModelImpl(
+        factory = factory,
         model = model,
         treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
@@ -747,6 +918,8 @@ private class UserExpansionListener(
  */
 @Composable
 private inline fun TreeNode(
+    noinline factory: () -> JTree,
+    rendererProperty: ComponentPropertyDescriptor<JTree, TreeCellRenderer?>,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
     style: SwingStyle<SwingComponentStyleScope>,
@@ -793,17 +966,17 @@ private inline fun TreeNode(
     val selectionChanged = selectionMirror.redeclare(selectedPaths)
     val expansionAssigned = state != null && state.expandedPaths != mirrors.appliedExpansion
     SwingNode(
-        // A tree starts on a rootless model, which the same pass replaces with the declared one. A tree
-        // that has never had a root has no expansion of the user's to keep, which is how the first model
-        // is told apart from a later one.
-        factory = { JTree(DefaultTreeModel(null)) },
+        // A tree without a caller's factory starts on a rootless model, which the same pass replaces with the
+        // declared one. A tree that has never had a root has no expansion of the user's to keep, which is how
+        // the first model is told apart from a later one.
+        factory = factory,
         // The listeners go on before the content: installing the model applies the state's expansion, so a
         // will-expand listener attached after it is never asked about the first pass - the one pass a
         // caller cannot answer for by changing the state.
         modifier =
             modifier
                 .treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
-                .uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer)
+                .uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer, rendererProperty)
                 .then(
                     TreeContentElement(
                         content = content,
@@ -901,79 +1074,24 @@ private class TreeContentNode : SwingModifier.ComponentNode<JTree>() {
 }
 
 /**
- * Applies through [block] a property the tree answers by dropping nodes it can no longer hold, reporting to
- * [target] the ones the user loses to it where [declared] leaves the selection theirs, and leaves [mirror]
- * mirroring the selection the tree was left with.
- *
- * The read that records what survived the write stays outside any settlement of the mirror's, because what
- * it records is news: the tree has dropped nodes the composition may still declare, and the pass that puts
- * them back is the one this recording asks for. A settlement here would mark the loss as already answered
- * and leave a declared selection lying where the write dropped it.
+ * The renderer property of a [Tree] without a factory. A tree rendering nodes through its own renderer reads
+ * as none, so withdrawing the composable node restores none: the tree gets a fresh renderer of the look and
+ * feel in force, as a tree that never carried a composable node has.
  */
-private fun JTree.settleNarrowing(
-    mirror: MirrorState<Set<List<Int>>?>,
-    declared: Set<List<Int>>?,
-    target: TreeSelectionListener,
-    block: () -> Unit,
-) {
-    narrowSelection(mirror, declared, target, block)
-    mirror.observed(readSelection(this, model))
-}
-
-/**
- * Folds in the tree properties a `JTree` leaves to the UI delegate of its look and feel - the
- * root-handle choice, the row height, and the renderer each node is rendered through - as modifier
- * elements, each while the caller declares one and each dropped the moment its declaration goes back to
- * `null`.
- *
- * A `JTree` takes an explicit root-handle choice or row height as the client's own and stops accepting
- * the one its look and feel installs, which is what makes a folded-in element outrank the look and feel
- * while it stays in the modifier; removing the element restores the value the tree carried before it was
- * folded in - the one its look and feel chose - through the same capture-on-attach, restore-on-detach
- * every modifier property follows. Detaching on release, reuse and deactivate as well as on withdrawal
- * is what gives a parked tree its look and feel's values back too.
- *
- * The renderer is handed back the other way round, because a tree's is not a value it carries but one
- * its UI delegate builds on demand and takes back on a look-and-feel change. The property folded in here
- * is the composable renderer alone: a tree rendering nodes through its own reads as none, so restoring
- * writes none, and the delegate builds a fresh renderer of the look and feel in force - exactly what a
- * tree that never carried a composable node is given.
- */
-private val ShowsRootHandlesProperty =
-    ComponentPropertyDescriptor<JTree, Boolean>(
-        name = "showsRootHandles",
-        read = { it.showsRootHandles },
-        write = { tree, value -> tree.showsRootHandles = value },
-    )
-
-private val TreeRowHeightProperty =
-    ComponentPropertyDescriptor<JTree, Int>(
-        name = "rowHeight",
-        read = { it.rowHeight },
-        write = { tree, value -> tree.rowHeight = value },
-    )
-
-private val TreeCellRendererProperty =
+private val ComposingRendererProperty =
     ComponentPropertyDescriptor<JTree, TreeCellRenderer?>(
         name = "cellRenderer",
         read = { it.cellRenderer as? ComposingTreeCellRenderer<*> },
         write = { tree, value -> tree.cellRenderer = value },
     )
 
-private fun SwingModifier.uiOwnedProperties(
-    showsRootHandles: Boolean?,
-    rowHeight: Int?,
-    nodeRenderer: ComposingTreeCellRenderer<*>?,
-): SwingModifier {
-    var properties = this
-    if (showsRootHandles != null) {
-        properties = properties.property(ShowsRootHandlesProperty, showsRootHandles)
-    }
-    if (rowHeight != null) {
-        properties = properties.property(TreeRowHeightProperty, rowHeight)
-    }
-    if (nodeRenderer != null) {
-        properties = properties.property(TreeCellRendererProperty, nodeRenderer)
-    }
-    return properties
-}
+/**
+ * The renderer property of a [Tree] built by a factory. Withdrawing the composable node gives the tree back
+ * whichever renderer it carried before, including one the factory set.
+ */
+private val FactoryRendererProperty =
+    ComponentPropertyDescriptor<JTree, TreeCellRenderer?>(
+        name = "cellRenderer",
+        read = { it.cellRenderer },
+        write = { tree, value -> tree.cellRenderer = value },
+    )
