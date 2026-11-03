@@ -36,6 +36,7 @@ class ComposeSwingRuleSetProviderTest {
             setOf(
                 RuleName("ComposableSwingModifierFactory"),
                 RuleName("ModifierNodeInspectableProperties"),
+                RuleName("MultipleSwingModifierParameters"),
                 RuleName("SwingComponentInComposableSignature"),
                 RuleName("SwingModifierFactoryExtensionFunction"),
                 RuleName("SwingModifierFactoryReturnType"),

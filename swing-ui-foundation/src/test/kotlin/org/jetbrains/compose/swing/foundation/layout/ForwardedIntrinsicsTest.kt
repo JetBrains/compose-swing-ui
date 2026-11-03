@@ -2,9 +2,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -32,10 +29,9 @@ class ForwardedIntrinsicsTest {
         for (fraction in listOf(1f, 0.5f)) {
             for (outside in listOf(false, true)) {
                 assertOffers(
-                    OfferScenario("fill $fraction, outside $outside") { outer, leaf, forwarding ->
+                    OfferScenario("fill $fraction, outside $outside", forwardingOutside = outside) { outer, leaf ->
                         Box(modifier = outer) {
-                            val fill = SwingModifier.fillMaxWidth(fraction)
-                            leaf(if (outside) forwarding then fill else fill then forwarding)
+                            leaf(SwingModifier.fillMaxWidth(fraction))
                         }
                     },
                 )
@@ -46,20 +42,20 @@ class ForwardedIntrinsicsTest {
     @Test
     fun weightedWidthOffersSurviveForwarding() =
         assertOffers(
-            OfferScenario("row weighted share") { outer, leaf, forwarding ->
-                Row(modifier = outer) { leaf(SwingModifier.weight(1f) then forwarding) }
+            OfferScenario("row weighted share") { outer, leaf ->
+                Row(modifier = outer) { leaf(SwingModifier.weight(1f)) }
             },
-            OfferScenario("column weighted share") { outer, leaf, forwarding ->
-                Column(modifier = outer) { leaf(SwingModifier.weight(1f).fillMaxWidth() then forwarding) }
+            OfferScenario("column weighted share") { outer, leaf ->
+                Column(modifier = outer) { leaf(SwingModifier.weight(1f).fillMaxWidth()) }
             },
         )
 
     @Test
     fun baselineAlignedWidthOffersSurviveForwarding() =
         assertOffers(
-            OfferScenario("baseline aligned share") { outer, leaf, forwarding ->
+            OfferScenario("baseline aligned share") { outer, leaf ->
                 Row(modifier = outer) {
-                    leaf(SwingModifier.weight(1f).alignByBaseline() then forwarding)
+                    leaf(SwingModifier.weight(1f).alignByBaseline())
                     Label("Side", modifier = SwingModifier.alignByBaseline())
                 }
             },
@@ -68,22 +64,16 @@ class ForwardedIntrinsicsTest {
     @Test
     fun propagatedMinimumWidthOffersSurviveForwarding() =
         assertOffers(
-            OfferScenario("propagated minimum") { outer, leaf, forwarding ->
-                Box(modifier = outer, propagateMinConstraints = true) { leaf(forwarding) }
+            OfferScenario("propagated minimum") { outer, leaf ->
+                Box(modifier = outer, propagateMinConstraints = true) { leaf(SwingModifier) }
             },
         )
 
     @Test
     fun aConstrainedPanelsDefaultPolicyOffersTheLeafItsWidthThroughForwardingModifiers() =
         assertOffers(
-            OfferScenario("public panel content") { outer, leaf, forwarding ->
-                val panel = remember { ConstrainedPanel() }
-                SwingNode(factory = { panel }, modifier = outer)
-                val context = rememberCompositionContext()
-                DisposableEffect(panel) {
-                    val content = panel.setContent(context) { leaf(forwarding) }
-                    onDispose { content.dispose() }
-                }
+            OfferScenario("public panel content") { outer, leaf ->
+                ConstrainedContentHost(modifier = outer) { leaf(SwingModifier) }
             },
         )
 
@@ -104,14 +94,14 @@ class ForwardedIntrinsicsTest {
             )
         for ((nestedName, container) in nested) {
             assertOffers(
-                OfferScenario("$nestedName filling box") { outer, leaf, forwarding ->
-                    Box(modifier = outer) { container(SwingModifier.fillMaxWidth()) { leaf(forwarding) } }
+                OfferScenario("$nestedName filling box") { outer, leaf ->
+                    Box(modifier = outer) { container(SwingModifier.fillMaxWidth()) { leaf(SwingModifier) } }
                 },
-                OfferScenario("$nestedName filling column") { outer, leaf, forwarding ->
-                    Column(modifier = outer) { container(SwingModifier.fillMaxWidth()) { leaf(forwarding) } }
+                OfferScenario("$nestedName filling column") { outer, leaf ->
+                    Column(modifier = outer) { container(SwingModifier.fillMaxWidth()) { leaf(SwingModifier) } }
                 },
-                OfferScenario("$nestedName row share") { outer, leaf, forwarding ->
-                    Row(modifier = outer) { container(SwingModifier.weight(1f)) { leaf(forwarding) } }
+                OfferScenario("$nestedName row share") { outer, leaf ->
+                    Row(modifier = outer) { container(SwingModifier.weight(1f)) { leaf(SwingModifier) } }
                 },
             )
         }
@@ -127,8 +117,8 @@ class ForwardedIntrinsicsTest {
             )
         for ((containerName, container) in containers) {
             assertOffers(
-                OfferScenario("required fixed width in $containerName") { outer, leaf, forwarding ->
-                    container(outer) { leaf(SwingModifier.requiredWidth(width = 200) then forwarding) }
+                OfferScenario("required fixed width in $containerName") { outer, leaf ->
+                    container(outer) { leaf(SwingModifier.requiredWidth(width = 200)) }
                 },
             )
             val minimums: Map<String, ConstrainedScope.() -> SwingModifier> =
@@ -138,8 +128,8 @@ class ForwardedIntrinsicsTest {
                 )
             for ((name, minimum) in minimums) {
                 assertOffers(
-                    OfferScenario("$name minimum in $containerName", stockOnly = true) { outer, leaf, forwarding ->
-                        container(outer) { leaf(minimum() then forwarding) }
+                    OfferScenario("$name minimum in $containerName", stockOnly = true) { outer, leaf ->
+                        container(outer) { leaf(minimum()) }
                     },
                 )
             }
@@ -157,8 +147,8 @@ class ForwardedIntrinsicsTest {
             )
         for ((name, bound) in bounds) {
             assertOffers(
-                OfferScenario(name) { outer, leaf, forwarding ->
-                    Box(modifier = outer, propagateMinConstraints = true) { leaf(bound() then forwarding) }
+                OfferScenario(name) { outer, leaf ->
+                    Box(modifier = outer, propagateMinConstraints = true) { leaf(bound()) }
                 },
             )
         }
@@ -180,9 +170,10 @@ class ForwardedIntrinsicsTest {
                             scenario.content(
                                 this,
                                 SwingModifier.testTag(CONTAINER_TAG).width(WIDTH).height(size),
-                                leaf,
-                                with(forwarding) { SwingModifier.modifier(forwarded) },
-                            )
+                            ) { modifier ->
+                                val chain = with(forwarding) { SwingModifier.modifier(forwarded) }
+                                leaf(if (scenario.forwardingOutside) chain then modifier else modifier then chain)
+                            }
                         }
                     }
                 }
@@ -394,10 +385,10 @@ class ForwardedIntrinsicsTest {
 private class OfferScenario(
     val name: String,
     val stockOnly: Boolean = false,
+    val forwardingOutside: Boolean = false,
     val content: @Composable ConstrainedScope.(
         outer: SwingModifier,
         leaf: @Composable (SwingModifier) -> Unit,
-        forwarding: SwingModifier,
     ) -> Unit,
 )
 

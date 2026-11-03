@@ -96,9 +96,8 @@ internal fun List<Dimension>.shrinkages(): List<Pair<Dimension, Dimension>> =
 
 internal typealias StockParent = @Composable (child: @Composable (SwingModifier) -> Unit) -> Unit
 
-/** An animated container under `modifier` that enters content declared with `contentModifier` once `shown`. */
-internal typealias EnteringContainer =
-    @Composable (modifier: SwingModifier, shown: Boolean, contentModifier: SwingModifier) -> Unit
+/** An animated container under `modifier` that enters its content once `shown`. */
+internal typealias EnteringContainer = @Composable (modifier: SwingModifier, shown: Boolean) -> Unit
 
 internal typealias TaggedContent = @Composable ConstrainedScope.(modifier: SwingModifier) -> Unit
 
@@ -289,7 +288,11 @@ internal object Stretch {
         val width = mutableIntStateOf(resize.from)
         val entering =
             container { modifier ->
-                Label("", modifier = modifier.aspectRatio(RATIO), style = { preferredSize(width.intValue, 20) })
+                Label(
+                    "",
+                    modifier = modifier.testTag(CONTENT).aspectRatio(RATIO),
+                    style = { preferredSize(width.intValue, 20) },
+                )
             }
         val framesBeforeResize = TRANSITION_MILLIS / FRAME_MILLIS / 4
         val all =
@@ -314,7 +317,7 @@ internal object Stretch {
         runComposeSwingTest {
             var shown by mutableStateOf(false)
             setContent {
-                parent { modifier -> container(modifier.testTag(CONTAINER), shown, SwingModifier.testTag(CONTENT)) }
+                parent { modifier -> container(modifier.testTag(CONTAINER), shown) }
             }
             mainClock.autoAdvance = false
             shown = true

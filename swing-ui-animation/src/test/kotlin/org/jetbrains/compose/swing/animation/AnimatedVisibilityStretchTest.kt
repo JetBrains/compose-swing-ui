@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.animation
 
+import org.jetbrains.compose.swing.animation.Stretch.CONTENT
 import org.jetbrains.compose.swing.animation.Stretch.FRAME_MILLIS
 import org.jetbrains.compose.swing.animation.Stretch.FlowLayoutParent
 import org.jetbrains.compose.swing.animation.Stretch.NARROW
@@ -24,6 +25,7 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.junit.jupiter.params.ParameterizedTest
@@ -236,7 +238,7 @@ internal class AnimatedVisibilityStretchTest {
     }
 
     private fun plainBox(content: TaggedContent): EnteringContainer =
-        { modifier, _, contentModifier -> Box(modifier) { content(contentModifier) } }
+        { modifier, _ -> Box(modifier) { content(SwingModifier.testTag(CONTENT)) } }
 
     private fun resizedWhile(
         resize: ResizeCase,
@@ -316,9 +318,9 @@ private fun visibility(
     enter: EnterTransition,
     content: TaggedContent,
 ): EnteringContainer =
-    { modifier, shown, contentModifier ->
+    { modifier, shown ->
         AnimatedVisibility(visible = shown, modifier = modifier, enter = enter, exit = ExitTransition.None) {
-            content(contentModifier)
+            content(SwingModifier.testTag(CONTENT))
         }
     }
 

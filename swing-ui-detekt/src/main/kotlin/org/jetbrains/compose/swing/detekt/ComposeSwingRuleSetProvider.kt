@@ -30,6 +30,9 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
             RuleName("ModifierNodeInspectableProperties") to { config: Config ->
                 ModifierNodeInspectableProperties(config)
             },
+            RuleName("MultipleSwingModifierParameters") to { config: Config ->
+                MultipleSwingModifierParameters(config)
+            },
             RuleName("SwingComponentInComposableSignature") to { config: Config ->
                 SwingComponentInComposableSignature(config)
             },

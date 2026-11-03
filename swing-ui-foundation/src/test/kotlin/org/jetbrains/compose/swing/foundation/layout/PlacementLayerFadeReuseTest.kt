@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.TapNode
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -497,7 +498,7 @@ class PlacementLayerFadeReuseTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("alphaEndpointCases")
     fun alphaReadsAtTheEndpointsStartAFreshFade(
-        content: @Composable (SwingModifier, SwingModifier, PlacementLayerScope.() -> Unit) -> Unit,
+        content: @Composable (SwingModifier, DrawScope.() -> Unit, PlacementLayerScope.() -> Unit) -> Unit,
         endpoint: Float,
     ) = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
@@ -508,7 +509,7 @@ class PlacementLayerFadeReuseTest {
             Row {
                 content(
                     SwingModifier.testTag("endpointContent").styleable { preferredSize(40, 40) },
-                    SwingModifier.drawBehind {
+                    {
                         paints++
                         graphics.color = tint
                         graphics.fillRect(0, 0, width, height)
@@ -536,12 +537,14 @@ class PlacementLayerFadeReuseTest {
     companion object {
         @JvmStatic
         fun alphaEndpointCases(): List<Arguments> =
-            listOf<Pair<String, @Composable (SwingModifier, SwingModifier, PlacementLayerScope.() -> Unit) -> Unit>>(
-                "Box" to { before, after, layer -> Box(before.placementLayer(layer).then(after)) },
-                "Canvas" to { before, after, layer -> Canvas(before.placementLayer(layer).then(after)) {} },
-                "policy placeWithLayer" to { before, after, layer ->
+            listOf<
+                Pair<String, @Composable (SwingModifier, DrawScope.() -> Unit, PlacementLayerScope.() -> Unit) -> Unit>,
+            >(
+                "Box" to { modifier, draw, layer -> Box(modifier.placementLayer(layer).drawBehind(draw)) },
+                "Canvas" to { modifier, draw, layer -> Canvas(modifier.placementLayer(layer).drawBehind(draw)) {} },
+                "policy placeWithLayer" to { modifier, draw, layer ->
                     Layout(
-                        content = { Canvas(before.then(after)) {} },
+                        content = { Canvas(modifier.drawBehind(draw)) {} },
                         measurePolicy = { measurables, _ ->
                             val child = measurables.single().measure(Constraints.fixed(40, 40))
                             layout(40, 40) { child.placeWithLayer(0, 0, layerBlock = layer) }

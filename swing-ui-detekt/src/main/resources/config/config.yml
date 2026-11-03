@@ -13,6 +13,8 @@ compose-swing:
     # the test source set rather than detekt's default `test` segment match, so a published module
     # whose own package is named "test" stays covered.
     excludes: ["**/src/test/**"]
+  MultipleSwingModifierParameters:
+    active: true
   SwingComponentInComposableSignature:
     active: true
   SwingModifierFactoryExtensionFunction:

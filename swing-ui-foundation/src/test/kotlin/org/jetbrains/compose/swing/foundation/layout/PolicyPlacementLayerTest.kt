@@ -420,7 +420,7 @@ class PolicyPlacementLayerTest {
             setWindowContent {
                 LayeredChild(
                     SwingModifier.testTag(CONTAINER_TAG),
-                    childModifier = SwingModifier.then(paints),
+                    childTap = paints,
                 ) { block }
             }
             val child = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
@@ -692,12 +692,12 @@ private fun LayeredChild(
     paddingStart: Int = 0,
     color: Color = Color.RED,
     shadowRadius: Int = 0,
-    childModifier: SwingModifier = SwingModifier,
+    childTap: TapElement? = null,
     layerOf: () -> (PlacementLayerScope.() -> Unit)?,
 ) {
     Layout(
         content = {
-            var declared = childModifier.testTag(LAYERED_TAG).background(Brush.of(color))
+            var declared = (childTap ?: SwingModifier).testTag(LAYERED_TAG).background(Brush.of(color))
             if (shadowRadius > 0) declared = declared.shadow(shadowRadius, Color.BLACK)
             Box(modifier = if (paddingStart == 0) declared else declared.padding(start = paddingStart))
         },

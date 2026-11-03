@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.AnimatedContentTransitionScope.SlideDirection
+import org.jetbrains.compose.swing.animation.Stretch.CONTENT
 import org.jetbrains.compose.swing.animation.Stretch.NARROW
 import org.jetbrains.compose.swing.animation.Stretch.ParentCase
 import org.jetbrains.compose.swing.animation.Stretch.ResizeCase
@@ -19,6 +20,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -291,10 +293,10 @@ private fun replacing(
     transform: ContentTransform,
     content: TaggedContent = WideContent,
 ): EnteringContainer =
-    { modifier, shown, contentModifier ->
+    { modifier, shown ->
         AnimatedContent(shown, modifier, transitionSpec = { transform }) { wide ->
             if (wide) {
-                content(contentModifier)
+                content(SwingModifier.testTag(CONTENT))
             } else {
                 Label("Other", style = { preferredSize(NARROW / 4, 20) })
             }
