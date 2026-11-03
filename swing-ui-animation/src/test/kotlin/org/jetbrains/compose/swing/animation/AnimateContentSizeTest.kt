@@ -579,8 +579,8 @@ class AnimateContentSizeTest {
             var expanded by mutableStateOf(false)
             setContent {
                 Row(modifier = SwingModifier.testTag(ROW)) {
-                    OffsettingBaselineChild(baseline = 5, height = 20)
-                    PlainBaselineChild(baseline = 30, height = PLAIN_HEIGHT)
+                    OffsettingBaselineChild(height = 20)
+                    PlainBaselineChild(height = PLAIN_HEIGHT)
                     Box(
                         modifier =
                             SwingModifier
@@ -778,38 +778,34 @@ private class ControlledBaselinePanel(
  * placement by an unrelated [offset] - the shape a stateful node such as an animation leaves behind.
  */
 @Composable
-private fun RowScope.OffsettingBaselineChild(
-    baseline: Int,
-    height: Int,
-) = SwingNode(
-    factory = { ControlledBaselinePanel(baseline) },
-    modifier =
-        SwingModifier
-            // moves the content without changing what it measures at
-            .offset(y = 6)
-            .alignByBaseline()
-            .then(PassThroughElement)
-            .styleable {
-                preferredSize(OFFSETTING_WIDTH, height)
-                minimumSize(OFFSETTING_WIDTH, height)
-            },
-)
+private fun RowScope.OffsettingBaselineChild(height: Int) =
+    SwingNode(
+        factory = { ControlledBaselinePanel(reported = 5) },
+        modifier =
+            SwingModifier
+                // moves the content without changing what it measures at
+                .offset(y = 6)
+                .alignByBaseline()
+                .then(PassThroughElement)
+                .styleable {
+                    preferredSize(OFFSETTING_WIDTH, height)
+                    minimumSize(OFFSETTING_WIDTH, height)
+                },
+    )
 
 /** A row child on the shared baseline whose chain carries no layout-modifier node. */
 @Composable
-private fun RowScope.PlainBaselineChild(
-    baseline: Int,
-    height: Int,
-) = SwingNode(
-    factory = { ControlledBaselinePanel(baseline) },
-    modifier =
-        SwingModifier
-            .alignByBaseline()
-            .styleable {
-                preferredSize(PLAIN_WIDTH, height)
-                minimumSize(PLAIN_WIDTH, height)
-            },
-)
+private fun RowScope.PlainBaselineChild(height: Int) =
+    SwingNode(
+        factory = { ControlledBaselinePanel(reported = 30) },
+        modifier =
+            SwingModifier
+                .alignByBaseline()
+                .styleable {
+                    preferredSize(PLAIN_WIDTH, height)
+                    minimumSize(PLAIN_WIDTH, height)
+                },
+    )
 
 private const val ROW = "row"
 private const val COLUMN = "column"

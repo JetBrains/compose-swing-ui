@@ -275,9 +275,7 @@ private inline fun <R> TableRowsImpl(
     val heldSortKeys = state?.sortKeys
     val heldColumnLayout = state?.columnLayout
     val columns = TableScopeImpl<R>().apply(block).columns
-    // The model this composition fills. It is handed to the factory so the table is built already
-    // showing it, rather than a default model briefly standing in before the update block's own
-    // set(model) call installs this one.
+    // Handed to the factory so the table is built already showing the model this composition fills.
     val model = remember { ColumnsTableModel<R>() }
     // One cell composition per column that declares a composable cell, following the declarations pass
     // by pass. Each resolves the row a render names against the rows the model holds then.
@@ -579,18 +577,17 @@ private inline fun TableImpl(
         factory = factory,
         cellCompositions = null,
         parts = content,
-    ) { selectionMirror, _, sortChannel, columnChannel ->
-        set(model) { newModel ->
-            val table = this
+        applyModel = { table, newModel, selectionMirror, _, sortChannel, columnChannel ->
             columnChannel.preserveAcross(table, heldColumnLayout) {
-                installContent(selectionMirror, selectedRowIndices, listSelectionListener) {
+                table.installContent(selectionMirror, selectedRowIndices, listSelectionListener) {
                     sortChannel.preserveAcross(table, sortable, heldSortKeys) {
                         sortChannel.unbindFrom(table, newModel)
                         table.model = newModel
                     }
                 }
             }
-        }
+        },
+    ) { selectionMirror, _, sortChannel, _ ->
         // Taking a sorter on or off empties the table's selection the way a new model does, so it is put
         // back through the same install. The columns are left where they are by either.
         set(sortable) { enabled ->
@@ -918,6 +915,16 @@ private inline fun TableNode(
     crossinline factory: (TableModel) -> JTable,
     cellCompositions: TableCellCompositions<*>?,
     noinline parts: (@Composable TableContentScope.() -> Unit)?,
+    noinline applyModel: (
+        (
+            JTable,
+            TableModel,
+            MirrorState<Set<Int>?>,
+            MirrorState<TableColumnLayout?>,
+            RowSortChannel,
+            ColumnLayoutChannel,
+        ) -> Unit
+    )? = null,
     crossinline installContent: SwingNodeUpdater<JTable>.(
         MirrorState<Set<Int>?>,
         MirrorState<TableColumnLayout?>,
@@ -952,6 +959,9 @@ private inline fun TableNode(
             }
             set(autoResizeMode) { mode -> this.autoResizeMode = mode }
             set(fillsViewportHeight) { fills -> this.fillsViewportHeight = fills }
+            set(model) { newModel ->
+                applyModel?.invoke(this, newModel, selectionMirror, columnMirror, sortChannel, columnChannel)
+            }
             installContent(selectionMirror, columnMirror, sortChannel, columnChannel)
             declareRowFilter(sortChannel, rowFilter, selectionMirror, selectedRowIndices, listSelectionListener)
             // The order and the layout a state holds are applied when they were assigned, and never put back

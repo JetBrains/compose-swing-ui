@@ -18,6 +18,7 @@ adds one line rather than two.
 | `SwingModifierThen` | `then` handed a factory that takes its receiver implicitly, chaining it twice |
 | `SwingComponentInComposableSignature` | a composable whose signature - a parameter, receiver, context parameter, return type or type-parameter bound, function types and type arguments included - names `java.awt.Component` or a subclass, handing a raw Swing component across the Compose API |
 | `MultipleSwingModifierParameters` | a composable or a `@Composable` function type with more than one `SwingModifier` parameter, where a single chain has no way to say which part of the content each one styles |
+| `SwingNodeFactoryReadsDeclaredValue` | a `SwingNode` or `MenuNode` factory lambda that reads a parameter of its composable, or of a lambda around the node, which the node takes only at construction, unless `update` applies it or a `key` call around the node names it; a local and a function-typed parameter of the composable that the factory invokes are not reported |
 | `SwingNodeFactoryReusesComponent` | a `SwingNode` or `MenuNode` factory lambda that answers with a name, `this` or property access declared outside it, so every node it builds shares one component |
 | `UnheldColumnComparator` | a table column given a comparator built where the column is declared, which sorts the rows again on every pass |
 | `UnusedTransitionTargetState` | the state-to-value lambda of `animateValue`, `animateFloat`, `animateInt` or `animateColor` that never reads the state it is handed, so every state animates toward one value |
@@ -29,6 +30,7 @@ type that does not resolve is never reported.
 
 - `SwingComponentInComposableSignature`
 - `MultipleSwingModifierParameters`
+- `SwingNodeFactoryReadsDeclaredValue`
 - `SwingNodeFactoryReusesComponent`
 
 `SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a

@@ -98,7 +98,13 @@ internal fun DecoratedBaselineChild(
     modifier: SwingModifier = SwingModifier,
 ) {
     SwingNode(
-        factory = { DecoratedBaselinePanel(baseline) },
+        factory = { DecoratedBaselinePanel() },
+        update = {
+            set(baseline) {
+                this.baseline = it
+                revalidate()
+            }
+        },
         modifier = modifier.styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
     )
 }
@@ -107,9 +113,9 @@ internal fun DecoratedBaselineChild(
  * Paints nothing of a decoration it receives; the tests using it read only where it is placed. Its baseline is
  * [baseline] below the top of its layout bounds, which Swing's `getBaseline` measures from the top of the bounds.
  */
-private class DecoratedBaselinePanel(
-    private val baseline: Int,
-) : DecoratedPanel() {
+private class DecoratedBaselinePanel : DecoratedPanel() {
+    var baseline: Int = 0
+
     override fun getBaseline(
         width: Int,
         height: Int,

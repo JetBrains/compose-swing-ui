@@ -18,6 +18,7 @@ import dev.detekt.api.RuleSetProvider
  * Signatures: whether a composable's signature hands a Swing component around.
  *
  * Node factories: whether a node factory reuses one component for every node.
+ * Whether a node factory reads a value its composable declares.
  *
  * Animation: whether animation lambdas use their target state.
  */
@@ -52,6 +53,9 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
             },
             RuleName("SwingModifierWithoutDefault") to { config: Config ->
                 SwingModifierWithoutDefault(config)
+            },
+            RuleName("SwingNodeFactoryReadsDeclaredValue") to { config: Config ->
+                SwingNodeFactoryReadsDeclaredValue(config)
             },
             RuleName("SwingNodeFactoryReusesComponent") to { config: Config ->
                 SwingNodeFactoryReusesComponent(config)

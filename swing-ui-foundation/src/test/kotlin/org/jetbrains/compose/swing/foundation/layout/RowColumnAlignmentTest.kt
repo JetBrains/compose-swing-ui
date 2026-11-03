@@ -769,8 +769,9 @@ private fun BaselineChild(
     modifier: SwingModifier = SwingModifier,
 ) {
     SwingNode(
-        factory = { BaselinePanel(baseline) },
+        factory = { BaselinePanel() },
         modifier = modifier.styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
+        update = { set(baseline) { reported = it } },
     )
 }
 
@@ -781,8 +782,9 @@ private fun FlexibleBaselineChild(
     modifier: SwingModifier = SwingModifier,
 ) {
     SwingNode(
-        factory = { FlexibleBaselinePanel(baseline) },
+        factory = { FlexibleBaselinePanel() },
         modifier = modifier.styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
+        update = { set(baseline) { reported = it } },
     )
 }
 
@@ -794,12 +796,13 @@ private fun CappedBaselineChild(
     style: SwingStyle<ComponentStyleScope> = SwingStyle,
 ) {
     SwingNode(
-        factory = { CappedBaselinePanel(baseline) },
+        factory = { CappedBaselinePanel() },
         modifier =
             modifier.styleable {
                 preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
                 apply(style)
             },
+        update = { set(baseline) { reported = it } },
     )
 }
 
@@ -823,9 +826,9 @@ private fun CappedCrossBaselineChild(
  * A component carrying the baseline the test chose for it, and none at all when it is asked at any size
  * other than the one it occupies - so a row asking the wrong question gets no baseline to place it by.
  */
-private class BaselinePanel(
-    private val reported: Int,
-) : JPanel() {
+private class BaselinePanel : JPanel() {
+    var reported: Int = NO_BASELINE
+
     override fun getBaseline(
         width: Int,
         height: Int,
@@ -833,9 +836,9 @@ private class BaselinePanel(
 }
 
 /** A component that retains its baseline when a layout modifier changes its extent. */
-private class FlexibleBaselinePanel(
-    private val reported: Int,
-) : JPanel() {
+private class FlexibleBaselinePanel : JPanel() {
+    var reported: Int = NO_BASELINE
+
     override fun getBaseline(
         width: Int,
         height: Int,
@@ -843,9 +846,9 @@ private class FlexibleBaselinePanel(
 }
 
 /** A component whose baseline is available only at [CAPPED_BASELINE_WIDTH]. */
-private class CappedBaselinePanel(
-    private val reported: Int,
-) : JPanel() {
+private class CappedBaselinePanel : JPanel() {
+    var reported: Int = NO_BASELINE
+
     override fun getBaseline(
         width: Int,
         height: Int,

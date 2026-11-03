@@ -2,6 +2,8 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
@@ -18,6 +20,7 @@ internal fun Canvas(
     style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     onDraw: (Graphics2D, Int, Int) -> Unit,
 ) {
+    val currentOnDraw by rememberUpdatedState(onDraw)
     SwingNode(
         factory = {
             object : JComponent() {
@@ -27,7 +30,7 @@ internal fun Canvas(
                     val drawHeight = (height - insets.top - insets.bottom).coerceAtLeast(0)
                     val surface = g.create(insets.left, insets.top, drawWidth, drawHeight) as Graphics2D
                     try {
-                        onDraw(surface, drawWidth, drawHeight)
+                        currentOnDraw(surface, drawWidth, drawHeight)
                     } finally {
                         surface.dispose()
                     }

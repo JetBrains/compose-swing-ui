@@ -27,6 +27,8 @@ compose-swing:
     active: true
   SwingModifierWithoutDefault:
     active: true
+  SwingNodeFactoryReadsDeclaredValue:
+    active: true
   SwingNodeFactoryReusesComponent:
     active: true
   SwingStyleWithoutDefault:

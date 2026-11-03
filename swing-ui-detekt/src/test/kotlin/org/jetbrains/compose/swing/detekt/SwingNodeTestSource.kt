@@ -15,6 +15,47 @@ package androidx.compose.runtime
 annotation class Composable
 """
 
+/** `SwingNodeUpdater`, with the `set` and `update` writes the update rules look for, and the `init` and `reconcile`. */
+internal const val NODE_UPDATER_STUBS = """
+package org.jetbrains.compose.swing.node
+
+import java.awt.Component
+
+public class SwingNodeUpdater<T : Component> {
+    public fun <V> set(value: V, block: T.(V) -> Unit): Unit = Unit
+
+    public fun <V> update(value: V, block: T.(V) -> Unit): Unit = Unit
+
+    public fun init(block: T.() -> Unit): Unit = Unit
+
+    public fun reconcile(block: T.() -> Unit): Unit = Unit
+}
+
+public fun <T : Component> SwingNodeUpdater<T>.reconcileWithChildren(
+    block: ReconcileWithChildrenScope<T>.() -> Unit,
+): Unit = Unit
+
+public sealed interface ReconcileWithChildrenScope<out T : Component> {
+    public val component: T
+
+    public fun restoreDeclaredPlacement()
+}
+"""
+
+/** `SwingNode` and `MenuNode` with an `update` lambda on a `SwingNodeUpdater`. Used with [NODE_UPDATER_STUBS]. */
+internal const val UPDATING_NODE_STUBS = """
+package org.jetbrains.compose.swing.node
+
+import androidx.compose.runtime.Composable
+import java.awt.Component
+
+@Composable
+public fun <T : Component> SwingNode(factory: () -> T, update: SwingNodeUpdater<T>.() -> Unit = {}) {}
+
+@Composable
+public fun <T : Component> MenuNode(factory: () -> T, update: SwingNodeUpdater<T>.() -> Unit = {}) {}
+"""
+
 /** The source each finding points at, read off the offsets because the PSI is gone once the lint returns. */
 internal fun List<Finding>.textsIn(source: String): List<String> =
     map { source.substring(it.entity.location.text.start, it.entity.location.text.end) }

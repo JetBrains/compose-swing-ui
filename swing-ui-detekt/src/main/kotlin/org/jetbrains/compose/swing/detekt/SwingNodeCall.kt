@@ -1,9 +1,18 @@
 package org.jetbrains.compose.swing.detekt
 
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.resolution.KaCallableMemberCall
+import org.jetbrains.kotlin.analysis.api.resolution.KaExplicitReceiverValue
 import org.jetbrains.kotlin.analysis.api.resolution.KaFunctionCall
+import org.jetbrains.kotlin.analysis.api.resolution.KaImplicitReceiverValue
+import org.jetbrains.kotlin.analysis.api.resolution.KaReceiverValue
+import org.jetbrains.kotlin.analysis.api.resolution.KaSmartCastedReceiverValue
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -12,11 +21,15 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiUtil
+import org.jetbrains.kotlin.psi.KtThisExpression
 import java.util.Collections
 import java.util.WeakHashMap
 
 internal val NODE_PACKAGE_NAME: FqName = FqName("org.jetbrains.compose.swing.node")
 private val NODE_CALLEE_NAMES: Set<Name> = setOf(Name.identifier("SwingNode"), Name.identifier("MenuNode"))
+internal val UPDATE: Name = Name.identifier("update")
+internal val BLOCK: Name = Name.identifier("block")
+internal val SWING_NODE_UPDATER: ClassId = ClassId(NODE_PACKAGE_NAME, Name.identifier("SwingNodeUpdater"))
 
 /**
  * Whether [this] names `SwingNode` or `MenuNode`, or an import alias of one, so that it can be a node call. It reads
@@ -60,3 +73,52 @@ internal fun KaFunctionCall<*>.argumentExpression(name: Name): KtExpression? =
         .firstOrNull { it.value.name == name }
         ?.key
         ?.let { KtPsiUtil.safeDeparenthesize(it) }
+
+/** Whether [this] is `SwingNodeUpdater.set` or `SwingNodeUpdater.update`. */
+internal fun KaFunctionSymbol.isUpdaterWrite(): Boolean {
+    val id = callableId ?: return false
+    return id.callableName in setOf(Name.identifier("set"), UPDATE) && id.classId == SWING_NODE_UPDATER
+}
+
+/**
+ * Whether the dispatch receiver of [call] is [receiver], as an implicit receiver or an explicit `this`, with or
+ * without a smart cast.
+ */
+@OptIn(KaExperimentalApi::class)
+internal fun KaSession.isOnReceiver(
+    call: KaCallableMemberCall<*, *>?,
+    receiver: KaSymbol,
+): Boolean = isReceiver(call?.partiallyAppliedSymbol?.dispatchReceiver, receiver)
+
+/**
+ * Whether [call] is made on the updater [receiver], as a member such as `reconcile` or an extension such as
+ * `reconcileWithChildren`.
+ */
+@OptIn(KaExperimentalApi::class)
+internal fun KaSession.isOnUpdater(
+    call: KaCallableMemberCall<*, *>?,
+    receiver: KaSymbol,
+): Boolean = isOnReceiver(call, receiver) || isReceiver(call?.partiallyAppliedSymbol?.extensionReceiver, receiver)
+
+@OptIn(KaExperimentalApi::class)
+private fun KaSession.isReceiver(
+    value: KaReceiverValue?,
+    receiver: KaSymbol,
+): Boolean =
+    when (val dispatch = value) {
+        is KaSmartCastedReceiverValue -> {
+            isReceiver(dispatch.original, receiver)
+        }
+
+        is KaImplicitReceiverValue -> {
+            dispatch.symbol == receiver
+        }
+
+        is KaExplicitReceiverValue -> {
+            (KtPsiUtil.safeDeparenthesize(dispatch.expression) as? KtThisExpression)?.resolveSymbol() == receiver
+        }
+
+        else -> {
+            false
+        }
+    }

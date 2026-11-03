@@ -91,11 +91,10 @@ class LayoutConstraintTest {
     /** A container whose manager reports every placement it is handed; see [RecordingLayout]. */
     @Composable
     private fun RecordingContainer(
-        layout: RecordingLayout,
         modifier: SwingModifier = SwingModifier,
         content: @Composable () -> Unit,
     ) {
-        SwingNode(factory = { JPanel(layout) }, modifier = modifier, content = content)
+        SwingNode(factory = { JPanel(RecordingLayout(BorderLayout())) }, modifier = modifier, content = content)
     }
 
     /**
@@ -224,17 +223,16 @@ class LayoutConstraintTest {
 
     @Test
     fun aChangedConstraintReachesTheLayoutManagerExactlyOnce() = runComposeSwingTest {
-        val layout = RecordingLayout(BorderLayout())
         var region by mutableStateOf(BorderLayout.NORTH)
         var text by mutableStateOf("one")
         setContent {
-            RecordingContainer(layout) {
+            RecordingContainer {
                 Label(text, SwingModifier.layoutConstraint(region))
             }
         }
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH),
-            layout.registrations.map { it.constraints },
+            managerPlacing<RecordingLayout>("one").registrations.map { it.constraints },
             "attaching registers the child once",
         )
 
@@ -244,19 +242,19 @@ class LayoutConstraintTest {
         awaitIdle()
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH),
-            layout.registrations.map { it.constraints },
+            managerPlacing<RecordingLayout>("two").registrations.map { it.constraints },
             "an unchanged placement is not re-registered",
         )
-        assertEquals(0, layout.removals.size, "an unchanged placement is not cleared")
+        assertEquals(0, managerPlacing<RecordingLayout>("two").removals.size, "an unchanged placement is not cleared")
 
         region = BorderLayout.SOUTH
         awaitIdle()
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH, BorderLayout.SOUTH),
-            layout.registrations.map { it.constraints },
+            managerPlacing<RecordingLayout>("two").registrations.map { it.constraints },
             "the new placement is registered once",
         )
-        assertEquals(1, layout.removals.size, "the old placement is cleared once")
+        assertEquals(1, managerPlacing<RecordingLayout>("two").removals.size, "the old placement is cleared once")
     }
 
     @Test
@@ -288,16 +286,15 @@ class LayoutConstraintTest {
 
     @Test
     fun aChainThatDeclaresNoConstraintLeavesTheChildPlacedByIndex() = runComposeSwingTest {
-        val layout = RecordingLayout(BorderLayout())
         var placed by mutableStateOf(true)
         setContent {
-            RecordingContainer(layout) {
+            RecordingContainer {
                 Label("free", if (placed) SwingModifier.layoutConstraint(BorderLayout.NORTH) else SwingModifier)
             }
         }
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH),
-            layout.registrations.map { it.constraints },
+            managerPlacing<RecordingLayout>("free").registrations.map { it.constraints },
             "the declared placement is registered",
         )
 
@@ -308,10 +305,14 @@ class LayoutConstraintTest {
         // index alone.
         assertEquals(
             listOf<Any?>(BorderLayout.NORTH, null),
-            layout.registrations.map { it.constraints },
+            managerPlacing<RecordingLayout>("free").registrations.map { it.constraints },
             "giving up the constraint re-registers the child under none",
         )
-        assertEquals(1, layout.removals.size, "the placement it gave up is cleared once")
+        assertEquals(
+            1,
+            managerPlacing<RecordingLayout>("free").removals.size,
+            "the placement it gave up is cleared once",
+        )
     }
 
     @Test
