@@ -647,4 +647,4 @@ class on both sides.
 ## Related
 
 - [`../swing-ui-test/README.md`](../swing-ui-test/README.md) — the harness module.
-- [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) — building the components you are testing.
+- [Writing components](CUSTOM-COMPONENTS.md) — building the components you are testing.

@@ -141,7 +141,7 @@ the fresh component a reactivated node's factory builds, since that component st
 needs every declared property regardless of which of them changed. Recomposition with unchanged state
 therefore writes nothing to an already-attached widget, and the frame costs neither a Swing property
 write nor the layout or repaint one would trigger. See
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) for writing such a block.
+[Writing components](CUSTOM-COMPONENTS.md) for writing such a block.
 
 Each composition owns its after-validation scheduling. Pending storage is created by the first deferred
 request, and the compositions share one EDT post to drain their queues. Node callbacks end on modifier
@@ -604,4 +604,4 @@ its drawing, while here all three belong to Swing.
 
 For layout and graphics, see
 [`FOUNDATION.md`](FOUNDATION.md). For a step-by-step guide to building your own component on top
-of `SwingNode`, see [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+of `SwingNode`, see [Writing components](CUSTOM-COMPONENTS.md).

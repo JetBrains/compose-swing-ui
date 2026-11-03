@@ -2,8 +2,7 @@
 
 A Swing widget the user can change is a second writer of its own properties. This document is how a
 component of your own keeps such a property in step with what the composition declares, and how to
-carry state that a declared value with a callback beside it cannot. Building the component itself is
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+carry state that a declared value with a callback beside it cannot. See [Writing components](CUSTOM-COMPONENTS.md) for building the component itself.
 
 ## Properties the user can also change
 
@@ -189,6 +188,8 @@ set(dividerLocation) { location ->
 The `mirror` here is the same `MirrorState` its listener calls `observed` on - `write` is what lets the
 two share one mirror without fighting the user the way re-asserting the declaration on every pass would.
 
+A request can also have no callback. `InternalFrame`'s plain `bounds` are applied when they change and then left to the user, so recomposition keeps the user's later moves.
+
 ## Taking a value in and reporting a change out
 
 A property with two writers reaches your component as a pair: the value in, and the callback that
@@ -209,7 +210,7 @@ There are four cases:
 2. **Undeclared** - the widget owns it. The state holder is nullable and defaults to `null`, with no
    callback beside it: `ListBox`'s `state` is a `ListState?`, `Table`'s a `TableState?` and `Tree`'s a
    `TreeState?`. Left out, the selection is the user's and Swing keeps it, as with any undeclared state;
-   given, it is declared and two-way, and the caller hoists one to set the selection or read it.
+   given, it is declared and two-way, and the caller hoists one to set the selection or read it. `ScrollPane` instead defaults `state` to `rememberScrollState()`, so the pane always has a `ScrollState`, and passing one lets the caller read and move it.
 3. **Model-owned** - the caller hands the widget a model, which takes the value out of the composition
    altogether. The model holds it, the widget renders whatever it holds, and nothing is declared over it,
    so there is no half for a callback to pair with. The callback is then only a report of where the model
@@ -324,6 +325,8 @@ the widget already owns - the shape is a hoistable state holder: an `XState` cla
 next to their own state, with a `rememberXState` factory beside it.
 [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change) says which state takes which
 shape; what follows is what building one takes.
+
+A factory parameter can seed the holder, constrain its live model, or select the model it wraps. For example, the coordinates passed to `rememberScrollState` seed its position once. Use the holder to move the pane after that. A constraint such as a range bound changes the existing model. Supplying a different model gives the caller a holder for that model.
 
 ### The model keeps the value, the holder makes it observable
 

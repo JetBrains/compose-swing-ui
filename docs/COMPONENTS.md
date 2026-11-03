@@ -3,9 +3,7 @@
 This is the catalog of what Compose Swing UI ships: every component family, grouped the way you
 reach for one, with the parameters that decide how it behaves. The KDoc on each function is the
 per-parameter reference. The concepts behind the binding are in
-[`ARCHITECTURE.md`](ARCHITECTURE.md), Foundation layout and graphics are in
-[`FOUNDATION.md`](FOUNDATION.md), and building a component of your own is
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md), and Foundation layout and graphics are in [`FOUNDATION.md`](FOUNDATION.md). See [Writing components](CUSTOM-COMPONENTS.md) to build a component of your own.
 
 <!--- INCLUDE .*content.*
 import androidx.compose.runtime.*
@@ -1372,6 +1370,4 @@ Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` a
 
 The catalog is not the boundary of what you can compose. Any Swing `Component` can be hosted
 directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be
-written as a modifier element of your own. Hosting a component is
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md); writing a modifier element is
-[`MODIFIERS.md`](MODIFIERS.md).
+written as a modifier element of your own. See [Writing components](CUSTOM-COMPONENTS.md) to host a component and [`MODIFIERS.md`](MODIFIERS.md) to write a modifier element.

@@ -2,8 +2,7 @@
 
 A container declares its children rather than adding them, and offers the placements it understands as
 a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting
-a nested composition, and rendering a component's items with a composable cell. Building a leaf
-component is [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md). How the layout system works is
+a nested composition, and rendering a component's items with a composable cell. See [Writing components](CUSTOM-COMPONENTS.md) for building a leaf component. How the layout system works is
 [`FOUNDATION.md`](FOUNDATION.md).
 
 Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime
@@ -229,6 +228,12 @@ custom manager that interprets parent-layout declarations implements `Measuremen
 `LayoutManager2` receive. A container takes a `modifier` because it is also a child: that modifier places
 it in a `PanelLayout.Border` region or a `PanelLayout.GridBag` cell of its parent.
 
+Give content a receiver when it needs placements, data, or operations from the container. `SplitPane` offers placements for its two sides, and a list item scope supplies data such as whether the item is selected. Use a declaration scope for entries that the container builds itself, such as the columns of a `Table`. A slot lets callers use their own composables and apply modifiers where the child is written.
+
+Keep a single call to a content slot when only its placement changes, so the child's remembered state survives the move. If it needs to move between parents, remember the result of `movableContentOf` so the content can move with its state.
+
+Mark a content receiver with `@LayoutScopeMarker`, including a scope that supplies data or composable members. Declare the scope as a sealed interface or a type with no public constructor. A custom `PanelLayout` can supply a scope that extends `PanelScope`, and a custom measure policy can supply one that extends `ConstrainedScope`. `Panel` uses its base scope even when its layout offers no placement modifiers.
+
 ## Placing children under constraints
 
 A child declares where it sits inside its parent on its own `SwingModifier`, with `layoutConstraint`.
@@ -237,13 +242,7 @@ The value is whatever the enclosing container understands - a `BorderLayout` reg
 it is handed over the way `Container.add(Component, Object)` hands it over, so a `LayoutManager2`
 receives it as-is and a manager that takes no constraints places the child by index.
 
-What a container supplies is the rules its children are placed by - a layout manager or a measure
-policy - and a scope whose modifier builders name the placements those rules understand. The scope is a
-public sealed interface annotated `@LayoutScopeMarker`, whose builders are declared as extensions on
-`SwingModifier`, so each one is callable only where that scope is in receiver position - inside the
-container's own content, where the marker hides the scopes of the containers around it - and an
-internal object or class implements them. `RowScope.weight` is the worked precedent for that shape;
-each builder appends the value those rules understand with `layoutConstraint`:
+The container supplies the placement policy and a scope with modifier builders for the placements it understands. Declare the builders as extensions on `SwingModifier` inside the scope. Callers can use them inside the container's content, where the marker hides the surrounding container scopes. As with `RowScope.weight`, each builder appends the value the policy understands with `layoutConstraint`:
 
 ```kotlin
 import androidx.compose.runtime.Composable
@@ -302,7 +301,7 @@ Derive that value from the declaration rather than from a running count of the c
 too: a placement computed from how many siblings came first changes for every later child the moment
 one is inserted, and every one of them is then re-registered. This is advice about the placement value.
 The `key` a child is declared under is a separate question, answered in *What the composition owns*
-in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+in [Writing components](CUSTOM-COMPONENTS.md).
 
 A scope like this keeps the constraint's type inside your container - `MosaicScope` is the whole
 placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
@@ -331,7 +330,7 @@ follows all three:
   own children belong.** Declare it `content: @Composable XScope.() -> Unit` and hand it to `Layout` or
   `SwingNode` as `content = { XScopeImpl.content() }`. Beyond making every child a node the applier
   places, this is what gives each child the identity described in *What the composition owns* in
-  [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md): a child composed where the caller wrote it is told
+  [Writing components](CUSTOM-COMPONENTS.md): a child composed where the caller wrote it is told
   from its siblings by that place. An ordinary block that records composable lambdas for the container
   to invoke afterwards hands every one of them to the single place the container invokes them from, so
   they share it and are left to be told apart by order. Composed directly,

@@ -162,13 +162,6 @@ the same result a fresh checkout gets.
   what was passed and what was left defaulted. Write `Button("Save", onClick = ::save, modifier = m)`,
   not `Button("Save", modifier = m, onClick = ::save)`.
 
-### Composable target
-
-`@SwingComposable` (or `@SwingMenuComposable` for a menu) belongs on `SwingNode`, the menu-tree
-primitives, `setContent`, and a `content`/slot lambda **parameter** forwarded to one of them by value -
-not on an ordinary component or container. See
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for the full explanation.
-
 ### Typed constants
 
 Model a closed set of named JDK/Swing integer constants (a selection mode, a placement, a message
@@ -206,9 +199,7 @@ constants. Group a new typedef alongside the library's other typed constant sets
 
 ## Adding a new component
 
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) is the authoritative, worked guide to writing
-a component - it applies equally to library components and to components you build in your own app.
-Follow it, then:
+Use the public component-author API for built-in components and for components you write in an application. See [Writing components](docs/CUSTOM-COMPONENTS.md) for designing and implementing one.
 
 - Add a behavioral test under `swing-ui/src/test` exercising state -> recomposition -> visible change
   (and listener re-attach if relevant). Library tests use the `:swing-ui-test` harness, available as

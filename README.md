@@ -175,7 +175,7 @@ interaction flows through `modifier`. Builders cover layout, interaction, listen
 
 Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, supported way to bring
 custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same
-way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
+way. See [Writing components](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
 
 Further guides carry the rest:

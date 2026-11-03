@@ -3,7 +3,7 @@
 A `SwingModifier` gives a component its listeners, decoration and its place in its parent. The component's
 own properties, such as its colors and fonts, are set by its [style](STYLES.md). This page explains how a
 modifier is applied, and how to accept one in your own component. Building the component itself is covered in
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+[Writing components](CUSTOM-COMPONENTS.md).
 
 <!--- INCLUDE .*modifier.*
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -53,6 +53,8 @@ The component's `style` sets it, and a style writes after the modifier; see
 A modifier is immutable, and two modifiers built the same way from equal elements are equal, so one built
 in place on every pass matches the previous pass. Reuse is a builder function: an extension that appends
 the elements. [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows one that declares a scope.
+
+When a modifier binds a handle to a component, create a separate handle for each component that needs one. For example, a popup anchor targets one component. Applying the same anchor to two components leaves only one target for the popup.
 
 ## Order and merge
 
@@ -343,7 +345,7 @@ public fun SwingModifier.card(): SwingModifier =
 Where a builder needs a value the caller holds or shares - a handle, an anchor, a renderer - split it in
 two: a `remember*` composable that creates the value, and a plain builder that takes it.
 `rememberPopupAnchor()` with `popupAnchor(anchor)`, and `rememberListItemRenderer { }` with
-`listItemRenderer(renderer)`, are both that pair.
+`listItemRenderer(renderer)`, are both that pair. A builder or factory that serves one family of components carries the family in its name: `listItemRenderer`, not `itemRenderer`.
 
 State private to each component the modifier reaches, such as whether that component is hovered, belongs
 on a `ComponentNode`, created once per component: it holds that state in its fields, runs coroutines in
@@ -438,7 +440,7 @@ SwingModifier
 
 <!--- CLEAR -->
 
-A method you leave out does nothing. The single-lambda overload runs once per method, so one mouse
+A method you leave out does nothing, and the per-method overload requires at least one handler. The single-lambda overload runs once per method, so one mouse
 interaction reaches it more than once. `treeWillExpandListener`'s lambdas answer with a boolean
 instead: returning `false` leaves the node as it was.
 

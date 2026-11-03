@@ -1,6 +1,6 @@
 # Styles: concepts and authoring
 
-A `SwingStyle` sets the properties of one component: its colors, its text, its sizes. This page explains what a style is, when it runs, and how to accept one in your own component and define the properties and nested-style keys it uses. Listeners, a component's place in its parent, and decoration stay in a `SwingModifier`; see [`MODIFIERS.md`](MODIFIERS.md). Building the component itself is covered in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+A `SwingStyle` sets the properties of one component: its colors, its text, its sizes. This page explains what a style is, when it runs, and how to accept one in your own component and define the properties and nested-style keys it uses. Listeners, a component's place in its parent, and decoration stay in a `SwingModifier`; see [`MODIFIERS.md`](MODIFIERS.md). Building the component itself is covered in [Writing components](CUSTOM-COMPONENTS.md).
 
 <!--- INCLUDE .*styles-01.*
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor

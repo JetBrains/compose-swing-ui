@@ -38,12 +38,12 @@ fun main() = SwingUtilities.invokeLater {
 Set a component's properties with its `style: SwingStyle<S> = SwingStyle` parameter. Add listeners, parent
 data and decoration with its `modifier: SwingModifier = SwingModifier` parameter. Domain callbacks like
 `onClick` stay ordinary parameters. See [`docs/STYLES.md`](../docs/STYLES.md). To wrap your own Swing component, use the public
-`SwingNode` API — see [`docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md).
+`SwingNode` API — see [Writing components](../docs/CUSTOM-COMPONENTS.md).
 
 The complete component, layout, style, modifier, window, dialog, and menu API is documented in KDoc.
 
 ## Related
 
 - [`README.md`](../README.md) — project overview and quick start.
-- [`docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md) — building your own components.
+- [Writing components](../docs/CUSTOM-COMPONENTS.md) — building your own components.
 - [`swing-ui-test/README.md`](../swing-ui-test/README.md) — testing your components.

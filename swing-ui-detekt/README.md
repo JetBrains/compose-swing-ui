@@ -116,4 +116,4 @@ detekt {
 ## Related
 
 - [`../swing-ui/README.md`](../swing-ui/README.md) - the core library.
-- [`../docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md) - writing a component the rules apply to.
+- [Writing components](../docs/CUSTOM-COMPONENTS.md) - designing and writing a component the rules apply to.

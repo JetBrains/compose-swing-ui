@@ -1,9 +1,6 @@
-# Defining a custom Swing component in Compose
+# Writing components
 
-Compose Swing UI ships wrappers for the common widgets (`Button`, `TextField`, `Slider`, ...), but
-real applications host many bespoke Swing components. Wrapping your own component uses the same
-public `SwingNode` API every built-in wrapper is built on. This guide shows how. `SwingNode` and
-the other APIs it uses require opt-in to `SwingComponentLibraryApi`.
+Build reusable UI by composing existing components. When you need a Swing binding those components do not provide, wrap the widget in a composable of your own.
 
 Further documents carry the rest:
 
@@ -16,10 +13,15 @@ Further documents carry the rest:
 - [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) - containers, the placements they offer their
   children, and rendering items with a composable cell.
 
+## When to write a component
+
+Start by combining the existing components at the call site. Give the result a name when it is a reusable piece of UI, such as a search field with its own actions. That composable needs no `SwingNode`. If the behavior attaches to a single existing component, expose it as a [modifier builder](MODIFIERS.md#writing-a-builder). Keep ordinary Swing operations as ordinary calls. For example, a click callback can open a `JFileChooser`.
+
+Use `SwingNode` to implement a new Swing binding, with an opt-in to `SwingComponentLibraryApi`. Give each wrapped widget its own composable and combine those wrappers to build the UI. A composable that emits UI returns `Unit`. The caller creates a state holder or a handle separately and passes it in, so they can read state or invoke an action wherever they need to.
+
 ## The mental model
 
-A composable component is a function that wraps a single Swing `Component`. You describe the
-component once and let Compose keep it in sync with state:
+To wrap a Swing widget, create it with `SwingNode` and let Compose keep it in sync with state:
 
 ```kotlin
 @Composable
@@ -40,7 +42,7 @@ public fun MyWidget(
 <!--- CLEAR -->
 
 Use `modifier` for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier.
-[`STYLES.md`](STYLES.md) covers the scope, the kind and the keys.
+[`STYLES.md`](STYLES.md) covers the scope, the kind and the keys. See [Choosing the signature](#choosing-the-signature) for the rest of the signature.
 
 - `factory` runs **once**, when the node enters the composition. Build (and do one-time
   configuration of) your Swing component here. Each call builds and returns a new component, never
@@ -50,8 +52,8 @@ Use `modifier` for placement, listeners and decoration, and `style` for the comp
   the first one, so anything the component is to go on using is built inside `factory`. The
   component's own layout manager is the usual one to get wrong - a container that later hands its
   children placements computed against a freshly built layout is describing a layout nothing is laid
-  out by.
-- `update` runs on the first composition and on **every recomposition**. Inside it you declare which
+  out by. A caller can supply an existing model or declare a layout policy as an input.
+- `update` runs on the first composition and on **every recomposition**. Apply every declared input for the component's whole life, including a change back to the default. Inside it you declare which
   pieces of state map onto which component properties; the framework only re-applies the ones that
   actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable
   call inside it - `remember` included - a compile-time error, so read state in the composable body and
@@ -108,7 +110,7 @@ that loop, whatever you pass as its keys, so it survives the child it belongs to
 child it does not. What the container has to say about a child, the child says for itself: the
 placement it declares on its own modifier.
 
-This is why the API you write for others should not hand out the component either. Take data,
+This is why the API you write for others should not hand out the component either. Keep `java.awt.Component` and its subclasses out of parameters, callback types, return types, and type bounds, at every visibility. Take data,
 callbacks, value types (`Icon`, `Border`, `Color`, `Insets`, `KeyStroke`) and models
 (`ListModel`, `TableModel`, `Document`) - the composition manages none of *their* internals, so there
 is nothing to race. Keeping the component out of your signatures is what lets the composition stay the
@@ -117,6 +119,34 @@ single writer.
 The same rule explains where a property belongs. One that only your component has is a parameter of
 your component. One that many unrelated components have is a style property, so it reaches all of them
 without every wrapper repeating it - and so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
+
+## Choosing the signature
+
+| What the caller supplies | Where it goes | Example |
+| --- | --- | --- |
+| Data or behavior specific to the component | Parameter | `SplitPane`'s `resizeWeight` |
+| A response to a component event | Callback parameter | `Button`'s `onClick` |
+| Properties shared by several component types | `SwingStyle` | Enabled state, font, tooltip |
+| Placement, decoration, or an attached behavior | `SwingModifier` | A border layout region, a shadow, a focus listener |
+| Components the caller builds | Content slot | The pages of a `TabbedPane` |
+
+Use a data parameter when the widget renders that data itself. `Button` takes text because its `JButton` paints the label. Use a content slot when callers should choose the components or their arrangement. [A container of your own](CUSTOM-CONTAINERS.md#a-container-of-your-own) covers content and its scope.
+
+Pass a component's own inputs as parameters, not through a `CompositionLocal`. Use [nested styles](STYLES.md#nested-styles) when an appearance setting should apply to a subtree.
+
+Put required inputs and callbacks first, optional configuration next, and the main content slot last. For a component the caller places, make a single `modifier: SwingModifier = SwingModifier` the first optional parameter. Pass it to the root so the caller can place and decorate the component. Append any modifiers the component needs after the caller's chain. Declare placements for its own children where it emits them. Use the trailing lambda for content, such as children or drawing commands. [Taking a value in and reporting a change out](COMPONENT-STATE.md#taking-a-value-in-and-reporting-a-change-out) gives the order for state and its callbacks.
+
+## Keeping the widget's behavior and defaults
+
+A wrapper keeps the widget's behavior and defaults. Offer any additional behavior as a separate choice for the caller. Use the Swing or AWT name for the concept the API exposes. For example, `DocumentState` holds a `Document`.
+
+Default a widget property to its Swing value. For example, `TextField` uses `columns = 0`, the value of a new `JTextField`. Keep a Swing sentinel such as `SplitPane`'s `dividerLocation = -1`. Require the input when it has no meaningful default. `Window` and `Dialog` default to visible so declaring one shows it.
+
+For a wrapped widget property, use a `null` default when the JDK default is `null` or when omitting the value leaves it to Swing. For example, `Spinner` preserves the model's nullable bounds, and omitting `viewportBorder` keeps the look and feel's border. When Swing supplies a concrete default independent of the look and feel, use that value. A window whose size is unspecified packs to its content. See [A property the look and feel decides](#a-property-the-look-and-feel-decides) to resolve a nullable property.
+
+Type a parameter that takes one of a closed set of JDK constants as an `Int`, or a `String` for string constants, with a `@MagicConstant` annotation over the JDK's own constants. Do not wrap the constants in an enum or a value class. See [Typed constants](../CONTRIBUTING.md#typed-constants).
+
+When the API adds declarations that conflict, reject the conflict and tell the caller how to fix it. `PanelLayout.Card` rejects two children with the same card name. A layout that exposes Swing's own placement policy preserves that policy, including how `BorderLayout` resolves two children in one region.
 
 ## The `SwingNode` signatures
 
@@ -262,13 +292,9 @@ inside a Swing composition - or a Swing composable inside a `compose.ui` composi
 compile-time error with a "Swing Composable vs UI Composable" message, instead of compiling silently
 and failing at runtime.
 
-The compiler infers a composable's target from what it calls, so an ordinary component or container
-built on `SwingNode` - every wrapper in this guide included - needs no annotation of its own. The one
-place it cannot infer is a `content`/slot lambda **parameter** you forward to `SwingNode` by value
-rather than composing inline (see *A container example* in
-[`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md)) - type that parameter
-`@Composable @SwingComposable () -> Unit`, matching `SwingNode`'s own signature above, so the types
-line up at the call.
+The compiler infers an ordinary wrapper's target from the nodes it calls. To forward a content parameter to `SwingNode`, `ExistingSwingNode`, or a Swing composition entry point such as `JComponent.setContent`, declare it as `@Composable @SwingComposable () -> Unit`. For a parameter forwarded to `MenuNode` or `JMenuBar.setContent`, use `@Composable @SwingMenuComposable () -> Unit`. A slot you call inline gets its target from that call.
+
+A composable that installs content into the enclosing Swing tree through a separate composition declares its target on the function. For example, `WindowScope.MenuBar` has a Swing target and takes menu-target content.
 
 ## Configuring a component its parent owns
 
