@@ -21,7 +21,8 @@ import java.awt.Component
  * Swing widget, [update] maps composition state onto it, and [content] supplies any nested menu items
  * (empty for a leaf such as a single item or separator).
  *
- * @param factory builds the backing Swing widget, once, on the pass that creates the node.
+ * @param factory builds and returns a new backing Swing widget on every call, never one built elsewhere.
+ *   The composition calls it once, on the pass that creates the node.
  * @param modifier the [SwingModifier] applied to the widget, after [update] has run, so a chain can
  *   override what the widget's own state declared. Forward the chain the enclosing composable took;
  *   defaults to [SwingModifier], the empty chain.

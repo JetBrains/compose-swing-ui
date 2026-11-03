@@ -31,6 +31,7 @@ import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.params.ParameterizedTest
@@ -270,12 +271,11 @@ class AnimatedGridBagCellTest {
      */
     private fun ComposeSwingTest.expandInACellNarrowedPartWay(): Pair<Trace, Int> {
         val trace = Trace()
-        val panel = TracingPanel(trace)
         val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
         var width by mutableIntStateOf(WIDTH)
         var visible by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { panel }) {
+            SwingNode(factory = { TracingPanel(trace) }) {
                 cell(width) { modifier ->
                     AnimatedVisibility(
                         visible = visible,
@@ -294,7 +294,7 @@ class AnimatedGridBagCellTest {
         val narrowedAt = (transition / 4 / mainClock.frameDuration).toInt()
         repeat(narrowedAt + (transition * 2 / mainClock.frameDuration).toInt()) { frame ->
             if (frame == narrowedAt) width = InNarrowedCell.width
-            drivePaintedFrame(trace, panel, frame)
+            drivePaintedFrame(trace, frame)
         }
         return trace to narrowedAt
     }
@@ -304,13 +304,12 @@ class AnimatedGridBagCellTest {
      */
     private fun ComposeSwingTest.drivePaintedFrame(
         trace: Trace,
-        panel: TracingPanel,
         frame: Int,
     ) {
         trace.frame = frame
         mainClock.advanceTimeByFrame()
         val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
-        panel.watched = container
+        onNodeOfType<TracingPanel>().fetch().watched = container
         captureToImage()
         trace.record(Phase.COMPLETED, container.size)
     }
@@ -328,10 +327,9 @@ class AnimatedGridBagCellTest {
     fun `an expand in a cell narrower than the content holds the container at its natural size`() =
         runComposeSwingTest {
             val trace = Trace()
-            val panel = TracingPanel(trace)
             var visible by mutableStateOf(false)
             setContent {
-                SwingNode(factory = { panel }) {
+                SwingNode(factory = { TracingPanel(trace) }) {
                     EnteringCell(
                         visible,
                         expandVertically(tween(TRANSITION_MILLIS, TRANSITION_MILLIS)),
@@ -342,7 +340,7 @@ class AnimatedGridBagCellTest {
             mainClock.autoAdvance = false
             visible = true
             repeat((TRANSITION_MILLIS.milliseconds * 2 / mainClock.frameDuration).toInt() + 3) { frame ->
-                drivePaintedFrame(trace, panel, frame)
+                drivePaintedFrame(trace, frame)
             }
             assertEquals(
                 listOf(AtNaturalWidth),

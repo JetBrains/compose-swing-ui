@@ -13,10 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.assertAskedForLayout
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.currentValueOf
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -65,25 +64,27 @@ class CompositionLocalConsumerLayoutNodeTest {
     fun aMeasureReadingAChangedLocalLaysTheComponentOutAgain() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val panel = JPanel()
             val probe = LocalProbe()
             var width by mutableStateOf(20)
             setWindowContent {
                 CompositionLocalProvider(LocalWidth provides width) {
                     Row {
-                        SwingNode(
-                            factory = { panel },
-                            modifier = SwingModifier then LocalReadingElement(probe, LocalWidth),
-                        )
+                        Panel(
+                            modifier = SwingModifier.testTag("node") then LocalReadingElement(probe, LocalWidth),
+                        ) {}
                     }
                 }
             }
-            assertEquals(20, panel.width, "the node must measure the child at the first local's width")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(20, "the node must measure the child at the first local's width") { this.width }
 
             width = 40
             awaitIdle()
 
-            assertEquals(40, panel.width, "and at the changed local's width after the change")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(40, "and at the changed local's width after the change") { this.width }
         }
 
     /**
@@ -127,10 +128,9 @@ class CompositionLocalConsumerLayoutNodeTest {
             val x = remember { compositionLocalWithComputedDefaultOf { liveX.intValue } }
             Layout(measurePolicy = parentPolicy) {
                 Layout(measurePolicy = policy, modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier = SwingModifier.testTag("child") then LocalReadingElement(width = null, x = x),
-                    )
+                    ) {}
                 }
             }
         }
@@ -159,19 +159,18 @@ class CompositionLocalConsumerLayoutNodeTest {
     fun aMeasureReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val panel = JPanel()
             val probe = LocalProbe()
             var width by mutableStateOf(20)
             setWindowContent {
                 CompositionLocalProvider(LocalStaticWidth provides width) {
                     Row {
-                        SwingNode(
-                            factory = { panel },
-                            modifier = SwingModifier then LocalReadingElement(probe, LocalStaticWidth),
-                        )
+                        Panel(
+                            modifier = SwingModifier.testTag("node") then LocalReadingElement(probe, LocalStaticWidth),
+                        ) {}
                     }
                 }
             }
+            val panel = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("node").fetch<JComponent>()
             assertEquals(20, panel.width, "the node must measure the child at the first local's width")
             val parent = checkNotNull(panel.parent as? JComponent)
             val measures = probe.measures
@@ -194,7 +193,6 @@ class CompositionLocalConsumerLayoutNodeTest {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val probe = LocalProbe()
-            val panel = JPanel()
             var x by mutableStateOf(0)
             setWindowContent {
                 CompositionLocalProvider(LocalX provides x) {
@@ -202,10 +200,11 @@ class CompositionLocalConsumerLayoutNodeTest {
                     // moves past the Row's layout bounds, so each move fits the Row's paint outsets too.
                     Box {
                         Row {
-                            SwingNode(
-                                factory = { panel },
-                                modifier = SwingModifier then LocalReadingElement(probe, width = null, x = LocalX),
-                            )
+                            Panel(
+                                modifier =
+                                    SwingModifier.testTag("node") then
+                                        LocalReadingElement(probe, width = null, x = LocalX),
+                            ) {}
                         }
                     }
                 }
@@ -214,14 +213,18 @@ class CompositionLocalConsumerLayoutNodeTest {
             // again without measuring.
             x = 3
             awaitIdle()
-            assertEquals(3, panel.x, "the node must place the child at the first local's x")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(3, "the node must place the child at the first local's x") { this.x }
             val measures = probe.measures
             val placements = probe.placements
 
             x = 7
             awaitIdle()
 
-            assertEquals(7, panel.x, "and at the changed local's x after the change")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(7, "and at the changed local's x after the change") { this.x }
             assertEquals(measures, probe.measures, "a placement read must not measure again")
             assertEquals(placements + 1, probe.placements, "a placement read must place once again")
         }
@@ -231,22 +234,21 @@ class CompositionLocalConsumerLayoutNodeTest {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val probe = LocalProbe()
-            val panel = JPanel()
             var x by mutableStateOf(0)
             setWindowContent {
                 CompositionLocalProvider(LocalStaticX provides x) {
                     Box {
                         Row {
-                            SwingNode(
-                                factory = { panel },
+                            Panel(
                                 modifier =
-                                    SwingModifier then
+                                    SwingModifier.testTag("node") then
                                         LocalReadingElement(probe, width = null, x = LocalStaticX),
-                            )
+                            ) {}
                         }
                     }
                 }
             }
+            val panel = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("node").fetch<JComponent>()
             assertEquals(0, panel.x, "the node must place the child at the first local's x")
             val parent = checkNotNull(panel.parent as? JComponent)
             val measures = probe.measures
@@ -350,7 +352,7 @@ class CompositionLocalConsumerLayoutNodeTest {
             var width by mutableStateOf(10)
             setWindowContent {
                 CompositionLocalProvider(LocalUnrelated provides unrelated, LocalWidth provides width) {
-                    Row { SwingNode(factory = { JPanel() }, modifier = SwingModifier then LocalReadingElement(probe)) }
+                    Row { Panel(modifier = SwingModifier then LocalReadingElement(probe)) {} }
                 }
             }
             val passes = probe.passes()
@@ -374,16 +376,16 @@ class CompositionLocalConsumerLayoutNodeTest {
     fun aNodeMovedToAnotherRowReadsTheLocalInScopeThere() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val panel = JPanel()
             var inFirstRow by mutableStateOf(true)
             setWindowContent {
                 val child =
                     remember {
                         movableContentOf {
-                            SwingNode(
-                                factory = { panel },
-                                modifier = SwingModifier then LocalReadingElement(LocalProbe(), LocalStaticWidth),
-                            )
+                            Panel(
+                                modifier =
+                                    SwingModifier.testTag("node") then
+                                        LocalReadingElement(LocalProbe(), LocalStaticWidth),
+                            ) {}
                         }
                     }
                 Column {
@@ -391,12 +393,16 @@ class CompositionLocalConsumerLayoutNodeTest {
                     CompositionLocalProvider(LocalStaticWidth provides 30) { Row { if (!inFirstRow) child() } }
                 }
             }
-            assertEquals(20, panel.width, "the node must read the local provided in its own row")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(20, "the node must read the local provided in its own row") { width }
 
             inFirstRow = false
             awaitIdle()
 
-            assertEquals(30, panel.width, "and the new row's local after the child moves there")
+            onWindowWithTitle(WINDOW_TITLE)
+                .onNodeWithTag("node")
+                .assertProperty(30, "and the new row's local after the child moves there") { width }
         }
 
     @Test
@@ -407,7 +413,7 @@ class CompositionLocalConsumerLayoutNodeTest {
             setContent {
                 Row {
                     if (present) {
-                        SwingNode(factory = { JPanel() }, modifier = SwingModifier then LocalReadingElement(probe))
+                        Panel(modifier = SwingModifier then LocalReadingElement(probe)) {}
                     }
                 }
             }

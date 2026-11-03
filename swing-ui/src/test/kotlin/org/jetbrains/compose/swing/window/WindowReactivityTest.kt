@@ -579,22 +579,24 @@ private suspend fun ComposeSwingTest.assertContentLaidOutOnce(state: WindowState
     val written = mutableIntStateOf(0)
     var layingOut = false
     var nestedLayouts = 0
-    val content =
-        object : JPanel() {
-            override fun doLayout() {
-                if (layingOut) nestedLayouts++
-                layingOut = true
-                try {
-                    written.intValue
-                    Snapshot.withMutableSnapshot { written.intValue++ }
-                } finally {
-                    layingOut = false
-                }
-            }
-        }
     setContent {
         Window(onCloseRequest = {}, state = state, title = "laid-out-once-test") {
-            SwingNode(factory = { content })
+            SwingNode(
+                factory = {
+                    object : JPanel() {
+                        override fun doLayout() {
+                            if (layingOut) nestedLayouts++
+                            layingOut = true
+                            try {
+                                written.intValue
+                                Snapshot.withMutableSnapshot { written.intValue++ }
+                            } finally {
+                                layingOut = false
+                            }
+                        }
+                    }
+                },
+            )
         }
     }
     awaitIdle()

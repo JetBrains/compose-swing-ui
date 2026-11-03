@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -207,14 +209,17 @@ class PlacementLayerShiftedBoundsTest {
     fun aWidgetInsideAFadedChildRepaintsWhatItAsksFor() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val widget = ClipRecordingChild()
             setWindowContent {
                 Row(modifier = SwingModifier.background(Brush.of(Color.WHITE))) {
                     Box(modifier = SwingModifier.placementLayer { alpha = 0.5f }) {
-                        SwingNode(factory = { widget }, modifier = SwingModifier.size(20, 20))
+                        SwingNode(factory = { ClipRecordingChild() }, modifier = SwingModifier.size(20, 20))
                     }
                 }
             }
+            val widget =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<ClipRecordingChild>())
+                    .fetch<ClipRecordingChild>()
             widget.clips.clear()
 
             widget.paintImmediately(0, 0, 5, 5)

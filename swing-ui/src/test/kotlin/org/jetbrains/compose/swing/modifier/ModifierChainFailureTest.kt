@@ -38,6 +38,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.TestButtonKind
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.junit.jupiter.api.DynamicTest
@@ -72,20 +73,6 @@ class ModifierChainFailureTest {
                     if (failEmptyDeclaration && elements.isEmpty()) throw declarationFailure
                 }
             }
-        val component =
-            object : JPanel(), DeclaredNodesListener {
-                var emptyHandovers = 0
-
-                override fun onDeclaredNodesChanged(
-                    componentNode: SwingComponentNode<*>,
-                    nodes: List<SwingModifier.Node>,
-                ) {
-                    if (nodes.isEmpty()) {
-                        emptyHandovers++
-                        throw handoverFailure
-                    }
-                }
-            }
         val node = ProbeNode()
         val layoutNode =
             object : ParentLayoutNode() {
@@ -108,7 +95,7 @@ class ModifierChainFailureTest {
             SwingNode(factory = { JPanel(layout) }) {
                 ReusableContentHost(active = active) {
                     SwingNode(
-                        factory = { component },
+                        factory = { HandoverPanel(handoverFailure) },
                         modifier =
                             SwingModifier
                                 .then(NodeOf(node))
@@ -117,6 +104,7 @@ class ModifierChainFailureTest {
                 }
             }
         }
+        val component = onNodeOfType<HandoverPanel>().fetch()
         assertEquals(listOf(layoutNode), layout.elementsOf(component))
         failEmptyDeclaration = true
 
@@ -205,14 +193,14 @@ class ModifierChainFailureTest {
     }
 
     /**
-     * A chain of [nodes] on [panel] torn down by [trigger], one step of which fails. The caller catches [primary] as
-     * the root cause of what it receives (which failure is first is not pinned when it is null), and finds exactly the
-     * failures of [carried] among the causes and suppressed, however they are wrapped. [detachCalls] of the nodes run
-     * `onDetach`, each with every node of the chain still attached; all of them end detached, with their jobs
+     * A chain of [nodes] on a [TeardownPanel] torn down by [trigger], one step of which fails. The caller catches
+     * [primary] as the root cause of what it receives (which failure is first is not pinned when it is null), and finds
+     * exactly the failures of [carried] among the causes and suppressed, however they are wrapped. [detachCalls] of the
+     * nodes run `onDetach`, each with every node of the chain still attached; all of them end detached, with their jobs
      * cancelled. Nodes that observe a state (removal only) are notified of a change made while they are attached,
      * and of none made after the chain is gone.
-     * With [inspector] the debug inspector info is on for the run, and a property listener of [panel] that throws
-     * [primary] is told which node the panel stops holding.
+     * With [inspector] the debug inspector info is on for the run, and a property listener of its [TeardownPanel] that
+     * throws [primary] is told which node the panel stops holding.
      */
     private class Teardown(
         val trigger: Trigger,
@@ -222,16 +210,7 @@ class ModifierChainFailureTest {
         val carried: Set<Throwable> = setOfNotNull(primary),
         val inspector: Boolean = false,
     ) {
-        private val panel = JPanel()
         private val watched = nodes.firstNotNullOfOrNull { it.watched }
-
-        init {
-            if (inspector) {
-                panel.addPropertyChangeListener {
-                    if (it.oldValue is SwingComponentNode<*> && it.newValue == null) throw checkNotNull(primary)
-                }
-            }
-        }
 
         private val chain =
             nodes.fold<ProbeNode, SwingModifier>(SwingModifier) { modifier, node -> modifier.then(NodeOf(node)) }
@@ -249,7 +228,9 @@ class ModifierChainFailureTest {
         private fun remove() = runComposeSwingTest {
             var present by mutableStateOf(true)
             setContent {
-                val content: @Composable () -> Unit = { SwingNode(factory = { panel }, modifier = chain) }
+                val content: @Composable () -> Unit = {
+                    SwingNode(factory = { TeardownPanel(primary, inspector) }, modifier = chain)
+                }
                 if (trigger == Trigger.Reuse) {
                     ReusableContentHost(active = present, content)
                 } else if (present) {
@@ -286,7 +267,7 @@ class ModifierChainFailureTest {
             val recomposer = SwingRecomposer.create(JPanel(), effectContext = diagnostics ?: EmptyCoroutineContext)
             val content =
                 JPanel().setContent(parent = recomposer.compositionContext) {
-                    SwingNode(factory = { panel }, modifier = chain)
+                    SwingNode(factory = { TeardownPanel(primary, inspector) }, modifier = chain)
                 }
             try {
                 val reported = reportedUncaught { verify(assertFailsWith<Throwable> { content.dispose() }) }
@@ -465,6 +446,36 @@ class ModifierChainFailureTest {
         assertEquals(1, node.detachCalls)
         assertFalse(node.isAttached)
         assertTrue(checkNotNull(node.attachedJob).isCancelled, "the node is detached whatever onDetach threw")
+    }
+
+    private class TeardownPanel(
+        primary: Throwable?,
+        inspector: Boolean,
+    ) : JPanel() {
+        init {
+            if (inspector) {
+                addPropertyChangeListener {
+                    if (it.oldValue is SwingComponentNode<*> && it.newValue == null) throw checkNotNull(primary)
+                }
+            }
+        }
+    }
+
+    private class HandoverPanel(
+        private val handoverFailure: Throwable,
+    ) : JPanel(),
+        DeclaredNodesListener {
+        var emptyHandovers = 0
+
+        override fun onDeclaredNodesChanged(
+            componentNode: SwingComponentNode<*>,
+            nodes: List<SwingModifier.Node>,
+        ) {
+            if (nodes.isEmpty()) {
+                emptyHandovers++
+                throw handoverFailure
+            }
+        }
     }
 
     private class RefusingRestore(

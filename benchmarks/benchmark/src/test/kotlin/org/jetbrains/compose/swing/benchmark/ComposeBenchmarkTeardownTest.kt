@@ -16,31 +16,27 @@ class ComposeBenchmarkTeardownTest {
 
     @Test
     fun `teardown after firstCompose reports a layout failure`() {
-        val panel =
-            object : JPanel() {
-                override fun doLayout() = throw failure
-            }
-        assertTeardownFails(panel) { benchmark, state -> benchmark.firstCompose(state) }
+        assertTeardownFails({ SwingNode(factory = { FailingLayoutPanel(failure) }) }) { benchmark, state ->
+            benchmark.firstCompose(state)
+        }
     }
 
     @Test
     fun `teardown after firstLayout reports a paint failure`() {
-        val panel =
-            object : JPanel() {
-                override fun paintComponent(graphics: Graphics) = throw failure
-            }
-        assertTeardownFails(panel) { benchmark, state -> benchmark.firstLayout(state) }
+        assertTeardownFails({ SwingNode(factory = { FailingPaintPanel(failure) }) }) { benchmark, state ->
+            benchmark.firstLayout(state)
+        }
     }
 
     private fun assertTeardownFails(
-        panel: JPanel,
+        panel: @Composable () -> Unit,
         firstFrame: (ComposeBenchmark, FirstFrameState) -> Unit,
     ) {
         val subject =
             object : FixtureSubject {
                 @Composable
                 override fun Content() {
-                    SwingNode<JPanel>(factory = { panel })
+                    panel()
                 }
 
                 override fun toggle(alternative: Int) = Unit
@@ -58,5 +54,17 @@ class ComposeBenchmarkTeardownTest {
         state.createSubjects()
         firstFrame(ComposeBenchmark(), state)
         assertEquals(failure.message, assertFailsWith<IllegalArgumentException> { state.closeSubjects() }.message)
+    }
+
+    private class FailingLayoutPanel(
+        private val failure: Throwable,
+    ) : JPanel() {
+        override fun doLayout() = throw failure
+    }
+
+    private class FailingPaintPanel(
+        private val failure: Throwable,
+    ) : JPanel() {
+        override fun paintComponent(graphics: Graphics) = throw failure
     }
 }

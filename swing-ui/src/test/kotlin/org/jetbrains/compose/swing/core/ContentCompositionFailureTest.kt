@@ -12,15 +12,18 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
@@ -63,11 +66,12 @@ class ContentCompositionFailureTest {
         val composition =
             SwingContentComposition.nested(parentContext, root, probe, ::SwingApplier)
         val text = mutableIntStateOf(0)
-        val component = JPanel()
         composition.setContent {
-            org.jetbrains.compose.swing.node.SwingNode(factory = { component }, update = {
-                set(text.intValue) { name = it.toString() }
-            })
+            SwingNode(
+                factory = { JPanel() },
+                modifier = SwingModifier.testTag("content"),
+                update = { set(text.intValue) { name = it.toString() } },
+            )
         }
         val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
         assertSame(failure, thrown, "the root listener's original failure is reported")
@@ -77,7 +81,7 @@ class ContentCompositionFailureTest {
         awaitIdle()
         assertEquals(1, probe.changes, "the attached root's owner still observes reads")
         assertEquals(1, probe.actionsRun, "the attached root's owner still runs pending actions")
-        assertEquals("1", component.name, "the root's composition still updates its content")
+        onNodeWithTag("content").assertProperty("1", "the root's composition still updates its content") { name }
         assertEquals(listOf("attached"), probe.events, "the reported callback leaves the root attached")
         composition.dispose()
         assertEquals(listOf("attached", "detached"), probe.events, "dispose still detaches the root once")

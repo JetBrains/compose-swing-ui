@@ -59,43 +59,46 @@ class NodeFocusInteractionTest {
 
     @Test
     fun aFocusGainedNotificationReachesTheNodesOwnProcessing() = runComposeSwingTest {
-        val field = ProcessingTextField()
-        setContent { SwingNode(factory = { field }) }
+        setContent { SwingNode(factory = { ProcessingTextField() }) }
 
         // Handing the event to the component the ordinary way is not enough off-screen: AWT consults
         // the keyboard focus manager first, which refuses focus for a component that is not showing and
         // keeps the event. The action has to get past that for the notification to be delivered at all.
+        // The raw dispatch targets the component itself, so the test fetches it while it is in the tree.
+        val field = onNodeOfType<ProcessingTextField>().fetch()
         field.dispatchEvent(FocusEvent(field, FocusEvent.FOCUS_GAINED))
-        assertEquals(emptyList(), field.processed, "a plainly dispatched focus event never reaches the node")
+        onNodeOfType<ProcessingTextField>().assertProperty(
+            emptyList<String>(),
+            "a plainly dispatched focus event never reaches the node",
+        ) { processed }
 
         onNodeOfType<JTextField>().performFocusGained()
-        assertEquals(listOf("gained"), field.processed, "the action should deliver the notification to the node")
+        onNodeOfType<ProcessingTextField>()
+            .assertProperty(listOf("gained"), "the action should deliver the notification to the node") { processed }
     }
 
     @Test
     fun aFocusLostNotificationReachesTheNodesOwnProcessing() = runComposeSwingTest {
-        val field = ProcessingTextField()
-        setContent { SwingNode(factory = { field }) }
+        setContent { SwingNode(factory = { ProcessingTextField() }) }
 
         onNodeOfType<JTextField>().performFocusLost()
-        assertEquals(listOf("lost"), field.processed, "the action should deliver the notification to the node")
+        onNodeOfType<ProcessingTextField>()
+            .assertProperty(listOf("lost"), "the action should deliver the notification to the node") { processed }
     }
 
     @Test
     fun aTemporaryNotificationIsDeliveredAsTemporary() = runComposeSwingTest {
-        val field = ProcessingTextField()
-        setContent { SwingNode(factory = { field }) }
+        setContent { SwingNode(factory = { ProcessingTextField() }) }
 
         // Widgets branch on this: a formatted text field acts on a permanent focus change and lets a
         // temporary one pass, so a test has to be able to say which one it is delivering.
         onNodeOfType<JTextField>().performFocusGained(temporary = true)
         onNodeOfType<JTextField>().performFocusLost(temporary = true)
 
-        assertEquals(
+        onNodeOfType<ProcessingTextField>().assertProperty(
             listOf("gained (temporary)", "lost (temporary)"),
-            field.processed,
             "the temporariness the action declares should reach the node",
-        )
+        ) { processed }
     }
 
     @Test

@@ -11,10 +11,13 @@ import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
@@ -50,10 +53,17 @@ internal class FadeLeaf : JComponent() {
 }
 
 internal class FadeFixture {
-    val leaf = FadeLeaf()
     val tap = TapElement()
-    lateinit var host: JComponent
     var visible by mutableStateOf(true)
+    internal lateinit var test: ComposeSwingTest
+    internal var inWindow = false
+    val leaf: FadeLeaf
+        get() =
+            if (inWindow) {
+                test.onWindowWithTitle("fade").onNode(SwingMatcher.isOfType<FadeLeaf>()).fetch<FadeLeaf>()
+            } else {
+                test.onNodeOfType<FadeLeaf>().fetch()
+            }
     val container: JComponent get() = leaf.parent as JComponent
 }
 
@@ -63,24 +73,26 @@ internal suspend fun ComposeSwingTest.mountFade(
     fixture: FadeFixture,
     inWindow: Boolean = false,
 ) {
+    val hostTag = "fadeHost"
+    fixture.test = this
+    fixture.inWindow = inWindow
     val fade: @Composable () -> Unit = {
-        SwingNode(
+        SwingNode<JComponent>(
             factory = {
-                val host: JComponent =
-                    if (parent == FadeParent.Stock) {
-                        JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
-                    } else {
-                        ConstrainedPanel()
-                    }
-                host.also { fixture.host = it }
+                if (parent == FadeParent.Stock) {
+                    JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+                } else {
+                    ConstrainedPanel()
+                }
             },
+            modifier = SwingModifier.testTag(hostTag),
         ) {
             AnimatedVisibility(
                 visible = fixture.visible,
                 modifier = (if (inWindow) SwingModifier.then(fixture.tap) else SwingModifier).then(parent.modifier),
                 enter = EnterTransition.None,
                 exit = fadeOut(tween(480, easing = LinearEasing)),
-            ) { SwingNode(factory = { fixture.leaf }, modifier = SwingModifier.styleable { preferredSize(60, 40) }) }
+            ) { SwingNode(factory = { FadeLeaf() }, modifier = SwingModifier.styleable { preferredSize(60, 40) }) }
         }
     }
     if (inWindow) {
@@ -92,7 +104,7 @@ internal suspend fun ComposeSwingTest.mountFade(
     } else {
         setContent(fade)
         awaitIdle()
-        fixture.host.validate()
+        onNodeWithTag(hostTag).fetch().validate()
     }
     mainClock.autoAdvance = false
 }

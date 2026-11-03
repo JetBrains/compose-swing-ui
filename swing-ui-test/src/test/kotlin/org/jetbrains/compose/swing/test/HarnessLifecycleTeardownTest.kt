@@ -169,13 +169,12 @@ class HarnessLifecycleTeardownTest {
         var stateInRelease: Lifecycle.State? = null
 
         fun endTest() {
-            val slider = JSlider()
             runComposeSwingTest {
                 testedRoot = root
                 setContent {
                     owner = LocalLifecycleOwner.current
                     case.reported?.let { reported ->
-                        SwingNode(factory = { slider }, modifier = SwingModifier.changeListener { raise(reported) })
+                        SwingNode(factory = { JSlider() }, modifier = SwingModifier.changeListener { raise(reported) })
                     }
                     DisposableEffect(Unit) {
                         onDispose {
@@ -209,7 +208,7 @@ class HarnessLifecycleTeardownTest {
                     },
                 )
                 awaitIdle()
-                if (case.reported != null) slider.value = 75
+                if (case.reported != null) onNodeOfType<JSlider>().fetch().value = 75
                 raise(case.block)
             }
         }

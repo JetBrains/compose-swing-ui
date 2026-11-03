@@ -4,15 +4,19 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
@@ -24,6 +28,8 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -196,17 +202,17 @@ class ConstrainedPanelObservationTest {
             val width = mutableIntStateOf(10)
             val policy = WidthPolicy(width)
             var declared by mutableStateOf(true)
-            val host = JPanel(BorderLayout())
             setContent {
                 Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     if (declared) Layout(policy, modifier = SwingModifier.testTag("panel"))
                     SwingNode(
-                        factory = { host },
-                        modifier = SwingModifier.styleable { preferredSize(300, 100) },
+                        factory = { JPanel(BorderLayout()) },
+                        modifier = SwingModifier.testTag(HOST_TAG).styleable { preferredSize(300, 100) },
                     )
                 }
             }
             awaitIdle()
+            val host = onNodeWithTag(HOST_TAG).fetch<JPanel>()
             val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
             val content = panel.setContent { Box(modifier = SwingModifier.testTag("child")) }
             try {
@@ -233,44 +239,50 @@ class ConstrainedPanelObservationTest {
     fun aPanelHostingContentKeepsTrackingAfterEveryNodeDeclaringItIsReleased() =
         runComposeSwingTest {
             val width = mutableIntStateOf(10)
-            val panel = ConstrainedPanel(WidthPolicy(width))
+            val policy = WidthPolicy(width)
             var inRow by mutableStateOf(false)
             var declared by mutableStateOf(true)
-            val host = JPanel(BorderLayout())
+            var mounted by mutableStateOf(false)
             setContent {
-                val declaration = remember { movableContentOf { SwingNode(factory = { panel }) } }
+                val mounts = rememberContentMounts()
+                val declaration =
+                    remember {
+                        movableContentOf {
+                            MountedPanelNode(mounts, mounted, policy, SwingModifier.testTag(PANEL_TAG)) {
+                                Box(modifier = SwingModifier.testTag("child"))
+                            }
+                        }
+                    }
                 Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     if (declared) {
                         if (inRow) Row { declaration() } else Box { declaration() }
                     }
                     SwingNode(
-                        factory = { host },
-                        modifier = SwingModifier.styleable { preferredSize(300, 100) },
+                        factory = { JPanel(BorderLayout()) },
+                        modifier = SwingModifier.testTag(HOST_TAG).styleable { preferredSize(300, 100) },
                     )
                 }
             }
             awaitIdle()
-            val content = panel.setContent { Box(modifier = SwingModifier.testTag("child")) }
-            try {
-                awaitIdle()
-                inRow = true
-                awaitIdle()
-                declared = false
-                awaitIdle()
-                host.add(panel)
-                host.revalidate()
-                awaitIdle()
+            val panel = onNodeWithTag(PANEL_TAG).fetch<ConstrainedPanel>()
+            val host = onNodeWithTag(HOST_TAG).fetch<JPanel>()
+            mounted = true
+            awaitIdle()
+            inRow = true
+            awaitIdle()
+            declared = false
+            awaitIdle()
+            host.add(panel)
+            host.revalidate()
+            awaitIdle()
 
-                width.intValue = 30
-                awaitIdle()
+            width.intValue = 30
+            awaitIdle()
 
-                onNodeWithTag("child").assertProperty(
-                    Rectangle(0, 0, 30, 10),
-                    "the node its content is rooted at still tracks the policy's reads",
-                ) { bounds }
-            } finally {
-                content.dispose()
-            }
+            onNodeWithTag("child").assertProperty(
+                Rectangle(0, 0, 30, 10),
+                "the node its content is rooted at still tracks the policy's reads",
+            ) { bounds }
         }
 
     @Test
@@ -282,11 +294,11 @@ class ConstrainedPanelObservationTest {
             val panel = onNodeWithTag(PANEL_TAG).fetch<JComponent>()
             onNodeWithTag(PANEL_TAG).captureToImage()
             // The declared node attached first, so it records; the root of this content does not.
-            val handle = panel.setSwingContent {}
+            shared.extraRoot = true
             awaitIdle()
 
             withRecordedRepaints { repaints ->
-                handle.dispose()
+                shared.extraRoot = false
                 awaitIdle()
 
                 assertEquals(0, repaints.repaintsOf(panel), "the first node still records the paint reads")
@@ -318,48 +330,39 @@ class ConstrainedPanelObservationTest {
             val moved = MovablePanel(scenario.nested)
             setContent(moved.content)
             awaitIdle()
-            val source = moved.mount()
-            awaitIdle()
             val panel = onNodeWithTag(PANEL_TAG).fetch<JComponent>()
             // The declared node records; an extra content root does not.
-            val extraRoot =
-                if (scenario.recordingRootLeaves || (scenario.paint && !scenario.nested)) {
-                    panel.setSwingContent {}.also { awaitIdle() }
-                } else {
-                    null
-                }
-            try {
-                if (scenario.paint) {
-                    assertMovedPaintRead(scenario, moved, panel, source)
-                } else {
-                    moved.inOuter = true
+            if (scenario.recordingRootLeaves || (scenario.paint && !scenario.nested)) {
+                moved.extraRoot = true
+                awaitIdle()
+            }
+            if (scenario.paint) {
+                assertMovedPaintRead(scenario, moved, panel)
+            } else {
+                moved.inOuter = true
+                awaitIdle()
+                if (scenario.recordingRootLeaves) {
+                    moved.extraRoot = false
                     awaitIdle()
-                    if (scenario.recordingRootLeaves) {
-                        extraRoot?.dispose()
-                        awaitIdle()
-                        assertTrue(panel.isValid, "${scenario.name}: recording root disposal preserves validity")
-                    }
-                    if (scenario.nested) assertMovedPanelAttached(panel, source, scenario.name)
-                    moved.width.intValue = 30
-                    Snapshot.sendApplyNotifications()
-                    assertFalse(panel.isValid, "${scenario.name}: changed policy read invalidates")
-                    if (scenario.nested || scenario.recordingRootLeaves) {
-                        awaitIdle()
-                        assertEquals(30, panel.preferredSize.width, scenario.name)
-                    }
+                    assertTrue(panel.isValid, "${scenario.name}: recording root disposal preserves validity")
                 }
-            } finally {
-                extraRoot?.dispose()
-                source.dispose()
+                if (scenario.nested) assertMovedPanelAttached(moved, panel, scenario.name)
+                moved.width.intValue = 30
+                Snapshot.sendApplyNotifications()
+                assertFalse(panel.isValid, "${scenario.name}: changed policy read invalidates")
+                if (scenario.nested || scenario.recordingRootLeaves) {
+                    awaitIdle()
+                    assertEquals(30, panel.preferredSize.width, scenario.name)
+                }
             }
         }
 
     private suspend fun ComposeSwingTest.assertMovedPanelAttached(
+        moved: MovablePanel,
         panel: JComponent,
-        source: DisposableHandle,
         name: String,
     ) {
-        source.dispose()
+        moved.mounted = false
         awaitIdle()
         assertSame(panel, onNodeWithTag(PANEL_TAG).fetch<JComponent>(), name)
         assertTrue(panel.isValid, name)
@@ -369,12 +372,11 @@ class ConstrainedPanelObservationTest {
         scenario: MoveRead,
         moved: MovablePanel,
         panel: JComponent,
-        source: DisposableHandle,
     ) {
         if (scenario.nested) {
             moved.inOuter = true
             awaitIdle()
-            assertMovedPanelAttached(panel, source, scenario.name)
+            assertMovedPanelAttached(moved, panel, scenario.name)
         }
         onNodeWithTag(PANEL_TAG).captureToImage()
         withRecordedRepaints { repaints ->
@@ -427,23 +429,27 @@ class ConstrainedPanelObservationTest {
     fun aPanelKeepsMeasuringAgainUnderItsDeclarationOnceItMovesOutOfAContentRoot() =
         runComposeSwingTest {
             val width = mutableIntStateOf(10)
-            val panel = ConstrainedPanel(WidthPolicy(width))
-            val first = JPanel(BorderLayout())
             var inOuter by mutableStateOf(false)
-            lateinit var context: CompositionContext
-            lateinit var declaration: @Composable () -> Unit
+            var mounted by mutableStateOf(true)
             setContent {
-                context = rememberCompositionContext()
-                declaration = remember { movableContentOf { SwingNode(factory = { panel }) } }
-                SwingNode(factory = { first })
+                val context = rememberCompositionContext()
+                val declaration =
+                    remember {
+                        movableContentOf {
+                            SwingNode(
+                                factory = { ConstrainedPanel(WidthPolicy(width)) },
+                                modifier = SwingModifier.testTag(PANEL_TAG),
+                            )
+                        }
+                    }
+                MountedHost(SwingModifier.testTag("first"), mounted, context) { if (!inOuter) declaration() }
                 if (inOuter) declaration()
             }
             awaitIdle()
-            val firstContent = first.setSwingContent(parent = context) { if (!inOuter) declaration() }
-            awaitIdle()
+            val panel = onNodeWithTag(PANEL_TAG).fetch<ConstrainedPanel>()
             inOuter = true
             awaitIdle()
-            firstContent.dispose()
+            mounted = false
             awaitIdle()
 
             width.intValue = 30
@@ -452,6 +458,8 @@ class ConstrainedPanelObservationTest {
             assertEquals(30, panel.preferredSize.width, "a changed policy read is reported under the moved declaration")
         }
 
+    // The subject is a component whose content was composed before a node declared it.
+    @Suppress("SwingNodeFactoryReusesComponent")
     @Test
     fun aPanelKeepsPaintingAgainUnderTheNodeDeclaringItOnceItsContentIsDisposed() =
         runComposeSwingTest {
@@ -521,15 +529,17 @@ class ConstrainedPanelObservationTest {
         sizeOf: Constrainable.() -> Dimension,
     ) = runComposeSwingTest {
         val extent = mutableIntStateOf(40)
-        var child: Constrainable? = null
-        val parent =
-            JPanel(
-                ScriptedStockLayout(
-                    sizeOf = { child?.sizeOf() ?: Dimension() },
-                ) { panel, _ -> child?.let { panel.bounds = Rectangle(it.sizeOf()) } },
-            )
         setContent {
-            SwingNode(factory = { parent }) {
+            SwingNode(
+                factory = {
+                    JPanel(
+                        ScriptedStockLayout(
+                            sizeOf = { (it.components.firstOrNull() as? Constrainable)?.sizeOf() ?: Dimension() },
+                        ) { panel, _ -> (panel as? Constrainable)?.let { panel.bounds = Rectangle(it.sizeOf()) } },
+                    )
+                },
+                modifier = SwingModifier,
+            ) {
                 Layout(
                     ScriptedMeasurePolicy(
                         minimumWidth = { extent.intValue },
@@ -537,21 +547,18 @@ class ConstrainedPanelObservationTest {
                         minimumHeight = { extent.intValue },
                         preferredHeight = { extent.intValue },
                     ),
-                    SwingModifier.testTag(PANEL_TAG),
                 )
             }
         }
-        val panel = onNodeWithTag(PANEL_TAG).fetch<ConstrainedPanel>()
-        child = panel
+        val parent = onNodeOfType<ConstrainedPanel>().onParent().fetch<JPanel>()
         parent.revalidate()
         awaitIdle()
         extent.intValue = 60
         awaitIdle()
-        assertEquals(
+        onNodeOfType<ConstrainedPanel>().assertProperty(
             expected,
-            panel.size,
             "$name: a changed intrinsic read sizes the panel again",
-        )
+        ) { this.size }
     }
 
     @ParameterizedTest(name = "{0}")
@@ -662,15 +669,16 @@ class ConstrainedPanelObservationTest {
         private val policy = WidthPolicy(width)
         private val modifier = SwingModifier.panelModifier { Color.RED }
         var declaredFirst by mutableStateOf(true)
+        var extraRoot by mutableStateOf(false)
 
         val content: @Composable () -> Unit = {
-            SwingNode(factory = { JPanel(BorderLayout()) }) {
-                if (declaredFirst) Layout(measurePolicy = policy, modifier = modifier)
+            Panel(PanelLayout.Border()) {
+                if (declaredFirst) ToggledConstrainedHost(modifier, extraRoot, policy) {}
             }
         }
     }
 
-    /** One [Layout] panel that moves between this composition and the one [mount] makes on a host of its own. */
+    /** One [Layout] panel that moves between this composition and the one a host of its own owns while [mounted]. */
     private class MovablePanel(
         nested: Boolean = false,
     ) {
@@ -679,29 +687,26 @@ class ConstrainedPanelObservationTest {
         var color: Color by mutableStateOf(Color.RED)
         private val modifier = SwingModifier.panelModifier { color }
         var inOuter by mutableStateOf(false)
-        private val host = JPanel(BorderLayout())
-        private lateinit var context: CompositionContext
-        private lateinit var movable: @Composable () -> Unit
+        var mounted by mutableStateOf(true)
+        var extraRoot by mutableStateOf(false)
 
         val content: @Composable () -> Unit = {
-            context = rememberCompositionContext()
-            movable =
+            val context = rememberCompositionContext()
+            val movable =
                 remember {
                     movableContentOf {
                         if (nested) {
-                            SwingNode(factory = { JPanel(BorderLayout()) }) {
-                                Layout(measurePolicy = policy, modifier = modifier)
+                            Panel(PanelLayout.Border()) {
+                                ToggledConstrainedHost(modifier, extraRoot, policy) {}
                             }
                         } else {
-                            Layout(measurePolicy = policy, modifier = modifier)
+                            ToggledConstrainedHost(modifier, extraRoot, policy) {}
                         }
                     }
                 }
-            SwingNode(factory = { host })
+            MountedHost(SwingModifier.testTag(HOST_TAG), mounted, context) { if (!inOuter) movable() }
             if (inOuter) movable()
         }
-
-        fun mount() = host.setSwingContent(parent = context) { if (!inOuter) movable() }
     }
 
     /** Takes the width it reads as the extent of the panel, 10 tall. */
@@ -767,8 +772,131 @@ class ConstrainedPanelObservationTest {
             }
 
         private const val PANEL_TAG = "panel"
+        private const val HOST_TAG = "host"
 
         private fun SwingModifier.panelModifier(color: () -> Color): SwingModifier =
             testTag(PANEL_TAG).background(brush = { _, _ -> color() })
+    }
+}
+
+/** A panel that owns a nested composition of [content] under [parent] while [mounted], from its node to its release. */
+@Composable
+private fun MountedHost(
+    modifier: SwingModifier,
+    mounted: Boolean,
+    parent: CompositionContext,
+    content: @Composable () -> Unit,
+) {
+    val current = rememberUpdatedState(content)
+    SwingNode(
+        factory = { MountingPanel() },
+        modifier = modifier,
+        update = { set(mounted) { if (it) mount(parent) { current.value() } else unmount() } },
+        onRelease = { unmount() },
+    )
+}
+
+private class MountingPanel : JPanel(BorderLayout()) {
+    private var mount: DisposableHandle? = null
+
+    fun mount(
+        parent: CompositionContext,
+        content: @Composable () -> Unit,
+    ) {
+        unmount()
+        mount = setSwingContent(parent = parent, content = content)
+    }
+
+    fun unmount() {
+        mount?.dispose()
+        mount = null
+    }
+}
+
+/** Owns the nested compositions that panels declared under it mount, until it leaves the composition. */
+private class ContentMounts : RememberObserver {
+    private val mounts = mutableListOf<DisposableHandle>()
+
+    fun mount(
+        panel: ConstrainedPanel,
+        content:
+            @Composable @SwingComposable
+            ConstrainedScope.() -> Unit,
+    ) {
+        mounts += panel.setContent(null, content)
+    }
+
+    override fun onRemembered() = Unit
+
+    override fun onAbandoned() = onForgotten()
+
+    override fun onForgotten() {
+        mounts.forEach { it.dispose() }
+        mounts.clear()
+    }
+}
+
+@Composable
+private fun rememberContentMounts(): ContentMounts = remember { ContentMounts() }
+
+/** A panel that mounts [content] through [mounts] once [mounted], so the mount outlives the node that declared it. */
+@Composable
+private fun MountedPanelNode(
+    mounts: ContentMounts,
+    mounted: Boolean,
+    measurePolicy: MeasurePolicy,
+    modifier: SwingModifier,
+    content:
+        @Composable @SwingComposable
+        ConstrainedScope.() -> Unit,
+) {
+    val latest = rememberUpdatedState(content)
+    key(measurePolicy) {
+        SwingNode(
+            factory = { ConstrainedPanel(measurePolicy) },
+            modifier = modifier,
+            update = { set(mounted) { if (it) mounts.mount(this) { latest.value(this) } } },
+        )
+    }
+}
+
+/** A panel that owns a nested composition of [content] from its node to its release, while [mounted]. */
+@Composable
+private fun ToggledConstrainedHost(
+    modifier: SwingModifier,
+    mounted: Boolean,
+    measurePolicy: MeasurePolicy,
+    content:
+        @Composable @SwingComposable
+        ConstrainedScope.() -> Unit,
+) {
+    val latest = rememberUpdatedState(content)
+    key(measurePolicy) {
+        SwingNode(
+            factory = { ToggledConstrainedPanel(measurePolicy) },
+            modifier = modifier,
+            update = { set(mounted) { if (it) mount { latest.value(this) } else unmount() } },
+            onRelease = { unmount() },
+        )
+    }
+}
+
+private class ToggledConstrainedPanel(
+    measurePolicy: MeasurePolicy,
+) : ConstrainedPanel(measurePolicy) {
+    private var mount: DisposableHandle? = null
+
+    fun mount(
+        content:
+            @Composable @SwingComposable
+            ConstrainedScope.() -> Unit,
+    ) {
+        unmount()
+        mount = setContent(content = content)
+    }
+
+    fun unmount() {
+        mount?.dispose()
+        mount = null
     }
 }

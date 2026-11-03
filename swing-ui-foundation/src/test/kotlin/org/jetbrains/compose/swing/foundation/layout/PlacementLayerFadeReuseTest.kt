@@ -20,6 +20,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -45,7 +47,6 @@ import javax.swing.JScrollPane
 import javax.swing.JViewport
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -56,25 +57,26 @@ class PlacementLayerFadeReuseTest {
         runComposeSwingTest {
             val alpha = mutableFloatStateOf(0.8f)
             var repaints = 0
-            val content =
-                object : ConstrainedPanel() {
-                    override fun repaint() {
-                        repaints++
-                    }
-                }
             setContent {
                 Row {
                     SwingNode(
-                        factory = { content },
+                        factory = {
+                            object : ConstrainedPanel() {
+                                override fun repaint() {
+                                    repaints++
+                                }
+                            }
+                        },
                         modifier =
                             SwingModifier
+                                .testTag("alphaContent")
                                 .styleable { preferredSize(40, 40) }
                                 .placementLayer { this.alpha = alpha.floatValue }
                                 .background(Brush.of(Color.RED)),
                     )
                 }
             }
-            assertFalse(content.isShowing)
+            onNodeWithTag("alphaContent").assertProperty(false) { isShowing }
             val before = repaints
 
             alpha.floatValue = 0.5f
@@ -297,45 +299,50 @@ class PlacementLayerFadeReuseTest {
         runComposeSwingTest {
             val fixture = FadeFixture()
             var graphicsTaken = 0
-            val viewport =
-                object : JViewport() {
-                    override fun getGraphics(): Graphics? {
-                        graphicsTaken++
-                        return super.getGraphics()
-                    }
-                }
             var paints = 0
-            val view =
-                object : JComponent() {
-                    init {
-                        isOpaque = true
-                        preferredSize = Dimension(FADE_SIDE, FADE_SIDE * 3)
-                    }
-
-                    override fun paintComponent(g: Graphics) {
-                        paints++
-                        g.color = Color.RED
-                        g.fillRect(0, 0, width, height)
-                        g.color = Color.BLUE
-                        g.fillRect(0, FADE_SIDE / 2, width, FADE_SIDE / 2)
-                    }
-                }
-            viewport.view = view
-            val scroll =
-                JScrollPane().apply {
-                    this.viewport = viewport
-                    border = null
-                    verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_NEVER
-                    horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-                }
             val effect = if (containerLayer) FadeEffect.ContainerLayer else FadeEffect.ModifierLayer
             val tap =
                 showFade(fixture, effect) {
                     SwingNode(
-                        factory = { scroll },
+                        factory = {
+                            val viewport =
+                                object : JViewport() {
+                                    override fun getGraphics(): Graphics? {
+                                        graphicsTaken++
+                                        return super.getGraphics()
+                                    }
+                                }
+                            val view =
+                                object : JComponent() {
+                                    init {
+                                        isOpaque = true
+                                        preferredSize = Dimension(FADE_SIDE, FADE_SIDE * 3)
+                                    }
+
+                                    override fun paintComponent(g: Graphics) {
+                                        paints++
+                                        g.color = Color.RED
+                                        g.fillRect(0, 0, width, height)
+                                        g.color = Color.BLUE
+                                        g.fillRect(0, FADE_SIDE / 2, width, FADE_SIDE / 2)
+                                    }
+                                }
+                            viewport.view = view
+                            JScrollPane().apply {
+                                this.viewport = viewport
+                                border = null
+                                verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_NEVER
+                                horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+                            }
+                        },
                         modifier = SwingModifier.styleable { preferredSize(FADE_SIDE, FADE_SIDE) },
                     )
                 }
+            val viewport =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<JScrollPane>())
+                    .fetch<JScrollPane>()
+                    .viewport
             fadeTo(fixture, 0.8f)
             waitUntil(timeout = 10.seconds) { tap.node.shown().isRedAt(FADE_SIDE / 4, FADE_SIDE / 4) }
             val before = graphicsTaken
@@ -376,28 +383,35 @@ class PlacementLayerFadeReuseTest {
     fun fasterDesktopDraggingShowsTheMovedFrameOnTheNextLayerRedraw() =
         runComposeSwingTest {
             val fixture = FadeFixture()
-            val desktop =
-                JDesktopPane().apply {
-                    isOpaque = true
-                    background = Color.WHITE
-                    putClientProperty("JDesktopPane.dragMode", "faster")
-                }
-            val internal =
-                JInternalFrame().apply {
-                    isOpaque = true
-                    contentPane.background = Color.BLUE
-                    setBounds(0, 0, FADE_SIDE, FADE_SIDE)
-                    isVisible = true
-                }
-            desktop.add(internal)
             val desktopSide = FADE_SIDE * 3
             val tap =
                 showFade(fixture, FadeEffect.ModifierLayer, side = desktopSide) {
                     SwingNode(
-                        factory = { desktop },
+                        factory = {
+                            val desktop =
+                                JDesktopPane().apply {
+                                    isOpaque = true
+                                    background = Color.WHITE
+                                    putClientProperty("JDesktopPane.dragMode", "faster")
+                                }
+                            val internal =
+                                JInternalFrame().apply {
+                                    isOpaque = true
+                                    contentPane.background = Color.BLUE
+                                    setBounds(0, 0, FADE_SIDE, FADE_SIDE)
+                                    isVisible = true
+                                }
+                            desktop.add(internal)
+                            desktop
+                        },
                         modifier = SwingModifier.styleable { preferredSize(desktopSide, desktopSide) },
                     )
                 }
+            val desktop =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<JDesktopPane>())
+                    .fetch<JDesktopPane>()
+            val internal = desktop.allFrames.single()
             val y = FADE_SIDE * 3 / 4
             waitUntil(timeout = 10.seconds) { tap.node.shown().isBlueAt(FADE_SIDE / 2, y) }
             val manager = DefaultDesktopManager()

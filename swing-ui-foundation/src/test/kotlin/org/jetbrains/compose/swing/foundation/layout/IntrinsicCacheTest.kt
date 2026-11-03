@@ -1,14 +1,19 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -18,7 +23,6 @@ import java.awt.Dimension
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class IntrinsicCacheTest {
@@ -92,38 +96,45 @@ class IntrinsicCacheTest {
     @Test
     fun aPeerlessPanelReadsChangedStockChildPreferencesAgain() =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
-            val child = JPanel().apply { preferredSize = Dimension(20, 30) }
-            lateinit var context: CompositionContext
-            setContent { context = rememberCompositionContext() }
-            panel.setContent(parent = context) { SwingNode(factory = { child }) }
+            setContent {
+                PeerlessPanelHost {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier.testTag("child"),
+                        update = { set(Dimension(20, 30)) { preferredSize = it } },
+                    )
+                }
+            }
             awaitIdle()
 
-            assertFalse(panel.isDisplayable, "the panel has no peer")
-            assertEquals(20, panel.maxIntrinsicWidth(Constraints.Infinity))
+            onNodeOfType<PeerlessPanelMount>().assertProperty(false, "the panel has no peer") { panel.isDisplayable }
+            onNodeOfType<PeerlessPanelMount>()
+                .assertProperty(20) { panel.maxIntrinsicWidth(Constraints.Infinity) }
+            // The test changes the child's preferred size directly, outside composition, which is its subject.
+            val child = onNodeWithTag("child").fetch<JPanel>()
             child.preferredSize = Dimension(45, 55)
-            assertEquals(45, panel.maxIntrinsicWidth(Constraints.Infinity))
+            onNodeOfType<PeerlessPanelMount>()
+                .assertProperty(45) { panel.maxIntrinsicWidth(Constraints.Infinity) }
         }
 
     @Test
     fun aPeerlessPanelReadsChangedSnapshotStateAgain() =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
             val intrinsicHeight = mutableIntStateOf(23)
-            lateinit var context: CompositionContext
-            setContent { context = rememberCompositionContext() }
-            panel.setContent(parent = context) {
-                Layout(
-                    IntrinsicQueryPolicy { _, hook, _ -> if (hook == 3) intrinsicHeight.intValue else 1 },
-                )
+            setContent {
+                PeerlessPanelHost {
+                    Layout(
+                        IntrinsicQueryPolicy { _, hook, _ -> if (hook == 3) intrinsicHeight.intValue else 1 },
+                    )
+                }
             }
             awaitIdle()
 
-            assertFalse(panel.isDisplayable, "the panel has no peer")
-            assertEquals(23, panel.maxIntrinsicHeight(80))
+            onNodeOfType<PeerlessPanelMount>().assertProperty(false, "the panel has no peer") { panel.isDisplayable }
+            onNodeOfType<PeerlessPanelMount>().assertProperty(23) { panel.maxIntrinsicHeight(80) }
             intrinsicHeight.intValue = 41
             awaitIdle()
-            assertEquals(41, panel.maxIntrinsicHeight(80))
+            onNodeOfType<PeerlessPanelMount>().assertProperty(41) { panel.maxIntrinsicHeight(80) }
         }
 
     @Test
@@ -177,3 +188,35 @@ private fun query(
         2 -> child.minIntrinsicHeight(extent)
         else -> child.maxIntrinsicHeight(extent)
     }
+
+private class PeerlessPanelMount : JPanel() {
+    val panel = ConstrainedPanel()
+    private var mountedUnder: CompositionContext? = null
+    private var mount: DisposableHandle? = null
+
+    fun mount(
+        under: CompositionContext,
+        content: State<@Composable () -> Unit>,
+    ) {
+        if (under === mountedUnder) return
+        mount?.dispose()
+        mountedUnder = under
+        mount = panel.setContent(parent = under) { content.value() }
+    }
+
+    fun release() {
+        mount?.dispose()
+        mount = null
+    }
+}
+
+@Composable
+private fun PeerlessPanelHost(content: @Composable () -> Unit) {
+    val parent = rememberCompositionContext()
+    val current = rememberUpdatedState(content)
+    SwingNode(
+        factory = { PeerlessPanelMount() },
+        update = { set(parent) { mount(it, current) } },
+        onRelease = { release() },
+    )
+}

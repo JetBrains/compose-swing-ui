@@ -37,6 +37,7 @@ import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -142,7 +143,6 @@ class AnimatedVisibilityContainerTest {
     fun `a child of an expanding container repainting on its own never paints over the sibling below`() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val child = ClipRecordingComponent()
             var visible by mutableStateOf(false)
             setContent {
                 Window(onCloseRequest = {}, state = WindowState(size = Dimension(400, 400)), title = CLIP_WINDOW) {
@@ -153,7 +153,7 @@ class AnimatedVisibilityContainerTest {
                             exit = ExitTransition.None,
                         ) {
                             SwingNode(
-                                factory = { child },
+                                factory = { ClipRecordingComponent() },
                                 modifier = SwingModifier.styleable { preferredSize(80, 40) },
                             )
                         }
@@ -166,12 +166,13 @@ class AnimatedVisibilityContainerTest {
             mainClock.autoAdvance = false
             visible = true
             repeat(7) { mainClock.advanceTimeByFrame() }
+            val window = onWindowWithTitle(CLIP_WINDOW)
+            val child = window.onNode(SwingMatcher.isOfType<ClipRecordingComponent>()).fetch<ClipRecordingComponent>()
             child.clips.clear()
 
             // What the repaint manager runs for a repaint the child asks for, as a hover does.
             child.paintImmediately(0, 0, child.width, child.height)
 
-            val window = onWindowWithTitle(CLIP_WINDOW)
             val column = window.onNodeWithTag(COLUMN).fetch()
             val below = window.onNodeWithTag(BELOW).fetch()
             val clip = SwingUtilities.convertRectangle(child, checkNotNull(child.clips.lastOrNull()), column)

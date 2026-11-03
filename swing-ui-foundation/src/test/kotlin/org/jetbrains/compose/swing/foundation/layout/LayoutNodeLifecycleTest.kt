@@ -11,6 +11,8 @@ import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -164,12 +166,11 @@ class LayoutNodeLifecycleTest {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var generation by mutableIntStateOf(0)
-            val child = PaintCountingChild()
             setWindowContent {
                 Layout(
                     content = {
                         SwingNode(
-                            factory = { child },
+                            factory = { PaintCountingChild() },
                             modifier = SwingModifier.styleable { preferredSize(10, 10) },
                         )
                     },
@@ -177,6 +178,11 @@ class LayoutNodeLifecycleTest {
                     modifier = SwingModifier.testTag(CONTAINER_TAG).key(generation),
                 )
             }
+            val child =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<PaintCountingChild>())
+                    .assertIsOfType<PaintCountingChild>()
+                    .fetch()
             val paintsBefore = child.paints
             assertEquals(Dimension(10, 10), child.size, "the child must have been laid out")
 

@@ -2,20 +2,20 @@
 package org.jetbrains.compose.swing.benchmark
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.testutils.ComposeTestCase
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.NestedContentHost
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
-import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Test
+import java.awt.Component
 import java.awt.Rectangle
 import java.awt.event.FocusAdapter
 import java.awt.event.KeyAdapter
@@ -174,24 +174,13 @@ class ComponentTreeTest {
     @Test
     fun `dirty region excludes hidden children and children clipped by an ancestor`() =
         runSwingTest {
-            val hidden = JLabel("Hidden").apply { setBounds(0, 0, 10, 10) }
-            val clipped = JLabel("Clipped").apply { setBounds(0, 0, 10, 10) }
-            val clip =
-                JPanel(null).apply {
-                    setBounds(20, 0, 10, 10)
-                    add(clipped)
-                }
-            val panel =
-                JPanel(null).apply {
-                    add(hidden)
-                    add(clip)
-                }
-            val subject = VisibilityCase(panel, hidden, clipped)
+            val subject = VisibilityCase()
             SwingExecutionControl(listOf(subject), coroutineContext).use { control ->
                 control.compose()
                 control.settle()
+                val panel = control.hosted<VisibilityPanel>()
                 val visible = control.measure { panel.repaint(0, 0, 100, 100) }
-                val excluded = control.measure { subject.toggle() }
+                val excluded = control.measure { panel.toggle() }
                 assertEquals(
                     visible.getValue("componentsInDirtyRegion") - 2,
                     excluded.getValue("componentsInDirtyRegion"),
@@ -202,13 +191,18 @@ class ComponentTreeTest {
     @Test
     fun `replacing a child counts additions only in the measured host`() =
         runSwingTest {
-            val panel = JPanel().apply { add(JLabel("Before")) }
             val unrelated = JPanel().apply { add(JLabel("Unrelated")) }
-            val subject = ReplaceCase(panel, unrelated)
+            val subject = ReplaceCase()
             SwingExecutionControl(listOf(subject), coroutineContext).use { control ->
                 control.compose()
                 control.settle()
-                val metrics = control.measure { subject.toggle() }
+                val panel = control.hosted<ReplacePanel>()
+                val metrics =
+                    control.measure {
+                        panel.replace()
+                        unrelated.remove(0)
+                        unrelated.add(JLabel("Other"))
+                    }
                 assertEquals(1L, metrics.getValue("componentsAdded"))
                 panel.add(JLabel("Outside measurement"))
                 assertEquals(0L, control.measure {}.getValue("componentsAdded"))
@@ -223,20 +217,13 @@ class ComponentTreeTest {
                 object : ComposeTestCase {
                     @Composable
                     override fun Content() {
-                        val panel = remember { JPanel() }
-                        val parent = rememberCompositionContext()
-                        SwingNode(factory = { panel })
-                        DisposableEffect(parent) {
-                            val handle =
-                                panel.setContent(parent) {
-                                    if (grow) {
-                                        key("nested") {
-                                            val text = remember { "Nested remembered content" }
-                                            SwingNode(factory = { JLabel(text) })
-                                        }
-                                    }
+                        NestedContentHost {
+                            if (grow) {
+                                key("nested") {
+                                    val text = remember { "Nested remembered content" }
+                                    Label(text)
                                 }
-                            onDispose { handle.dispose() }
+                            }
                         }
                     }
                 }
@@ -273,37 +260,52 @@ class ComponentTreeTest {
         }
     }
 
-    private class VisibilityCase(
-        private val panel: JPanel,
-        private val hidden: JLabel,
-        private val clipped: JLabel,
-    ) : ComposeTestCase {
+    private class VisibilityCase : ComposeTestCase {
+        @Composable
+        override fun Content() {
+            SwingNode(factory = { VisibilityPanel() })
+        }
+    }
+
+    private class VisibilityPanel : JPanel(null) {
+        private val hidden = JLabel("Hidden").apply { setBounds(0, 0, 10, 10) }
+        private val clipped = JLabel("Clipped").apply { setBounds(0, 0, 10, 10) }
+
+        init {
+            add(hidden)
+            add(
+                JPanel(null).apply {
+                    setBounds(20, 0, 10, 10)
+                    add(clipped)
+                },
+            )
+        }
+
         fun toggle() {
             hidden.isVisible = !hidden.isVisible
             clipped.setLocation(if (hidden.isVisible) 0 else 20, 0)
-            panel.repaint(0, 0, 100, 100)
-        }
-
-        @Composable
-        override fun Content() {
-            SwingNode(factory = { panel })
+            repaint(0, 0, 100, 100)
         }
     }
 
-    private class ReplaceCase(
-        private val panel: JPanel,
-        private val unrelated: JPanel,
-    ) : ComposeTestCase {
-        fun toggle() {
-            panel.remove(0)
-            panel.add(JLabel("After"))
-            unrelated.remove(0)
-            unrelated.add(JLabel("Other"))
-        }
-
+    private class ReplaceCase : ComposeTestCase {
         @Composable
         override fun Content() {
-            SwingNode(factory = { panel })
+            SwingNode(factory = { ReplacePanel() })
+        }
+    }
+
+    private class ReplacePanel : JPanel() {
+        init {
+            add(JLabel("Before"))
+        }
+
+        fun replace() {
+            remove(0)
+            add(JLabel("After"))
         }
     }
 }
+
+private inline fun <reified T : Component> SwingExecutionControl.hosted(): T =
+    componentTree(host.panel).filterIsInstance<T>().single()

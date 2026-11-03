@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
@@ -59,10 +60,9 @@ class AnimatedVisibilityInvalidationTest {
     @Test
     fun `a fade frame repaints the container and relays nothing out`() =
         runComposeSwingTest {
-            val parent = InvalidationRecordingPanel()
             var visible by mutableStateOf(false)
             setContent {
-                SwingNode(factory = { parent }) {
+                SwingNode(factory = { InvalidationRecordingPanel() }) {
                     AnimatedVisibility(
                         visible = visible,
                         enter = fadeIn(animationSpec = tween(320)),
@@ -72,6 +72,7 @@ class AnimatedVisibilityInvalidationTest {
                     }
                 }
             }
+            val parent = onNodeOfType<InvalidationRecordingPanel>().fetch()
 
             mainClock.autoAdvance = false
             visible = true
@@ -81,10 +82,9 @@ class AnimatedVisibilityInvalidationTest {
     @Test
     fun `a fade frame inside a layout repaints the container and relays nothing out`() =
         runComposeSwingTest {
-            val parent = InvalidationRecordingPanel()
             var visible by mutableStateOf(false)
             setContent {
-                SwingNode(factory = { parent }) {
+                SwingNode(factory = { InvalidationRecordingPanel() }) {
                     Box {
                         AnimatedVisibility(
                             visible = visible,
@@ -96,6 +96,7 @@ class AnimatedVisibilityInvalidationTest {
                     }
                 }
             }
+            val parent = onNodeOfType<InvalidationRecordingPanel>().fetch()
 
             mainClock.autoAdvance = false
             visible = true

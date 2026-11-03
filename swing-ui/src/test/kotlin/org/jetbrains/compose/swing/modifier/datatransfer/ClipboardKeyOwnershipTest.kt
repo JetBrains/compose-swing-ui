@@ -111,7 +111,6 @@ class ClipboardKeyOwnershipTest {
     ) = runComposeSwingTest {
         val stroke = KeyStroke.getKeyStroke(letter.code, menuShortcutMask())
         val original = Any()
-        val field = JTextField().apply { getInputMap().put(stroke, original) }
         var clipboardShown by mutableStateOf(true)
         var shortcutShown by mutableStateOf(true)
         var called = 0
@@ -120,7 +119,7 @@ class ClipboardKeyOwnershipTest {
             val clipboard = if (clipboardShown) SwingModifier.clipboard({ null }, { false }) else SwingModifier
             val shortcut = if (shortcutShown) SwingModifier.onKeyStroke(stroke, onAction = callback) else SwingModifier
             SwingNode(
-                factory = { field },
+                factory = { JTextField().apply { getInputMap().put(stroke, original) } },
                 modifier =
                     if (clipboardFirst) {
                         clipboard then shortcut
@@ -130,6 +129,7 @@ class ClipboardKeyOwnershipTest {
                     },
             )
         }
+        val field = onNodeOfType<JTextField>().fetch()
         val map = field.getInputMap()
         assertNotNull(map.get(stroke), "$case: the last declaration owns the stroke")
         assertNotSame(original, map.get(stroke), "$case: a declaration must displace the original local entry")

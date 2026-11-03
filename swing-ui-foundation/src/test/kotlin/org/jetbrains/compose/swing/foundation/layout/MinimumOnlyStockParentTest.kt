@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.assertEquals
 
 /** A container under a stock parent that reads its minimum size alone, and grants it a width of its own. */
@@ -20,11 +19,9 @@ class MinimumOnlyStockParentTest {
     fun aContainerAParentUsesNaturalPreferredWidthForMinimumHeightWithoutPaintReconciliation(granted: Int) {
         runComposeSwingTest {
             setStockContent(
-                JPanel(
-                    ScriptedStockLayout { child, _ ->
-                        child.setBounds(0, 0, granted, child.minimumSize.height)
-                    },
-                ),
+                ScriptedStockLayout { child, _ ->
+                    child.setBounds(0, 0, granted, child.minimumSize.height)
+                },
                 width = 600,
                 height = 300,
             ) {

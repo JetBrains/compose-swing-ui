@@ -7,6 +7,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -122,8 +124,8 @@ class AwaitEventsDeliveredContractTest {
     fun awaitIdleLaysOutOnlyAfterARedrawQueuedByARedrawHasRun() = runComposeSwingTest {
         var redrawn = false
         val redrawnAtLayout = mutableSetOf<Boolean>()
-        val panel = JPanel(RecordingLayout(onLayout = { redrawnAtLayout += redrawn }))
-        setContent { SwingNode(factory = { panel }) }
+        setContent { SwingNode(factory = { JPanel(RecordingLayout(onLayout = { redrawnAtLayout += redrawn })) }) }
+        val panel = onRoot().onChild().assertIsOfType<JPanel>().fetch()
         redrawnAtLayout.clear()
         panel.invalidate()
 

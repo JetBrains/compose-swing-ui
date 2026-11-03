@@ -12,6 +12,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -92,28 +94,28 @@ class ClipToBoundsTest {
     fun aClippedBoxBecomesThePaintingOriginSoADescendantsOwnRepaintStaysClipped() =
         runComposeSwingTest {
             val repaints = mutableListOf<Rectangle>()
-            val host =
-                object : JPanel(BorderLayout()) {
-                    override fun isPaintingOrigin(): Boolean = true
-
-                    override fun paintImmediately(
-                        x: Int,
-                        y: Int,
-                        w: Int,
-                        h: Int,
-                    ) {
-                        repaints += Rectangle(x, y, w, h)
-                    }
-                }
 
             fun repaintingChild() =
                 object : JComponent() {
                     override fun isShowing(): Boolean = true
                 }.apply { isOpaque = true }
-            val clipped = repaintingChild()
-            val plain = repaintingChild()
             setContent {
-                SwingNode(factory = { host }) {
+                SwingNode(
+                    factory = {
+                        object : JPanel(BorderLayout()) {
+                            override fun isPaintingOrigin(): Boolean = true
+
+                            override fun paintImmediately(
+                                x: Int,
+                                y: Int,
+                                w: Int,
+                                h: Int,
+                            ) {
+                                repaints += Rectangle(x, y, w, h)
+                            }
+                        }
+                    },
+                ) {
                     Row(modifier = SwingModifier.styleable { preferredSize(Dimension(200, 200)) }) {
                         Box(
                             modifier =
@@ -123,19 +125,27 @@ class ClipToBoundsTest {
                                     .styleable { preferredSize(Dimension(80, 80)) },
                         ) {
                             SwingNode(
-                                factory = { clipped },
-                                modifier = SwingModifier.styleable { preferredSize(Dimension(80, 80)) },
+                                factory = { repaintingChild() },
+                                modifier =
+                                    SwingModifier
+                                        .testTag("clipped")
+                                        .styleable { preferredSize(Dimension(80, 80)) },
                             )
                         }
                         Box(modifier = SwingModifier.styleable { preferredSize(Dimension(30, 30)) }) {
                             SwingNode(
-                                factory = { plain },
-                                modifier = SwingModifier.styleable { preferredSize(Dimension(30, 30)) },
+                                factory = { repaintingChild() },
+                                modifier =
+                                    SwingModifier
+                                        .testTag("plain")
+                                        .styleable { preferredSize(Dimension(30, 30)) },
                             )
                         }
                     }
                 }
             }
+            val clipped = onNodeWithTag("clipped").fetch<JComponent>()
+            val plain = onNodeWithTag("plain").fetch<JComponent>()
             clipped.paintImmediately(0, 0, clipped.width, clipped.height)
             assertEquals(emptyList(), repaints, "the clipped box intercepts its descendant's repaint")
             plain.paintImmediately(0, 0, plain.width, plain.height)
@@ -203,7 +213,6 @@ class ClipToBoundsTest {
     fun aChildRepaintingOnItsOwnStaysInsideItsContainersClip() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val child = ClipRecordingChild()
             setWindowContent {
                 Row {
                     Box(
@@ -215,12 +224,16 @@ class ClipToBoundsTest {
                                 .styleable { preferredSize(Dimension(80, 80)) },
                     ) {
                         SwingNode(
-                            factory = { child },
+                            factory = { ClipRecordingChild() },
                             modifier = SwingModifier.styleable { preferredSize(Dimension(80, 80)) },
                         )
                     }
                 }
             }
+            val child =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<ClipRecordingChild>())
+                    .fetch<ClipRecordingChild>()
             child.clips.clear()
 
             child.paintImmediately(0, 0, child.width, child.height)
@@ -261,10 +274,8 @@ class ClipToBoundsTest {
     fun aContainerStandingAGlassPaneOverAScaledChildIsAPaintingOriginForItsOtherChildren() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val host = PaintCountingPanel()
-            val child = ClipRecordingChild().apply { isOpaque = true }
             setWindowContent {
-                SwingNode(factory = { host }) {
+                SwingNode(factory = { PaintCountingPanel() }) {
                     Box {
                         Box(
                             modifier =
@@ -273,12 +284,20 @@ class ClipToBoundsTest {
                                     .styleable { preferredSize(20, 20) },
                         )
                         SwingNode(
-                            factory = { child },
+                            factory = { ClipRecordingChild().apply { isOpaque = true } },
                             modifier = SwingModifier.styleable { preferredSize(30, 30) },
                         )
                     }
                 }
             }
+            val host =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<PaintCountingPanel>())
+                    .fetch<PaintCountingPanel>()
+            val child =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<ClipRecordingChild>())
+                    .fetch<ClipRecordingChild>()
 
             assertTrue(
                 host.isPaintedForTheRepaintOf(child),

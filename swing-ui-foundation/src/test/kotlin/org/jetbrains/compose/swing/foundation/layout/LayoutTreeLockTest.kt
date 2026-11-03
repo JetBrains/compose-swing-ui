@@ -15,10 +15,9 @@ class LayoutTreeLockTest {
     fun nestedAndDirectMeasurementRunWithTheComponentTreeLockHeld() =
         runComposeSwingTest {
             val treeLockHeld = ArrayList<Boolean>()
-            val child = TreeLockRecordingPanel(treeLockHeld)
             setContent {
                 Layout(
-                    content = { SwingNode(factory = { child }) },
+                    content = { SwingNode(factory = { TreeLockRecordingPanel(treeLockHeld) }) },
                     measurePolicy = { measurables, _ ->
                         val width = measurables.single().maxIntrinsicWidth(Int.MAX_VALUE)
                         layout(width, 20) {

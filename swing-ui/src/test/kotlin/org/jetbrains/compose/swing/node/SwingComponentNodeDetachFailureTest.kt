@@ -1,8 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.getValue
@@ -10,10 +8,13 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.NestedContentHost
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -24,44 +25,48 @@ import kotlin.test.assertSame
 
 /** What a [SwingComponentNodeListener] is told when it throws from `onDetached` as its node moves or is reused. */
 class SwingComponentNodeDetachFailureTest {
-    /** How a case moves the listener's node: [move] triggers it, and [end] then ends the composition the node is in. */
+    /**
+     * The [component] a case attached, and how its node moves: [move] triggers it, and [end] then ends the composition
+     * the node is in.
+     */
     private class Scenario(
+        val component: ListeningPanel,
         val move: () -> Unit,
         val end: suspend () -> Unit,
     )
 
     @TestFactory
     fun aListenerThatThrowsOnDetachIsReportedAndItsNodeIsToldItAttachedAgain(): List<DynamicTest> = listOf(
-        detachFails("moves to another composition") { movesToAnotherComposition(it) },
-        detachFails("moves into a new composition") { movesIntoANewComposition(it) },
-        detachFails("is reused") { isReused(it) },
+        detachFails("moves to another composition") { movesToAnotherComposition() },
+        detachFails("moves into a new composition") { movesIntoANewComposition() },
+        detachFails("is reused") { isReused() },
     )
 
-    private suspend fun ComposeSwingTest.movesToAnotherComposition(component: ListeningPanel): Scenario {
+    private suspend fun ComposeSwingTest.movesToAnotherComposition(): Scenario {
         var inInner by mutableStateOf(true)
+        var hosted by mutableStateOf(true)
         var shown by mutableStateOf(true)
         var text by mutableStateOf("before")
-        val host = JPanel()
-        val destination = JPanel()
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
         setContent {
-            context = rememberCompositionContext()
-            content =
+            val content =
                 remember {
                     movableContentOf {
-                        SwingNode(factory = { component }, update = { set(text) { name = it } })
+                        SwingNode(factory = { ListeningPanel() }, update = { set(text) { name = it } })
                     }
                 }
-            SwingNode(factory = { host })
-            SwingNode(factory = { destination }) { if (shown && !inInner) content() }
+            if (hosted) NestedContentHost { if (inInner) content() }
+            Panel { if (shown && !inInner) content() }
         }
         awaitIdle()
-        val handle = host.setContent(parent = context) { if (inInner) content() }
-        awaitIdle()
-        return Scenario(move = { inInner = false }) {
-            assertSame(destination, component.parent, "the destination contains the moved component")
-            handle.dispose()
+        val component = onNodeOfType<ListeningPanel>().fetch()
+        return Scenario(component, move = { inInner = false }) {
+            assertSame(
+                onRoot().onChildAt(1).assertIsOfType<JPanel>().fetch(),
+                component.parent,
+                "the destination contains the moved component",
+            )
+            hosted = false
+            awaitIdle()
             text = "after"
             awaitIdle()
             assertEquals("after", component.name, "the moved content still recomposes")
@@ -70,39 +75,43 @@ class SwingComponentNodeDetachFailureTest {
         }
     }
 
-    private suspend fun ComposeSwingTest.movesIntoANewComposition(component: ListeningPanel): Scenario {
+    private suspend fun ComposeSwingTest.movesIntoANewComposition(): Scenario {
         var inInner by mutableStateOf(false)
-        val host = JPanel()
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
+        var hosted by mutableStateOf(true)
         setContent {
-            context = rememberCompositionContext()
-            content = remember { movableContentOf { SwingNode(factory = { component }) } }
-            SwingNode(factory = { host })
+            val content = remember { movableContentOf { SwingNode(factory = { ListeningPanel() }) } }
+            if (hosted) NestedContentHost { if (inInner) content() }
             if (!inInner) content()
         }
         awaitIdle()
-        val handle = host.setContent(parent = context) { if (inInner) content() }
-        awaitIdle()
-        return Scenario(move = { inInner = true }, end = handle::dispose)
+        val component = onNodeOfType<ListeningPanel>().fetch()
+        return Scenario(component, move = { inInner = true }) {
+            hosted = false
+            awaitIdle()
+        }
     }
 
-    private suspend fun ComposeSwingTest.isReused(component: ListeningPanel): Scenario {
+    private suspend fun ComposeSwingTest.isReused(): Scenario {
         var key by mutableIntStateOf(0)
-        lateinit var context: CompositionContext
-        setContent { context = rememberCompositionContext() }
-        awaitIdle()
-        val handle =
-            JPanel().setContent(parent = context) {
-                ReusableContent(key) {
-                    ReusableComposeNode<SwingNodeHolder<JPanel>, SwingApplier>(
-                        factory = { CreatedNodeHolder(component) },
-                        update = {},
-                    )
+        var hosted by mutableStateOf(true)
+        setContent {
+            if (hosted) {
+                NestedContentHost {
+                    ReusableContent(key) {
+                        ReusableComposeNode<SwingNodeHolder<JPanel>, SwingApplier>(
+                            factory = { CreatedNodeHolder(ListeningPanel()) },
+                            update = {},
+                        )
+                    }
                 }
             }
+        }
         awaitIdle()
-        return Scenario(move = { key = 1 }, end = handle::dispose)
+        val component = onNodeOfType<ListeningPanel>().fetch()
+        return Scenario(component, move = { key = 1 }) {
+            hosted = false
+            awaitIdle()
+        }
     }
 
     /**
@@ -111,11 +120,11 @@ class SwingComponentNodeDetachFailureTest {
      */
     private fun detachFails(
         case: String,
-        setUp: suspend ComposeSwingTest.(ListeningPanel) -> Scenario,
+        setUp: suspend ComposeSwingTest.() -> Scenario,
     ): DynamicTest = DynamicTest.dynamicTest(case) {
         runComposeSwingTest {
-            val component = ListeningPanel()
-            val scenario = setUp(component)
+            val scenario = setUp()
+            val component = scenario.component
             val node = component.events.single().node
             val watched = mutableIntStateOf(0)
             val changes = ArrayList<SwingComponentNode<*>>()

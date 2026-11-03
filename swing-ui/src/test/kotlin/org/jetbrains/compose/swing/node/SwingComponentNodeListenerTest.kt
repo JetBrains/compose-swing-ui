@@ -2,7 +2,6 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
@@ -11,36 +10,36 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.junit.jupiter.api.DynamicTest
-import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
-import javax.swing.JMenuBar
 import javax.swing.JPanel
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /** When a [SwingComponentNodeListener] component is told the node holding it, and what that node observes. */
 class SwingComponentNodeListenerTest {
     @Test
     fun aDeclaredComponentIsToldItsNodeAttachedAndDetachedOnRemoval() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val component = ListeningPanel()
-        setContent { if (shown) SwingNode(factory = { component }) }
+        setContent { if (shown) SwingNode(factory = { ListeningPanel() }) }
         awaitIdle()
 
+        val component = onNodeOfType<ListeningPanel>().fetch()
         val node = component.events.single().node
         assertSame(component, node.component, "the component is told the node that holds it")
         assertEquals(listOf(Event("attached", node)), component.events, "the node attaches once")
@@ -85,9 +84,9 @@ class SwingComponentNodeListenerTest {
     @Test
     fun aComponentIsToldItsNodeDetachedBeforeTheModifierTearsDown() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val component = ListeningPanel()
-        setContent { if (shown) SwingNode(factory = { component }, modifier = DetachRecorder) }
+        setContent { if (shown) SwingNode(factory = { ListeningPanel() }, modifier = DetachRecorder) }
         awaitIdle()
+        val component = onNodeOfType<ListeningPanel>().fetch()
 
         shown = false
         awaitIdle()
@@ -101,16 +100,18 @@ class SwingComponentNodeListenerTest {
 
     @Test
     fun aSetContentHostIsToldItsRootNodeAttachedAndDetachedOnDispose() = runComposeSwingTest {
-        val host = ListeningPanel()
-        setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
+        var mounted by mutableStateOf(false)
+        setContent { HostedListener(mounted) }
         awaitIdle()
 
-        val handle = host.setContent {}
+        mounted = true
         awaitIdle()
+        val host = onNodeOfType<ListeningHost>().fetch()
         val node = host.events.single().node
         assertSame(host, node.component, "the host is told the root node of its content")
 
-        handle.dispose()
+        mounted = false
+        awaitIdle()
 
         assertEquals(
             listOf(Event("attached", node), Event("detached", node)),
@@ -122,23 +123,24 @@ class SwingComponentNodeListenerTest {
     @Test
     fun aReusableContentKeyChangeDetachesTheOldNodeAndAttachesTheNewOne() = runComposeSwingTest {
         var key by mutableIntStateOf(0)
-        val built = ArrayList<ListeningPanel>()
         setContent {
-            ReusableContent(key) { SwingNode(factory = { ListeningPanel().also { built += it } }) }
+            ReusableContent(key) { SwingNode(factory = { ListeningPanel() }) }
         }
         awaitIdle()
+        val first = onNodeOfType<ListeningPanel>().fetch()
 
         key = 1
         awaitIdle()
 
-        val (first, second) = built
         val firstNode = first.events.first().node
         assertEquals(
             listOf(Event("attached", firstNode), Event("detached", firstNode)),
             first.events,
             "the old key's node detaches",
         )
-        assertEquals(listOf("attached"), second.events.map { it.kind }, "the new key's node attaches")
+        onNodeOfType<ListeningPanel>().assertProperty(listOf("attached"), "the new key's node attaches") {
+            events.map { it.kind }
+        }
     }
 
     /** No public node is reusable, so the holder is declared directly to reach its reuse callback. */
@@ -182,71 +184,19 @@ class SwingComponentNodeListenerTest {
     }
 
     @Test
-    fun aListenerThatThrowsWhenItsNodeIsReusedIsReportedAndLeftAttached() = runComposeSwingTest {
-        var key by mutableIntStateOf(0)
+    fun aDeactivatedNodeDetachesOnceThroughItsRelease() = runComposeSwingTest {
+        var active by mutableStateOf(true)
         var shown by mutableStateOf(true)
-        val listener = FailingOnAttach().apply { failure = null }
-        val component = FailingPanel(listener)
+        var constructions = 0
         setContent {
             if (shown) {
-                ReusableContent(key) {
-                    ReusableComposeNode<SwingNodeHolder<FailingPanel>, SwingApplier>(
-                        factory = { CreatedNodeHolder(component) },
-                        update = {},
-                    )
+                ReusableContentHost(active) {
+                    SwingNode(factory = { ListeningPanel().also { constructions++ } })
                 }
             }
         }
         awaitIdle()
-        val node = listener.events.single().node
-        val failure = IllegalStateException("The listener failed on reuse")
-        listener.failure = failure
-
-        key = 1
-        val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
-
-        assertSame(failure, thrown, "the listener's own failure is reported")
-        assertEquals(
-            listOf("attached", "detached", "attached"),
-            listener.events.map { it.kind },
-            "the reused node is attached all the same",
-        )
-        assertTrue(node.isAttached, "the reused node stays attached to observe reads")
-        listener.watched.intValue = 1
-        awaitIdle()
-        assertEquals(listOf(node), listener.changes, "the reused node still observes changes")
-
-        listener.failure = null
-        key = 2
-        awaitIdle()
-
-        assertEquals(
-            listOf("attached", "detached", "attached", "detached", "attached"),
-            listener.events.map { it.kind },
-            "the composition keeps updating",
-        )
-
-        shown = false
-        awaitIdle()
-
-        assertEquals(
-            listOf("attached", "detached", "attached", "detached", "attached", "detached"),
-            listener.events.map { it.kind },
-            "release pairs the reused node's last attach with one detach",
-        )
-    }
-
-    @Test
-    fun aDeactivatedNodeDetachesOnceThroughItsRelease() = runComposeSwingTest {
-        var active by mutableStateOf(true)
-        var shown by mutableStateOf(true)
-        val built = ArrayList<ListeningPanel>()
-        setContent {
-            if (shown) {
-                ReusableContentHost(active) { SwingNode(factory = { ListeningPanel().also { built += it } }) }
-            }
-        }
-        awaitIdle()
+        val component = onNodeOfType<ListeningPanel>().fetch()
 
         active = false
         awaitIdle()
@@ -255,18 +205,23 @@ class SwingComponentNodeListenerTest {
 
         assertEquals(
             listOf("attached", "detached"),
-            built.single().events.map { it.kind },
+            component.events.map { it.kind },
             "the deactivation detaches the node, and its release does not detach it again",
         )
+        assertEquals(1, constructions, "the scenario builds exactly one component")
     }
 
     @Test
     fun readsObservedUnderANodeRunTheirCallbackWhileItIsAttachedAndNeverAfter() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val component = ListeningPanel()
-        setContent { if (shown) SwingNode(factory = { component }) }
+        setContent { if (shown) SwingNode(factory = { ListeningPanel() }) }
         awaitIdle()
-        val node = component.events.single().node
+        val node =
+            onNodeOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
         val state = mutableIntStateOf(0)
         val changes = ArrayList<SwingComponentNode<*>>()
         val onChanged: (SwingComponentNode<*>) -> Unit = { changes += it }
@@ -291,11 +246,15 @@ class SwingComponentNodeListenerTest {
 
     @Test
     fun oneCallbackObservingUnderAModifierNodeAndAComponentNodeIsRunForBoth() = runComposeSwingTest {
-        val component = ListeningPanel()
         lateinit var modifierNode: SwingModifier.Node
-        setContent { SwingNode(factory = { component }, modifier = PanelProbe { modifierNode = it }) }
+        setContent { SwingNode(factory = { ListeningPanel() }, modifier = PanelProbe { modifierNode = it }) }
         awaitIdle()
-        val componentNode = component.events.single().node
+        val componentNode =
+            onNodeOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
         val state = mutableIntStateOf(0)
         val changes = ArrayList<Any>()
         val onChanged: (Any) -> Unit = { changes += it }
@@ -315,9 +274,9 @@ class SwingComponentNodeListenerTest {
 
     @Test
     fun aListenerTypesItsNodeWithAsNodeOfWhichRefusesAnotherComponent() = runComposeSwingTest {
-        val component = TypedListeningPanel()
-        setContent { SwingNode(factory = { component }) }
+        setContent { SwingNode(factory = { TypedListeningPanel() }) }
         awaitIdle()
+        val component = onNodeOfType<TypedListeningPanel>().fetch()
         val node = component.nodes.single()
         val state = mutableIntStateOf(0)
         val heard = ArrayList<TypedListeningPanel>()
@@ -336,12 +295,10 @@ class SwingComponentNodeListenerTest {
     @Test
     fun aChangeQueuedBeforeTheNodeDetachesRunsNoCallback() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val removed = ListeningPanel()
-        val kept = ListeningPanel()
         val state = mutableIntStateOf(0)
         setContent {
             if (shown) {
-                SwingNode(factory = { removed })
+                SwingNode(factory = { ListeningPanel() })
             } else {
                 // Published off the event dispatch thread, the change is posted to it, after this pass removes
                 // the node.
@@ -350,11 +307,25 @@ class SwingComponentNodeListenerTest {
                     Snapshot.sendApplyNotifications()
                 }.join()
             }
-            SwingNode(factory = { kept })
+            SwingNode(factory = { ListeningPanel() })
         }
         awaitIdle()
-        val removedNode = removed.events.single().node
-        val keptNode = kept.events.single().node
+        val removedNode =
+            onRoot()
+                .onChildAt(0)
+                .assertIsOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
+        val keptNode =
+            onRoot()
+                .onChildAt(1)
+                .assertIsOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
         val changes = ArrayList<SwingComponentNode<*>>()
         val onChanged: (SwingComponentNode<*>) -> Unit = { changes += it }
         removedNode.observeReads(onChanged) { state.intValue }
@@ -373,12 +344,16 @@ class SwingComponentNodeListenerTest {
     @Test
     fun aDeactivatedNodeRefusesToObserveAndToRequest() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val built = ArrayList<ListeningPanel>()
         setContent {
-            ReusableContentHost(active) { SwingNode(factory = { ListeningPanel().also { built += it } }) }
+            ReusableContentHost(active) { SwingNode(factory = { ListeningPanel() }) }
         }
         awaitIdle()
-        val node = built.single().let { it.events.single().node }
+        val node =
+            onNodeOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
 
         active = false
         awaitIdle()
@@ -392,14 +367,16 @@ class SwingComponentNodeListenerTest {
     @Test
     fun aComponentThatThrowsOnDetachStillHasItsModifierTornDownOnRemoval() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val component = ListeningPanel(failsOnDetach = true)
         var text by mutableStateOf("before")
-        val kept = JPanel()
         setContent {
-            if (shown) SwingNode(factory = { component }, modifier = DetachRecorder)
-            SwingNode(factory = { kept }, update = { set(text) { name = it } })
+            if (shown) SwingNode(factory = { ListeningPanel(failsOnDetach = true) }, modifier = DetachRecorder)
+            SwingNode(
+                factory = { JPanel() },
+                update = { set(text) { name = it } },
+            )
         }
         awaitIdle()
+        val component = onNodeOfType<ListeningPanel>().fetch()
 
         shown = false
         val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
@@ -413,18 +390,19 @@ class SwingComponentNodeListenerTest {
         awaitIdle()
         text = "after"
         awaitIdle()
-        assertEquals("after", kept.name, "the remaining composition still updates")
+        onRoot().onChild().assertProperty("after", "the remaining composition still updates") { name }
     }
 
     @Test
     fun aDeclaredComponentThatHostsContentIsToldEachOfItsNodes() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val component = ListeningPanel()
-        setContent { if (shown) SwingNode(factory = { component }) }
+        var mounted by mutableStateOf(false)
+        setContent { if (shown) DeclaredHost(mounted) }
         awaitIdle()
+        val component = onNodeOfType<ListeningHost>().fetch()
         val declared = component.events.single().node
 
-        val handle = component.setContent {}
+        mounted = true
         awaitIdle()
         val root = component.events.last().node
 
@@ -434,7 +412,8 @@ class SwingComponentNodeListenerTest {
             "the component is told the node declaring it and the root node of its content",
         )
 
-        handle.dispose()
+        mounted = false
+        awaitIdle()
         shown = false
         awaitIdle()
 
@@ -454,16 +433,18 @@ class SwingComponentNodeListenerTest {
     fun aNodeMovedToAnotherCompositionIsToldItDetachedAndAttachedAndDropsTheReadsItObservedThere() =
         runComposeSwingTest {
             var inOuter by mutableStateOf(false)
-            val moved = ListeningPanel()
-            val kept = ListeningPanel()
-            val host = JPanel()
             val state = mutableIntStateOf(0)
-            lateinit var context: CompositionContext
-            lateinit var content: @Composable () -> Unit
             setContent {
-                context = rememberCompositionContext()
-                content = remember { movableContentOf { SwingNode(factory = { moved }) } }
-                SwingNode(factory = { host })
+                val content =
+                    remember {
+                        movableContentOf {
+                            SwingNode(factory = { ListeningPanel() }, modifier = SwingModifier.testTag("moved"))
+                        }
+                    }
+                NestedContentHost {
+                    if (!inOuter) content()
+                    SwingNode(factory = { ListeningPanel() }, modifier = SwingModifier.testTag("kept"))
+                }
                 if (inOuter) {
                     // Published off the event dispatch thread, the change is posted to it, after this pass moves the
                     // node.
@@ -475,14 +456,20 @@ class SwingComponentNodeListenerTest {
                 }
             }
             awaitIdle()
-            val handle =
-                host.setContent(parent = context) {
-                    if (!inOuter) content()
-                    SwingNode(factory = { kept })
-                }
-            awaitIdle()
-            val movedNode = moved.events.single().node
-            val keptNode = kept.events.single().node
+            val movedNode =
+                onNodeWithTag("moved")
+                    .assertIsOfType<ListeningPanel>()
+                    .fetch()
+                    .events
+                    .single()
+                    .node
+            val keptNode =
+                onNodeWithTag("kept")
+                    .assertIsOfType<ListeningPanel>()
+                    .fetch()
+                    .events
+                    .single()
+                    .node
             val changes = ArrayList<SwingComponentNode<*>>()
             val onChanged: (SwingComponentNode<*>) -> Unit = { changes += it }
             movedNode.observeReads(onChanged) { state.intValue }
@@ -491,11 +478,10 @@ class SwingComponentNodeListenerTest {
             inOuter = true
             awaitIdle()
 
-            assertEquals(
+            onNodeWithTag("moved").assertIsOfType<ListeningPanel>().assertProperty(
                 listOf(Event("attached", movedNode), Event("detached", movedNode), Event("attached", movedNode)),
-                moved.events,
                 "the node moved to the other composition",
-            )
+            ) { events }
             assertEquals(
                 listOf(keptNode),
                 changes,
@@ -510,29 +496,31 @@ class SwingComponentNodeListenerTest {
                 changes,
                 "a change after the move runs the callback only for the node still there",
             )
-            handle.dispose()
         }
 
     @Test
     fun aNodeBelowAMovedNodeIsToldItDetachedAndAttachedAndDropsTheReadsItObservedThere() = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
-        val component = ListeningPanel()
-        val host = JPanel()
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
         setContent {
-            context = rememberCompositionContext()
-            content =
+            val content =
                 remember {
-                    movableContentOf { SwingNode(factory = { JPanel() }) { SwingNode(factory = { component }) } }
+                    movableContentOf {
+                        SwingNode(factory = { JPanel() }) {
+                            SwingNode(factory = { ListeningPanel() })
+                        }
+                    }
                 }
-            SwingNode(factory = { host })
+            NestedContentHost { if (!inOuter) content() }
             if (inOuter) content()
         }
         awaitIdle()
-        val handle = host.setContent(parent = context) { if (!inOuter) content() }
-        awaitIdle()
-        val node = component.events.single().node
+        val node =
+            onNodeOfType<ListeningPanel>()
+                .assertIsOfType<ListeningPanel>()
+                .fetch()
+                .events
+                .single()
+                .node
         val state = mutableIntStateOf(0)
         val changes = ArrayList<SwingComponentNode<*>>()
         node.observeReads({ changes += it }) { state.intValue }
@@ -542,22 +530,18 @@ class SwingComponentNodeListenerTest {
         state.intValue = 1
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<ListeningPanel>().assertIsOfType<ListeningPanel>().assertProperty(
             listOf(Event("attached", node), Event("detached", node), Event("attached", node)),
-            component.events,
             "moving a node moves the nodes below it too",
-        )
+        ) { events }
         assertEquals(emptyList(), changes, "a read observed in the old composition runs no callback")
-        handle.dispose()
     }
 
     @Test
     fun anAfterValidationRequestRunsOnceAndNeverAfterItsNodeDetaches() = runComposeSwingTest {
-        val host = ListeningPanel()
-        setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
+        setContent { HostedListener() }
         awaitIdle()
-        val handle = host.setContent {}
-        awaitIdle()
+        val host = onNodeOfType<ListeningHost>().fetch()
         val node = host.events.single().node
         var calls = 0
         val action: (SwingComponentNode<*>) -> Unit = { calls++ }
@@ -572,7 +556,7 @@ class SwingComponentNodeListenerTest {
         assertEquals(1, calls, "two requests with the same callback run once")
 
         synchronized(host.treeLock) { node.requestAfterValidation(action) }
-        handle.dispose()
+        host.unmount()
         awaitIdle()
 
         assertEquals(1, calls, "a request pending when the node detaches never runs")
@@ -583,14 +567,12 @@ class SwingComponentNodeListenerTest {
 
     @Test
     fun disposingContentWhoseHostThrowsOnDetachStillDetachesItsRoot() = runComposeSwingTest {
-        val host = ListeningPanel(failsOnDetach = true)
-        setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
+        setContent { HostedListener(failsOnDetach = true) }
         awaitIdle()
-        val handle = host.setContent {}
-        awaitIdle()
+        val host = onNodeOfType<ListeningHost>().fetch()
         val node = host.events.single().node
 
-        handle.dispose()
+        host.unmount()
         val thrown =
             assertFailsWith<IllegalStateException>("the host's failure is reported") { awaitIdle() }
         assertSame(host.detachFailure, thrown, "the host's own failure is reported")
@@ -598,103 +580,72 @@ class SwingComponentNodeListenerTest {
         assertFailsWith<IllegalStateException>("the root node is detached all the same") { node.observeReads({}) {} }
     }
 
-    @TestFactory
-    fun aListenerThatThrowsOnAttachIsReportedAndLeftAttached(): List<DynamicTest> = listOf(
-        failingOnAttach("a host's content root under a named parent") { listener ->
-            val context = namedParent()
-            FailingPanel(listener).setContent(parent = context) {}
-        },
-        failingOnAttach("a host's content root once it is in the tree") { listener ->
-            val host = FailingPanel(listener)
-            setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(host) } }) }
-            awaitIdle()
-            host.setContent {}
-        },
-        failingOnAttach("a menu bar's content root") { listener ->
-            val bar = FailingMenuBar(listener)
-            setContent { SwingNode(factory = { JPanel(BorderLayout()).apply { add(bar) } }) }
-            awaitIdle()
-            bar.setContent {}
-        },
-        failingOnAttach("a declared component on the first pass") { listener ->
-            val context = namedParent()
-            val component = FailingPanel(listener)
-            JPanel().setContent(parent = context) { SwingNode(factory = { component }) }
-        },
-    )
-
-    private suspend fun ComposeSwingTest.namedParent(): CompositionContext {
-        lateinit var context: CompositionContext
-        setContent { context = rememberCompositionContext() }
-        awaitIdle()
-        return context
+    @Composable
+    private fun HostedListener(
+        mounted: Boolean = true,
+        failsOnDetach: Boolean = false,
+    ) {
+        SwingNode(
+            factory = { HostingPanel() },
+            update = {
+                set(failsOnDetach) { hostFailsOnDetach(it) }
+                set(mounted) { mount(it) }
+            },
+            onRelease = { unmount() },
+        )
     }
 
-    /**
-     * A case named [name]: [mount] declares a component whose listener throws on attach and returns the handle that
-     * disposes it. The failure is the listener's own and reaches the thread's uncaught-exception handler, the node the
-     * listener observed under stays attached and its reads keep running, and disposing tells the node it detached
-     * once and stops its reads.
-     */
-    private fun failingOnAttach(
-        name: String,
-        mount: suspend ComposeSwingTest.(FailingOnAttach) -> DisposableHandle,
-    ): DynamicTest = DynamicTest.dynamicTest(name) {
-        runComposeSwingTest {
-            val listener = FailingOnAttach()
-            val failure = listener.failure
-            val handle = mount(listener)
-            val thrown = assertFailsWith<IllegalStateException> { awaitIdle() }
-            assertSame(failure, thrown, "the listener's own failure is reported")
-            val node = listener.events.single().node
+    @Composable
+    private fun DeclaredHost(mounted: Boolean) {
+        SwingNode(
+            factory = { ListeningHost() },
+            update = { set(mounted) { mount(it) } },
+            onRelease = { unmount() },
+        )
+    }
 
-            listener.failure = null
-            listener.watched.intValue = 1
-            awaitIdle()
+    /** Holds a [ListeningHost] that no node declares. */
+    private class HostingPanel : JPanel(BorderLayout()) {
+        private val host = ListeningHost().also { add(it) }
 
-            assertEquals(listOf(node), listener.changes, "a read observed before the failure still runs its callback")
-
-            handle.dispose()
-            awaitIdle()
-            listener.watched.intValue = 2
-            awaitIdle()
-
-            assertEquals(
-                listOf(Event("attached", node), Event("detached", node)),
-                listener.events,
-                "the node is told it detached once",
-            )
-            assertEquals(listOf(node), listener.changes, "disposing drops the node's reads")
+        fun hostFailsOnDetach(value: Boolean) {
+            host.failsOnDetach = value
         }
+
+        fun mount(mounted: Boolean) = host.mount(mounted)
+
+        fun unmount() = host.unmount()
     }
 
-    /** Observes [watched] under each node it is told attached, then throws [failure] while one is set. */
-    private class FailingOnAttach : SwingComponentNodeListener {
-        val watched = mutableIntStateOf(0)
+    /** A [ListeningPanel] that also mounts empty content on itself and records the nodes it is told. */
+    private class ListeningHost :
+        JPanel(),
+        SwingComponentNodeListener {
+        var failsOnDetach = false
         val events = ArrayList<Event>()
-        val changes = ArrayList<SwingComponentNode<*>>()
-        var failure: IllegalStateException? = IllegalStateException("The listener failed on attach")
+        val detachFailure = IllegalStateException("The listener failed on detach")
+        private var content: DisposableHandle? = null
+
+        fun mount(mounted: Boolean) {
+            unmount()
+            if (mounted) content = setContent {}
+        }
+
+        fun unmount() {
+            val handle = content
+            content = null
+            handle?.dispose()
+        }
 
         override fun onAttached(node: SwingComponentNode<*>) {
             events += Event("attached", node)
-            node.observeReads({ changes += it }) { watched.intValue }
-            failure?.let { throw it }
         }
 
         override fun onDetached(node: SwingComponentNode<*>) {
             events += Event("detached", node)
+            if (failsOnDetach) throw detachFailure
         }
     }
-
-    private class FailingPanel(
-        listener: FailingOnAttach,
-    ) : JPanel(),
-        SwingComponentNodeListener by listener
-
-    private class FailingMenuBar(
-        listener: FailingOnAttach,
-    ) : JMenuBar(),
-        SwingComponentNodeListener by listener
 
     /** Declares a [DetachRecorderNode]. */
     private object DetachRecorder : SwingModifier.NodeElement<ListeningPanel, DetachRecorderNode>() {

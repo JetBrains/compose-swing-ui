@@ -10,8 +10,12 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.datatransfer.SharedTransferHandler
 import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
@@ -28,6 +32,9 @@ import org.jetbrains.compose.swing.style.TestNodeKind
 import org.jetbrains.compose.swing.style.TestTextNodeKind
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.toolTip
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -57,25 +64,32 @@ import kotlin.test.assertTrue
  * apply, and the write that withdraws it afterwards still lands.
  */
 class DirectWriteListenerTest {
-    open class DirectWrite(
+    class Restoration<S>(
+        /** Reads what the component holds before any declaration writes it. */
+        val snapshot: (JComponent) -> S,
+        val assertRestored: (JComponent, S) -> Unit,
+    )
+
+    class Target(
+        /** Finds the mounted component through the harness once it is composed. */
+        val find: ComposeSwingTest.() -> JComponent = { onRoot().onChild().fetch<JComponent>() },
+        /** The bean whose property listener throws, derived from the mounted component. */
+        val listenerOn: (JComponent) -> JComponent = { it },
+    )
+
+    class DirectWrite<S>(
         private val label: String,
-        val component: JComponent,
         val failingProperty: String,
+        /** Shows the component, carrying the given modifier. The component is built by the node's own factory. */
+        val mount: @Composable (SwingModifier) -> Unit,
         /**
          * The declarations the component carries in turn, each with the check of what it wrote. A site that
          * writes again on an update has three; a site that writes once on install has one.
          */
         val writes: List<Pair<SwingModifier, (JComponent) -> Unit>>,
-        val assertRestored: (JComponent) -> Unit,
+        val restoration: Restoration<S>,
+        val target: Target = Target(),
     ) {
-        /** The bean whose [failingProperty] listener throws. */
-        open val listenerOn: JComponent get() = component
-
-        /** Shows the component, carrying the given modifier. */
-        open val mount: @Composable (SwingModifier) -> Unit = { modifier ->
-            SwingNode(factory = { component }, modifier = modifier)
-        }
-
         override fun toString(): String = label
     }
 
@@ -84,10 +98,14 @@ class DirectWriteListenerTest {
         fun directWrites(): List<Arguments> = listOf(
             DirectWrite(
                 "inputVerifier",
-                JTextField(),
-                "inputVerifier",
-                listOf(SwingModifier.inputVerifier { true } to { assertNotNull(it.inputVerifier) }),
-                { assertNull(it.inputVerifier) },
+                failingProperty = "inputVerifier",
+                mount = { TextField(value = "", onValueChange = {}, modifier = it) },
+                writes = listOf(SwingModifier.inputVerifier { true } to { assertNotNull(it.inputVerifier) }),
+                restoration =
+                    Restoration(
+                        snapshot = { },
+                        assertRestored = { component, _ -> assertNull(component.inputVerifier) },
+                    ),
             ),
             borderWrite(),
             focusTraversalWrite("focusCycleRoot"),
@@ -107,20 +125,25 @@ class DirectWriteListenerTest {
 
         private fun borderWrite() = DirectWrite(
             "border",
-            JLabel(),
-            "border",
-            listOf(
-                SwingModifier then BorderElement(BorderSpec.Empty(1, 1, 1, 1)) to
-                    { assertEquals(Insets(1, 1, 1, 1), it.insets) },
-                SwingModifier then BorderElement(BorderSpec.Empty(2, 2, 2, 2)) to
-                    { assertEquals(Insets(2, 2, 2, 2), it.insets) },
-                SwingModifier then BorderElement(BorderSpec.Empty(3, 3, 3, 3)) to
-                    { assertEquals(Insets(3, 3, 3, 3), it.insets) },
-            ),
-            { assertNull(it.border) },
+            failingProperty = "border",
+            mount = { Label("", modifier = it) },
+            writes =
+                listOf(
+                    SwingModifier then BorderElement(BorderSpec.Empty(1, 1, 1, 1)) to
+                        { assertEquals(Insets(1, 1, 1, 1), it.insets) },
+                    SwingModifier then BorderElement(BorderSpec.Empty(2, 2, 2, 2)) to
+                        { assertEquals(Insets(2, 2, 2, 2), it.insets) },
+                    SwingModifier then BorderElement(BorderSpec.Empty(3, 3, 3, 3)) to
+                        { assertEquals(Insets(3, 3, 3, 3), it.insets) },
+                ),
+            restoration =
+                Restoration(
+                    snapshot = { },
+                    assertRestored = { component, _ -> assertNull(component.border) },
+                ),
         )
 
-        private fun rewriteOnWrite(): DirectWrite {
+        private fun rewriteOnWrite(): DirectWrite<Unit> {
             val name =
                 ComponentPropertyDescriptor<JLabel, String?>(
                     name = "name",
@@ -129,166 +152,198 @@ class DirectWriteListenerTest {
                 )
             return DirectWrite(
                 "a rewriteOn declaration",
-                JLabel(),
-                "name",
-                listOf("declared", "changed", "changed again").map { value ->
-                    SwingModifier.property(name, value, rewriteOn = "name") to
-                        { component: JComponent -> assertEquals(value, component.name) }
-                },
-                { assertNull(it.name) },
+                failingProperty = "name",
+                mount = { Label("", modifier = it) },
+                writes =
+                    listOf("declared", "changed", "changed again").map { value ->
+                        SwingModifier.property(name, value, rewriteOn = "name") to
+                            { component: JComponent -> assertEquals(value, component.name) }
+                    },
+                restoration =
+                    Restoration(
+                        snapshot = { },
+                        assertRestored = { component, _ -> assertNull(component.name) },
+                    ),
             )
         }
 
         private fun mnemonicWrite() = DirectWrite(
             "displayedMnemonicIndex",
-            JButton("Save As"),
-            "displayedMnemonicIndex",
-            listOf(5, 3, 1).map { index ->
-                SwingModifier.styleable(TestButtonKind) { displayedMnemonicIndex(index) } to
-                    { component: JComponent -> assertEquals(index, (component as JButton).displayedMnemonicIndex) }
-            },
-            { assertEquals(-1, (it as JButton).displayedMnemonicIndex) },
+            failingProperty = "displayedMnemonicIndex",
+            mount = { Button("Save As", onClick = {}, modifier = it) },
+            writes =
+                listOf(5, 3, 1).map { index ->
+                    SwingModifier.styleable(TestButtonKind) { displayedMnemonicIndex(index) } to
+                        { component: JComponent -> assertEquals(index, (component as JButton).displayedMnemonicIndex) }
+                },
+            restoration =
+                Restoration(
+                    snapshot = { },
+                    assertRestored = {
+                        component,
+                        _,
+                        ->
+                        assertEquals(-1, (component as JButton).displayedMnemonicIndex)
+                    },
+                ),
         )
 
         private fun toolTipWrite() = DirectWrite(
             "toolTip",
-            JLabel(),
-            "ToolTipText",
-            listOf("declared", "changed", "changed again").map { text ->
-                SwingModifier.styleable(TestNodeKind) { toolTip(text) } to
-                    { component: JComponent -> assertEquals(text, (component as JLabel).toolTipText) }
-            },
-            { assertNull((it as JLabel).toolTipText) },
+            failingProperty = "ToolTipText",
+            mount = { Label("", modifier = it) },
+            writes =
+                listOf("declared", "changed", "changed again").map { text ->
+                    SwingModifier.styleable(TestNodeKind) { toolTip(text) } to
+                        { component: JComponent -> assertEquals(text, (component as JLabel).toolTipText) }
+                },
+            restoration =
+                Restoration(
+                    snapshot = { },
+                    assertRestored = { component, _ -> assertNull((component as JLabel).toolTipText) },
+                ),
         )
 
-        private fun declaredBackgroundWrite(): DirectWrite {
-            val label = JLabel()
-            val original = label.background
-            val wasSet = label.isBackgroundSet
-            return DirectWrite(
-                "a declared property",
-                label,
-                "background",
+        private fun declaredBackgroundWrite() = DirectWrite(
+            "a declared property",
+            failingProperty = "background",
+            mount = { Label("", modifier = it) },
+            writes =
                 listOf(Color.RED, Color.BLUE, Color.GREEN).map { color ->
                     SwingModifier.property(BackgroundProperty, color) to
                         { component: JComponent -> assertEquals(color, component.background) }
                 },
-                {
-                    assertEquals(original, it.background)
-                    assertEquals(wasSet, it.isBackgroundSet)
-                },
-            )
-        }
+            restoration =
+                Restoration(
+                    snapshot = { it.background to it.isBackgroundSet },
+                    assertRestored = { component, (background, wasSet) ->
+                        assertEquals(background, component.background)
+                        assertEquals(wasSet, component.isBackgroundSet)
+                    },
+                ),
+        )
 
-        private fun caretWrite(): DirectWrite {
-            val field = JTextField()
-            val original = field.caret
-            return DirectWrite(
-                "caret",
-                field,
-                "caret",
+        private fun caretWrite() = DirectWrite(
+            "caret",
+            failingProperty = "caret",
+            mount = { TextField(value = "", onValueChange = {}, modifier = it) },
+            writes =
                 List(3) { DefaultCaret() }.map { installed ->
                     SwingModifier.styleable(TestTextNodeKind) { caret(installed) } to
                         { component: JComponent -> assertSame(installed, (component as JTextField).caret) }
                 },
-                { assertSame(original, (it as JTextField).caret) },
-            )
-        }
+            restoration =
+                Restoration(
+                    snapshot = { (it as JTextField).caret },
+                    assertRestored = { component, original -> assertSame(original, (component as JTextField).caret) },
+                ),
+        )
 
         /** The button sits under a root pane, which is the bean whose `defaultButton` listener throws. */
-        private fun defaultButtonWrite(): DirectWrite {
-            val rootPane = JRootPane()
-            val button = JButton("OK")
-            return object : DirectWrite(
-                "defaultButton",
-                button,
-                "defaultButton",
-                listOf(
-                    SwingModifier.defaultButton() to { assertSame(button, rootPane.defaultButton) },
-                    SwingModifier.defaultButton(default = false) to { assertNull(rootPane.defaultButton) },
-                    SwingModifier.defaultButton() to { assertSame(button, rootPane.defaultButton) },
-                ),
-                { assertNull(rootPane.defaultButton) },
-            ) {
-                override val listenerOn: JComponent get() = rootPane
-
-                override val mount: @Composable (SwingModifier) -> Unit = { modifier ->
-                    SwingNode(factory = { rootPane }) {
-                        SwingNode(factory = { button }, modifier = modifier)
-                    }
+        private fun defaultButtonWrite() = DirectWrite(
+            "defaultButton",
+            failingProperty = "defaultButton",
+            mount = { modifier ->
+                SwingNode(factory = { JRootPane() }) {
+                    Button("OK", onClick = {}, modifier = modifier)
                 }
-            }
-        }
+            },
+            writes =
+                listOf(
+                    SwingModifier.defaultButton() to { assertSame(it, it.rootPane.defaultButton) },
+                    SwingModifier.defaultButton(default = false) to { assertNull(it.rootPane.defaultButton) },
+                    SwingModifier.defaultButton() to { assertSame(it, it.rootPane.defaultButton) },
+                ),
+            restoration =
+                Restoration(
+                    snapshot = { },
+                    assertRestored = { component, _ -> assertNull(component.rootPane.defaultButton) },
+                ),
+            target =
+                Target(
+                    find = { onNodeOfType<JButton>().fetch() },
+                    listenerOn = { it.rootPane },
+                ),
+        )
 
         private fun transferWrite(
             label: String,
             declared: SwingModifier,
-        ): DirectWrite {
-            val field = JTextField()
-            val original = field.transferHandler
-            return DirectWrite(
-                "transferHandler, $label",
-                field,
-                "transferHandler",
-                listOf(declared to { assertIs<SharedTransferHandler>(it.transferHandler) }),
-                { assertSame(original, it.transferHandler) },
-            )
-        }
+        ) = DirectWrite(
+            "transferHandler, $label",
+            failingProperty = "transferHandler",
+            mount = { TextField(value = "", onValueChange = {}, modifier = it) },
+            writes = listOf(declared to { assertIs<SharedTransferHandler>(it.transferHandler) }),
+            restoration =
+                Restoration(
+                    snapshot = { it.transferHandler },
+                    assertRestored = { component, original -> assertSame(original, component.transferHandler) },
+                ),
+        )
 
         /** Every one of the three writes lands although the listener on [failingProperty] throws. */
         private fun focusTraversalWrite(failingProperty: String) = DirectWrite(
             "orderedFocusTraversal, $failingProperty",
-            JPanel(),
-            failingProperty,
-            listOf(
-                SwingModifier.orderedFocusTraversal() to {
-                    assertTrue((it as JPanel).isFocusCycleRoot)
-                    assertTrue(it.isFocusTraversalPolicyProvider)
-                    assertTrue(it.isFocusTraversalPolicySet)
-                },
-            ),
-            {
-                assertEquals(false, (it as JPanel).isFocusCycleRoot)
-                assertEquals(false, it.isFocusTraversalPolicyProvider)
-                assertEquals(false, it.isFocusTraversalPolicySet)
-            },
+            failingProperty = failingProperty,
+            mount = { Panel(modifier = it) {} },
+            writes =
+                listOf(
+                    SwingModifier.orderedFocusTraversal() to {
+                        assertTrue((it as JPanel).isFocusCycleRoot)
+                        assertTrue(it.isFocusTraversalPolicyProvider)
+                        assertTrue(it.isFocusTraversalPolicySet)
+                    },
+                ),
+            restoration =
+                Restoration(
+                    snapshot = { },
+                    assertRestored = { component, _ ->
+                        assertEquals(false, (component as JPanel).isFocusCycleRoot)
+                        assertEquals(false, component.isFocusTraversalPolicyProvider)
+                        assertEquals(false, component.isFocusTraversalPolicySet)
+                    },
+                ),
         )
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("directWrites")
-    fun aPropertyListenerThatThrowsDuringTheWriteIsReportedAndALaterChangeStillApplies(case: DirectWrite) =
-        runComposeSwingTest {
-            val failure = IllegalStateException()
-            val listener = mockk<PropertyChangeListener>(relaxed = true)
-            case.listenerOn.addPropertyChangeListener(case.failingProperty, listener)
-            var declaration by mutableStateOf<SwingModifier>(SwingModifier)
-            setContent { case.mount(declaration) }
-            awaitIdle()
+    fun aPropertyListenerThatThrowsDuringTheWriteIsReportedAndALaterChangeStillApplies(case: DirectWrite<*>) =
+        runComposeSwingTest { aPropertyListenerThatThrowsIsReported(case) }
 
-            every { listener.propertyChange(any()) } throws failure
-            val (declared, assertDeclared) = case.writes.first()
-            declaration = declared
+    private suspend fun <S> ComposeSwingTest.aPropertyListenerThatThrowsIsReported(case: DirectWrite<S>) {
+        val failure = IllegalStateException()
+        val listener = mockk<PropertyChangeListener>(relaxed = true)
+        var declaration by mutableStateOf<SwingModifier>(SwingModifier)
+        setContent { case.mount(declaration) }
+        awaitIdle()
+        val component = case.target.find(this)
+        val original = case.restoration.snapshot(component)
+        case.target.listenerOn(component).addPropertyChangeListener(case.failingProperty, listener)
+
+        every { listener.propertyChange(any()) } throws failure
+        val (declared, assertDeclared) = case.writes.first()
+        declaration = declared
+        assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
+        verify(exactly = 1) { listener.propertyChange(any()) }
+        assertDeclared(component)
+
+        case.writes.getOrNull(1)?.let { (changed, assertChanged) ->
+            declaration = changed
             assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
-            verify(exactly = 1) { listener.propertyChange(any()) }
-            assertDeclared(case.component)
-
-            case.writes.getOrNull(1)?.let { (changed, assertChanged) ->
-                declaration = changed
-                assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
-                verify(exactly = 2) { listener.propertyChange(any()) }
-                assertChanged(case.component)
-            }
-
-            every { listener.propertyChange(any()) } just Runs
-            case.writes.getOrNull(2)?.let { (changedAgain, assertChangedAgain) ->
-                declaration = changedAgain
-                awaitIdle()
-                assertChangedAgain(case.component)
-            }
-
-            declaration = SwingModifier
-            awaitIdle()
-            case.assertRestored(case.component)
+            verify(exactly = 2) { listener.propertyChange(any()) }
+            assertChanged(component)
         }
+
+        every { listener.propertyChange(any()) } just Runs
+        case.writes.getOrNull(2)?.let { (changedAgain, assertChangedAgain) ->
+            declaration = changedAgain
+            awaitIdle()
+            assertChangedAgain(component)
+        }
+
+        declaration = SwingModifier
+        awaitIdle()
+        case.restoration.assertRestored(component, original)
+    }
 }

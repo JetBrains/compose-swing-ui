@@ -6,6 +6,7 @@ import androidx.compose.testutils.ComposeTestCase
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
 import javax.swing.JPanel
@@ -23,22 +24,21 @@ class SwingExecutionControlDrawTest {
             SwingExecutionControl(listOf(subject), coroutineContext).use { control ->
                 control.compose()
                 control.recompose()
-                assertEquals(0, subject.panel.width)
+                val panel = control.hosted<PaintPanel>()
+                assertEquals(0, panel.width)
                 control.host.drawToBitmap()
                 assertNotEquals(Color.RED.rgb, control.host.image.getRGB(1, 1))
                 control.host.layout()
-                assertTrue(subject.panel.width > 0)
+                assertTrue(panel.width > 0)
                 control.host.drawToBitmap()
                 assertEquals(Color.RED.rgb, control.host.image.getRGB(1, 1))
             }
         }
 
     private class PaintCase : ComposeTestCase {
-        val panel = PaintPanel()
-
         @Composable
         override fun Content() {
-            SwingNode(factory = { panel })
+            SwingNode(factory = { PaintPanel() })
         }
     }
 
@@ -54,3 +54,6 @@ class SwingExecutionControlDrawTest {
         }
     }
 }
+
+private inline fun <reified T : Component> SwingExecutionControl.hosted(): T =
+    componentTree(host.panel).filterIsInstance<T>().single()

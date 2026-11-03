@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.test
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
 import java.awt.Canvas
@@ -60,12 +61,12 @@ class OffscreenLayoutTest {
     @Test
     fun aLayoutKeepingWhatItMeasuredSeesAChangeTheCompositionApplied() = runComposeSwingTest {
         var text by mutableStateOf("short")
-        val label = JLabel()
         setContent {
             SwingNode(factory = { JPanel(KeepingLayout()) }) {
-                SwingNode(factory = { label }, update = { set(text) { this.text = it } })
+                Label(text = text)
             }
         }
+        val label = onNodeOfType<JLabel>().fetch()
         val shortWidth = label.width
 
         text = "a considerably longer text"

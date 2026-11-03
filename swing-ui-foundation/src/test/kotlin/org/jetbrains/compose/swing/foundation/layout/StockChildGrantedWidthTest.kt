@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -39,12 +40,11 @@ class StockChildGrantedWidthTest {
     @MethodSource("unplacedChildren")
     fun readingTheBaselineOfAnUnplacedContainerKeepsItsStockLeafBounds(
         name: String,
-        child: Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>,
+        child: Pair<Boolean, ConstrainedScope.() -> SwingModifier>,
     ) {
-        val (create, childModifier) = child
+        val (decorated, childModifier) = child
         runComposeSwingTest(rootSize = Dimension(320, 600)) {
             root.layout = BorderLayout()
-            val area = create()
             var placed by mutableStateOf(true)
             var offeredWidth by mutableIntStateOf(160)
             var readBaseline by mutableStateOf(false)
@@ -65,12 +65,22 @@ class StockChildGrantedWidthTest {
                     },
                 ) {
                     Box(modifier = SwingModifier.testTag("box")) {
-                        SwingNode(factory = { area }, modifier = childModifier())
+                        SwingNode(
+                            factory = {
+                                if (decorated) {
+                                    DecoratedTextArea(WRAPPING_TEXT.repeat(12))
+                                } else {
+                                    ResizeCountingTextArea(WRAPPING_TEXT.repeat(12))
+                                }
+                            },
+                            modifier = childModifier(),
+                        )
                     }
                 }
             }
             captureToImage()
             awaitIdle()
+            val area = onNodeOfType<JTextArea>().fetch()
             placed = false
             awaitIdle()
             val before = area.bounds
@@ -96,12 +106,11 @@ class StockChildGrantedWidthTest {
     @MethodSource("unplacedChildren")
     fun readingTheAlignmentLinesOfAnUnplacedContainerKeepsItsStockLeafBounds(
         name: String,
-        child: Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>,
+        child: Pair<Boolean, ConstrainedScope.() -> SwingModifier>,
     ) {
-        val (create, childModifier) = child
+        val (decorated, childModifier) = child
         runComposeSwingTest(rootSize = Dimension(320, 600)) {
             root.layout = BorderLayout()
-            val area = create()
             var placed by mutableStateOf(true)
             var offeredWidth by mutableIntStateOf(160)
             setContent {
@@ -115,12 +124,22 @@ class StockChildGrantedWidthTest {
                     },
                 ) {
                     Box(modifier = SwingModifier.testTag("box")) {
-                        SwingNode(factory = { area }, modifier = childModifier())
+                        SwingNode(
+                            factory = {
+                                if (decorated) {
+                                    DecoratedTextArea(WRAPPING_TEXT.repeat(12))
+                                } else {
+                                    ResizeCountingTextArea(WRAPPING_TEXT.repeat(12))
+                                }
+                            },
+                            modifier = childModifier(),
+                        )
                     }
                 }
             }
             captureToImage()
             awaitIdle()
+            val area = onNodeOfType<JTextArea>().fetch()
             placed = false
             awaitIdle()
             val before = area.bounds
@@ -141,12 +160,13 @@ class StockChildGrantedWidthTest {
     fun aPlacementBlockMayMeasureAndReadTheBaselineBeforePlacingAStockChildAtANewWidth() =
         runComposeSwingTest {
             var width by mutableIntStateOf(WIDTH)
-            val area = ResizeCountingTextArea()
             var baseline = -1
             setContent {
                 borderLayoutSlot(BorderLayout.CENTER)(width) { modifier ->
                     Layout(
-                        content = { SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth()) },
+                        content = {
+                            SwingNode(factory = { ResizeCountingTextArea() }, modifier = SwingModifier.fillMaxWidth())
+                        },
                         modifier = modifier.testTag("parent"),
                         measurePolicy = { measurables, constraints ->
                             layout(constraints.maxWidth, constraints.maxHeight) {
@@ -167,6 +187,7 @@ class StockChildGrantedWidthTest {
                 }
             }
             settleWithPaint()
+            val area = onNodeOfType<ResizeCountingTextArea>().fetch()
             width = WIDTH / 2
             awaitIdle()
             val parent = onNodeWithTag("parent").fetch<JComponent>()
@@ -179,11 +200,10 @@ class StockChildGrantedWidthTest {
     @MethodSource("unplacedChildrenForMeasurement")
     fun aContainerMeasuredByAParentThatDoesNotPlaceItLeavesItsStockChildWhereItWas(
         name: String,
-        child: Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>,
+        child: Pair<Boolean, ConstrainedScope.() -> SwingModifier>,
     ) {
-        val (create, childModifier) = child
+        val (decorated, childModifier) = child
         runComposeSwingTest {
-            val area = create()
             var width by mutableIntStateOf(WIDTH)
             var placed by mutableStateOf(true)
             setContent {
@@ -191,7 +211,12 @@ class StockChildGrantedWidthTest {
                     Layout(
                         content = {
                             Box(modifier = SwingModifier.testTag("box")) {
-                                SwingNode(factory = { area }, modifier = childModifier())
+                                SwingNode(
+                                    factory = {
+                                        if (decorated) DecoratedTextArea(WRAPPING_TEXT) else ResizeCountingTextArea()
+                                    },
+                                    modifier = childModifier(),
+                                )
                             }
                         },
                         modifier = modifier.testTag("parent"),
@@ -206,6 +231,7 @@ class StockChildGrantedWidthTest {
                 }
             }
             settleWithPaint()
+            val area = onNodeOfType<JTextArea>().fetch()
             placed = false
             awaitIdle()
             val bounds = area.bounds
@@ -233,12 +259,25 @@ class StockChildGrantedWidthTest {
             var sibling by mutableStateOf("Before")
             var width by mutableIntStateOf(WIDTH)
             var resizes = 0
-            val child: JComponent =
-                if (foreignPanel) {
-                    CountingSwingPanel(JPanel().apply { repeat(500) { add(JLabel("Counted")) } })
-                } else {
-                    ResizeCountingTextArea()
+            setContent {
+                borderLayoutSlot(if (foreignPanel) BorderLayout.NORTH else BorderLayout.CENTER)(width) { modifier ->
+                    Column(modifier = modifier.testTag("column")) {
+                        SwingNode<JComponent>(
+                            factory = {
+                                if (foreignPanel) {
+                                    CountingSwingPanel(JPanel().apply { repeat(500) { add(JLabel("Counted")) } })
+                                } else {
+                                    ResizeCountingTextArea()
+                                }
+                            },
+                            modifier = SwingModifier.fillMaxWidth().testTag("child"),
+                        )
+                        Label(sibling)
+                    }
                 }
+            }
+            settleWithPaint()
+            val child = onNodeWithTag("child").fetch<JComponent>()
             child.addComponentListener(
                 object : ComponentAdapter() {
                     override fun componentResized(event: ComponentEvent) {
@@ -246,15 +285,6 @@ class StockChildGrantedWidthTest {
                     }
                 },
             )
-            setContent {
-                borderLayoutSlot(if (foreignPanel) BorderLayout.NORTH else BorderLayout.CENTER)(width) { modifier ->
-                    Column(modifier = modifier.testTag("column")) {
-                        SwingNode(factory = { child }, modifier = SwingModifier.fillMaxWidth())
-                        Label(sibling)
-                    }
-                }
-            }
-            settleWithPaint()
             val bounds = child.bounds
             (child as? CountingSwingPanel)?.resetCounts()
             resizes = 0
@@ -275,17 +305,7 @@ class StockChildGrantedWidthTest {
             width = WIDTH + 80
             awaitIdle()
             assertEquals(width, child.width, "new grant reaches the child")
-            if (foreignPanel) {
-                assertEquals(1, resizes, "new grant resizes once")
-                assertEquals(1, (child as CountingSwingPanel).layouts, "new grant lays the foreign panel out once")
-                assertEquals(3, child.queries, "width read, height read and layout each read preferences once")
-            } else {
-                assertEquals(
-                    1,
-                    (child as ResizeCountingTextArea).widthChanges,
-                    "$name: new grant gives the text area its new width once",
-                )
-            }
+            assertNewGrantWork(child, name, foreignPanel, resizes)
         }
     }
 
@@ -296,16 +316,11 @@ class StockChildGrantedWidthTest {
 
         @JvmStatic
         fun unplacedChildrenForMeasurement(): List<Arguments> {
-            val children: Map<String, Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>> =
+            val children: Map<String, Pair<Boolean, ConstrainedScope.() -> SwingModifier>> =
                 mapOf(
-                    "filling the width" to ({ ResizeCountingTextArea() } to { SwingModifier.fillMaxWidth() }),
-                    "at a fixed height" to
-                        ({ ResizeCountingTextArea() } to { SwingModifier.fillMaxWidth().height(SLOT_HEIGHT / 4) }),
-                    "with paint outsets" to
-                        (
-                            { DecoratedTextArea(WRAPPING_TEXT) } to
-                                { SwingModifier.fillMaxWidth().shadow(16, Color.BLACK) }
-                        ),
+                    "filling the width" to (false to { SwingModifier.fillMaxWidth() }),
+                    "at a fixed height" to (false to { SwingModifier.fillMaxWidth().height(SLOT_HEIGHT / 4) }),
+                    "with paint outsets" to (true to { SwingModifier.fillMaxWidth().shadow(16, Color.BLACK) }),
                 )
             return children.map { (name, child) -> Arguments.of(name, child) }
         }
@@ -319,23 +334,30 @@ class StockChildGrantedWidthTest {
     }
 }
 
-private val unplacedBaselineChildren: Map<String, Pair<() -> JTextArea, ConstrainedScope.() -> SwingModifier>> =
+private fun assertNewGrantWork(
+    child: JComponent,
+    name: String,
+    foreignPanel: Boolean,
+    resizes: Int,
+) {
+    if (foreignPanel) {
+        assertEquals(1, resizes, "new grant resizes once")
+        assertEquals(1, (child as CountingSwingPanel).layouts, "new grant lays the foreign panel out once")
+        assertEquals(3, child.queries, "width read, height read and layout each read preferences once")
+    } else {
+        assertEquals(
+            1,
+            (child as ResizeCountingTextArea).widthChanges,
+            "$name: new grant gives the text area its new width once",
+        )
+    }
+}
+
+private val unplacedBaselineChildren: Map<String, Pair<Boolean, ConstrainedScope.() -> SwingModifier>> =
     mapOf(
-        "filling the width" to
-            ({ ResizeCountingTextArea(WRAPPING_TEXT.repeat(12)) } to { SwingModifier.fillMaxWidth() }),
-        "at a fixed height" to
-            (
-                { ResizeCountingTextArea(WRAPPING_TEXT.repeat(12)) } to
-                    { SwingModifier.fillMaxWidth().height(SLOT_HEIGHT / 4) }
-            ),
-        "with paint outsets" to
-            (
-                {
-                    DecoratedTextArea(
-                        WRAPPING_TEXT.repeat(12),
-                    )
-                } to { SwingModifier.fillMaxWidth().shadow(16, Color.BLACK) }
-            ),
+        "filling the width" to (false to { SwingModifier.fillMaxWidth() }),
+        "at a fixed height" to (false to { SwingModifier.fillMaxWidth().height(SLOT_HEIGHT / 4) }),
+        "with paint outsets" to (true to { SwingModifier.fillMaxWidth().shadow(16, Color.BLACK) }),
     )
 
 private const val WIDTH = 320

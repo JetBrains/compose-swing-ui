@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -141,28 +142,17 @@ class BaselineAtWidthTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(150)
             var height by mutableIntStateOf(60)
-            val label =
-                object : JLabel(HTML) {
-                    var baselineReads = 0
-
-                    override fun getBaseline(
-                        width: Int,
-                        height: Int,
-                    ): Int {
-                        baselineReads++
-                        return super.getBaseline(width, height)
-                    }
-                }
             setContent {
                 Panel(PanelLayout.Border(), style = { preferredSize(400, SLOT_HEIGHT) }) {
                     Box(modifier = SwingModifier.center()) {
                         SwingNode(
-                            factory = { label },
+                            factory = { BaselineCountingLabel() },
                             modifier = SwingModifier.width(width).height(height),
                         )
                     }
                 }
             }
+            val label = onNodeOfType<BaselineCountingLabel>().fetch()
             awaitIdle()
 
             label.baselineReads = 0
@@ -226,6 +216,18 @@ private fun JComponent.settledBaseline(): Int {
 
 /** Where the top of this component is in [row]. */
 private fun JComponent.topIn(row: JComponent): Int = SwingUtilities.convertPoint(this, 0, 0, row).y
+
+private class BaselineCountingLabel : JLabel(HTML) {
+    var baselineReads = 0
+
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int {
+        baselineReads++
+        return super.getBaseline(width, height)
+    }
+}
 
 /** A baseline read at [width], with the width of the child holding the baseline before and after it. */
 private data class BaselineRead(

@@ -2,22 +2,20 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertTrue
-import org.jetbrains.compose.swing.setContent as setSwingContent
 
 /** A [Layout] panel moved between compositions keeps measuring once the composition it left is disposed. */
 class ConstrainedPanelMovedContentTest {
@@ -27,24 +25,20 @@ class ConstrainedPanelMovedContentTest {
             val width = mutableIntStateOf(10)
             val policy = CountingWidthPolicy(width)
             var inOuter by mutableStateOf(false)
-            val host = JPanel(BorderLayout())
-            lateinit var context: CompositionContext
+            var hosted by mutableStateOf(true)
             lateinit var content: @Composable () -> Unit
             setContent {
-                context = rememberCompositionContext()
                 content =
                     remember {
                         movableContentOf { SwingNode(factory = { JPanel(BorderLayout()) }) { Layout(policy) } }
                     }
-                SwingNode(factory = { host })
+                if (hosted) NestedContentHost(layout = BorderLayout()) { if (!inOuter) content() }
                 if (inOuter) content()
             }
             awaitIdle()
-            val nested = host.setSwingContent(parent = context) { if (!inOuter) content() }
-            awaitIdle()
             inOuter = true
             awaitIdle()
-            nested.dispose()
+            hosted = false
             awaitIdle()
             val measures = policy.measures
 

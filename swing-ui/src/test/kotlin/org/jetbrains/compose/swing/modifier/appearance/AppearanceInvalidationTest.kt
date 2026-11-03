@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
@@ -123,24 +124,24 @@ class AppearanceInvalidationTest {
     @Test
     fun reactiveFontGrowthOnJComponentRelaysOutTheParent() = runComposeSwingTest {
         var large by mutableStateOf(false)
-        val growing = JLabel("WWWWWW")
-        val sibling = JLabel("tail")
 
         setContent {
             SwingNode(
                 factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
             ) {
                 // The growing label gets a small font initially and a much larger one when `large` flips.
-                SwingNode(
-                    factory = { growing },
+                Label(
+                    text = "WWWWWW",
                     modifier =
                         SwingModifier.styleable { font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)) },
                 )
-                SwingNode(factory = { sibling })
+                Label("tail")
             }
         }
 
         awaitIdle()
+        val growing = onNodeWithText("WWWWWW").fetch()
+        val sibling = onNodeWithText("tail").fetch()
         val baselineWidth = growing.width
         val baselineSiblingX = sibling.x
 
@@ -161,11 +162,10 @@ class AppearanceInvalidationTest {
     @Test
     fun reactiveFontChangeOnNonJComponentRequestsRelayoutAndRepaint() = runComposeSwingTest {
         var large by mutableStateOf(false)
-        val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
 
         setContent {
             SwingNode(
-                factory = { target },
+                factory = { CountingComponent().apply { preferredSize = Dimension(20, 20) } },
                 modifier =
                     SwingModifier.styleable(TestNodeKind) {
                         font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8))
@@ -174,6 +174,7 @@ class AppearanceInvalidationTest {
         }
 
         awaitIdle()
+        val target = onNodeOfType<CountingComponent>().fetch()
         val revalidatesBefore = target.revalidateCount.get()
         val repaintsBefore = target.repaintCount.get()
 
@@ -206,13 +207,16 @@ class AppearanceInvalidationTest {
 
     private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: ComponentStyleScope.(Color) -> Unit) {
         var color by mutableStateOf(Color.RED)
-        val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
 
         setContent {
-            SwingNode(factory = { target }, modifier = SwingModifier.styleable(TestNodeKind) { declare(color) })
+            SwingNode(
+                factory = { CountingComponent().apply { preferredSize = Dimension(20, 20) } },
+                modifier = SwingModifier.styleable(TestNodeKind) { declare(color) },
+            )
         }
 
         awaitIdle()
+        val target = onNodeOfType<CountingComponent>().fetch()
         val revalidatesBefore = target.revalidateCount.get()
         val repaintsBefore = target.repaintCount.get()
 
@@ -234,13 +238,16 @@ class AppearanceInvalidationTest {
     @Test
     fun aTextComponentsMarginChangeAsksForTheLayoutAndThePaintItNeeds() = runComposeSwingTest {
         var margin by mutableStateOf(Insets(2, 2, 2, 2))
-        val field = CountingTextField()
 
         setContent {
-            SwingNode(factory = { field }, modifier = SwingModifier.styleable(TestTextNodeKind) { margin(margin) })
+            SwingNode(
+                factory = { CountingTextField() },
+                modifier = SwingModifier.styleable(TestTextNodeKind) { margin(margin) },
+            )
         }
 
         awaitIdle()
+        val field = onNodeOfType<CountingTextField>().fetch()
         assertEquals(margin, field.margin, "the field should carry the declared margin")
         val revalidatesBefore = field.revalidateCount
         val repaintsBefore = field.repaintCount
@@ -265,11 +272,10 @@ class AppearanceInvalidationTest {
     @Test
     fun aLabelsUnchangedTextPositionCostsNoLayoutOrPaint() = runComposeSwingTest {
         var tick by mutableStateOf(0)
-        val label = CountingLabel()
 
         setContent {
             SwingNode(
-                factory = { label },
+                factory = { CountingLabel() },
                 modifier = SwingModifier.styleable(TestLabelKind) { horizontalTextPosition(SwingConstants.RIGHT) },
             )
             // Read by this composable, so a change recomposes it and the label's style is declared again
@@ -278,6 +284,7 @@ class AppearanceInvalidationTest {
         }
 
         awaitIdle()
+        val label = onNodeOfType<CountingLabel>().fetch()
         assertEquals(SwingConstants.RIGHT, label.horizontalTextPosition, "the declared position")
         val revalidatesBefore = label.revalidateCount
         val repaintsBefore = label.repaintCount

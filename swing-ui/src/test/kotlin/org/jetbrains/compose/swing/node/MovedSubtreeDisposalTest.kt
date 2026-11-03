@@ -3,19 +3,25 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.job
+import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -118,20 +124,16 @@ class MovedSubtreeDisposalTest {
     @Test
     fun aNodeWhoseListenerModifierAndReleaseCallbackAllThrowRunsEveryStepOnce() = runComposeSwingTest {
         val lifecycle = Lifecycle()
-        val host = JPanel()
-        lateinit var context: CompositionContext
+        var mounted by mutableStateOf(true)
         setContent {
-            context = rememberCompositionContext()
-            SwingNode(factory = { host })
+            MountingHost(mounted, rememberCompositionContext()) { ListeningNode(lifecycle) }
         }
-        awaitIdle()
-        val content = host.setContent(parent = context) { ListeningNode(lifecycle) }
         awaitIdle()
 
         lifecycle.detachFailure = "listener"
         lifecycle.modifierDetachFailure = "modifier"
         lifecycle.releaseFailure = "release"
-        content.dispose()
+        mounted = false
         val thrown = assertFailsWith<IllegalStateException>("the first failure is reported") { awaitIdle() }
         lifecycle.detachFailure = null
         lifecycle.modifierDetachFailure = null
@@ -151,21 +153,23 @@ class MovedSubtreeDisposalTest {
     @Test
     fun anItemMovedToAnotherMenuStandsOnlyUnderTheMenuItJoined() = runComposeSwingTest {
         var inSecond by mutableStateOf(false)
-        val first = JMenu("First")
-        val second = JMenu("Second")
         val popup =
             composeMenu {
                 val item = remember { movableContentOf { MenuNode(factory = { JMenuItem("Moved") }) } }
-                MenuNode(factory = { first }) { if (!inSecond) item() }
-                MenuNode(factory = { second }) { if (inSecond) item() }
+                Menu("First") { if (!inSecond) item() }
+                Menu("Second") { if (inSecond) item() }
             }
         assertEquals(listOf("First", "Second"), popup.menuItemTexts(), "both menus are composed before the move")
 
         inSecond = true
         awaitIdle()
 
-        assertEquals(listOf("Moved"), second.menuItemTexts(), "the item is in the second menu")
-        assertEquals(emptyList(), first.menuItemTexts(), "the item left the first menu")
+        onNodeWithText("Second")
+            .assertIsOfType<JMenu>()
+            .assertProperty(listOf<String?>("Moved"), "the item is in the second menu") { menuItemTexts() }
+        onNodeWithText("First")
+            .assertIsOfType<JMenu>()
+            .assertProperty(emptyList<String?>(), "the item left the first menu") { menuItemTexts() }
     }
 
     private fun Throwable.reachable(): List<Throwable> =
@@ -210,19 +214,53 @@ class MovedSubtreeDisposalTest {
         content: @Composable () -> Unit,
     ): Move {
         var inNested by mutableStateOf(false)
-        val host = JPanel()
-        lateinit var context: CompositionContext
-        lateinit var movable: @Composable () -> Unit
         setContent {
-            context = rememberCompositionContext()
-            movable = remember { movableContentOf(content) }
-            SwingNode(factory = { host })
+            val movable = remember { movableContentOf(content) }
+            MountingHost(true, rememberCompositionContext()) { if (inNested) under(movable) }
             if (!inNested) movable()
         }
         awaitIdle()
-        val nested = host.setContent(parent = context) { if (inNested) under(movable) }
-        awaitIdle()
+        // Fetched while the composition is healthy: its recomposer may be dead by the time
+        // the test disposes the nested one.
+        val nested = onNodeOfType<MountingPanel>().fetch()
         return Move({ inNested = true }, nested)
+    }
+
+    /**
+     * A panel that owns a nested composition of [content] under [parent] while [mounted], and disposes it
+     * on release.
+     */
+    @Composable
+    private fun MountingHost(
+        mounted: Boolean,
+        parent: CompositionContext,
+        content: @Composable () -> Unit,
+    ) {
+        val current = rememberUpdatedState(content)
+        SwingNode(
+            factory = { MountingPanel() },
+            update = { set(mounted) { if (it) mount(parent, current) else dispose() } },
+            onRelease = { dispose() },
+        )
+    }
+
+    private class MountingPanel :
+        JPanel(),
+        DisposableHandle {
+        private var content: DisposableHandle? = null
+
+        fun mount(
+            parent: CompositionContext,
+            composable: State<@Composable () -> Unit>,
+        ) {
+            dispose()
+            content = setContent(parent = parent) { composable.value() }
+        }
+
+        override fun dispose() {
+            content?.dispose()
+            content = null
+        }
     }
 
     @Composable
@@ -230,8 +268,9 @@ class MovedSubtreeDisposalTest {
         lifecycle: Lifecycle,
         content: @Composable () -> Unit = {},
     ) {
+        val currentLifecycle = rememberUpdatedState(lifecycle)
         SwingNode(
-            factory = { ListeningPanel(lifecycle) },
+            factory = { ListeningPanel { currentLifecycle.value } },
             modifier = SwingModifier then LifecycleElement(lifecycle),
             onRelease = {
                 lifecycle.releases++
@@ -266,12 +305,12 @@ class MovedSubtreeDisposalTest {
     }
 
     private class ListeningPanel(
-        private val lifecycle: Lifecycle,
+        private val lifecycle: () -> Lifecycle,
     ) : JPanel(),
         SwingComponentNodeListener {
-        override fun onAttached(node: SwingComponentNode<*>) = lifecycle.attached(node)
+        override fun onAttached(node: SwingComponentNode<*>) = lifecycle().attached(node)
 
-        override fun onDetached(node: SwingComponentNode<*>) = lifecycle.detached()
+        override fun onDetached(node: SwingComponentNode<*>) = lifecycle().detached()
     }
 
     private class LifecycleElement(

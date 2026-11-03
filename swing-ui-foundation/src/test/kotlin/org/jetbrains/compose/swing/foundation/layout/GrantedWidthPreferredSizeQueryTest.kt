@@ -6,6 +6,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.BorderLayout
@@ -28,23 +30,27 @@ class GrantedWidthPreferredSizeQueryTest {
         for ((kind, container) in containers) {
             runComposeSwingTest {
                 val preferredSizeWidths = mutableListOf<Int>()
-                val area =
-                    object : JTextArea("A wrapping sentence with enough words to take several lines. ".repeat(5)) {
-                        override fun getPreferredSize(): Dimension {
-                            preferredSizeWidths += width
-                            return super.getPreferredSize()
-                        }
-                    }.apply {
-                        lineWrap = true
-                        wrapStyleWord = true
-                    }
+                val text = "A wrapping sentence with enough words to take several lines. ".repeat(5)
                 setContent {
                     SwingNode(
                         factory = { JPanel(BorderLayout()) },
                         modifier = SwingModifier.styleable { preferredSize(200, 100) },
                     ) {
                         container {
-                            SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth())
+                            SwingNode(
+                                factory = {
+                                    object : JTextArea(text) {
+                                        override fun getPreferredSize(): Dimension {
+                                            preferredSizeWidths += width
+                                            return super.getPreferredSize()
+                                        }
+                                    }.apply {
+                                        lineWrap = true
+                                        wrapStyleWord = true
+                                    }
+                                },
+                                modifier = SwingModifier.fillMaxWidth(),
+                            )
                         }
                     }
                 }
@@ -52,7 +58,7 @@ class GrantedWidthPreferredSizeQueryTest {
                     captureToImage()
                     awaitIdle()
                 }
-                assertEquals(200, area.width, "$kind: granted width")
+                onNodeOfType<JTextArea>().assertProperty(200, "$kind: granted width") { width }
                 assertTrue(preferredSizeWidths.isNotEmpty(), "$kind: the stock leaf provides a preferred-size read")
                 assertEquals(
                     setOf(200),

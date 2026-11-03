@@ -10,6 +10,8 @@ import io.mockk.mockk
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.OpaqueDescriptor
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import javax.swing.JPanel
@@ -80,7 +82,6 @@ class LayoutNodeHandOverTest {
     @Test
     fun oneAutoInvalidatingLayoutNodeHandsTheNodesOverOnce() = runComposeSwingTest {
         var value by mutableStateOf("a")
-        val panel = ListeningPanel()
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 // The property declared first changes with the layout elements, so the pass diffs the modifier.
@@ -89,20 +90,22 @@ class LayoutNodeHandOverTest {
                         .property(OpaqueDescriptor, value == "a")
                         .then(Layout("${value}1", autoInvalidates = value == "b"))
                         .then(Layout("${value}2", autoInvalidates = false))
-                SwingNode(factory = { panel }, modifier = modifier)
+                SwingNode(factory = { ListeningPanel() }, modifier = modifier)
             }
         }
 
         value = "b"
         awaitIdle()
 
-        assertEquals(listOf(listOf("a1", "a2"), listOf("b1", "b2")), panel.received, "one hand-over for the pass")
+        onNodeOfType<ListeningPanel>().assertProperty(
+            listOf(listOf("a1", "a2"), listOf("b1", "b2")),
+            "one hand-over for the pass",
+        ) { received }
     }
 
     @Test
     fun aLayoutNodeThatDoesNotAutoInvalidateDoesNotHandOverOnWrites() = runComposeSwingTest {
         var value by mutableStateOf("a")
-        val taking = ListeningPanel()
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 // The property declared first changes on the last pass only, which therefore diffs the modifier.
@@ -110,34 +113,42 @@ class LayoutNodeHandOverTest {
                     SwingModifier
                         .property(OpaqueDescriptor, value != "c")
                         .then(Layout(value, autoInvalidates = false))
-                SwingNode(factory = { taking }, modifier = modifier)
+                SwingNode(factory = { ListeningPanel() }, modifier = modifier)
             }
         }
 
         value = "b"
         awaitIdle()
-        assertEquals(listOf(listOf("a")), taking.received, "false suppresses the update handover")
+        onNodeOfType<ListeningPanel>().assertProperty(
+            listOf(listOf("a")),
+            "false suppresses the update handover",
+        ) { received }
 
         value = "c"
         awaitIdle()
-        assertEquals(listOf(listOf("a")), taking.received, "false suppresses the update handover")
+        onNodeOfType<ListeningPanel>().assertProperty(
+            listOf(listOf("a")),
+            "false suppresses the update handover",
+        ) { received }
     }
 
     @Test
     fun aLayoutNodeJoiningBesideAWrittenOneHandsTheNodesOver() = runComposeSwingTest {
         var value by mutableStateOf("a")
-        val declining = ListeningPanel()
         setContent {
             SwingNode(factory = { JPanel(measuringLayout()) }) {
                 val joining = if (value == "a") SwingModifier else Layout("joined")
-                SwingNode(factory = { declining }, modifier = SwingModifier.then(Layout(value)).then(joining))
+                SwingNode(factory = { ListeningPanel() }, modifier = SwingModifier.then(Layout(value)).then(joining))
             }
         }
 
         value = "b"
         awaitIdle()
 
-        assertEquals(listOf(listOf("a"), listOf("b", "joined")), declining.received, "the joining node hands over")
+        onNodeOfType<ListeningPanel>().assertProperty(
+            listOf(listOf("a"), listOf("b", "joined")),
+            "the joining node hands over",
+        ) { received }
     }
 
     @Test

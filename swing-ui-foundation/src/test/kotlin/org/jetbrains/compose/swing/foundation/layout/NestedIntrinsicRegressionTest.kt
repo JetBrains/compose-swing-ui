@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Named
@@ -382,9 +383,11 @@ class NestedIntrinsicRegressionTest {
                         width: Int,
                     ): Int = width / 2 + states[3].intValue
                 }
-            val child = ConstrainedPanel(policy)
-            val parent = ConstrainedPanel()
-            setContent { SwingNode(factory = { parent }) { SwingNode(factory = { child }) } }
+            setContent {
+                SwingNode(factory = { ConstrainedPanel() }) { SwingNode(factory = { ConstrainedPanel(policy) }) }
+            }
+            val parent = onRoot().onChild().fetch<ConstrainedPanel>()
+            val child = onRoot().onChild().onChild().fetch<ConstrainedPanel>()
 
             fun reports() =
                 listOf(

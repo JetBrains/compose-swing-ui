@@ -26,6 +26,9 @@ import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.focusable
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isOfType
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -151,16 +154,16 @@ class FocusTraversalModifierTest {
     fun removingOrderedFocusTraversalLeavesAContainerInheritingAPolicyAgain() = runComposeSwingTest {
         // A container that is a focus cycle root but holds no policy of its own answers with the policy
         // it inherits, so what it reports before the modifier is not a policy to hand back to it.
-        val cycleRoot = JPanel().apply { isFocusCycleRoot = true }
         var ordered by mutableStateOf(false)
         setContent {
             SwingNode(
-                factory = { cycleRoot },
+                factory = { JPanel().apply { isFocusCycleRoot = true } },
                 modifier = if (ordered) SwingModifier.orderedFocusTraversal() else SwingModifier,
             ) {
                 TextField("", onValueChange = {})
             }
         }
+        val cycleRoot = onRoot().onChild().assertIsOfType<JPanel>().fetch()
         assertFalse(cycleRoot.isFocusTraversalPolicySet, "the container should hold no policy of its own")
         assertNotNull(cycleRoot.focusTraversalPolicy, "a cycle root answers with the policy it inherits")
 
@@ -328,12 +331,10 @@ class FocusTraversalModifierTest {
     @Test
     fun aControlUnderADisabledHeavyweightContainerIsSkipped() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val heavyweight = AwtPanel().apply { isEnabled = false }
-        val nested = JTextField(5)
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                SwingNode(factory = { heavyweight }) {
-                    SwingNode(factory = { nested })
+                SwingNode(factory = { AwtPanel().apply { isEnabled = false } }) {
+                    TextField("", onValueChange = {}, columns = 5)
                 }
                 Button("OK", onClick = { })
             }
@@ -342,6 +343,8 @@ class FocusTraversalModifierTest {
         val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
         val ok = form.onNodeWithText("OK").fetch<JButton>()
+        val heavyweight = form.onNode(isOfType<AwtPanel>()).fetch<AwtPanel>()
+        val nested = form.onNode(isOfType<JTextField>()).fetch<JTextField>()
 
         // Disabling a heavyweight container disables everything the window system draws inside it, so
         // its content cannot be given the keyboard and never joins the order. A lightweight container
@@ -355,10 +358,9 @@ class FocusTraversalModifierTest {
     @Test
     fun aRawAwtControlIsATraversalStop() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val raw = AwtButton("raw")
         setFormContent {
             Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                SwingNode(factory = { raw })
+                SwingNode(factory = { AwtButton("raw") })
                 Button("OK", onClick = { })
             }
         }
@@ -366,6 +368,7 @@ class FocusTraversalModifierTest {
         val panel = form.onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
         val ok = form.onNodeWithText("OK").fetch<JButton>()
+        val raw = form.onNode(isOfType<AwtButton>()).fetch<AwtButton>()
 
         // A control that is not a Swing component carries no Swing key bindings, and the window system
         // is asked about it instead. An AWT button reports itself focusable, so Tab stops on it exactly

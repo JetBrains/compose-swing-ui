@@ -27,6 +27,8 @@ compose-swing:
     active: true
   SwingModifierWithoutDefault:
     active: true
+  SwingNodeFactoryReusesComponent:
+    active: true
   SwingStyleWithoutDefault:
     active: true
   UnheldColumnComparator:

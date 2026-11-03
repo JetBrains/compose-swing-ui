@@ -6,12 +6,16 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
+import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,8 +33,6 @@ class NodeLifecycleCallbackFailureTest {
     @Test
     fun aListenerThatThrowsFromOnDeclaredNodesChangedIsReportedAndTheModifierCompletes() = runComposeSwingTest {
         val probe = LifecycleProbe()
-        val panel = ThrowingDeclaredNodesPanel()
-        val other = JPanel()
         var shown by mutableStateOf(true)
         var text by mutableStateOf("a")
 
@@ -39,17 +41,18 @@ class NodeLifecycleCallbackFailureTest {
                 setContent {
                     if (shown) {
                         SwingNode(
-                            factory = { panel },
+                            factory = { ThrowingDeclaredNodesPanel() },
                             modifier = SwingModifier.then(ProbeElement(probe, additive = true)),
                         )
                     }
-                    SwingNode(factory = { other }, update = { set(text) { name = it } })
+                    Label(text)
                 }
             }
+        val panel = onNodeOfType<ThrowingDeclaredNodesPanel>().fetch()
 
         assertEquals("declared nodes failed", attached.message)
         assertTrue(probe.node.isAttached, "the node is attached as if the listener had returned")
-        assertCompositionKeepsUpdating(other, "b") { text = it }
+        assertCompositionKeepsUpdating("b") { text = it }
 
         shown = false
         val released = assertFailsWith<IllegalStateException> { awaitIdle() }
@@ -58,7 +61,7 @@ class NodeLifecycleCallbackFailureTest {
         assertEquals(listOf(1, 0), panel.handedCounts, "the listener is handed the node, then the empty list")
         assertEquals(listOf("attach", "detach"), probe.events, "the node attached and detached once")
         assertFalse(probe.node.isAttached)
-        assertCompositionKeepsUpdating(other, "c") { text = it }
+        assertCompositionKeepsUpdating("c") { text = it }
     }
 
     @TestFactory
@@ -76,8 +79,6 @@ class NodeLifecycleCallbackFailureTest {
         host: @Composable (present: Boolean, content: @Composable () -> Unit) -> Unit,
     ): DynamicTest = DynamicTest.dynamicTest(case) {
         runComposeSwingTest {
-            val panel = ListeningPanel()
-            val other = JPanel()
             val failure = IllegalStateException("release failed")
             var releases = 0
             var present by mutableStateOf(true)
@@ -85,15 +86,16 @@ class NodeLifecycleCallbackFailureTest {
             setContent {
                 host(present) {
                     SwingNode(
-                        factory = { panel },
+                        factory = { ListeningPanel() },
                         onRelease = {
                             releases++
                             throw failure
                         },
                     )
                 }
-                SwingNode(factory = { other }, update = { set(text) { name = it } })
+                Label(text)
             }
+            val panel = onNodeOfType<ListeningPanel>().fetch()
             val node = panel.events.single().node
 
             present = false
@@ -104,20 +106,19 @@ class NodeLifecycleCallbackFailureTest {
             assertFalse(node.isAttached, "the node is released as if the callback had returned")
             assertEquals(listOf(Event("attached", node), Event("detached", node)), panel.events)
             assertNull(panel.parent)
-            assertCompositionKeepsUpdating(other, "b") { text = it }
+            assertCompositionKeepsUpdating("b") { text = it }
             assertEquals(1, releases, "the next pass did not release again")
         }
     }
 
-    /** Writes [value] through [setText] and checks that the node declared with [other] applies it. */
+    /** Writes [value] through [setText] and checks that the label of the composition applies it. */
     private suspend fun ComposeSwingTest.assertCompositionKeepsUpdating(
-        other: JPanel,
         value: String,
         setText: (String) -> Unit,
     ) {
         setText(value)
         awaitIdle()
-        assertEquals(value, other.name, "the composition keeps updating")
+        onNodeOfType<JLabel>().assertProperty(value, "the composition keeps updating") { text }
     }
 
     private class ThrowingDeclaredNodesPanel :

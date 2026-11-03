@@ -10,6 +10,7 @@ import io.mockk.verifyOrder
 import org.jetbrains.compose.swing.LayoutDeclaration
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentDataModifier
@@ -26,6 +27,9 @@ import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.resolveParentDeclarations
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -58,21 +62,21 @@ class ParentDeclarationTest {
         expectedParentData: List<Any?>,
     ) = runComposeSwingTest {
         val layout = RecordingMeasurementLayout()
-        val parent = JPanel(layout)
-        val child = JLabel("child")
         var modifier by mutableStateOf(initial)
         setContent {
-            SwingNode(factory = { parent }, content = {
-                SwingNode(factory = { child }, modifier = modifier)
+            SwingNode(factory = { JPanel(layout) }, content = {
+                Label("child", modifier = modifier)
             })
         }
+        awaitIdle()
+        val child = onRoot().onChild().onChild().fetch<JLabel>()
         layout.declarations.clear()
         layout.removals.clear()
 
         modifier = updated
         awaitIdle()
 
-        assertEquals(listOf(child), parent.components.toList(), case)
+        onRoot().onChild().assertIsOfType<JPanel>().assertProperty(listOf(child), case) { components.toList() }
         assertEquals(
             expectedElementCounts,
             layout.declarations.map { it.elements.size },

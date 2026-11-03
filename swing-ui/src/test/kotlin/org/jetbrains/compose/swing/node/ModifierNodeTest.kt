@@ -2,13 +2,13 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -18,18 +18,21 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameNanos
-import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.NestedContentHost
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.key
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
@@ -54,10 +57,9 @@ class ModifierNodeTest {
         var frames = 0
         var present by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier = if (present) SwingModifier then FrameCountingElement { frames++ } else SwingModifier,
-            )
+            ) {}
         }
 
         assertEquals(0, frames, "a coroutine waiting for a frame must not run before one is sent")
@@ -83,7 +85,7 @@ class ModifierNodeTest {
         var present by mutableStateOf(true)
         val observing = SwingModifier then ObservingElement(watched::intValue) { changes++ }
         setContent {
-            SwingNode(factory = { JPanel() }, modifier = if (present) observing else SwingModifier)
+            Panel(modifier = if (present) observing else SwingModifier) {}
         }
 
         watched.intValue = 1
@@ -103,7 +105,7 @@ class ModifierNodeTest {
         var present by mutableStateOf(true)
         var probe: ProbeNode? = null
         setContent {
-            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+            if (present) Panel(modifier = SwingModifier then ProbeElement { probe = it }) {}
         }
         val callback = observeUnderAFreshCallback(checkNotNull(probe), watched)
         probe = null
@@ -120,7 +122,7 @@ class ModifierNodeTest {
         var present by mutableStateOf(true)
         var probe: ProbeNode? = null
         setContent {
-            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+            if (present) Panel(modifier = SwingModifier then ProbeElement { probe = it }) {}
         }
         val callback = observeOnScopeCancellationUnderAFreshCallback(checkNotNull(probe), watched)
         probe = null
@@ -138,7 +140,7 @@ class ModifierNodeTest {
         var probe: ProbeNode? = null
         setContent {
             ReusableContentHost(active) {
-                SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+                Panel(modifier = SwingModifier then ProbeElement { probe = it }) {}
             }
         }
         val callback = observeUnderAFreshCallback(checkNotNull(probe), watched)
@@ -155,7 +157,7 @@ class ModifierNodeTest {
         var present by mutableStateOf(true)
         var probe: ProbeNode? = null
         setContent {
-            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+            if (present) Panel(modifier = SwingModifier then ProbeElement { probe = it }) {}
         }
         val node = requestDeferredAction(checkNotNull(probe))
         probe = null
@@ -174,10 +176,9 @@ class ModifierNodeTest {
         var completions = 0
         var calls = 0
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier = if (present) SwingModifier then ProbeElement { probe = it } else SwingModifier,
-            )
+            ) {}
         }
         val node = requestDeferredActionsOnScopeCancellation(checkNotNull(probe), { completions++ }, { calls++ })
         probe = null
@@ -199,7 +200,7 @@ class ModifierNodeTest {
             var calls = 0
             setContent {
                 if (present) {
-                    SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it })
+                    Panel(modifier = SwingModifier then ProbeElement { probe = it }) {}
                 }
             }
             val node = requestDeferredActionsOnScopeCancellation(checkNotNull(probe), { completions++ }, { calls++ })
@@ -268,8 +269,8 @@ class ModifierNodeTest {
                 }) { changes++ }
         val other = mutableIntStateOf(0)
         setContent {
-            SwingNode(factory = { JPanel() }, modifier = if (present) observing else SwingModifier)
-            SwingNode(factory = { JPanel() }, modifier = SwingModifier then ObservingElement(other::intValue) {})
+            Panel(modifier = if (present) observing else SwingModifier) {}
+            Panel(modifier = SwingModifier then ObservingElement(other::intValue) {}) {}
         }
 
         present = false
@@ -302,12 +303,11 @@ class ModifierNodeTest {
         val watched = mutableIntStateOf(0)
         val reportedOnEdt = mutableListOf<Boolean>()
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier =
                     SwingModifier then
                         ObservingElement(watched::intValue) { reportedOnEdt += SwingUtilities.isEventDispatchThread() },
-            )
+            ) {}
         }
 
         CompletableFuture.runAsync { Snapshot.withMutableSnapshot { watched.intValue = 1 } }.join()
@@ -347,7 +347,7 @@ class ModifierNodeTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active) {
-                SwingNode(factory = { JPanel() }, modifier = SwingModifier then RecordingElement(events))
+                Panel(modifier = SwingModifier then RecordingElement(events)) {}
             }
         }
         events.clear()
@@ -364,14 +364,13 @@ class ModifierNodeTest {
         val sightings = mutableListOf<String>()
         var generation by mutableIntStateOf(0)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier =
                     SwingModifier.key(generation) then
                         ChainElement("first", chain, sightings) then
                         ChainElement("second", chain, sightings) then
                         ChainElement("third", chain, sightings, additive = true),
-            )
+            ) {}
         }
         assertEquals(
             listOf("onAttach first: 3 of 3", "onAttach second: 3 of 3", "onAttach third: 3 of 3"),
@@ -403,8 +402,7 @@ class ModifierNodeTest {
         val sightings = mutableListOf<String>()
         var grown by mutableStateOf(false)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier =
                     if (grown) {
                         SwingModifier then
@@ -413,7 +411,7 @@ class ModifierNodeTest {
                     } else {
                         SwingModifier
                     },
-            )
+            ) {}
         }
 
         grown = true
@@ -478,11 +476,14 @@ class ModifierNodeTest {
         var changes = 0
         val modifier =
             SwingModifier then RecordingElement(events) then ObservingElement(watched::intValue) { changes++ }
-        val nested = composeInNestedComposition { SwingNode(factory = { JPanel() }, modifier = modifier) }
+        val nested = composeInNestedComposition { Panel(modifier = modifier) {} }
 
         nested.moveContentOut()
         awaitIdle()
-        nested.dispose()
+        var disposed = false
+        nested.dispose { disposed = true }
+        awaitIdle()
+        assertTrue(disposed, "the composition the node left is disposed before the change")
         watched.intValue = 1
         awaitIdle()
 
@@ -513,16 +514,14 @@ class ModifierNodeTest {
                     }.join()
                 },
                 staying = {
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier = SwingModifier then ObservingElement(watched::intValue) { keptChanges++ },
-                    )
+                    ) {}
                 },
             ) {
-                SwingNode(
-                    factory = { JPanel() },
+                Panel(
                     modifier = SwingModifier then ObservingElement(watched::intValue) { movedChanges++ },
-                )
+                ) {}
             }
 
         nested.moveContentOut()
@@ -554,7 +553,7 @@ class ModifierNodeTest {
                     synchronized(node.component.treeLock) { node.requestAfterValidation(action) }
                 },
             ) {
-                SwingNode(factory = { JPanel() }) { SwingNode(factory = { JPanel() }, modifier = modifier) }
+                Panel { Panel(modifier = modifier) {} }
             }
         val node = checkNotNull(probe)
 
@@ -563,8 +562,13 @@ class ModifierNodeTest {
 
         assertEquals(0, calls, "a request pending as its node detaches from the composition it leaves never runs")
 
-        nested.dispose()
-        synchronized(node.component.treeLock) { node.requestAfterValidation(action) }
+        var disposed = false
+        nested.dispose {
+            disposed = true
+            synchronized(node.component.treeLock) { node.requestAfterValidation(action) }
+        }
+        awaitIdle()
+        assertTrue(disposed, "the composition the node left is disposed before the change")
         watched.intValue = 1
         awaitIdle()
 
@@ -579,26 +583,34 @@ class ModifierNodeTest {
 
     @Test
     fun aNodeMovedToAnotherCompositionKeepsWhatItsModifierDeclaresAndWhatItCaptured() = runComposeSwingTest {
-        val panel = JPanel()
-        val original = panel.background
+        val movedTag = "moved"
+        val original = JPanel().background
         var declared by mutableStateOf(true)
         val nested =
             composeInNestedComposition {
-                SwingNode(
-                    factory = { panel },
-                    modifier = if (declared) SwingModifier.styleable { background(Color.RED) } else SwingModifier,
-                )
+                Panel(
+                    modifier =
+                        if (declared) {
+                            SwingModifier.testTag(movedTag).styleable { background(Color.RED) }
+                        } else {
+                            SwingModifier.testTag(movedTag)
+                        },
+                ) {}
             }
 
         nested.moveContentOut()
         awaitIdle()
 
-        assertEquals(Color.RED, panel.background, "a moved node keeps the value its modifier declares")
+        onNodeWithTag(movedTag)
+            .assertIsOfType<JPanel>()
+            .assertProperty(Color.RED, "a moved node keeps the value its modifier declares") { background }
 
         declared = false
         awaitIdle()
 
-        assertEquals(original, panel.background, "a moved node puts back the value it stood at before the modifier")
+        onNodeWithTag(movedTag)
+            .assertIsOfType<JPanel>()
+            .assertProperty(original, "a moved node puts back the value it stood at before the modifier") { background }
         nested.dispose()
     }
 
@@ -607,7 +619,7 @@ class ModifierNodeTest {
         val events = mutableListOf<String>()
         var present by mutableStateOf(true)
         setContent {
-            if (present) SwingNode(factory = { JPanel() }, modifier = SwingModifier then RecordingElement(events))
+            if (present) Panel(modifier = SwingModifier then RecordingElement(events)) {}
         }
         events.clear()
 
@@ -621,15 +633,22 @@ class ModifierNodeTest {
 /** Content composed in a composition nested under the test's own, which [moveContentOut] moves into the test's own. */
 internal class NestedComposition(
     private val movedOut: MutableState<Boolean>,
-    private val handle: DisposableHandle,
+    private val hosted: MutableState<Boolean>,
+    private val afterDisposal: MutableState<() -> Unit>,
 ) {
     /** Moves the content into the test's own composition on the next pass. */
     fun moveContentOut() {
         movedOut.value = true
     }
 
-    /** Disposes the nested composition. */
-    fun dispose() = handle.dispose()
+    /**
+     * Disposes the nested composition on the next pass by removing its host. [then] runs in that pass, once the
+     * nested composition is disposed.
+     */
+    fun dispose(then: () -> Unit = {}) {
+        afterDisposal.value = then
+        hosted.value = false
+    }
 }
 
 /**
@@ -642,32 +661,31 @@ internal suspend fun ComposeSwingTest.composeInNestedComposition(
     content: @Composable () -> Unit,
 ): NestedComposition {
     val movedOut = mutableStateOf(false)
-    val host = JPanel()
-    lateinit var context: CompositionContext
-    lateinit var movable: @Composable () -> Unit
+    val hosted = mutableStateOf(true)
+    val afterDisposal = mutableStateOf({})
     setContent {
-        context = rememberCompositionContext()
-        movable = remember { movableContentOf(content) }
-        SwingNode(factory = { host })
+        val context = rememberCompositionContext()
+        val movable = remember { movableContentOf(content) }
+        if (hosted.value) {
+            NestedContentHost(parent = context) {
+                if (!movedOut.value) movable()
+                staying()
+            }
+        }
+        if (!hosted.value) SideEffect(afterDisposal.value)
         if (movedOut.value) {
-            onMovingOut()
+            remember { onMovingOut() }
             movable()
         }
     }
     awaitIdle()
-    val handle =
-        host.setContent(parent = context) {
-            if (!movedOut.value) movable()
-            staying()
-        }
-    awaitIdle()
-    return NestedComposition(movedOut, handle)
+    return NestedComposition(movedOut, hosted, afterDisposal)
 }
 
 /** Composes a panel carrying a [ProbeNode] and returns the attached node. */
 private fun ComposeSwingTest.composeProbe(): ProbeNode {
     var probe: ProbeNode? = null
-    setContent { SwingNode(factory = { JPanel() }, modifier = SwingModifier then ProbeElement { probe = it }) }
+    setContent { Panel(modifier = SwingModifier then ProbeElement { probe = it }) {} }
     return checkNotNull(probe)
 }
 

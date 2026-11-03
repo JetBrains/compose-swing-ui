@@ -2,12 +2,15 @@
 package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -19,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.key
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -26,6 +30,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
+import java.awt.LayoutManager
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -65,20 +70,18 @@ class StyleParentLayoutTest {
     @ValueSource(ints = [1, 2])
     fun movedLayoutWritesOnlyNewParent(next: Int) = runComposeSwingTest {
         var inFirst by mutableStateOf(true)
-        lateinit var context: CompositionContext
         val writes = mutableListOf<Int>()
         val onWrite: (Int) -> Unit = { writes += it }
         val property = stylePropertyOf<Int> { Inset(it, "recorded", onWrite) }
-        val leaf = JLabel("moved")
         val moved =
             movableContentOf {
-                SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
+                SwingNode(factory = { JLabel("moved") }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
             }
         val firstLayout = InsetLayout()
         val secondLayout = InsetLayout()
-        setContent { context = rememberCompositionContext() }
-        val first =
-            JPanel().setContent(parent = context) {
+        setContent {
+            val context = rememberCompositionContext()
+            NestedContentHost(parent = context) {
                 SwingNode(
                     factory = { JPanel(firstLayout) },
                     modifier =
@@ -89,8 +92,7 @@ class StyleParentLayoutTest {
                     if (inFirst) moved()
                 }
             }
-        val second =
-            JPanel().setContent(parent = context) {
+            NestedContentHost(parent = context) {
                 SwingNode(
                     factory = { JPanel(secondLayout) },
                     modifier =
@@ -101,20 +103,16 @@ class StyleParentLayoutTest {
                     if (!inFirst) moved()
                 }
             }
-        try {
-            awaitIdle()
-            assertEquals(1, firstLayout.insetOf(leaf).amount)
-            writes.clear()
-
-            inFirst = false
-            awaitIdle()
-
-            assertEquals(next, secondLayout.insetOf(leaf).amount)
-            assertEquals(listOf(next), writes)
-        } finally {
-            second.dispose()
-            first.dispose()
         }
+        awaitIdle()
+        onNodeWithText("moved").assertProperty(1) { firstLayout.insetOf(this).amount }
+        writes.clear()
+
+        inFirst = false
+        awaitIdle()
+
+        onNodeWithText("moved").assertProperty(next) { secondLayout.insetOf(this).amount }
+        assertEquals(listOf(next), writes)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -169,15 +167,15 @@ class StyleParentLayoutTest {
                 Inset(value) { written -> if (written == 3) throw failure }
             }
         val layout = InsetLayout()
-        val label = JLabel("styled")
         setContent {
             SwingNode(factory = { JPanel(layout) }) {
                 SwingNode(
-                    factory = { label },
+                    factory = { JLabel("styled") },
                     modifier = SwingModifier.styleable(PlainProbe) { property.provide(amount) },
                 )
             }
         }
+        val label = onNodeWithText("styled").fetch<JLabel>()
         val declared = layout.insetOf(label)
         assertEquals(1, declared.amount)
         val declarations = layout.declarations.size
@@ -196,7 +194,6 @@ class StyleParentLayoutTest {
         var includeFirst by mutableStateOf(true)
         var includeLater by mutableStateOf(false)
         val layout = InsetLayout()
-        val label = JLabel("styled")
         val firstOnly = stylePropertyOf<Int> { Inset(it, key = "first-only") }
         val laterOnly = stylePropertyOf<Int> { Inset(it, key = "later-only") }
         val first =
@@ -210,17 +207,19 @@ class StyleParentLayoutTest {
                 laterOnly.provide(20)
             }
 
-        fun nodes() = layout.elementsOf(label).filterIsInstance<InsetNode>()
-
         setContent {
             SwingNode(factory = { JPanel(layout) }) {
                 val modifier =
                     SwingModifier
                         .then(if (includeFirst) SwingModifier.styleable(PlainProbe, first) else SwingModifier)
                         .then(if (includeLater) SwingModifier.styleable(PlainProbe, later) else SwingModifier)
-                SwingNode(factory = { label }, modifier = modifier)
+                SwingNode(factory = { JLabel("styled") }, modifier = modifier)
             }
         }
+        val label = onNodeWithText("styled").fetch<JLabel>()
+
+        fun nodes() = layout.elementsOf(label).filterIsInstance<InsetNode>()
+
         val originalSameKeyNode = nodes().single { it.amount == 1 }
         val firstOnlyNode = nodes().single { it.amount == 10 }
         assertEquals(listOf(1, 10), nodes().map { it.amount }.sorted())
@@ -272,13 +271,12 @@ class StyleParentLayoutTest {
     @Test
     fun reorderedLayoutNodesReachComponent() = runComposeSwingTest {
         var reversed by mutableStateOf(false)
-        val label = DeclaredLayoutLabel()
         val first = stylePropertyOf<Int> { Inset(it, "first") }
         val second = stylePropertyOf<Int> { Inset(it, "second") }
         setContent {
             SwingNode(factory = { JPanel(InsetLayout()) }) {
                 SwingNode(
-                    factory = { label },
+                    factory = { DeclaredLayoutLabel() },
                     modifier =
                         SwingModifier.styleable(PlainProbe) {
                             if (reversed) {
@@ -292,6 +290,7 @@ class StyleParentLayoutTest {
                 )
             }
         }
+        val label = onNodeOfType<DeclaredLayoutLabel>().fetch()
         val original = label.declared.toList()
         assertEquals(listOf(1, 2), original.map { (it as InsetNode).amount })
 
@@ -309,32 +308,28 @@ class StyleParentLayoutTest {
         val events = ArrayList<String>()
         val failure = IllegalArgumentException("First layout update failed")
         val property = stylePropertyOf<Unit> { FirstUpdateFailingLayout(events, failure) }
-        val label = DeclaredLayoutLabel()
         val layout = InsetLayout()
-        val host = JPanel(layout)
-        setContent { SwingNode(factory = { host }) }
-        val handle =
-            host.setContent {
+        var mounted by mutableStateOf(true)
+        setContent {
+            ParentlessMountHost(layout = layout, mounted = mounted) {
                 SwingNode(
-                    factory = { label },
+                    factory = { DeclaredLayoutLabel() },
                     modifier = SwingModifier.styleable(PlainProbe) { if (phase == 1) property.provide(Unit) },
                 )
             }
-        try {
-            awaitIdle()
-            phase = 1
-            assertSame(failure, assertFailsWith<IllegalArgumentException> { awaitIdle() })
-            assertEquals(1, layout.elementsOf(label).size)
-
-            if (dispose) handle.dispose() else phase = 2
-            awaitIdle()
-
-            assertEquals(listOf("attach", "update", "detach"), events)
-            assertEquals(emptyList(), layout.elementsOf(label))
-            assertEquals(emptyList(), label.declared)
-        } finally {
-            handle.dispose()
         }
+        awaitIdle()
+        val label = onNodeOfType<DeclaredLayoutLabel>().fetch()
+        phase = 1
+        assertSame(failure, assertFailsWith<IllegalArgumentException> { awaitIdle() })
+        assertEquals(1, layout.elementsOf(label).size)
+
+        if (dispose) mounted = false else phase = 2
+        awaitIdle()
+
+        assertEquals(listOf("attach", "update", "detach"), events)
+        assertEquals(emptyList(), layout.elementsOf(label))
+        assertEquals(emptyList(), label.declared)
     }
 
     @ParameterizedTest
@@ -387,15 +382,14 @@ class StyleParentLayoutTest {
     fun removedLayoutLeavesParent(declare: (present: () -> Boolean) -> SwingModifier) = runComposeSwingTest {
         var present by mutableStateOf(true)
         val layout = InsetLayout()
-        val label = DeclaredLayoutLabel("styled")
         setContent {
             SwingNode(factory = { JPanel(layout) }) {
-                SwingNode(factory = { label }, modifier = declare { present })
+                SwingNode(factory = { DeclaredLayoutLabel("styled") }, modifier = declare { present })
             }
         }
         var node: InsetNode? = null
         onNodeWithText("styled").assertProperty(1) { layout.insetOf(this).also { node = it }.amount }
-        assertEquals(1, label.declared.size)
+        onNodeOfType<DeclaredLayoutLabel>().assertProperty(1) { declared.size }
 
         present = false
         awaitIdle()
@@ -404,7 +398,7 @@ class StyleParentLayoutTest {
             .assertProperty(emptyList<ParentLayoutElement>(), "the parent is declared to without the element") {
                 layout.elementsOf(this)
             }
-        assertEquals(emptyList(), label.declared)
+        onNodeOfType<DeclaredLayoutLabel>().assertProperty(emptyList()) { declared }
         assertFailsWith<IllegalStateException>("a detached node has no component") { checkNotNull(node).component }
 
         present = true
@@ -483,9 +477,42 @@ private fun StyledLabel(
     amount: Int?,
 ) {
     SwingNode(
-        factory = { JLabel(text) },
+        factory = { JLabel() },
         modifier = SwingModifier.styleable(PlainProbe) { amount?.let { InsetProperty.provide(it) } },
+        update = { set(text) { this.text = it } },
     )
+}
+
+@Composable
+private fun ParentlessMountHost(
+    layout: LayoutManager,
+    mounted: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val current = rememberUpdatedState(content)
+    SwingNode(
+        factory = { ParentlessMountPanel() },
+        update = {
+            set(layout) { this.layout = it }
+            set(mounted) { if (it) mount(current) else dispose() }
+        },
+        onRelease = { dispose() },
+    )
+}
+
+private class ParentlessMountPanel :
+    JPanel(),
+    DisposableHandle {
+    private var mount: DisposableHandle? = null
+
+    fun mount(content: State<@Composable () -> Unit>) {
+        if (mount == null) mount = setContent { content.value() }
+    }
+
+    override fun dispose() {
+        mount?.dispose()
+        mount = null
+    }
 }
 
 private data class FailingLayoutElement(

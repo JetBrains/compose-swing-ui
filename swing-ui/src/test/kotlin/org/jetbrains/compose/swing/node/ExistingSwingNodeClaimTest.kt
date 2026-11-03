@@ -296,13 +296,10 @@ class ExistingSwingNodeClaimTest {
 
     @Test
     fun keyingOnAReplacedPartMovesTheDeclarationsToIt() = runComposeSwingTest {
-        val panel = PartsPanel()
-        val replaced = panel.part
-        val original = replaced.background
-        var current by mutableStateOf<JLabel?>(null)
+        var generation by mutableIntStateOf(0)
         setContent {
-            SwingNode(factory = { panel }) {
-                key(current) {
+            SwingNode(factory = { PartsPanel() }) {
+                key(generation) {
                     ExistingSwingNode(
                         claim = PartsPanel::part,
                         modifier = SwingModifier.styleable { background(Color.RED) },
@@ -310,8 +307,13 @@ class ExistingSwingNodeClaimTest {
                 }
             }
         }
+        awaitIdle()
 
-        current = panel.replacePart()
+        val panel = onNodeOfType<PartsPanel>().fetch()
+        val replaced = panel.part
+        val original = PartsPanel().part.background
+        panel.replacePart()
+        generation = 1
         awaitIdle()
 
         onNodeOfType<PartsPanel>().assertProperty(Color.RED, "the new part should carry the declarations") {

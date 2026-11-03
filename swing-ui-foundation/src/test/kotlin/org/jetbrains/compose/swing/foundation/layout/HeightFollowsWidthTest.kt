@@ -268,15 +268,6 @@ class HeightFollowsWidthTest {
 
     private suspend fun ComposeSwingTest.stockParentFixture(native: Boolean): StockParentFixture {
         val fixture = StockParentFixture(mutableIntStateOf(WIDTH))
-        val raw =
-            object : JComponent() {
-                private val naturalWidth = JLabel("Preview").preferredSize.width
-
-                override fun getPreferredSize(): Dimension =
-                    Dimension(naturalWidth, (width.takeIf { it > 0 } ?: naturalWidth).atRatio)
-
-                override fun getMinimumSize(): Dimension = Dimension(0, 0)
-            }
         val layout =
             SwingParentLayout(
                 preferred = { it.getComponent(0).preferredSize },
@@ -292,7 +283,19 @@ class HeightFollowsWidthTest {
                 modifier = SwingModifier.styleable { preferredSize(fixture.width.intValue, 600) },
             ) {
                 if (native) {
-                    SwingNode(factory = { raw }, modifier = SwingModifier.testTag("box"))
+                    SwingNode(
+                        factory = {
+                            object : JComponent() {
+                                private val naturalWidth = JLabel("Preview").preferredSize.width
+
+                                override fun getPreferredSize(): Dimension =
+                                    Dimension(naturalWidth, (width.takeIf { it > 0 } ?: naturalWidth).atRatio)
+
+                                override fun getMinimumSize(): Dimension = Dimension(0, 0)
+                            }
+                        },
+                        modifier = SwingModifier.testTag("box"),
+                    )
                 } else {
                     Box(modifier = SwingModifier.testTag("box")) {
                         RatioLabel(SwingModifier.testTag("label").fillMaxWidth())
@@ -303,7 +306,11 @@ class HeightFollowsWidthTest {
         fixture.box = onNodeWithTag("box").fetch<JComponent>()
         awaitIdle()
         fixture.naturalWidth =
-            if (native) raw.preferredSize.width else onNodeWithTag("label").fetch<JComponent>().preferredSize.width
+            if (native) {
+                fixture.box.preferredSize.width
+            } else {
+                onNodeWithTag("label").fetch<JComponent>().preferredSize.width
+            }
         return fixture
     }
 
@@ -595,10 +602,11 @@ private fun WrappingFixture(
             }
         } else {
             slot(width) { modifier ->
-                SwingNode(
-                    factory = { nativeWrappingReference(case.kind) },
-                    modifier = modifier.testTag("referenceHost"),
-                )
+                when (case.kind) {
+                    "HTML Label" -> HtmlLabelReference(modifier.testTag("referenceHost"))
+                    "HTML EditorPane" -> HtmlEditorPaneReference(modifier.testTag("referenceHost"))
+                    else -> TextAreaReference(modifier.testTag("referenceHost"))
+                }
             }
         }
         slot(width) { modifier ->
@@ -621,20 +629,36 @@ private fun WrappingFixture(
     }
 }
 
-private fun nativeWrappingReference(kind: String): JPanel {
-    val reference =
-        when (kind) {
-            "HTML Label" -> JLabel("<html>$WRAPPING_TEXT</html>")
-            "HTML EditorPane" -> JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>")
-            else -> wrappingTextArea()
-        }
-    return object : JPanel(BorderLayout()) {
-        override fun doLayout() {
-            reference.setSize(width - insets.left - insets.right, height)
-            reference.getBaseline(reference.width, reference.height)
-            super.doLayout()
-        }
-    }.apply { add(reference, BorderLayout.NORTH) }
+@Composable
+private fun HtmlLabelReference(modifier: SwingModifier) {
+    SwingNode(factory = { WrappingReference(JLabel("<html>$WRAPPING_TEXT</html>")) }, modifier = modifier)
+}
+
+@Composable
+private fun HtmlEditorPaneReference(modifier: SwingModifier) {
+    SwingNode(
+        factory = { WrappingReference(JEditorPane("text/html", "<html>$WRAPPING_TEXT</html>")) },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun TextAreaReference(modifier: SwingModifier) {
+    SwingNode(factory = { WrappingReference(wrappingTextArea()) }, modifier = modifier)
+}
+
+private class WrappingReference(
+    private val reference: JComponent,
+) : JPanel(BorderLayout()) {
+    init {
+        add(reference, BorderLayout.NORTH)
+    }
+
+    override fun doLayout() {
+        reference.setSize(width - insets.left - insets.right, height)
+        reference.getBaseline(reference.width, reference.height)
+        super.doLayout()
+    }
 }
 
 private fun ComposeSwingTest.assertInitialWrappingBounds(

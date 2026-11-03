@@ -43,6 +43,7 @@ class ComposeSwingRuleSetProviderTest {
                 RuleName("SwingModifierThen"),
                 RuleName("SwingModifierUnreferencedReceiver"),
                 RuleName("SwingModifierWithoutDefault"),
+                RuleName("SwingNodeFactoryReusesComponent"),
                 RuleName("SwingStyleWithoutDefault"),
                 RuleName("UnheldColumnComparator"),
                 RuleName("UnusedAnimatedContentTargetState"),

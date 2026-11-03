@@ -1,9 +1,11 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.core
 
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
@@ -51,26 +53,20 @@ class NestedParentCompositionTest {
         val recomposer = SwingRecomposer.create(JPanel())
         val composition = JPanel().also { frame.contentPane.add(it) }
         val windowComposition = JPanel().also { frame.contentPane.add(it) }
-        val nested = JPanel()
         var text by mutableStateOf("v0")
         var compositionHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
             compositionHandle =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    SwingNode(factory = { nested })
-                    // The nested content is mounted from an effect of the enclosing composition's own
-                    // first pass, before that pass has returned, so it resolves its parent while that
-                    // composition is still composing. The enclosing composition owns it, and ends it.
-                    DisposableEffect(Unit) {
-                        val handle = nested.setContent { Label(text = text) }
-                        onDispose { handle.dispose() }
-                    }
+                    ParentlessHost { Label(text = text) }
                 }
             windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
+                composition.componentCount == 1 && labelTexts(composition) == listOf("v0") &&
+                    labelTexts(windowComposition) == listOf("v0")
             }
+            val nested = composition.components.single()
             assertSame(
                 composition,
                 nested.parent,
@@ -85,7 +81,7 @@ class NestedParentCompositionTest {
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
-                labelTexts(nested),
+                labelTexts(nested as Container),
                 "content mounted during the enclosing composition's first pass must recompose on the " +
                     "recomposer that composition was given, not on the window's",
             )
@@ -102,26 +98,18 @@ class NestedParentCompositionTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         val composition = JPanel().also { frame.contentPane.add(it) }
-        val nested = JPanel()
         var compositionHandle: DisposableHandle? = null
-        var nestedHandle: DisposableHandle? = null
         try {
-            compositionHandle = composition.setContent { SwingNode(factory = { nested }) }
-            awaitUntil("the content composition composes its nested container into place") {
-                nested.parent === composition
-            }
-
-            nestedHandle = nested.setContent { Label(text = "nested") }
-            awaitUntil("the nested content renders") { labelTexts(nested) == listOf("nested") }
+            compositionHandle = composition.setContent { ParentlessHost { Label(text = "nested") } }
+            awaitUntil("the nested content renders") { labelTexts(composition) == listOf("nested") }
 
             assertSame(
                 frame.compositionContext(),
-                nested.findParentCompositionContext(),
+                composition.components.single().findParentCompositionContext(),
                 "content mounted under a composition that named no parent must join the window's shared " +
                     "composition",
             )
         } finally {
-            nestedHandle?.dispose()
             compositionHandle?.dispose()
             frame.dispose()
         }
@@ -134,32 +122,29 @@ class NestedParentCompositionTest {
         val recomposer = SwingRecomposer.create(JPanel())
         val composition = JPanel().also { frame.contentPane.add(it) }
         val windowComposition = JPanel().also { frame.contentPane.add(it) }
-        val nested = JPanel()
         var showNested by mutableStateOf(false)
         var text by mutableStateOf("v0")
         var compositionHandle: DisposableHandle? = null
-        var nestedHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
             compositionHandle =
                 composition.setContent(parent = recomposer.compositionContext) {
                     Label(text = "outer")
-                    if (showNested) SwingNode(factory = { nested })
+                    if (showNested) ParentlessHost(mountBeforeAttach = true) { Label(text = text) }
                 }
             windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("the outer composition composes without the nested container") {
                 labelTexts(composition) == listOf("outer")
             }
 
-            // The content is mounted while the container hangs nowhere, so it waits for a place; the
-            // place it then takes is one a later recomposition gives it.
-            nestedHandle = nested.setContent { Label(text = text) }
             showNested = true
 
-            awaitUntil("a later recomposition inserts the nested container") { nested.parent === composition }
+            awaitUntil("a later recomposition inserts the nested container") { composition.componentCount == 2 }
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
+                labelTexts(composition) == listOf("outer", "v0") && labelTexts(windowComposition) == listOf("v0")
             }
+            val nested = composition.components[1] as Container
+            assertSame(composition, nested.parent, "a later recomposition inserted the nested container")
             assertEquals(
                 listOf("outer", "v0"),
                 labelTexts(composition),
@@ -179,7 +164,6 @@ class NestedParentCompositionTest {
                     "recomposer that composition was given, not on the window's",
             )
         } finally {
-            nestedHandle?.dispose()
             windowHandle?.dispose()
             compositionHandle?.dispose()
             recomposer.dispose()
@@ -194,24 +178,24 @@ class NestedParentCompositionTest {
         val recomposer = SwingRecomposer.create(JPanel())
         val composition = JPanel().also { frame.contentPane.add(it) }
         val windowComposition = JPanel().also { frame.contentPane.add(it) }
-        val nested = JPanel()
         var text by mutableStateOf("v0")
+        var mounted by mutableStateOf(false)
         var compositionHandle: DisposableHandle? = null
-        var nestedHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
             compositionHandle =
                 composition.setContent(parent = recomposer.compositionContext) {
-                    SwingNode(factory = { nested })
+                    ParentlessHost(mounted = mounted) { Label(text = text) }
                 }
             windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("the content composition composes its nested container into place") {
-                nested.parent === composition
+                composition.componentCount == 1
             }
 
-            nestedHandle = nested.setContent { Label(text = text) }
+            // The content is mounted by a pass after the one that attached its host.
+            mounted = true
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
+                labelTexts(composition) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
 
             // Only the recomposer the enclosing composition was given is disposed. Content that joined it
@@ -224,12 +208,11 @@ class NestedParentCompositionTest {
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
-                labelTexts(nested),
+                labelTexts(composition),
                 "nested content must recompose on the recomposer its enclosing composition was given, not " +
                     "on the window's",
             )
         } finally {
-            nestedHandle?.dispose()
             windowHandle?.dispose()
             compositionHandle?.dispose()
             recomposer.dispose()
@@ -243,16 +226,11 @@ class NestedParentCompositionTest {
         val first = realizedFrame()
         val second = realizedFrame()
         val outer = JPanel().also { first.contentPane.add(it) }
-        val inner = JPanel()
         var text by mutableStateOf("v0")
         var outerHandle: DisposableHandle? = null
-        var innerHandle: DisposableHandle? = null
         try {
-            outerHandle = outer.setContent { SwingNode(factory = { inner }) }
-            awaitUntil("the outer composition composes the nested container into place") { inner.parent === outer }
-
-            innerHandle = inner.setContent { Label(text = text) }
-            awaitUntil("the nested content renders") { labelTexts(inner) == listOf("v0") }
+            outerHandle = outer.setContent { ParentlessHost { Label(text = text) } }
+            awaitUntil("the nested content renders") { labelTexts(outer) == listOf("v0") }
 
             second.contentPane.add(outer)
             second.pack()
@@ -265,10 +243,9 @@ class NestedParentCompositionTest {
             first.dispose()
             text = "v1"
             awaitUntil("the nested content recomposes in the window it moved to") {
-                labelTexts(inner) == listOf("v1")
+                labelTexts(outer) == listOf("v1")
             }
         } finally {
-            innerHandle?.dispose()
             outerHandle?.dispose()
             second.dispose()
             first.dispose()
@@ -283,22 +260,17 @@ class NestedParentCompositionTest {
         val recomposer = SwingRecomposer.create(JPanel())
         val outer = JPanel().also { first.contentPane.add(it) }
         val windowComposition = JPanel().also { first.contentPane.add(it) }
-        val inner = JPanel()
         var text by mutableStateOf("v0")
         var outerHandle: DisposableHandle? = null
-        var innerHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
             outerHandle =
                 outer.setContent(parent = recomposer.compositionContext) {
-                    SwingNode(factory = { inner })
+                    ParentlessHost { Label(text = text) }
                 }
             windowHandle = windowComposition.setContent { Label(text = text) }
-            awaitUntil("the outer composition composes the nested container into place") { inner.parent === outer }
-
-            innerHandle = inner.setContent { Label(text = text) }
             awaitUntil("both contents render") {
-                labelTexts(inner) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
+                labelTexts(outer) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
 
             second.contentPane.add(outer)
@@ -329,17 +301,49 @@ class NestedParentCompositionTest {
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
-                labelTexts(inner),
+                labelTexts(outer),
                 "nested content must stay on the recomposer the enclosing composition was given after that " +
                     "composition's container moves to another window",
             )
         } finally {
-            innerHandle?.dispose()
             windowHandle?.dispose()
             outerHandle?.dispose()
             recomposer.dispose()
             second.dispose()
             first.dispose()
+        }
+    }
+
+    /**
+     * A panel that owns a nested composition mounted with no parent, so discovery picks the parent. The
+     * content is mounted once [mounted] holds, in the pass that composed the host or a later one.
+     */
+    @Composable
+    private fun ParentlessHost(
+        mountBeforeAttach: Boolean = false,
+        mounted: Boolean = true,
+        content: @Composable () -> Unit,
+    ) {
+        val current = rememberUpdatedState(content)
+        SwingNode(
+            factory = { ParentlessPanel().also { if (mountBeforeAttach) it.mount(current) } },
+            update = { set(mountBeforeAttach || !mounted) { if (!it) mount(current) } },
+            onRelease = { dispose() },
+        )
+    }
+
+    private class ParentlessPanel :
+        JPanel(),
+        DisposableHandle {
+        private var mounted: DisposableHandle? = null
+
+        fun mount(content: State<@Composable () -> Unit>) {
+            if (mounted == null) mounted = setContent { content.value() }
+        }
+
+        override fun dispose() {
+            mounted?.dispose()
+            mounted = null
         }
     }
 

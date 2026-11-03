@@ -1,15 +1,17 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.listener
 
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -20,7 +22,7 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -35,33 +37,36 @@ class ListenerSeamReportingTest {
     fun aHierarchyCallbackInANestedCompositionThatThrowsWhenItsParentAddsAnAncestorIsReported() = runComposeSwingTest {
         var armed = false
         var attached by mutableStateOf(false)
-        val nestedHost = JPanel()
         val nestedHierarchy = mutableListOf<Long>()
-        lateinit var parentPanel: JPanel
-        lateinit var context: CompositionContext
         setContent {
-            context = rememberCompositionContext()
-            SwingNode(factory = { JPanel().also { parentPanel = it } }) {
-                if (attached) SwingNode(factory = { nestedHost })
+            val host =
+                remember {
+                    movableContentOf {
+                        NestedContentHost {
+                            Label(
+                                "nested",
+                                SwingModifier.hierarchyListener {
+                                    nestedHierarchy += it.changeFlags
+                                    if (armed) error("boom")
+                                },
+                            )
+                        }
+                    }
+                }
+            Panel(SwingModifier.testTag("ancestor")) {
+                if (attached) host()
             }
+            if (!attached) host()
         }
-        val nested =
-            nestedHost.setContent(context) {
-                Label(
-                    "nested",
-                    SwingModifier.hierarchyListener {
-                        nestedHierarchy += it.changeFlags
-                        if (armed) error("boom")
-                    },
-                )
-            }
         awaitIdle()
+        val nestedHost = onNodeWithText("nested").onParent().fetch<JPanel>()
+        val ancestor = onNodeWithTag("ancestor").fetch<JPanel>()
         nestedHierarchy.clear()
 
         armed = true
         attached = true
         assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertSame(parentPanel, nestedHost.parent, "the parent pass added the ancestor")
+        assertSame(ancestor, nestedHost.parent, "the parent pass added the ancestor")
         assertTrue(
             nestedHierarchy.any { it and HierarchyEvent.PARENT_CHANGED.toLong() != 0L },
             "the nested composition's callback was notified of the new ancestor",
@@ -70,8 +75,8 @@ class ListenerSeamReportingTest {
         armed = false
         attached = false
         awaitIdle()
-        assertNull(nestedHost.parent, "the parent composition applies the pass after the throw")
-        nested.dispose()
+        assertNotSame(ancestor, nestedHost.parent, "the parent composition applies the pass after the throw")
+        assertEquals(0, ancestor.componentCount, "the ancestor no longer holds the host")
     }
 
     @Test

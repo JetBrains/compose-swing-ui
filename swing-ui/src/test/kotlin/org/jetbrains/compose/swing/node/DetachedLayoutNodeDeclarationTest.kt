@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -16,6 +17,10 @@ import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Container
@@ -39,11 +44,9 @@ class DetachedLayoutNodeDeclarationTest {
     @Test
     fun removingALayoutNodePreservesAlreadyFoldedParentData() = runComposeSwingTest {
         val layout = RecordingMeasurementLayout()
-        val host = JPanel(layout)
-        val child = JLabel("child")
         val data =
             object : ParentDataModifier {
-                override val parentProtocol = parentProtocolOf("measuring") { it === host }
+                override val parentProtocol = parentProtocolOf("measuring") { it.layout === layout }
 
                 override fun modifyParentData(parentData: Any?): Any = object {
                     override fun toString(): String = "data"
@@ -51,9 +54,9 @@ class DetachedLayoutNodeDeclarationTest {
             }
         var removed by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }) {
-                SwingNode(
-                    factory = { child },
+            SwingNode(factory = { JPanel(layout) }) {
+                Label(
+                    "child",
                     modifier =
                         (
                             if (removed) {
@@ -65,13 +68,14 @@ class DetachedLayoutNodeDeclarationTest {
                 )
             }
         }
+        val child = onNodeOfType<JLabel>().fetch()
         val original = layout.parentDataOf(child)
         layout.declarations.clear()
 
         removed = true
         awaitIdle()
 
-        assertEquals(listOf(child), host.components.toList())
+        onRoot().onChild().assertIsOfType<JPanel>().assertProperty(listOf(child)) { components.toList() }
         assertEquals(2, layout.declarations.size)
         assertEquals(listOf("data", "data"), layout.declarations.map { it.parentData.toString() })
         assertSame(original, layout.declarations[0].parentData)
@@ -230,7 +234,10 @@ class DetachedLayoutNodeDeclarationTest {
         assertEquals(invalidations, layout.invalidations.size, "the parent is not laid out for a released component")
     }
 
+    // The manager throws only when the composition is disposed; the test then asserts on the child,
+    // which no finder reaches after that.
     @Test
+    @Suppress("SwingNodeFactoryReusesComponent")
     fun aManagerThrowingAsAReleasedComponentIsDeclaredLeavesItReleased() {
         val child = NodeListeningLabel()
         var released = false
@@ -259,19 +266,19 @@ class DetachedLayoutNodeDeclarationTest {
     @Test
     fun aManagerThrowingAsADeactivatedComponentIsDeclaredLeavesItParked() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val child = NodeListeningLabel()
         var released = false
         setContent {
             SwingNode(factory = { JPanel(NodeRequiringLayout()) }, content = {
                 ReusableContentHost(active) {
                     SwingNode(
-                        factory = { child },
+                        factory = { NodeListeningLabel() },
                         modifier = SwingModifier then RecordingLayoutNodeElement("a", mutableListOf()),
                         onRelease = { released = true },
                     )
                 }
             })
         }
+        val child = onNodeOfType<NodeListeningLabel>().fetch()
 
         active = false
         val failure = assertFailsWith<IllegalStateException> { awaitIdle() }

@@ -1,8 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.interaction
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -18,9 +17,7 @@ import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.interaction.InitialFocusFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.rawSwingTests
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -31,7 +28,6 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
-import javax.swing.JPanel
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertNotSame
@@ -164,15 +160,12 @@ class InitialFocusTest {
     fun movingTheComponentIntoAnotherCompositionDoesNotPullTheKeyboardBack() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var inOuter by mutableStateOf(false)
-        val host = JPanel()
         lateinit var moveToFirst: FocusRequester
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-move-test") {
                 Panel {
-                    context = rememberCompositionContext()
-                    content =
+                    val context = rememberCompositionContext()
+                    val content =
                         remember {
                             movableContentOf {
                                 TextField("second", onValueChange = {}, modifier = SwingModifier.initialFocus())
@@ -180,14 +173,13 @@ class InitialFocusTest {
                         }
                     moveToFirst = rememberFocusRequester()
                     TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
-                    SwingNode(factory = { host })
+                    NestedContentHost(parent = context) { if (!inOuter) content() }
                     if (inOuter) content()
                 }
             }
         }
         val window = onWindowWithTitle("initial-focus-move-test")
         awaitIdle()
-        val nested = host.setContent(parent = context) { if (!inOuter) content() }
         awaitIdle()
         val frame = window.fetch<JFrame>()
         val first = window.onNodeWithText("first").fetch<JTextField>()
@@ -206,7 +198,6 @@ class InitialFocusTest {
             frame.mostRecentFocusOwner,
             "the declaration is spent on the first showing, so moving the component must leave the keyboard alone",
         )
-        nested.dispose()
     }
 
     @Test

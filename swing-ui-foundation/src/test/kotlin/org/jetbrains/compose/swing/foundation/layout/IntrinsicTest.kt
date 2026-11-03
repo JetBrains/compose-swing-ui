@@ -22,6 +22,7 @@ import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Named
@@ -141,10 +142,9 @@ class IntrinsicTest {
     fun anIntrinsicWalkAsksANestedContainerNoConstrainedQuery() =
         runComposeSwingTest {
             val counting = CountingPolicy()
-            val inner = ConstrainedPanel(counting)
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SwingNode(factory = { inner })
+                    Layout(measurePolicy = counting)
                 }
             }
             counting.forget()
@@ -166,10 +166,9 @@ class IntrinsicTest {
     fun aLayoutPassDoesAskANestedContainerAConstrainedQuery() =
         runComposeSwingTest {
             val counting = CountingPolicy()
-            val inner = ConstrainedPanel(counting)
             setContent {
                 Column(modifier = SwingModifier.containerTag().styleable(containerStyle(200, 200))) {
-                    SwingNode(factory = { inner })
+                    Layout(measurePolicy = counting)
                 }
             }
 
@@ -406,10 +405,11 @@ class IntrinsicTest {
     @Test
     fun aConstrainableLeafSuppliesItsColumnsIntrinsicSizes() =
         runComposeSwingTest {
-            val leaf = HalfAsTallAsWide()
             setContent {
                 Panel(PanelLayout.Flow()) {
-                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) { SwingNode(factory = { leaf }) }
+                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        SwingNode(factory = { HalfAsTallAsWide() })
+                    }
                 }
             }
 
@@ -417,24 +417,25 @@ class IntrinsicTest {
                 Dimension(HalfAsTallAsWide.WIDTH, HalfAsTallAsWide.WIDTH / 2),
                 "the column prefers the leaf's intrinsic width, and the leaf's height at that width",
             ) { preferredSize }
-            assertEquals(
+            onNodeOfType<HalfAsTallAsWide>().assertProperty(
                 Rectangle(0, 0, HalfAsTallAsWide.WIDTH, HalfAsTallAsWide.WIDTH / 2),
-                leaf.bounds,
                 "the column lays the leaf out at the size it prefers",
-            )
+            ) { bounds }
         }
 
     @Test
     fun aConstrainableLeafIsMeasuredOnceForItsHeightAtTheWidthItIsGranted() =
         runComposeSwingTest {
-            val leaf = HalfAsTallAsWide()
             setContent {
                 CenteredColumn(320) {
                     Box(modifier = SwingModifier.testTag("box").fillMaxWidth().height(IntrinsicSize.Max)) {
-                        Column { SwingNode(factory = { leaf }, modifier = SwingModifier.fillMaxWidth()) }
+                        Column {
+                            SwingNode(factory = { HalfAsTallAsWide() }, modifier = SwingModifier.fillMaxWidth())
+                        }
                     }
                 }
             }
+            val leaf = onNodeOfType<HalfAsTallAsWide>().fetch()
             leaf.measures = 0
 
             onNodeWithTag("box").fetch<JComponent>().revalidate()

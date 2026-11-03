@@ -24,7 +24,11 @@ import kotlin.coroutines.EmptyCoroutineContext
  * Composes [panel] as a [SwingNode]'s component, so its layout measures, places and paints as a
  * composed [Layout]'s does. A test class calling this registers
  * [ComposedPanels], which disposes the composition after each test. Call on the event dispatch thread.
+ *
+ * The node takes the panel the caller built because policy tests hand-build its children and drive it with
+ * extents layout never offers.
  */
+@Suppress("SwingNodeFactoryReusesComponent")
 internal fun composed(panel: ConstrainedPanel): ConstrainedPanel {
     val recomposer = Recomposer(EmptyCoroutineContext)
     val handle =

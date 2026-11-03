@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -14,16 +13,14 @@ class PreferredThenMinimumStockParentTest {
         runComposeSwingTest {
             val measuredHeights = mutableListOf<Int>()
             setStockContent(
-                JPanel(
-                    ScriptedStockLayout { child, _ ->
-                        val first = child.width == 0
-                        val preferred = child.preferredSize
-                        if (first) assertEquals(Dimension(100, 200), preferred)
-                        child.setSize(300, preferred.height)
-                        assertEquals(Dimension(50, 50), child.minimumSize)
-                        child.setBounds(0, 0, 200, preferred.height)
-                    },
-                ),
+                ScriptedStockLayout { child, _ ->
+                    val first = child.width == 0
+                    val preferred = child.preferredSize
+                    if (first) assertEquals(Dimension(100, 200), preferred)
+                    child.setSize(300, preferred.height)
+                    assertEquals(Dimension(50, 50), child.minimumSize)
+                    child.setBounds(0, 0, 200, preferred.height)
+                },
                 width = 400,
                 height = 400,
             ) {

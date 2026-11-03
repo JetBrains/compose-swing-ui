@@ -3,13 +3,20 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Component
 import java.awt.Dimension
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
@@ -185,7 +192,6 @@ class IntrinsicCacheSnapshotTest {
     fun aPlacementReplayRefreshesAnAncestorsStockChildIntrinsicHeight(hook: Int) =
         runComposeSwingTest {
             val width = mutableIntStateOf(40)
-            val leaf = widthFollowingStockPanel()
             var intrinsicCalls = 0
             lateinit var ancestor: ConstrainedPanel
             var captureReplay = false
@@ -212,17 +218,16 @@ class IntrinsicCacheSnapshotTest {
             setContent {
                 Layout(ancestorPolicy, SwingModifier.testTag("ancestor")) {
                     Layout(innerPolicy, SwingModifier.testTag("inner")) {
-                        SwingNode(factory = { leaf })
+                        SwingNode(factory = { widthFollowingStockPanel() })
                     }
                 }
             }
             ancestor = onNodeWithTag("ancestor").fetch<ConstrainedPanel>()
-            val inner = onNodeWithTag("inner").fetch<ConstrainedPanel>()
             root.validate()
             assertTrue(ancestor.isValid, "hook $hook starts with a valid ancestor")
-            assertTrue(inner.isValid, "hook $hook starts with a valid inner panel")
-            assertTrue(leaf.isValid, "hook $hook starts with a valid stock child")
-            assertEquals(40, leaf.width, "hook $hook places the stock child at its first width")
+            onNodeWithTag("inner").assertProperty(true, "hook $hook starts with a valid inner panel") { isValid }
+            innerStockChild().assertProperty(true, "hook $hook starts with a valid stock child") { isValid }
+            assertInnerStockChildWidth(40, "hook $hook places the stock child at its first width")
             assertEquals(40, ancestor.query(hook, Constraints.Infinity), "hook $hook warms the ancestor's result")
             val warmCalls = intrinsicCalls
             assertEquals(40, ancestor.query(hook, Constraints.Infinity), "hook $hook repeats the warm query")
@@ -232,30 +237,31 @@ class IntrinsicCacheSnapshotTest {
             width.intValue = 80
             awaitIdle()
             assertEquals(80, replayedHeight, "hook $hook reads fresh height inside the descendant's first replay")
-            assertEquals(80, leaf.width, "hook $hook replays placement at the changed stock-child width")
-            assertEquals(1, leaf.height, "hook $hook keeps the height the placement grants")
+            assertInnerStockChildWidth(80, "hook $hook replays placement at the changed stock-child width")
+            assertInnerStockChildHeight(1, "hook $hook keeps the height the placement grants")
             assertTrue(ancestor.isValid, "hook $hook keeps the ancestor valid after placement replay")
-            assertEquals(80, leaf.preferredSize.height, "hook $hook changes the stock child's preferred height")
+            innerStockChild()
+                .assertProperty(80, "hook $hook changes the stock child's preferred height") { preferredSize.height }
             assertEquals(
                 80,
                 ancestor.query(hook, Constraints.Infinity),
                 "hook $hook refreshes the ancestor after its descendant's placement replay",
             )
-            assertEquals(80, leaf.width, "hook $hook leaves the stock child at its replayed width")
-            assertEquals(1, leaf.height, "hook $hook leaves the stock child at its replayed height")
+            assertInnerStockChildWidth(80, "hook $hook leaves the stock child at its replayed width")
+            assertInnerStockChildHeight(1, "hook $hook leaves the stock child at its replayed height")
         }
 
     @Test
     fun aValidHostedPanelReadsChangedStockLabelTextAfterWarmingItsIntrinsics() =
         runComposeSwingTest {
-            val label = JLabel("Short")
             val reference = JLabel("Short")
             setContent {
                 Box(modifier = SwingModifier.testTag("panel")) {
-                    SwingNode(factory = { label })
+                    Label("Short")
                 }
             }
             val panel = onNodeWithTag("panel").fetch<ConstrainedPanel>()
+            val label = onNodeOfType<JLabel>().fetch()
             root.validate()
             assertTrue(panel.isDisplayable, "the panel has a peered host")
             assertTrue(panel.isValid, "the panel starts with valid geometry")
@@ -329,6 +335,18 @@ private class IntrinsicDependencyFixture(
             }
         }
 }
+
+private fun ComposeSwingTest.innerStockChild(): SwingNodeInteraction<Component> = onNodeWithTag("inner").onChild()
+
+private fun ComposeSwingTest.assertInnerStockChildWidth(
+    width: Int,
+    message: String,
+) = innerStockChild().assertProperty(width, message) { this.width }
+
+private fun ComposeSwingTest.assertInnerStockChildHeight(
+    height: Int,
+    message: String,
+) = innerStockChild().assertProperty(height, message) { this.height }
 
 private fun widthFollowingStockPanel(): JPanel =
     object : JPanel() {

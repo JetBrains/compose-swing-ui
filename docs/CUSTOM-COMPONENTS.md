@@ -43,12 +43,14 @@ Use `modifier` for placement, listeners and decoration, and `style` for the comp
 [`STYLES.md`](STYLES.md) covers the scope, the kind and the keys.
 
 - `factory` runs **once**, when the node enters the composition. Build (and do one-time
-  configuration of) your Swing component here. Whatever it reads from the composable body, it reads
-  once: a layout manager, model or value constructed there is rebuilt on every later composition while
-  the component keeps the first one, so anything the component is to go on using is either built inside
-  `factory` or `remember`ed outside it. The component's own layout manager is the usual one to get
-  wrong - a container that later hands its children placements computed against a freshly built layout
-  is describing a layout nothing is laid out by.
+  configuration of) your Swing component here. Each call builds and returns a new component, never
+  one built elsewhere; to configure a component a parent already built and keeps, use
+  `ExistingSwingNode`. Whatever it reads from the composable body, it reads once: a layout manager,
+  model or value constructed there is rebuilt on every later composition while the component keeps
+  the first one, so anything the component is to go on using is built inside `factory`. The
+  component's own layout manager is the usual one to get wrong - a container that later hands its
+  children placements computed against a freshly built layout is describing a layout nothing is laid
+  out by.
 - `update` runs on the first composition and on **every recomposition**. Inside it you declare which
   pieces of state map onto which component properties; the framework only re-applies the ones that
   actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable

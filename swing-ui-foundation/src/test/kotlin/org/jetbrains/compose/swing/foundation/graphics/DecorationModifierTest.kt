@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -331,16 +332,8 @@ class DecorationModifierTest {
                 object : Decoratable {
                     override var decoration: Decoration = Decoration.None
                 }
-            lateinit var componentNode: SwingComponentNode<*>
-            val component =
-                object : JComponent(), SwingComponentNodeListener {
-                    override fun onAttached(node: SwingComponentNode<*>) {
-                        componentNode = node
-                    }
-
-                    override fun onDetached(node: SwingComponentNode<*>) = Unit
-                }
-            setContent { SwingNode(factory = { component }) }
+            setContent { SwingNode(factory = { NodeRecordingComponent() }) }
+            val componentNode = onNodeOfType<NodeRecordingComponent>().fetch().attachedNodes.single()
 
             val failure =
                 assertFailsWith<IllegalStateException> {
@@ -365,6 +358,19 @@ class DecorationModifierTest {
             "a decoration element must report the decorator it declares",
         )
     }
+}
+
+/** A component that keeps the nodes it is told attached, so a test can reach the node that holds it. */
+private class NodeRecordingComponent :
+    JComponent(),
+    SwingComponentNodeListener {
+    val attachedNodes = ArrayList<SwingComponentNode<*>>()
+
+    override fun onAttached(node: SwingComponentNode<*>) {
+        attachedNodes += node
+    }
+
+    override fun onDetached(node: SwingComponentNode<*>) = Unit
 }
 
 /** Declares a node recording whether it ever attached, additive so it takes its own place in the chain. */

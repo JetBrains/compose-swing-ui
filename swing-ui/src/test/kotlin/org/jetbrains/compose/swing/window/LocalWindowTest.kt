@@ -2,6 +2,10 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
@@ -207,24 +211,20 @@ class LocalWindowTest {
         // The declaration is composed under no window at all, and the peer it realizes is a window of
         // its own: content nested in that peer is in the window the peer is, whatever the composition
         // the declaration was made in is under.
-        val host = JPanel()
+        val composition = WindowReader()
+        var mounted by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = COMPOSITION_HOST_WINDOW_TITLE, visible = false) {
-                SwingNode(factory = { host })
+                ParentlessContentHost(composition, mounted)
             }
         }
 
         val peer = onWindowWithTitle(COMPOSITION_HOST_WINDOW_TITLE).fetch<JFrame>()
-        val composition = WindowReader()
-        val handle = host.setContent { composition.Read() }
-        try {
-            awaitIdle()
+        mounted = true
+        awaitIdle()
 
-            assertTrue(composition.composed, "content mounted in a composed window must compose")
-            assertSame(peer, composition.seen, "content mounted inside a composed window must read that window")
-        } finally {
-            handle.dispose()
-        }
+        assertTrue(composition.composed, "content mounted in a composed window must compose")
+        assertSame(peer, composition.seen, "content mounted inside a composed window must read that window")
     }
 
     @Test
@@ -234,25 +234,54 @@ class LocalWindowTest {
         // in the dialog is in the dialog, not in the window the declaration hangs off. Reading the window
         // instead would anchor a peer opened out of that content - a nested dialog, a file chooser - to
         // the frame behind the dialog it was opened from.
-        val host = JPanel()
+        val composition = WindowReader()
+        var mounted by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = COMPOSITION_HOST_OWNER_TITLE, visible = false) {
                 Dialog(onCloseRequest = {}, title = COMPOSITION_HOST_DIALOG_TITLE, visible = false) {
-                    SwingNode(factory = { host })
+                    ParentlessContentHost(composition, mounted)
                 }
             }
         }
 
         val peer = onWindowWithTitle(COMPOSITION_HOST_DIALOG_TITLE).fetch<JDialog>()
-        val composition = WindowReader()
-        val handle = host.setContent { composition.Read() }
-        try {
-            awaitIdle()
+        mounted = true
+        awaitIdle()
 
-            assertTrue(composition.composed, "content mounted in a composed dialog must compose")
-            assertSame(peer, composition.seen, "content mounted inside a composed dialog must read that dialog")
-        } finally {
-            handle.dispose()
+        assertTrue(composition.composed, "content mounted in a composed dialog must compose")
+        assertSame(peer, composition.seen, "content mounted inside a composed dialog must read that dialog")
+    }
+
+    /**
+     * A panel that owns a parentless nested composition reading through [reader], mounted from its node's
+     * update once [mounted] is set and disposed when the node is released, so the window it reads is the one
+     * its place resolves.
+     */
+    @Composable
+    private fun ParentlessContentHost(
+        reader: WindowReader,
+        mounted: Boolean,
+    ) {
+        SwingNode(
+            factory = { ParentlessContentPanel() },
+            update = { set(mounted) { if (it) mount(reader) else dispose() } },
+            onRelease = { dispose() },
+        )
+    }
+
+    private class ParentlessContentPanel :
+        JPanel(),
+        DisposableHandle {
+        private var mounted: DisposableHandle? = null
+
+        fun mount(reader: WindowReader) {
+            dispose()
+            mounted = setContent { reader.Read() }
+        }
+
+        override fun dispose() {
+            mounted?.dispose()
+            mounted = null
         }
     }
 

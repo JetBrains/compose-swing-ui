@@ -1,13 +1,13 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.test
 
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.onChild
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -82,10 +82,10 @@ class AwaitIdleChainedWorkTest {
     fun awaitIdleLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
-        setContent { SwingNode(factory = { panel }) }
+        setContent { SwingNode(factory = { JPanel(RecordingLayout(onLayout = { seen += progress[0] })) }) }
         seen.clear()
 
+        val panel = onRoot().onChild().fetch<JPanel>()
         startChain(progress, panel)
         awaitIdle()
 
@@ -96,10 +96,10 @@ class AwaitIdleChainedWorkTest {
     fun aFrameLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
-        setContent { SwingNode(factory = { panel }) }
+        setContent { SwingNode(factory = { JPanel(RecordingLayout(onLayout = { seen += progress[0] })) }) }
         seen.clear()
 
+        val panel = onRoot().onChild().fetch<JPanel>()
         startChain(progress, panel)
         mainClock.advanceTimeByFrame()
 
@@ -110,10 +110,10 @@ class AwaitIdleChainedWorkTest {
     fun waitUntilLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
-        setContent { SwingNode(factory = { panel }) }
+        setContent { SwingNode(factory = { JPanel(RecordingLayout(onLayout = { seen += progress[0] })) }) }
         seen.clear()
 
+        val panel = onRoot().onChild().fetch<JPanel>()
         startChain(progress, panel)
         waitUntil { seen.isNotEmpty() }
 
@@ -124,11 +124,12 @@ class AwaitIdleChainedWorkTest {
     fun setContentLaysOutOnlyOnceAChainTheCompositionStartedHasRun() = runComposeSwingTest {
         val progress = intArrayOf(0)
         val seen = mutableSetOf<Int>()
-        val panel = JPanel(RecordingLayout(onLayout = { seen += progress[0] }))
 
         setContent {
-            SwingNode(factory = { panel })
-            SideEffect { startChain(progress, panel) }
+            SwingNode(
+                factory = { JPanel(RecordingLayout(onLayout = { seen += progress[0] })) },
+                update = { reconcile { startChain(progress, this) } },
+            )
         }
 
         assertEquals(setOf(CHAIN_DEPTH), seen, "a layout pass ran with only part of the chain dispatched")

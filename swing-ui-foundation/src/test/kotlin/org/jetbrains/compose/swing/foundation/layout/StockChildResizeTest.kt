@@ -406,13 +406,17 @@ class StockChildResizeTest {
         inset: Int,
         heldHeight: Int,
     ) = runComposeSwingTest {
-        val child = borderedTextChild(kind, inset)
         var offer by mutableStateOf(Dimension(500, 600))
         setContent {
             Panel(PanelLayout.Border(), style = { preferredSize(800, 800) }) {
                 val offered = offer
                 Layout(
-                    content = { SwingNode(factory = { child }) },
+                    content = {
+                        SwingNode(
+                            factory = { borderedTextChild(kind, inset) },
+                            modifier = SwingModifier.testTag("child"),
+                        )
+                    },
                     modifier = SwingModifier.center(),
                     measurePolicy =
                         MeasurePolicy { measurables, _ ->
@@ -429,13 +433,14 @@ class StockChildResizeTest {
 
         offer = Dimension(500, heldHeight)
         awaitIdle()
-        assertEquals(Dimension(500, heldHeight), child.size, "the child holds the offered height")
+        onNodeWithTag("child").assertProperty(Dimension(500, heldHeight), "the child holds the offered height") { size }
 
         offer = Dimension(80, 600)
         awaitIdle()
 
         val wrapped = borderedTextChild(kind, inset).apply { setSize(80, 600) }.preferredSize.height
-        assertEquals(Dimension(80, wrapped), child.size, "the height it wraps to at the new width")
+        onNodeWithTag("child")
+            .assertProperty(Dimension(80, wrapped), "the height it wraps to at the new width") { size }
     }
 }
 

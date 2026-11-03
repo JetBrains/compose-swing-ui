@@ -26,6 +26,7 @@ import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
@@ -175,20 +176,27 @@ class ChildOverflowTest {
     fun aPlainWidgetOffsetPastItsRowRepaintsPastItOnItsOwn() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val plain = ClipRecordingChild()
-            val decorated = ClipRecordingChild()
             setWindowContent {
                 Box {
                     Column(modifier = SwingModifier.padding(20)) {
                         Row {
-                            SwingNode(factory = { plain }, modifier = SwingModifier.size(20, 20).offset(x = -10))
+                            SwingNode(
+                                factory = { ClipRecordingChild() },
+                                modifier = SwingModifier.size(20, 20).offset(x = -10),
+                            )
                         }
                         Row(modifier = SwingModifier.background(Brush.of(Color.WHITE))) {
-                            SwingNode(factory = { decorated }, modifier = SwingModifier.size(20, 20).offset(x = -10))
+                            SwingNode(
+                                factory = { ClipRecordingChild() },
+                                modifier = SwingModifier.size(20, 20).offset(x = -10),
+                            )
                         }
                     }
                 }
             }
+            val widgets = onWindowWithTitle(WINDOW_TITLE).onAllNodes(SwingMatcher.isOfType<ClipRecordingChild>())
+            val plain = widgets[0].fetch<ClipRecordingChild>()
+            val decorated = widgets[1].fetch<ClipRecordingChild>()
             plain.clips.clear()
             decorated.clips.clear()
 
@@ -207,7 +215,6 @@ class ChildOverflowTest {
     fun aPlainWidgetOffsetPastItsRowInAPlainColumnInADecoratedBoxRepaintsWhatItAsksFor() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val widget = ClipRecordingChild()
             val painted = ArrayList<Rectangle>()
             setWindowContent {
                 Box {
@@ -221,7 +228,7 @@ class ChildOverflowTest {
                             Column(modifier = SwingModifier.testTag("column")) {
                                 Row {
                                     SwingNode(
-                                        factory = { widget },
+                                        factory = { ClipRecordingChild() },
                                         modifier = SwingModifier.size(20, 20).offset(x = -10),
                                     )
                                 }
@@ -231,6 +238,10 @@ class ChildOverflowTest {
                     }
                 }
             }
+            val widget =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<ClipRecordingChild>())
+                    .fetch<ClipRecordingChild>()
             onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("column").assertIsOfType<JComponent>().assertProperty(
                 Insets(0, 10, 0, 0),
                 "the column holds the widget",
@@ -253,7 +264,6 @@ class ChildOverflowTest {
     fun aBoxWithABackgroundHoldingAWidgetOffsetPastItInADecoratedBoxRepaintsWhatTheWidgetAsksFor() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val widget = MarkedWidget()
             val painted = ArrayList<Rectangle>()
             var decorated by mutableStateOf(false)
             setWindowContent {
@@ -268,7 +278,10 @@ class ChildOverflowTest {
                         ) {
                             val inner = SwingModifier.testTag("inner")
                             Box(modifier = if (decorated) inner.background(Brush.of(Color.YELLOW)) else inner) {
-                                SwingNode(factory = { widget }, modifier = SwingModifier.size(20, 20).offset(x = -10))
+                                SwingNode(
+                                    factory = { MarkedWidget() },
+                                    modifier = SwingModifier.size(20, 20).offset(x = -10),
+                                )
                                 Box(modifier = SwingModifier.size(20, 60))
                             }
                         }
@@ -277,6 +290,10 @@ class ChildOverflowTest {
             }
             decorated = true
             awaitIdle()
+            val widget =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<MarkedWidget>())
+                    .fetch<MarkedWidget>()
             onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("inner").assertIsOfType<JComponent>().assertProperty(
                 Insets(0, 10, 0, 0),
                 "the inner box holds the widget",

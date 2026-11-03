@@ -2,11 +2,13 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
@@ -21,6 +23,7 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -54,31 +57,28 @@ class ConstrainedPanelContentTest {
     @MethodSource("parents")
     fun disposingTheContentHandleDisposesTheCompositionAndRemovesItsChildren(explicitParent: Boolean) =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
-            lateinit var context: CompositionContext
             var active = 0
+            var mounted by mutableStateOf(true)
             setContent {
-                context = rememberCompositionContext()
-                SwingNode(factory = { panel })
-            }
-            val content =
-                panel.setContent(parent = if (explicitParent) context else null) {
+                ConstrainedContentHost(
+                    parent = if (explicitParent) rememberCompositionContext() else null,
+                    mounted = mounted,
+                ) {
                     DisposableEffect(Unit) {
                         active++
                         onDispose { active-- }
                     }
                     Label("Content")
                 }
-            try {
-                awaitIdle()
-                assertEquals(1, active)
-                assertEquals(1, panel.componentCount)
-                content.dispose()
-                awaitIdle()
-                assertEquals(0, active, "disposing the handle disposes the content composition")
-                assertEquals(0, panel.componentCount, "disposing the handle removes the content's children")
-            } finally {
-                content.dispose()
+            }
+            awaitIdle()
+            assertEquals(1, active)
+            onNodeOfType<ConstrainedPanel>().assertProperty(1) { componentCount }
+            mounted = false
+            awaitIdle()
+            assertEquals(0, active, "disposing the handle disposes the content composition")
+            onNodeOfType<ConstrainedPanel>().assertProperty(0, "disposing the handle removes the content's children") {
+                componentCount
             }
         }
 
@@ -126,37 +126,46 @@ class ConstrainedPanelContentTest {
     @MethodSource("flowContents")
     internal fun topLevelContentIsMeasuredAndPlacedUnderAStockParent(case: FlowContentCase) =
         runComposeSwingTest {
-            val panel = case.createPanel()
             setContent {
-                SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { add(panel) } })
-            }
-            val content = panel.setContent(content = case.content)
-            try {
-                awaitIdle()
-                assertEquals(case.panel, panel.bounds, "${case.name}: ${case.panelReason}")
-                for ((tag, bounds, reason) in case.children) {
-                    onNodeWithTag(tag).assertProperty(bounds, "${case.name}: $reason") { this.bounds }
+                SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
+                    ConstrainedContentHost(
+                        modifier = SwingModifier.testTag("host"),
+                        parent = null,
+                        measurePolicy = case.measurePolicy,
+                        content = case.content,
+                    )
                 }
-            } finally {
-                content.dispose()
+            }
+            awaitIdle()
+            onNodeWithTag("host").assertProperty(case.panel, "${case.name}: ${case.panelReason}") { bounds }
+            for ((tag, bounds, reason) in case.children) {
+                onNodeWithTag(tag).assertProperty(bounds, "${case.name}: $reason") { this.bounds }
             }
         }
 
     @Test
     fun aLayoutConstraintTheDefaultPolicyDoesNotReadIsIgnoredAtTheTopLevel() =
         runComposeSwingTest {
-            val panel = ConstrainedPanel().apply { preferredSize = Dimension(100, 50) }
-            setContent { SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { add(panel) } }) }
-            panel.setContent {
-                Box(
-                    modifier =
-                        SwingModifier
-                            .testTag("child")
-                            .layoutConstraint("trailing")
-                            .wrapContentSize(Alignment.TopStart)
-                            .size(40, 20),
-                )
-                Box(modifier = SwingModifier.testTag("control").wrapContentSize(Alignment.TopStart).size(40, 20))
+            setContent {
+                SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
+                    ConstrainedContentHost(
+                        modifier = SwingModifier.testTag("host").styleable { preferredSize(100, 50) },
+                        parent = null,
+                    ) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("child")
+                                    .layoutConstraint("trailing")
+                                    .wrapContentSize(Alignment.TopStart)
+                                    .size(40, 20),
+                        )
+                        Box(
+                            modifier =
+                                SwingModifier.testTag("control").wrapContentSize(Alignment.TopStart).size(40, 20),
+                        )
+                    }
+                }
             }
             awaitIdle()
 
@@ -164,7 +173,7 @@ class ConstrainedPanelContentTest {
                 Rectangle(0, 0, 40, 20),
                 "the default policy places the constrained child at the start",
             ) { bounds }
-            assertEquals(Dimension(100, 50), panel.size)
+            onNodeWithTag("host").assertProperty(Dimension(100, 50)) { size }
             onNodeWithTag("control").assertProperty(
                 Rectangle(0, 0, 40, 20),
                 "unread parent data leaves placement unchanged",
@@ -174,52 +183,54 @@ class ConstrainedPanelContentTest {
     @Test
     fun theDefaultPolicyPlacesChildrenAtTheStartInEitherOrientation() =
         runComposeSwingTest {
-            val panel = ConstrainedPanel().apply { preferredSize = Dimension(100, 50) }
-            setContent { SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { add(panel) } }) }
-            val content =
-                panel.setContent {
-                    Box(modifier = SwingModifier.testTag("child").wrapContentSize(Alignment.TopStart).size(40, 20))
+            setContent {
+                SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
+                    ConstrainedContentHost(
+                        modifier = SwingModifier.testTag("host").styleable { preferredSize(100, 50) },
+                        parent = null,
+                    ) {
+                        Box(modifier = SwingModifier.testTag("child").wrapContentSize(Alignment.TopStart).size(40, 20))
+                    }
                 }
-            try {
-                awaitIdle()
-                assertEquals(Dimension(100, 50), panel.size, "the parent grants the preferred size")
-
-                panel.applyComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-                panel.revalidate()
-                awaitIdle()
-                onNodeWithTag("child").assertProperty(
-                    Rectangle(0, 0, 40, 20),
-                    "the child starts at the leading edge",
-                ) { bounds }
-
-                panel.applyComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-                panel.revalidate()
-                awaitIdle()
-                onNodeWithTag("child").assertProperty(
-                    Rectangle(60, 0, 40, 20),
-                    "the child follows the orientation after layout",
-                ) { bounds }
-            } finally {
-                content.dispose()
             }
+            awaitIdle()
+            val panel = onNodeWithTag("host").fetch<ConstrainedPanel>()
+            assertEquals(Dimension(100, 50), panel.size, "the parent grants the preferred size")
+
+            panel.applyComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+            panel.revalidate()
+            awaitIdle()
+            onNodeWithTag("child").assertProperty(
+                Rectangle(0, 0, 40, 20),
+                "the child starts at the leading edge",
+            ) { bounds }
+
+            panel.applyComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+            panel.revalidate()
+            awaitIdle()
+            onNodeWithTag("child").assertProperty(
+                Rectangle(60, 0, 40, 20),
+                "the child follows the orientation after layout",
+            ) { bounds }
         }
 
     @Test
     fun aPanelUnderAFoundationParentIsMeasuredWithThatParentsConstraints() =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
             setContent {
                 Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
-                    SwingNode(factory = { panel })
+                    ConstrainedContentHost(modifier = SwingModifier.testTag("host"), parent = null) {
+                        Box(modifier = SwingModifier.testTag("filling").fillMaxWidth().height(20))
+                        Box(modifier = SwingModifier.testTag("fixed").width(120).height(50))
+                    }
                 }
-            }
-            panel.setContent {
-                Box(modifier = SwingModifier.testTag("filling").fillMaxWidth().height(20))
-                Box(modifier = SwingModifier.testTag("fixed").width(120).height(50))
             }
             awaitIdle()
 
-            assertEquals(Rectangle(0, 0, 300, 50), panel.bounds, "the panel takes the largest of its children")
+            onNodeWithTag("host").assertProperty(
+                Rectangle(0, 0, 300, 50),
+                "the panel takes the largest of its children",
+            ) { bounds }
             onNodeWithTag("filling").assertProperty(
                 Rectangle(0, 0, 300, 20),
                 "fillMaxWidth fills the width the Column offers the panel",
@@ -236,13 +247,17 @@ class ConstrainedPanelContentTest {
         val wrapping = WrappingTexts.getValue(case.kind)
         val widths = listOf(320, 160, 400)
         val inSlot = { HeightForWidthLayout({ it / case.askedWidthDivisor }, HeightQueries.getValue(case.query)) }
-        val areaGrants = grants(inSlot(), widths, plainTextArea())
-        val panel = ConstrainedPanel()
+        val areaGrants = grants(inSlot(), widths, { SwingNode(factory = { plainTextArea() }) })
         val panelGrants =
             grants(
                 inSlot(),
                 widths,
-                panel,
+                {
+                    ConstrainedContentHost(parent = null) {
+                        val modifier = SwingModifier.testTag("text").fillMaxWidth()
+                        if (case.inColumn) Column { wrapping(modifier) } else wrapping(modifier)
+                    }
+                },
                 assertText = { granted, subjectSize ->
                     val text = onNodeWithTag("text")
                     text.assertProperty(granted, "$case at width $granted: the text fills the width") { width }
@@ -258,12 +273,7 @@ class ConstrainedPanelContentTest {
                         text.assertProperty(subjectSize, "$case at width $granted: no gap or clip") { size }
                     }
                 },
-            ) {
-                panel.setContent {
-                    val modifier = SwingModifier.testTag("text").fillMaxWidth()
-                    if (case.inColumn) Column { wrapping(modifier) } else wrapping(modifier)
-                }
-            }
+            )
         val boxGrants = composedBoxGrants(inSlot(), widths, case)
         for ((step, width) in widths.withIndex()) {
             val at = "$case at width $width"
@@ -300,11 +310,15 @@ class ConstrainedPanelContentTest {
     ) = runComposeSwingTest {
         val wrapping = WrappingTexts.getValue(kind)
         val ask = IntrinsicHeightQueries.getValue(query)
-        val panel = ConstrainedPanel()
-        val parent = JPanel(HeightForWidthLayout { it.preferredSize.height }).apply { add(panel) }
-        hostInGrid(parent, 320, 600)
-        panel.setContent { wrapping(SwingModifier.testTag("text")) }
+        hostInGrid(
+            HeightForWidthLayout { it.preferredSize.height },
+            { ConstrainedContentHost(parent = null) { wrapping(SwingModifier.testTag("text")) } },
+            320,
+            600,
+        )
         awaitIdle()
+        val panel = onNodeOfType<ConstrainedPanel>().fetch()
+        val parent = onNodeWithTag("parent").fetch<JPanel>()
         cyclesUntilStable(parent)
         val text = onNodeWithTag("text").fetch<JComponent>()
         val textBounds = text.bounds
@@ -333,11 +347,15 @@ class ConstrainedPanelContentTest {
     @MethodSource("heightQueries")
     fun fixedHeightContentNeedsNoLayoutWhenTheParentChangesWidth(query: String) =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
-            val parent = JPanel(HeightForWidthLayout(height = HeightQueries.getValue(query))).apply { add(panel) }
-            val width = hostInGrid(parent, 320, 600)
-            panel.setContent { Label("x", style = { preferredSize(80, 80) }) }
+            val width =
+                hostInGrid(
+                    HeightForWidthLayout(height = HeightQueries.getValue(query)),
+                    { ConstrainedContentHost(parent = null) { Label("x", style = { preferredSize(80, 80) }) } },
+                    320,
+                    600,
+                )
             awaitIdle()
+            val panel = onNodeOfType<ConstrainedPanel>().fetch()
             assertTrue(
                 panel.minIntrinsicHeight(320) < panel.maxIntrinsicHeight(320),
                 "the label prefers a height above its minimum",
@@ -354,22 +372,23 @@ class ConstrainedPanelContentTest {
         val widths = listOf(320, 160, 400, 320)
         val heights = listOf(40, 20, 50, 40)
         val inSlot = { HeightForWidthLayout({ it / 4 }) { it.preferredSize.height } }
-        val areaGrants = grants(inSlot(), widths, plainTextArea())
-        val panel = ConstrainedPanel()
+        val areaGrants = grants(inSlot(), widths, { SwingNode(factory = { plainTextArea() }) })
         val panelGrants =
             grants(
                 inSlot(),
                 widths,
-                panel,
+                {
+                    ConstrainedContentHost(parent = null) {
+                        Label("x", modifier = SwingModifier.testTag("text").fillMaxWidth().aspectRatio(2f))
+                    }
+                },
                 assertText = { granted, _ ->
                     onNodeWithTag("text").assertProperty(
                         Dimension(granted, granted / 2),
                         "at width $granted: the aspect ratio can exceed the granted height",
                     ) { size }
                 },
-            ) {
-                panel.setContent { Label("x", modifier = SwingModifier.testTag("text").fillMaxWidth().aspectRatio(2f)) }
-            }
+            )
         for ((step, width) in widths.withIndex()) {
             val actual = panelGrants[step]
             val area = areaGrants[step]
@@ -391,28 +410,28 @@ class ConstrainedPanelContentTest {
     ) {
         val widths = listOf(320, 160, 400)
         val inSlot = { HeightForWidthLayout({ it / askedWidthDivisor }, HeightQueries.getValue(query)) }
-        val plainGrants = grants(inSlot(), widths, HalfAsTallAsItHolds(preferredWidth = 640))
-        val areaGrants = grants(inSlot(), widths, plainTextArea())
-        val panel = ConstrainedPanel()
+        val plainGrants =
+            grants(inSlot(), widths, { SwingNode(factory = { HalfAsTallAsItHolds(preferredWidth = 640) }) })
+        val areaGrants = grants(inSlot(), widths, { SwingNode(factory = { plainTextArea() }) })
         val panelGrants =
             grants(
                 inSlot(),
                 widths,
-                panel,
+                {
+                    ConstrainedContentHost(parent = null) {
+                        SwingNode(
+                            factory = { HalfAsTallAsItHolds(preferredWidth = 640) },
+                            modifier = SwingModifier.testTag("text").fillMaxWidth(),
+                        )
+                    }
+                },
                 assertText = { granted, subjectSize ->
                     onNodeWithTag("text").assertProperty(
                         subjectSize,
                         "$query at 1/$askedWidthDivisor of width $granted: the content fills the panel",
                     ) { size }
                 },
-            ) {
-                panel.setContent {
-                    SwingNode(
-                        factory = { HalfAsTallAsItHolds(preferredWidth = 640) },
-                        modifier = SwingModifier.testTag("text").fillMaxWidth(),
-                    )
-                }
-            }
+            )
         for ((step, width) in widths.withIndex()) {
             val at = "$query at 1/$askedWidthDivisor of width $width"
             val actual = panelGrants[step]
@@ -436,17 +455,22 @@ class ConstrainedPanelContentTest {
     fun aMinimumHeightReadAtAnEarlierWidthIsNotCheckedByAPaintAtAWidthNobodyAskedAt() =
         runComposeSwingTest {
             var height: (Component) -> Int = { child -> child.preferredSize.height.also { child.minimumSize } }
-            val panel = ConstrainedPanel()
-            val parent = JPanel(HeightForWidthLayout(height = { height(it) })).apply { add(panel) }
             setContent {
                 Panel(PanelLayout.Grid(), style = { preferredSize(400, 600) }) {
-                    SwingNode(factory = { JPanel(null).apply { add(parent) } })
+                    SwingNode(factory = { JPanel(null) }) {
+                        SwingNode(factory = { JPanel(HeightForWidthLayout(height = { height(it) })) }) {
+                            ConstrainedContentHost(parent = null) {
+                                SwingNode(factory = { MinimumFollowsWidth() }, modifier = SwingModifier.fillMaxWidth())
+                            }
+                        }
+                    }
                 }
             }
-            val content = MinimumFollowsWidth()
-            panel.setContent { SwingNode(factory = { content }, modifier = SwingModifier.fillMaxWidth()) }
+            val panel = onNodeOfType<ConstrainedPanel>().fetch()
+            val parent = assertIs<JPanel>(panel.parent, "the panel sits in the height-asking parent")
             parent.setBounds(0, 0, 320, 600)
             awaitIdle()
+            val content = onNodeOfType<MinimumFollowsWidth>().fetch()
             captureToImage()
             awaitIdle()
             assertEquals(Dimension(320, 40), panel.size, "the parent lays the panel out at the height it asked")
@@ -479,21 +503,27 @@ class ConstrainedPanelContentTest {
             listOf(false, true).map { inPanel ->
                 var asked = false
                 runComposeSwingTest {
-                    val panel = ConstrainedPanel()
-                    val subject: JComponent = if (inPanel) panel else plainTextArea()
-                    val parent = JPanel(null).apply { add(subject) }
-                    hostInGrid(parent, 400, 600)
-                    if (inPanel) {
-                        panel.setContent {
-                            TextArea(
-                                WRAPPING_TEXT,
-                                {},
-                                SwingModifier.fillMaxWidth(),
-                                lineWrap = true,
-                                wrapStyleWord = true,
-                            )
-                        }
-                    }
+                    hostInGrid(
+                        null,
+                        {
+                            if (inPanel) {
+                                ConstrainedContentHost(parent = null) {
+                                    TextArea(
+                                        WRAPPING_TEXT,
+                                        {},
+                                        SwingModifier.fillMaxWidth(),
+                                        lineWrap = true,
+                                        wrapStyleWord = true,
+                                    )
+                                }
+                            } else {
+                                SwingNode(factory = { plainTextArea() })
+                            }
+                        },
+                        400,
+                        600,
+                    )
+                    val subject = assertIs<JComponent>(onNodeWithTag("parent").fetch<JPanel>().getComponent(0))
                     subject.setBounds(0, 0, 320, 300)
                     awaitIdle()
                     captureToImage()
@@ -518,10 +548,13 @@ class ConstrainedPanelContentTest {
     @MethodSource("intrinsicExtents")
     fun aSizeSetOnThePanelReportsTheIntrinsicFunctionsOfItsKind(extent: Int) =
         runComposeSwingTest {
-            val panel = ConstrainedPanel()
-            setContent { SwingNode(factory = { panel }) }
-            panel.setContent { Box(modifier = SwingModifier.size(40, 20)) }
+            setContent {
+                ConstrainedContentHost(modifier = SwingModifier.testTag("host"), parent = null) {
+                    Box(modifier = SwingModifier.size(40, 20))
+                }
+            }
             awaitIdle()
+            val panel = onNodeWithTag("host").fetch<ConstrainedPanel>()
 
             panel.minimumSize = Dimension(10, 77)
             panel.preferredSize = Dimension(333, 88)
@@ -535,13 +568,11 @@ class ConstrainedPanelContentTest {
     @Test
     fun aScopedModifierOfAnotherContainerIsRefusedAtTheTopLevel() =
         runComposeSwingTest {
-            var context: CompositionContext? = null
-            setContent { context = rememberCompositionContext() }
             val rowWeight = with(RowScopeInstance) { SwingModifier.weight(1f) }
 
             val failure =
                 assertFailsWith<IllegalStateException> {
-                    ConstrainedPanel().setContent(parent = checkNotNull(context)) { Label("x", modifier = rowWeight) }
+                    setContent { ConstrainedContentHost { Label("x", modifier = rowWeight) } }
                     awaitIdle()
                 }
 
@@ -672,20 +703,17 @@ class ConstrainedPanelContentTest {
         private fun constructorPolicyCase(): FlowContentCase =
             FlowContentCase(
                 "constructor policy stacks the content",
-                createPanel = {
-                    ConstrainedPanel(
-                        MeasurePolicy { measurables, constraints ->
-                            val placeables = measurables.map { it.measure(constraints.copyMaxDimensions()) }
-                            layout(placeables.maxOfOrNull { it.width } ?: 0, placeables.sumOf { it.height }) {
-                                var y = 0
-                                placeables.forEach {
-                                    it.place(0, y)
-                                    y += it.height
-                                }
+                measurePolicy =
+                    MeasurePolicy { measurables, constraints ->
+                        val placeables = measurables.map { it.measure(constraints.copyMaxDimensions()) }
+                        layout(placeables.maxOfOrNull { it.width } ?: 0, placeables.sumOf { it.height }) {
+                            var y = 0
+                            placeables.forEach {
+                                it.place(0, y)
+                                y += it.height
                             }
-                        },
-                    )
-                },
+                        }
+                    },
                 content = {
                     Box(modifier = SwingModifier.testTag("first").size(40, 20))
                     Box(modifier = SwingModifier.testTag("second").size(30, 50))
@@ -734,24 +762,23 @@ class ConstrainedPanelContentTest {
 }
 
 /**
- * Shows [subject] as the one child of a `JPanel` laid out by [layout] in a grid cell as wide as each of [widths] in
- * turn, after [populate] gives the subject its content, and returns what the parent granted at each width once the
- * paints that ask for a validation have settled.
+ * Shows what [subject] declares as the one child of a `JPanel` laid out by [layout] in a grid cell as wide as each of
+ * [widths] in turn, and returns what the parent granted at each width
+ * once the paints that ask for a validation have settled.
  */
 private fun grants(
     layout: HeightForWidthLayout,
     widths: List<Int>,
-    subject: JComponent,
+    subject: @Composable () -> Unit,
     assertText: ComposeSwingTest.(width: Int, subjectSize: Dimension) -> Unit = { _, _ -> },
-    populate: ComposeSwingTest.() -> Unit = {},
 ): List<Grant> {
     val steps = mutableListOf<Grant>()
     runComposeSwingTest {
-        val parent = JPanel(layout).apply { add(subject) }
-        val width = hostInGrid(parent, widths.first(), 600)
-        populate()
+        val width = hostInGrid(layout, subject, widths.first(), 600)
         awaitIdle()
-        steps += recordGrants(layout, WidthSweep(width, widths), parent, subject, assertText)
+        val parent = onNodeWithTag("parent").fetch<JPanel>()
+        val hosted = assertIs<JComponent>(parent.getComponent(0), "expected a Swing child")
+        steps += recordGrants(layout, WidthSweep(width, widths), parent, hosted, assertText)
     }
     return steps
 }
@@ -764,11 +791,10 @@ private fun composedBoxGrants(
     val steps = mutableListOf<Grant>()
     val wrapping = WrappingTexts.getValue(case.kind)
     runComposeSwingTest {
-        val parent = JPanel(layout)
         val width = mutableIntStateOf(widths.first())
         setContent {
             Panel(PanelLayout.Grid(), style = { preferredSize(width.intValue, 600) }) {
-                SwingNode(factory = { parent }) {
+                SwingNode(factory = { JPanel(layout) }, modifier = SwingModifier.testTag("parent")) {
                     Box(propagateMinConstraints = true) {
                         val modifier = SwingModifier.testTag("text").fillMaxWidth()
                         if (case.inColumn) Column { wrapping(modifier) } else wrapping(modifier)
@@ -777,6 +803,7 @@ private fun composedBoxGrants(
             }
         }
         awaitIdle()
+        val parent = onNodeWithTag("parent").fetch<JPanel>()
         steps +=
             recordGrants(
                 layout,
@@ -820,14 +847,15 @@ private suspend fun ComposeSwingTest.recordGrants(
 }
 
 private fun ComposeSwingTest.hostInGrid(
-    parent: JComponent,
+    layout: LayoutManager?,
+    subject: @Composable () -> Unit,
     width: Int,
     height: Int,
 ): MutableIntState {
     val cellWidth = mutableIntStateOf(width)
     setContent {
         Panel(PanelLayout.Grid(), style = { preferredSize(cellWidth.intValue, height) }) {
-            SwingNode(factory = { parent })
+            SwingNode(factory = { JPanel(layout) }, modifier = SwingModifier.testTag("parent")) { subject() }
         }
     }
     return cellWidth
@@ -1073,7 +1101,7 @@ private class MinimumFollowsWidth : JComponent() {
  */
 internal class FlowContentCase(
     val name: String,
-    val createPanel: () -> ConstrainedPanel = { ConstrainedPanel() },
+    val measurePolicy: MeasurePolicy? = null,
     val content: @Composable ConstrainedScope.() -> Unit,
     val panel: Rectangle,
     val panelReason: String,

@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -419,14 +420,14 @@ class DecorationModifierNodeTest {
     @Test
     fun aReleasedComponentIsLeftUndecorated() =
         runComposeSwingTest {
-            val panel = DecoratedPanel()
-            val undecorated = panel.isOpaque
+            val undecorated = DecoratedPanel().isOpaque
             var present by mutableStateOf(true)
             setContent {
                 DecoratedBox {
-                    if (present) SwingNode(factory = { panel }, modifier = SwingModifier.cut())
+                    if (present) SwingNode(factory = { DecoratedPanel() }, modifier = SwingModifier.cut())
                 }
             }
+            val panel = onRoot().onChild().onChild().fetch<DecoratedPanel>()
             assertFalse(panel.isOpaque, "The cut leaves the corners uncovered.")
 
             present = false
@@ -439,16 +440,16 @@ class DecorationModifierNodeTest {
     @Test
     fun aDeactivatedComponentIsLeftUndecorated() =
         runComposeSwingTest {
-            val panel = DecoratedPanel()
-            val undecorated = panel.isOpaque
+            val undecorated = DecoratedPanel().isOpaque
             var active by mutableStateOf(true)
             setContent {
                 DecoratedBox {
                     ReusableContentHost(active) {
-                        SwingNode(factory = { panel }, modifier = SwingModifier.cut())
+                        SwingNode(factory = { DecoratedPanel() }, modifier = SwingModifier.cut())
                     }
                 }
             }
+            val panel = onRoot().onChild().onChild().fetch<DecoratedPanel>()
             assertFalse(panel.isOpaque, "The cut leaves the corners uncovered.")
 
             active = false

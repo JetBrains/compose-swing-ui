@@ -12,6 +12,9 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -63,7 +66,6 @@ class AnimatedVisibilityFocusTest {
     fun `a focus owner inside exiting content passes focus past the content as the exit begins`() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val owner = FocusRecordingField()
             var visible by mutableStateOf(true)
             setContent {
                 Window(onCloseRequest = {}, title = FOCUS_WINDOW) {
@@ -74,7 +76,7 @@ class AnimatedVisibilityFocusTest {
                             exit = fadeOut(animationSpec = tween(160)),
                         ) {
                             Row {
-                                SwingNode(factory = { owner })
+                                SwingNode(factory = { FocusRecordingField() })
                                 TextField("", onValueChange = {}, modifier = SwingModifier.testTag("inside"))
                             }
                         }
@@ -84,6 +86,11 @@ class AnimatedVisibilityFocusTest {
             }
             awaitIdle()
             val window = onWindowWithTitle(FOCUS_WINDOW)
+            val owner =
+                window
+                    .onNode(SwingMatcher.isOfType<FocusRecordingField>())
+                    .assertIsOfType<FocusRecordingField>()
+                    .fetch()
             val root = owner.focusCycleRootAncestor
             assertSame(
                 window.onNodeWithTag("inside").fetch(),
@@ -107,7 +114,6 @@ class AnimatedVisibilityFocusTest {
     @Test
     fun `a focus owner outside exiting content keeps the focus`() =
         runComposeSwingTest {
-            val owner = FocusRecordingField()
             var visible by mutableStateOf(true)
             setContent {
                 AnimatedVisibility(
@@ -117,8 +123,10 @@ class AnimatedVisibilityFocusTest {
                 ) {
                     Block()
                 }
-                SwingNode(factory = { owner })
+                SwingNode(factory = { FocusRecordingField() })
             }
+            awaitIdle()
+            val owner = onNodeOfType<FocusRecordingField>().fetch()
 
             mainClock.autoAdvance = false
             reportingFocusOwner(owner) {

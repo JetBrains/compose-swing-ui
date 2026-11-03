@@ -9,11 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.TestTextNodeKind
 import org.jetbrains.compose.swing.style.setterCaseTests
@@ -28,7 +28,6 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
-import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import javax.swing.text.DefaultCaret
@@ -60,11 +59,6 @@ class CaretStyleTest {
             val failure = IllegalStateException()
             val caret = DefaultCaret()
             var armed = false
-            val field =
-                JTextField("hello world").apply {
-                    addPropertyChangeListener("caret") { if (armed && it.newValue === caret) throw failure }
-                }
-            val host = JPanel()
             var inOuter by mutableStateOf(false)
             lateinit var context: CompositionContext
             lateinit var content: @Composable () -> Unit
@@ -74,29 +68,30 @@ class CaretStyleTest {
                     remember {
                         movableContentOf {
                             SwingNode(
-                                factory = { field },
+                                factory = {
+                                    JTextField("hello world").apply {
+                                        addPropertyChangeListener("caret") {
+                                            if (armed && it.newValue === caret) throw failure
+                                        }
+                                    }
+                                },
                                 modifier = SwingModifier.styleable(TestTextNodeKind) { caret(caret) },
                             )
                         }
                     }
-                SwingNode(factory = { host })
+                NestedContentHost(parent = context) { if (!inOuter) content() }
                 if (inOuter) content()
             }
             awaitIdle()
-            val nested = host.setContent(parent = context) { if (!inOuter) content() }
-            try {
-                awaitIdle()
-                field.select(2, 5)
+            val field = onNodeOfType<JTextField>().fetch()
+            field.select(2, 5)
 
-                armed = true
-                inOuter = true
-                assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
+            armed = true
+            inOuter = true
+            assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
 
-                assertSame(caret, field.caret, "the install the listener was notified from ran")
-                assertEquals(2 to 5, field.selectionStart to field.selectionEnd)
-            } finally {
-                nested.dispose()
-            }
+            assertSame(caret, field.caret, "the install the listener was notified from ran")
+            assertEquals(2 to 5, field.selectionStart to field.selectionEnd)
         }
 
     @ParameterizedTest(name = "{0}")
@@ -149,8 +144,6 @@ class CaretStyleTest {
     @ValueSource(booleans = [false, true])
     fun movingCaretPreservesSelection(backward: Boolean) = runComposeSwingTest {
         val caret = DefaultCaret()
-        val field = JTextField("hello world")
-        val host = JPanel()
         var inOuter by mutableStateOf(false)
         lateinit var context: CompositionContext
         lateinit var content: @Composable () -> Unit
@@ -159,38 +152,34 @@ class CaretStyleTest {
             content =
                 remember {
                     movableContentOf {
-                        SwingNode(
-                            factory = { field },
+                        TextField(
+                            "hello world",
+                            onValueChange = {},
                             modifier = SwingModifier.styleable(TestTextNodeKind) { caret(caret) },
                         )
                     }
                 }
-            SwingNode(factory = { host })
+            NestedContentHost(parent = context) { if (!inOuter) content() }
             if (inOuter) content()
         }
         awaitIdle()
-        val nested = host.setContent(parent = context) { if (!inOuter) content() }
-        try {
+        val field = onNodeOfType<JTextField>().fetch()
+        val selectionStart = 2
+        val selectionEnd = 5
+        val mark = if (backward) selectionEnd else selectionStart
+        val dot = if (backward) selectionStart else selectionEnd
+        field.caretPosition = mark
+        field.moveCaretPosition(dot)
+
+        repeat(2) {
+            inOuter = !inOuter
             awaitIdle()
-            val selectionStart = 2
-            val selectionEnd = 5
-            val mark = if (backward) selectionEnd else selectionStart
-            val dot = if (backward) selectionStart else selectionEnd
-            field.caretPosition = mark
-            field.moveCaretPosition(dot)
 
-            repeat(2) {
-                inOuter = !inOuter
-                awaitIdle()
-
-                assertSame(caret, field.caret)
-                assertEquals(selectionStart, field.selectionStart)
-                assertEquals(selectionEnd, field.selectionEnd)
-                assertEquals(dot, field.caret.dot)
-                assertEquals(mark, field.caret.mark)
-            }
-        } finally {
-            nested.dispose()
+            assertSame(caret, field.caret)
+            assertEquals(selectionStart, field.selectionStart)
+            assertEquals(selectionEnd, field.selectionEnd)
+            assertEquals(dot, field.caret.dot)
+            assertEquals(mark, field.caret.mark)
         }
     }
 
@@ -198,7 +187,6 @@ class CaretStyleTest {
     fun rateRestoresAfterMovingCaret() = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
         var blinking by mutableStateOf(true)
-        val host = JPanel()
         val moved =
             movableContentOf {
                 val caret = remember { DefaultCaret() }
@@ -214,24 +202,19 @@ class CaretStyleTest {
         lateinit var context: CompositionContext
         setContent {
             context = rememberCompositionContext()
-            SwingNode(factory = { host })
+            NestedContentHost(parent = context) { if (!inOuter) moved() }
             if (inOuter) moved()
         }
-        val nested = host.setContent(parent = context) { if (!inOuter) moved() }
-        try {
-            awaitIdle()
-            onNodeOfType<JTextField>().assertProperty(750) { caret.blinkRate }
+        awaitIdle()
+        onNodeOfType<JTextField>().assertProperty(750) { caret.blinkRate }
 
-            inOuter = true
-            awaitIdle()
-            onNodeOfType<JTextField>().assertProperty(750) { caret.blinkRate }
+        inOuter = true
+        awaitIdle()
+        onNodeOfType<JTextField>().assertProperty(750) { caret.blinkRate }
 
-            blinking = false
-            awaitIdle()
-            onNodeOfType<JTextField>().assertProperty(0) { caret.blinkRate }
-        } finally {
-            nested.dispose()
-        }
+        blinking = false
+        awaitIdle()
+        onNodeOfType<JTextField>().assertProperty(0) { caret.blinkRate }
     }
 
     @ParameterizedTest

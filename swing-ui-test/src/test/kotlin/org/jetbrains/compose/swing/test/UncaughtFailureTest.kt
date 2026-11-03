@@ -91,14 +91,13 @@ class UncaughtFailureTest {
      */
     private suspend fun ComposeSwingTest.mountSliderThrowing(vararg failures: Throwable): JSlider {
         val pending = failures.toMutableList()
-        val slider = JSlider()
         setContent {
             SwingNode(
-                factory = { slider },
+                factory = { JSlider() },
                 modifier = SwingModifier.changeListener { throw pending.removeAt(0) },
             )
         }
         awaitIdle()
-        return slider
+        return onNodeOfType<JSlider>().fetch()
     }
 }

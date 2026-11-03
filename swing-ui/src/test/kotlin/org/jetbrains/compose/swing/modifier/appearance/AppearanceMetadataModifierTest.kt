@@ -50,6 +50,8 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
+private const val PANEL_TAG = "panel"
+
 /**
  * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite - border,
  * clientProperty and testTag - and for the font, cursor, focusable and preferredSize style setters. Each test
@@ -59,22 +61,25 @@ import kotlin.test.assertSame
 class AppearanceMetadataModifierTest {
     @Test
     fun aBorderMovedIntoAnotherCompositionStaysDeclaredAndIsPutBackOnRemoval() = runComposeSwingTest {
-        val panel = JPanel()
-        val original = panel.border
+        val original = JPanel().border
         val declaredBorder = BorderFactory.createEmptyBorder(1, 2, 3, 4)
         var declared by mutableStateOf(true)
         val nested =
             composeInNestedComposition {
                 SwingNode(
-                    factory = { panel },
+                    factory = { JPanel() },
                     modifier =
-                        if (declared) {
-                            SwingModifier.styleable(TestNodeKind) { border(declaredBorder) }
-                        } else {
-                            SwingModifier
-                        },
+                        SwingModifier.testTag(PANEL_TAG) then
+                            (
+                                if (declared) {
+                                    SwingModifier.styleable(TestNodeKind) { border(declaredBorder) }
+                                } else {
+                                    SwingModifier
+                                }
+                            ),
                 )
             }
+        val panel = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
 
         nested.moveContentOut()
         awaitIdle()
@@ -92,22 +97,25 @@ class AppearanceMetadataModifierTest {
     @Test
     fun aBorderRestoreFailureDuringMoveStillAppliesTheDeclarationInTheDestination() = runComposeSwingTest {
         val original = BorderFactory.createLineBorder(Color.BLUE, 7)
-        val panel = JPanel().apply { border = original }
         val declaredBorder = BorderFactory.createEmptyBorder(1, 2, 3, 4)
         val failure = IllegalStateException("border restore listener failed")
         var declared by mutableStateOf(true)
         val nested =
             composeInNestedComposition {
                 SwingNode(
-                    factory = { panel },
+                    factory = { JPanel().apply { border = original } },
                     modifier =
-                        if (declared) {
-                            SwingModifier.styleable(TestNodeKind) { border(declaredBorder) }
-                        } else {
-                            SwingModifier
-                        },
+                        SwingModifier.testTag(PANEL_TAG) then
+                            (
+                                if (declared) {
+                                    SwingModifier.styleable(TestNodeKind) { border(declaredBorder) }
+                                } else {
+                                    SwingModifier
+                                }
+                            ),
                 )
             }
+        val panel = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         var throwOnRestore = true
         panel.addPropertyChangeListener(
             "border",

@@ -298,33 +298,35 @@ class ConstrainedPanelTest {
     @Test
     fun aPanelHoldingOneScrollablePagesAndTakesTheViewportHeightAsItsContentAsks() =
         runComposeSwingTest {
-            val content =
-                object : JComponent(), Scrollable {
-                    override fun getPreferredSize() = Dimension(50, 320)
-
-                    override fun getPreferredScrollableViewportSize() = Dimension(50, 40)
-
-                    override fun getScrollableUnitIncrement(
-                        visibleRect: Rectangle,
-                        orientation: Int,
-                        direction: Int,
-                    ) = 3
-
-                    override fun getScrollableBlockIncrement(
-                        visibleRect: Rectangle,
-                        orientation: Int,
-                        direction: Int,
-                    ) = 7
-
-                    override fun getScrollableTracksViewportWidth() = false
-
-                    override fun getScrollableTracksViewportHeight() = true
-                }
             setContent {
                 ScrollPane(style = { preferredSize(100, 80) }) {
                     Viewport {
                         Box {
-                            SwingNode(factory = { content })
+                            SwingNode(
+                                factory = {
+                                    object : JComponent(), Scrollable {
+                                        override fun getPreferredSize() = Dimension(50, 320)
+
+                                        override fun getPreferredScrollableViewportSize() = Dimension(50, 40)
+
+                                        override fun getScrollableUnitIncrement(
+                                            visibleRect: Rectangle,
+                                            orientation: Int,
+                                            direction: Int,
+                                        ) = 3
+
+                                        override fun getScrollableBlockIncrement(
+                                            visibleRect: Rectangle,
+                                            orientation: Int,
+                                            direction: Int,
+                                        ) = 7
+
+                                        override fun getScrollableTracksViewportWidth() = false
+
+                                        override fun getScrollableTracksViewportHeight() = true
+                                    }
+                                },
+                            )
                         }
                     }
                 }

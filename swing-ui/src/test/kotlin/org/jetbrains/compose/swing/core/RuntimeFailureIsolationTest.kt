@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -32,13 +31,13 @@ class RuntimeFailureIsolationTest {
         val parent = Recomposer(Dispatchers.Swing)
         val panel = JPanel()
         var disposals = 0
-        val label = JLabel("result")
         val content =
             panel.setContent(parent = parent) {
-                SwingNode(factory = { label })
+                Label("result")
                 DisposableEffect(Unit) { onDispose { disposals++ } }
             }
         try {
+            val label = panel.components.single() as JLabel
             assertEquals("result", label.text)
             assertSame(panel, label.parent)
             assertEquals(1, panel.componentCount)

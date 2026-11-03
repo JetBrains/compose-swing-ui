@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -84,7 +85,7 @@ class CustomLayoutManagerParentTest {
     private fun ComposeSwingTest.setContentOf(
         layout: ScriptedStockLayout,
         ratio: () -> Float,
-    ) = setStockContent(JPanel(layout)) {
+    ) = setStockContent(layout) {
         Box(modifier = SwingModifier.testTag("content")) {
             Label(
                 "Preview",
@@ -202,7 +203,7 @@ class CustomLayoutManagerParentTest {
                         it / 4
                     },
                 )
-            setStockContent(JPanel(parent)) {
+            setStockContent(parent) {
                 Layout(policy, SwingModifier.testTag("content"))
             }
             val content = onNodeWithTag("content").fetch<JComponent>()
@@ -267,7 +268,7 @@ class CustomLayoutManagerParentTest {
                     minimumHeight = heightAt,
                     preferredHeight = heightAt,
                 )
-            setStockContent(JPanel(parent)) {
+            setStockContent(parent) {
                 Layout(policy, SwingModifier.testTag("content"))
             }
             val host = onNodeWithTag("host").fetch<JComponent>()
@@ -440,14 +441,9 @@ class CustomLayoutManagerParentTest {
     ): Cost {
         lateinit var cost: Cost
         runComposeSwingTest {
-            val area =
-                LineBreakCountingTextArea().apply {
-                    text = WRAPPING_TEXT
-                    lineWrap = true
-                    wrapStyleWord = true
-                }
-            setWrappingContent(parent, inContainer, area)
+            setWrappingContent(parent, inContainer)
             awaitIdle()
+            val area = onNodeOfType<LineBreakCountingTextArea>().fetch()
             val host = onNodeWithTag("host").fetch<JComponent>()
             val wrapper = host.getComponent(0)
             val initialBounds = wrapper.bounds

@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.mockk.every
 import io.mockk.mockk
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -18,7 +19,9 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -30,7 +33,6 @@ import javax.swing.JLabel
 import javax.swing.JMenuItem
 import javax.swing.JPanel
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -187,37 +189,42 @@ class CompositionLocalConsumerModifierNodeTest {
         every { layout.preferredLayoutSize(any()) } answers { Dimension(120, 40) }
         every { layout.minimumLayoutSize(any()) } answers { Dimension() }
         every { layout.maximumLayoutSize(any()) } answers { Dimension(Int.MAX_VALUE, Int.MAX_VALUE) }
-        val parent =
-            object : JPanel(layout) {
-                override fun repaint(
-                    tm: Long,
-                    x: Int,
-                    y: Int,
-                    width: Int,
-                    height: Int,
-                ) {
-                    repaints += Rectangle(x, y, width, height)
-                    super.repaint(tm, x, y, width, height)
-                }
-            }
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(factory = { parent }, content = {
-                    SwingNode(factory = { JLabel() }, modifier = SwingModifier then StaticReadingLayoutElement)
-                })
+                SwingNode(
+                    factory = {
+                        object : JPanel(layout) {
+                            override fun repaint(
+                                tm: Long,
+                                x: Int,
+                                y: Int,
+                                width: Int,
+                                height: Int,
+                            ) {
+                                repaints += Rectangle(x, y, width, height)
+                                super.repaint(tm, x, y, width, height)
+                            }
+                        }
+                    },
+                    content = {
+                        Label("", modifier = SwingModifier then StaticReadingLayoutElement)
+                    },
+                )
             }
         }
-        assertTrue(parent.width > 0 && parent.height > 0, "the parent has an area to repaint")
+        onNodeOfType<JLabel>()
+            .onParent()
+            .assertIsOfType<JPanel>()
+            .assertProperty(true, "the parent has an area to repaint") { width > 0 && height > 0 }
         repaints.clear()
 
         value = "changed"
         awaitIdle()
 
-        assertContains(
-            repaints,
-            Rectangle(0, 0, parent.width, parent.height),
+        onNodeOfType<JLabel>().onParent().assertIsOfType<JPanel>().assertProperty(
+            true,
             "the parent of a layout node that reads locals is repainted when the locals change",
-        )
+        ) { repaints.contains(Rectangle(0, 0, width, height)) }
     }
 
     @Test

@@ -1,8 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.ReusableContentHost
@@ -13,8 +11,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import javax.swing.JPanel
@@ -26,9 +26,9 @@ class OnDetachedContractTest {
     @Test
     fun aListenerMayObserveAndRequestWhileItsNodeIsRemoved() = runComposeSwingTest {
         var shown by mutableStateOf(true)
-        val panel = ObservingOnDetachPanel()
-        setContent { if (shown) SwingNode(factory = { panel }) }
+        setContent { if (shown) SwingNode(factory = { ObservingOnDetachPanel() }) }
         awaitIdle()
+        val panel = onNodeOfType<ObservingOnDetachPanel>().fetch()
 
         shown = false
         awaitIdle()
@@ -39,9 +39,9 @@ class OnDetachedContractTest {
     @Test
     fun aListenerMayObserveAndRequestWhileItsNodeIsDeactivated() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val panel = ObservingOnDetachPanel()
-        setContent { ReusableContentHost(active) { SwingNode(factory = { panel }) } }
+        setContent { ReusableContentHost(active) { SwingNode(factory = { ObservingOnDetachPanel() }) } }
         awaitIdle()
+        val panel = onNodeOfType<ObservingOnDetachPanel>().fetch()
 
         active = false
         awaitIdle()
@@ -73,25 +73,26 @@ class OnDetachedContractTest {
     @Test
     fun aListenerMayObserveAndRequestWhileItsNodeMovesToAnotherComposition() = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
-        val panel = ObservingOnDetachPanel()
-        val host = JPanel()
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
+        var hosted by mutableStateOf(true)
         setContent {
-            context = rememberCompositionContext()
-            content = remember { movableContentOf { SwingNode(factory = { panel }) } }
-            SwingNode(factory = { host })
+            val context = rememberCompositionContext()
+            val content = remember { movableContentOf { SwingNode(factory = { ObservingOnDetachPanel() }) } }
+            if (hosted) {
+                NestedContentHost(parent = context) {
+                    if (!inOuter) content()
+                }
+            }
             if (inOuter) content()
         }
         awaitIdle()
-        val handle = host.setContent(parent = context) { if (!inOuter) content() }
-        awaitIdle()
+        val panel = onNodeOfType<ObservingOnDetachPanel>().fetch()
 
         inOuter = true
         awaitIdle()
 
         assertDetachedWhileAttached(panel)
-        handle.dispose()
+        hosted = false
+        awaitIdle()
     }
 
     @Test

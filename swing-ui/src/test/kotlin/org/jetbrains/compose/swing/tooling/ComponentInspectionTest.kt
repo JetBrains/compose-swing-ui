@@ -1,17 +1,22 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.tooling
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ReusableContentHost
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionGroup
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
@@ -28,6 +33,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.io.PrintWriter
@@ -53,6 +59,7 @@ internal const val LABEL_TAG = "inspection-label"
 private const val BUTTON_TAG = "inspection-button"
 private const val CHECKBOX_TAG = "inspection-checkbox"
 internal const val NESTED_TAG = "inspection-nested-label"
+private const val NESTED_HOST_TAG = "inspection-nested-host"
 
 /** The file these tests declare their content in, which is where a declaration trace has to lead back to. */
 private const val OWN_FILE = "ComponentInspectionTest.kt"
@@ -178,70 +185,69 @@ class ComponentInspectionTest {
 
     @Test
     fun aComponentHostingAContentCompositionIsStillAnsweredWithTheGroupThatDeclaredIt() = runComposeSwingTest {
-        val nestedHost = JPanel()
         isDebugInspectorInfoEnabled = true
-        setContent { SwingNode(factory = { nestedHost }) }
-        val handle = nestedHost.setContent { Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG)) }
-        try {
-            awaitIdle()
-
-            assertSame(
-                nestedHost,
-                (assertNotNull(nestedHost.findDeclaringGroup()).node as? SwingComponentNode<*>)?.component,
-                "the content composition a component hosts declared it no more than a stranger did, so " +
-                    "the composition that did declare it is the one that answers",
-            )
-            assertTrue(
-                declarationTraceOf(nestedHost).contains(OWN_FILE),
-                "and the trace names where it was declared, not the content composition it carries",
-            )
-            assertSame(
-                onNodeWithTag(NESTED_TAG).fetch(),
-                (
-                    assertNotNull(onNodeWithTag(NESTED_TAG).fetch().findDeclaringGroup()).node
-                        as? SwingComponentNode<*>
-                )?.component,
-                "while a component inside that composition is answered by it",
-            )
-            assertSame(
-                onNodeWithTag(NESTED_TAG).fetch().findCompositionData(),
-                nestedHost.findCompositionData(),
-                "and the composition a host stands in is the one it carries, which is nearer than the " +
-                    "composition that declared the host",
-            )
-        } finally {
-            handle.dispose()
+        setContent {
+            NestedContentHost {
+                Label(text = "nested")
+            }
         }
+        val nestedHost = onRoot().onChild().fetch<JPanel>()
+        awaitIdle()
+
+        assertSame(
+            nestedHost,
+            (assertNotNull(nestedHost.findDeclaringGroup()).node as? SwingComponentNode<*>)?.component,
+            "the content composition a component hosts declared it no more than a stranger did, so " +
+                "the composition that did declare it is the one that answers",
+        )
+        assertTrue(
+            declarationTraceOf(nestedHost).contains(OWN_FILE),
+            "and the trace names where it was declared, not the content composition it carries",
+        )
+        assertSame(
+            onNodeWithText("nested").fetch(),
+            (
+                assertNotNull(onNodeWithText("nested").fetch().findDeclaringGroup()).node
+                    as? SwingComponentNode<*>
+            )?.component,
+            "while a component inside that composition is answered by it",
+        )
+        assertSame(
+            onNodeWithText("nested").fetch().findCompositionData(),
+            nestedHost.findCompositionData(),
+            "and the composition a host stands in is the one it carries, which is nearer than the " +
+                "composition that declared the host",
+        )
     }
 
     @Test
     fun aPlacedCompositionPublishesNothingOnItsHost() = runComposeSwingTest {
         lateinit var parentContext: CompositionContext
         isDebugInspectorInfoEnabled = true
-        setContent { parentContext = rememberCompositionContext() }
-
-        val host = JPanel()
-        val hostContent = host.setContent(parent = parentContext) { Label(text = "existing") }
-        try {
-            awaitIdle()
-            val published = assertNotNull(host.findCompositionData(), "the host's own composition publishes")
-            val placement =
-                SlotAttachment { container, component, _ ->
-                    container.add(component)
-                    return@SlotAttachment { container.remove(component) }
-                }
-
-            val first = OnDemandComposition(parentContext, host, placement) { Label(text = "placed") }
-            val second = OnDemandComposition(parentContext, host, placement) { Label(text = "other") }
-            awaitIdle()
-            assertSame(published, host.findCompositionData(), "creating placed compositions overwrites nothing")
-
-            first.dispose()
-            second.dispose()
-            assertSame(published, host.findCompositionData(), "and disposing them clears nothing")
-        } finally {
-            hostContent.dispose()
+        setContent {
+            parentContext = rememberCompositionContext()
+            NestedContentHost(modifier = SwingModifier.testTag(NESTED_HOST_TAG), parent = parentContext) {
+                Label(text = "existing")
+            }
         }
+        awaitIdle()
+
+        val host = onNodeWithTag(NESTED_HOST_TAG).fetch<JPanel>()
+        val published = assertNotNull(host.findCompositionData(), "the host's own composition publishes")
+        val placement =
+            SlotAttachment { container, component, _ ->
+                container.add(component)
+                return@SlotAttachment { container.remove(component) }
+            }
+
+        val first = OnDemandComposition(parentContext, host, placement) { Label(text = "placed") }
+        val second = OnDemandComposition(parentContext, host, placement) { Label(text = "other") }
+        awaitIdle()
+        assertSame(published, host.findCompositionData(), "creating placed compositions overwrites nothing")
+
+        first.dispose()
+        second.dispose()
+        assertSame(published, host.findCompositionData(), "and disposing them clears nothing")
     }
 
     @Test
@@ -282,33 +288,30 @@ class ComponentInspectionTest {
 
     @Test
     fun aComponentInsideANestedCompositionIsAnsweredForByThatCompositionsOwnGroups() = runComposeSwingTest {
-        val nestedHost = JPanel()
         isDebugInspectorInfoEnabled = true
         setContent {
             Label(text = "outer", modifier = SwingModifier.testTag(LABEL_TAG))
-            SwingNode(factory = { nestedHost })
+            ParentlessContentHost(modifier = SwingModifier.testTag(NESTED_HOST_TAG)) {
+                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
+            }
         }
-        val handle = nestedHost.setContent { Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG)) }
-        try {
-            awaitIdle()
+        val nestedHost = onNodeWithTag(NESTED_HOST_TAG).fetch<JPanel>()
+        awaitIdle()
 
-            assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
-            val nested = onNodeWithTag(NESTED_TAG).fetch()
-            assertDeclaredBy(nested, "Label.kt")
-            assertSame(
-                assertNotNull(nestedHost.findCompositionData()),
-                nested.findCompositionData(),
-                "the content composition that declared it is the nearest composition above it, so that " +
-                    "is the one it is answered with",
-            )
-            assertNotSame(
-                root.findCompositionData(),
-                nested.findCompositionData(),
-                "and never the composition around it, which declared the host and nothing inside it",
-            )
-        } finally {
-            handle.dispose()
-        }
+        assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
+        val nested = onNodeWithTag(NESTED_TAG).fetch()
+        assertDeclaredBy(nested, "Label.kt")
+        assertSame(
+            assertNotNull(nestedHost.findCompositionData()),
+            nested.findCompositionData(),
+            "the content composition that declared it is the nearest composition above it, so that " +
+                "is the one it is answered with",
+        )
+        assertNotSame(
+            root.findCompositionData(),
+            nested.findCompositionData(),
+            "and never the composition around it, which declared the host and nothing inside it",
+        )
     }
 
     @Test
@@ -380,6 +383,8 @@ class ComponentInspectionTest {
     }
 
     @Test
+    // One component declared by two nodes is the test's subject, so both factories must return the same instance.
+    @Suppress("SwingNodeFactoryReusesComponent")
     fun aComponentTwoNodesShareAnswersWithTheNodeDeclaringItNow() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         var nested by mutableStateOf(false)
@@ -506,6 +511,40 @@ class ComponentInspectionTest {
             child.findDeclaringGroup(),
             "and no group declared it either",
         )
+    }
+}
+
+/**
+ * A panel that owns a content composition with no parent context, composed into it for as long as the host stays
+ * in the composition.
+ */
+@Composable
+private fun ParentlessContentHost(
+    modifier: SwingModifier,
+    content: @Composable () -> Unit,
+) {
+    val current = rememberUpdatedState(content)
+    SwingNode(
+        factory = { ParentlessContentPanel() },
+        modifier = modifier,
+        update = { set(Unit) { mount(current) } },
+        onRelease = { dispose() },
+    )
+}
+
+private class ParentlessContentPanel :
+    JPanel(),
+    DisposableHandle {
+    private var mounted: DisposableHandle? = null
+
+    fun mount(content: State<@Composable () -> Unit>) {
+        dispose()
+        mounted = setContent { content.value() }
+    }
+
+    override fun dispose() {
+        mounted?.dispose()
+        mounted = null
     }
 }
 

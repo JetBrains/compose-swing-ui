@@ -23,6 +23,8 @@ import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -526,8 +528,6 @@ class PlacementLayerTest {
             val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ alpha = 0.5f })
             // Between the opaque box and the child, so a paint of the child alone does not paint it, and a paint
             // starting at the box or above it does.
-            val host = PaintCountingPanel()
-            val child = ClipRecordingChild().apply { isOpaque = true }
             setWindowContent {
                 Row {
                     Box(
@@ -541,23 +541,31 @@ class PlacementLayerTest {
                                 },
                     ) {
                         SwingNode(
-                            factory = { host },
+                            factory = { PaintCountingPanel() },
                             modifier = SwingModifier.styleable { preferredSize(40, 40) },
                         ) {
-                            SwingNode(factory = { child })
+                            SwingNode(factory = { ClipRecordingChild().apply { isOpaque = true } })
                         }
                     }
                 }
             }
-            val component = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").fetch<JComponent>()
+            val host =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<PaintCountingPanel>())
+                    .fetch<PaintCountingPanel>()
+            val child =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<ClipRecordingChild>())
+                    .fetch<ClipRecordingChild>()
+            val layered = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layered").assertIsOfType<JComponent>()
             assertTrue(host.isPaintedForTheRepaintOf(child), "a layer makes the component a painting origin")
-            assertFalse(component.isOpaque, "with the decorator set, the component reports non-opaque")
+            layered.assertProperty(false, "with the decorator set, the component reports non-opaque") { isOpaque }
 
             layer.value = null
             awaitIdle()
 
             assertFalse(host.isPaintedForTheRepaintOf(child), "placed without a layer, it is no painting origin")
-            assertTrue(component.isOpaque, "with the decorator cleared, the component is opaque again")
+            layered.assertProperty(true, "with the decorator cleared, the component is opaque again") { isOpaque }
         }
 
     @Test

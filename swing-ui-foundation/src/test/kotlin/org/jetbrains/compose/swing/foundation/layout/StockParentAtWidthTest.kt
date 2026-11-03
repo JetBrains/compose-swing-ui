@@ -1,12 +1,8 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.foundation.layout
 
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -40,13 +36,7 @@ class StockParentAtWidthTest {
             mapOf(
                 "ConstrainedPanel" to
                     HoldingCase({ modifier, leaf ->
-                        val panel = remember { ConstrainedPanel() }
-                        SwingNode(factory = { panel }, modifier = modifier)
-                        val context = rememberCompositionContext()
-                        DisposableEffect(panel) {
-                            val content = panel.setContent(context) { leaf(SwingModifier) }
-                            onDispose { content.dispose() }
-                        }
+                        ConstrainedContentHost(modifier = modifier) { leaf(SwingModifier) }
                     }, sizeProblems = heightsAround(leafFillsContainer = true)),
             )
 

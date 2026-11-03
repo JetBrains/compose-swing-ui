@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.LayoutManager
 import java.awt.LayoutManager2
 import javax.swing.JPanel
 import javax.swing.JTextArea
@@ -99,9 +100,9 @@ internal class ScriptedMeasurePolicy(
     ): Int = preferredHeight(width)
 }
 
-/** Mounts content under a scripted Swing parent with the given host size. */
+/** Mounts content under a stock panel managed by [layout], with the given host size. */
 internal fun ComposeSwingTest.setStockContent(
-    parent: JPanel,
+    layout: LayoutManager,
     width: Int = 320,
     height: Int = 600,
     content:
@@ -111,22 +112,42 @@ internal fun ComposeSwingTest.setStockContent(
 ): Unit =
     setContent {
         SwingNode(
-            factory = { parent },
+            factory = { JPanel(layout) },
             modifier = SwingModifier.testTag("host").styleable { preferredSize(width, height) },
             content = content,
         )
     }
 
-/** Shows the same wrapping leaf directly under a stock parent or inside a Foundation column. */
+/**
+ * Shows the same wrapping [LineBreakCountingTextArea] directly under a stock parent or inside a Foundation column.
+ * Reach the leaf with `onNodeOfType<LineBreakCountingTextArea>()`.
+ */
 internal fun ComposeSwingTest.setWrappingContent(
     layout: ScriptedStockLayout,
     inContainer: Boolean,
-    area: JTextArea = wrappingTextArea(),
     width: Int = 320,
     height: Int = 600,
 ): Unit =
-    setStockContent(JPanel(layout).apply { if (!inContainer) add(area) }, width, height) {
-        if (inContainer) Column { SwingNode(factory = { area }, modifier = SwingModifier.fillMaxWidth()) }
+    if (inContainer) {
+        setStockContent(layout, width, height) {
+            Column {
+                SwingNode(factory = { wrappingLineBreakArea() }, modifier = SwingModifier.fillMaxWidth())
+            }
+        }
+    } else {
+        setContent {
+            SwingNode(
+                factory = { JPanel(layout).apply { add(wrappingLineBreakArea()) } },
+                modifier = SwingModifier.testTag("host").styleable { preferredSize(width, height) },
+            )
+        }
+    }
+
+private fun wrappingLineBreakArea(): LineBreakCountingTextArea =
+    LineBreakCountingTextArea().apply {
+        text = WRAPPING_TEXT
+        lineWrap = true
+        wrapStyleWord = true
     }
 
 /** A wrapping Swing control shared by the native-parity scenarios. */
