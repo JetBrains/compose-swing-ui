@@ -5,12 +5,12 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.CalendarField
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.Spinners
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
@@ -318,6 +318,7 @@ public fun Spinner(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun SpinnerNode(
     model: SpinnerModel,
     modifier: SwingModifier,
@@ -372,7 +373,22 @@ private inline fun SpinnerNode(
         },
     )
     if (editor != null && editorPanel != null && parentContext != null) {
-        SpinnerEditorComposition(editorPanel, parentContext, editor)
+        // Composes the editor into the panel, which the modifier chain installs as the spinner's editor for
+        // as long as an editor is declared. The parent context directly joins the editing surface to the
+        // composition declaring the spinner, so no client property needs publishing on the spinner itself.
+        //
+        // Read through state: a fresh lambda each recomposition recomposes the editor rather than rebuilding
+        // it, so an edit in progress is not thrown away.
+        val current = rememberUpdatedState(editor)
+        DisposableEffect(editorPanel, parentContext) {
+            val handle =
+                editorPanel.setContent(parent = parentContext) {
+                    current.value()
+                }
+            onDispose {
+                handle.dispose()
+            }
+        }
     }
 }
 
@@ -530,34 +546,6 @@ private class ItemsFormatter(
             if (text == null || offset + length != bypass.document.length) return null
             val prefix = bypass.document.getText(0, offset) + text
             return (spinner.model as ListSpinnerModel<*>).findNextMatch(prefix)?.toString()
-        }
-    }
-}
-
-/**
- * Composes [content] into [panel], which the modifier chain installs as the spinner's editor for as long
- * as an editor is declared. [parentContext] directly joins the editing surface to the composition
- * declaring the spinner, so no client property needs publishing on the spinner itself.
- *
- * [content] flows in through [rememberUpdatedState]: a fresh lambda each recomposition recomposes it
- * rather than rebuilding it, so an edit in progress is not thrown away.
- */
-@Composable
-private fun SpinnerEditorComposition(
-    panel: JPanel,
-    parentContext: CompositionContext,
-    content:
-        @Composable
-        () -> Unit,
-) {
-    val current = rememberUpdatedState(content)
-    DisposableEffect(panel, parentContext) {
-        val handle =
-            panel.setContent(parent = parentContext) {
-                current.value()
-            }
-        onDispose {
-            handle.dispose()
         }
     }
 }

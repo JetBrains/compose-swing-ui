@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -13,18 +14,20 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.LayoutDeclaration
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.NestedProbe
 import org.jetbrains.compose.swing.style.PlainProbeContainer
 import org.jetbrains.compose.swing.style.Probes
@@ -32,6 +35,8 @@ import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.SwingStyleProperty
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -39,7 +44,9 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Container
 import java.awt.FlowLayout
+import java.awt.LayoutManager
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -60,17 +67,25 @@ class VirtualSwingNodeDeclarationChangeTest {
         newChange: () -> ChildChangeWithGroup,
     ) = runComposeSwingTest {
         val change = newChange()
+        val hostTag = "changed-host"
         var changed by mutableStateOf(false)
-        setContent { SwingNode(factory = { change.host }) { change.content(changed) } }
-        assertEquals(change.initialTexts, change.host.components.texts(), case)
-        val original = change.host.components.toList()
-        change.beforeChange()
+        setContent {
+            SwingNode(
+                factory = { change.layout?.let { JPanel(it) } ?: MeasuringHost() },
+                modifier = SwingModifier.testTag(hostTag),
+            ) { change.content(changed) }
+        }
+        // The host's recording layout and the identity of the original children are not visible to the harness.
+        val host = onNodeWithTag(hostTag).fetch<JPanel>()
+        assertEquals(change.initialTexts, host.components.texts(), case)
+        val original = host.components.toList()
+        change.beforeChange(host)
 
         Snapshot.withMutableSnapshot { changed = true }
         awaitIdle()
 
-        assertEquals(change.after.texts, change.host.components.texts(), case)
-        change.after.verify(original)
+        assertEquals(change.after.texts, host.components.texts(), case)
+        change.after.verify(host, original)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -82,10 +97,9 @@ class VirtualSwingNodeDeclarationChangeTest {
         currentGroup: String,
         change: LayoutNodeRemovalChange,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         var removed by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(
                     SwingModifier then
                         Mark(if (removed) currentGroup else initialGroup, groupKey, false, MeasuringProtocol),
@@ -94,6 +108,7 @@ class VirtualSwingNodeDeclarationChangeTest {
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         val label = host.components.single()
         assertEquals(change.before, host.recording.tagsOf(label), case)
         host.recording.declarations.clear()
@@ -118,18 +133,18 @@ class VirtualSwingNodeDeclarationChangeTest {
         before: List<String>,
         groupKeyReplaced: Boolean,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         lateinit var replacementNode: RecordingLayoutNode
         val replacement =
             RecordingLayoutNodeElement("replacement", mutableListOf(), onAttach = { replacementNode = it })
         var changed by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(SwingModifier then Mark("G", groupKey, false, MeasuringProtocol)) {
                     Label("a", SwingModifier then (if (changed) replacement else NodeMark("own")))
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         val label = host.components.single()
         assertEquals(before, host.recording.tagsOf(label), case)
         host.recording.declarations.clear()
@@ -159,13 +174,12 @@ class VirtualSwingNodeDeclarationChangeTest {
     @ParameterizedTest(name = "changed resolution property: {0}")
     @ValueSource(strings = ["key", "additive", "protocol", "inheritable"])
     fun updatingRetainedLayoutNodesResolvesTheirCurrentMetadata(property: String) = runComposeSwingTest {
-        val host = MeasuringHost()
         val alternate = parentProtocolOf("alternate measuring parent") { it is MeasuringHost }
         var version by mutableIntStateOf(0)
         var styled by mutableStateOf(false)
         var removed by mutableStateOf(false)
         setContent {
-            StyledHost(host, "styled", ReplacingMarkProperty) {
+            StyledHost("styled", ReplacingMarkProperty) {
                 VirtualSwingNode(SwingModifier.mark("group", slot = 2)) {
                     val middle = NodeMark("middle-$version", key = 2)
                     SwingNode(
@@ -187,6 +201,7 @@ class VirtualSwingNodeDeclarationChangeTest {
                 }
             }
         }
+        val host = hostOf()
         val label = host.components.single()
         val nodes = host.recording.elementsOf(label)
         assertEquals(listOf("first-0", "middle-0", "last-0"), host.recording.tagsOf(label))
@@ -267,53 +282,44 @@ class VirtualSwingNodeDeclarationChangeTest {
 
     @Test
     fun movingAChildAcrossCompositionsPublishesItsDestinationProtocolAfterLayoutNodeTeardown() = runComposeSwingTest {
-        val departing = MeasuringHost()
-        val arriving = MeasuringHost()
         val p = parentProtocolOf("P") { it.layout is MeasurementLayoutManager }
         val q = parentProtocolOf("Q") { it.layout is MeasurementLayoutManager }
         var moved by mutableStateOf(false)
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable (ParentProtocol) -> Unit
         setContent {
-            context = rememberCompositionContext()
-            content =
+            val content =
                 remember {
                     movableContentOf<ParentProtocol> { protocol ->
                         Label("a", SwingModifier then NodeMark("own") then Data(protocol.description, 2, protocol))
                     }
                 }
-        }
-        val first =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { departing }) {
+            NestedContentHost {
+                SwingNode(factory = { MeasuringHost() }, modifier = SwingModifier.testTag(DEPARTING_TAG)) {
                     VirtualSwingNode(SwingModifier then Data("group-P", 1, p)) { if (!moved) content(p) }
                 }
             }
-        val second =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { arriving }) {
+            NestedContentHost {
+                SwingNode(factory = { MeasuringHost() }, modifier = SwingModifier.testTag("arriving")) {
                     VirtualSwingNode(SwingModifier then Data("group-Q", 1, q)) { if (moved) content(q) }
                 }
             }
-        try {
-            awaitIdle()
-            val label = departing.components.single()
-            assertEquals(listOf("group-P", "P"), departing.recording.parentDataOf(label))
-            departing.recording.declarations.clear()
-            arriving.recording.declarations.clear()
-
-            moved = true
-            awaitIdle()
-
-            assertEquals(emptyList(), departing.components.toList())
-            assertEquals(listOf(label), arriving.components.toList())
-            assertEquals(emptyList(), departing.recording.declarations)
-            assertEquals(listOf(listOf("group-Q", "Q")), arriving.recording.declarations.map { it.parentData })
-            assertEquals(listOf(listOf("own")), arriving.recording.declarations.map { it.tags })
-        } finally {
-            first.dispose()
-            second.dispose()
         }
+        awaitIdle()
+        // The recording layouts are not visible to the harness, and the moved label's identity is compared.
+        val departing = onNodeWithTag(DEPARTING_TAG).fetch<MeasuringHost>()
+        val arriving = onNodeWithTag("arriving").fetch<MeasuringHost>()
+        val label = departing.components.single()
+        assertEquals(listOf("group-P", "P"), departing.recording.parentDataOf(label))
+        departing.recording.declarations.clear()
+        arriving.recording.declarations.clear()
+
+        moved = true
+        awaitIdle()
+
+        assertEquals(emptyList(), departing.components.toList())
+        assertEquals(listOf(label), arriving.components.toList())
+        assertEquals(emptyList(), departing.recording.declarations)
+        assertEquals(listOf(listOf("group-Q", "Q")), arriving.recording.declarations.map { it.parentData })
+        assertEquals(listOf(listOf("own")), arriving.recording.declarations.map { it.tags })
     }
 
     @ParameterizedTest(name = "{0}")
@@ -321,8 +327,6 @@ class VirtualSwingNodeDeclarationChangeTest {
     fun aGroupChangePublishesNoSupersededGroup(
         case: String,
         content: @Composable (
-            JPanel,
-            JPanel,
             Boolean,
             String,
             String,
@@ -330,17 +334,18 @@ class VirtualSwingNodeDeclarationChangeTest {
         ) -> Unit,
         change: SimultaneousChange,
     ) = runComposeSwingTest {
-        val departing = MeasuringHost()
-        val host = MeasuringHost()
         var changed by mutableStateOf(false)
         var group by mutableStateOf("g0")
         var style by mutableStateOf("s0")
         var own by mutableStateOf("o0")
         setContent {
-            content(departing, host, changed, group, own, style)
+            content(changed, group, own, style)
         }
+        // The recording layouts are not visible to the harness.
+        val host = hostOf()
+        val departing = onAllNodesWithTag(DEPARTING_TAG).fetchAll().map { it as MeasuringHost }
         host.recording.declarations.clear()
-        departing.recording.declarations.clear()
+        departing.forEach { it.recording.declarations.clear() }
 
         Snapshot.withMutableSnapshot {
             changed = true
@@ -364,20 +369,21 @@ class VirtualSwingNodeDeclarationChangeTest {
             case,
         )
         change.publications?.let { assertEquals(it, host.recording.declarations.size, case) }
-        assertEquals(emptyList(), departing.recording.declarations, case)
+        assertEquals(emptyList(), departing.flatMap { it.recording.declarations }, case)
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("org.jetbrains.compose.swing.node.VirtualSwingNodeChangeCases#releasedLayoutNodeChildren")
     internal fun releasingAChildWithdrawsItsLayoutNodesLastPublishedDeclaration(
         case: String,
-        content: @Composable (MeasuringHost) -> Unit,
+        content: @Composable () -> Unit,
         before: List<String>,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         lateinit var context: CompositionContext
         setContent { context = rememberCompositionContext() }
-        val composition = OnDemandComposition(context) { content(host) }
+        val composition = OnDemandComposition(context) { content() }
+        val top = composition.recompose {}
+        val host = top as? MeasuringHost ?: (top as Container).components.single() as MeasuringHost
         val child = host.components.single()
         try {
             assertEquals(before, host.recording.tagsOf(child), case)
@@ -400,14 +406,13 @@ class VirtualSwingNodeDeclarationChangeTest {
         expected: List<String>,
     ) = runComposeSwingTest {
         val layout = SnapshottingLayout()
-        val host = MeasuringHost(recording = layout)
         var version by mutableIntStateOf(0)
         setContent {
             val group = SwingModifier then Mark("g$version", groupKey, false, MeasuringProtocol)
             if (styleOwned) {
-                StyledHost(host, "n$version", NodeProperty) { VirtualSwingNode(group) { ProbedLabel() } }
+                OwnedStyledHost(layout, "n$version", NodeProperty) { VirtualSwingNode(group) { ProbedLabel() } }
             } else {
-                SwingNode(factory = { host }) {
+                SwingNode(factory = { MeasuringHost() }, update = { set(layout) { this.layout = it } }) {
                     VirtualSwingNode(group) {
                         Label(
                             "a",
@@ -431,18 +436,18 @@ class VirtualSwingNodeDeclarationChangeTest {
         case: String,
         child: @Composable (ParentProtocol) -> Unit,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         val p = parentProtocolOf("P") { it is MeasuringHost }
         val q = parentProtocolOf("Q") { it is MeasuringHost }
         var protocol by mutableStateOf(p)
         var active by mutableStateOf(true)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(SwingModifier then Data("group-${protocol.description}", 1, protocol)) {
                     ReusableContentHost(active) { child(protocol) }
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         assertEquals(listOf("a"), host.texts(), case)
         assertEquals(listOf("group-P", "child-P"), host.recording.parentDataOf(host.components.single()), case)
 
@@ -468,8 +473,9 @@ class VirtualSwingNodeDeclarationChangeTest {
         sharedHost: Boolean,
         expected: RefusedGroupSettles,
     ) = runComposeSwingTest {
-        val hostA = MeasuringHost()
-        val hostB = if (sharedHost) hostA else MeasuringHost()
+        val firstTag = "A"
+        val secondTag = "B"
+        val tagB = if (sharedHost) firstTag else secondTag
         val p = parentProtocolOf("P") { it is MeasuringHost }
         val q = parentProtocolOf("Q") { it is MeasuringHost }
         var protocol by mutableStateOf(p)
@@ -487,19 +493,19 @@ class VirtualSwingNodeDeclarationChangeTest {
         }
         setContent {
             if (sharedHost) {
-                SettlingHost(hostA) {
+                SettlingHost(firstTag) {
                     groupA()
                     groupB()
                 }
             } else {
                 SwingNode(factory = { JPanel() }) {
-                    SettlingHost(hostA, groupA)
-                    SettlingHost(hostB, groupB)
+                    SettlingHost(firstTag, groupA)
+                    SettlingHost(secondTag, groupB)
                 }
             }
         }
-        assertEquals(expected.mountedA, hostA.name, case)
-        assertEquals(expected.mountedB, hostB.name, case)
+        onNodeWithTag(firstTag).assertProperty(expected.mountedA, case) { name }
+        onNodeWithTag(tagB).assertProperty(expected.mountedB, case) { name }
 
         Snapshot.withMutableSnapshot {
             protocol = q
@@ -508,14 +514,14 @@ class VirtualSwingNodeDeclarationChangeTest {
         }
         awaitIdle()
 
-        assertEquals(expected.changedB, hostB.name, case)
-        assertEquals(expected.changedA, hostA.name, case)
+        onNodeWithTag(tagB).assertProperty(expected.changedB, case) { name }
+        onNodeWithTag(firstTag).assertProperty(expected.changedA, case) { name }
 
         active = true
         awaitIdle()
 
-        assertEquals(expected.reactivatedB, hostB.name, case)
-        assertEquals(expected.reactivatedA, hostA.name, case)
+        onNodeWithTag(tagB).assertProperty(expected.reactivatedB, case) { name }
+        onNodeWithTag(firstTag).assertProperty(expected.reactivatedA, case) { name }
     }
 
     @ParameterizedTest(name = "{0}")
@@ -525,11 +531,10 @@ class VirtualSwingNodeDeclarationChangeTest {
         childModifier: (ParentProtocol) -> SwingModifier,
         change: ProtocolDeclarationChange,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         val initialProtocol = parentProtocolOf("P") { it is MeasuringHost }
         var protocol by mutableStateOf(initialProtocol)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(SwingModifier then Data("group-${protocol.description}", 1, protocol)) {
                     Label(
                         "a",
@@ -538,6 +543,7 @@ class VirtualSwingNodeDeclarationChangeTest {
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         val label = host.components.single()
         assertEquals(listOf("group-P", "child-P"), host.recording.parentDataOf(label), case)
         assertEquals(change.initialTags, host.recording.tagsOf(label), case)
@@ -574,24 +580,32 @@ class VirtualSwingNodeDeclarationChangeTest {
         val movable = movableContentOf<String, Boolean>(move.content)
         val firstComposition =
             OnDemandComposition(parentContext) {
-                SwingNode(factory = { move.first }) { if (!inSecond) movable(value, keepsB) }
+                SwingNode(
+                    factory = { MeasuringHost() },
+                    update = { set(move.firstName) { protocolName = it } },
+                ) { if (!inSecond) movable(value, keepsB) }
             }
         val secondComposition =
             OnDemandComposition(parentContext) {
-                SwingNode(factory = { move.second }) { if (inSecond) movable(value, keepsB) }
+                SwingNode(
+                    factory = { MeasuringHost() },
+                    update = { set(move.secondName) { protocolName = it } },
+                ) { if (inSecond) movable(value, keepsB) }
             }
+        val first = firstComposition.recompose {} as MeasuringHost
+        val second = secondComposition.recompose {} as MeasuringHost
         try {
-            assertEquals(move.initial.texts, move.first.texts(), case)
-            assertEquals(move.initial.tags, move.first.components.map { move.first.recording.tagsOf(it) }, case)
+            assertEquals(move.initial.texts, first.texts(), case)
+            assertEquals(move.initial.tags, first.components.map { first.recording.tagsOf(it) }, case)
 
             inSecond = true
             value = move.moved.value
             keepsB = false
             awaitIdle()
 
-            assertEquals(emptyList(), move.first.texts(), case)
-            assertEquals(move.moved.texts, move.second.texts(), case)
-            assertEquals(move.moved.tags, move.second.components.map { move.second.recording.tagsOf(it) }, case)
+            assertEquals(emptyList(), first.texts(), case)
+            assertEquals(move.moved.texts, second.texts(), case)
+            assertEquals(move.moved.tags, second.components.map { second.recording.tagsOf(it) }, case)
         } finally {
             secondComposition.dispose()
             firstComposition.dispose()
@@ -599,17 +613,34 @@ class VirtualSwingNodeDeclarationChangeTest {
     }
 }
 
+/** [StyledHost] over a [MeasuringHost] that takes the [layout] the test supplies. */
 @Composable
-private fun SettlingHost(
-    host: MeasuringHost,
+private fun OwnedStyledHost(
+    layout: LayoutManager,
+    style: String,
+    property: SwingStyleProperty<String>,
     content: @Composable () -> Unit,
 ) {
-    SwingNode(factory = { host }, update = {
+    CompositionLocalProvider(LocalMark provides style) {
+        Panel(modifier = providedMarkStyle(property)) {
+            SwingNode(factory = { MeasuringHost() }, update = { set(layout) { this.layout = it } }, content = content)
+        }
+    }
+}
+
+@Composable
+private fun SettlingHost(
+    tag: String,
+    content: @Composable () -> Unit,
+) {
+    SwingNode(factory = { MeasuringHost() }, modifier = SwingModifier.testTag(tag), update = {
         reconcileWithChildren {
-            host.name = host.components.joinToString(" ") { "${host.recording.parentDataOf(it)}" }
+            component.name = component.components.joinToString(" ") { "${component.recording.parentDataOf(it)}" }
         }
     }) { content() }
 }
+
+private const val DEPARTING_TAG = "departing"
 
 class ProtocolDeclarationChange(
     val initialTags: List<String>,
@@ -634,27 +665,30 @@ class LayoutNodeRemovalChange(
 )
 
 /**
- * A child added or released in the pass that changes its group: the [host] that receives it, the [content] under it
- * given whether the change happened, and the [after] state it then reaches.
+ * A child added or released in the pass that changes its group: the [layout] the host takes in place of its own, or
+ * `null`, the [content] under it given whether the change happened, and the [after] state it then reaches.
  */
 internal class ChildChangeWithGroup(
-    val host: JPanel,
+    val layout: LayoutManager?,
     val content: @Composable (Boolean) -> Unit,
     val initialTexts: List<String>,
-    val beforeChange: () -> Unit,
+    val beforeChange: (JPanel) -> Unit,
     val after: ChildChangeOutcome,
 )
 
 /** The [texts] a host holds after a change, and [verify], which asserts its declarations given the prior components. */
 internal class ChildChangeOutcome(
     val texts: List<String>,
-    val verify: (original: List<Component>) -> Unit,
+    val verify: (host: JPanel, original: List<Component>) -> Unit,
 )
 
-/** A group that moves from [first] to [second] while its content changes from the [initial] to the [moved] state. */
+/**
+ * A group that moves from a host named [firstName] to one named [secondName] while its content changes from the
+ * [initial] to the [moved] state.
+ */
 internal class MovedGroupChange(
-    val first: MeasuringHost,
-    val second: MeasuringHost,
+    val firstName: String,
+    val secondName: String,
     val content: @Composable (String, Boolean) -> Unit,
     val initial: MovedGroupState,
     val moved: MovedGroupState,
@@ -689,11 +723,10 @@ internal object VirtualSwingNodeChangeCases {
     )
 
     private fun protocolAddition(): ChildChangeWithGroup {
-        val host = MeasuringHost()
         val p = parentProtocolOf("P") { it is MeasuringHost }
         val q = parentProtocolOf("Q") { it is MeasuringHost }
         return ChildChangeWithGroup(
-            host,
+            null,
             content = { changed ->
                 val protocol = if (changed) q else p
                 VirtualSwingNode(SwingModifier then Data("group-${protocol.description}", 1, protocol)) {
@@ -705,7 +738,8 @@ internal object VirtualSwingNodeChangeCases {
             after =
                 ChildChangeOutcome(
                     texts = listOf("a"),
-                    verify = {
+                    verify = { panel, _ ->
+                        val host = panel as MeasuringHost
                         val parentData = host.recording.parentDataOf(host.components.single())
                         assertEquals(listOf("group-Q", "child-Q"), parentData)
                     },
@@ -716,7 +750,7 @@ internal object VirtualSwingNodeChangeCases {
     private fun constraintAddition(): ChildChangeWithGroup {
         val layout = RecordingLayout(BorderLayout())
         return ChildChangeWithGroup(
-            JPanel(layout),
+            layout,
             content = { changed ->
                 VirtualSwingNode(
                     SwingModifier.layoutConstraint(if (changed) BorderLayout.WEST else BorderLayout.EAST),
@@ -729,7 +763,7 @@ internal object VirtualSwingNodeChangeCases {
             after =
                 ChildChangeOutcome(
                     texts = listOf("a"),
-                    verify = { _ ->
+                    verify = { _, _ ->
                         assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registrations.map { it.constraints })
                     },
                 ),
@@ -737,11 +771,10 @@ internal object VirtualSwingNodeChangeCases {
     }
 
     private fun protocolRelease(): ChildChangeWithGroup {
-        val host = MeasuringHost()
         val p = parentProtocolOf("P") { it is MeasuringHost }
         val q = parentProtocolOf("Q") { it is MeasuringHost }
         return ChildChangeWithGroup(
-            host,
+            null,
             content = { changed ->
                 val protocol = if (changed) q else p
                 VirtualSwingNode(SwingModifier then Data("group-${protocol.description}", 1, protocol)) {
@@ -750,11 +783,12 @@ internal object VirtualSwingNodeChangeCases {
                 }
             },
             initialTexts = listOf("a", "b"),
-            beforeChange = { host.recording.declarations.clear() },
+            beforeChange = { (it as MeasuringHost).recording.declarations.clear() },
             after =
                 ChildChangeOutcome(
                     texts = listOf("a"),
-                    verify = { original ->
+                    verify = { panel, original ->
+                        val host = panel as MeasuringHost
                         val a = original.first()
                         assertSame(a, host.components.single())
                         assertEquals(listOf("group-Q", "child-Q"), host.recording.parentDataOf(a))
@@ -770,8 +804,8 @@ internal object VirtualSwingNodeChangeCases {
             "the group modifier changes",
             {
                 MovedGroupChange(
-                    MeasuringHost(),
-                    MeasuringHost(),
+                    "",
+                    "",
                     { tag, _ -> VirtualSwingNode(SwingModifier.mark(tag)) { Label("m") } },
                     initial = MovedGroupState("g0", listOf("m"), listOf(listOf("g0"))),
                     moved = MovedGroupState("g1", listOf("m"), listOf(listOf("g1"))),
@@ -785,8 +819,8 @@ internal object VirtualSwingNodeChangeCases {
         val acceptedByFirst = protocolOf("P")
         val acceptedBySecond = protocolOf("Q")
         return MovedGroupChange(
-            MeasuringHost("P"),
-            MeasuringHost("Q"),
+            "P",
+            "Q",
             { name, withB ->
                 val declared = if (name == "Q") acceptedBySecond else acceptedByFirst
                 VirtualSwingNode(SwingModifier.mark(name, protocol = declared)) {
@@ -937,13 +971,13 @@ internal object VirtualSwingNodeChangeCases {
     @JvmStatic
     fun releasedLayoutNodeChildren(): List<Arguments> {
         val group = SwingModifier then Mark("G", NodeMark::class.java, false, MeasuringProtocol)
-        val inGroup: @Composable (MeasuringHost) -> Unit = { host ->
-            SwingNode(factory = { host }) {
+        val inGroup: @Composable () -> Unit = {
+            SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(group) { Label("a", SwingModifier then NodeMark("own")) }
             }
         }
-        val styled: @Composable (MeasuringHost) -> Unit = { host ->
-            StyledHost(host, "styled", NodeProperty) { ProbedLabel() }
+        val styled: @Composable () -> Unit = {
+            StyledHost("styled", NodeProperty) { ProbedLabel() }
         }
         return listOf(
             Arguments.of("a layout node of a group's child", inGroup, listOf("own")),
@@ -999,15 +1033,12 @@ internal object VirtualSwingNodeChangeCases {
     private fun styleLayoutChanges(): List<Arguments> {
         val replacing = ordinaryContent(ReplacingMarkProperty)
         val styleAdded: @Composable (
-            JPanel,
-            JPanel,
             Boolean,
             String,
             String,
             String,
-        ) -> Unit = { _, host, changed, group, own, style ->
+        ) -> Unit = { changed, group, own, style ->
             StyledHost(
-                host,
                 style,
                 MarkProperty,
                 modifier =
@@ -1048,14 +1079,12 @@ internal object VirtualSwingNodeChangeCases {
 
     private fun layoutNodeChanges(): List<Arguments> {
         val layoutNode: @Composable (
-            JPanel,
-            JPanel,
             Boolean,
             String,
             String,
             String,
-        ) -> Unit = { _, host, _, group, own, style ->
-            StyledHost(host, style, MarkProperty) {
+        ) -> Unit = { _, group, own, style ->
+            StyledHost(style, MarkProperty) {
                 VirtualSwingNode(SwingModifier.mark(group)) {
                     ProbedLabel(SwingModifier then NodeMark(own))
                 }
@@ -1072,21 +1101,20 @@ internal object VirtualSwingNodeChangeCases {
 
     private fun relocatedChanges(): List<Arguments> {
         val relocated: @Composable (
-            JPanel,
-            JPanel,
             Boolean,
             String,
             String,
             String,
-        ) -> Unit = { departing, host, changed, group, own, style ->
+        ) -> Unit = { changed, group, own, style ->
             val label =
                 remember {
                     movableContentOf<String> { value -> ProbedLabel(SwingModifier.mark(value, slot = 3)) }
                 }
             SwingNode(
-                factory = { departing },
+                factory = { MeasuringHost() },
+                modifier = SwingModifier.testTag(DEPARTING_TAG),
             ) { VirtualSwingNode(SwingModifier.mark("old")) { if (!changed) label(own) } }
-            StyledHost(host, style, MarkProperty) {
+            StyledHost(style, MarkProperty) {
                 VirtualSwingNode(SwingModifier.mark(group)) { if (changed) label(own) }
             }
         }
@@ -1106,8 +1134,8 @@ internal object VirtualSwingNodeChangeCases {
 
     private fun ordinaryContent(
         property: SwingStyleProperty<String>,
-    ): @Composable (JPanel, JPanel, Boolean, String, String, String) -> Unit = { _, host, _, group, own, style ->
-        StyledHost(host, style, property) {
+    ): @Composable (Boolean, String, String, String) -> Unit = { _, group, own, style ->
+        StyledHost(style, property) {
             VirtualSwingNode(SwingModifier.mark(group)) { ProbedLabel(SwingModifier.mark(own, slot = 3)) }
         }
     }

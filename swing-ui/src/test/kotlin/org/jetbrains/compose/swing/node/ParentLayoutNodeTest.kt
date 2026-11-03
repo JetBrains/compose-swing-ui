@@ -47,10 +47,9 @@ import kotlin.test.assertTrue
 class ParentLayoutNodeTest {
     @Test
     fun aModifierUpdateThatChangesKeysAndDropsAStyleDeclaresWithoutTheStyleLayoutElements() = runComposeSwingTest {
-        val host = MeasuringHost()
         var dropped by mutableStateOf(false)
         setContent {
-            StyledHost(host, "styled", MarkProperty) {
+            StyledHost("styled", MarkProperty) {
                 SwingNode(
                     factory = { JLabel("a") },
                     modifier =
@@ -62,6 +61,7 @@ class ParentLayoutNodeTest {
                 )
             }
         }
+        val host = hostOf()
         val label = host.components.single()
         assertEquals(listOf("own", "styled"), host.recording.tagsOf(label))
 
@@ -189,12 +189,11 @@ class ParentLayoutNodeTest {
     @ParameterizedTest(name = "grouped: {0}")
     @ValueSource(booleans = [false, true])
     fun aLayoutNodeWrittenInPlaceToAProtocolTheHostRefusesIsRefused(grouped: Boolean) = runComposeSwingTest {
-        val host = MeasuringHost()
         val parentContext = captureParentContext()
         var protocol by mutableStateOf(MeasuringProtocol)
         val composition =
             OnDemandComposition(parentContext) {
-                SwingNode(factory = { host }) {
+                SwingNode(factory = { MeasuringHost() }) {
                     if (grouped) {
                         VirtualSwingNode(SwingModifier.mark("group")) {
                             Label("a", SwingModifier then ProtocolLayoutNodeElement(protocol))
@@ -205,6 +204,7 @@ class ParentLayoutNodeTest {
                 }
             }
         try {
+            val host = composition.recompose {} as MeasuringHost
             assertEquals(listOf("a"), host.texts())
 
             host.recording.declarations.clear()

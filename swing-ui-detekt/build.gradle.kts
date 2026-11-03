@@ -45,6 +45,7 @@ dependencies {
     }
     testImplementation(libs.detekt.api)
     testImplementation(kotlin("test"))
+    testImplementation(libs.junitJupiterParams)
 }
 
 // Leave headroom below current coverage; do not chase unreachable PSI branches with empty tests.

@@ -11,6 +11,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -47,28 +50,35 @@ import kotlin.test.assertSame
 class SwingApplierTest {
     @Test
     fun childSettlementReadsTheCurrentGroupConstraint() = runComposeSwingTest {
-        val layout = BorderLayout()
-        val host = JPanel(layout)
-        val child = JLabel("child")
         var constraint by mutableStateOf(BorderLayout.NORTH)
         setContent {
             SwingNode(
-                factory = { host },
-                update = { reconcileWithChildren { component.name = layout.getConstraints(child) as String } },
+                factory = { JPanel(BorderLayout()) },
+                update = {
+                    reconcileWithChildren {
+                        val layout = component.layout as BorderLayout
+                        component.name = layout.getConstraints(component.components.single()) as String
+                    }
+                },
             ) {
                 VirtualSwingNode(SwingModifier.layoutConstraint(constraint)) {
-                    SwingNode(factory = { child })
+                    Label("child")
                 }
             }
         }
-        assertEquals(BorderLayout.NORTH, host.name)
+        awaitIdle()
+        val child = onRoot().onChild().onChild().fetch<JLabel>()
+        onRoot().onChild().assertIsOfType<JPanel>().assertProperty(BorderLayout.NORTH) { name }
 
         constraint = BorderLayout.SOUTH
         awaitIdle()
 
-        assertEquals(listOf(child), host.components.toList())
-        assertEquals(BorderLayout.SOUTH, layout.getConstraints(child))
-        assertEquals(BorderLayout.SOUTH, host.name)
+        onRoot()
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf(child)) { components.toList() }
+            .assertProperty(BorderLayout.SOUTH) { (layout as BorderLayout).getConstraints(child) }
+            .assertProperty(BorderLayout.SOUTH) { name }
     }
 
     @ParameterizedTest(name = "{0}")
@@ -79,45 +89,47 @@ class SwingApplierTest {
         content: @Composable (@Composable () -> Unit) -> Unit,
         around: List<String>,
     ) = runComposeSwingTest {
-        val host = newHost()
         var ids by mutableStateOf(listOf(1, 2))
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { newHost() }) {
                 Label("before")
                 content { for (id in ids) key(id) { Label("g$id") } }
                 Label("after")
             }
         }
-        assertEquals(listOf("before") + around + listOf("g1", "g2", "after"), host.components.texts(), case)
+
+        fun assertTexts(expected: List<String>) {
+            onRoot().onChild().assertIsOfType<Container>().assertProperty(expected, case) { components.texts() }
+        }
+        assertTexts(listOf("before") + around + listOf("g1", "g2", "after"))
 
         ids = listOf(3, 2, 1)
         awaitIdle()
-        assertEquals(listOf("before") + around + listOf("g3", "g2", "g1", "after"), host.components.texts(), case)
+        assertTexts(listOf("before") + around + listOf("g3", "g2", "g1", "after"))
 
         ids = listOf(1, 3)
         awaitIdle()
-        assertEquals(listOf("before") + around + listOf("g1", "g3", "after"), host.components.texts(), case)
+        assertTexts(listOf("before") + around + listOf("g1", "g3", "after"))
 
         ids = emptyList()
         awaitIdle()
-        assertEquals(listOf("before") + around + listOf("after"), host.components.texts(), case)
+        assertTexts(listOf("before") + around + listOf("after"))
 
         ids = listOf(4, 5)
         awaitIdle()
-        assertEquals(listOf("before") + around + listOf("g4", "g5", "after"), host.components.texts(), case)
+        assertTexts(listOf("before") + around + listOf("g4", "g5", "after"))
     }
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = ["no group", "a group", "a nested group"])
     fun stableBatchesAndUnrelatedRecompositionsPreserveAttachmentsAndDeclarations(layout: String) =
         runComposeSwingTest {
-            val host = MeasuringHost()
             val tags = if (layout == "no group") emptyList() else listOf("G")
             var text by mutableStateOf("initial")
             var inserted by mutableStateOf(false)
             var tick by mutableIntStateOf(0)
             setContent {
-                SwingNode(factory = { host }) {
+                SwingNode(factory = { MeasuringHost() }) {
                     tick
                     val children: @Composable () -> Unit = {
                         Label(text)
@@ -130,6 +142,7 @@ class SwingApplierTest {
                     }
                 }
             }
+            val host = onRoot().onChild().fetch<MeasuringHost>()
             val initial = host.components.toList()
             val recording = host.recording
             assertEquals(listOf("initial"), host.texts(), layout)

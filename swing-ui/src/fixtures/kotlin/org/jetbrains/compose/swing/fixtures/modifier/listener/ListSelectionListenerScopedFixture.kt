@@ -37,21 +37,19 @@ public object ListSelectionListenerScopedFixture :
 
     @Composable
     override fun Content(parameters: ListSelectionListenerScopedParameters): Unit =
-        Content(parameters.targetType, parameters.onSelectionChange)
+        Content(
+            SwingModifier.listSelectionListener(
+                targetType = parameters.targetType,
+                onSelectionChange = parameters.onSelectionChange,
+            ),
+        )
 
-    /** Composes a list whose selection callback runs with the list as receiver for nodes of [targetType]. */
+    /** Composes a list carrying [modifier], the selection listener modifier under test. */
     @Composable
-    public fun Content(
-        targetType: KClass<out JList<*>>,
-        onSelectionChange: JList<*>.(ListSelectionEvent) -> Unit,
-    ) {
+    public fun Content(modifier: SwingModifier = SwingModifier) {
         SwingNode<JList<String>>(
             factory = { ScopedSelectionList() },
-            modifier =
-                SwingModifier.listSelectionListener(
-                    targetType = targetType,
-                    onSelectionChange = onSelectionChange,
-                ),
+            modifier = modifier,
         )
     }
 

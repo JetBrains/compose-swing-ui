@@ -94,10 +94,10 @@ class TableHeaderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("factoryTables")
     fun theHeaderAFactorysTableBuildsIsTheOneHeaderConfigures(
-        table: @Composable (() -> JTable, @Composable TableContentScope.() -> Unit) -> Unit,
+        table: @Composable (header: @Composable TableContentScope.() -> Unit) -> Unit,
     ) = runComposeSwingTest {
         setContent {
-            table({ JTable(null, null, null).apply { tableHeader = FactoryHeader(columnModel) } }) {
+            table {
                 Header(style = { background(Color.RED) })
             }
         }
@@ -113,20 +113,20 @@ class TableHeaderTest {
 
     companion object {
         @JvmStatic
-        fun factoryTables(): List<Named<@Composable (() -> JTable, @Composable TableContentScope.() -> Unit) -> Unit>> =
+        fun factoryTables(): List<Named<@Composable (header: @Composable TableContentScope.() -> Unit) -> Unit>> =
             listOf(
-                Named.of("declared rows") { factory, content ->
+                Named.of("declared rows") { content ->
                     Table(
-                        factory = factory,
+                        factory = { JTable(null, null, null).apply { tableHeader = FactoryHeader(columnModel) } },
                         rows = listOf("Ada"),
                         columns = { column("Name") { it } },
                         state = remember { TableState() },
                         content = content,
                     )
                 },
-                Named.of("caller's model") { factory, content ->
+                Named.of("caller's model") { content ->
                     Table(
-                        factory = factory,
+                        factory = { JTable(null, null, null).apply { tableHeader = FactoryHeader(columnModel) } },
                         model = remember { DefaultTableModel(arrayOf(arrayOf<Any>("Ada")), arrayOf<Any>("Name")) },
                         state = remember { TableState() },
                         content = content,

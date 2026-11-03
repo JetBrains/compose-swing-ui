@@ -10,6 +10,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.interaction.FirstShowing
 import org.jetbrains.compose.swing.node.runReportingUncaught
@@ -77,6 +78,7 @@ public fun PopupMenu(
  * @param content the composable menu tree shown in the menu.
  */
 @Composable
+@SwingComponentLibraryApi
 internal fun PopupMenu(
     anchor: PopupAnchor,
     expanded: Boolean,

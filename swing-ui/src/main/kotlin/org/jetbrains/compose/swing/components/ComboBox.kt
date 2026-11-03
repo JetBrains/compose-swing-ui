@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
@@ -78,9 +79,15 @@ public fun <T> ComboBox(
 ) {
     val declaredItems = rememberDeclaredList(items)
     val mirror = rememberMirrorState(selectedItem)
-    val settled = rememberSelectionReader(declaredItems)
+    val currentItems = rememberUpdatedState(declaredItems)
     ComboBoxNode(
-        modifier = modifier.onSelectionAction(mirror, settled, onSelectionChange, onValueCommit),
+        modifier =
+            modifier.onSelectionAction(
+                mirror,
+                { currentItems.value.selectionOf(this.selectedItem) },
+                onSelectionChange,
+                onValueCommit,
+            ),
         style = style,
         editable = editable,
         maximumRowCount = maximumRowCount,
@@ -127,15 +134,15 @@ public fun <T> ComboBox(
 ) {
     val declaredItems = rememberDeclaredList(items)
     val mirror = rememberMirrorState(selectedItem)
-    val settled = rememberSelectionReader(declaredItems)
+    val currentItems = rememberUpdatedState(declaredItems)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
     // mirror rides the item-selection channel instead, so the declared selection still settles against
     // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
     val itemMirror =
-        remember(mirror, settled) {
+        remember(mirror, currentItems) {
             ItemListener { event ->
                 if (event.stateChange == ItemEvent.SELECTED) {
-                    mirror.observed((event.source as JComboBox<*>).settled())
+                    mirror.observed(currentItems.value.selectionOf(event.item))
                 }
             }
         }
@@ -252,6 +259,7 @@ public fun <T> ComboBox(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun <T> ComboBoxNode(
     modifier: SwingModifier,
     style: SwingStyle<ComboBoxStyleScope>,
@@ -301,22 +309,6 @@ private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
         read = { items.selectionOf(this.selectedItem) },
         write = { applySelection(this, items, it) },
     )
-}
-
-/**
- * Remembers the reader that answers which of [items] a combo box's selection names: the item equal to
- * what the combo box holds, or `null` where the items hold none. A `JComboBox` holds whatever it is
- * given - an editable one holds the text that was typed into it - while a declared selection can only
- * name one of the items, so this is the whole of what the declaration and the widget are compared over.
- *
- * The reader instance is stable across recompositions, so a listener remembering it stays the same
- * object, while the items it resolves against are the ones the latest pass declared.
- */
-@Composable
-private fun <T> rememberSelectionReader(items: List<T>): JComboBox<*>.() -> T? {
-    val currentItems = rememberUpdatedState(items)
-    val reader: JComboBox<*>.() -> T? = remember { { currentItems.value.selectionOf(this.selectedItem) } }
-    return reader
 }
 
 /**

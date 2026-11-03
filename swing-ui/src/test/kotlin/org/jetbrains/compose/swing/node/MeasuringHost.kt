@@ -7,6 +7,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.LayoutDeclaration
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -15,6 +16,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.NestedProbe
 import org.jetbrains.compose.swing.style.PlainProbeContainer
 import org.jetbrains.compose.swing.style.Probes
@@ -23,6 +25,8 @@ import org.jetbrains.compose.swing.style.SwingStyleProperty
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.FlowLayout
@@ -62,7 +66,7 @@ internal fun protocolOf(owner: String): ParentProtocol =
 
 /** A container whose layout records each child's declaration; [protocolName] names the protocol that accepts it. */
 internal class MeasuringHost(
-    val protocolName: String = "",
+    var protocolName: String = "",
     val recording: RecordingMeasurementLayout = RecordingMeasurementLayout(FlowLayout()),
 ) : JPanel(recording) {
     fun texts(): List<String> = components.texts()
@@ -141,24 +145,39 @@ internal class NodeMarkNode(
  */
 internal val LocalMark = staticCompositionLocalOf { "none" }
 
-/** Provides a nested style whose value is read from a composition local. */
+/** The modifier of [StyledHost]'s panel: a nested style declaring [property] with the value of [LocalMark]. */
+internal fun providedMarkStyle(property: SwingStyleProperty<String>): SwingModifier =
+    SwingModifier.styleable(PlainProbeContainer) {
+        provideNestedStyle(Probes) { property.provide(LocalMark.currentValue) }
+    }
+
+/**
+ * Provides [style] to a nested style whose value is read from a composition local, under a [MeasuringHost] of
+ * [protocolName], which [hostOf] finds by that name.
+ */
 @Composable
 internal fun StyledHost(
-    host: JPanel,
     style: String,
     property: SwingStyleProperty<String>,
-    modifier: SwingModifier =
-        SwingModifier.styleable(PlainProbeContainer) {
-            provideNestedStyle(Probes) { property.provide(LocalMark.currentValue) }
-        },
+    modifier: SwingModifier = providedMarkStyle(property),
+    protocolName: String = "",
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalMark provides style) {
-        SwingNode(factory = { JPanel() }, modifier = modifier) {
-            SwingNode(factory = { host }, content = content)
+        Panel(modifier = modifier) {
+            SwingNode(
+                factory = { MeasuringHost() },
+                modifier = SwingModifier.testTag(protocolName),
+                update = { set(protocolName) { this.protocolName = it } },
+                content = content,
+            )
         }
     }
 }
+
+/** The [MeasuringHost] that [StyledHost] built for [protocolName]. */
+internal fun ComposeSwingTest.hostOf(protocolName: String = ""): MeasuringHost =
+    onAllNodesOfType<MeasuringHost>().filterToOne(hasTestTag(protocolName)).fetch()
 
 /** Declares `Mark(value, 2)`. */
 internal val MarkProperty = stylePropertyOf<String> { Mark(it, 2, false, MeasuringProtocol) }
@@ -166,11 +185,15 @@ internal val MarkProperty = stylePropertyOf<String> { Mark(it, 2, false, Measuri
 /** Declares `Mark(value, 1)`, the key [mark] gives an element by default. */
 internal val ReplacingMarkProperty = stylePropertyOf<String> { Mark(it, 1, false, MeasuringProtocol) }
 
-/** A label that takes the style the enclosing panels provide for [Probes]. */
+/** A label of [text] that takes the style the enclosing panels provide for [Probes]. */
 @Composable
 internal fun ProbedLabel(
     modifier: SwingModifier = SwingModifier,
-    label: JLabel = JLabel("a"),
+    text: String = "a",
 ) {
-    SwingNode(factory = { label }, modifier = modifier.styleable(NestedProbe, SwingStyle))
+    SwingNode(
+        factory = { JLabel() },
+        modifier = modifier.styleable(NestedProbe, SwingStyle),
+        update = { set(text) { this.text = it } },
+    )
 }

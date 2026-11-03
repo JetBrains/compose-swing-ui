@@ -34,10 +34,11 @@ import java.awt.Window as AwtWindow
 class WindowLifecycleTeardownFailureTest {
     @TestFactory
     fun aWindowLeavingWhileATeardownStepFailsStillEndsItsOwnerAndReleasesItsPeer(): List<DynamicTest> = listOf(
-        leaves("its content's effect disposal throws") { _, failure ->
+        leaves("its content's effect disposal throws") { failure ->
             DisposableEffect(Unit) { onDispose { throw failure } }
         },
-        leaves("a mounted root's listener removal throws") { window, failure ->
+        leaves("a mounted root's listener removal throws") { failure ->
+            val window = checkNotNull(LocalWindow.current)
             DisposableEffect(window) {
                 val mounted = FailingRemovalPanel(listenerRemoval = failure)
                 (window as RootPaneContainer).layeredPane.add(mounted)
@@ -49,7 +50,7 @@ class WindowLifecycleTeardownFailureTest {
 
     private fun leaves(
         name: String,
-        content: @Composable (window: AwtWindow, failure: Throwable) -> Unit,
+        content: @Composable (failure: Throwable) -> Unit,
     ) = DynamicTest.dynamicTest(name) {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
@@ -63,7 +64,7 @@ class WindowLifecycleTeardownFailureTest {
                         owner = LocalLifecycleOwner.current
                         val window = checkNotNull(LocalWindow.current)
                         peer = window
-                        content(window, thrown)
+                        content(thrown)
                     }
                 }
             }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.TestRecomposer
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContentAsInteropHost
@@ -94,6 +95,7 @@ class WindowContentChildCompositionTest {
      * the effect), then mount [content] into the detached [host] as a child of that context.
      * Identical in shape to `Window`'s body.
      */
+    @SwingComponentLibraryApi
     @Composable
     private fun HostDetachedContent(
         host: Container,

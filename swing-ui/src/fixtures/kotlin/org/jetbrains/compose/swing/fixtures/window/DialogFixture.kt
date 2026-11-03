@@ -22,7 +22,6 @@ import javax.swing.WindowConstants
 public data class DialogParameters(
     val onCloseRequest: () -> Unit,
     val state: DialogState,
-    val owner: Window?,
     val title: String,
     val modality: ModalityType,
     val visible: Boolean,
@@ -41,7 +40,6 @@ public object DialogFixture :
             DialogParameters(
                 onCloseRequest = {},
                 state = DialogState(size = Dimension(200, 100)),
-                owner = null,
                 title = "Before",
                 modality = ModalityType.MODELESS,
                 visible = false,
@@ -75,7 +73,6 @@ public object DialogFixture :
         Content(
             onCloseRequest = parameters.onCloseRequest,
             state = parameters.state,
-            owner = parameters.owner,
             title = parameters.title,
             modality = parameters.modality,
             visible = parameters.visible,
@@ -92,7 +89,6 @@ public object DialogFixture :
     public fun Content(
         onCloseRequest: () -> Unit,
         state: DialogState,
-        owner: Window?,
         title: String,
         modality: ModalityType,
         visible: Boolean,
@@ -106,7 +102,6 @@ public object DialogFixture :
         Dialog(
             onCloseRequest = onCloseRequest,
             state = state,
-            owner = owner,
             title = title,
             modality = modality,
             visible = visible,
@@ -121,11 +116,11 @@ public object DialogFixture :
     }
 
     /**
-     * Builds a raw dialog under the owner of [initial] that does not close on its own, so that a close request reaches
+     * Builds a raw dialog with no owner that does not close on its own, so that a close request reaches
      * its listeners, holding the content label.
      */
     override fun createRawSwing(): JDialog =
-        JDialog(initial.owner).apply {
+        JDialog(null as Window?).apply {
             defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
             contentPane.add(JLabel())
         }

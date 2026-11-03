@@ -3,27 +3,35 @@ package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -49,17 +57,17 @@ internal class StyleCompositionMoveTest {
     @Test
     fun movedComponentRestoresCapturedValues() = runComposeSwingTest {
         val original = BorderFactory.createLineBorder(Color.RED)
-        val label =
-            JLabel("X").apply {
-                toolTipText = "built-in"
-                border = original
-            }
         var styled by mutableStateOf(true)
         var inOuter by mutableStateOf(false)
         val moved =
             movableContentOf {
                 SwingNode(
-                    factory = { label },
+                    factory = {
+                        JLabel("X").apply {
+                            toolTipText = "built-in"
+                            border = original
+                        }
+                    },
                     modifier =
                         if (styled) {
                             SwingModifier.styleable(TestNodeKind) {
@@ -71,26 +79,23 @@ internal class StyleCompositionMoveTest {
                         },
                 )
             }
-        val nested = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            inOuter = true
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("hint", "the style should apply after the move") { toolTipText }
+        nestedContent({ inOuter }, moved)
+        awaitIdle()
+        inOuter = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("hint", "the style should apply after the move") { toolTipText }
 
-            styled = false
-            awaitIdle()
-            onNodeOfType<JLabel>()
-                .assertProperty("built-in", "removing the style should restore the tooltip it carried") { toolTipText }
-                .assertProperty(true, "removing the style should restore the border it carried") { border === original }
-        } finally {
-            nested.dispose()
-        }
+        styled = false
+        awaitIdle()
+        onNodeOfType<JLabel>()
+            .assertProperty("built-in", "removing the style should restore the tooltip it carried") { toolTipText }
+            .assertProperty(true, "removing the style should restore the border it carried") { border === original }
     }
 
     @Test
     fun aStyledComponentMovedToAnotherCompositionKeepsObservingThroughBothKindsOfDeclaration() = runComposeSwingTest {
         var inOuter by mutableStateOf(false)
+        var hosted by mutableStateOf(true)
         val watched = mutableIntStateOf(0)
         var propertyObserved = -1
         var layoutObserved = -1
@@ -104,14 +109,12 @@ internal class StyleCompositionMoveTest {
                 layoutProperty.provide(Unit)
             }
         val moved = movableContentOf { SwingNode(factory = { JLabel("moved") }, modifier = modifier) }
-        val handle = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            inOuter = true
-            awaitIdle()
-        } finally {
-            handle.dispose()
-        }
+        nestedContent({ inOuter }, moved) { hosted }
+        awaitIdle()
+        inOuter = true
+        awaitIdle()
+        hosted = false
+        awaitIdle()
         watched.intValue++
         awaitIdle()
 
@@ -125,11 +128,10 @@ internal class StyleCompositionMoveTest {
         var declaresFirst by mutableStateOf(true)
         val attachFailures = AttachFailures()
         val failing = stylePropertyOf { value: String -> FailingAttachElement(value, attachFailures) }
-        val probe = StyleProbe("leaf")
         val moved =
             movableContentOf {
                 SwingNode(
-                    factory = { probe },
+                    factory = { StyleProbe("leaf") },
                     modifier =
                         SwingModifier
                             .property(FirstDescriptor, "mod")
@@ -140,41 +142,39 @@ internal class StyleCompositionMoveTest {
                             },
                 )
             }
-        val nested = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            onProbe("leaf").assertProperty("v0") { first }
+        nestedContent({ inOuter }, moved)
+        awaitIdle()
+        val probe = onProbe("leaf").assertProperty("v0") { first }.fetch()
 
-            attachFailures.armed = true
-            inOuter = true
-            assertFailsWith<IllegalStateException> { awaitIdle() }
+        attachFailures.armed = true
+        inOuter = true
+        assertFailsWith<IllegalStateException> { awaitIdle() }
 
-            declared = "v1"
-            assertFailsWith<IllegalStateException> { awaitIdle() }
-            assertEquals("v1", probe.first)
+        declared = "v1"
+        assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals("v1", probe.first)
 
-            declaresFirst = false
-            assertFailsWith<IllegalStateException> { awaitIdle() }
-            assertEquals("mod", probe.first)
-        } finally {
-            nested.dispose()
-        }
+        declaresFirst = false
+        assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals("mod", probe.first)
     }
 
     private fun ComposeSwingTest.nestedContent(
         inOuter: () -> Boolean,
         moved: @Composable () -> Unit,
-    ): DisposableHandle {
-        val host = JPanel(RecordingMeasurementLayout(FlowLayout()))
-        lateinit var context: CompositionContext
+        hosted: () -> Boolean = { true },
+    ) {
         setContent {
-            context = rememberCompositionContext()
-            SwingNode(factory = { host })
+            val context = rememberCompositionContext()
+            if (hosted()) {
+                NestedContentHost(layout = RecordingMeasurementLayout(FlowLayout()), parent = context) {
+                    if (!inOuter()) moved()
+                }
+            }
             SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
                 if (inOuter()) moved()
             }
         }
-        return host.setContent(parent = context) { if (!inOuter()) moved() }
     }
 
     @ParameterizedTest
@@ -195,20 +195,16 @@ internal class StyleCompositionMoveTest {
                             },
                 )
             }
-        val nested = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            onProbe("leaf").assertProperty("styled") { first }.assertProperty("s2") { second }
+        nestedContent({ inOuter }, moved)
+        awaitIdle()
+        onProbe("leaf").assertProperty("styled") { first }.assertProperty("s2") { second }
 
-            inOuter = true
-            declared = false
-            awaitIdle()
-            onProbe("leaf")
-                .assertProperty("mod") { first }
-                .assertProperty(if (dropsWholeStyle) PROBE_OWN_VALUE else "s2") { second }
-        } finally {
-            nested.dispose()
-        }
+        inOuter = true
+        declared = false
+        awaitIdle()
+        onProbe("leaf")
+            .assertProperty("mod") { first }
+            .assertProperty(if (dropsWholeStyle) PROBE_OWN_VALUE else "s2") { second }
     }
 
     @Test
@@ -216,31 +212,23 @@ internal class StyleCompositionMoveTest {
         var inOuter by mutableStateOf(false)
         var declaredText by mutableStateOf("declared")
         val initialText = stylePropertyOf(::InstalledTextElement)
-        val label = JLabel("own")
         val moved =
             movableContentOf {
-                SwingNode(
-                    factory = { label },
-                    modifier = SwingModifier.styleable(PlainProbe) { initialText.provide(declaredText) },
-                )
+                Label("own", modifier = SwingModifier.styleable(PlainProbe) { initialText.provide(declaredText) })
             }
-        val nested = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("declared") { text }
-            label.text = "edited"
-            onNodeOfType<JLabel>().assertProperty("edited") { text }
+        nestedContent({ inOuter }, moved)
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("declared") { text }
+        onNodeOfType<JLabel>().fetch().text = "edited"
+        onNodeOfType<JLabel>().assertProperty("edited") { text }
 
-            inOuter = true
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("edited") { text }
+        inOuter = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("edited") { text }
 
-            declaredText = "changed"
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("changed") { text }
-        } finally {
-            nested.dispose()
-        }
+        declaredText = "changed"
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("changed") { text }
     }
 
     @Test
@@ -259,21 +247,17 @@ internal class StyleCompositionMoveTest {
                         },
                 )
             }
-        val nested = nestedContent({ inOuter }, moved)
-        try {
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("later") { toolTipText }
+        nestedContent({ inOuter }, moved)
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("later") { toolTipText }
 
-            inOuter = true
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("later") { toolTipText }
+        inOuter = true
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("later") { toolTipText }
 
-            overridden = false
-            awaitIdle()
-            onNodeOfType<JLabel>().assertProperty("earlier") { toolTipText }
-        } finally {
-            nested.dispose()
-        }
+        overridden = false
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("earlier") { toolTipText }
     }
 
     @ParameterizedTest
@@ -286,7 +270,6 @@ internal class StyleCompositionMoveTest {
             stylePropertyOf<String> { value ->
                 if (value == "second") TooltipFromTextElement(value) else LifecycleTooltipElement(value, events)
             }
-        val host = JPanel()
         val moved =
             movableContentOf {
                 SwingNode(
@@ -298,71 +281,60 @@ internal class StyleCompositionMoveTest {
                     modifier = SwingModifier.styleable(NestedProbe, SwingStyle),
                 )
             }
-        lateinit var context: CompositionContext
         setContent {
-            context = rememberCompositionContext()
-            SwingNode(factory = { host })
-            ProbeContainer(StyleProbe(), {
-                if (replaced) provideNestedStyle(Probes) { if (declared) tooltip.provide("second") }
-            }) { if (inOuter) moved() }
-        }
-        val nested =
-            host.setContent(parent = context) {
-                ProbeContainer(StyleProbe(), {
+            val context = rememberCompositionContext()
+            NestedContentHost(parent = context) {
+                ProbeContainer(null, {
                     provideNestedStyle(Probes) { tooltip.provide(if (replaced) "first" else "provided") }
                 }) { if (!inOuter) moved() }
             }
-        try {
+            ProbeContainer(null, {
+                if (replaced) provideNestedStyle(Probes) { if (declared) tooltip.provide("second") }
+            }) { if (inOuter) moved() }
+        }
+        awaitIdle()
+        onNodeOfType<JLabel>()
+            .assertProperty(if (replaced) "first" else "provided") { toolTipText }
+        assertEquals(listOf("attach"), events)
+        inOuter = true
+        awaitIdle()
+        onNodeOfType<JLabel>()
+            .assertProperty(if (replaced) "second" else "original") { toolTipText }
+        assertEquals(listOf("attach", "detach"), events)
+        if (replaced) {
+            declared = false
             awaitIdle()
             onNodeOfType<JLabel>()
-                .assertProperty(if (replaced) "first" else "provided") { toolTipText }
-            assertEquals(listOf("attach"), events)
-            inOuter = true
-            awaitIdle()
-            onNodeOfType<JLabel>()
-                .assertProperty(if (replaced) "second" else "original") { toolTipText }
+                .assertProperty("original") { toolTipText }
             assertEquals(listOf("attach", "detach"), events)
-            if (replaced) {
-                declared = false
-                awaitIdle()
-                onNodeOfType<JLabel>()
-                    .assertProperty("original") { toolTipText }
-                assertEquals(listOf("attach", "detach"), events)
-            }
-        } finally {
-            nested.dispose()
         }
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("movedComponents")
     fun <C : JComponent> styledContentMovedToAnotherCompositionResolvesWithItsNewParent(
-        leafFactory: () -> C,
-        node: @Composable (C) -> Unit,
-        host: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle,
+        node: @Composable () -> Unit,
+        host: @Composable (CompositionContext, String, @Composable () -> Unit) -> Unit,
+        find: ComposeSwingTest.() -> SwingNodeInteraction<C>,
         text: (C) -> String?,
     ) = runComposeSwingTest {
         var inFirst by mutableStateOf(true)
-        lateinit var context: CompositionContext
-        val leaf = leafFactory()
-        val moved = movableContentOf { node(leaf) }
-        setContent { context = rememberCompositionContext() }
-        val first = host(context, "first") { if (inFirst) moved() }
-        val second = host(context, "second") { if (!inFirst) moved() }
-        try {
-            awaitIdle()
-            assertEquals("first", text(leaf))
-            val changes = mutableListOf<String?>()
-            leaf.addPropertyChangeListener("text") { changes += text(leaf) }
-
-            inFirst = false
-            awaitIdle()
-            assertEquals("second", text(leaf))
-            assertEquals<List<String?>>(listOf("own", "second"), changes)
-        } finally {
-            second.dispose()
-            first.dispose()
+        val moved = movableContentOf { node() }
+        setContent {
+            val context = rememberCompositionContext()
+            host(context, "first") { if (inFirst) moved() }
+            host(context, "second") { if (!inFirst) moved() }
         }
+
+        find().assertProperty("first") { text(this) }
+        val changes = mutableListOf<String?>()
+        val leaf = find().fetch()
+        leaf.addPropertyChangeListener("text") { changes += text(leaf) }
+
+        inFirst = false
+        awaitIdle()
+        find().assertProperty("second") { text(this) }
+        assertEquals<List<String?>>(listOf("own", "second"), changes)
     }
 
     @Test
@@ -373,19 +345,19 @@ internal class StyleCompositionMoveTest {
                 remember {
                     movableContentOf {
                         ProbeContainer(
-                            StyleProbe(),
+                            null,
                             SwingStyle,
-                        ) { ProbeLeaf(StyleProbe("leaf"), SwingStyle, NestedProbe) }
+                        ) { ProbeLeaf("leaf", SwingStyle, NestedProbe) }
                     }
                 }
-            ProbeContainer(StyleProbe(), SwingStyle) {
-                ProbeContainer(StyleProbe(), {
+            ProbeContainer(null, SwingStyle) {
+                ProbeContainer(null, {
                     provideNestedStyle(Probes) {
                         ProbeFirst.provide("first parent")
                         ProbeSecond.provide("first parent")
                     }
                 }) { if (underFirst) moved() }
-                ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second parent") } }) {
+                ProbeContainer(null, { provideNestedStyle(Probes) { ProbeFirst.provide("second parent") } }) {
                     if (!underFirst) moved()
                 }
             }
@@ -430,17 +402,24 @@ internal class StyleCompositionMoveTest {
         assertSame(label, onNodeWithText("moved").fetch())
     }
 
+    // The test's subject is one component handed to a second node after the first removed it, so it keeps handing in
+    // the component it built.
+    @Suppress("SwingNodeFactoryReusesComponent")
     @Test
     fun removedLeafRestoresBeforeReuse() = runComposeSwingTest {
         val leaf = StyleProbe("leaf")
         var present by mutableStateOf(true)
         var underSecond by mutableStateOf(false)
         setContent {
-            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } }) {
-                if (present) ProbeLeaf(leaf, SwingStyle, NestedProbe)
+            ProbeContainer(null, { provideNestedStyle(Probes) { ProbeFirst.provide("provided") } }) {
+                if (present) {
+                    SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
+                }
             }
-            ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } }) {
-                if (underSecond) ProbeLeaf(leaf, SwingStyle, NestedProbe)
+            ProbeContainer(null, { provideNestedStyle(Probes) { ProbeFirst.provide("second provider") } }) {
+                if (underSecond) {
+                    SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
+                }
             }
         }
         onProbe("leaf").assertProperty("provided") { first }
@@ -459,8 +438,6 @@ internal class StyleCompositionMoveTest {
     companion object {
         @JvmStatic
         fun movedComponents(): List<Arguments> {
-            val label: () -> JLabel = { JLabel("own") }
-            val menu: () -> JMenu = { JMenu("own") }
             val labelKind =
                 probeKind {
                     LabelText.provide("default")
@@ -471,29 +448,33 @@ internal class StyleCompositionMoveTest {
                     MenuText.provide("default")
                     applyNestedStyle(Probes)
                 }
-            val labelNode: @Composable (JLabel) -> Unit = { leaf ->
-                SwingNode(factory = { leaf }, modifier = SwingModifier.styleable(labelKind, SwingStyle))
+            val labelNode: @Composable () -> Unit = {
+                SwingNode(factory = { JLabel("own") }, modifier = SwingModifier.styleable(labelKind, SwingStyle))
             }
-            val menuNode: @Composable (JMenu) -> Unit = { leaf ->
-                MenuNode(factory = { leaf }, modifier = SwingModifier.styleable(menuKind, SwingStyle))
+            val menuNode: @Composable () -> Unit = {
+                Menu("own", modifier = SwingModifier.testTag("leaf").styleable(menuKind, SwingStyle))
             }
-            val labelHost: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle =
+            val labelHost: @Composable (CompositionContext, String, @Composable () -> Unit) -> Unit =
                 { context, value, content ->
-                    JPanel().setContent(parent = context) {
-                        ProbeContainer(StyleProbe(), { provideNestedStyle(Probes) { LabelText.provide(value) } }) {
+                    NestedContentHost(parent = context) {
+                        ProbeContainer(null, { provideNestedStyle(Probes) { LabelText.provide(value) } }) {
                             content()
                         }
                     }
                 }
-            val menuHost: (CompositionContext, String, @Composable () -> Unit) -> DisposableHandle =
+            val menuHost: @Composable (CompositionContext, String, @Composable () -> Unit) -> Unit =
                 { context, value, content ->
-                    JPopupMenu().setContent(parent = context) { MenuParent(value, content) }
+                    NestedMenuHost(context) { MenuParent(value, content) }
                 }
+            val findLabel: ComposeSwingTest.() -> SwingNodeInteraction<JLabel> = { onNodeOfType<JLabel>() }
+            val findMenu: ComposeSwingTest.() -> SwingNodeInteraction<JMenu> = {
+                onAllNodesOfType<JMenu>().filterToOne(hasTestTag("leaf"))
+            }
             val labelText: (JLabel) -> String? = { it.text }
             val menuText: (JMenu) -> String? = { it.text }
             return listOf(
-                Arguments.of(Named.of("label", label), labelNode, labelHost, labelText),
-                Arguments.of(Named.of("menu", menu), menuNode, menuHost, menuText),
+                Arguments.of(Named.of("label", labelNode), labelHost, findLabel, labelText),
+                Arguments.of(Named.of("menu", menuNode), menuHost, findMenu, menuText),
             )
         }
     }
@@ -560,6 +541,39 @@ private val MenuText =
             { component, value -> component.text = value },
         ),
     )
+
+private class NestedMenuPanel : JPanel() {
+    private var mountedUnder: CompositionContext? = null
+    private var mount: DisposableHandle? = null
+
+    fun mount(
+        under: CompositionContext,
+        content: State<@Composable () -> Unit>,
+    ) {
+        if (under === mountedUnder) return
+        mount?.dispose()
+        mountedUnder = under
+        mount = JPopupMenu().setContent(parent = under) { content.value() }
+    }
+
+    fun release() {
+        mount?.dispose()
+        mount = null
+    }
+}
+
+@Composable
+private fun NestedMenuHost(
+    parent: CompositionContext,
+    content: @Composable () -> Unit,
+) {
+    val current = rememberUpdatedState(content)
+    SwingNode(
+        factory = { NestedMenuPanel() },
+        update = { set(parent) { mount(it, current) } },
+        onRelease = { release() },
+    )
+}
 
 @Composable
 private fun MenuParent(

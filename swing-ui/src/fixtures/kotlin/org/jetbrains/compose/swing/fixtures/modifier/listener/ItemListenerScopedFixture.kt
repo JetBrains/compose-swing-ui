@@ -40,18 +40,20 @@ public object ItemListenerScopedFixture : ComposableFixture<ItemListenerScopedPa
         )
 
     @Composable
-    override fun Content(parameters: ItemListenerScopedParameters): Unit = Content(parameters.onItemStateChange)
+    override fun Content(parameters: ItemListenerScopedParameters): Unit =
+        Content(
+            SwingModifier.itemListener(
+                targetType = AbstractButton::class,
+                onItemStateChange = parameters.onItemStateChange,
+            ),
+        )
 
-    /** Composes a check box whose item callback runs with the check box as receiver. */
+    /** Composes a check box carrying [modifier], the item listener modifier under test. */
     @Composable
-    public fun Content(onItemStateChange: AbstractButton.(ItemEvent) -> Unit) {
+    public fun Content(modifier: SwingModifier = SwingModifier) {
         SwingNode<JCheckBox>(
             factory = { JCheckBox("Select") },
-            modifier =
-                SwingModifier.itemListener(
-                    targetType = AbstractButton::class,
-                    onItemStateChange = onItemStateChange,
-                ),
+            modifier = modifier,
         )
     }
 

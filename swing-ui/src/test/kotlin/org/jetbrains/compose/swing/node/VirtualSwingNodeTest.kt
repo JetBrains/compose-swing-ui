@@ -2,7 +2,6 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -51,13 +50,13 @@ class VirtualSwingNodeTest {
         before: List<String>,
         after: List<String>,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         root.layout = RecordingMeasurementLayout(FlowLayout())
         var inserted by mutableStateOf(false)
         setContent {
             content(inserted)
-            SwingNode(factory = { host }) { content(inserted) }
+            SwingNode(factory = { MeasuringHost() }) { content(inserted) }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         host.assertLabels(before, case)
         assertEquals(before, root.components.filterIsInstance<JLabel>().map { it.text }, case)
 
@@ -70,10 +69,9 @@ class VirtualSwingNodeTest {
 
     @Test
     fun reorderingKeyedGroupsMovesTheirComponents() = runComposeSwingTest {
-        val host = MeasuringHost()
         var reversed by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 for (id in if (reversed) listOf(2, 1) else listOf(1, 2)) {
                     key(id) {
                         VirtualSwingNode(SwingModifier.mark("G$id")) {
@@ -84,6 +82,7 @@ class VirtualSwingNodeTest {
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         val identities = host.components.toList()
 
         reversed = true
@@ -99,13 +98,12 @@ class VirtualSwingNodeTest {
 
     @Test
     fun aChangeInsideAGroupSettlesTheHost() = runComposeSwingTest {
-        val host = MeasuringHost()
         var more by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }, update = {
+            SwingNode(factory = { MeasuringHost() }, update = {
                 reconcileWithChildren {
-                    host.name =
-                        host.components.joinToString { (it as JLabel).text }
+                    component.name =
+                        component.components.joinToString { (it as JLabel).text }
                 }
             }) {
                 VirtualSwingNode(SwingModifier.mark("G")) {
@@ -114,6 +112,7 @@ class VirtualSwingNodeTest {
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         onNodeOfType<MeasuringHost>().assertProperty("a") { name }
 
         more = true
@@ -144,18 +143,18 @@ class VirtualSwingNodeTest {
         case: String,
         slot: @Composable (Boolean) -> Unit,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         var parked by mutableStateOf(false)
         var inserted by mutableStateOf(false)
         var swapped by mutableStateOf(false)
         setContent {
-            SwingNode(factory = { host }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 if (inserted) Label("n")
                 for (id in if (swapped) listOf("q", "G", "p") else listOf("p", "G", "q")) {
                     key(id) { if (id == "G") slot(parked) else Label(id) }
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         host.assertLabels(listOf("p", "g1", "g2", "q"), "$case: mounted")
 
         parked = true
@@ -196,12 +195,10 @@ class VirtualSwingNodeTest {
         expected: List<String>,
         beforeStyle: List<String>,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
-        val label = JLabel("p")
         var styled by mutableStateOf(styledFromTheStart)
         setContent {
             SwingNode(
-                factory = { host },
+                factory = { MeasuringHost() },
                 modifier =
                     if (styled) {
                         SwingModifier.styleable(PlainProbeContainer) {
@@ -213,13 +210,15 @@ class VirtualSwingNodeTest {
             ) {
                 VirtualSwingNode(SwingModifier.mark("g")) {
                     if (nested) {
-                        VirtualSwingNode(SwingModifier.mark("h", slot = 4)) { ProbedLabel(label = label) }
+                        VirtualSwingNode(SwingModifier.mark("h", slot = 4)) { ProbedLabel(text = "p") }
                     } else {
-                        ProbedLabel(label = label)
+                        ProbedLabel(text = "p")
                     }
                 }
             }
         }
+        val host = onNodeOfType<MeasuringHost>().fetch()
+        val label = host.components.single()
         if (!styledFromTheStart) {
             assertEquals(beforeStyle, host.recording.tagsOf(label), "$case: before the style")
             styled = true
@@ -235,18 +234,17 @@ class VirtualSwingNodeTest {
         case: String,
         destinationFirst: Boolean,
     ) = runComposeSwingTest {
-        val source = MeasuringHost()
-        val destination = MeasuringHost()
-        val label = JLabel("p")
         var moved by mutableStateOf(false)
         setContent {
             val group =
                 remember {
-                    movableContentOf { VirtualSwingNode(SwingModifier.mark("g")) { ProbedLabel(label = label) } }
+                    movableContentOf { VirtualSwingNode(SwingModifier.mark("g")) { ProbedLabel(text = "p") } }
                 }
-            val fromHost: @Composable () -> Unit = { FixedStyledHost(source, "a") { if (!moved) group() } }
+            val fromHost: @Composable () -> Unit = {
+                StyledHost("a", MarkProperty, protocolName = "source") { if (!moved) group() }
+            }
             val toHost: @Composable () -> Unit = {
-                FixedStyledHost(destination, "b") { if (moved) group() }
+                StyledHost("b", MarkProperty, protocolName = "destination") { if (moved) group() }
             }
             if (destinationFirst) {
                 toHost()
@@ -256,6 +254,9 @@ class VirtualSwingNodeTest {
                 toHost()
             }
         }
+        val source = hostOf("source")
+        val destination = hostOf("destination")
+        val label = source.components.single()
         assertEquals(listOf("g", "a"), source.recording.tagsOf(label), "$case: before the move")
         source.recording.declarations.clear()
 
@@ -268,15 +269,14 @@ class VirtualSwingNodeTest {
 
     @Test
     fun aStyleThatReplacesARefusedGroupKeyInTheSamePassIsAccepted() = runComposeSwingTest {
-        val host = MeasuringHost("P")
         val accepted = protocolOf("P")
         val refused = protocolOf("Q")
         var changed by mutableStateOf(false)
         setContent {
             StyledHost(
-                host,
                 "s1",
                 MarkProperty,
+                protocolName = "P",
                 modifier =
                     if (changed) {
                         SwingModifier.styleable(PlainProbeContainer) {
@@ -291,6 +291,7 @@ class VirtualSwingNodeTest {
                 }
             }
         }
+        val host = hostOf("P")
         assertEquals(listOf(listOf("g", "o0")), host.components.map { host.recording.tagsOf(it) })
 
         changed = true
@@ -336,7 +337,6 @@ class VirtualSwingNodeTest {
         initial: List<String>,
         relocated: List<String>,
     ) = runComposeSwingTest {
-        val pane = JLayeredPane()
         var before by mutableStateOf(initiallyBefore)
         setContent {
             val group =
@@ -351,7 +351,7 @@ class VirtualSwingNodeTest {
                         }
                     }
                 }
-            SwingNode(factory = { pane }) {
+            LayeredPane {
                 if (before) group()
                 Label("before", SwingModifier.layoutConstraint(1))
                 if (!before) group()
@@ -359,20 +359,26 @@ class VirtualSwingNodeTest {
                 Label("high-after", SwingModifier.layoutConstraint(2))
             }
         }
-        assertEquals(initial, pane.getComponentsInLayer(1).texts(), case)
-        assertEquals(listOf("high", "high-after"), pane.getComponentsInLayer(2).texts(), case)
+        onNodeOfType<JLayeredPane>().assertProperty(listOf(initial, listOf("high", "high-after")), "$case: initial") {
+            listOf(getComponentsInLayer(1).texts(), getComponentsInLayer(2).texts())
+        }
 
         before = !initiallyBefore
         awaitIdle()
-        assertEquals(relocated, pane.getComponentsInLayer(1).texts(), case)
-        assertEquals(listOf("high", "high-after"), pane.getComponentsInLayer(2).texts(), case)
-        assertEquals(6, pane.componentCount, case)
+        onNodeOfType<JLayeredPane>().assertProperty(
+            listOf(relocated, listOf("high", "high-after")),
+            "$case: relocated",
+        ) {
+            listOf(getComponentsInLayer(1).texts(), getComponentsInLayer(2).texts())
+        }
+        onNodeOfType<JLayeredPane>().assertProperty(6, "$case: relocated count") { componentCount }
 
         before = initiallyBefore
         awaitIdle()
-        assertEquals(initial, pane.getComponentsInLayer(1).texts(), case)
-        assertEquals(listOf("high", "high-after"), pane.getComponentsInLayer(2).texts(), case)
-        assertEquals(6, pane.componentCount, case)
+        onNodeOfType<JLayeredPane>().assertProperty(listOf(initial, listOf("high", "high-after")), "$case: restored") {
+            listOf(getComponentsInLayer(1).texts(), getComponentsInLayer(2).texts())
+        }
+        onNodeOfType<JLayeredPane>().assertProperty(6, "$case: restored count") { componentCount }
     }
 
     companion object {
@@ -564,25 +570,5 @@ class VirtualSwingNodeTest {
                 listOf("before", "first", "second", "after"),
             ),
         )
-    }
-}
-
-/** Provides a fixed nested style without observing a composition local. */
-@Composable
-private fun FixedStyledHost(
-    host: JPanel,
-    style: String,
-    content: @Composable () -> Unit,
-) {
-    CompositionLocalProvider(LocalMark provides style) {
-        SwingNode(
-            factory = { JPanel() },
-            modifier =
-                SwingModifier.styleable(PlainProbeContainer) {
-                    provideNestedStyle(Probes) { MarkProperty.provide(style) }
-                },
-        ) {
-            SwingNode(factory = { host }, content = content)
-        }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.Sliders
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
@@ -399,6 +400,7 @@ private inline fun ModelSliderNode(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun SliderNode(
     modifier: SwingModifier,
     style: SwingStyle<SwingComponentStyleScope>,

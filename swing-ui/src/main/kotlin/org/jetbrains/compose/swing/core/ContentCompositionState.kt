@@ -5,7 +5,6 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import org.jetbrains.compose.swing.util.DeferredAction
@@ -95,11 +94,12 @@ internal fun resolveParentOrNull(component: Component): ParentComposition? {
  *
  * @param component the container the content is composed into.
  * @param compose creates and starts the content composition once the parent resolves. It receives the
- *   [ParentComposition] the content joins, the window the content reads, and the [LifecycleOwner] it reads.
+ *   [ParentComposition] the content joins, the window the content reads, and the [LifecycleOwnerResolution]
+ *   supplying its owner.
  */
 internal fun mountWhenParentResolves(
     component: JComponent,
-    compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
+    compose: (ParentComposition, State<Window?>, LifecycleOwnerResolution) -> SwingContentComposition,
 ): DisposableHandle =
     ContentCompositionState(component, standsOnItsOwnRecomposer = false, compose).also { it.start(namedParent = null) }
 
@@ -115,13 +115,13 @@ internal fun mountWhenParentResolves(
  * @param namedParent the composition context the content joins.
  * @param remedy the closing sentence of the message that refuses a shut-down [namedParent].
  * @param compose creates and starts the content composition. It receives the [ParentComposition] built over
- *   [namedParent], the window the content reads, and the [LifecycleOwner] it reads.
+ *   [namedParent], the window the content reads, and the [LifecycleOwnerResolution] supplying its owner.
  */
 internal fun mountUnderNamedParent(
     component: JComponent,
     namedParent: CompositionContext,
     remedy: String,
-    compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
+    compose: (ParentComposition, State<Window?>, LifecycleOwnerResolution) -> SwingContentComposition,
 ): DisposableHandle {
     require(!namedParent.isShutDown) {
         "The composition context named for ${component.javaClass.name} belongs to a recomposer that " +
@@ -232,12 +232,12 @@ private enum class Phase { Pending, Mounted, Disposed }
  *   inside another composition. Fixed for the life of the content composition, because it states what
  *   the caller named rather than where the container hangs.
  * @param compose creates and starts the [SwingContentComposition] under a parent context, given the window it
- *   reads and the [LifecycleOwner] it reads.
+ *   reads and the [LifecycleOwnerResolution] supplying its owner.
  */
 internal class ContentCompositionState(
     private val component: JComponent,
     private val standsOnItsOwnRecomposer: Boolean,
-    private val compose: (ParentComposition, State<Window?>, LifecycleOwner) -> SwingContentComposition,
+    private val compose: (ParentComposition, State<Window?>, LifecycleOwnerResolution) -> SwingContentComposition,
 ) : DisposableHandle {
     private var phase = Phase.Pending
 
@@ -384,7 +384,7 @@ internal class ContentCompositionState(
             disposingOnFailure(::dispose) {
                 val reading = LifecycleOwnerResolution(component).also { lifecycle = it }
                 reading.install()
-                compose(parent, statedWindow, reading.owner)
+                compose(parent, statedWindow, reading)
             }
         phase = Phase.Mounted
         // Content standing on a recomposer of its own registers with none: its caller owns that one, so

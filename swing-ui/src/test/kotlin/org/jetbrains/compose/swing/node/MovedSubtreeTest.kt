@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.ReusableContentHost
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
@@ -13,15 +14,19 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.NestedContentHost
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -30,9 +35,14 @@ import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsMenuInteropHost
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.onAllNodesOfType
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -42,6 +52,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
@@ -75,62 +86,95 @@ class MovedSubtreeTest {
     ) = runComposeSwingTest {
         val departingLayout = RecordingMeasurementLayout()
         val arrivingLayout = RecordingMeasurementLayout()
-        val departing = JPanel(departingLayout)
-        val arriving = JPanel(arrivingLayout)
-        val before = JLabel("before")
-        val afterLabel = JLabel("after")
         var moved by mutableStateOf(false)
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable (List<Int>) -> Unit
-        setContent {
-            context = rememberCompositionContext()
-            content =
-                remember {
-                    movableContentOf<List<Int>> { ids ->
-                        VirtualSwingNode {
-                            for (id in ids) key(id) { SwingNode(factory = { JLabel("g$id") }) }
-                        }
-                    }
-                }
+        setMovableGroupHosts(departingLayout, arrivingLayout, after) { moved }
+        awaitIdle()
+        onRoot()
+            .onChildAt(0)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf("g1", "g2"), case) { components.map { (it as JLabel).text } }
+        val retained = fetchHostChild(0, 0)
+        val secondChild = fetchHostChild(0, 1)
+        onRoot()
+            .onChildAt(1)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf("before", "after"), case) { components.map { (it as JLabel).text } }
+        val before = onNodeWithText("before").fetch()
+        val afterLabel = onNodeWithText("after").fetch()
+        onRoot()
+            .onChildAt(1)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf(before, afterLabel), case) { components.toList() }
+        departingLayout.declarations.clear()
+        arrivingLayout.declarations.clear()
+        arrivingLayout.registrations.clear()
+        arrivingLayout.removals.clear()
+
+        moved = true
+        awaitIdle()
+
+        onRoot()
+            .onChildAt(0)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(emptyList<Component>(), case) { components.toList() }
+        onRoot()
+            .onChildAt(1)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(expectedWithSiblings, case) { components.map { (it as JLabel).text } }
+        val arriving = onRoot().onChildAt(1).onChild().fetch()
+        val arrivedSecond = fetchHostChild(1, 1)
+        assertSame(retained, arrivedSecond, case)
+        assertSame(arriving, retained.parent, case)
+        assertEquals(secondChildArrives, secondChild.parent === arriving, case)
+        assertEquals(emptyList(), departingLayout.declarations, case)
+        assertEquals(expected, arrivingLayout.registrations.map { (it.component as JLabel).text }, case)
+        assertEquals(expected, arrivingLayout.declarations.map { (it.component as JLabel).text }, case)
+        assertEquals(emptyList(), arrivingLayout.removals, case)
+    }
+
+    @Composable
+    private fun GroupLabels(ids: List<Int>) {
+        VirtualSwingNode {
+            for (id in ids) key(id) { SwingNode(factory = { JLabel("g$id") }) }
         }
-        val first =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { departing }) { if (!moved) content(listOf(1, 2)) }
+    }
+
+    private fun ComposeSwingTest.fetchHostChild(
+        host: Int,
+        child: Int,
+    ) = onRoot()
+        .onChildAt(host)
+        .onChild()
+        .onChildAt(child)
+        .fetch()
+
+    private fun ComposeSwingTest.setMovableGroupHosts(
+        departingLayout: RecordingMeasurementLayout,
+        arrivingLayout: RecordingMeasurementLayout,
+        after: List<Int>,
+        isMoved: () -> Boolean,
+    ) {
+        setContent {
+            val context = rememberCompositionContext()
+            val content =
+                remember {
+                    movableContentOf<List<Int>> { ids -> GroupLabels(ids) }
+                }
+            NestedContentHost(parent = context) {
+                SwingNode(factory = { JPanel(departingLayout) }) { if (!isMoved()) content(listOf(1, 2)) }
             }
-        val second =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { arriving }) {
-                    SwingNode(factory = { before })
-                    if (moved) content(after)
-                    SwingNode(factory = { afterLabel })
+            NestedContentHost(parent = context) {
+                SwingNode(factory = { JPanel(arrivingLayout) }) {
+                    SwingNode(factory = { JLabel("before") })
+                    if (isMoved()) content(after)
+                    SwingNode(factory = { JLabel("after") })
                 }
             }
-        try {
-            awaitIdle()
-            assertEquals(listOf("g1", "g2"), departing.components.map { (it as JLabel).text }, case)
-            val retained = departing.components.first()
-            val secondChild = departing.components[1]
-            assertEquals(listOf(before, afterLabel), arriving.components.toList(), case)
-            departingLayout.declarations.clear()
-            arrivingLayout.declarations.clear()
-            arrivingLayout.registrations.clear()
-            arrivingLayout.removals.clear()
-
-            moved = true
-            awaitIdle()
-
-            assertEquals(emptyList(), departing.components.toList(), case)
-            assertEquals(expectedWithSiblings, arriving.components.map { (it as JLabel).text }, case)
-            assertSame(retained, arriving.components[1], case)
-            assertSame(arriving, retained.parent, case)
-            assertEquals(secondChildArrives, secondChild.parent === arriving, case)
-            assertEquals(emptyList(), departingLayout.declarations, case)
-            assertEquals(expected, arrivingLayout.registrations.map { (it.component as JLabel).text }, case)
-            assertEquals(expected, arrivingLayout.declarations.map { (it.component as JLabel).text }, case)
-            assertEquals(emptyList(), arrivingLayout.removals, case)
-        } finally {
-            first.dispose()
-            second.dispose()
         }
     }
 
@@ -138,11 +182,8 @@ class MovedSubtreeTest {
     @MethodSource("groupAttachFailures")
     fun aGroupAttachFailureStopsBeforeLaterChildrenEnterTheDestination(
         case: String,
-        children: @Composable (SwingModifier, JLabel) -> Unit,
+        children: @Composable (SwingModifier) -> Unit,
     ) = runComposeSwingTest {
-        val later = JLabel("later")
-        val departing = JPanel(RecordingMeasurementLayout())
-        val arriving = JPanel(RecordingMeasurementLayout())
         var moved by mutableStateOf(false)
         var onAttach: () -> Unit = {}
         val modifier =
@@ -152,57 +193,51 @@ class MovedSubtreeTest {
                     mutableListOf(),
                     onAttach = { onAttach() },
                 )
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
         setContent {
-            context = rememberCompositionContext()
-            content = remember { movableContentOf { VirtualSwingNode { children(modifier, later) } } }
-        }
-        val first =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { departing }) { if (!moved) content() }
+            val context = rememberCompositionContext()
+            val content = remember { movableContentOf { VirtualSwingNode { children(modifier) } } }
+            NestedContentHost(parent = context) {
+                SwingNode(factory = { JPanel(RecordingMeasurementLayout()) }) { if (!moved) content() }
             }
-        val second =
-            JPanel().setContent(parent = context) {
-                SwingNode(factory = { arriving }) { if (moved) content() }
+            NestedContentHost(parent = context) {
+                SwingNode(factory = { JPanel(RecordingMeasurementLayout()) }) { if (moved) content() }
             }
-        try {
-            awaitIdle()
-            assertEquals(emptyList(), arriving.components.toList(), case)
-            assertEquals("later", later.name, case)
-
-            onAttach = { throw UnsupportedOperationException() }
-            moved = true
-            assertFailsWith<UnsupportedOperationException> { awaitIdle() }
-
-            assertEquals(emptyList(), arriving.components.toList(), case)
-            assertNull(later.name, case)
-        } finally {
-            first.dispose()
-            second.dispose()
         }
+        awaitIdle()
+        val later = onNodeWithText("later").fetch()
+        onRoot()
+            .onChildAt(1)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(emptyList<Component>(), case) { components.toList() }
+        assertEquals("later", later.name, case)
+
+        onAttach = { throw UnsupportedOperationException() }
+        moved = true
+        assertFailsWith<UnsupportedOperationException> { awaitIdle() }
+
+        onRoot()
+            .onChildAt(1)
+            .onChild()
+            .assertIsOfType<JPanel>()
+            .assertProperty(emptyList<Component>(), case) { components.toList() }
+        assertNull(later.name, case)
     }
 
     @ParameterizedTest(name = "destination region: {0}")
     @ValueSource(strings = ["left", "right"])
     fun relocatingWithinTheSameHostRefusesANewSlotProtocol(destination: String) = runComposeSwingTest {
-        val host =
-            JSplitPane().apply {
-                leftComponent = null
-                rightComponent = null
-            }
-        val label = JLabel("moved")
-        val accepted = parentProtocolOf("split pane") { it === host }
+        val accepted = parentProtocolOf("split pane") { it is JSplitPane }
         val refused = parentProtocolOf("scroll pane") { it is JScrollPane }
-        val left = regionAttachment { host.leftComponent = it }
-        val right = regionAttachment { host.rightComponent = it }
+        val left = regionAttachment { host, component -> (host as JSplitPane).leftComponent = component }
+        val right = regionAttachment { host, component -> (host as JSplitPane).rightComponent = component }
         var moved by mutableStateOf(false)
         setContent {
             val content =
                 remember {
                     movableContentOf<ParentProtocol> { protocol ->
                         SwingNode(
-                            factory = { label },
+                            factory = { JLabel("moved") },
                             modifier =
                                 SwingModifier.slot(
                                     protocol,
@@ -212,13 +247,22 @@ class MovedSubtreeTest {
                         )
                     }
                 }
-            SwingNode(factory = { host }, childPlacement = ChildPlacement.Slots("left", "right")) {
+            SwingNode(
+                factory = {
+                    JSplitPane().apply {
+                        leftComponent = null
+                        rightComponent = null
+                    }
+                },
+                childPlacement = ChildPlacement.Slots("left", "right"),
+            ) {
                 if (!moved) content(accepted)
                 if (moved) content(refused)
             }
         }
-        assertSame(label, host.leftComponent)
-        assertEquals(null, host.rightComponent)
+        val label = onNodeWithText("moved").fetch()
+        onNodeOfType<JSplitPane>().assertProperty(label) { leftComponent }
+        onNodeOfType<JSplitPane>().assertProperty(null) { rightComponent }
 
         assertFailsWith<IllegalStateException> {
             moved = true
@@ -229,50 +273,85 @@ class MovedSubtreeTest {
     @Test
     fun everyNodeOfAMenuSubtreeMovedToAnotherCompositionMovesWithIt() = runComposeSwingTest {
         var inSecond by mutableStateOf(false)
-        val item = ListeningMenuItem()
-        lateinit var context: CompositionContext
-        lateinit var content: @Composable () -> Unit
+        var firstHosted by mutableStateOf(true)
         setContent {
-            context = rememberCompositionContext()
-            content =
+            val context = rememberCompositionContext()
+            val content =
                 remember {
                     movableContentOf {
+                        val events = remember { ArrayList<String>() }
                         MenuNode(factory = { JMenu() }) {
-                            MenuNode(factory = { item }, modifier = SwingModifier then LifecycleElement(item.events))
+                            MenuNode(
+                                factory = { ListeningMenuItem(events) },
+                                modifier = SwingModifier then LifecycleElement(events),
+                            )
                         }
                     }
                 }
+            if (firstHosted) MenuBarHost(parent = context) { if (!inSecond) content() }
+            MenuBarHost(parent = context) { if (inSecond) content() }
         }
         awaitIdle()
-        val first = JMenuBar().setContentAsMenuInteropHost(context) { if (!inSecond) content() }
-        val second = JMenuBar().setContentAsMenuInteropHost(context) { if (inSecond) content() }
-        awaitIdle()
-        val node = checkNotNull(item.node)
+        val node = checkNotNull(onNodeOfType<ListeningMenuItem>().fetch().node)
 
         inSecond = true
         awaitIdle()
-        first.dispose()
+        firstHosted = false
+        awaitIdle()
         val state = mutableIntStateOf(0)
         val changes = ArrayList<SwingComponentNode<*>>()
         node.observeReads({ changes += it }) { state.intValue }
         state.intValue = 1
         awaitIdle()
 
-        assertEquals(
+        onNodeOfType<ListeningMenuItem>().assertProperty(
             listOf("attached", "onAttach", "detached", "onDetach", "attached", "onAttach"),
-            item.events,
             "moving the menu detaches the item under it from one composition and attaches it to the other",
-        )
+        ) { events }
         assertEquals(listOf(node), changes, "the item observes in the composition it moved to")
-        second.dispose()
+    }
+
+    @Composable
+    private fun MenuBarHost(
+        parent: CompositionContext,
+        content: @Composable () -> Unit,
+    ) {
+        val current = rememberUpdatedState(content)
+        SwingNode(
+            factory = { MenuBarHostComponent() },
+            update = { set(parent) { mount(it, current) } },
+            onRelease = { dispose() },
+        )
+    }
+
+    private class MenuBarHostComponent :
+        JMenuBar(),
+        DisposableHandle {
+        private var mounted: DisposableHandle? = null
+
+        fun mount(
+            parent: CompositionContext,
+            content: State<@Composable () -> Unit>,
+        ) {
+            dispose()
+            mounted = setContentAsMenuInteropHost(parent) { content.value() }
+        }
+
+        override fun dispose() {
+            mounted?.dispose()
+            mounted = null
+        }
     }
 
     @Test
     fun aNodeWhoseListenerThrowsFromOnAttachedAsItMovesIsReportedAndEveryMovedNodeStaysAttached() =
         runComposeSwingTest {
-            val top = ListeningPanel(attachFailure = "top")
-            val child = ListeningPanel()
-            val nested = composeInNestedComposition { ListeningNode(top) { ListeningNode(child) } }
+            val nested =
+                composeInNestedComposition {
+                    ListeningNode(attachFailure = "top") { ListeningNode() }
+                }
+            val top = onAllNodesOfType<ListeningPanel>()[0].fetch()
+            val child = onAllNodesOfType<ListeningPanel>()[1].fetch()
             val topNode = checkNotNull(top.node)
             val childNode = checkNotNull(child.node)
 
@@ -293,14 +372,14 @@ class MovedSubtreeTest {
         val events = ArrayList<String>()
         val attachFailure = object : IllegalStateException("onAttach fails") {}
         val node = LifecycleNode(events, attachFailure, false)
-        val child = ListeningPanel()
         val nested =
             composeInNestedComposition {
                 SwingNode(
                     factory = { JPanel() },
                     modifier = SwingModifier then LifecycleElement(events, node = node),
-                ) { ListeningNode(child) }
+                ) { ListeningNode() }
             }
+        val child = onNodeOfType<ListeningPanel>().fetch()
 
         nested.moveContentOut()
         val failure = assertFails { awaitIdle() }
@@ -319,13 +398,12 @@ class MovedSubtreeTest {
     @Test
     fun aModifierNodeThatThrowsFromOnDetachAsItsComponentMovesIsMovedAllTheSame() = runComposeSwingTest {
         val events = ArrayList<String>()
-        val child = ListeningPanel()
         val nested =
             composeInNestedComposition {
                 SwingNode(
                     factory = { JPanel() },
                     modifier = SwingModifier then LifecycleElement(events, failOnDetach = true),
-                ) { ListeningNode(child) }
+                ) { ListeningNode() }
             }
 
         nested.moveContentOut()
@@ -337,18 +415,20 @@ class MovedSubtreeTest {
             events,
             "the node attaches in the new composition after its detach threw",
         )
-        assertEquals(
+        onNodeOfType<ListeningPanel>().assertProperty(
             listOf("attached", "onAttach", "detached", "onDetach", "attached", "onAttach"),
-            child.events,
             "the node under it moves and attaches",
-        )
+        ) { this.events }
     }
 
     @Test
     fun aNodeWhoseListenerThrowsFromOnDetachedAsItMovesIsAttachedAgainWithTheNodesUnderIt() = runComposeSwingTest {
-        val top = ListeningPanel(failure = "top")
-        val child = ListeningPanel()
-        val nested = composeInNestedComposition { ListeningNode(top) { ListeningNode(child) } }
+        val nested =
+            composeInNestedComposition {
+                ListeningNode(failure = "top") { ListeningNode() }
+            }
+        val top = onAllNodesOfType<ListeningPanel>()[0].fetch()
+        val child = onAllNodesOfType<ListeningPanel>()[1].fetch()
         val topNode = checkNotNull(top.node)
         val childNode = checkNotNull(child.node)
 
@@ -373,11 +453,11 @@ class MovedSubtreeTest {
     @Test
     fun aParkedNodeInASubtreeMovedToAnotherCompositionIsToldNothingAndRunsNoModifierNode() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val parked = ListeningPanel()
         val nested =
             composeInNestedComposition {
-                SwingNode(factory = { JPanel() }) { ReusableContentHost(active) { ListeningNode(parked) } }
+                SwingNode(factory = { JPanel() }) { ReusableContentHost(active) { ListeningNode() } }
             }
+        val parked = onNodeOfType<ListeningPanel>().fetch()
         active = false
         awaitIdle()
         assertEquals(listOf("attached", "onAttach", "detached", "onDetach"), parked.events, "parking detaches the node")
@@ -396,14 +476,14 @@ class MovedSubtreeTest {
     @Test
     fun aSubtreeMovedWithinItsCompositionIsToldNothingAndRunsNoModifierNode() = runComposeSwingTest {
         var first by mutableStateOf(true)
-        val top = ListeningPanel()
-        val child = ListeningPanel()
         setContent {
-            val content = remember { movableContentOf { ListeningNode(top) { ListeningNode(child) } } }
+            val content = remember { movableContentOf { ListeningNode { ListeningNode() } } }
             SwingNode(factory = { JPanel() }) { if (first) content() }
             SwingNode(factory = { JPanel() }) { if (!first) content() }
         }
         awaitIdle()
+        val top = onAllNodesOfType<ListeningPanel>()[0].fetch()
+        val child = onAllNodesOfType<ListeningPanel>()[1].fetch()
 
         first = false
         awaitIdle()
@@ -415,10 +495,7 @@ class MovedSubtreeTest {
     @Test
     fun removingALayoutNodeWhileRelocatingChecksTheNewDeclarationAtTheDestination() = runComposeSwingTest {
         val departingLayout = RecordingMeasurementLayout()
-        val departing = JPanel(departingLayout)
         val arrivingLayout = BorderLayout()
-        val arriving = JPanel(arrivingLayout)
-        val label = JLabel("moved")
         val layoutElement = RecordingLayoutNodeElement("layout", mutableListOf())
         val north = with(PanelLayout.Border().contentScope) { SwingModifier.north() }
         var moved by mutableStateOf(false)
@@ -427,25 +504,33 @@ class MovedSubtreeTest {
                 remember {
                     movableContentOf<Boolean> { atDestination ->
                         SwingNode(
-                            factory = { label },
+                            factory = { JLabel("moved") },
                             modifier = if (atDestination) north else SwingModifier then layoutElement,
                         )
                     }
                 }
-            SwingNode(factory = { departing }) { if (!moved) content(false) }
-            SwingNode(factory = { arriving }) { if (moved) content(true) }
+            SwingNode(factory = { JPanel(departingLayout) }) {
+                if (!moved) content(false)
+            }
+            SwingNode(factory = { JPanel(arrivingLayout) }) {
+                if (moved) content(true)
+            }
         }
-        assertEquals(listOf(label), departing.components.toList())
+        val label =
+            onRoot()
+                .onChildAt(0)
+                .onChild()
+                .assertTextEquals("moved")
+                .fetch()
         assertEquals(1, departingLayout.elementsOf(label).size)
         departingLayout.declarations.clear()
 
         moved = true
         awaitIdle()
 
-        assertEquals(0, departing.componentCount)
-        assertEquals(listOf(label), arriving.components.toList())
-        assertSame(arriving, label.parent)
-        assertEquals(BorderLayout.NORTH, arrivingLayout.getConstraints(label))
+        onRoot().onChildAt(0).assertIsOfType<JPanel>().assertProperty(0) { componentCount }
+        assertSame(label, onRoot().onChildAt(1).onChild().fetch())
+        onRoot().onChildAt(1).onChild().assertLayoutConstraint(BorderLayout.NORTH)
         assertEquals(emptyList(), departingLayout.declarations)
     }
 
@@ -484,14 +569,15 @@ class MovedSubtreeTest {
         with(composeRoundTrip()) {
             try {
                 frame()
+                val hostsPanel = onRoot().onChild()
+                val firstHost = hostsPanel.onChildAt(0).fetch<JPanel>()
+                val secondHost = hostsPanel.onChildAt(1).fetch<JPanel>()
                 val original = moved
+                val panel = hostsPanel.onChildAt(0).onChildAt(1).fetch<JPanel>()
                 val oldState = mutableIntStateOf(0)
                 val newState = mutableIntStateOf(0)
                 val changes = ArrayList<String>()
-                val onChanged: (ProbeNode) -> Unit = {
-                    changes +=
-                        if (it === original) "moved" else "sibling"
-                }
+                val onChanged: (ProbeNode) -> Unit = { changes += if (it === original) "moved" else "sibling" }
                 moved.observeReads(onChanged) { oldState.intValue }
                 sibling.observeReads(onChanged) { oldState.intValue }
                 if (queued) {
@@ -502,22 +588,16 @@ class MovedSubtreeTest {
                 }
                 inSecond = true
                 frame()
-                assertSame(secondHost, panel.parent, "the node moved to the second owner")
-                assertSame(original, moved)
+                assertStillOriginalIn(secondHost, panel, original, "the node moved to the second owner")
                 if (!queued) {
                     oldState.intValue = 1
                     Snapshot.sendApplyNotifications()
-                    assertEquals(
-                        listOf("sibling"),
-                        changes,
-                        "a write while moved out reaches only the sibling",
-                    )
+                    assertEquals(listOf("sibling"), changes, "a write while moved out reaches only the sibling")
                     changes.clear()
                 }
                 inSecond = false
                 frame()
-                assertSame(firstHost, panel.parent, "the node returned to its original owner")
-                assertSame(original, moved)
+                assertStillOriginalIn(firstHost, panel, original, "the node returned to its original owner")
                 moved.observeReads(onChanged) { newState.intValue }
                 assertEquals(emptyList(), changes, "the EDT has not delivered queued notifications")
                 awaitIdle()
@@ -540,19 +620,23 @@ class MovedSubtreeTest {
         }
     }
 
+    private fun RoundTrip.assertStillOriginalIn(
+        host: JPanel,
+        panel: JPanel,
+        original: ProbeNode,
+        message: String,
+    ) {
+        assertSame(host, panel.parent, message)
+        assertSame(original, moved)
+    }
+
     private fun ComposeSwingTest.composeRoundTrip(): RoundTrip {
-        val firstHost = JPanel()
-        val secondHost = JPanel()
-        setContent {
-            SwingNode(factory = { firstHost })
-            SwingNode(factory = { secondHost })
-        }
-        return RoundTrip(firstHost, secondHost)
+        val roundTrip = RoundTrip()
+        setContent { roundTrip.Hosts() }
+        return roundTrip
     }
 
     private class RoundTrip(
-        val firstHost: JPanel,
-        val secondHost: JPanel,
         dispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
     ) {
         private val clock = BroadcastFrameClock()
@@ -563,20 +647,26 @@ class MovedSubtreeTest {
         var inSecond by mutableStateOf(false)
         lateinit var moved: ProbeNode
         lateinit var sibling: ProbeNode
-        val panel = JPanel()
         private val content =
             movableContentOf {
-                SwingNode(factory = { panel }, modifier = ProbeElement { moved = it })
+                SwingNode(
+                    factory = { JPanel() },
+                    modifier = ProbeElement { moved = it },
+                )
             }
-        private val first =
-            firstHost.setContent(parent = recomposer) {
-                SwingNode(factory = { JPanel() }, modifier = ProbeElement { sibling = it })
-                if (!inSecond) content()
+
+        @Composable
+        fun Hosts(modifier: SwingModifier = SwingModifier) {
+            Panel(modifier) {
+                NestedContentHost(parent = recomposer) {
+                    Panel(modifier = ProbeElement { sibling = it }) {}
+                    if (!inSecond) content()
+                }
+                NestedContentHost(parent = recomposer) {
+                    if (inSecond) content()
+                }
             }
-        private val second =
-            secondHost.setContent(parent = recomposer) {
-                if (inSecond) content()
-            }
+        }
 
         fun frame() {
             Snapshot.sendApplyNotifications()
@@ -585,21 +675,28 @@ class MovedSubtreeTest {
         }
 
         fun close() {
-            first.dispose()
-            second.dispose()
             recomposer.cancel()
             runner.cancel()
             scope.cancel()
         }
     }
 
-    /** Declares [panel] with a modifier node that records its lifecycle in [ListeningPanel.events]. */
+    /** Declares a [ListeningPanel] whose modifier node records its lifecycle in the panel's events. */
     @Composable
     private fun ListeningNode(
-        panel: ListeningPanel,
+        failure: String? = null,
+        attachFailure: String? = null,
         content: @Composable () -> Unit = {},
     ) {
-        SwingNode(factory = { panel }, modifier = SwingModifier then LifecycleElement(panel.events), content = content)
+        SwingNode(
+            factory = { ListeningPanel() },
+            modifier = SwingModifier then LifecycleElement(),
+            update = {
+                set(failure) { this.failure = it }
+                set(attachFailure) { this.attachFailure = it }
+            },
+            content = content,
+        )
     }
 
     /**
@@ -607,12 +704,12 @@ class MovedSubtreeTest {
      * an [IllegalStateException] with it as the message on the first detach; where [attachFailure] is set, on each
      * attach after the first.
      */
-    private class ListeningPanel(
-        private var failure: String? = null,
-        private val attachFailure: String? = null,
-    ) : JPanel(),
+    private class ListeningPanel :
+        JPanel(),
         SwingComponentNodeListener {
         val events = ArrayList<String>()
+        var failure: String? = null
+        var attachFailure: String? = null
         var node: SwingComponentNode<*>? = null
 
         override fun onAttached(node: SwingComponentNode<*>) {
@@ -630,10 +727,10 @@ class MovedSubtreeTest {
     }
 
     /** Records each change its node is told, and holds the node first attached. */
-    private class ListeningMenuItem :
-        JMenuItem(),
+    private class ListeningMenuItem(
+        val events: MutableList<String>,
+    ) : JMenuItem(),
         SwingComponentNodeListener {
-        val events = ArrayList<String>()
         var node: SwingComponentNode<*>? = null
 
         override fun onAttached(node: SwingComponentNode<*>) {
@@ -647,11 +744,12 @@ class MovedSubtreeTest {
     }
 
     /**
-     * An element whose node records its `onAttach` and `onDetach` in [events] and throws from the first
-     * `onDetach` where [failOnDetach] is set.
+     * An element whose node records its `onAttach` and `onDetach` in [events], or in the events of the
+     * [ListeningPanel] it sits on where [events] is null, and throws from the first `onDetach` where [failOnDetach]
+     * is set.
      */
     private class LifecycleElement(
-        private val events: MutableList<String>,
+        private val events: MutableList<String>? = null,
         private val failOnDetach: Boolean = false,
         private val node: LifecycleNode? = null,
     ) : SwingModifier.NodeElement<Component, LifecycleNode>() {
@@ -667,19 +765,20 @@ class MovedSubtreeTest {
     }
 
     private class LifecycleNode(
-        private val events: MutableList<String>,
+        private val events: MutableList<String>?,
         private val secondAttachFailure: Throwable?,
         private var failOnDetach: Boolean,
     ) : SwingModifier.ComponentNode<Component>() {
         private var attaches = 0
+        private val log get() = events ?: (component as ListeningPanel).events
 
         override fun onAttach() {
-            events += "onAttach"
+            log += "onAttach"
             if (++attaches == 2) secondAttachFailure?.let { throw it }
         }
 
         override fun onDetach() {
-            events += "onDetach"
+            log += "onDetach"
             if (failOnDetach) {
                 failOnDetach = false
                 error("onDetach fails")
@@ -687,23 +786,23 @@ class MovedSubtreeTest {
         }
     }
 
-    private fun regionAttachment(place: (Component?) -> Unit) = SlotAttachment { _, component, _ ->
-        place(component)
-        return@SlotAttachment { place(null) }
+    private fun regionAttachment(place: (Container, Component?) -> Unit) = SlotAttachment { host, component, _ ->
+        place(host, component)
+        return@SlotAttachment { place(host, null) }
     }
 
     companion object {
         @JvmStatic
         fun groupAttachFailures(): List<Arguments> {
-            val direct: @Composable (SwingModifier, JLabel) -> Unit = { modifier, later ->
+            val direct: @Composable (SwingModifier) -> Unit = { modifier ->
                 SwingNode(factory = { JLabel("failure") }, modifier = modifier)
-                SwingNode(factory = { later }, modifier = SwingModifier.name("later"))
+                SwingNode(factory = { JLabel("later") }, modifier = SwingModifier.name("later"))
             }
-            val nested: @Composable (SwingModifier, JLabel) -> Unit = { modifier, later ->
+            val nested: @Composable (SwingModifier) -> Unit = { modifier ->
                 VirtualSwingNode {
                     SwingNode(factory = { JLabel("failure") }, modifier = modifier)
                 }
-                SwingNode(factory = { later }, modifier = SwingModifier.name("later"))
+                SwingNode(factory = { JLabel("later") }, modifier = SwingModifier.name("later"))
             }
             return listOf(
                 Arguments.of("direct children", direct),

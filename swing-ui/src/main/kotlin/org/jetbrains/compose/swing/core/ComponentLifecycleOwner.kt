@@ -20,8 +20,8 @@ import java.awt.event.WindowEvent
 import javax.swing.JComponent
 
 /**
- * Publishes the [LifecycleOwner] the content around this call reads as what [component] carries, so a root
- * mounted at or under it that inherits nothing resolves the same owner. That is what the publish is for:
+ * Publishes the [LifecycleOwner] the content around this call reads as what [lifecycle]'s component carries, so a
+ * root mounted at or under it that inherits nothing resolves the same owner. That is what the publish is for:
  * independent subtrees, each driven by a recomposer of its own, standing in one window and sharing
  * one lifecycle. A root nested in another's composition inherits the owner instead and publishes nothing.
  *
@@ -34,17 +34,11 @@ import javax.swing.JComponent
  * Disposal puts back the owner the host carried before, unless someone else has set one since.
  */
 @Composable
-internal fun PublishLifecycleOwner(component: Component) {
+internal fun PublishLifecycleOwner(lifecycle: LifecycleOwnerResolution) {
     val owner = LocalLifecycleOwner.current
-    DisposableEffect(component, owner) {
-        val host = component as? JComponent
-        val previous = host?.get(LIFECYCLE_OWNER_KEY)
-        host?.setLifecycleOwner(owner)
-        onDispose {
-            if (host != null && host[LIFECYCLE_OWNER_KEY] === owner) {
-                host.setLifecycleOwner(previous)
-            }
-        }
+    DisposableEffect(lifecycle, owner) {
+        val restore = lifecycle.publish(owner)
+        onDispose { restore() }
     }
 }
 
@@ -140,6 +134,21 @@ internal class LifecycleOwnerResolution(
     /** Re-reads the window the minted owner follows; told of the events matching [LIFECYCLE_PLACE_CHANGE_FLAGS]. */
     fun placeChanged() {
         minted?.syncWindow()
+    }
+
+    /**
+     * Publishes [owner] on the component, and returns what puts back the owner it carried before, unless someone
+     * else has set one since. A component that is no [JComponent] carries none, so nothing is published.
+     */
+    fun publish(owner: LifecycleOwner): () -> Unit {
+        val host = component as? JComponent ?: return {}
+        val previous = host[LIFECYCLE_OWNER_KEY]
+        host.setLifecycleOwner(owner)
+        return {
+            if (host[LIFECYCLE_OWNER_KEY] === owner) {
+                host.setLifecycleOwner(previous)
+            }
+        }
     }
 
     /**

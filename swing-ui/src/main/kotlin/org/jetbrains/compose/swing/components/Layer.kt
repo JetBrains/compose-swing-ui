@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AWTEventMask
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.Layers
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
@@ -168,6 +169,8 @@ public fun Layer(
  * @see javax.swing.JLayer.setLayerEventMask
  */
 @Composable
+// `V` only types the delegate; the layer builds its own component and takes none.
+@Suppress("SwingComponentInComposableSignature")
 public fun <V : Component> Layer(
     ui: LayerUI<in V>,
     modifier: SwingModifier = SwingModifier,
@@ -198,6 +201,7 @@ public fun <V : Component> Layer(
  * read as events arrive; the raw overload writes none.
  */
 @Composable
+@SwingComponentLibraryApi
 private fun <V : Component> LayerNode(
     ui: LayerUI<in V>,
     eventMask: Long?,

@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.currentValueOf
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.interaction.performEvent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -37,9 +38,7 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class StyleSlotLocalConsumerTest {
     @Test
@@ -116,23 +115,25 @@ class StyleSlotLocalConsumerTest {
     fun layoutLocalChangeRepaintsParent() = runComposeSwingTest {
         var value by mutableStateOf("first")
         val repaints = mutableListOf<Rectangle>()
-        val parent =
-            object : JPanel(RecordingMeasurementLayout(FlowLayout())) {
-                override fun repaint(
-                    tm: Long,
-                    x: Int,
-                    y: Int,
-                    width: Int,
-                    height: Int,
-                ) {
-                    repaints += Rectangle(x, y, width, height)
-                    super.repaint(tm, x, y, width, height)
-                }
-            }
         val layoutProperty = stylePropertyOf<Unit> { LocalReadingLayoutElement }
         setContent {
             CompositionLocalProvider(LocalValue provides value) {
-                SwingNode(factory = { parent }) {
+                SwingNode(
+                    factory = {
+                        object : JPanel(RecordingMeasurementLayout(FlowLayout())) {
+                            override fun repaint(
+                                tm: Long,
+                                x: Int,
+                                y: Int,
+                                width: Int,
+                                height: Int,
+                            ) {
+                                repaints += Rectangle(x, y, width, height)
+                                super.repaint(tm, x, y, width, height)
+                            }
+                        }
+                    },
+                ) {
                     SwingNode(
                         factory = { JLabel("styled") },
                         modifier = SwingModifier.styleable(PlainProbe) { layoutProperty.provide(Unit) },
@@ -140,13 +141,17 @@ class StyleSlotLocalConsumerTest {
                 }
             }
         }
-        assertTrue(parent.width > 0 && parent.height > 0, "the parent has an area to repaint")
+        onRoot().onChild().assertProperty(true, "the parent has an area to repaint") {
+            width > 0 && height > 0
+        }
         repaints.clear()
 
         value = "second"
         awaitIdle()
 
-        assertContains(repaints, Rectangle(0, 0, parent.width, parent.height))
+        onRoot().onChild().assertProperty(true, "the parent repaints its whole area") {
+            repaints.contains(Rectangle(0, 0, width, height))
+        }
     }
 
     companion object {

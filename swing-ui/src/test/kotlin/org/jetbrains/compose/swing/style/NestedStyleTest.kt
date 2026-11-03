@@ -49,8 +49,8 @@ class NestedStyleTest {
         assertFailsWith<IllegalStateException> {
             runComposeSwingTest {
                 setContent {
-                    ProbeContainer(StyleProbe(), case.provider) {
-                        ProbeLeaf(StyleProbe(), SwingStyle, NestedProbe)
+                    ProbeContainer(null, case.provider) {
+                        ProbeLeaf(null, SwingStyle, NestedProbe)
                     }
                 }
             }
@@ -59,19 +59,18 @@ class NestedStyleTest {
 
     @Test
     fun nestedBlockAppliesAnotherKey() = runComposeSwingTest {
-        val leaf = StyleProbe()
         setContent {
-            ProbeContainer(StyleProbe(), {
+            ProbeContainer(null, {
                 provideNestedStyle(Probes) {
                     applyNestedStyle(OtherProbes)
                     ProbeSecond.provide("probes")
                 }
                 provideNestedStyle(OtherProbes) { ProbeFirst.provide("other") }
             }) {
-                ProbeLeaf(leaf, SwingStyle, NestedProbe)
+                ProbeLeaf("leaf", SwingStyle, NestedProbe)
             }
         }
-        assertEquals(listOf("first=other", "second=probes"), leaf.writes)
+        onProbe("leaf").assertWrites(listOf("first=other", "second=probes"))
     }
 
     sealed class NestedCycleCase(
@@ -133,7 +132,6 @@ class NestedStyleTest {
     fun multipleParentStylesShareNestedPropertiesAndRestoreEachRemainingContribution() = runComposeSwingTest {
         var includeFirst by mutableStateOf(true)
         var includeLater by mutableStateOf(false)
-        val child = StyleProbe("child")
         val firstStyle =
             SwingStyle<ProbeContainerScope> {
                 provideNestedStyle(Probes) {
@@ -154,7 +152,7 @@ class NestedStyleTest {
                     .then(if (includeFirst) SwingModifier.styleable(PlainProbeContainer, firstStyle) else SwingModifier)
                     .then(if (includeLater) SwingModifier.styleable(PlainProbeContainer, laterStyle) else SwingModifier)
             SwingNode(factory = { StyleProbe("parent") }, modifier = modifier) {
-                ProbeLeaf(child, SwingStyle, NestedProbe)
+                ProbeLeaf("child", SwingStyle, NestedProbe)
             }
         }
 
@@ -202,14 +200,13 @@ class NestedStyleTest {
                 applyNestedStyle(Probes)
                 applyNestedStyle(OtherProbes)
             }
-        val child = StyleProbe("child")
         setContent {
             val modifier =
                 SwingModifier
                     .styleable(PlainProbeContainer, firstStyle)
                     .then(SwingModifier.styleable(PlainProbeContainer, laterStyle))
             SwingNode(factory = { StyleProbe("parent") }, modifier = modifier) {
-                ProbeLeaf(child, SwingStyle, kind)
+                ProbeLeaf("child", SwingStyle, kind)
             }
         }
 
@@ -225,7 +222,7 @@ class NestedStyleTest {
         val callerStyle = SwingStyle<ProbeScope> { ProbeSecond.provide("caller") }
         setContent {
             ProbeContainer(
-                StyleProbe("parent"),
+                "parent",
                 {
                     if (providerPresent) provideNestedStyle(Probes) { ProbeFirst.provide("provided") }
                 },

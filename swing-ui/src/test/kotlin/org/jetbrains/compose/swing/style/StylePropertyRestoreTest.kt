@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.caretBlinkRate
@@ -632,16 +633,16 @@ class StylePropertyRestoreTest {
 
     @Test
     fun aComponentLeavingTheCompositionRestoresEveryPropertyItsStyleWrote() = runComposeSwingTest {
-        val label = JLabel("own text")
         var shown by mutableStateOf(true)
         setContent {
             if (shown) {
-                SwingNode(
-                    factory = { label },
+                Label(
+                    "own text",
                     modifier = SwingModifier.styleable(PlainProbe) { LabelText.provide("styled") },
                 )
             }
         }
+        val label = onNodeOfType<JLabel>().fetch()
 
         shown = false
         awaitIdle()

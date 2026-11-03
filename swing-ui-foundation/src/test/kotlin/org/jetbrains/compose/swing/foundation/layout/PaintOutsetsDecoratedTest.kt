@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
@@ -79,8 +80,12 @@ class PaintOutsetsDecoratedTest {
                             modifier = SwingModifier.testTag("row"),
                             horizontalArrangement = Arrangement.spacedBy(8),
                         ) {
-                            RingedButton("stock", SwingModifier)
-                            RingedButton("shadow", SwingModifier.shadow(8, Color.BLACK)) { ShadowButton(it) }
+                            Button(
+                                "Button",
+                                onClick = {},
+                                modifier = SwingModifier.testTag("stock").styleable { border(RingBorder(Color.RED)) },
+                            )
+                            RingedShadowButton("shadow", SwingModifier.shadow(8, Color.BLACK))
                         }
                     }
                 }
@@ -619,15 +624,14 @@ class PaintOutsetsDecoratedTest {
         }
 }
 
-/** A button tagged [tag] with a [RingBorder], built by [factory] and declaring [modifier]. */
+/** A [ShadowButton] tagged [tag] with a [RingBorder], declaring [modifier]. */
 @Composable
-private fun RingedButton(
+private fun RingedShadowButton(
     tag: String,
     modifier: SwingModifier,
-    factory: (String) -> JButton = { JButton(it) },
 ) {
     SwingNode(
-        factory = { factory("Button") },
+        factory = { ShadowButton("Button") },
         modifier =
             SwingModifier
                 .testTag(tag)

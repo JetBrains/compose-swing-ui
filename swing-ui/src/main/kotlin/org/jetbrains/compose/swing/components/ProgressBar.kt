@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.ProgressBarStyleScope
 import org.jetbrains.compose.swing.components.style.ProgressBars
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -133,6 +134,7 @@ public fun ProgressBar(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun ProgressBarNode(
     modifier: SwingModifier,
     style: SwingStyle<ProgressBarStyleScope>,

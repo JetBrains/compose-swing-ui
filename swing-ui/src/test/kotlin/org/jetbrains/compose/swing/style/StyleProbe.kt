@@ -12,7 +12,9 @@ import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -42,6 +44,13 @@ internal class StyleProbe(
 }
 
 internal fun ComposeSwingTest.onProbe(name: String) = onNodeWithName(name).assertIsOfType<StyleProbe>()
+
+internal fun SwingNodeInteraction<StyleProbe>.assertWrites(
+    expected: List<String>,
+    message: String? = null,
+) = assertProperty(expected, message) { writes.toList() }
+
+internal fun SwingNodeInteraction<StyleProbe>.clearWrites() = assertProperty(Unit) { writes.clear() }
 
 internal fun readPass(pass: Int) {
     pass.let { }
@@ -98,21 +107,29 @@ internal val PlainProbeContainer = probeContainerKind()
 
 @Composable
 internal fun ProbeContainer(
-    probe: StyleProbe,
+    name: String?,
     style: SwingStyle<ProbeContainerScope>,
     kind: SwingStyleKind<ProbeContainerScope, Unit> = PlainProbeContainer,
     content: @Composable () -> Unit,
 ) {
-    SwingNode(factory = { probe }, modifier = SwingModifier.styleable(kind, style)) { content() }
+    SwingNode(
+        factory = { StyleProbe() },
+        modifier = SwingModifier.styleable(kind, style),
+        update = { set(name) { this.name = it } },
+    ) { content() }
 }
 
 @Composable
 internal fun ProbeLeaf(
-    probe: StyleProbe,
+    name: String?,
     style: SwingStyle<ProbeScope>,
     kind: SwingStyleKind<ProbeScope, Unit>,
 ) {
-    SwingNode(factory = { probe }, modifier = SwingModifier.styleable(kind, style))
+    SwingNode(
+        factory = { StyleProbe() },
+        modifier = SwingModifier.styleable(kind, style),
+        update = { set(name) { this.name = it } },
+    )
 }
 
 internal val MeasuringParent: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring parent")

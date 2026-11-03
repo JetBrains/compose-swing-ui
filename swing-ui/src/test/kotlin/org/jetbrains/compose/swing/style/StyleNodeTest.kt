@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -110,6 +111,8 @@ internal class StyleNodeTest {
         onNodeOfType<JLabel>().assertProperty("nested") { toolTipText }
     }
 
+    // The style is rejected on the first attach, so the component is never in the tree for the harness to find.
+    @Suppress("SwingNodeFactoryReusesComponent")
     @Test
     fun theKindlessStyleRejectsANonJComponentBeforeWritingProperties() = runComposeSwingTest {
         val target = object : Component() {}.apply { background = Color.BLUE }
@@ -172,13 +175,13 @@ internal class StyleNodeTest {
 
     @Test
     fun switchingANonJComponentFromAKindToTheKindlessStyleFails() {
-        val target = object : Component() {}.apply { background = Color.RED }
+        var target: Component? = null
         assertFailsWith<IllegalArgumentException> {
             runComposeSwingTest {
                 var custom by mutableStateOf(true)
                 setContent {
                     SwingNode(
-                        factory = { target },
+                        factory = { object : Component() {}.apply { background = Color.RED } },
                         modifier =
                             if (custom) {
                                 SwingModifier.styleable(PlainProbe) { background(Color.RED) }
@@ -187,11 +190,12 @@ internal class StyleNodeTest {
                             },
                     )
                 }
+                target = onRoot().onChild().fetch<Component>()
                 custom = false
                 awaitIdle()
             }
         }
-        assertEquals(Color.RED, target.background)
+        assertEquals(Color.RED, target?.background)
     }
 
     @Test
@@ -199,7 +203,6 @@ internal class StyleNodeTest {
         var includeFirst by mutableStateOf(true)
         var includeOrdinary by mutableStateOf(true)
         var includeLast by mutableStateOf(true)
-        val target = StyleProbe("target")
         val firstStyle =
             SwingStyle<ProbeScope> {
                 ProbeFirst.provide("style A")
@@ -220,7 +223,7 @@ internal class StyleNodeTest {
                             SwingModifier
                         },
                     ).then(if (includeLast) SwingModifier.styleable(PlainProbe, lastStyle) else SwingModifier)
-            SwingNode(factory = { target }, modifier = modifier)
+            SwingNode(factory = { StyleProbe("target") }, modifier = modifier)
         }
         onNodeOfType<StyleProbe>()
             .assertProperty("style C") { first }
@@ -276,7 +279,7 @@ internal class StyleNodeTest {
     fun twoStylesBothApplyAfterAllComponentsOnce() = runComposeSwingTest {
         setContent {
             ProbeContainer(
-                StyleProbe(),
+                null,
                 {
                     provideNestedStyle(AllComponents) {
                         ProbeThird.provide("all")

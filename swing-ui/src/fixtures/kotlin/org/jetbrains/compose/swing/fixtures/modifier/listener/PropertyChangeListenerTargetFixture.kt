@@ -38,20 +38,19 @@ public object PropertyChangeListenerTargetFixture : ComposableFixture<PropertyCh
         )
 
     @Composable
-    override fun Content(parameters: PropertyChangeListenerTargetParameters): Unit = Content(parameters.targetType)
-
-    /** Composes a [Label] whose callback is typed by [targetType]. */
-    @Composable
-    public fun Content(targetType: KClass<out JComponent>) {
-        Label(
-            text = "",
-            modifier =
-                SwingModifier.propertyChangeListener(
-                    name = BOUND_PROPERTY,
-                    targetType = targetType,
-                    onPropertyChange = { },
-                ),
+    override fun Content(parameters: PropertyChangeListenerTargetParameters): Unit =
+        Content(
+            SwingModifier.propertyChangeListener(
+                name = BOUND_PROPERTY,
+                targetType = parameters.targetType,
+                onPropertyChange = { },
+            ),
         )
+
+    /** Composes a [Label] carrying [modifier], the property change listener modifier under test. */
+    @Composable
+    public fun Content(modifier: SwingModifier = SwingModifier) {
+        Label(text = "", modifier = modifier)
     }
 
     /** Builds a bare [JLabel] with no property change listener attached. */

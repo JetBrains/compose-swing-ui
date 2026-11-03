@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.tooling.CompositionData
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.cancel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.AfterValidationActions
@@ -22,6 +24,7 @@ import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
 import org.jetbrains.compose.swing.style.StyleCollector
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
+import org.jetbrains.compose.swing.tooling.publishCompositionData
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.get
@@ -223,6 +226,8 @@ internal class SwingContentComposition internal constructor(
      * and recomposes nothing under it again.
      */
     fun setContent(content: @Composable () -> Unit) {
+        val publishInspection: ((CompositionData) -> DisposableHandle)? =
+            compositionDataHost?.let { host -> { data -> host.publishCompositionData(data) } }
         disposingOnFailure(
             dispose = {
                 // Cancels the recomposer's effect job, which every context under it shares. Only the shutdown
@@ -232,7 +237,7 @@ internal class SwingContentComposition internal constructor(
                 runEveryStep({ coroutineContext.cancel() }, ::dispose)
             },
         ) {
-            composition.setContent { InspectedContent(compositionDataHost, inspection.isRecording, content) }
+            composition.setContent { InspectedContent(publishInspection, inspection.isRecording, content) }
         }
     }
 

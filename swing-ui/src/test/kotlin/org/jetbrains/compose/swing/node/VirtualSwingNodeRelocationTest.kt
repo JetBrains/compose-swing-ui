@@ -10,8 +10,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -47,9 +52,7 @@ class VirtualSwingNodeRelocationTest {
         route: MoveRoute,
         moved: MovedContent,
     ) = runComposeSwingTest {
-        val first = MeasuringHost(route.sourceProtocol)
-        val second = route.destinationHost?.let { MeasuringHost(it) } ?: first
-        val shared = first === second
+        val shared = route.destinationHost == null
         var inSecond by mutableStateOf(false)
         setContent {
             val content = remember { movableContentOf(moved.content) }
@@ -65,19 +68,25 @@ class VirtualSwingNodeRelocationTest {
                 slot("B", route.destinationProtocol, inSecond)
                 Label("b1")
             }
-            SwingNode(factory = { first }) {
+            SwingNode(factory = { MeasuringHost(route.sourceProtocol) }) {
                 Label("a0")
                 slot("A", route.sourceProtocol, !inSecond)
                 if (shared) destination()
             }
-            if (!shared) SwingNode(factory = { second }, content = destination)
+            if (!shared) {
+                SwingNode(
+                    factory = { MeasuringHost(checkNotNull(route.destinationHost)) },
+                    content = destination,
+                )
+            }
         }
-        assertEquals(listOf("a0") + moved.texts + if (shared) listOf("b0", "b1") else emptyList(), first.texts(), case)
-        assertEquals(
-            first.texts().map { if (it in moved.texts) moved.sourceTags else emptyList() },
-            first.components.map { first.recording.tagsOf(it) },
-            case,
-        )
+        val first = onAllNodesOfType<MeasuringHost>()[0].assertIsOfType<MeasuringHost>()
+        val second = if (shared) first else onAllNodesOfType<MeasuringHost>()[1].assertIsOfType<MeasuringHost>()
+        val sourceTexts = listOf("a0") + moved.texts + if (shared) listOf("b0", "b1") else emptyList<String>()
+        first.assertProperty(sourceTexts, case) { texts() }
+        first.assertProperty(sourceTexts.map { if (it in moved.texts) moved.sourceTags else emptyList() }, case) {
+            components.map { recording.tagsOf(it) }
+        }
 
         if (route.destinationProtocol == "R") {
             assertFailsWith<IllegalStateException> {
@@ -90,32 +99,29 @@ class VirtualSwingNodeRelocationTest {
         awaitIdle()
 
         val arrived = listOf("b0") + moved.texts + listOf("b1")
-        assertEquals(if (shared) listOf("a0") + arrived else listOf("a0"), first.texts(), case)
-        if (!shared) assertEquals(arrived, second.texts(), case)
-        assertEquals(
-            second.texts().map { if (it in moved.texts) moved.destinationTags else emptyList() },
-            second.components.map { second.recording.tagsOf(it) },
-            case,
-        )
-        assertEquals(emptyList(), first.recording.tagsOf(first.components.first()), case)
+        first.assertProperty(if (shared) listOf("a0") + arrived else listOf("a0"), case) { texts() }
+        if (!shared) second.assertProperty(arrived, case) { texts() }
+        val secondTexts = if (shared) listOf("a0") + arrived else arrived
+        second.assertProperty(secondTexts.map { if (it in moved.texts) moved.destinationTags else emptyList() }, case) {
+            components.map { recording.tagsOf(it) }
+        }
+        first.assertProperty(emptyList<String>(), case) { recording.tagsOf(components.first()) }
     }
 
     @ParameterizedTest(name = "two children: {0}")
     @ValueSource(booleans = [true, false])
     fun relocatingOneOrTwoChildrenKeepsTheirDestinationIndices(twoChildren: Boolean) = runComposeSwingTest {
-        val first = MeasuringHost()
-        val second = MeasuringHost()
         var moved by mutableStateOf(false)
         setContent {
             val a = remember { movableContentOf { Label("a") } }
             val b = remember { movableContentOf { Label("b") } }
-            SwingNode(factory = { first }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 if (!moved) {
                     a()
                     if (twoChildren) b()
                 }
             }
-            SwingNode(factory = { second }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 Label("before")
                 if (moved) a()
                 Label("between")
@@ -123,6 +129,8 @@ class VirtualSwingNodeRelocationTest {
                 Label("after")
             }
         }
+        val first = onAllNodesOfType<MeasuringHost>()[0].fetch()
+        val second = onAllNodesOfType<MeasuringHost>()[1].fetch()
 
         moved = true
         awaitIdle()
@@ -146,8 +154,6 @@ class VirtualSwingNodeRelocationTest {
         destination: @Composable (@Composable () -> Unit) -> Unit,
         expected: List<String>,
     ) = runComposeSwingTest {
-        val first = MeasuringHost()
-        val second = MeasuringHost()
         var moved by mutableStateOf(false)
         setContent {
             val label = remember { movableContentOf { Label("m") } }
@@ -159,15 +165,19 @@ class VirtualSwingNodeRelocationTest {
                         }
                     }
                 }
-            SwingNode(factory = { first }) {
+            SwingNode(factory = { MeasuringHost() }) {
                 if (!moved) {
                     if (labelFirst) label()
                     group {}
                     if (!labelFirst) label()
                 }
             }
-            SwingNode(factory = { second }) { if (moved) group { label() } }
+            SwingNode(factory = { MeasuringHost() }) {
+                if (moved) group { label() }
+            }
         }
+        val first = onAllNodesOfType<MeasuringHost>()[0].fetch()
+        val second = onAllNodesOfType<MeasuringHost>()[1].fetch()
 
         moved = true
         awaitIdle()
@@ -185,8 +195,6 @@ class VirtualSwingNodeRelocationTest {
         siblings: @Composable (Boolean) -> Unit,
         expected: List<String>,
     ) = runComposeSwingTest {
-        val first = MeasuringHost()
-        val second = MeasuringHost()
         var moved by mutableStateOf(false)
         var ids by mutableStateOf(listOf(1, 2, 3))
         setContent {
@@ -198,12 +206,16 @@ class VirtualSwingNodeRelocationTest {
                         }
                     }
                 }
-            SwingNode(factory = { first }) { if (!moved) group(ids) }
-            SwingNode(factory = { second }) {
+            SwingNode(factory = { MeasuringHost() }) {
+                if (!moved) group(ids)
+            }
+            SwingNode(factory = { MeasuringHost() }) {
                 if (moved) group(ids)
                 siblings(moved)
             }
         }
+        val first = onAllNodesOfType<MeasuringHost>()[0].fetch()
+        val second = onAllNodesOfType<MeasuringHost>()[1].fetch()
 
         Snapshot.withMutableSnapshot {
             moved = true
@@ -224,14 +236,18 @@ class VirtualSwingNodeRelocationTest {
         after: List<String>,
         parentData: List<Any?>,
     ) = runComposeSwingTest {
-        val departing = MeasuringHost("P")
-        val arriving = MeasuringHost("Q")
         var moved by mutableStateOf(false)
         setContent {
             val group = remember { movableContentOf<Boolean> { changed -> content(changed) } }
-            SwingNode(factory = { departing }) { if (!moved) group(false) }
-            SwingNode(factory = { arriving }) { if (moved) group(true) }
+            SwingNode(factory = { MeasuringHost("P") }) {
+                if (!moved) group(false)
+            }
+            SwingNode(factory = { MeasuringHost("Q") }) {
+                if (moved) group(true)
+            }
         }
+        val departing = onAllNodesOfType<MeasuringHost>()[0].fetch()
+        val arriving = onAllNodesOfType<MeasuringHost>()[1].fetch()
         assertEquals(before, departing.texts(), case)
         departing.recording.declarations.clear()
         arriving.recording.registrations.clear()
@@ -250,8 +266,6 @@ class VirtualSwingNodeRelocationTest {
     @ParameterizedTest(name = "nested source group: {0}")
     @ValueSource(booleans = [false, true])
     fun removingAChildFromAGroupUpdatesItsIndexInAnArrivingGroup(nested: Boolean) = runComposeSwingTest {
-        val departing = JPanel()
-        val arriving = JPanel()
         var moved by mutableStateOf(false)
         setContent {
             val label = remember { movableContentOf { Label("m") } }
@@ -264,8 +278,8 @@ class VirtualSwingNodeRelocationTest {
                         }
                     }
                 }
-            SwingNode(factory = { departing }) { if (!moved) group {} }
-            SwingNode(factory = { arriving }) {
+            Panel { if (!moved) group {} }
+            Panel {
                 if (moved) group { label() }
                 if (moved) Label("new")
                 VirtualSwingNode {
@@ -275,22 +289,31 @@ class VirtualSwingNodeRelocationTest {
                 }
             }
         }
-        assertEquals(listOf("prefix"), departing.components.texts())
-        assertEquals(listOf("m", "tail"), arriving.components.texts())
+        onRoot()
+            .onChildAt(0)
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf("prefix")) { components.texts() }
+        onRoot()
+            .onChildAt(1)
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf("m", "tail")) { components.texts() }
 
         moved = true
         awaitIdle()
 
-        assertEquals(emptyList(), departing.components.toList())
-        assertEquals(listOf("prefix", "m", "new", "tail"), arriving.components.texts())
+        onRoot()
+            .onChildAt(0)
+            .assertIsOfType<JPanel>()
+            .assertProperty(emptyList<String>()) { components.texts() }
+        onRoot()
+            .onChildAt(1)
+            .assertIsOfType<JPanel>()
+            .assertProperty(listOf("prefix", "m", "new", "tail")) { components.texts() }
     }
 
     @ParameterizedTest(name = "insert inside the component host during relocation: {0}")
     @ValueSource(booleans = [false, true])
     fun groupRelocationStopsAtTheComponentHost(insert: Boolean) = runComposeSwingTest {
-        val departing = JPanel()
-        val arriving = JPanel()
-        val childHost = JPanel()
         var moved by mutableStateOf(false)
         setContent {
             val group =
@@ -298,7 +321,7 @@ class VirtualSwingNodeRelocationTest {
                     movableContentOf<Boolean> { expanded ->
                         VirtualSwingNode {
                             VirtualSwingNode {
-                                SwingNode(factory = { childHost }) {
+                                Panel {
                                     Label("inner-first")
                                     if (expanded) Label("inner-new")
                                     Label("inner-last")
@@ -308,9 +331,12 @@ class VirtualSwingNodeRelocationTest {
                         }
                     }
                 }
-            SwingNode(factory = { departing }) { if (!moved) group(false) }
-            SwingNode(factory = { arriving }) { if (moved) group(insert) }
+            Panel { if (!moved) group(false) }
+            Panel { if (moved) group(insert) }
         }
+        val departing = onRoot().onChildAt(0).assertIsOfType<JPanel>().fetch()
+        val arriving = onRoot().onChildAt(1).assertIsOfType<JPanel>().fetch()
+        val childHost = onNodeWithText("inner-first").onParent().assertIsOfType<JPanel>().fetch()
 
         val untouched = listOf("inner-first", "inner-last")
         val arrived = if (insert) listOf("inner-first", "inner-new", "inner-last") else untouched

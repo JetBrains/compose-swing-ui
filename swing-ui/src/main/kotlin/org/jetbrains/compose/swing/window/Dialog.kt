@@ -86,6 +86,8 @@ import javax.swing.WindowConstants
  * @see javax.swing.JDialog
  */
 @Composable
+// `owner` names a window outside the composition, which no Compose-side value can name.
+@Suppress("SwingComponentInComposableSignature")
 public fun Dialog(
     onCloseRequest: () -> Unit,
     state: DialogState = rememberDialogState(),

@@ -4,6 +4,9 @@ package org.jetbrains.compose.swing.annotations
 /**
  * Marks API for writing components. A component library wraps each Swing component class in its own
  * composable, and layout code uses those composables instead of building components itself.
+ *
+ * A declaration it marks, and the members of a class it marks, are exempt from the
+ * `SwingComponentInComposableSignature` rule of `swing-ui-detekt`.
  */
 @RequiresOptIn(
     level = RequiresOptIn.Level.WARNING,

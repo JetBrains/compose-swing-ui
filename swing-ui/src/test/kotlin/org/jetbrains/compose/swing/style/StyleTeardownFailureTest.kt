@@ -78,7 +78,6 @@ class StyleTeardownFailureTest {
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun teardownFailureRestoresOtherProperties(removeStyle: Boolean) = runComposeSwingTest {
-        val probe = StyleProbe("probe")
         val failure = object : IllegalStateException() {}
         val events = ArrayList<String>()
         val throwing = stylePropertyOf { _: Unit -> LifecycleElement("styled", events, detachFailure = failure) }
@@ -93,11 +92,12 @@ class StyleTeardownFailureTest {
             }
         setContent {
             SwingNode(
-                factory = { probe },
+                factory = { StyleProbe("probe") },
                 modifier =
                     if (styled || !removeStyle) SwingModifier.styleable(PlainProbeContainer, style) else SwingModifier,
             ) {}
         }
+        val probe = onProbe("probe").fetch()
 
         styled = false
         assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })

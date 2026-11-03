@@ -190,6 +190,7 @@ public fun <T> ListBox(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun <T> ListBoxItemsImpl(
     noinline factory: () -> JList<T>,
@@ -376,6 +377,7 @@ public fun <T> ListBox(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun <T> ListBoxModelImpl(
     noinline factory: () -> JList<T>,
@@ -687,6 +689,7 @@ private val ListBoxKind =
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun <T> ListBoxNode(
     noinline factory: () -> JList<T>,
     listSelectionListener: ListSelectionListener,

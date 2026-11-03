@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -91,6 +92,7 @@ class DialogNestedInWindowCompositionTest {
      * Mirrors the `Dialog` wiring shape: capture the enclosing (window) context in the composable body,
      * then mount [content] into the detached [host] as a child of that context.
      */
+    @SwingComponentLibraryApi
     @Composable
     private fun DialogIn(
         host: Container,

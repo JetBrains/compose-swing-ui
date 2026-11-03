@@ -15,6 +15,7 @@ import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionErrorContext
 import androidx.compose.runtime.tooling.CompositionGroup
 import androidx.compose.runtime.tooling.LocalCompositionErrorContext
+import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.util.Key
@@ -32,9 +33,13 @@ import javax.swing.JComponent
  */
 private val COMPOSITION_DATA_KEY: Key<CompositionData> = Key("org.jetbrains.compose.swing.compositionData")
 
-/** Publishes [data] on this component, or clears what is published when passed `null`. */
-internal fun JComponent.publishCompositionData(data: CompositionData?) {
+/**
+ * Publishes [data] on this component, and returns the handle that withdraws it. Only this publication is
+ * withdrawn, so a teardown can never blind a live composition that published on the same component after it.
+ */
+internal fun JComponent.publishCompositionData(data: CompositionData): DisposableHandle {
     this[COMPOSITION_DATA_KEY] = data
+    return DisposableHandle { if (this[COMPOSITION_DATA_KEY] === data) this[COMPOSITION_DATA_KEY] = null }
 }
 
 /** The slot table published on this component, or `null` where none is. */
@@ -121,8 +126,9 @@ internal class InspectionGate {
 }
 
 /**
- * Records where each component of the composition around this call was declared, and publishes its slot
- * table on [host], for as long as this call stands in that composition.
+ * Records where each component of the composition around this call was declared, and hands its slot
+ * table to [publish], for as long as this call stands in that composition. A composition rooted at no
+ * component that carries a client-property bag passes `null` and records nothing.
  *
  * The caller decides when it stands: it is declared while [isDebugInspectorInfoEnabled] is on and gone
  * when it goes off, and the caller keys its content on the same answer so the pass that follows inserts
@@ -131,11 +137,11 @@ internal class InspectionGate {
  */
 @Composable
 internal fun InspectedContent(
-    host: JComponent?,
+    publish: ((CompositionData) -> DisposableHandle)?,
     inspecting: Boolean,
     content: @Composable () -> Unit,
 ) {
-    val recording = host?.takeIf { inspecting }
+    val recording = publish?.takeIf { inspecting }
     if (recording != null) InspectedEffect(recording)
     // Keyed on the answer: building afresh discards everything the content remembered; state hoisted
     // above it survives.
@@ -143,7 +149,7 @@ internal fun InspectedContent(
 }
 
 @Composable
-private fun InspectedEffect(host: JComponent) {
+private fun InspectedEffect(publish: (CompositionData) -> DisposableHandle) {
     val composer = currentComposer
     // Asked during the pass rather than from an effect: a group already in the slot table can never gain
     // source information, so this has to take hold before the content below is inserted, and an effect
@@ -158,11 +164,9 @@ private fun InspectedEffect(host: JComponent) {
             composer.collectParameterInformation()
             composer.compositionData
         }
-    DisposableEffect(Unit) {
-        host.publishCompositionData(data)
-        // Only this composition's own publication is withdrawn, so a teardown can never blind a live
-        // composition that published on the same host after it.
-        onDispose { if (host.publishedCompositionData() === data) host.publishCompositionData(null) }
+    DisposableEffect(publish) {
+        val handle = publish(data)
+        onDispose { handle.dispose() }
     }
 }
 

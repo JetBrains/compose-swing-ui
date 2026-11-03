@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.foundation.graphics.RedrawTimingDrawCacheTest.Nesting
 import org.jetbrains.compose.swing.foundation.layout.Column
@@ -11,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -196,8 +198,11 @@ class RedrawTimingDrawCacheTest {
     @Test
     fun aRepaintFromThePaintOverrideInARedrawMergedIntoADirtyAncestorRecordsAgain() =
         runComposeSwingTest {
-            val label = DecoratedLabel()
-            val fixture = showFixture(decorated = label)
+            val fixture = showFixture(decorated = true)
+            val label =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<DecoratedLabel>())
+                    .fetch<DecoratedLabel>()
             redrawAndDeliver(fixture.outer)
 
             fixture.assertShowsWhatAFreshPaintDoes {
@@ -213,8 +218,11 @@ class RedrawTimingDrawCacheTest {
     @Test
     fun aRedrawThatReturnsBeforeItPaintsLeavesTheNextRepaintRecordingAgain() =
         runComposeSwingTest {
-            val label = DecoratedLabel()
-            val fixture = showFixture(decorated = label)
+            val fixture = showFixture(decorated = true)
+            val label =
+                onWindowWithTitle(WINDOW_TITLE)
+                    .onNode(SwingMatcher.isOfType<DecoratedLabel>())
+                    .fetch<DecoratedLabel>()
             redrawAndDeliver(fixture.outer)
             val stepPaints = fixture.outer.stepPaints
 
@@ -451,18 +459,17 @@ private class DecoratedLabel :
     }
 }
 
-/** Where [decorated] is given, it is the container, with no children, and the only label. */
+/** Where [decorated] is true, it is the container, with no children, and the only label. */
 private suspend fun ComposeSwingTest.showFixture(
     labelCount: Int = 3,
     nesting: Nesting = Nesting.None,
-    decorated: DecoratedLabel? = null,
+    decorated: Boolean = false,
     around: SwingModifier = SwingModifier,
 ): WindowFixture {
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     val tapElement = TapElement()
     val outerStep = CachingStep()
     val innerStep = CachingStep()
-    val labels = decorated?.let(::listOf) ?: List(labelCount) { CountingLabel() }
     setWindowContent {
         val secondStep = if (nesting == Nesting.SecondStep) innerStep else SwingModifier
         val steps =
@@ -472,10 +479,10 @@ private suspend fun ComposeSwingTest.showFixture(
                 .then(tapElement)
                 .then(outerStep)
                 .then(secondStep)
-        if (decorated != null) {
-            Column { SwingNode(factory = { decorated }, modifier = steps) }
+        if (decorated) {
+            Column { SwingNode(factory = { DecoratedLabel() }, modifier = steps) }
         } else {
-            NestedLabels(nesting, labels, innerStep, modifier = steps)
+            NestedLabels(nesting, labelCount, innerStep, modifier = steps)
         }
     }
     val frame = onWindowWithTitle(WINDOW_TITLE).fetch<JFrame>()
@@ -487,31 +494,42 @@ private suspend fun ComposeSwingTest.showFixture(
     waitUntil(timeout = 10.seconds) {
         container.isValid && tap.covers(Rectangle(0, 0, container.width, container.height))
     }
+    val labels =
+        onWindowWithTitle(WINDOW_TITLE)
+            .onAllNodes(SwingMatcher.isOfType<CountingLabel>())
+            .fetchAll<CountingLabel>()
     return WindowFixture(tap, outerStep.created.single(), innerStep.created.singleOrNull(), labels, container)
 }
 
 @Composable
 private fun NestedLabels(
     nesting: Nesting,
-    labels: List<CountingLabel>,
+    labelCount: Int,
     innerStep: CachingStep,
     modifier: SwingModifier = SwingModifier,
 ) {
     Column(modifier = modifier) {
         when (nesting) {
             Nesting.None, Nesting.SecondStep -> {
-                labels.forEach { SwingNode(factory = { it }) }
+                LabelNodes(labelCount)
             }
 
             Nesting.FoundationContainer -> {
-                Column(modifier = SwingModifier.then(innerStep)) { labels.forEach { SwingNode(factory = { it }) } }
+                Column(modifier = SwingModifier.then(innerStep)) { LabelNodes(labelCount) }
             }
 
             Nesting.StockPanel -> {
-                SwingNode(factory = { JPanel().apply { labels.forEach(::add) } })
+                key(labelCount) {
+                    SwingNode(factory = { JPanel().apply { repeat(labelCount) { add(CountingLabel()) } } })
+                }
             }
         }
     }
+}
+
+@Composable
+private fun LabelNodes(labelCount: Int) {
+    repeat(labelCount) { SwingNode(factory = { CountingLabel() }) }
 }
 
 private suspend fun ComposeSwingTest.redrawAndDeliver(node: CachingNode) {

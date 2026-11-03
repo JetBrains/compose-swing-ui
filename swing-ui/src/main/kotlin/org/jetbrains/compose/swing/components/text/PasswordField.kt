@@ -5,6 +5,7 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.PasswordFields
 import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -263,6 +264,7 @@ public fun PasswordField(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun PasswordFieldImpl(
     echoChar: Char?,
     columns: Int,

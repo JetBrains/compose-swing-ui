@@ -5,10 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposableOpenTarget
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.State
-import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.core.LifecycleOwnerResolution
 import org.jetbrains.compose.swing.core.ParentComposition
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
@@ -95,7 +95,7 @@ public fun JComponent.setContent(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    val compose = { resolved: ParentComposition, window: State<Window?>, lifecycle: LifecycleOwner ->
+    val compose = { resolved: ParentComposition, window: State<Window?>, lifecycle: LifecycleOwnerResolution ->
         mountContent(resolved, window, lifecycle, content)
     }
     return if (parent == null) {
@@ -119,19 +119,19 @@ public fun JComponent.setContent(
  * A window's shared recomposer is a composition root rather than a composition, so it carries no
  * [androidx.compose.runtime.CompositionLocal]s and the window has to be stated here. [window] is the one
  * the content stands in and follows, so content mounted under no window reads the one it later reaches.
- * [lifecycle] is the owner the content reads where nothing composed above it provides one.
+ * [lifecycle] is the resolution whose owner the content reads where nothing composed above it provides one.
  */
 private fun JComponent.mountContent(
     parent: ParentComposition,
     window: State<Window?>,
-    lifecycle: LifecycleOwner,
+    lifecycle: LifecycleOwnerResolution,
     content:
         @Composable @SwingComposable
         () -> Unit,
 ): SwingContentComposition {
     val composition =
         SwingContentComposition.nested(parent.context, CreatedNodeHolder(this), this, ::SwingApplier)
-    composition.setContent { ProvideContentLocals(window, lifecycle, this, content = content) }
+    composition.setContent { ProvideContentLocals(window, lifecycle, content = content) }
     return composition
 }
 
@@ -233,7 +233,7 @@ public fun JMenuBar.setContent(
 
     return mountWhenParentResolves(this) { parent, window, lifecycle ->
         composeMenuContent(parent.context) {
-            ProvideContentLocals(window, lifecycle, this, content = content)
+            ProvideContentLocals(window, lifecycle, content = content)
         }
     }
 }
@@ -304,7 +304,7 @@ public fun JPopupMenu.setContent(
         parent,
         remedy = "Name a recomposer that is not shut down.",
     ) { named, window, lifecycle ->
-        composeMenuContent(named.context) { ProvideContentLocals(window, lifecycle, this, content = content) }
+        composeMenuContent(named.context) { ProvideContentLocals(window, lifecycle, content = content) }
     }
 }
 

@@ -153,6 +153,7 @@ public fun ScrollPane(
 }
 
 @Composable
+@SwingComponentLibraryApi
 private inline fun ScrollPaneNode(
     crossinline factory: () -> JScrollPane,
     modifier: SwingModifier,

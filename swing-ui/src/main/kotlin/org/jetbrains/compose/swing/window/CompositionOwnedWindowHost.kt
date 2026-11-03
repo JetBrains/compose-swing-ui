@@ -2,17 +2,20 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.DisposableEffectResult
+import androidx.compose.runtime.DisposableEffectScope
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
 import org.jetbrains.compose.swing.core.LIFECYCLE_PLACE_CHANGE_FLAGS
 import org.jetbrains.compose.swing.core.LifecycleOwnerResolution
@@ -87,6 +90,7 @@ import javax.swing.SwingUtilities
  * @param content the window's content, composed against a [WindowScope] standing for [peer].
  */
 @Composable
+@SwingComponentLibraryApi
 internal fun CompositionOwnedWindowHost(
     peer: Window,
     onCloseRequest: () -> Unit,
@@ -163,12 +167,19 @@ internal fun CompositionOwnedWindowHost(
         val disposeLifecycle = lifecycle.installFor(container.contentPane)
         val handle =
             disposingOnFailure(disposeLifecycle) {
+                // A composed window is its content's window for as long as that peer stands, so the
+                // window the locals follow is this one and never moves.
                 container.contentPane.setContentAsInteropHost(parentContext) {
-                    // A composed window is its content's window for as long as that peer stands, so the
-                    // window the locals follow is this one and never moves.
-                    val standingIn = remember(peer) { mutableStateOf<Window?>(peer) }
-                    ProvideWindowLocals(standingIn, lifecycle.owner, container.contentPane) {
-                        PublishContentParent(container.contentPane)
+                    ProvideWindowLocals(peer, lifecycle) {
+                        // Publishes this composition as the parent that content on the pane, or under it, joins. The
+                        // context captured above belongs to the declaring composition, so a content composition
+                        // joining that one would read the window behind a dialog; this one is captured under the
+                        // locals the peer states. It is published from inside the composition the hosting root
+                        // owns, so it always lands over that root's context: the two nest rather than race.
+                        val context = rememberCompositionContext()
+                        DisposableEffect(container.contentPane, context) {
+                            publishContentParent(container.contentPane, context)
+                        }
                         scope.currentContent()
                     }
                 }
@@ -219,6 +230,15 @@ internal fun CompositionOwnedWindowHost(
             applyExtras()
         }
     }
+}
+
+private fun DisposableEffectScope.publishContentParent(
+    contentPane: Container,
+    context: CompositionContext,
+): DisposableEffectResult {
+    val host = contentPane as? JComponent
+    host?.setCompositionContext(context)
+    return onDispose { host?.setCompositionContext(null) }
 }
 
 /**
@@ -305,33 +325,6 @@ private class ObservedPeerApply : RememberObserver {
         released = true
         observer.stop()
         observer.clear()
-    }
-}
-
-/**
- * Publishes the composition this composes in as the parent a `setContent` on [contentPane], or on
- * anything under it, joins - for as long as this stays composed.
- *
- * The peer's content is hosted under a context captured in the enclosing composition, which is the
- * composition of whatever the declaration was made in: a content composition joining that one reads the
- * window around the declaration, which for a dialog declared in a window's content is the frame behind
- * it. The context published here is captured under the locals this peer states, so a content composition
- * nested in this window reads them - the window it is in above all - and recomposes with the rest
- * of the content it is nested in.
- *
- * The `setContent` root that hosts this peer's content publishes the same [contentPane] with the context it
- * composes under, and this deliberately supersedes it: both name a valid parent, and this one is the only
- * one carrying the locals the peer states. The published contexts nest rather than race - this one is written from
- * inside the composition that root owns, so it lands over that published context and is the one a content composition
- * joining from under this peer reads.
- */
-@Composable
-private fun PublishContentParent(contentPane: Container) {
-    val context = rememberCompositionContext()
-    DisposableEffect(contentPane, context) {
-        val host = contentPane as? JComponent
-        host?.setCompositionContext(context)
-        onDispose { host?.setCompositionContext(null) }
     }
 }
 

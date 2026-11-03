@@ -14,6 +14,7 @@ import java.awt.Component
  *
  * [P] is the fixture's parameters: a data class whose properties match the raw composable's parameters in
  * name, type and order. [C] is the raw Swing component the composable must match.
+ * A modifier fixture's raw composable instead takes the modifier built from [P]'s properties.
  *
  * @property initial the values the fixture starts from.
  */

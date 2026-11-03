@@ -29,7 +29,6 @@ import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 private val LocalProbe = compositionLocalOf { "default" }
 
@@ -41,13 +40,13 @@ class StyleLocalTest {
         val locals = if (reverse) listOf(alias, InheritedFirst) else listOf(InheritedFirst, alias)
         setContent {
             ProbeContainer(
-                StyleProbe("parent"),
+                "parent",
                 {
                     locals[0].provide("first")
                     locals[1].provide("last")
                 },
             ) {
-                ProbeLeaf(StyleProbe("leaf"), SwingStyle, PlainProbe)
+                ProbeLeaf("leaf", SwingStyle, PlainProbe)
             }
         }
         onProbe("parent").assertProperty("last") { first }
@@ -69,9 +68,8 @@ class StyleLocalTest {
                 alias.provide("later")
                 InheritedSecond.provide(null)
             }
-        val leaf = StyleProbe("leaf")
         setContent {
-            ProbeContainer(StyleProbe("outer"), { InheritedSecond.provide("farther") }) {
+            ProbeContainer("outer", { InheritedSecond.provide("farther") }) {
                 val firstModifier =
                     if (includeFirst) {
                         SwingModifier.styleable(PlainProbeContainer, firstStyle)
@@ -89,7 +87,7 @@ class StyleLocalTest {
                         .then(firstModifier)
                         .then(laterModifier)
                 SwingNode(factory = { StyleProbe("parent") }, modifier = modifier) {
-                    ProbeLeaf(leaf, SwingStyle, PlainProbe)
+                    ProbeLeaf("leaf", SwingStyle, PlainProbe)
                 }
             }
         }
@@ -126,15 +124,15 @@ class StyleLocalTest {
         val locals = if (reverse) listOf(alias, InheritedFirst) else listOf(InheritedFirst, alias)
         var barrier by mutableStateOf(true)
         setContent {
-            ProbeContainer(StyleProbe(), { locals[0].provide("farther") }) {
+            ProbeContainer(null, { locals[0].provide("farther") }) {
                 ProbeContainer(
-                    StyleProbe("parent"),
+                    "parent",
                     {
                         locals[0].provide("nearer")
                         locals[1].provide(if (barrier) null else "last")
                     },
                 ) {
-                    ProbeLeaf(StyleProbe("leaf"), SwingStyle, PlainProbe)
+                    ProbeLeaf("leaf", SwingStyle, PlainProbe)
                 }
             }
         }
@@ -158,9 +156,9 @@ class StyleLocalTest {
         val outer = if (reverse) alias else InheritedFirst
         val inner = if (reverse) InheritedFirst else alias
         setContent {
-            ProbeContainer(StyleProbe(), { outer.provide("farther") }) {
-                ProbeContainer(StyleProbe(), { inner.provide(null) }) {
-                    ProbeLeaf(StyleProbe("leaf"), SwingStyle, PlainProbe)
+            ProbeContainer(null, { outer.provide("farther") }) {
+                ProbeContainer(null, { inner.provide(null) }) {
+                    ProbeLeaf("leaf", SwingStyle, PlainProbe)
                 }
             }
         }
@@ -169,25 +167,24 @@ class StyleLocalTest {
 
     @Test
     fun aLocalSetToNullStopsInheritanceAtThatContainer() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
         setContent {
-            ProbeContainer(StyleProbe(), { InheritedFirst.provide("farther") }) {
-                ProbeLeaf(StyleProbe("sibling"), SwingStyle, PlainProbe)
-                ProbeContainer(StyleProbe(), { InheritedFirst.provide(null) }) {
-                    ProbeLeaf(leaf, SwingStyle, PlainProbe)
+            ProbeContainer(null, { InheritedFirst.provide("farther") }) {
+                ProbeLeaf("sibling", SwingStyle, PlainProbe)
+                ProbeContainer(null, { InheritedFirst.provide(null) }) {
+                    ProbeLeaf("leaf", SwingStyle, PlainProbe)
                 }
             }
         }
         onProbe("sibling").assertProperty("farther") { first }
         onProbe("leaf").assertProperty(PROBE_OWN_VALUE, "below the null the component keeps its own value") { first }
-        assertEquals(emptyList(), leaf.writes)
+        onProbe("leaf").assertWrites(emptyList())
     }
 
     @Test
     fun aLocalIsNotAppliedToAComponentItsDescriptorDoesNotHandle() = runComposeSwingTest {
         setContent {
-            ProbeContainer(StyleProbe(), { InheritedFirst.provide("inherited") }) {
-                ProbeLeaf(StyleProbe("leaf"), SwingStyle, PlainProbe)
+            ProbeContainer(null, { InheritedFirst.provide("inherited") }) {
+                ProbeLeaf("leaf", SwingStyle, PlainProbe)
                 SwingNode(
                     factory = { JLabel() },
                     modifier = SwingModifier.styleable(PlainProbe) { LabelText.provide("own style") },
@@ -202,8 +199,8 @@ class StyleLocalTest {
     @Test
     fun aLocalIsNotInheritedWhereTheStyleSetsTheSamePropertyThroughAnotherStyleProperty() = runComposeSwingTest {
         setContent {
-            ProbeContainer(StyleProbe(), { InheritedFirst.provide("inherited") }) {
-                ProbeLeaf(StyleProbe("leaf"), { ProbeFirst.provide("own style") }, PlainProbe)
+            ProbeContainer(null, { InheritedFirst.provide("inherited") }) {
+                ProbeLeaf("leaf", { ProbeFirst.provide("own style") }, PlainProbe)
             }
         }
         onProbe("leaf").assertProperty("own style") { first }
@@ -211,22 +208,20 @@ class StyleLocalTest {
 
     @Test
     fun aLocalTheCallerStopsSettingTakesTheInheritedValueInTheSameResolve() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
         var setsOwn by mutableStateOf(true)
         val style = SwingStyle<ProbeScope> { if (setsOwn) InheritedFirst.provide("caller") }
         setContent {
-            ProbeContainer(StyleProbe(), { InheritedFirst.provide("inherited") }) {
-                ProbeLeaf(leaf, style, PlainProbe)
+            ProbeContainer(null, { InheritedFirst.provide("inherited") }) {
+                ProbeLeaf("leaf", style, PlainProbe)
             }
         }
         onProbe("leaf").assertProperty("caller") { first }
-        leaf.writes.clear()
+        onProbe("leaf").clearWrites()
 
         setsOwn = false
         awaitIdle()
-        assertEquals(
+        onProbe("leaf").assertWrites(
             listOf("first=inherited"),
-            leaf.writes,
             "the inherited value is written over the caller's, with no restore of the component's own between",
         )
     }

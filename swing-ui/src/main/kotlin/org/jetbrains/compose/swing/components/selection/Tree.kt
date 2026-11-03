@@ -281,6 +281,7 @@ public fun <T> Tree(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun <T> TreeValuesImpl(
     noinline factory: () -> JTree,
@@ -512,6 +513,7 @@ public fun Tree(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun TreeModelImpl(
     noinline factory: () -> JTree,
@@ -918,6 +920,7 @@ private class UserExpansionListener(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun TreeNode(
     noinline factory: () -> JTree,
     rendererProperty: ComponentPropertyDescriptor<JTree, TreeCellRenderer?>,

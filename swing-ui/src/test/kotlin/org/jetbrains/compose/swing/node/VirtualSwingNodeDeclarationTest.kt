@@ -22,7 +22,12 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.style.NestedProbe
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.params.ParameterizedTest
@@ -52,26 +57,31 @@ class VirtualSwingNodeDeclarationTest {
         content: @Composable () -> Unit,
         expected: Map<String, List<String>>,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
-        setContent { SwingNode(factory = { host }, content = content) }
+        setContent { SwingNode(factory = { MeasuringHost() }, content = content) }
 
         for ((text, tags) in expected) {
-            onNodeWithText(text).assertProperty(tags, "$case: $text") { host.recording.tagsOf(this) }
+            onNodeWithText(text).assertProperty(tags, "$case: $text") {
+                (parent as MeasuringHost).recording.tagsOf(this)
+            }
         }
     }
 
     @Test
     fun groupDeclarationsStopAtTheFirstComponent() = runComposeSwingTest {
-        val outer = MeasuringHost()
-        val inner = MeasuringHost()
         setContent {
-            SwingNode(factory = {
-                outer
-            }) { VirtualSwingNode(SwingModifier.mark("A")) { SwingNode(factory = { inner }) { Label("x") } } }
+            SwingNode(factory = { MeasuringHost() }) {
+                VirtualSwingNode(SwingModifier.mark("A")) {
+                    SwingNode(factory = { MeasuringHost() }) { Label("x") }
+                }
+            }
         }
 
-        assertEquals(listOf("A"), outer.recording.tagsOf(inner))
-        onNodeWithText("x").assertProperty(emptyList()) { inner.recording.tagsOf(this) }
+        onNodeWithText("x")
+            .onParent()
+            .onParent()
+            .assertIsOfType<MeasuringHost>()
+            .assertProperty(listOf("A")) { recording.tagsOf(getComponent(0)) }
+        onNodeWithText("x").assertProperty(emptyList()) { (parent as MeasuringHost).recording.tagsOf(this) }
     }
 
     @Test
@@ -105,11 +115,10 @@ class VirtualSwingNodeDeclarationTest {
         content: @Composable () -> Unit,
         expected: List<String>,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
-        setContent { SwingNode(factory = { host }, content = content) }
+        setContent { SwingNode(factory = { MeasuringHost() }, content = content) }
 
-        assertEquals(listOf("a"), host.texts(), case)
-        onNodeWithText("a").assertProperty(expected, case) { host.recording.parentDataOf(this) }
+        onNodeOfType<MeasuringHost>().assertProperty(listOf("a"), case) { texts() }
+        onNodeWithText("a").assertProperty(expected, case) { (parent as MeasuringHost).recording.parentDataOf(this) }
     }
 
     @ExclusiveWindowSystem
@@ -117,7 +126,6 @@ class VirtualSwingNodeDeclarationTest {
     fun changingTheGroupModifierKeepsTheFocusedChildFocused() {
         assumeKeyboardFocusIsPossible()
         runComposeSwingTest {
-            val host = MeasuringHost()
             var tag by mutableStateOf("A")
             lateinit var anchor: FocusRequester
             lateinit var requester: FocusRequester
@@ -125,7 +133,7 @@ class VirtualSwingNodeDeclarationTest {
                 Window(onCloseRequest = {}, title = "virtual-node-focus-test") {
                     anchor = rememberFocusRequester()
                     requester = rememberFocusRequester()
-                    SwingNode(factory = { host }) {
+                    SwingNode(factory = { MeasuringHost() }) {
                         TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                         VirtualSwingNode(SwingModifier.mark(tag)) {
                             TextField("field", onValueChange = {}, modifier = SwingModifier.focusRequester(requester))
@@ -133,13 +141,17 @@ class VirtualSwingNodeDeclarationTest {
                     }
                 }
             }
+            val host =
+                onWindowWithTitle("virtual-node-focus-test")
+                    .onNode(SwingMatcher.isOfType<MeasuringHost>())
+                    .fetch<MeasuringHost>()
             assumeWindowBecomesFocused(SwingUtilities.getWindowAncestor(host) as JFrame)
-            val anchorField = host.components[0] as JTextField
-            val field = host.components[1] as JTextField
+            val field = onWindowWithTitle("virtual-node-focus-test").onNodeWithText("field").fetch<JTextField>()
             // A window gives its only focusable component the keyboard by itself, and Swing refuses a request for the
             // current focus owner, so the field takes the keyboard from another owner.
             anchor.requestFocus()
-            waitUntil { anchorField.isFocusOwner }
+            val anchorFinder = onWindowWithTitle("virtual-node-focus-test").onNodeWithText("anchor")
+            waitUntil { runCatching { anchorFinder.assertIsFocusOwner() }.isSuccess }
             assertTrue(requester.requestFocus(), "the field takes the keyboard before the change")
             waitUntil { field.isFocusOwner }
 
@@ -160,9 +172,9 @@ class VirtualSwingNodeDeclarationTest {
         current: List<List<String>>,
         change: GroupDeclarationChange,
     ) = runComposeSwingTest {
-        val host = MeasuringHost()
         var suffix by mutableStateOf("0")
-        setContent { SwingNode(factory = { host }) { content(suffix) } }
+        setContent { SwingNode(factory = { MeasuringHost() }) { content(suffix) } }
+        val host = onNodeOfType<MeasuringHost>().fetch()
         assertEquals(change.beforeTexts, host.texts(), case)
         assertEquals(change.beforeTags, host.components.map { host.recording.tagsOf(it) }, case)
         assertEquals(change.data.before, host.components.map { host.recording.parentDataOf(it) }, case)
@@ -189,7 +201,6 @@ class VirtualSwingNodeDeclarationTest {
     @ParameterizedTest(name = "restore placement: {0}")
     @ValueSource(booleans = [true, false])
     fun reapplyingAStyledDeclarationMergesStyleOnlyForPublication(restore: Boolean) = runComposeSwingTest {
-        val host = MeasuringHost()
         var keyReads = 0
         val counted =
             object : ParentLayoutElement {
@@ -202,7 +213,7 @@ class VirtualSwingNodeDeclarationTest {
             }
         var changed by mutableStateOf(false)
         setContent {
-            StyledHost(host, "styled", MarkProperty) {
+            StyledHost("styled", MarkProperty) {
                 SwingNode(
                     factory = { JLabel("a") },
                     modifier =
@@ -217,6 +228,7 @@ class VirtualSwingNodeDeclarationTest {
                 )
             }
         }
+        val host = hostOf()
         keyReads = 0
         host.recording.declarations.clear()
 

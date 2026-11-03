@@ -36,7 +36,6 @@ internal class StyleResolutionTest {
     fun aWriteChangingStateAnotherStyleReadsResolvesItOnceTheOuterResolveIsWritten() = runComposeSwingTest {
         var pass by mutableIntStateOf(0)
         var otherValue by mutableStateOf<String?>("other 0")
-        val other = StyleProbe("other")
         val valuesDuringWrite = ArrayList<String?>()
         val restylesOther =
             stylePropertyOf(
@@ -47,13 +46,13 @@ internal class StyleResolutionTest {
                         component.fourth = value
                         Snapshot.withMutableSnapshot { otherValue = value }
                         Snapshot.sendApplyNotifications()
-                        if (value == "other 1") valuesDuringWrite += other.fourth
+                        if (value == "other 1") valuesDuringWrite += onProbe("other").fetch().fourth
                     },
                 ),
             )
         setContent {
             val currentPass = pass
-            ProbeLeaf(other, { ProbeFourth.provide(otherValue) }, PlainProbe)
+            ProbeLeaf("other", { ProbeFourth.provide(otherValue) }, PlainProbe)
             SwingNode(
                 factory = { StyleProbe("outer") },
                 modifier =
@@ -128,10 +127,10 @@ internal class StyleResolutionTest {
             val input = nestedInput
             CompositionLocalProvider(LocalProviderValue provides value) {
                 ProbeContainer(
-                    StyleProbe(),
+                    null,
                     { provideNestedStyle(Probes) { ProbeFirst.provide("${LocalProviderValue.currentValue}:$input") } },
                 ) {
-                    ProbeLeaf(StyleProbe("leaf"), SwingStyle, NestedProbe)
+                    ProbeLeaf("leaf", SwingStyle, NestedProbe)
                 }
             }
         }
@@ -179,8 +178,8 @@ internal class StyleResolutionTest {
                 applyNestedStyle(Probes)
             }
         setContent {
-            ProbeContainer(StyleProbe("provider"), provider) {
-                ProbeLeaf(StyleProbe("leaf"), SwingStyle, kind)
+            ProbeContainer("provider", provider) {
+                ProbeLeaf("leaf", SwingStyle, kind)
             }
         }
         onProbe("leaf").assertProperty(if (input in listOf("provided value", "nested block")) "first" else "fixed") {
@@ -220,7 +219,7 @@ internal class StyleResolutionTest {
                 if (input == "direct state") ProbeFirst.provide(value.value)
             }
         setContent {
-            ProbeContainer(StyleProbe(), provider) {
+            ProbeContainer(null, provider) {
                 SwingNode(
                     factory = { StyleProbe("leaf") },
                     modifier = SwingModifier.property(FirstDescriptor, earlier.value).styleable(NestedProbe, style),
@@ -240,7 +239,6 @@ internal class StyleResolutionTest {
 
     @Test
     fun nestedStylePrecedence() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
         val kind =
             probeKind {
                 applyNestedStyle(Probes)
@@ -248,7 +246,7 @@ internal class StyleResolutionTest {
                 ProbeFourth.provide("default")
             }
         setContent {
-            ProbeContainer(StyleProbe(), {
+            ProbeContainer(null, {
                 provideNestedStyle(Probes) {
                     ProbeFirst.provide("farther")
                     ProbeSecond.provide("farther")
@@ -256,27 +254,25 @@ internal class StyleResolutionTest {
                     ProbeFourth.provide("farther")
                 }
             }) {
-                ProbeContainer(StyleProbe(), {
+                ProbeContainer(null, {
                     provideNestedStyle(Probes) {
                         ProbeSecond.provide("nearer")
                         ProbeThird.provide("nearer")
                         ProbeFourth.provide("nearer")
                     }
                 }) {
-                    ProbeLeaf(leaf, { ProbeFourth.provide("caller") }, kind)
+                    ProbeLeaf("leaf", { ProbeFourth.provide("caller") }, kind)
                 }
             }
         }
-        assertEquals(
+        onProbe("leaf").assertWrites(
             listOf("first=farther", "second=nearer", "third=default", "fourth=caller"),
-            leaf.writes,
             "each property is written once, with the value of the last style in order that set it",
         )
     }
 
     @Test
     fun nearerProviderFallsBackPerProperty() = runComposeSwingTest {
-        val leaf = StyleProbe("leaf")
         var nearerProvides by mutableStateOf(true)
         val farther =
             SwingStyle<ProbeContainerScope> {
@@ -290,17 +286,17 @@ internal class StyleResolutionTest {
                 if (nearerProvides) provideNestedStyle(Probes) { ProbeSecond.provide("nearer") }
             }
         setContent {
-            ProbeContainer(StyleProbe(), farther) {
-                ProbeContainer(StyleProbe(), nearer) {
-                    ProbeLeaf(leaf, SwingStyle, NestedProbe)
+            ProbeContainer(null, farther) {
+                ProbeContainer(null, nearer) {
+                    ProbeLeaf("leaf", SwingStyle, NestedProbe)
                 }
             }
         }
         onProbe("leaf").assertProperty("farther") { first }.assertProperty("nearer") { second }
-        leaf.writes.clear()
+        onProbe("leaf").clearWrites()
         nearerProvides = false
         awaitIdle()
-        assertEquals(listOf("second=farther"), leaf.writes, "only the nearer value is replaced")
+        onProbe("leaf").assertWrites(listOf("second=farther"), "only the nearer value is replaced")
     }
 
     @Test
@@ -320,7 +316,7 @@ internal class StyleResolutionTest {
                         SwingModifier
                     },
             ) {
-                ProbeLeaf(StyleProbe("leaf"), SwingStyle, NestedProbe)
+                ProbeLeaf("leaf", SwingStyle, NestedProbe)
             }
         }
         onProbe("leaf").assertProperty(PROBE_OWN_VALUE) { first }

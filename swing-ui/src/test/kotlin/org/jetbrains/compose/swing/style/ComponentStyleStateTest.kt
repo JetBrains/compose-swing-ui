@@ -62,7 +62,6 @@ class ComponentStyleStateTest {
     @ParameterizedTest
     @EnumSource(StateReadCase::class)
     fun onlyReadStateResolvesStyles(case: StateReadCase) = runComposeSwingTest {
-        val probe = StyleProbe("probe")
         val checked = mutableStateOf(false)
         var resolves = 0
         var compositions = 0
@@ -81,15 +80,15 @@ class ComponentStyleStateTest {
             }
         setContent {
             SideEffect { compositions++ }
-            CheckableFrom({ checked.value }, probe, style, kind)
+            CheckableFrom({ checked.value }, "probe", style, kind)
         }
         onProbe("probe").assertProperty(case.initial) { first }
         val composed = compositions
         val resolved = resolves
-        probe.writes.clear()
+        onProbe("probe").clearWrites()
         checked.value = true
         awaitIdle()
-        assertEquals(case.writes, probe.writes)
+        onProbe("probe").assertWrites(case.writes)
         assertEquals(resolved + case.resolutions, resolves)
         assertEquals(composed, compositions)
         onProbe("probe").assertProperty(case.updated) { first }
@@ -97,8 +96,6 @@ class ComponentStyleStateTest {
 
     @Test
     fun aNestedBlockReadsTheConsumersStateNotTheProviders() = runComposeSwingTest {
-        val unchecked = StyleProbe("unchecked")
-        val checked = StyleProbe("checked")
         val firstChecked = mutableStateOf(false)
         val kind = checkableKind { applyNestedStyle(CheckableProbes) }
         val container =
@@ -113,22 +110,22 @@ class ComponentStyleStateTest {
                 factory = { StyleProbe() },
                 modifier = SwingModifier.styleable(CheckableContainerKind, providerState, container),
             ) {
-                CheckableFrom({ firstChecked.value }, unchecked, SwingStyle, kind)
-                CheckableFrom({ true }, checked, SwingStyle, kind)
+                CheckableFrom({ firstChecked.value }, "unchecked", SwingStyle, kind)
+                CheckableFrom({ true }, "checked", SwingStyle, kind)
             }
         }
         onProbe("unchecked").assertProperty("unchecked", "the block reads the consumer's state, not the provider's") {
             first
         }
         onProbe("checked").assertProperty("checked") { first }
-        checked.writes.clear()
+        onProbe("checked").clearWrites()
 
         firstChecked.value = true
         awaitIdle()
         onProbe("unchecked").assertProperty("checked", "the consumer whose state flipped resolves its block again") {
             first
         }
-        assertEquals(emptyList(), checked.writes, "a consumer whose state stayed writes nothing")
+        onProbe("checked").assertWrites(emptyList(), "a consumer whose state stayed writes nothing")
     }
 
     @ParameterizedTest
@@ -456,12 +453,16 @@ private val CheckableContainerKind =
 @Composable
 private fun CheckableFrom(
     checked: () -> Boolean,
-    probe: StyleProbe,
+    name: String,
     style: SwingStyle<CheckableScope>,
     kind: SwingStyleKind<CheckableScope, State<Boolean>>,
 ) {
     val state = rememberUpdatedState(checked())
-    SwingNode(factory = { probe }, modifier = SwingModifier.styleable(kind, state, style))
+    SwingNode(
+        factory = { StyleProbe() },
+        modifier = SwingModifier.styleable(kind, state, style),
+        update = { set(name) { this.name = it } },
+    )
 }
 
 enum class StateReadCase(

@@ -91,29 +91,29 @@ class ModifierChainSkipTest {
 
         private fun skipped(
             name: String,
-            factory: () -> JComponent,
+            kind: ProbeKind,
             declare: SwingModifier.() -> SwingModifier,
-        ): Arguments = Arguments.of(Named.of(name, factory), declare)
+        ): Arguments = Arguments.of(Named.of(name, kind), declare)
 
         @JvmStatic
         fun listenersKeepingTheirCallbacks(): List<Arguments> = listOf(
-            skipped("typed action listener", { JButton() }) { actionListener<JButton>(onButtonAction) },
-            skipped("typed item listener", { JCheckBox() }) { itemListener<JCheckBox>(onCheckBoxItem) },
-            skipped("typed change listener", { JSlider() }) { changeListener<JSlider>(onSliderChange) },
-            skipped("typed list selection listener", { JList<String>() }) {
+            skipped("typed action listener", ProbeKind.Button) { actionListener<JButton>(onButtonAction) },
+            skipped("typed item listener", ProbeKind.CheckBox) { itemListener<JCheckBox>(onCheckBoxItem) },
+            skipped("typed change listener", ProbeKind.Slider) { changeListener<JSlider>(onSliderChange) },
+            skipped("typed list selection listener", ProbeKind.List) {
                 listSelectionListener<JList<*>>(onListSelection)
             },
-            skipped("typed property change listener", { JPanel() }) {
+            skipped("typed property change listener", ProbeKind.Panel) {
                 propertyChangeListener<JPanel>("name", onPanelProperty)
             },
-            skipped("component listener, one callback", { JPanel() }) { componentListener(onAnyEvent) },
-            skipped("component listener, every callback", { JPanel() }) {
+            skipped("component listener, one callback", ProbeKind.Panel) { componentListener(onAnyEvent) },
+            skipped("component listener, every callback", ProbeKind.Panel) {
                 componentListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent)
             },
-            skipped("container listener", { JPanel() }) { containerListener(onAnyEvent, onAnyEvent) },
-            skipped("document listener", { JTextField() }) { documentListener(onAnyEvent, onAnyEvent, onAnyEvent) },
-            skipped("focus listener", { JPanel() }) { focusListener(onAnyEvent, onAnyEvent) },
-            skipped("internal frame listener", { JInternalFrame() }) {
+            skipped("container listener", ProbeKind.Panel) { containerListener(onAnyEvent, onAnyEvent) },
+            skipped("document listener", ProbeKind.TextField) { documentListener(onAnyEvent, onAnyEvent, onAnyEvent) },
+            skipped("focus listener", ProbeKind.Panel) { focusListener(onAnyEvent, onAnyEvent) },
+            skipped("internal frame listener", ProbeKind.InternalFrame) {
                 internalFrameListener(
                     onAnyEvent,
                     onAnyEvent,
@@ -124,35 +124,35 @@ class ModifierChainSkipTest {
                     onAnyEvent,
                 )
             },
-            skipped("key listener", { JPanel() }) { keyListener(onAnyEvent, onAnyEvent, onAnyEvent) },
-            skipped("mouse listener", { JPanel() }) {
+            skipped("key listener", ProbeKind.Panel) { keyListener(onAnyEvent, onAnyEvent, onAnyEvent) },
+            skipped("mouse listener", ProbeKind.Panel) {
                 mouseListener(onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent, onAnyEvent)
             },
-            skipped("mouse motion listener", { JPanel() }) { mouseMotionListener(onAnyEvent, onAnyEvent) },
-            skipped("tree expansion listener", { JTree() }) { treeExpansionListener(onAnyEvent, onAnyEvent) },
-            skipped("tree will-expand listener", { JTree() }) {
+            skipped("mouse motion listener", ProbeKind.Panel) { mouseMotionListener(onAnyEvent, onAnyEvent) },
+            skipped("tree expansion listener", ProbeKind.Tree) { treeExpansionListener(onAnyEvent, onAnyEvent) },
+            skipped("tree will-expand listener", ProbeKind.Tree) {
                 treeWillExpandListener(onAnyAnswer, onAnyAnswer)
             },
-            skipped("onHover", { JPanel() }) { onHover(onAnyAction, onAnyAction) },
-            skipped("onFocus", { JPanel() }) { onFocus(onAnyAction, onAnyAction) },
-            skipped("onPointerEvent", { JPanel() }) { onPointerEvent(onAnyEvent, onAnyEvent, onAnyEvent) },
+            skipped("onHover", ProbeKind.Panel) { onHover(onAnyAction, onAnyAction) },
+            skipped("onFocus", ProbeKind.Panel) { onFocus(onAnyAction, onAnyAction) },
+            skipped("onPointerEvent", ProbeKind.Panel) { onPointerEvent(onAnyEvent, onAnyEvent, onAnyEvent) },
         )
 
         private fun changed(
             name: String,
-            factory: () -> JComponent,
+            kind: ProbeKind,
             declare: SwingModifier.(Int) -> SwingModifier,
-        ): Arguments = Arguments.of(Named.of(name, factory), declare)
+        ): Arguments = Arguments.of(Named.of(name, kind), declare)
 
         @JvmStatic
         fun callbacksOfANewIdentity(): List<Arguments> = listOf(
-            changed("onHover", { JPanel() }) { tick -> onHover(onExit = actionOfPass(tick)) },
-            changed("onFocus", { JPanel() }) { tick -> onFocus(onLost = actionOfPass(tick)) },
-            changed("onPointerEvent", { JPanel() }) { tick -> onPointerEvent(onClick = callbackOfPass(tick)) },
-            changed("typed listener", { JButton() }) { tick ->
+            changed("onHover", ProbeKind.Panel) { tick -> onHover(onExit = actionOfPass(tick)) },
+            changed("onFocus", ProbeKind.Panel) { tick -> onFocus(onLost = actionOfPass(tick)) },
+            changed("onPointerEvent", ProbeKind.Panel) { tick -> onPointerEvent(onClick = callbackOfPass(tick)) },
+            changed("typed listener", ProbeKind.Button) { tick ->
                 actionListener<JButton> { callbackOfPass(tick)(it) }
             },
-            changed("multi-method listener", { JPanel() }) { tick ->
+            changed("multi-method listener", ProbeKind.Panel) { tick ->
                 mouseListener(onMouseExited = callbackOfPass(tick))
             },
         )
@@ -262,77 +262,81 @@ class ModifierChainSkipTest {
 
     @Test
     fun aListenerGivenABoundReferenceOnAnEqualReceiverReachesTheNewReceiver() =
-        assertNewReceiverHears({ JButton() }, { onNodeOfType<JButton>().performClick() }) { receiver ->
+        assertNewReceiverHears(ProbeKind.Button, { onNodeOfType<JButton>().performClick() }) { receiver ->
             val onAction: (ActionEvent) -> Unit = receiver::onEvent
             actionListener(onAction)
         }
 
     @Test
     fun aTypedListenerGivenABoundReferenceOnAnEqualReceiverReachesTheNewReceiver() =
-        assertNewReceiverHears({ JButton() }, { onNodeOfType<JButton>().performClick() }) { receiver ->
+        assertNewReceiverHears(ProbeKind.Button, { onNodeOfType<JButton>().performClick() }) { receiver ->
             val onAction: JButton.(ActionEvent) -> Unit = receiver::onScopedEvent
             actionListener(onAction)
         }
 
     @Test
     fun aMultiMethodListenerGivenABoundReferenceOnAnEqualReceiverReachesTheNewReceiver() =
-        assertNewReceiverHears({ JLabel() }, { onNodeOfType<JLabel>().performMouseEnter() }) { receiver ->
+        assertNewReceiverHears(ProbeKind.Label, { onNodeOfType<JLabel>().performMouseEnter() }) { receiver ->
             mouseListener(onMouseEntered = receiver::onEvent)
         }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("listenersKeepingTheirCallbacks")
     fun aListenerKeepingItsCallbacksIsSkippedWhole(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         declare: SwingModifier.() -> SwingModifier,
-    ) = assertSkippedWhole(factory, declare)
+    ) = assertSkippedWhole(kind, declare)
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("callbacksOfANewIdentity")
     fun aCallbackOfANewIdentityReExecutesItsComponent(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         declare: SwingModifier.(tick: Int) -> SwingModifier,
-    ) = assertReExecutedForANewCallback(factory, declare)
+    ) = assertReExecutedForANewCallback(kind, declare)
 
     @Test
     fun aComponentListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JPanel() }, 4, ::callbackOfPass) { at ->
+        assertReExecutedForEachNewCallback(ProbeKind.Panel, 4, ::callbackOfPass) { at ->
             componentListener(at(0), at(1), at(2), at(3))
         }
 
     @Test
     fun aContainerListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JPanel() }, 2, ::callbackOfPass) { at -> containerListener(at(0), at(1)) }
+        assertReExecutedForEachNewCallback(ProbeKind.Panel, 2, ::callbackOfPass) { at ->
+            containerListener(at(0), at(1))
+        }
 
     @Test
     fun aDocumentListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JTextField() }, 3, ::callbackOfPass) { at ->
+        assertReExecutedForEachNewCallback(ProbeKind.TextField, 3, ::callbackOfPass) { at ->
             documentListener(at(0), at(1), at(2))
         }
 
     @Test
     fun aFocusListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JPanel() }, 2, ::callbackOfPass) { at -> focusListener(at(0), at(1)) }
+        assertReExecutedForEachNewCallback(ProbeKind.Panel, 2, ::callbackOfPass) { at -> focusListener(at(0), at(1)) }
 
     @Test
     fun anInternalFrameListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JInternalFrame() }, 7, ::callbackOfPass) { at ->
+        assertReExecutedForEachNewCallback(ProbeKind.InternalFrame, 7, ::callbackOfPass) { at ->
             internalFrameListener(at(0), at(1), at(2), at(3), at(4), at(5), at(6))
         }
 
     @Test
     fun aKeyListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JPanel() }, 3, ::callbackOfPass) { at -> keyListener(at(0), at(1), at(2)) }
+        assertReExecutedForEachNewCallback(ProbeKind.Panel, 3, ::callbackOfPass) { at ->
+            keyListener(at(0), at(1), at(2))
+        }
 
     @Test
     fun aMouseListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
-        assertReExecutedForEachNewCallback({ JPanel() }, 5, ::callbackOfPass) { at ->
+        assertReExecutedForEachNewCallback(ProbeKind.Panel, 5, ::callbackOfPass) { at ->
             mouseListener(at(0), at(1), at(2), at(3), at(4))
         }
 
     @Test
     fun aMouseMotionListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() = assertReExecutedForEachNewCallback(
-        { JPanel() },
+        ProbeKind.Panel,
         2,
         ::callbackOfPass,
     ) { at -> mouseMotionListener(at(0), at(1)) }
@@ -340,7 +344,7 @@ class ModifierChainSkipTest {
     @Test
     fun aTreeExpansionListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
         assertReExecutedForEachNewCallback(
-            { JTree() },
+            ProbeKind.Tree,
             2,
             ::callbackOfPass,
         ) { at -> treeExpansionListener(at(0), at(1)) }
@@ -348,7 +352,7 @@ class ModifierChainSkipTest {
     @Test
     fun aTreeWillExpandListenerGivenANewCallbackForAnyMethodReExecutesItsComponent() =
         assertReExecutedForEachNewCallback(
-            { JTree() },
+            ProbeKind.Tree,
             2,
             ::answerOfPass,
         ) { at -> treeWillExpandListener(at(0), at(1)) }
@@ -444,18 +448,18 @@ class ModifierChainSkipTest {
      * the one passed last is a parameter the runtime skips the component for.
      */
     private fun assertSkippedWhole(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         declare: SwingModifier.() -> SwingModifier,
-    ) = assertComponentPasses(factory, { declare() }) { 1 }
+    ) = assertComponentPasses(kind, { declare() }) { 1 }
 
     /**
      * As [assertSkippedWhole], with [declare] handed the pass's tick to build a callback of a new identity
      * from, and asserts the component is executed on every pass that declares it.
      */
     private fun assertReExecutedForANewCallback(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         declare: SwingModifier.(tick: Int) -> SwingModifier,
-    ) = assertComponentPasses(factory, declare) { declarations -> declarations }
+    ) = assertComponentPasses(kind, declare) { declarations -> declarations }
 
     /**
      * Asserts the component is executed once per tick, for a builder taking [callbackCount] callbacks:
@@ -463,14 +467,14 @@ class ModifierChainSkipTest {
      * identity, every index in turn.
      */
     private fun <C : Any> assertReExecutedForEachNewCallback(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         callbackCount: Int,
         newCallback: (generation: Int) -> C,
         declare: SwingModifier.(at: (index: Int) -> C) -> SwingModifier,
     ) {
         val callbacks = HashMap<Pair<Int, Int>, C>()
         assertComponentPasses(
-            factory,
+            kind,
             { tick ->
                 declare { index ->
                     val generation = (tick + callbackCount - 1 - index) / callbackCount
@@ -481,7 +485,7 @@ class ModifierChainSkipTest {
     }
 
     private fun assertComponentPasses(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         declare: SwingModifier.(tick: Int) -> SwingModifier,
         expectedPasses: (declarations: Int) -> Int,
     ) = runComposeSwingTest {
@@ -495,7 +499,7 @@ class ModifierChainSkipTest {
                 tick = 0,
                 counts = counts,
                 modifier = SwingModifier.then(ChainProbeElement(counts)).declare(tick),
-                factory = factory,
+                kind = kind,
             )
         }
 
@@ -528,16 +532,170 @@ class ModifierChainSkipTest {
         tick: Int,
         counts: ChainCounts,
         modifier: SwingModifier,
-        factory: () -> JComponent = { JPanel() },
+        kind: ProbeKind = ProbeKind.Panel,
     ) {
         counts.passes.incrementAndGet()
-        SwingNode(
-            factory = factory,
-            modifier = modifier,
-            update = {
-                set(tick) { pass -> name = "pass $pass" }
-            },
-        )
+        when (kind) {
+            ProbeKind.Panel -> ProbeNodes.Panel(tick, modifier)
+            ProbeKind.Button -> ProbeNodes.Button(tick, modifier)
+            ProbeKind.CheckBox -> ProbeNodes.CheckBox(tick, modifier)
+            ProbeKind.Slider -> ProbeNodes.Slider(tick, modifier)
+            ProbeKind.List -> ProbeNodes.List(tick, modifier)
+            ProbeKind.TextField -> ProbeNodes.TextField(tick, modifier)
+            ProbeKind.InternalFrame -> ProbeNodes.InternalFrame(tick, modifier)
+            ProbeKind.Tree -> ProbeNodes.Tree(tick, modifier)
+            ProbeKind.Label -> ProbeNodes.Label(tick, modifier)
+        }
+    }
+
+    /** One node per component class a [ProbePanel] renders. */
+    private object ProbeNodes {
+        @Composable
+        fun Panel(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JPanel() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun Button(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JButton() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun CheckBox(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JCheckBox() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun Slider(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JSlider() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun List(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JList<String>() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun TextField(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JTextField() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun InternalFrame(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JInternalFrame() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun Tree(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JTree() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+
+        @Composable
+        fun Label(
+            tick: Int,
+            modifier: SwingModifier,
+        ) {
+            SwingNode(
+                factory = { JLabel() },
+                modifier = modifier,
+                update = {
+                    set(tick) { pass -> name = "pass $pass" }
+                },
+            )
+        }
+    }
+
+    /** The component class a [ProbePanel] renders. */
+    sealed interface ProbeKind {
+        data object Panel : ProbeKind
+
+        data object Button : ProbeKind
+
+        data object CheckBox : ProbeKind
+
+        data object Slider : ProbeKind
+
+        data object List : ProbeKind
+
+        data object TextField : ProbeKind
+
+        data object InternalFrame : ProbeKind
+
+        data object Tree : ProbeKind
+
+        data object Label : ProbeKind
     }
 
     private fun SwingModifier.declaredName(name: String): SwingModifier = property(DeclaredNameProperty, name)
@@ -548,14 +706,14 @@ class ModifierChainSkipTest {
      * only: a callback on another receiver is a new callback, whatever its own `equals` says.
      */
     private fun assertNewReceiverHears(
-        factory: () -> JComponent,
+        kind: ProbeKind,
         fire: suspend ComposeSwingTest.() -> Unit,
         declare: SwingModifier.(EventReceiver) -> SwingModifier,
     ) = runComposeSwingTest {
         val counts = ChainCounts()
         var receiver by mutableStateOf(EventReceiver(1), neverEqualPolicy())
         setContent {
-            ProbePanel(tick = 0, counts = counts, modifier = SwingModifier.declare(receiver), factory = factory)
+            ProbePanel(tick = 0, counts = counts, modifier = SwingModifier.declare(receiver), kind = kind)
         }
         val replaced = receiver
         val passesBefore = counts.passes.get()

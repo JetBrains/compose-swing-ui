@@ -250,6 +250,7 @@ public fun <R> Table(
  * Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun <R> TableRowsImpl(
     rows: List<R>,
@@ -539,6 +540,7 @@ public fun Table(
  * raw overload is handed. Inlined into its caller, so the two share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
+@SwingComponentLibraryApi
 @Composable
 private inline fun TableImpl(
     model: TableModel,
@@ -898,6 +900,7 @@ private val TableKind =
  * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
+@SwingComponentLibraryApi
 private inline fun TableNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,

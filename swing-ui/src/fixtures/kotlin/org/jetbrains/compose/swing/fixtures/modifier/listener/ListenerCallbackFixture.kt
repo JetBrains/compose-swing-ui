@@ -74,19 +74,12 @@ public object ListenerCallbackFixture : ComposableFixture<ListenerCallbackParame
 
     @Composable
     override fun Content(parameters: ListenerCallbackParameters): Unit =
-        Content(parameters.callback, parameters.registration)
+        Content(SwingModifier.listener(JButton::class, parameters.callback, parameters.registration))
 
-    /** Composes a [Button] whose modifier attaches [callback] through [registration]. */
+    /** Composes a [Button] carrying [modifier], the listener modifier under test. */
     @Composable
-    public fun Content(
-        callback: (ActionEvent) -> Unit,
-        registration: CallbackRegistration<AbstractButton, (ActionEvent) -> Unit, ActionListener>,
-    ) {
-        Button(
-            text = TEXT,
-            onClick = onClick,
-            modifier = SwingModifier.listener(JButton::class, callback, registration),
-        )
+    public fun Content(modifier: SwingModifier = SwingModifier) {
+        Button(text = TEXT, onClick = onClick, modifier = modifier)
     }
 
     /** Builds a [JButton] showing the same text, with the click listener [Button] installs for its `onClick`. */

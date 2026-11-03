@@ -71,20 +71,12 @@ public object ListenerFixture : ComposableFixture<ListenerParameters, JButton>(
 
     @Composable
     override fun Content(parameters: ListenerParameters): Unit =
-        Content(parameters.targetType, parameters.instance, parameters.registration)
+        Content(SwingModifier.listener(parameters.targetType, parameters.instance, parameters.registration))
 
-    /** Composes a [Button] whose modifier attaches [instance] of [targetType] through [registration]. */
+    /** Composes a [Button] carrying [modifier], the listener modifier under test. */
     @Composable
-    public fun Content(
-        targetType: KClass<out AbstractButton>,
-        instance: ActionListener,
-        registration: ListenerRegistration<AbstractButton, ActionListener>,
-    ) {
-        Button(
-            text = TEXT,
-            onClick = onClick,
-            modifier = SwingModifier.listener(targetType, instance, registration),
-        )
+    public fun Content(modifier: SwingModifier = SwingModifier) {
+        Button(text = TEXT, onClick = onClick, modifier = modifier)
     }
 
     /** Builds a [JButton] showing the same text, with the click listener [Button] installs for its `onClick`. */

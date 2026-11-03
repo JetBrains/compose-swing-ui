@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
@@ -79,6 +80,7 @@ public fun ContextMenu(
  * @param content the composable menu tree shown in the popup.
  */
 @Composable
+@SwingComponentLibraryApi
 internal fun ContextMenu(
     anchor: PopupAnchor,
     display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit,

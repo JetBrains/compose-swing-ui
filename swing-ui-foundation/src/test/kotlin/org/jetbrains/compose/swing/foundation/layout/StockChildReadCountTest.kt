@@ -6,10 +6,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.layout.StockChildReadCountTest.CountingLabel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -48,12 +50,12 @@ class StockChildReadCountTest {
         baselineReads: Int,
     ) = runComposeSwingTest {
         var text by mutableStateOf("12")
-        val label = CountingLabel()
         setContent {
-            LabelIn(container, label, text)
+            LabelIn(container, text)
         }
         awaitIdle()
 
+        val label = onNodeOfType<CountingLabel>().fetch()
         label.preferredSizeReads = 0
         label.baselineReads = 0
         text = lastText
@@ -70,14 +72,14 @@ class StockChildReadCountTest {
     @ValueSource(ints = [0, 1])
     fun aSizeReadLaysOutNoStockChild(children: Int) =
         runComposeSwingTest {
-            val panel = LayoutCountingPanel().apply { repeat(children) { add(JLabel("Child")) } }
             setContent {
                 Column(modifier = SwingModifier.testTag("column")) {
-                    SwingNode(factory = { panel })
+                    SwingNode(factory = { LayoutCountingPanel().apply { repeat(children) { add(JLabel("Child")) } } })
                 }
             }
             awaitIdle()
 
+            val panel = onNodeOfType<LayoutCountingPanel>().fetch()
             panel.invalidate()
             panel.layouts = 0
             onNodeWithTag("column").fetch<JComponent>().preferredSize
@@ -94,14 +96,14 @@ class StockChildReadCountTest {
         readText: String,
         lastText: String,
     ) = runComposeSwingTest {
-        val label = JLabel("Start")
         setContent {
             Column(modifier = SwingModifier.testTag("column")) {
-                SwingNode(factory = { label }, modifier = SwingModifier.testTag("label"))
+                Label("Start", SwingModifier.testTag("label"))
             }
         }
         awaitIdle()
 
+        val label = onNodeWithTag("label").fetch<JLabel>()
         label.text = readText
         onNodeWithTag("column").fetch<JComponent>().preferredSize
         label.text = lastText
@@ -176,7 +178,7 @@ class StockChildReadCountTest {
             )
     }
 
-    private class CountingLabel : JLabel() {
+    internal class CountingLabel : JLabel() {
         var preferredSizeReads = 0
         var baselineReads = 0
 
@@ -207,10 +209,9 @@ class StockChildReadCountTest {
 @Composable
 private fun LabelIn(
     container: String,
-    label: JLabel,
     text: String,
 ) {
-    val child = @Composable { SwingNode(factory = { label }, update = { set(text) { this.text = it } }) }
+    val child = @Composable { SwingNode(factory = { CountingLabel() }, update = { set(text) { this.text = it } }) }
     when (container) {
         "Column" -> Column { child() }
         "Row" -> Row { child() }
