@@ -236,7 +236,7 @@ assertEquals(listOf("New", null, "Open"), items)
 
 Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`, and what it drops down is read the same way, off the `JMenu` that item is.
 
-A component's `componentPopupMenu` is not reachable by node query — it hangs off its component rather than being held in the tree — so fetch the component through the typed `fetch<T>()` and read the popup's own components: a separator is not a `JMenuItem`, so casting one reads as `null`:
+A component's `componentPopupMenu` is read through the typed `fetch<T>()` of its component, not by node query, and then through the popup's own components: a separator is not a `JMenuItem`, so casting one reads as `null`:
 
 ```kotlin
 import javax.swing.JButton
@@ -474,7 +474,7 @@ val images = onAllNodesOfType<JButton>().captureToImages()
 
 ### Recording goldens
 
-The golden of a comparison is read from the test resources at `golden/<goldenIdentifier>.png`, and recording is governed by the system property `SCREENSHOT_TEST_UPDATE_GOLDENS` on the test JVM, which takes effect only where its value is exactly `true`. A Gradle test task passes it through with `systemProperty("SCREENSHOT_TEST_UPDATE_GOLDENS", …)`.
+The golden of a comparison is read from the test resources at `golden/<goldenIdentifier>.png`, and recording is governed by the system property `SCREENSHOT_TEST_UPDATE_GOLDENS` on the test JVM, which takes effect only where its value is exactly `true`.
 
 With it set, a golden that does not exist yet is written to `src/test/resources/golden/<goldenIdentifier>.png` and the assertion passes, and a golden the capture already matches is rewritten from that capture. A golden the capture does *not* match is left alone: the captured, expected and difference images are written to `build/screenshot-test-results` and the assertion still fails, so a regression is never recorded as the new baseline. Accepting a real visual change means reviewing that diff, deleting `src/test/resources/golden/<goldenIdentifier>.png`, and running again to record the capture afresh.
 
@@ -502,5 +502,5 @@ A class in the matched tree matches the reference as long as it extends it, so a
 
 ## Related
 
-- [`../swing-ui-test/README.md`](../swing-ui-test/README.md) — the harness module.
+- [`swing-ui-test`](../swing-ui-test/README.md) — the harness module.
 - [Writing components](CUSTOM-COMPONENTS.md) — building the components you are testing.

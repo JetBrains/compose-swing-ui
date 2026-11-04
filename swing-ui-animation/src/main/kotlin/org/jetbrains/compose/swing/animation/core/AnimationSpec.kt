@@ -482,7 +482,6 @@ public sealed class KeyframesSpecBaseConfig<T, E : KeyframeBaseEntity<T>> {
     /**
      * Adds a keyframe so that animation value will be [this] at time: [timeStamp]. For example:
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.floatAtSample
      * @param timeStamp The time in the during when animation should reach value: [this], with a
      *   minimum value of `0`.
      * @return an instance of [E] so a custom [Easing] can be added by the [using] method.
@@ -499,7 +498,6 @@ public sealed class KeyframesSpecBaseConfig<T, E : KeyframeBaseEntity<T>> {
      * total [durationMillis] set. It's recommended that you always set [durationMillis] before
      * calling [atFraction]. For example:
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.floatAtFractionSample
      * @param fraction The fraction when the animation should reach specified value.
      * @return an instance of [E] so a custom [Easing] can be added by the [using] method
      */
@@ -512,7 +510,6 @@ public sealed class KeyframesSpecBaseConfig<T, E : KeyframeBaseEntity<T>> {
      * Adds an [Easing] for the interval started with the just provided timestamp. For example: 0f
      * at 50 using LinearEasing
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.KeyframesBuilderWithEasing
      * @param easing [Easing] to be used for the next interval.
      * @return the same [E] instance so that other implementations can expand on the builder pattern
      */
@@ -556,7 +553,6 @@ public class KeyframesSpec<T>(public val config: KeyframesSpecConfig<T>) :
      * animation value should be at a particular time. Once the key frames are fully configured, the
      * [KeyframesSpecConfig] can be used to create a [KeyframesSpec].
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.KeyframesBuilderForPosition
      * @see keyframes
      */
     public class KeyframesSpecConfig<T> : KeyframesSpecBaseConfig<T, KeyframeEntity<T>>() {
@@ -597,17 +593,11 @@ public class KeyframesSpec<T>(public val config: KeyframesSpecConfig<T>) :
         /**
          * [ArcMode] applied from this keyframe to the next.
          *
-         * Note that arc modes are meant for objects with even dimensions (such as [Offset] and its
-         * variants). Where each value pair is animated as an arc. So, if the object has odd
-         * dimensions the last value will always animate linearly.
-         *
-         * &nbsp;
+         * Each consecutive pair of values is animated as an arc. The last value of an odd-dimensional
+         * vector animates linearly.
          *
          * The order of each value in an object with multiple dimensions is given by the applied
          * vector converter in [KeyframesSpec.vectorize].
-         *
-         * E.g.: [RectToVector] assigns its values as `[left, top, right, bottom]` so the pairs of
-         * dimensions animated as arcs are: `[left, top]` and `[right, bottom]`.
          */
         public infix fun KeyframeEntity<T>.using(arcMode: ArcMode): KeyframeEntity<T> {
             this.arcMode = arcMode

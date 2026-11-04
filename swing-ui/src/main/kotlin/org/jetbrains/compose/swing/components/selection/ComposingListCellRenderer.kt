@@ -135,7 +135,7 @@ internal class ComposingListCellRenderer<T>(
     ): Boolean = value != null && (itemType?.isInstance(value) == true || list.model.holds(value))
 
     /**
-     * Whether [model] holds [value] among its elements, scanned for as `JComboBox` scans its own model to
+     * Whether `model` holds [value] among its elements, scanned for as `JComboBox` scans its own model to
      * resolve a selection.
      *
      * The scan starts where the last one found its item. A `JComboBox` sizes itself by rendering every

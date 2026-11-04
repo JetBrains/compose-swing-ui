@@ -28,8 +28,9 @@ internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int {
  * A child the pass has yet to attach is not handed to [place]: it has no place yet, and takes
  * the position the list gives it once the pass has settled.
  *
- * The host holds no group, which is what makes its composition children and [flattenedChildren] the same list,
- * so the index [moveChildren] computes over the first addresses the second.
+ * The host holds no group, which is what makes its composition children and
+ * [SwingNodeHolder.flattenedChildren] the same list, so the index [moveChildren] computes over the first addresses
+ * the second.
  *
  * @param from the index of the first child of the run.
  * @param to the index the run moves to, counted before the run is taken out.

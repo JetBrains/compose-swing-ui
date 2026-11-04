@@ -25,7 +25,7 @@ import org.jetbrains.compose.swing.foundation.layout.Placeable
 
 /**
  * A [LayoutModifierNode] whose intrinsic measurements and intrinsic alignment lines delegate to `measurable` instead
- * of running [org.jetbrains.compose.swing.foundation.layout.LayoutModifier.measure] under intrinsic constraints.
+ * of running [LayoutModifierNode.measure] under intrinsic constraints.
  *
  * A node whose `measure` starts or retargets an animation must not run it from an intrinsic query: a
  * validate cycle asks for a container's preferred size and minimum size and then lays it out, so the

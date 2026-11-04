@@ -10,5 +10,5 @@ A small to-do application built with Compose Swing UI. It shows the Compose-over
 
 ## Related
 
-- [`../../README.md`](../../README.md) — project overview and quick start.
-- [`../widgets-gallery/README.md`](../widgets-gallery/README.md) — the broader widget showcase.
+- [Compose Swing UI](../../README.md) — project overview and quick start.
+- [Widgets gallery sample](../widgets-gallery/README.md) — the broader widget showcase.

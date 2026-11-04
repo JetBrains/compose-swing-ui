@@ -49,7 +49,7 @@ A change and the passage of animation time advance at rates of their own.
 
 A change follows the event queue. The pass that recomposes and applies it is dispatched as an event of its own, so a declared change reaches its widget a handful of event-dispatch cycles after the event that made it rather than at the next tick of a frame cadence. It costs one pass per event rather than one per write: the pass is dispatched only once the Swing event that made the writes has returned, so a listener writing ten properties still costs a single pass.
 
-That is not a setter. A setter is on its widget for the very next statement; a declared write is never visible inside the event that made it, and code that has to see the result waits for a later cycle.
+A setter is on its widget for the very next statement; a declared write is visible only in a later cycle than the event that made it, so code that has to see the result waits for that cycle.
 
 A widget the user can change themselves follows a cadence of its own, because the composition and the user both write it. *Settling a value the user can also change*, below, is where that one is described.
 
@@ -73,7 +73,7 @@ Each composition owns its after-validation scheduling. Pending storage is create
 
 ## Inspecting a mounted composition
 
-Setting `isDebugInspectorInfoEnabled` to `true` makes every composition record where it declared each component, including the compositions already on screen. `Component.findDeclaringGroup()` then answers with the group that declared a component, and `Component.attachComposeStackTrace()` names the code that declared it. See [`INSPECTING-COMPOSITIONS.md`](INSPECTING-COMPOSITIONS.md) for the switch, what it costs, and how to be told as compositions start and end.
+Setting `isDebugInspectorInfoEnabled` to `true` makes every composition record where it declared each component, including the compositions already on screen. `Component.findDeclaringGroup()` then answers with the group that declared a component, and `Component.attachComposeStackTrace()` names the code that declared it. See [Inspecting a mounted composition](INSPECTING-COMPOSITIONS.md) for the switch, what it costs, and how to be told as compositions start and end.
 
 ---
 
@@ -109,7 +109,7 @@ Listeners are exposed through the modifier system, where the form a caller decla
 
 ## Styling and configuration with modifiers
 
-`SwingModifier` is the Compose-shaped way to configure a component: layout hints, decoration, keyboard and interaction wiring, data transfer, and listeners are expressed as modifier elements declared on a component. The properties of the component itself, such as its colors, font and sizes, are set by its [style](#styles) instead. How a component's own elements combine with the caller's, and how a modifier is matched across passes, is described in [`MODIFIERS.md`](MODIFIERS.md#order-and-merge).
+`SwingModifier` is the Compose-shaped way to configure a component: layout hints, decoration, keyboard and interaction wiring, data transfer, and listeners are expressed as modifier elements declared on a component. The properties of the component itself, such as its colors, font and sizes, are set by its [style](#styles) instead. How a component's own elements combine with the caller's, and how a modifier is matched across passes, is described in [Order and merge](MODIFIERS.md#order-and-merge).
 
 Closed sets of Swing integer (and a few string) constants - scrollbar policies, orientations, selection modes, and the like - are exposed as typed constant sets. A parameter that takes one of these accepts exactly the values the wrapped Swing API expects, so an unintended value is flagged in the IDE while the value passed at runtime is the plain Swing constant.
 
@@ -119,7 +119,7 @@ Where an element takes over behavior a widget already has, it takes over only wh
 
 ## Styles
 
-A `SwingStyle` sets the properties of one component. A component takes it as its `style` parameter, and a container can also provide styles to its descendants. [`STYLES.md`](STYLES.md) covers using and authoring styles; this section covers their precedence, restoration and updates.
+A `SwingStyle` sets the properties of one component. A component takes it as its `style` parameter, and a container can also provide styles to its descendants. [Styles](STYLES.md) covers using and authoring styles; this section covers their precedence, restoration and updates.
 
 ### Resolution
 
@@ -129,7 +129,7 @@ The last write of a property wins. Descriptor-backed properties are written befo
 
 ### Descendants and updates
 
-Nested styles and style locals stay within the composition that declares them. The cells a list renders, a spinner editor, a tab header, popup and context menus, secondary windows, window menu bars, tray menus and a `setContent(parent = ...)` composition need their shared styles declared at their own root. Components outside the composition are untouched.
+Nested styles and style locals stay within the composition that declares them. A style reaches only the composition that declares it, so a separately composed host, such as a rendered cell, a popup, a secondary window or a `setContent(parent = ...)` composition, needs its shared styles declared at its own root. Components outside the composition are untouched.
 
 A change to snapshot state read inside a style updates the components whose styles read it, without recomposition. Changing a provided nested style or style local updates descendants that consume the changed value. Moving a component or its ancestor under another parent, or adding a style above existing children, updates descendant styles to reflect their new ancestors. Descendants receive their ancestors' styles on the first frame.
 
@@ -184,15 +184,15 @@ A window's geometry is observed separately: a snapshot's apply notification arri
 
 Part of what a component holds, the user changes themselves: a scroll position, a selection, the order of a table's columns, which component holds the keyboard. Three shapes carry that, and what the state is decides which one a component uses.
 
-- **A declared value with a change callback** is the ordinary shape. The composition holds the value and passes it in, and the component reports the user's change back through a callback beside it - a text field's `value` and `onValueChange`, a check box's `checked` and `onCheckedChange`. A change the caller does not answer with a matching value is settled back onto the declared one, so the state the composition holds is what is on screen, and the component never stands on a value the caller has not adopted. A value the composition pushes in is not reported back through the callback, so adopting a reported change cannot loop. Where declaring is optional the value is nullable: leaving it out leaves that aspect to the widget, while the callback still reports what the user did with it.
+- **A declared value with a change callback** is the ordinary shape. The composition holds the value and passes it in, and the component reports the user's change back through a callback beside it - a text field's `value` and `onValueChange`, a check box's `checked` and `onCheckedChange`. A change the caller does not answer with a matching value is settled back onto the declared one, so the state the composition holds is what is on screen, and the component never stands on a value the caller has not adopted. A value the composition pushes in is not reported back through the callback, so adopting a reported change cannot loop.
 
 - **A hoistable state holder** - an `XState` type with a matching `rememberXState` factory - carries state that is a group of related values rather than one, that includes values the component reports and no caller declares, or that has to outlive the content it belongs to. A scroll position comes with the viewport metrics that bound it and the largest position worth scrolling to; an internal frame's geometry comes with whether it stands on the desktop as its icon; a window's placement comes with its extended state. The properties a caller can declare are two-way: assigning to one drives the live component, and the user's own action writes the new value back into the holder, where whatever reads it recomposes. A value only the component can report is read-only and follows the live component the same way; reading it is the only way to see that value, since no callback reports it. A holder is passed in as a parameter, beside or in place of the plain declared value, so a caller hoists one only where they want what it observes.
 
-  A selection is a declared value with a callback. The arrangement a widget's own gestures change - a table's sort order and the order and widths of its columns, a tree's expansion - is never a declared value: a callback reports each change, and only the widget's state holder, `TableState` or `TreeState`, holds it. Assigning a holder property applies it, and the user's change writes back. Without a holder the arrangement changes with the user's own gestures. Nothing settles an arrangement back, so to refuse a gesture, use the widget's own veto: `sortable`, a column's `isSortable`, `Header(reorderingAllowed, resizingAllowed)`, or a tree's `onWillExpand`.
+  Pass a `ListState`, `TableState`, or `TreeState` to set or observe selection in the corresponding component. `TableState` also holds the sort order and column layout, and `TreeState` holds expansion. With `state = null`, Swing owns those values. Control which gestures the widget accepts with `sortable`, a column's `isSortable`, `Header(reorderingAllowed, resizingAllowed)`, or `onWillExpand`.
 
 - **An imperative handle** carries an interaction that is an event and leaves no value behind. A `FocusRequester` moves the keyboard when the application decides to - a validation failure, a toolbar action, a shortcut - and a `ClipboardHandle` copies, cuts or pastes when a menu item asks, without the user pressing the shortcut. A request that has happened leaves nothing for a later recomposition to re-apply, so instead of a declared value it is a handle the caller holds, calls, and binds to a component with a modifier. A handle names the component it drives, so what it can do is what that component can do. Where a component already hands out a state holder, its gestures ride on that holder instead of on a handle of their own: a `ListState` reveals a row of its list and a `TreeState` a node of its tree, a `ScrollState` reveals a region of the content it scrolls, and a `FormattedValueState` commits an edit the user typed but never entered.
 
-For how a component of your own takes a value in and reports a change out, see [`COMPONENT-STATE.md`](COMPONENT-STATE.md).
+For how a component of your own takes a value in and reports a change out, see [Component state](COMPONENT-STATE.md).
 
 ---
 
@@ -305,22 +305,4 @@ Those are not the only sections a recording can carry. The Compose compiler alre
 
 ---
 
-## Why Swing needs an explicit applier
-
-The same Compose runtime drives very different targets, and the differences concentrate in how changes reach the screen:
-
-| Concern                | Swing (this library)                                                             | Compose Multiplatform                                                             | DOM (Compose HTML)                                  | Terminal (Mosaic)                             |
-|------------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------|
-| Backing tree           | `java.awt.Container` widgets                                                     | `LayoutNode`s, a tree the toolkit owns outright                                   | live DOM nodes                                      | an in-memory node tree                        |
-| Who lays out           | Swing `LayoutManager`s                                                           | Compose UI's own measure-and-layout pass                                          | the browser's reflow engine                         | the target's own layout pass                  |
-| Making changes visible | a layout pass per touched container, and a repaint where a child left or arrived | the owner is told changes ended, and the next frame draws the scene onto a canvas | mutating the DOM reflows and repaints automatically | the target re-runs layout and renders a frame |
-| Placement              | explicit constraints, because layout managers need region/constraint information | `Modifier` and layout composables                                                 | CSS and element order                               | the target's own modifier/layout system       |
-| Threading              | the EDT                                                                          | a frame-driven render loop, on the EDT where the desktop target hosts it          | the single-threaded JS event loop                   | the target's render loop                      |
-
-Swing reflows neither on mutation, the way the DOM does, nor on its own schedule, the way a target that owns its render loop does. That is the fact the binding is built around.
-
-Compose Multiplatform is the closest comparison: on the desktop it runs on the very same thread this library does and still needs an applier of its own, because it owns its node tree, its layout pass and its drawing, while here all three belong to Swing.
-
----
-
-For layout and graphics, see [`FOUNDATION.md`](FOUNDATION.md). For a step-by-step guide to building your own component on top of `SwingNode`, see [Writing components](CUSTOM-COMPONENTS.md).
+For layout and graphics, see [Foundation](FOUNDATION.md). For a step-by-step guide to building your own component on top of `SwingNode`, see [Writing components](CUSTOM-COMPONENTS.md).

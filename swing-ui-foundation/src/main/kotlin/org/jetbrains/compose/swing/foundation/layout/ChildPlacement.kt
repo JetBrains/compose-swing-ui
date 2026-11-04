@@ -47,11 +47,12 @@ internal fun ChildMeasurable.layOutAgain() {
 }
 
 /**
- * Queues the frame of a placement layer on [child] whose alpha or clip changed, as [panel]'s repaint of [child]'s area.
- * A dirty container takes in the dirty areas of its children, so children whose alpha changes on one frame paint in one
- * pass.
+ * Queues the frame of a placement layer on [child] whose alpha or clip changed, as
+ * [ChildMeasurables.panel]'s repaint of [child]'s area. A dirty container takes in the dirty areas of its children, so
+ * children whose alpha changes on one frame paint in one pass.
  *
- * @return false where [child] is the only child of [panel] (its glass pane is not one), which its layer then redraws.
+ * @return false where [child] is the only child of [ChildMeasurables.panel] (its glass pane is not one), which its
+ *   layer then redraws.
  */
 internal fun ChildMeasurables.queueLayerRedraw(child: ChildMeasurable): Boolean {
     if (panel.componentCount - panel.stackingOrder.topmostIndex <= 1) return false

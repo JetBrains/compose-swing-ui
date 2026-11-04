@@ -62,7 +62,7 @@ import org.jetbrains.compose.swing.animation.core.internal.fastForEach
  * This sets up a [Transition], and updates it with the target provided by [targetState]. When
  * [targetState] changes, [Transition] will run all of its child animations towards their target
  * values specified for the new [targetState]. Child animations can be dynamically added using
- * [Transition.animateFloat], [animateColor][ androidx.compose.animation.animateColor],
+ * [Transition.animateFloat], [animateColor][org.jetbrains.compose.swing.animation.animateColor],
  * [Transition.animateValue], etc.
  *
  * [label] is used to differentiate different transitions.
@@ -284,7 +284,6 @@ public class MutableTransitionState<S>(initialState: S) : TransitionState<S>() {
      * [isIdle] returns whether the transition has finished running. This will return false once the
      * [targetState] has been set to a different value than [currentState].
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.TransitionStateIsIdleSample
      */
     public val isIdle: Boolean
         get() = (currentState == targetState) && !isRunning
@@ -545,7 +544,6 @@ public class SeekableTransitionState<S>(initialState: S) : TransitionState<S>() 
      * between any fraction between [currentState] and [targetState], while [snapTo] moves all state
      * to [targetState] without any further seeking allowed.
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.SnapToSample
      * @see animateTo
      */
     public suspend fun snapTo(targetState: S) {
@@ -592,7 +590,6 @@ public class SeekableTransitionState<S>(initialState: S) : TransitionState<S>() 
      * [snapTo] also allows the developer to change the state, but does not animate any values.
      * Instead, it instantly moves all values to those at the new [targetState].
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.SeekToSample
      * @see animateTo
      */
     public suspend fun seekTo(
@@ -974,7 +971,7 @@ public fun <T> rememberTransition(
 /**
  * [Transition] manages all the child animations on a state level. Child animations can be created
  * in a declarative way using [Transition.animateFloat], [Transition.animateValue],
- * [animateColor][androidx.compose.animation.animateColor] etc. When the [targetState] changes,
+ * [animateColor][org.jetbrains.compose.swing.animation.animateColor] etc. When the [targetState] changes,
  * [Transition] will automatically start or adjust course for all its child animations to animate to
  * the new target values defined for each animation.
  *
@@ -985,7 +982,7 @@ public fun <T> rememberTransition(
  * @see rememberTransition
  * @see Transition.animateFloat
  * @see Transition.animateValue
- * @see androidx.compose.animation.animateColor
+ * @see org.jetbrains.compose.swing.animation.animateColor
  */
 // TODO: Support creating Transition outside of composition and support imperative use of Transition
 @Stable
@@ -1434,7 +1431,7 @@ protected constructor(
     }
 
     /**
-     * Each animation created using [animateFloat], [animateDp], etc is represented as a
+     * Each animation created using [animateFloat], [animateInt], etc is represented as a
      * [TransitionAnimationState] in [Transition].
      */
     @Stable
@@ -2043,7 +2040,7 @@ internal fun <S, T> Transition<S>.createChildTransitionInternal(
  * @see updateTransition
  * @see rememberTransition
  * @see Transition.animateFloat
- * @see androidx.compose.animation.animateColor
+ * @see org.jetbrains.compose.swing.animation.animateColor
  */
 @Composable
 public inline fun <S, T, V : AnimationVector> Transition<S>.animateValue(
@@ -2155,7 +2152,7 @@ private fun <S, T, V : AnimationVector> Transition<S>.UpdateInitialAndTargetValu
  * @see rememberTransition
  * @see updateTransition
  * @see Transition.animateValue
- * @see androidx.compose.animation.animateColor
+ * @see org.jetbrains.compose.swing.animation.animateColor
  */
 @Composable
 public inline fun <S> Transition<S>.animateFloat(

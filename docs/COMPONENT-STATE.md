@@ -8,9 +8,9 @@ A Swing widget the user can change is a second writer of its own properties. Thi
 
 ### The mechanism
 
-These pieces work together. For why settling works this way, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+These pieces work together. For why settling works this way, see [Architecture](ARCHITECTURE.md).
 
-- `rememberMirrorState(declared)` remembers a `MirrorState<V>` seeded with the first declaration. It is a `State<V>` mirroring what the widget currently holds, so reading `mirror.value` while composing subscribes to the user changing the widget. Where a body needs that subscription but not the value, call `mirror.subscribe()` instead of reading a value it discards.
+- `rememberMirrorState(initial)` remembers a `MirrorState<V>` seeded with `initial`, what the widget holds on the first pass: usually the first declaration, but `false` for a `ToolBar`'s `floating`, because a bar is docked when it is built. It is a `State<V>` mirroring what the widget currently holds, so reading `mirror.value` while composing subscribes to the user changing the widget. Where a body needs that subscription but not the value, call `mirror.subscribe()` instead of reading a value it discards.
 - `mirror.report(published) { ... }` is called from the widget's own listener with the value the widget just published. It updates the mirror, runs the block for a change the user made - not for a value that only arrived because the wrapper's own write to the widget just produced it - and then settles the composition on the caller's answer. See *When a change settles* below for which changes are reported.
 - `mirror.observed(published)` is the same without the settling: it updates the mirror and answers whether the change is news, leaving the pass to arrive from the event queue a few cycles later. Use it where settling inside the event would be wrong - see below. Call it for every value the widget publishes, in the order it publishes them.
 - `mirror.report { ... }` - the one-argument form, taking no value - runs the block and settles for a change `observed` already took on an earlier channel.
@@ -114,12 +114,12 @@ A request can also have no callback. `InternalFrame`'s plain `bounds` are applie
 
 ## Taking a value in and reporting a change out
 
-A property with two writers reaches your component as a pair: the value in, and the callback that reports the user's own change out. The two are one channel, and a component takes both or neither. A widget the user can move, declared without the callback that reports the move, is frozen: it is fully controlled, so every click is settled back onto a declaration nothing feeds a new value in for. A declared state parameter is required for exactly this reason, and the callback is the other half of the same requirement - never a convenience to default.
+When your component takes a controlled value directly, require the value and its change callback. The declared value stays in effect until the caller adopts an interaction by supplying the new value.
 
-Which shape the pair takes follows from who owns the value - [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change) says which state is which. There are four cases:
+The API for user-editable state depends on who owns the value. See [Shapes for state the user can change](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
 1. **Declared** - the composition owns the value. The parameter is required, and the callback that reports the user moving it is required immediately after it: `CheckBox`'s `checked` and `onCheckedChange`, `Slider`'s `value` and `onValueChange`, `TabbedPane`'s `selectedIndex` and `onSelectedIndexChange`.
-2. **Undeclared** - the widget owns it. The state holder is nullable and defaults to `null`, with no callback beside it: `ListBox`'s `state` is a `ListState?`, `Table`'s a `TableState?` and `Tree`'s a `TreeState?`. Left out, the selection is the user's and Swing keeps it, as with any undeclared state; given, it is declared and two-way, and the caller hoists one to set the selection or read it. `ScrollPane` instead defaults `state` to `rememberScrollState()`, so the pane always has a `ScrollState`, and passing one lets the caller read and move it.
+2. **Optional state holder.** Leave `state` at `null` to let Swing keep the selection. Pass a `ListState` to `ListBox`, a `TableState` to `Table`, or a `TreeState` to `Tree` to set or observe the selection. A given state makes the selection the composition's: it is applied on every pass, and the state receives the user's changes. `ScrollPane` instead defaults `state` to `rememberScrollState()`, so the pane always has a `ScrollState`, and passing one lets the caller read and move it.
 3. **Model-owned** - the caller hands the widget a model, which takes the value out of the composition altogether. The model holds it, the widget renders whatever it holds, and nothing is declared over it, so there is no half for a callback to pair with. The callback is then only a report of where the model has got to, and stays optional after `modifier`, as `Slider(model, ...)` and `ComboBox(model, ...)` keep it.
 4. **Defaulted to a real value** - `selected: Boolean = false` - is none of the three, and is the defect the first three rule out. It declares a value the user can move while letting the caller leave out the callback that reports the move, and the widget is then frozen as above.
 
@@ -151,6 +151,7 @@ public fun <T> ListBox(
 public fun Slider(
     model: BoundedRangeModel,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     onValueChange: (Int) -> Unit = {},
     // ...
 )
@@ -158,7 +159,7 @@ public fun Slider(
 
 <!--- CLEAR -->
 
-What makes state undeclared is the default, not the type. `ComboBox`'s `selectedItem: T?` is required: `null` there is a declared selection of nothing, which the composition owns like any other value.
+For a `ComboBox` over `items`, the nullable `selectedItem` and its callback are required. Pass `selectedItem = null` to declare an empty selection.
 
 A sentinel default is a different thing from a real value. `SplitPane`'s `dividerLocation: Int = -1` and `ToolBar`'s `floating: Boolean = false` are what the bare widget holds: `JSplitPane` reports `-1` until a location is set, and `JToolBar` keeps no floating property of its own - the look and feel's `BasicToolBarUI` holds it, and a bar not yet in a window has nothing to float beside. Matching the widget outranks writing the sentinel as `null`, and boxing an `Int` or a `Boolean` for it would buy nothing. Carrying a default, both sit after `modifier` beside their optional callback. The divider's sentinel is also a request the pane resolves at layout time rather than a value to re-assert, which is the applicability boundary above; a tool bar's `floating` is a value, and is settled every pass.
 
@@ -167,8 +168,6 @@ A callback reporting something other than a declared value - a settle, a commit,
 A callback that reports an action rather than a state - `Button`'s `onClick`, `MenuItem`'s `onClick`, `Tray`'s `onAction`, `EditorPane`'s `onLinkActivate`, `InternalFrame`'s `onClose` - pairs with nothing, and is still required: a button whose click goes nowhere is as inert as a checkbox that cannot be ticked. `onClose` is the sharpest case: an internal frame's close control is controlled - the frame never closes itself - so a frame declared without `onClose` shows a close button that does nothing. Being required, an action callback leads: `Button(text, onClick, modifier = ...)`.
 
 The trailing position never holds a callback. It is the slot the caller fills with what the component shows: a composable content block, as `TabbedPane` and `SplitPane` trail with; a scope builder, as `RadioGroup` does; or a draw block - `Canvas(modifier = ..., onDraw)` trails with `onDraw` because what it paints is content, not a report. A modifier is the exception: it has no content slot to reserve, so `SwingModifier.onKeyStroke { }` and `SwingModifier.actionListener { }` keep the trailing lambda, the way `Modifier.clickable { }` does.
-
-Compose Multiplatform's own surface is the cross-check, and it is not uniform. Material3 leads with the required callback whether or not a content slot exists to claim the trailing position - `Checkbox(checked, onCheckedChange, modifier = ...)` and `DropdownMenuItem(text, onClick, modifier = ...)` have none and still lead - and that is the half this library follows. Its desktop `MenuScope.Item` takes `onClick` last instead; `MenuItem` here follows `DropdownMenuItem`. Its `Tray` defaults `onAction` to `{}`; `Tray` here requires it, by the rule for action callbacks.
 
 A callback can be the switch for what it reports. A table column is editable exactly when it sets `onCellEdit`, so a read-only column declares no handler and every edit the table accepts reaches one. A callback that only a sibling flag, defaulting to off, can reach stays optional: `Tree`'s `onNodeEdit` sits behind `isEditable`.
 
@@ -182,7 +181,7 @@ The library already does this for `declare`'s `onSettled` and for a listener tha
 
 ## Writing a state holder
 
-A declared value with a callback beside it does not carry every kind of state. Where it does not - a group of values that move together, a value the component reports and no caller could declare, a model the widget already owns - the shape is a hoistable state holder: an `XState` class the caller keeps next to their own state, with a `rememberXState` factory beside it. [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change) says which state takes which shape; what follows is what building one takes.
+A hoistable state holder is an `XState` class the caller keeps next to their own state, with a `rememberXState` factory beside it. See [Shapes for state the user can change](ARCHITECTURE.md#shapes-for-state-the-user-can-change) to choose the shape.
 
 A factory parameter can seed the holder, constrain its live model, or select the model it wraps. For example, the coordinates passed to `rememberScrollState` seed its position once. Use the holder to move the pane after that. A constraint such as a range bound changes the existing model. Supplying a different model gives the caller a holder for that model.
 
@@ -192,7 +191,7 @@ A widget with a model of its own - a spinner's `SpinnerModel`, a text component'
 
 Two shapes do that, and what the value costs to produce decides which:
 
-- **A mirror** - a snapshot-state field refreshed from the model's own change notification, read straight back out by the property's getter. `ScrollState` mirrors a viewport's position and its metrics as six ints this way. Reach for it wherever the value is small and fixed-size, which is nearly always.
+- **A mirror** - a snapshot-state field refreshed from the model's own change notification, read straight back out by the property's getter. `ScrollState` mirrors a viewport's position and its metrics this way. Reach for it wherever the value is small and fixed-size, which is nearly always.
 - **A generation counter** - a single `mutableIntStateOf` the change listener bumps and nothing else reads for its own sake. Each derived property reads the counter first, which registers the subscription, then computes its answer from the model. `DocumentState` carries `text`, `canUndo` and `canRedo` this way: a keystroke bumps one int and invalidates whoever was reading, and the document is walked only when a caller actually asks for its content. Reach for it where mirroring would materialize something large on every change whether or not anything reads it - the whole text of a document is the case in point - and pay for the extra indirection only there.
 
 The two are not exclusive within one holder. `DocumentState` runs a counter for its text and mirrors its selection directly, because a selection is a small fixed-size value and re-deriving it would buy nothing.

@@ -1,6 +1,6 @@
 # Components
 
-This is the catalog of what Compose Swing UI ships: every component family, grouped the way you reach for one, with the parameters that decide how it behaves. The KDoc on each function is the per-parameter reference. The concepts behind the binding are in [`ARCHITECTURE.md`](ARCHITECTURE.md), and Foundation layout and graphics are in [`FOUNDATION.md`](FOUNDATION.md). See [Writing components](CUSTOM-COMPONENTS.md) to build a component of your own.
+This is the catalog of what Compose Swing UI ships: every component family, grouped the way you reach for one, with the parameters that decide how it behaves. The KDoc on each function is the per-parameter reference. The concepts behind the binding are in [Architecture](ARCHITECTURE.md), and Foundation layout and graphics are in [Foundation](FOUNDATION.md). See [Writing components](CUSTOM-COMPONENTS.md) to build a component of your own.
 
 <!--- INCLUDE .*content.*
 import androidx.compose.runtime.*
@@ -44,15 +44,15 @@ Two things hold for everything below.
 
 **Every parameter is reapplied on recomposition.** Pass state to a component and the widget follows that state for the component's whole life.
 
-**Every default matches the widget's own.** A component that leaves a parameter unset behaves exactly as the freshly constructed Swing widget does, so the defaults quoted here are Swing's, not this library's. A parameter with no single correct default - `CheckBox`'s `checked`, or a `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
+**Every default matches the widget's own.** A component that leaves a parameter unset behaves exactly as the freshly constructed Swing widget does, so the defaults quoted here are Swing's. A parameter with no single correct default - `CheckBox`'s `checked`, or a `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
 
-The properties of the component - colors, fonts, borders, sizes, tooltips, accessibility - arrive as a `SwingStyle` passed as `style`, described in [`STYLES.md`](STYLES.md). To style a composable that does not take a `style` parameter, put `SwingModifier.styleable { ... }` in its modifier; see [What a style is](STYLES.md#what-a-style-is). Everything else cross-cutting - keyboard bindings, data transfer, decoration, raw listeners - arrives as a `SwingModifier` passed as `modifier`, described in [`MODIFIERS.md`](MODIFIERS.md#styling-with-a-style-parameter).
+The properties of the component - colors, fonts, borders, sizes, tooltips, accessibility - arrive as a `SwingStyle` passed as `style`, described in [Styles](STYLES.md). To style a composable that does not take a `style` parameter, put `SwingModifier.styleable { ... }` in its modifier; see [What a style is](STYLES.md#what-a-style-is). Everything else cross-cutting - keyboard bindings, data transfer, decoration, raw listeners - arrives as a `SwingModifier` passed as `modifier`, described in [Styling with a `style` parameter](MODIFIERS.md#styling-with-a-style-parameter).
 
 ---
 
 ## How a component takes state
 
-Which shape a component uses tells you where its state lives. The declared value and the hoistable holder are described in [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
+Which shape a component uses tells you where its state lives. The declared value and the hoistable holder are described in [Shapes for state the user can change](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
 **A value and a callback.** `TextField(value, onValueChange = ...)`, `CheckBox(text, checked, onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`.
 
@@ -94,11 +94,11 @@ The `value` forms are strictly controlled, settled like every other [declared va
 
 Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives you incremental edits over a large document, undo/redo, and the text as observable state. `TextField(value, onValueChange)` is for the caller who genuinely drives the value.
 
-`EditorPane` comes in two: a `markup` string it renders and reports nothing back from, and a [`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit that parses the markup and defaults to `"text/plain"`. A rendered pane is not editable - it holds only what you declare - and reports an activated link to `onLinkActivate` as the raw `href` without opening anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against. To hear hover events or reach the resolved `URL`, attach `SwingModifier.hyperlinkListener` with a `HyperlinkListener`.
+`EditorPane` comes in two: a `markup` string it renders and reports nothing back from, and a [`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit that parses the markup and defaults to `"text/plain"`. A rendered pane is read-only, holds only what you declare, and reports an activated link to `onLinkActivate` as the raw `href` without opening anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against. To hear hover events or reach the resolved `URL`, attach `SwingModifier.hyperlinkListener` with a `HyperlinkListener`.
 
 `columns` and `rows` default to `0`, which sizes the field from its content rather than a column count. `editable` defaults to `true`, `TextArea`'s `tabSize` defaults to `8`, and `FormattedTextField`'s `focusLostBehavior` to `JFormattedTextField.COMMIT_OR_REVERT`.
 
-`FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from `rememberFormattedValueState`, carries that as observable `isEditValid` beside the committed `value` the field drives, and its `commit()` lets a caller outside the field - a dialog's OK button - take the pending edit where it stands. A state-driven field has no `onValueChange` and no `onEditValidChange`: the state is the single source of truth.
+`FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from `rememberFormattedValueState`, carries that as observable `isEditValid` beside the committed `value` the field drives, and its `commit()` lets a caller outside the field - a dialog's OK button - take the pending edit where it stands. A state-driven field reports through the state alone, which is the single source of truth.
 
 ```kotlin
 var query by remember { mutableStateOf("") }
@@ -219,7 +219,7 @@ ProgressBar(model = range)
 
 <!--- KNIT example-components-content-04.kt -->
 
-A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale does. `editor` replaces that editor with a composable, composed into the spinner as a composition of the enclosing composition, so the editing surface reads the same state and composition locals the call site does. A fresh lambda each pass recomposes it rather than rebuilding it, so characters typed but not committed stand. Declaring both is refused: each names what the spinner shows.
+A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale does. `editor` replaces that editor with a composable that reads the same state and composition locals the call site does. A new lambda keeps characters typed but not committed. Declaring both is refused: each names what the spinner shows.
 
 Bounds belong to the class of the value they bound. Each is carried into that class on every pass. One the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a bound the spinner would then honor.
 
@@ -350,7 +350,7 @@ Tree(
 
 A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, how it sorts its rows and how its columns are laid out, and a `TreeState` what one `Tree` has selected and open. Each also carries the gesture that brings one row into view when the application decides to - a row just added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`, `rememberTableState()` or `rememberTreeState()` and pass it as `state`; the state is where those facets live, and a widget takes no other parameter for a facet the state holds.
 
-`revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and `revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it reached anything. Revealing is a gesture and not a declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and where the user scrolls afterwards stands. A state drives one component at a time - passing it to a second moves it there.
+`revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and `revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it reached anything. Revealing scrolls where it is called and leaves nothing behind, so where the user scrolls afterwards stands. A state drives one component at a time - passing it to a second moves it there.
 
 A row is revealed once the list holds it, so reveal from an effect that runs after the composition declaring it, not from the callback that declared it.
 
@@ -376,7 +376,7 @@ To reveal a region of a scroll pane's content rather than a row of a widget, use
 
 Swing lays everything out, so a container is a layout manager plus the children you declare into it. Children are written plainly in a container's content, and where a child sits inside its container is part of what that child declares: a container gives its content a scope, and the scope's modifier builders - `north()`, `item(...)`, `tab(...)` - append the placement to that child's own `modifier`. A builder is only callable where its scope is the receiver, so a region belongs to the container that offers it and cannot be named anywhere else.
 
-For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout modifiers, see [`FOUNDATION.md`](FOUNDATION.md).
+For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout modifiers, see [Foundation](FOUNDATION.md).
 
 | Component     | What it is                                                                           |
 |---------------|--------------------------------------------------------------------------------------|
@@ -450,7 +450,7 @@ Panel(PanelLayout.GridBag) {
 
 A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it relative to the child before it.
 
-`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A card holds one child, and two children naming the same card are refused. A child that declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not the child: a child that declares a new key moves to that card keeping its position among its siblings, and its composition identity is the place it is written at, as any child's is.
+`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A card holds one child, and two children naming the same card are refused. A child that declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not the child: a child that declares a new key moves to that card keeping its position among its siblings.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }
@@ -463,7 +463,7 @@ Button("Next", onClick = { step = "payment" })
 
 <!--- CLEAR -->
 
-Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip renders with a `header` composable - the title and icon still name the tab, for accessibility and as the values recomposition writes. A tab keeps what its body remembers, and the components that body was realized as, for as long as the child holding the declaration keeps its composition identity: a body written at a place of its own keeps its tab however the tabs around it come and go, and bodies written at one place - a loop over the open documents - are told apart by the position they arrive in until `key` gives each one of its own, so an unkeyed body is handed the tab that used to stand in its position. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to `JTabbedPane.WRAP_TAB_LAYOUT`.
+Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip renders with a `header` composable - the title and icon still name the tab, for accessibility and as the values recomposition writes. A tab keeps its body and what the body remembers however the tabs around it come and go. Bodies written at one place - a loop over the open documents - are told apart by position until `key` gives each one of its own, so an unkeyed body takes the tab at its position. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to `JTabbedPane.WRAP_TAB_LAYOUT`.
 
 ```kotlin
 var tab by remember { mutableStateOf(0) }
@@ -600,7 +600,7 @@ DesktopPane {
 
 A frame's content receives an `InternalFrameScope`: what it composes lands in the frame's content pane, and `GlassPane { ... }` shows the frame's own glass pane over it. It is valid only directly in the frame's content; composed anywhere else it is refused. Otherwise it behaves as a `Layer`'s `GlassPane` does: it takes a layout and a `modifier`, a second one composed at once is refused, and removing it gives back what it declared.
 
-To place children under a layout manager of your own, `layoutConstraint` is the builder a container you write yourself names its own placements over - see [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
+To place children under a layout manager of your own, `layoutConstraint` is the builder a container you write yourself names its own placements over - see [Placing children under constraints](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
 
 ---
 
@@ -676,11 +676,11 @@ if (asking) {
 
 <!--- KNIT example-components-content-08.kt -->
 
-To mount a composition into a Swing window or container you already own, use `setContent` - see [`ARCHITECTURE.md`](ARCHITECTURE.md#mounting-a-composition).
+To mount a composition into a Swing window or container you already own, use `setContent` - see [Mounting a composition](ARCHITECTURE.md#mounting-a-composition).
 
 Content reads the window it lives in as `LocalWindow`, whether that window was composed or is one you own and mounted into, so a `Dialog` finds its owner without being told and a menu item's callback can reach the window its bar hangs off. Read it where plain Swing wants a parent window - `JFileChooser`, `JOptionPane`, `toFront()`. It is `null` wherever the content stands in no window at all: under a bare `application { }` scope that has created no window, and in content composed under a composition of your own before its container has been added anywhere. Such content reads the window it is added to from the moment it arrives there.
 
-A file chooser and a message box are calls rather than components: each blocks where it is called and returns an answer, so they stay plain Swing. `JFileChooser` and `JOptionPane` work as they are from a callback, and the library ships no wrapper for them - where a plain Swing class already works well from composable code, it stays plain Swing. What such a call wants from the composition is a parent window, and that is what `LocalWindow.current` is: read it while composing, use it where the call takes an owner.
+A file chooser and a message box are calls rather than components: each blocks where it is called and returns an answer. Call `JFileChooser` and `JOptionPane` directly from a callback. What such a call wants from the composition is a parent window, and that is what `LocalWindow.current` is: read it while composing, use it where the call takes an owner.
 
 ```kotlin
 val window = LocalWindow.current
@@ -758,7 +758,7 @@ frame.jMenuBar = bar
 
 <!--- CLEAR -->
 
-There is no command type, so one command reached from two surfaces - a menu item and a toolbar button that go gray together - is a shared value. Both surfaces read the one state in the style each builds, so enabling and disabling them is a single state write.
+One command reached from two surfaces - a menu item and a toolbar button that go gray together - is a shared state value. Both surfaces read the one state in the style each builds, so enabling and disabling them is a single state write.
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {
@@ -946,4 +946,4 @@ Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` a
 
 ## Anything else
 
-The catalog is not the boundary of what you can compose. Any Swing `Component` can be hosted directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be written as a modifier element of your own. See [Writing components](CUSTOM-COMPONENTS.md) to host a component and [`MODIFIERS.md`](MODIFIERS.md) to write a modifier element.
+Any Swing `Component` can be hosted directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be written as a modifier element of your own. See [Writing components](CUSTOM-COMPONENTS.md) to host a component and [Modifiers](MODIFIERS.md) to write a modifier element.

@@ -2,7 +2,7 @@
 
 `swing-ui-foundation` brings androidx's parent-driven layout and its drawing surface to real Swing components: a parent offers constraints, a child reports a size, and the parent places it; drawing and decorations paint through Java2D. Swing still owns the component tree, the layout and paint cycles, and the final bounds.
 
-Depend on `swing-ui-foundation` for `Row`, `Column`, `Box`, `Layout`, `Canvas` and the decoration modifiers. See [`COMPONENTS.md`](COMPONENTS.md#containers-and-layout) for the standard Swing containers, [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) to implement a container, and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the runtime.
+Depend on `swing-ui-foundation` for `Row`, `Column`, `Box`, `Layout`, `Canvas` and the decoration modifiers. See [Containers and layout](COMPONENTS.md#containers-and-layout) for the standard Swing containers, [Containers and item cells](CUSTOM-CONTAINERS.md) to implement a container, and [Architecture](ARCHITECTURE.md) for the runtime.
 
 <!--- INCLUDE .*foundation-layout-content.*
 import androidx.compose.runtime.*
@@ -34,7 +34,7 @@ A layout pass has three steps:
 2. The parent chooses its own size from the measured children and its incoming constraints.
 3. The parent places each measured child inside its own inner rectangle.
 
-This is the parent-measures-child model of Compose UI, run inside Swing's `LayoutManager2` lifecycle on the Swing Event Dispatch Thread (EDT).
+This is the parent-measures-child model of Compose UI, run on the Swing Event Dispatch Thread (EDT).
 
 ### Constraints
 
@@ -274,7 +274,7 @@ Foundation's layout modifiers resolve only in content whose container honors the
 | `Layout` | `ConstrainedScope` |
 | `ConstrainedPanel.setContent` | `ConstrainedScope` |
 
-`weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope` and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component; [`paintOutsets`](#paint-outsets-taken-from-the-insets) is set in a style, not a modifier, and needs no scope, and under a Swing parent changes what a `Decoratable` component answers for its insets and sizes, and what it clips; see [Under a Swing parent](#under-a-swing-parent).
+`weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope` and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component; [`paintOutsets`](#paint-outsets-taken-from-the-insets) is set in a style and needs no scope, and under a Swing parent changes what a `Decoratable` component answers for its insets and sizes, and what it clips; see [Under a Swing parent](#under-a-swing-parent).
 
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row` cannot declare the row's `weight`. The content of `JComponent.setContent` and of a Swing container, such as a `Panel`, a `ToolBar`, a `Window` or a `SwingNode` container, offers none of these either, because the layout manager placing that content reads none of them. A scoped modifier that reaches a container unable to honor it is refused when it is applied, and a `Row`, `Column` or `Box` refuses an untyped `layoutConstraint` as well. A `Layout` and a `ConstrainedPanel` hand an untyped `layoutConstraint` to their policy as `Measurable.parentData`; the default policy of a `ConstrainedPanel` reads none, as androidx's root reads none, so it ignores one on the content of `setContent`.
 
@@ -305,22 +305,14 @@ fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outli
 
 <!--- KNIT example-foundation-scoped-01.kt -->
 
-Code compiled with Kotlin language version 2.2 or 2.3 needs the `-Xcontext-parameters` compiler option to call this modifier or declare its own:
-
-```kotlin
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
-    }
-}
-```
+Code compiled with Kotlin language version 2.2 or 2.3 needs the `-Xcontext-parameters` compiler option to call this modifier or declare its own.
 
 <!--- CLEAR -->
 
 ### Choosing a container
 
 - `Row`, `Column` or `Box` for single-axis or stacked layouts with Compose-style weights, arrangements and alignments.
-- `Layout` for a placement policy of your own; [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) develops one, with custom content scopes and layout constraints.
+- `Layout` for a placement policy of your own; [Containers and item cells](CUSTOM-CONTAINERS.md) develops one, with custom content scopes and layout constraints.
 - `Panel(PanelLayout.Xxx)` for a Swing layout manager's behavior, with a `Box` or another constraint-based container inside it wherever its descendants need layout modifiers.
 - `ConstrainedPanel` to host Foundation content in a Swing tree you build yourself; see [Hosting content in a Swing tree](#hosting-content-in-a-swing-tree).
 
@@ -395,7 +387,7 @@ A decoration paints at its *decorated box*: the box of the first layout modifier
 
 A `padding` declared after a decoration takes layout space between it and the content. `shadow` and `blur` paint into [paint outsets](#bounds) outside the layout bounds: in a `Row`, `Column` or `Box` they move no sibling. Under a Swing parent there are no paint outsets by default, and the decoration is clipped at the bounds; see [Under a Swing parent](#under-a-swing-parent). Setting `paintOutsets(PaintOutsets.None)` in the component's style gives the decoration's outsets layout space under any parent; see [Paint outsets taken from the insets](#paint-outsets-taken-from-the-insets).
 
-- `background(color)` without a shape is the style's `background`, which sets the Swing property; pass a `Shape` or a `Brush` for the decoration.
+- `background(color)` without a shape is the style's `background`, which sets the Swing property. Pass a `Shape` or a `Brush` for the decoration.
 - A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to follow it.
 - A clip outside a blur can cut its halo.
 
@@ -483,7 +475,7 @@ A step calls `invalidateLayerProperties()` when a property it draws its layers w
 
 ## The layout pipeline
 
-A constraint-based container runs androidx's layout phases inside Swing's validate and paint cycles.
+A constraint-based container lays out and paints within Swing's own validate and paint cycles.
 
 ### Bounds
 
@@ -614,13 +606,6 @@ To keep a descendant's shadow visible under a Swing parent, give it space inside
 
 `Row`, `Column`, `Box` and their shared row/column measurement policy are ported from AndroidX's `foundation-layout`; see [`swing-ui-foundation`'s `META-INF/NOTICE`](../swing-ui-foundation/src/main/resources/META-INF/NOTICE) for the synced version.
 
-The model follows Compose UI, adapted to Swing:
-
-- Geometry uses AWT integer user-space coordinates instead of `Dp` and `IntSize`.
-- Layout direction comes from `ComponentOrientation`.
 - Swing exposes one alignment line through `Component.getBaseline`, so there is `FirstBaseline` and no `LastBaseline`.
-- Intrinsic measurement maps to Swing's argument-less `preferredSize` and `minimumSize` queries.
-- Placement ends in `Component.setBounds` on a real Swing component.
-- Children with equal z-index stack in declaration order. androidx stacks them in the order the parent places them.
 
 A matching valid result from an earlier explicit offer is placed again without measuring. A Foundation child without an explicit preferred size waits for its parent's next offer when its result is invalid or no longer matches its bounds.

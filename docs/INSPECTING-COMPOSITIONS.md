@@ -19,7 +19,7 @@ Turning it on does two things:
 - Every composition this library mounts from then on records where each component was declared, as it composes, and publishes itself on the container its content is rooted at.
 - Every composition already mounted **re-inserts its content**, so what is already on screen records it too. The runtime records source information only as content is inserted, so the content has to be built afresh for that information to exist at all. That re-insertion is delivered on a later recomposition pass, not by the time the assignment returns.
 
-Re-insertion is not free of consequence. State hoisted above the mounted content survives it - a text field keeps what the user typed, because that value lives in the state the content reads - while everything `remember`ed inside the content is discarded and computed again, and the components are rebuilt.
+Re-insertion is not free of consequence. State hoisted above the mounted content survives it - a text field keeps what the user typed - while everything `remember`ed inside the content is discarded and computed again, and the components are rebuilt.
 
 Turning it off reverses both: every composition builds its content afresh once more, this time without recording, and withdraws what it published. A composition answers for what it declared only while the switch is on.
 
@@ -50,11 +50,11 @@ The declaring answer is a group rather than the whole composition because a `Com
 
 The search starts at the component and walks up its Swing ancestors, and the nearest composition that declared it wins. So a component declared inside a nested `setContent` is answered by that content composition rather than by the one around it, and a component that hosts a composition of its own is still answered with the group that declared it - the composition it carries never declared its own host.
 
-A composition rooted at a `java.awt.Container` that is no `JComponent` publishes nothing, having no client-property bag, and the components it declared are not found; where two compositions are rooted at the same component, only the more recently mounted one is reachable. Call it on the Event Dispatch Thread: a slot table read off the thread that recomposes it races with recomposition.
+A composition rooted at a `java.awt.Container` that is no `JComponent` publishes nothing, having nowhere to publish, and the components it declared are not found; where two compositions are rooted at the same component, only the more recently mounted one is reachable, and once it ends the component holds no publication. Call it on the Event Dispatch Thread: a read off the thread that recomposes it races with recomposition.
 
-The answer reads the slot table as it stands, and the composition's next recomposition retires it - descending a group held across one fails. Read what you need while the answer is fresh, then ask again; `identity`, read while it is fresh, is what carries across.
+The answer is as the composition stands, and the composition's next recomposition retires it - descending a group held across one fails. Read what you need while the answer is fresh, then ask again; `identity`, read while it is fresh, is what carries across.
 
-The component a group hands over is the live one, handed over for inspection: the composition still owns every property a declared parameter governs, so writing one from a tool is replaced on the next pass that applies it. Read the tree; do not drive it.
+The component a group hands over is the live one, handed over for inspection: the composition still owns every property a declared parameter governs, so writing one from a tool is replaced on the next pass that applies it.
 
 ## Reading the chain a component carries
 
@@ -82,7 +82,7 @@ Both are display only. `key` is what tells one slot from another, so two element
 
 The chain is the whole declaration, placement included: an element saying where the component sits in its parent stands in it beside the ones saying what it looks like. It is what the composition declared last, whether or not that pass had anything to write, so it never lags the composition - and it holds what a caller passed followed by what the widget's own composable declared, in that order.
 
-An element the library does not ship reports whatever it overrides `name` and `declaredValues` with; see [`STYLES.md`](STYLES.md#a-property-written-by-an-element).
+An element the library does not ship reports whatever it overrides `name` and `declaredValues` with; see [A property written by an element](STYLES.md#a-property-written-by-an-element).
 
 ## Attaching a composition stack trace to a throwable
 
@@ -93,7 +93,7 @@ someButton.attachComposeStackTrace(failure)
 
 <!--- CLEAR -->
 
-Where a component was declared is not read off its group: the group holding a component is a node group, and the Compose compiler writes source information onto the groups enclosing it. `Component.attachComposeStackTrace(throwable)` attaches it as a suppressed exception on the throwable, rendered with the rest of the trace:
+Where a component was declared is not read off its group. `Component.attachComposeStackTrace(throwable)` attaches it as a suppressed exception on the throwable, rendered with the rest of the trace (line numbers here are illustrative):
 
 ```
 java.lang.IllegalStateException: painting this component failed
@@ -106,9 +106,7 @@ java.lang.IllegalStateException: painting this component failed
 
 It returns whether it attached one. Attaching needs the application to have called `Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)`; the library never sets it, because it is process-wide state the application owns. `Component.findDeclaringGroup()` answers in full without it.
 
-`false` means there was nothing to attach: the application has not enabled that mode, no composition this library mounted declared the component, the composition has not recorded source information yet - the re-insertion the switch asks for lands on a later pass - the throwable already carries a composition stack trace, or the composition recorded no source information at all.
-
-The rendered text is the whole of the payload. The exception carrying it is a Compose runtime internal.
+`false` means there was nothing to attach: the application has not enabled that mode, no composition this library mounted declared the component, the composition has not recorded source information yet - the re-insertion the switch asks for lands on a later pass - the throwable already carries a composition stack trace, the composition recorded no source information at all, or its content provides no `CompositionLocal`, so the runtime recorded no scope for it.
 
 ## What it costs
 
@@ -192,7 +190,7 @@ fun declarationOf(component: Component): String? {
 
 /**
  * Reports every composition mounted under [window] while the returned handle is not disposed, or `null`
- * where the window drives no composition of its own.
+ * where `findRecomposer()` answers `null`.
  */
 @OptIn(ExperimentalComposeRuntimeApi::class)
 fun watchCompositionsOf(

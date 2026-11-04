@@ -9,11 +9,11 @@ The suites below measure what Compose Swing UI costs. Both run the composable fi
 
 ## Fixtures
 
-Each suite builds a fixture at 1, 100 and 1000 instances. A change switches only the first instance between the fixture's initial values and one of its alternatives, so a cost that grows with the number of unchanged siblings shows up as a difference between the sizes. A change is named after the properties that differ between the alternative and the initial values, and the fixture is named after its class without `Fixture`.
+Each suite builds a fixture at 1, 100 and 1000 instances. A change switches only the first instance between the fixture's initial values and one of its alternatives, so a cost that grows with the number of unchanged siblings shows up as a difference between the sizes. A change is named after the properties that differ between the alternative and the initial values, with a `#2` suffix on a repeated name, and the fixture is named after its class without `Fixture`.
 
-The memory suite measures four steps of every fixture, on the composed tree and on the raw Swing tree:
+The memory suite measures these steps of every fixture, on the composed tree and on the raw Swing tree:
 
-- `noChange` changes nothing, so it shows what the harness itself allocates.
+- `noChange` changes nothing, so it shows the baseline of the measurement.
 - `firstComposition` builds all instances.
 - Each alternative changes the first instance.
 - `dispose` removes all instances.
@@ -30,7 +30,7 @@ Pass `-PbenchmarkFixtures=Label,Padding` to measure only the named fixtures.
 
 ## Timing
 
-The timing suite times each change of every fixture with JMH, in Compose and in raw Swing, at 1, 100 and 1000 widgets. A `fixtureChange` parameter reads `fixture/alternative/arm`, as in `Label/text/rawSwing`. A fixture that declares no alternatives has no timing results, and a fixture whose raw Swing side is a window, or needs a toolkit a headless run lacks, has only the Compose arm. A fixture whose composed side opens a window has no timing results, because the headless run cannot create one.
+The timing suite times each change of every fixture with JMH, in Compose and in raw Swing, at 1, 100 and 1000 widgets. A `fixtureChange` parameter reads `fixture/alternative/arm`, as in `Label/text/rawSwing`. A fixture that declares no alternatives has no timing results. A fixture whose raw Swing side is a window, or needs a toolkit a headless run lacks, has only the Compose arm. A fixture whose composed side opens a window has no timing results.
 
 ```bash
 # Build the JMH jar
@@ -45,6 +45,6 @@ The timing suite times each change of every fixture with JMH, in Compose and in 
 
 - `firstCompose`, `firstLayout` and `firstDraw` measure fresh content up to the named phase.
 - `toggleRecompose`, `toggleLayout` and `toggleDraw` change the first subject once per invocation, on either arm, and measure the work up to that phase. A draw paints the whole host into an image.
-- `-PjmhArgs` passes options to JMH, including its stack and JFR profilers.
+- `-PjmhArgs` passes options to JMH.
 
 JMH writes the results to `benchmarks/benchmark/build/results/jmh.json`. Time depends on machine load, so compare runs from one quiet machine.

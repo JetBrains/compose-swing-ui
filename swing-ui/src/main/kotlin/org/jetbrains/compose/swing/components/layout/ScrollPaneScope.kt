@@ -183,7 +183,7 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
     /** The pane this scope configures, from when the [ScrollPane] node builds it until the pane's content leaves. */
     private var pane: JScrollPane? = null
 
-    /** What [pane] has in its corners and headers when this scope binds it; see [OwnRegions]. */
+    /** What `pane` has in its corners and headers when this scope binds it; see [OwnRegions]. */
     private var ownRegions: OwnRegions = OwnRegions.None
 
     /** Binds the pane the [ScrollPane] node built, and records its own regions before a child fills any of them. */
@@ -192,7 +192,7 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         ownRegions = OwnRegions.of(pane)
     }
 
-    /** The increments set on [pane]'s scroll bars. */
+    /** The increments set on `pane`'s scroll bars. */
     private var applied: ScrollIncrements = ScrollIncrements.None
 
     /** The vertical bar this scope installed in place of the pane's own; `null` while the pane's own stands. */
@@ -442,7 +442,7 @@ private class Header(
 }
 
 /**
- * The corners and headers [pane] has when its scope binds it. A child filling a region replaces what is there,
+ * The corners and headers `pane` has when its scope binds it. A child filling a region replaces what is there,
  * and a region put back must not take it from whatever stands there when the child leaves, which may be an
  * earlier child on its way out.
  *
@@ -471,7 +471,7 @@ private class OwnRegions(
     }
 }
 
-/** The physical corner [corner] names on [pane] under its component orientation now. */
+/** The physical corner [corner] names on `pane` under its component orientation now. */
 private fun physicalCorner(
     @ScrollPaneCorner corner: String,
     pane: JScrollPane,

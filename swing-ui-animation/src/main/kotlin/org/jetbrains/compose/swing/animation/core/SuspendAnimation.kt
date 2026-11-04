@@ -58,9 +58,7 @@ public suspend fun animate(
  *
  * @param initialValue The initial value to animate from.
  * @param initialVelocity The initial velocity of the animation.
- * @param animationSpec Defines the decay animation that will be used for this animation. Some
- *   options for this [animationSpec] include:
- *   [splineBasedDecay][androidx.compose.animation.splineBasedDecay] and [exponentialDecay].
+ * @param animationSpec The decay specification, such as [FloatExponentialDecaySpec].
  * @param block Will be invoked on each animation frame with up-to-date value and velocity.
  * @see AnimationState.animateDecay
  */
@@ -160,9 +158,7 @@ public suspend fun <T, V : AnimationVector> AnimationState<T, V>.animateTo(
  * with the up-to-date value/velocity, frame time, etc. This is often used to animate the result of
  * a fling gesture.
  *
- * @param animationSpec Defines the decay animation that will be used for this animation. Some
- *   options for [animationSpec] include:
- *   [splineBasedDecay][androidx.compose.animation.splineBasedDecay] and [exponentialDecay].
+ * @param animationSpec The decay specification, such as [exponentialDecay].
  * @param sequentialAnimation Indicates whether the animation should use the
  *   [AnimationState.lastFrameTimeNanos] as the starting time (if true), or start in a new frame. By
  *   default, [sequentialAnimation] is false, to start the animation in a few frame. In cases where

@@ -685,7 +685,7 @@ private val BorderParentProtocol = SwingLayoutParentProtocol(BorderLayout::class
 private val GridBagParentProtocol = SwingLayoutParentProtocol(GridBagLayout::class.java, "GridBagLayout parent data")
 private val CardParentProtocol = SwingLayoutParentProtocol(CardLayout::class.java, "CardLayout parent data")
 
-/** One built-in panel-scope declaration, resolved last-wins with its own [type] as the slot key. */
+/** One built-in panel-scope declaration, resolved last-wins with its own `type` as the slot key. */
 private data class PanelParentDataElement(
     val parentData: Any,
     override val parentProtocol: ParentProtocol,

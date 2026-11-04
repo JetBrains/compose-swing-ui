@@ -557,8 +557,8 @@ internal sealed class SwingNodeHolder<out T : Component> :
  * it over again on the pass that follows. The detach covers every modifier-installed listener,
  * including the built-in domain listener of the component.
  *
- * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
- * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
+ * It does not change where the component lives: [ParentDeclaration.parentData], [SwingNodeHolder.declaredSlot]
+ * and [SwingNodeHolder.childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
  * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
  * stops observing through the node before the modifier tears down.
  *
@@ -829,7 +829,8 @@ private fun Container.takeOut(
 
 /**
  * Takes this child's component out of [container], the container of the host it was attached to, through the
- * [installation] that put it there, marking in [batch] the container it leaves and the area it covered there.
+ * [SwingNodeHolder.installation] that put it there, marking in [batch] the container it leaves and the area it
+ * covered there.
  * A child the applier holds nowhere leaves nothing.
  */
 internal fun SwingNodeHolder<*>.leaveHost(

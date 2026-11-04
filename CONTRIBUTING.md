@@ -31,7 +31,7 @@ Thanks for contributing to Compose Swing UI. This guide covers how to build and 
 ./gradlew :dokkaGenerate
 ```
 
-Compiling a module also writes the Compose compiler's reports - which composables are skippable, and which parameters are unstable - to `<module>/build/compose-reports`, alongside summary counts in `<module>/build/compose-metrics`. A build that is up to date or served from the cache does not compile and leaves the reports it finds, so force compilation when you need to trust them. Kotlin's incremental compiler recompiles only the sources a change touches, and the report reflects only that increment - a short or empty report means little was recompiled, not that the module has nothing unstable. Only a non-incremental compile produces a report covering the whole module: `./gradlew --rerun-tasks :swing-ui:compileKotlin`, or clean the module first.
+Compiling a module also writes the Compose compiler's reports - which composables are skippable, and which parameters are unstable - to `<module>/build/compose-reports`, alongside summary counts in `<module>/build/compose-metrics`. A build that is up to date or served from the cache does not compile and leaves the reports it finds, so force compilation when you need to trust them. Kotlin's incremental compiler recompiles only the sources a change touches, and the report reflects only that increment - a short or empty report means little was recompiled. Only a non-incremental compile produces a report covering the whole module: `./gradlew --rerun-tasks :swing-ui:compileKotlin`, or clean the module first.
 
 `:swing-ui` and `:swing-ui-foundation` each split their suite across two tasks, and `check` runs both. `test` holds everything that asserts nothing about which window the window system is attending to, and runs it across parallel JVMs; `exclusiveWindowSystemTest` holds the classes and cases tagged `ExclusiveWindowSystem` and runs them one at a time, because two of them at once take that state from each other and skip. Write a new test into whichever it belongs to by tagging it, not by where the file sits; `ExclusiveWindowSystem` says which tests need the tag and where it goes. Note that a scoped `test` run of either module also pulls in its `exclusiveWindowSystemTest`, which the coverage report that follows a test run depends on.
 
@@ -41,11 +41,11 @@ Harness-driven tests are deterministic, never sleep, and never attach their root
 
 On macOS the tests that need a focused window skip; CI runs them.
 
-See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness guide.
+See [Testing components](docs/TESTING-COMPONENTS.md) for the harness guide.
 
 ## Benchmark suites
 
-See [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for the fixtures and the suites that measure them.
+See [Measuring performance](docs/PERFORMANCE.md) for the fixtures and the suites that measure them.
 
 ## Quality gates (all must pass)
 
@@ -70,21 +70,19 @@ Piece by piece:
   ```bash
   ./gradlew updateKotlinAbi
   ```
-  Commit whichever of `swing-ui/api/swing-ui.api`, `swing-ui-detekt/api/swing-ui-detekt.api`, `swing-ui-test/api/swing-ui-test.api` and `swing-ui-animation/api/swing-ui-animation.api` the change moved. A public-API change should be intentional and reviewed.
+  Commit whichever of the published modules' `<module>/api/<module>.api` dumps the change moved. A public-API change should be intentional and reviewed.
 - **`:buildSrc:ktlintCheck` / `:buildSrc:detekt`** - formatting, lint and static analysis for the convention plugins. Run them whenever you touch anything under `buildSrc/`.
-- **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-detekt`, `swing-ui-test` and `swing-ui-animation` each enforce a line-coverage floor and a branch-coverage floor, measured per module against that module's own tests. A change that drops a ratio below its floor fails the build. Add tests for any new behavior you can reach through the test harness. The floors are held, not chased: if a branch is a defensive guard with no reachable behavior, leave it uncovered rather than writing a test that asserts nothing.
+- **`jacocoTestCoverageVerification`** - each module that applies the coverage convention enforces a line-coverage floor and a branch-coverage floor, measured per module against that module's own tests. A change that drops a ratio below its floor fails the build. Add tests for any new behavior you can reach through the test harness. If a branch is a defensive guard with no reachable behavior, leave it uncovered rather than writing a test that asserts nothing.
 
 ## Documentation snippets
 
 Kotlin snippets in `README.md` and `docs/` are compiled by the build, and marking one is opt-in: write `<!--- KNIT example-<document>-01.kt -->` on its own line after the closing fence, and Knit merges the block into a file under `samples/docs/build/generated/knit/example/`, taking the number from the document's own sequence. A snippet that is a fragment rather than a whole file gets its imports and its enclosing function from an `INCLUDE`/`SUFFIX` preamble at the top of the document, matched against the example file name; an unmarked block is followed by `<!--- CLEAR -->` so it does not merge into the next marked one.
 
-The generated files are a build output, not source: nothing under that directory is committed, and there is nothing to regenerate by hand. `build` writes them and compiles them, so a snippet that does not compile fails the build. While editing a document, the quick check is:
+Compile the documentation examples while editing:
 
 ```bash
 ./gradlew :samples:docs:compileKotlin
 ```
-
-Renaming or deleting a marked snippet leaves the file it used to generate behind in the build directory, where it keeps compiling. Run `./gradlew :samples:docs:clean` after such a change to get the same result a fresh checkout gets.
 
 ## Code style
 
@@ -96,7 +94,7 @@ Renaming or deleting a marked snippet leaves the file it used to generate behind
 
 ### Typed constants
 
-Model a closed set of named JDK/Swing integer constants (a selection mode, a placement, a message kind) as a `@MagicConstant`-annotated typedef - never an `enum class` and never a wrapper value class. Declare an annotation class whose only job is to name the accepted constants, then use it as `@Xxx Int` on the parameter (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for what a typed constant set gives a caller):
+Model a closed set of named JDK/Swing integer constants (a selection mode, a placement, a message kind) as a `@MagicConstant`-annotated typedef - never an `enum class` and never a wrapper value class. Declare an annotation class whose only job is to name the accepted constants, then use it as `@Xxx Int` on the parameter (see [Architecture](docs/ARCHITECTURE.md) for what a typed constant set gives a caller):
 
 ```kotlin
 @Retention(AnnotationRetention.BINARY)

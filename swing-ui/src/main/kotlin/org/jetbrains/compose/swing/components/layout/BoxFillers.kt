@@ -115,8 +115,8 @@ public fun Strut(
  * }
  * ```
  *
- * A [Row] and a [Column] place the extent they have left over through their arrangement -
- * [Arrangement.End], [Arrangement.Center] and [Arrangement.SpaceBetween] among them.
+ * A `Row` and a `Column` place the extent they have left over through their arrangement -
+ * `Arrangement.End`, `Arrangement.Center` and `Arrangement.SpaceBetween` among them.
  *
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param style the [SwingStyle] applied to the underlying component

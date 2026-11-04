@@ -45,8 +45,8 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
     /**
      * The node the applier last inserted this one under. `null` on a composition's root and on a removed node. Set as
      * the node is inserted top-down, so a relocated node, which is inserted bottom-up first, has its new parent before
-     * the change pass attaches it. Style resolution and host resolution ([componentHost], [childGroupDeclarations])
-     * walk it.
+     * the change pass attaches it. Style resolution and host resolution ([NodeHolder.componentHost],
+     * [childGroupDeclarations]) walk it.
      *
      * Written only as the node enters or leaves a child list: [insertInto] sets it, [removeChildren] clears it.
      */
@@ -54,7 +54,7 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
 
     /**
      * The node to whose component this node's children are added: this node where it has a component, else the
-     * [componentHost] of its [parent].
+     * [NodeHolder.componentHost] of its [parent].
      */
     val componentHost: SwingNodeHolder<*>
 
@@ -109,7 +109,7 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
      * Attaches this node, projected at [index] under [parent], to [container], through [regions].
      *
      * @param parent the node this one is composed under.
-     * @param container the component of [parent]'s [componentHost].
+     * @param container the component of [parent]'s [NodeHolder.componentHost].
      * @param index the node's index among its parent's children; unused for a group.
      * @param regions the regions of the applier attaching this node.
      */
@@ -128,7 +128,7 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
      *
      * @param parent the node this one is composed under.
      * @param index the node's index among its parent's children.
-     * @param container the component of [parent]'s [componentHost].
+     * @param container the component of [parent]'s [NodeHolder.componentHost].
      * @param regions the regions of the applier attaching a waiting component.
      */
     fun takeGroupDeclarations(
@@ -197,7 +197,7 @@ internal fun NodeHolder.composedInAnyOf(groups: List<VirtualNodeHolder>): Boolea
  *
  * @param parent the node this one is composed under.
  * @param index the node's index among its parent's children.
- * @param container the component of [parent]'s [componentHost].
+ * @param container the component of [parent]'s [NodeHolder.componentHost].
  * @param regions the regions of the applier attaching a waiting component.
  */
 internal fun NodeHolder.joinHostIfWaiting(

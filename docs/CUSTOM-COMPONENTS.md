@@ -4,10 +4,8 @@ Build reusable UI by composing existing components. When you need a Swing bindin
 
 Further documents carry the rest:
 
-- [`COMPONENT-STATE.md`](COMPONENT-STATE.md) - a property the user can change as well as the composition, and the state holders that carry what a declared value cannot.
-- [`MODIFIERS.md`](MODIFIERS.md) - how a modifier is ordered, matched and attached across passes, the `modifier` parameter, and attaching listeners.
-- [`STYLES.md`](STYLES.md) - what a style is, how it resolves, restores and nests, and the style parameter of a component and writing a property of your own.
-- [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) - containers, the placements they offer their children, and rendering items with a composable cell.
+- [Component state](COMPONENT-STATE.md) - a property the user can change as well as the composition, and the state holders that carry what a declared value cannot.
+- [Containers and item cells](CUSTOM-CONTAINERS.md) - containers, the placements they offer their children, and rendering items with a composable cell.
 
 ## When to write a component
 
@@ -37,10 +35,10 @@ public fun MyWidget(
 
 <!--- CLEAR -->
 
-Use `modifier` for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier. [`STYLES.md`](STYLES.md) covers the scope, the kind and the keys. See [Choosing the signature](#choosing-the-signature) for the rest of the signature.
+Use [`modifier`](MODIFIERS.md) for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier. [Styles](STYLES.md) covers the scope, the kind and the keys. See [Choosing the signature](#choosing-the-signature) for the rest of the signature.
 
-- `factory` runs **once**, when the node enters the composition. Build (and do one-time configuration of) your Swing component here. Each call builds and returns a new component, never one built elsewhere; to configure a component a parent already built and keeps, use `ExistingSwingNode`. Whatever it reads from the composable body, it reads once: a layout manager, model or value constructed there is rebuilt on every later composition while the component keeps the first one, so anything the component is to go on using is built inside `factory`. The component's own layout manager is the usual one to get wrong - a container that later hands its children placements computed against a freshly built layout is describing a layout nothing is laid out by. A caller can supply an existing model or declare a layout policy as an input.
-- `update` runs on the first composition and on **every recomposition**. Apply every declared input for the component's whole life, including a change back to the default. Inside it you declare which pieces of state map onto which component properties; the framework only re-applies the ones that actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable call inside it - `remember` included - a compile-time error, so read state in the composable body and pass the value in. A property written directly by a custom `SwingNode` or `MenuNode` `update` block is baseline component state: a modifier element or style that sets the same property wins over it. For the style contract, see [`Styles`](ARCHITECTURE.md#styles).
+- `factory` runs once per node. Create a fresh component and any models or layout managers it owns in each call. A caller can supply an existing model or declare a layout policy as an input. When parked content reactivates, a new node creates a new component. Use `ExistingSwingNode` to configure a component its parent already owns.
+- `update` applies values from the composable to the component. Apply every declared input for the component's whole life, including a change back to the default. Read Compose state in the composable body and pass the values to `update`. A modifier element or style that sets the same property takes precedence over a value written directly in `update`. See [Styles](ARCHITECTURE.md#styles).
 - `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to the thread's uncaught-exception handler, and the node is released as if it had returned.
 
 `SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is available as the strongly-typed `this`.
@@ -54,17 +52,17 @@ Two things about every component belong to the composition rather than to your c
 
 A component a parent built and keeps - a scroll pane's scroll bar, a layer's glass pane - stays its parent's; the composition owns only what it declares on it (see [Configuring a component its parent owns](#configuring-a-component-its-parent-owns)).
 
-So a component your composition built is not a component to reach into. Writing a property the composition also writes means the next recomposition asserts what the composition declares and your write is gone; adding or removing a child behind the applier's back leaves the two disagreeing about what the container holds. Neither failure is loud - the value simply reverts, or the tree drifts.
+So leave a component your composition built to the composition. Writing a property the composition also writes means the next recomposition asserts what the composition declares and your write is gone; adding or removing a child behind the applier's back leaves the two disagreeing about what the container holds. Neither failure is loud - the value simply reverts, or the tree drifts.
 
 The only component your code constructs is the one its own `factory` returns. A container's children arrive as composables the container emits, and the applier turns each into a component and places it; a child your code instantiates has no node behind it, so nothing updates it, reuses it or releases it.
 
-Structural change is the applier's too. A container re-composes the children this composition declares and the applier settles the difference: a child that has gone leaves, a new one arrives, one that moved is carried to its new position with the component it already had. Which child is which is the place in the caller's code that declared it, so an `if` around one leaves the components its siblings already have, and everything those components hold, alone. Children written at one place - a loop over a list - share that place, and are told apart by the position they arrive in until `key` gives each an identity of its own. Key a child by what identifies it among its siblings rather than by where it sits in the loop that emits it: children keyed by position are the same children whatever the declarations did, so an insertion hands every component to the declaration that used to follow it, along with the state it had. If what the caller declared carries nothing that tells one sibling from another, the key is the caller's to supply. There is no rebuild to perform and no previous structure to compare against - holding one and re-adding children from it costs the applier the identity it was tracking.
+Structural change is the applier's too. A container re-composes the children this composition declares and the applier settles the difference: a child that has gone leaves, a new one arrives, one that moved is carried to its new position with the component it already had. Which child is which is the place in the caller's code that declared it, so an `if` around one leaves the components its siblings already have, and everything those components hold, alone. Children written at one place - a loop over a list - share that place, and are told apart by the position they arrive in until `key` gives each an identity of its own. Key a child by what identifies it among its siblings rather than by where it sits in the loop that emits it: children keyed by position are the same children whatever the declarations did, so an insertion hands every component to the declaration that used to follow it, along with the state it had. If what the caller declared carries nothing that tells one sibling from another, the key is the caller's to supply. Holding a previous structure and re-adding children from it costs the applier the identity it was tracking.
 
 Emitting is declaring, not doing. The content a container composes runs on every pass, so work done there lands again each time: a layout that is asked for another sub-grid while children are being emitted accumulates one per composition. Whatever a child needs allocated on something that outlives it belongs in a `remember` inside that child's own `key` block, where it lives and dies with the child, and is given back from a `DisposableEffect` there. Inside the block is the part that is easy to miss: a `remember` sitting in the emitting loop but outside the child's `key` is identified by its position in that loop, whatever you pass as its keys, so it survives the child it belongs to and is re-run for a child it does not. What the container has to say about a child, the child says for itself: the placement it declares on its own modifier.
 
-This is why the API you write for others should not hand out the component either. Keep `java.awt.Component` and its subclasses out of parameters, callback types, return types, and type bounds, at every visibility. Take data, callbacks, value types (`Icon`, `Border`, `Color`, `Insets`, `KeyStroke`) and models (`ListModel`, `TableModel`, `Document`) - the composition manages none of *their* internals, so there is nothing to race. Keeping the component out of your signatures is what lets the composition stay the single writer.
+The API you write for others should not hand out the component either. Keep `java.awt.Component` and its subclasses out of parameters, callback types, return types, and type bounds, at every visibility. Take data, callbacks, value types (`Icon`, `Border`, `Color`, `Insets`, `KeyStroke`) and models (`ListModel`, `TableModel`, `Document`) - the composition manages none of *their* internals, so there is nothing to race.
 
-The same rule explains where a property belongs. One that only your component has is a parameter of your component. One that many unrelated components have is a style property, so it reaches all of them without every wrapper repeating it - and so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
+A property that only your component has is a parameter of your component. One that many unrelated components have is a style property, so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
 
 ## Choosing the signature
 
@@ -200,7 +198,7 @@ A `SlotAttachment` also places a nested composition's top-level component: pass 
 
 ### `@SwingComposable`: keeping Swing and `compose.ui` apart
 
-`@SwingComposable` marks Swing-target content so the compiler can tell it apart from `compose.ui`'s own `@UiComposable`: calling a foreign-applier composable (e.g. `androidx.compose.material.Text`) inside a Swing composition - or a Swing composable inside a `compose.ui` composition - is then a compile-time error with a "Swing Composable vs UI Composable" message, instead of compiling silently and failing at runtime.
+`@SwingComposable` marks Swing-target content so the compiler can tell it apart from `compose.ui`'s own `@UiComposable`: calling a foreign-applier composable (e.g. `androidx.compose.material.Text`) inside a Swing composition - or a Swing composable inside a `compose.ui` composition - is then a compile-time warning that names both targets, instead of compiling silently and failing at runtime.
 
 The compiler infers an ordinary wrapper's target from the nodes it calls. To forward a content parameter to `SwingNode`, `ExistingSwingNode`, or a Swing composition entry point such as `JComponent.setContent`, declare it as `@Composable @SwingComposable () -> Unit`. For a parameter forwarded to `MenuNode` or `JMenuBar.setContent`, use `@Composable @SwingMenuComposable () -> Unit`. A slot you call inline gets its target from that call.
 
@@ -247,9 +245,9 @@ set(value) { /* this: T */ this.someProperty = it }
 
 `set` records `value` and runs the block (with the component as `this` and `value` as `it`) on the first composition, then again **only when `value` changes** between recompositions. This is the idiomatic way to push one piece of state onto one Swing property. Call `set` once per property you want kept in sync.
 
-A call is matched with the value it declared last pass by where it sits among the others, so an `update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a bug - state the condition in the value, not in whether the call happens. The same holds for `declare` (see [`COMPONENT-STATE.md`](COMPONENT-STATE.md)), which makes one such call of its own.
+A call is matched with the value it declared last pass by where it sits among the others, so an `update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a bug - state the condition in the value, not in whether the call happens. The same holds for `declare` (see [Component state](COMPONENT-STATE.md)), which makes one such call of its own.
 
-`set` compares this pass's declaration only against the last one, so it is the right tool for a property only the composition writes. See [`COMPONENT-STATE.md`](COMPONENT-STATE.md) for a property the widget itself can also change.
+`set` compares this pass's declaration only against the last one, so it is the right tool for a property only the composition writes. See [Component state](COMPONENT-STATE.md) for a property the widget itself can also change.
 
 ### `update(value) { ... }` - for what the constructor already applied
 
@@ -269,7 +267,7 @@ SwingNode(
 
 `update` behaves like `set` but skips the first composition, so use it - and only it - for a value the `factory` passed to the constructor. `set` would write that value a second time on the composition that just created the component.
 
-Reaching for the constructor does not excuse you from writing the value: a parameter consumed only there is honored once and then silently ignored, which reads at the call site as reactive state and is not. `update` reaches it on every pass that declares a different value; the constructor runs exactly once, when the node is built, and not again for as long as that same node lives.
+Reaching for the constructor does not excuse you from writing the value: a parameter consumed only there is honored once and then silently ignored, though it reads at the call site as reactive state. `update` reaches it on every pass that declares a different value; the constructor runs exactly once, when the node is built, and not again for as long as that same node lives.
 
 A property that changes the size a component asks for needs a layout pass to go with it. Several Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and nothing in the update pass asks for a layout on their behalf, so call `revalidate()` after the write.
 

@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Compose Swing UI — a Compose runtime over Swing. `@Composable` wrappers, modifiers and state holders drive real `javax.swing` components, published as the `swing-ui`, `swing-ui-test` and `swing-ui-animation` modules. The public API is not frozen: design each API the way it should be rather than preserving an earlier shape.
+Compose Swing UI — a Compose runtime over Swing. `@Composable` wrappers, modifiers and state holders drive real `javax.swing` components, published as separate modules. Design each public API as it should be; do not preserve an earlier shape.
 
 ## Quality rules
 
@@ -14,11 +14,9 @@ The code style itself — explicit API mode, KDoc, the EDT rule — is `CONTRIBU
 
 ## Skills
 
-Task procedures live in `.agents/skills/`, each in its own directory as a `SKILL.md`. They are surfaced to each tool through the `.claude/skills`, `.codex/skills` and `.junie/skills` symlinks.
+Task procedures live in `.agents/skills/<name>/SKILL.md`. They are surfaced to each tool through the `.claude/skills`, `.codex/skills` and `.junie/skills` symlinks.
 
 ## Reference
 
 - `CONTRIBUTING.md` — prerequisites, the build, the quality gates and the code style.
-- `docs/ARCHITECTURE.md` — how the runtime works.
-- `docs/CUSTOM-COMPONENTS.md` — the worked guide to writing a component.
-- `docs/TESTING-COMPONENTS.md` — the test harness.
+- `docs/` — the guides to the runtime, components, API rules and the test harness.

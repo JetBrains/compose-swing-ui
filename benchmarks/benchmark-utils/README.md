@@ -4,8 +4,8 @@ The shared harness of the benchmark suites. It drives the composable fixtures of
 
 ## Usage
 
-The `memoryTest` suite runs the fixtures of every library module. See [`docs/PERFORMANCE.md`](../../docs/PERFORMANCE.md) for running the suites.
+The `memoryTest` suite runs the fixtures of every library module. See [Measuring performance](../../docs/PERFORMANCE.md) for running the suites.
 
 ## Related
 
-- [`docs/PERFORMANCE.md`](../../docs/PERFORMANCE.md) - the fixtures and the suites that measure them.
+- [Measuring performance](../../docs/PERFORMANCE.md) - the fixtures and the suites that measure them.
