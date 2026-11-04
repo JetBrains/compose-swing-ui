@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.parentReads
 import org.jetbrains.compose.swing.util.fastForEach
 import java.util.EnumSet
 
@@ -102,6 +103,7 @@ private fun updateNode(
 internal enum class ModifierChange {
     NodesAddedOrRemoved,
     ParentLayoutUpdated,
+    ParentDeclarationUpdated,
     ListenerNeedsUpdatedNodes,
 }
 

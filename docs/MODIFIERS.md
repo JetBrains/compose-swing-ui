@@ -160,6 +160,9 @@ a default provides it or the component declares it, as Foundation's
 a declaration of your own, and what the parent receives, is covered in
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers).
 
+A [`VirtualSwingNode`](CUSTOM-CONTAINERS.md#grouping-children-without-a-component) takes the same kind of
+declaration for a group of children, and has no component of its own to carry it.
+
 ## Node capabilities
 
 `ComponentNode` and `ParentLayoutNode` both extend `SwingModifier.Node`. An attached node has these

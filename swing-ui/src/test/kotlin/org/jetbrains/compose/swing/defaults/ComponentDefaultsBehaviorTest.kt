@@ -22,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType

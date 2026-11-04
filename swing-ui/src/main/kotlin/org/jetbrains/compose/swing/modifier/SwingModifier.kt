@@ -48,6 +48,7 @@ import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.observesLocals
+import org.jetbrains.compose.swing.node.parentReads
 import org.jetbrains.compose.swing.node.requireOwner
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastFirstOrNull
@@ -1128,11 +1129,17 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
     var needsDeclaredNodes = false
+    var diffLayoutChange: ModifierChange? = null
     if (state != null) {
         val held = state.startWrite()
         if (held !is UnfinishedPass) {
             val diff = linearDiff(held, modifier, state.chain)
+            diffLayoutChange = diff.layoutChange
             if (!diff.aborted) {
+                diff.layoutChange?.let { change ->
+                    val resolved = modifier.resolvedParentDeclarations()
+                    declaration.applyComponentLayout(resolved, resolved.elements, setOf(change))
+                }
                 state.applied = modifier
                 notifyDeclaredNodes(diff.needsDeclaredNodes, state.handedNodes)
                 return
@@ -1141,7 +1148,7 @@ internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingMod
         }
         state.applied = held
     }
-    applyModifierDiff(modifier, needsDeclaredNodes)
+    applyModifierDiff(modifier, needsDeclaredNodes, diffLayoutChange)
 }
 
 /**
@@ -1153,18 +1160,41 @@ internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingMod
 private value class LinearDiff(
     private val bits: Int,
 ) {
-    val slotIndex: Int get() = bits shr 1
+    val slotIndex: Int get() = bits shr SLOT_INDEX_SHIFT
 
-    val needsDeclaredNodes: Boolean get() = bits and 1 != 0
+    val needsDeclaredNodes: Boolean get() = bits and NEEDS_DECLARED_NODES != 0
 
     val aborted: Boolean get() = bits < 0
 
+    val layoutChange: ModifierChange?
+        get() =
+            when {
+                bits and PARENT_LAYOUT_UPDATED != 0 -> ModifierChange.ParentLayoutUpdated
+                bits and PARENT_DECLARATION_UPDATED != 0 -> ModifierChange.ParentDeclarationUpdated
+                else -> null
+            }
+
     /** One more slot paired; [needsDeclaredNodes] where its write holds a node the listener needs, and from then on. */
-    fun next(needsDeclaredNodes: Boolean): LinearDiff = LinearDiff((bits + 2) or (if (needsDeclaredNodes) 1 else 0))
+    fun next(): LinearDiff = LinearDiff(bits + (1 shl SLOT_INDEX_SHIFT))
+
+    /** One more slot paired, including a node the declared-nodes listener needs. */
+    fun nextNeedingDeclaredNodes(): LinearDiff = LinearDiff((bits + (1 shl SLOT_INDEX_SHIFT)) or NEEDS_DECLARED_NODES)
+
+    /** Includes the declaration change of an updated layout node. */
+    fun withLayoutChange(change: ModifierChange): LinearDiff {
+        val changeBit =
+            if (change == ModifierChange.ParentLayoutUpdated) PARENT_LAYOUT_UPDATED else PARENT_DECLARATION_UPDATED
+        return LinearDiff(bits or changeBit)
+    }
 
     /** The diff aborting here, keeping [needsDeclaredNodes]. */
     fun abort(): LinearDiff = LinearDiff(bits or Int.MIN_VALUE)
 }
+
+private const val NEEDS_DECLARED_NODES = 1
+private const val SLOT_INDEX_SHIFT = 3
+private const val PARENT_DECLARATION_UPDATED = 2
+private const val PARENT_LAYOUT_UPDATED = 4
 
 /**
  * Walks [applied] and [next] in lockstep from [diff], handing the slot behind each element of [applied] the
@@ -1225,7 +1255,7 @@ private fun SwingNodeHolder<Component>.diffElement(
         }
 
         record.reuse(next) -> {
-            diff.next(needsDeclaredNodes = false)
+            diff.next()
         }
 
         !record.canUpdate(next) -> {
@@ -1234,8 +1264,19 @@ private fun SwingNodeHolder<Component>.diffElement(
 
         else -> {
             record.updateTo(next, component, owner?.diagnostics)
-            if (record is LayoutNodeRecord && declaration.parentReads(record.node)) declaration.reapply()
-            diff.next(record.node.shouldAutoInvalidate)
+            val updated =
+                if (record.node.shouldAutoInvalidate) diff.nextNeedingDeclaredNodes() else diff.next()
+            if (record is LayoutNodeRecord) {
+                updated.withLayoutChange(
+                    if (declaration.parentReads(record.node)) {
+                        ModifierChange.ParentLayoutUpdated
+                    } else {
+                        ModifierChange.ParentDeclarationUpdated
+                    },
+                )
+            } else {
+                updated
+            }
         }
     }
 }
@@ -1244,11 +1285,13 @@ private fun SwingNodeHolder<Component>.diffElement(
  * @param modifier the modifier to diff onto this node's chain.
  * @param needsDeclaredNodes whether a slot written in place before this diff holds a node the holder's
  *   [DeclaredNodesListener] needs; the diff reuses that slot and hands the nodes over.
+ * @param diffLayoutChange the layout declaration change from nodes the linear diff already updated.
  */
 @VisibleForTesting
 internal fun SwingNodeHolder<Component>.applyModifierDiff(
     modifier: SwingModifier,
     needsDeclaredNodes: Boolean = false,
+    diffLayoutChange: ModifierChange? = null,
 ) {
     // A holder with no modifier state attaches its chain whole: on its first apply, and on the first after a
     // release, a reuse or a deactivation reset it.
@@ -1256,7 +1299,8 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
     // A holder whose last write threw has slots holding no declaration: every slot is written again, and the
     // nodes it attached are handed over.
-    val reusable = state.startWrite() !is UnfinishedPass
+    val applied = state.startWrite()
+    val reusable = applied !is UnfinishedPass
     val handedNodes = state.handedNodes
     var chainChanged = !reusable or needsDeclaredNodes
     // Read off the owner rather than held: the node is attached to its composition before its update
@@ -1308,6 +1352,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     batch?.diffingState = state
     batch?.diffingDeclaration = incoming.chain
     var marked: MarkedChain? = null
+    declaration.beginModifierUpdate(parentDeclarations)
     try {
         // Every node attaching whole is marked before the first onAttach runs; a node entering a standing chain
         // is marked and run on its own, by the diffs, which find the nodes a whole attach ran standing on their
@@ -1315,36 +1360,52 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
         // component node runs - and, by a pass that throws partway, with the layout nodes standing then.
         val marksNodes = attachesWholeChain && (incoming.keyed.isNotEmpty() || incoming.chain.isNotEmpty())
         marked = if (marksNodes) MarkedChain.mark(this, state, incoming) else null
-        // Publish the remaining layout nodes even if their update throws.
-        var layoutChange = EnumSet.of(ModifierChange.NodesAddedOrRemoved, ModifierChange.ParentLayoutUpdated)
-        try {
-            // Nodes a whole attach just updated hold their elements whatever the last pass left, and joined the chain.
-            val attached = marked?.runLayoutLifecycles(state, diagnostics) == true
-            val changes = updateModifierNodes(this, state, incoming.chain, ParentLayoutNodeType, reusable || attached)
-            if (attached) changes.add(ModifierChange.NodesAddedOrRemoved)
-            layoutChange = changes
-            chainChanged = chainChanged || changes.needsDeclaredNodes
-        } finally {
-            declaration.applyComponentLayout(
-                incoming.parentData,
-                incoming.parentProtocol,
-                incoming.parentLayoutElements,
-                layoutChange,
-            )
-        }
+        if (applyLayoutSlots(state, incoming, marked, applied, diffLayoutChange)) chainChanged = true
         if (applyComponentSlots(state, incoming, marked, reusable)) chainChanged = true
         if (state.orderChain(incoming.chain)) chainChanged = true
     } finally {
         // A node this whole attach marked but whose own onAttach never ran - because an earlier node's did and
         // threw - is attached with no slot holding it, the same leak an onAttach that itself throws would leave;
         // see [MarkedChain.detachOrphaned].
-        marked?.detachOrphaned(state)
-        batch?.diffingState = outerState
-        batch?.diffingDeclaration = outerDeclaration
+        try {
+            marked?.detachOrphaned(state)
+        } finally {
+            declaration.endModifierUpdate()
+            batch?.diffingState = outerState
+            batch?.diffingDeclaration = outerDeclaration
+        }
     }
 
     state.applied = modifier
     notifyDeclaredNodes(chainChanged, handedNodes)
+}
+
+private fun SwingNodeHolder<Component>.applyLayoutSlots(
+    state: SwingModifierState,
+    incoming: ModifierPartition,
+    marked: MarkedChain?,
+    applied: SwingModifier,
+    diffLayoutChange: ModifierChange?,
+): Boolean {
+    val diagnostics = owner?.diagnostics
+    var layoutChange = EnumSet.of(ModifierChange.NodesAddedOrRemoved, ModifierChange.ParentLayoutUpdated)
+    try {
+        val attached = marked?.runLayoutLifecycles(state, diagnostics) == true
+        val changes =
+            updateModifierNodes(
+                this,
+                state,
+                incoming.chain,
+                ParentLayoutNodeType,
+                applied !is UnfinishedPass || attached,
+            )
+        if (attached) changes.add(ModifierChange.NodesAddedOrRemoved)
+        layoutChange = changes
+        return changes.needsDeclaredNodes
+    } finally {
+        diffLayoutChange?.let { layoutChange.add(it) }
+        declaration.applyComponentLayout(incoming.resolved(), incoming.parentLayoutElements, layoutChange)
+    }
 }
 
 /**
@@ -1639,7 +1700,13 @@ internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
         runEveryStep(
             { if (reset) unwinding.fastForEach { it.node.reset() } },
             { unwinding.detachAll(diagnostics) },
-            { declaration.dropLayoutNodes(layOut = reset) },
+            {
+                if (reset && !deactivated && !awaitingAttachment) {
+                    declaration.dropLayoutNodes()
+                } else {
+                    declaration.withdrawLayoutNodes()
+                }
+            },
         )
     } finally {
         state?.clear()

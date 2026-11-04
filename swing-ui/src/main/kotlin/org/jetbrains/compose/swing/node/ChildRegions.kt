@@ -38,8 +38,8 @@ internal class ChildRegions(
         DeferredChildCheck { host ->
             if (!host.childPlacement.holdsRegions) {
                 // A composed child of an indexed host that stands in no container was displaced by a
-                // sibling its container added after it.
-                val displaced = host.children.fastFirstOrNull { it.displaced } ?: return@DeferredChildCheck
+                // sibling its container added after it. A group's components are the host's children.
+                val displaced = host.unfoldedChildren.fastFirstOrNull { it.displaced } ?: return@DeferredChildCheck
                 // Names the call that declares the host where it fills a region, since that call is where
                 // the children are composed.
                 val declared = host.declaredSlot?.let { " declared through ${it.name}" }.orEmpty()
@@ -66,14 +66,34 @@ internal class ChildRegions(
         }
 
     /**
-     * Attaches [child], composed at [index], to [container]: installed into the region of this host it names,
-     * or added to the host's index space where it names none.
+     * Whether a group being placed attaches [child] with it: a deactivated child is never attached again, and a
+     * child the change pass in flight relocated is attached once its modifier has run for this host.
+     */
+    fun attachesWithGroup(child: NodeHolder): Boolean = !child.deactivated && !changes.isRelocated(child)
+
+    /**
+     * Records this host for the end of the pass where [child] names a region other than the one it is installed
+     * in, and refuses a constraint on [child] where it fills a region.
+     */
+    fun SwingNodeHolder<*>.checkUpdatedPlacementOf(child: SwingNodeHolder<*>) {
+        if (child.declaredSlot?.name != child.installation?.region) changes.recordRegionRestated(this)
+        val container = component as? Container
+        if (container != null && child.installation?.fillsRegion == true) checkNoConstraintInRegion(container, child)
+    }
+
+    /**
+     * Attaches [child], at unfolded [index], to [container]: installed into the region of this host
+     * it names, or added to the host's index space where it names none.
      *
      * A region is reached through a dedicated Swing setter (e.g. a JScrollPane region via
      * setRowHeaderView/setColumnHeaderView/...), not the generic Container.add. The holder records what installed
      * it and how the region is released again, the container is marked dirty so the new content gets laid out
      * and the area it covers repainted, and a [ChildPlacement.Slots] host is held to one child per region once
      * the pass ends.
+     *
+     * @param container the component of this host.
+     * @param child the created component node to attach.
+     * @param index the child's index in [SwingNodeHolder.unfoldedChildren].
      */
     fun SwingNodeHolder<*>.attachCreated(
         container: Container,
@@ -85,6 +105,7 @@ internal class ChildRegions(
         if (attachment != null) {
             checkNoConstraintInRegion(container, child)
             val slotIndex = slotIndexOf(container, index)
+            child.declaration.checkAttachableUnder(container)
             child.installation =
                 Installation.Region(child.declaredSlot?.name, attachment.install(container, child.component, slotIndex))
             child.declaration.attachedUnder(container)
@@ -127,7 +148,7 @@ internal class ChildRegions(
      * the host would install a component its parent holds. The host's component must be the parent the claim
      * ran on, and the declaration the child's modifier made is held to it.
      */
-    fun SwingNodeHolder<*>.takeClaimed(child: ExistingNodeHolder<*, *>) {
+    fun SwingNodeHolder<*>.checkClaim(child: ExistingNodeHolder<*, *>) {
         check(child.parentComponent === component) {
             val parent = child.parentComponent.declaredName
             val newParent = component.declaredName
@@ -157,17 +178,23 @@ internal class ChildRegions(
             }
         }
         child.checkPlacedByParent(child.declaration.parentLayoutElements)
+        claims.checkClaim(child)
+    }
+
+    fun SwingNodeHolder<*>.takeClaimed(child: ExistingNodeHolder<*, *>) {
+        claims.record(child)
         child.installation = Installation.Claimed(child.declaredSlot?.name.takeIf { childPlacement.holdsRegions })
         if (childPlacement.holdsRegions) changes.recordSlotFilled(this)
-        claims.record(child)
     }
 
     fun reconcile() {
         try {
             // The pass has settled, so every modifier has run for the host its node belongs to now and a
             // relocated child names the placement it fills here. Attaching them first is what leaves the
-            // two steps below reading hosts whose children are all attached.
-            changes.relocated.fastForEach { (host, child) -> trace("attach") { host.attachRelocatedChild(child) } }
+            // two steps below reading hosts whose children are all attached. The records are taken out first, so
+            // a group attached here attaches each of its children, a relocated one included.
+            val relocated = changes.takeRelocated()
+            relocated.fastForEach { (parent, child) -> trace("attach") { parent.attachRelocatedChild(child) } }
             // A modifier has named its child's region for the last time this pass, and each of these hosts
             // can be brought to what its children declare. This runs whole: the check below reads the
             // region each child is really in, and a component that arrives in a region as this runs is
@@ -193,17 +220,16 @@ internal class ChildRegions(
      * refused with.
      *
      * A child taken back out by the same pass has no place here to attach to, and a node that is not a
-     * container is no host to attach one to.
+     * container is no host to attach one to. A child a group above it attached already, and a parked one, are left
+     * as they are. Under a group that is not placed, the group attaches the child as it is placed.
      */
-    private fun SwingNodeHolder<*>.attachRelocatedChild(child: SwingNodeHolder<*>) {
+    private fun NodeHolder.attachRelocatedChild(child: NodeHolder) {
         val index = children.indexOf(child)
-        if (index < 0) return
-        val container = component as? Container ?: return
-        checkPlacementOf(container, child)
-        // The child counts as attached from here on, so a pass attaching several of them lands the run
-        // contiguously and in composition order; the check above is made while it still stands apart, since
-        // a child that is not attached answers for no sibling's placement.
-        child.awaitingAttachment = false
+        val attachesHere = child.awaitingAttachment && !child.deactivated && placesChildren
+        if (index < 0 || !attachesHere) return
+        val host = componentHost
+        val container = host.component as? Container ?: return
+        child.checkPlacementUnder(host, container, this@ChildRegions)
         child.attachTo(this, container, index, this@ChildRegions)
     }
 
@@ -228,7 +254,7 @@ internal class ChildRegions(
         // not one holds none and so has no region to move a child between.
         val container = component as? Container ?: return
         batch.holdForChildSettle(this)
-        children.fastForEachIndexed { index, child ->
+        unfoldedChildren.fastForEachIndexed { index, child ->
             if (!child.attachedToHost) return@fastForEachIndexed
             if (child.declaredSlot?.name != child.installation?.region) {
                 child.leaveHost(container, batch)
@@ -322,10 +348,13 @@ private class DeferredChildCheck(
  */
 internal class ChangeRecord {
     /** The announced inserts not taken in bottom-up yet. */
-    private val announced: MutableSet<SwingNodeHolder<*>> =
+    private val announced: MutableSet<NodeHolder> =
         Collections.newSetFromMap(IdentityHashMap())
 
-    private val relocations: MutableList<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> = ArrayList()
+    private val relocations: MutableList<Pair<NodeHolder, NodeHolder>> = ArrayList()
+
+    /** The children of [relocations], for [isRelocated]. */
+    private val relocatedChildren: MutableSet<NodeHolder> = Collections.newSetFromMap(IdentityHashMap())
 
     /**
      * The hosts a child of which named a region other than the one its component is installed in. Each is
@@ -345,11 +374,17 @@ internal class ChangeRecord {
         Collections.newSetFromMap(IdentityHashMap())
 
     /**
-     * Each relocated child against the host it arrived at, in arrival order. Such a child reaches its new
-     * host before its own modifier chain has run there, so it is attached once the pass has settled and
-     * the placement it names is what it declares at the host it is at now.
+     * Takes out each relocated child against the parent it arrived at, in arrival order. Such a child reaches its
+     * new parent before its own modifier chain has run there, so it is attached once the pass has settled and
+     * the placement it names is what it declares at the host it is at now. From then on no child [isRelocated].
      */
-    val relocated: List<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> get() = relocations
+    fun takeRelocated(): List<Pair<NodeHolder, NodeHolder>> {
+        relocatedChildren.clear()
+        return relocations
+    }
+
+    /** Whether the pass relocated [child] and its record has not been taken out yet. */
+    fun isRelocated(child: NodeHolder): Boolean = relocatedChildren.isNotEmpty() && child in relocatedChildren
 
     /** The hosts whose children named a region other than the one they are installed in. */
     val hostsWithRestatedRegions: Set<SwingNodeHolder<*>> get() = restatedRegionHosts
@@ -365,20 +400,21 @@ internal class ChangeRecord {
      * node still awaiting attachment arrived as a relocated one and stays that, however many hosts the
      * pass hands it to.
      */
-    fun announceInsert(node: SwingNodeHolder<*>) {
-        if (!node.awaitingAttachment) announced += node
+    fun announceInsert(node: NodeHolder) {
+        if (!isRelocated(node)) announced += node
     }
 
     /** Whether [node] was announced as an insert, taking the announcement as it answers. */
-    fun takeAnnouncedInsert(node: SwingNodeHolder<*>): Boolean = announced.remove(node)
+    fun takeAnnouncedInsert(node: NodeHolder): Boolean = announced.remove(node)
 
-    /** Records [child] as relocated into [host], and owed attachment for the rest of the pass. */
+    /** Records [child] as relocated under [parent], and owed attachment for the rest of the pass. */
     fun recordRelocated(
-        host: SwingNodeHolder<*>,
-        child: SwingNodeHolder<*>,
+        parent: NodeHolder,
+        child: NodeHolder,
     ) {
         child.awaitingAttachment = true
-        relocations += host to child
+        relocations += parent to child
+        relocatedChildren += child
     }
 
     /** Records that a child of [host] named a region other than the one its component is installed in. */
@@ -394,13 +430,10 @@ internal class ChangeRecord {
         if (host.childPlacement is ChildPlacement.Slots) filledSlotHosts += host
     }
 
-    /**
-     * Drops what the pass recorded, so no child is left standing in a host's children as one still to be
-     * attached and no host is answered for twice.
-     */
     fun forget() {
         relocations.fastForEach { (_, child) -> child.awaitingAttachment = false }
         relocations.clear()
+        relocatedChildren.clear()
         announced.clear()
         restatedRegionHosts.clear()
         filledSlotHosts.clear()
@@ -420,11 +453,10 @@ internal class ClaimedComponents {
     private val claims = IdentityHashMap<Component, ExistingNodeHolder<*, *>>()
 
     /**
-     * Records [claim] as the node claiming its component until it is released or parked. A relocated node
-     * arrives again. A claim whose slot names a region is refused a declaring call when it is inserted, and,
-     * for one set later, when a second claim of its component is inserted.
+     * Checks [claim] before insertion. A relocated node may claim its component again. A claim whose slot
+     * names a region cannot also name a declaring call, including when a second claim arrives.
      */
-    fun record(claim: ExistingNodeHolder<*, *>) {
+    fun checkClaim(claim: ExistingNodeHolder<*, *>) {
         // These refusals throw during apply on purpose. Deferring them lets a replacing node apply
         // before the node it replaces is removed.
         val standing = claims[claim.component]
@@ -433,6 +465,10 @@ internal class ClaimedComponents {
             if (claim.declaresSlotAndCall) refuseDeclaringCall(claim)
             if (standing != null) error(claimedTwice(standing, claim))
         }
+    }
+
+    /** Registers a checked [claim] until its node is released or deactivated. */
+    fun record(claim: ExistingNodeHolder<*, *>) {
         claims[claim.component] = claim
         claim.releaseBlock = { forget(claim) }
     }
@@ -507,6 +543,10 @@ internal val Container.childHost: Container
  * ahead of it, or at the depth's bottom once the count ran past its end. A
  * [MeasurementLayoutManager] is added without parent data, then receives that data and the ordered
  * parent-layout elements together from [ParentDeclaration.attachedUnder].
+ *
+ * @param container the host whose child container receives the component.
+ * @param child the component node to add.
+ * @param index the child's index in [SwingNodeHolder.unfoldedChildren].
  */
 internal fun SwingNodeHolder<*>.addToHost(
     container: Container,
@@ -514,13 +554,13 @@ internal fun SwingNodeHolder<*>.addToHost(
     index: Int,
 ) {
     val childHost = container.childHost
-    child.declaration.checkAttachableUnder(childHost)
     val position =
         if (childHost is JLayeredPane) {
             standingSiblingsOnDepthBefore(childHost, child, index)
         } else {
             standingSiblingsBefore(childHost, index)
         }
+    child.declaration.checkAttachableUnder(childHost)
     val parentData = child.declaration.parentData
     if (parentData != null && childHost.layout !is MeasurementLayoutManager) {
         childHost.add(child.component, parentData, position)
@@ -542,7 +582,7 @@ private fun SwingNodeHolder<*>.standingSiblingsBefore(
     index: Int,
 ): Int {
     var standing = 0
-    children.fastForEachIn(0 until index) { if (it.standsByCompositionIn(host)) standing++ }
+    unfoldedChildren.fastForEachIn(0 until index) { if (it.standsByCompositionIn(host)) standing++ }
     return standing
 }
 
@@ -558,7 +598,7 @@ private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
 ): Int {
     val depth = child.depthOn(pane)
     var standing = 0
-    children.fastForEachIn(0 until index) {
+    unfoldedChildren.fastForEachIn(0 until index) {
         if (it.standsByCompositionIn(pane) && it.depthOn(pane) == depth) standing++
     }
     return standing

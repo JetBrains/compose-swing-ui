@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.test.ComposeSwingTest

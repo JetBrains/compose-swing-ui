@@ -1,14 +1,26 @@
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.awt.BorderLayout
 import java.awt.Container
 import java.awt.Rectangle
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -31,6 +43,106 @@ import kotlin.test.assertSame
  * [SwingApplierRegionTest].
  */
 class SwingApplierTest {
+    @Test
+    fun childSettlementReadsTheCurrentGroupConstraint() = runComposeSwingTest {
+        val layout = BorderLayout()
+        val host = JPanel(layout)
+        val child = JLabel("child")
+        var constraint by mutableStateOf(BorderLayout.NORTH)
+        setContent {
+            SwingNode(
+                factory = { host },
+                update = { reconcileWithChildren { component.name = layout.getConstraints(child) as String } },
+            ) {
+                VirtualSwingNode(SwingModifier.layoutConstraint(constraint)) {
+                    SwingNode(factory = { child })
+                }
+            }
+        }
+        assertEquals(BorderLayout.NORTH, host.name)
+
+        constraint = BorderLayout.SOUTH
+        awaitIdle()
+
+        assertEquals(listOf(child), host.components.toList())
+        assertEquals(BorderLayout.SOUTH, layout.getConstraints(child))
+        assertEquals(BorderLayout.SOUTH, host.name)
+    }
+
+    @TestFactory
+    fun componentOnlyMutationsUpdateCompositionOrder(): List<DynamicTest> {
+        val hosts: List<Pair<String, () -> Container>> =
+            listOf("indexed panel" to { JPanel() }, "layered pane" to { JLayeredPane() })
+        return hosts.map { (case, factory) ->
+            DynamicTest.dynamicTest(case) {
+                runComposeSwingTest {
+                    val host = factory()
+                    val first = JLabel("first")
+                    val second = JLabel("second")
+                    val third = JLabel("third")
+                    var children by mutableStateOf(listOf(first, second))
+                    setContent {
+                        SwingNode(factory = { host }) {
+                            for (child in children) key(child) { SwingNode(factory = { child }) }
+                        }
+                    }
+                    assertEquals(listOf(first, second), host.components.toList())
+
+                    children = listOf(third, second, first)
+                    awaitIdle()
+                    assertEquals(listOf(third, second, first), host.components.toList())
+
+                    children = listOf(first, third)
+                    awaitIdle()
+                    assertEquals(listOf(first, third), host.components.toList())
+
+                    children = emptyList()
+                    awaitIdle()
+                    assertEquals(emptyList(), host.components.toList())
+
+                    children = listOf(second, first)
+                    awaitIdle()
+                    assertEquals(listOf(second, first), host.components.toList())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun stableBatchesWithoutGroupsPreserveAttachmentsAndDeclarations() = runComposeSwingTest {
+        val layout = RecordingMeasurementLayout()
+        val host = JPanel(layout)
+        val first = JLabel("first")
+        val second = JLabel("second")
+        var text by mutableStateOf("first")
+        setContent {
+            SwingNode(factory = { host }) {
+                SwingNode(factory = { first }, update = { set(text) { this.text = it } })
+                SwingNode(factory = { second })
+            }
+        }
+        assertEquals(listOf(first, second), host.components.toList())
+        layout.registrations.clear()
+        layout.declarations.clear()
+        layout.removals.clear()
+
+        text = "updated"
+        awaitIdle()
+        assertEquals("updated", first.text)
+        assertEquals(listOf(first, second), host.components.toList())
+        assertEquals(emptyList(), layout.registrations)
+        assertEquals(emptyList(), layout.declarations)
+        assertEquals(emptyList(), layout.removals)
+
+        text = "final"
+        awaitIdle()
+        assertEquals("final", first.text)
+        assertEquals(listOf(first, second), host.components.toList())
+        assertEquals(emptyList(), layout.registrations)
+        assertEquals(emptyList(), layout.declarations)
+        assertEquals(emptyList(), layout.removals)
+    }
+
     /**
      * A JPanel that counts how many times [revalidate] is invoked and records the area each `repaint`
      * asks for, for the onEndChanges assertions. Every `Component.repaint()` overload funnels through the
@@ -73,7 +185,7 @@ class SwingApplierTest {
      * must navigate there first via [SwingApplier.down].
      */
     private fun SwingApplier.onContainer(
-        holder: SwingNodeHolder<*>,
+        holder: NodeHolder,
         block: SwingApplier.() -> Unit,
     ) {
         down(holder)

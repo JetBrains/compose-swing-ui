@@ -9,10 +9,12 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.AfterValidationActions
 import org.jetbrains.compose.swing.node.ComponentUpdateBatch
+import org.jetbrains.compose.swing.node.NodeHolder
 import org.jetbrains.compose.swing.node.OwnerSnapshotObserver
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.node.sharedAfterValidationCoordinator
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
@@ -131,7 +133,7 @@ internal class SwingContentComposition private constructor(
     private val parent: CompositionContext,
     private val root: SwingNodeHolder<*>,
     private val compositionDataHost: JComponent?,
-    applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
+    applierFactory: () -> AbstractApplier<out NodeHolder>,
 ) : SwingCompositionOwner {
     /**
      * The observer's callbacks run on the event dispatch thread: inline when the change is published
@@ -286,7 +288,7 @@ internal class SwingContentComposition private constructor(
             parent: CompositionContext,
             root: SwingNodeHolder<T>,
             compositionDataHost: JComponent?,
-            applierFactory: (root: SwingNodeHolder<T>) -> AbstractApplier<SwingNodeHolder<*>>,
+            applierFactory: (root: SwingNodeHolder<T>) -> AbstractApplier<out NodeHolder>,
         ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
             return SwingContentComposition(parent, root, compositionDataHost) { applierFactory(root) }
