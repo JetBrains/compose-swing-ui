@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
+import org.jetbrains.compose.swing.core.disposingOnFailure
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.util.fastForEach
@@ -37,6 +38,10 @@ import java.awt.Container
  *   arriving at a region-holding host without one is. A [ChildPlacement.Slots] host shows one component
  *   per region, which is checked once the change pass has settled - a pass that replaces the occupant of
  *   a region need not take the outgoing child out before the incoming one arrives.
+ * - A [VirtualSwingNode] has no component. Its children are added to the container of the nearest ancestor that
+ *   has one, at the place their composition order among that ancestor's other children gives them. It is placed
+ *   only under a [ChildPlacement.Indexed] host. A child inserted under a group that is not placed yet is attached
+ *   as the group is placed.
  * - A child [ExistingSwingNode] claims stands where its parent put it, so the applier never adds, removes
  *   or moves its component: it holds the child in its child list, and under a region-holding host records
  *   the region the child names as filled.
@@ -44,6 +49,9 @@ import java.awt.Container
  *   no region through it, and shows the one such child it holds - checked the way every other
  *   single-occupancy region is. The composition's own top-level children are the one case no composable
  *   declares, so the code that mounts a composition declares such a placement on [root].
+ *
+ * An immediate insertion whose attachment fails is removed from the composition child list; changes to Swing
+ * components made before the failure are not rolled back.
  *
  * Every container mutated during a change pass is revalidated once, by [ComponentUpdateBatch]. The applier
  * repaints the area a child leaves or arrives in.
@@ -73,6 +81,8 @@ internal class SwingApplier internal constructor(
     /** The regions this applier's hosts hold their children in. */
     private val regions = ChildRegions(rootHolder, rootSlotPolicy, batch, changes, claims)
 
+    private val flattenedRun = ArrayList<SwingNodeHolder<*>>()
+
     init {
         require(rootSlotPolicy == null || rootHolder.childPlacement.contentAttachment != null) {
             "A root slot policy needs a root that installs its unnamed child as content."
@@ -86,14 +96,9 @@ internal class SwingApplier internal constructor(
         // mid-swap, and a node that arrived this pass is left before it is installed, so both would look
         // like a component in the wrong region. What the pass leaves behind is settled in onEndChanges,
         // where a host whose children all name the region they are in costs one walk of its child list.
-        val node = current.componentHost
+        val node = current
         super.up()
-        val host = current.componentHost
-        if (node.declaredSlot?.name != node.installation?.region) changes.recordRegionRestated(host)
-        val container = host.component as? Container
-        if (container != null && node.installation?.fillsRegion == true) {
-            with(regions) { host.checkNoConstraintInRegion(container, node) }
-        }
+        node.checkUpdatedPlacement(current.componentHost, regions)
     }
 
     override fun insertTopDown(
@@ -103,7 +108,7 @@ internal class SwingApplier internal constructor(
         trace("insert") {
             // A relocated node arrives here after insertBottomUp has marked it awaiting attachment, and is not
             // inserted for the first time.
-            if (!instance.awaitingAttachment) instance.insertedUnder(current)
+            if (instance.attachmentWait != AttachmentWait.Relocation) instance.insertedUnder(current)
             // Attach the node to the composition its parent stands in. This MUST happen on the top-down
             // pass - see SwingCompositionOwner.
             instance.insertInto(current)
@@ -118,8 +123,7 @@ internal class SwingApplier internal constructor(
         val parent = current
         val host = parent.componentHost
         val container = host.containerFor { "add child ${instance.declaredName}" }
-        // Held here rather than at each of the three ways out below: a node settling against its
-        // children answers for the children it ends the pass with, however each of them got there.
+        // Settlement observes the final children after every insertion path, including changes inside a group.
         batch.holdForChildSettle(host)
         if (!changes.takeAnnouncedInsert(instance)) {
             // The composition is relocating a node composed under another parent, and hands it over
@@ -127,17 +131,26 @@ internal class SwingApplier internal constructor(
             // named at the host it is leaving. Take it into this node's composition-ordered child list,
             // which is what a remove or a move later in the pass addresses by index, and attach it once
             // the pass has settled and its modifier has named the placement it fills here.
-            parent.children.add(index, instance)
+            parent.insertChild(index, instance)
             changes.recordRelocated(parent, instance)
+            return
+        }
+        if (!parent.placesChildren) {
+            // Inserts run bottom-up, so a new group's children arrive before the group itself: the group attaches
+            // them as it is placed.
+            instance.attachmentWait = AttachmentWait.Placement
+            parent.insertChild(index, instance)
             return
         }
         trace("attach") {
             // The node was already attached to its composition on the top-down pass (see insertTopDown);
-            // here we only perform the Swing attachment. The holder joins this node's composition-ordered
-            // child list once attached, which is what a remove or a move addresses it by.
+            // here we only perform the Swing attachment. The composition list includes the arriving node
+            // before attachment, so its position is counted over the host's flattened children.
             instance.checkPlacementUnder(host, container, regions)
-            instance.attachTo(parent, container, index, regions)
-            parent.children.add(index, instance)
+            parent.insertChild(index, instance)
+            disposingOnFailure({ parent.removeChildren(index, 1) }) {
+                instance.attachTo(parent, container, index, regions)
+            }
         }
     }
 
@@ -154,7 +167,10 @@ internal class SwingApplier internal constructor(
             // setter, and a `JLayeredPane` sorts its index space by the depth each child declares. The
             // composition-order child list is what says which children the pass drops, and each of them leaves
             // through the installation that put it where it stands.
-            host.flattenedChildren.fastForEachIn(index until index + count) { it.leaveHost(container, batch) }
+            flattenedRun.clear()
+            parent.children.fastForEachIn(index until index + count) { it.flattenInto(flattenedRun) }
+            flattenedRun.fastForEach { it.leaveHost(container, batch) }
+            flattenedRun.clear()
             parent.removeChildren(index, count)
         }
     }
@@ -171,23 +187,35 @@ internal class SwingApplier internal constructor(
 
         trace("move") {
             batch.holdForChildSettle(host)
-            if (host.childPlacement.holdsRegions) {
-                with(regions) { host.moveRegionChildren(container, from, to, count) }
-                return
-            }
+            when {
+                host.childPlacement.holdsRegions -> {
+                    with(regions) { host.moveRegionChildren(container, from, to, count) }
+                }
 
-            // Each child leaves through the installation that put it where it stands - a component in the index
-            // space by its identity, whichever place the host has given it - and is attached again at the place it
-            // is composed at now. A child's pixels change only where it overlaps a sibling it now stands above or
-            // below, which lies inside its own area, so its bounds before it leaves and after it is attached again
-            // are what the pass repaints.
-            host.moveChildren(
-                from,
-                to,
-                count,
-                detach = { it.leaveHost(container, batch) },
-                place = { child, index -> child.attachTo(parent, container, index, regions) },
-            )
+                // The children of a group that is not placed are in no container yet, so only their order changes.
+                !parent.placesChildren -> {
+                    parent.moveChildren(from, to, count)
+                }
+
+                else -> {
+                    // Each child leaves through the installation that put it where it stands and is attached again at
+                    // the place it is composed at now. A child's pixels change only where it overlaps a sibling it now
+                    // stands above or below, which lies inside its own area, so its bounds before it leaves and after
+                    // it is attached again are what the pass repaints.
+                    val target = parent.moveChildren(from, to, count)
+                    flattenedRun.clear()
+                    parent.children.fastForEachIn(target until target + count) { it.flattenInto(flattenedRun) }
+                    flattenedRun.fastForEach { it.leaveHost(container, batch) }
+                    flattenedRun.clear()
+                    var index = target
+                    parent.children.fastForEachIn(target until target + count) { child ->
+                        if (child.attachedToHost) {
+                            child.attachTo(parent, container, index, regions)
+                        }
+                        index++
+                    }
+                }
+            }
         }
     }
 

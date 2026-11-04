@@ -407,6 +407,21 @@ part really moved are re-registered. A placement carrying the derived coordinate
 child the moment any one of them changed, and put the whole container through a remove-and-re-add on
 every pass.
 
+## Grouping children without a component
+
+`VirtualSwingNode` lays out its content as if it were written in the container its position belongs to. It
+has no component of its own, so it puts no real container between the children and the layout.
+
+The children are added to the nearest ancestor that has a component, in flattened composition order among that
+ancestor's other children. A group in the middle of a container's children places its components between the
+ones before and after it.
+
+- **Container.** A group works under a container that places each child by its position among the container's
+  children, such as a `Panel`. A container that places each child in a named region, such as a `ScrollPane`,
+  refuses a group, and so does a composition root with a single-content slot. An ordinary `setContent` root accepts
+  groups among its indexed children. An `ExistingSwingNode` directly inside a group is refused, and so is a group
+  inside a menu composition.
+
 ## Building a custom shared hierarchy
 
 A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and

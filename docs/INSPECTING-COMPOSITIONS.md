@@ -50,7 +50,7 @@ val group = someButton.findDeclaringGroup()
 
 <!--- CLEAR -->
 
-`Component.findDeclaringGroup()` answers with the group that declared this component, or `null` where no
+`Component.findDeclaringGroup()` answers with the composition group that declared this component, or `null` where no
 composition did - a component built by hand, and one whose composition has not recorded yet.
 
 The separate question of which composition a component hosts or stands in is

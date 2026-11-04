@@ -56,7 +56,7 @@ class ChildIndexSpaceCheckTest {
     @Test
     fun aChildStillAwaitingAttachmentIsReported() {
         val root = CreatedNodeHolder(JPanel())
-        val child = CreatedNodeHolder(JLabel("a")).apply { awaitingAttachment = true }
+        val child = CreatedNodeHolder(JLabel("a")).apply { attachmentWait = AttachmentWait.Placement }
         root.children += child
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }

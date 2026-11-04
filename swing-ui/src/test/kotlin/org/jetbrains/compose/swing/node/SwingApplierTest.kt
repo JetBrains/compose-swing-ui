@@ -1,6 +1,14 @@
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -9,6 +17,7 @@ import java.awt.Container
 import java.awt.Rectangle
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -31,6 +40,71 @@ import kotlin.test.assertSame
  * [SwingApplierRegionTest].
  */
 class SwingApplierTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("mutatedHosts")
+    fun componentOnlyMutationsUpdateCompositionOrder(
+        case: String,
+        newHost: () -> Container,
+        content: @Composable (@Composable () -> Unit) -> Unit,
+        around: List<String>,
+    ) = runComposeSwingTest {
+        val host = newHost()
+        var ids by mutableStateOf(listOf(1, 2))
+        setContent {
+            SwingNode(factory = { host }) {
+                Label("before")
+                content { for (id in ids) key(id) { Label("g$id") } }
+                Label("after")
+            }
+        }
+        assertEquals(listOf("before") + around + listOf("g1", "g2", "after"), host.components.texts(), case)
+
+        ids = listOf(3, 2, 1)
+        awaitIdle()
+        assertEquals(listOf("before") + around + listOf("g3", "g2", "g1", "after"), host.components.texts(), case)
+
+        ids = listOf(1, 3)
+        awaitIdle()
+        assertEquals(listOf("before") + around + listOf("g1", "g3", "after"), host.components.texts(), case)
+
+        ids = emptyList()
+        awaitIdle()
+        assertEquals(listOf("before") + around + listOf("after"), host.components.texts(), case)
+
+        ids = listOf(4, 5)
+        awaitIdle()
+        assertEquals(listOf("before") + around + listOf("g4", "g5", "after"), host.components.texts(), case)
+    }
+
+    @Test
+    fun stableBatchesWithoutGroupsPreserveAttachmentsAndDeclarations() = runComposeSwingTest {
+        val layout = RecordingMeasurementLayout()
+        val host = JPanel(layout)
+        val first = JLabel("first")
+        val second = JLabel("second")
+        var text by mutableStateOf("first")
+        setContent {
+            SwingNode(factory = { host }) {
+                SwingNode(factory = { first }, update = { set(text) { this.text = it } })
+                SwingNode(factory = { second })
+            }
+        }
+        assertEquals(listOf(first, second), host.components.toList())
+        layout.registrations.clear()
+        layout.declarations.clear()
+        layout.removals.clear()
+
+        for (update in listOf("updated", "final")) {
+            text = update
+            awaitIdle()
+            assertEquals(update, first.text)
+            assertEquals(listOf(first, second), host.components.toList())
+            assertEquals(emptyList(), layout.registrations)
+            assertEquals(emptyList(), layout.declarations)
+            assertEquals(emptyList(), layout.removals)
+        }
+    }
+
     /**
      * A JPanel that counts how many times [revalidate] is invoked and records the area each `repaint`
      * asks for, for the onEndChanges assertions. Every `Component.repaint()` overload funnels through the
@@ -436,6 +510,30 @@ class SwingApplierTest {
     }
 
     companion object {
+        @JvmStatic
+        fun mutatedHosts(): List<Arguments> {
+            val panel = { JPanel() }
+            val inline: @Composable (@Composable () -> Unit) -> Unit = { children -> children() }
+            val grouped: @Composable (@Composable () -> Unit) -> Unit = { children ->
+                VirtualSwingNode {
+                    Label("prefix")
+                    children()
+                }
+            }
+            val nested: @Composable (@Composable () -> Unit) -> Unit = { children ->
+                VirtualSwingNode {
+                    Label("prefix")
+                    VirtualSwingNode(content = children)
+                }
+            }
+            return listOf(
+                Arguments.of("indexed panel", panel, inline, emptyList<String>()),
+                Arguments.of("layered pane", { JLayeredPane() }, inline, emptyList<String>()),
+                Arguments.of("panel with a group", panel, grouped, listOf("prefix")),
+                Arguments.of("panel with nested groups", panel, nested, listOf("prefix")),
+            )
+        }
+
         @JvmStatic
         fun moves(): List<Arguments> = listOf(
             Arguments.of(

@@ -29,8 +29,6 @@ internal fun SwingModifierState.finishStyleReconciliation() {
 /** The first standing style declaration. */
 internal val SwingModifierState.styleNode: StyleNode? get() = firstStyle
 
-internal val SwingNodeHolder<*>.styleNode: StyleNode? get() = modifierState?.styleNode
-
 /** Visits style declarations in order without walking their property records. */
 internal inline fun SwingModifierState.forEachStyle(
     holder: SwingNodeHolder<*>? = null,
@@ -135,7 +133,7 @@ internal fun NodeHolder.restyleSubtree(batch: ComponentUpdateBatch?) {
     components.fastForEach { it.restyleComponentSubtree(batch) }
 }
 
-/** Resolves styles in component order. */
+/** Resolves styles in component order, using each host's projection through componentless groups. */
 private fun SwingNodeHolder<*>.restyleComponentSubtree(batch: ComponentUpdateBatch?) {
     val state = modifierState
     // Every component takes part: one that declares no style takes the unstyled declaration.

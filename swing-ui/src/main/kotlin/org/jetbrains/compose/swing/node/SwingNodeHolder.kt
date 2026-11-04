@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.detachNodes
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.style.StyleElement
+import org.jetbrains.compose.swing.style.StyleNode
 import org.jetbrains.compose.swing.style.collectsNothingUnder
 import org.jetbrains.compose.swing.tooling.NODE_KEY
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
@@ -281,11 +282,14 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * The list lives on the node, so it goes away with the node.
      *
      * A child stands here from the moment the applier takes it in, which for a relocated child is
-     * before its component is attached - see [awaitingAttachment].
+     * before its component is attached - see [attachmentWait].
      */
     override val children: MutableList<NodeHolder> = ArrayList()
 
-    /** The nearest ancestor whose style provides a key or a local, or `null` if none does. */
+    /**
+     * The nearest node above this one in its composition whose style provides a key or a local. A group between them
+     * has no style and is passed through.
+     */
     internal val publisherAbove: SwingNodeHolder<*>?
         get() {
             var ancestor = parent?.componentHost
@@ -304,9 +308,9 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * of the host - is read once the change pass has settled. It stands in the host's child list
      * meanwhile, which is what a remove or a move later in the same pass addresses it by.
      *
-     * Only the applier writes it.
+     * The applier marks it pending; the component clears it when its own attachment starts.
      */
-    override var awaitingAttachment: Boolean = false
+    override var attachmentWait: AttachmentWait = AttachmentWait.None
 
     /**
      * Whether [onDeactivate] has run on this node.
@@ -344,7 +348,12 @@ internal sealed class SwingNodeHolder<out T : Component> :
 
     override var parent: NodeHolder? = null
 
+    internal val styleNode: StyleNode?
+        get() = modifierState?.styleNode
+
     final override val componentHost: SwingNodeHolder<*> get() = this
+
+    final override val placesChildren: Boolean get() = !deactivated
 
     final override val declaredName: String get() = component.declaredName
 
@@ -354,20 +363,30 @@ internal sealed class SwingNodeHolder<out T : Component> :
         host: SwingNodeHolder<*>,
         container: Container,
         regions: ChildRegions,
-    ) = host.checkPlacementOf(container, this)
+    ) {
+        host.checkPlacementOf(container, this)
+    }
+
+    final override fun checkUpdatedPlacement(
+        host: SwingNodeHolder<*>,
+        regions: ChildRegions,
+    ) = with(regions) { host.checkUpdatedPlacementOf(this@SwingNodeHolder) }
 
     /**
      * The ordered projection of the composition children, stopping at each component node. It includes component
      * nodes awaiting attachment and deactivated ones. Attachment readiness, composition-owned installation and
      * physical container membership are checked separately by each reader.
+     *
+     * Region, root-slot and menu hosts refuse virtual children before reading this projection, so their flattened
+     * indices equal composition indices. Without groups, this is the host's own child list without a copy.
+     * With groups, the flattened list is rebuilt at most once between structural mutations.
      */
-    internal val flattenedChildren: List<SwingNodeHolder<*>> =
-        object : AbstractList<SwingNodeHolder<*>>() {
-            override val size: Int get() = children.size
+    internal val flattenedChildren: List<SwingNodeHolder<*>>
+        get() = if (children.isEmpty()) emptyList() else childProjection.children
 
-            // Every child is a component node, since SwingNodeHolder is the only NodeHolder.
-            override fun get(index: Int): SwingNodeHolder<*> = children[index] as SwingNodeHolder<*>
-        }
+    private var projection: ChildProjection? = null
+    internal val childProjection: ChildProjection
+        get() = projection ?: ChildProjection(this).also { projection = it }
 
     final override fun flattenInto(destination: MutableList<SwingNodeHolder<*>>) {
         destination.add(this)
@@ -438,7 +457,11 @@ internal sealed class SwingNodeHolder<out T : Component> :
             try {
                 installation = installation?.release()
             } finally {
-                release(clearOwner = true)
+                try {
+                    release()
+                } finally {
+                    owner = null
+                }
             }
         }
     }
@@ -482,7 +505,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
                 installation = null
                 installed?.park(component)
             } finally {
-                release(clearOwner = false)
+                release()
             }
         }
     }
@@ -491,7 +514,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * Runs this terminal node's teardown once, whether removal or parking ends its lifetime. What the teardown
      * records through this node in its owner is dropped after it.
      */
-    private fun release(clearOwner: Boolean) {
+    private fun release() {
         try {
             runReportingUncaught { callerRelease?.invoke() }
             releaseBlock?.invoke()
@@ -500,7 +523,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
             owner?.cancelAfterValidation(this)
             callerRelease = null
             releaseBlock = null
-            if (clearOwner) owner = null
         }
     }
 }
@@ -554,7 +576,12 @@ internal class CreatedNodeHolder<out T : Component>
             container: Container,
             index: Int,
             regions: ChildRegions,
-        ) = with(regions) { parent.componentHost.attachCreated(container, this@CreatedNodeHolder, index) }
+        ) {
+            attachmentWait = AttachmentWait.None
+            val host = parent.componentHost
+            val componentIndex = host.childProjection.indexOf(this, index)
+            with(regions) { host.attachCreated(container, this@CreatedNodeHolder, componentIndex) }
+        }
 
         override fun noRegionRefusal(
             host: Container,
@@ -617,6 +644,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
             check(!::claimed.isInitialized) {
                 "An ExistingSwingNode claims its component once, when it is first inserted."
             }
+            parent.checkClaimable()
             val claimedFrom = parent.componentHost.component
             check(parentType.isInstance(claimedFrom)) {
                 "ExistingSwingNode claims its component from a ${parentType.simpleName}, but it is composed under a " +
@@ -637,13 +665,26 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
             parentComponent = claimedFrom
         }
 
-        /** The parent already holds the component where it stands, so [parent]'s host only takes the node in. */
+        override fun checkPlacementUnder(
+            host: SwingNodeHolder<*>,
+            container: Container,
+            regions: ChildRegions,
+        ) {
+            super.checkPlacementUnder(host, container, regions)
+            parent?.checkClaimable()
+            with(regions) { host.checkClaim(this@ExistingNodeHolder) }
+        }
+
+        /** The parent already placed the claimed component, so attachment only registers the node. */
         override fun attachTo(
             parent: NodeHolder,
             container: Container,
             index: Int,
             regions: ChildRegions,
-        ) = with(regions) { parent.componentHost.takeClaimed(this@ExistingNodeHolder) }
+        ) {
+            attachmentWait = AttachmentWait.None
+            with(regions) { parent.componentHost.takeClaimed(this@ExistingNodeHolder) }
+        }
 
         override fun noRegionRefusal(
             host: Container,

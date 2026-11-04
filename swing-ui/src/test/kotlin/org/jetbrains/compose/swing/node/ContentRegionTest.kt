@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.components.Separator
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.layout.ChildPlacement
-import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -284,8 +283,6 @@ private val BodyContent =
     }
 
 private val TitledPlacement = ChildPlacement.Slots(TITLE_REGION, content = BodyContent)
-
-private val MeasuringProtocol: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring host")
 
 private data object Narrow : ParentLayoutElement {
     override val parentProtocol: ParentProtocol get() = MeasuringProtocol

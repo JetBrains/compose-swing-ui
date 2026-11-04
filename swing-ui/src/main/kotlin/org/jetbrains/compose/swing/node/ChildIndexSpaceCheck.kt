@@ -90,7 +90,7 @@ private fun SwingNodeHolder<*>.checkIndexedChildrenAreInReal() {
     error(indexedChildMissing(component, lost.component, container.childHost.components.toList()))
 }
 
-/** A holder [checkChildIndexSpace] finds still marked [NodeHolder.awaitingAttachment]. */
+/** A holder [checkChildIndexSpace] finds still marked [NodeHolder.attachmentWait]. */
 private fun childStillAwaitingAttachment(
     host: String,
     child: String,
