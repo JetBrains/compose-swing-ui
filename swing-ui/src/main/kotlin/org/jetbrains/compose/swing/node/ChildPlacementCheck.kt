@@ -43,7 +43,7 @@ internal fun SwingNodeHolder<*>.checkPlacementOf(
     // disagree with the arriving child only where the host declared one placement, took children under it,
     // and then declared another. A child still awaiting attachment carries no such answer yet and speaks
     // for none of them; a host holding nothing else has no child to compare against.
-    val held = children.fastFirstOrNull { it.attachedToHost } ?: return
+    val held = flattenedChildren.fastFirstOrNull { it.attachedToHost } ?: return
     check((held.installation?.fillsRegion == true) == fillsRegion) {
         val kept = if (fillsRegion) "children added by index" else "children filling regions of its own"
         val arriving = if (fillsRegion) "a child filling ${child.namedRegion()}" else "a child added by index"
@@ -126,12 +126,12 @@ internal fun SwingNodeHolder<*>.constraintInRegionRefusal(host: Container): Stri
 internal fun SwingNodeHolder<*>.checkOneChildPerRegion(
     contentFilledTwice: (Component, Component, Component) -> String = ::contentFilledTwice,
 ) {
-    children.fastForEachIndexed { index, child ->
+    flattenedChildren.fastForEachIndexed { index, child ->
         val installation = child.installation
         if (installation == null || !installation.fillsRegion) return@fastForEachIndexed
         val name = installation.region
         for (earlier in 0 until index) {
-            val occupant = children[earlier]
+            val occupant = flattenedChildren[earlier]
             val held = occupant.installation ?: continue
             if (held.fillsRegion && held.region == name) {
                 error(

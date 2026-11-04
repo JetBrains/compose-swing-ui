@@ -254,7 +254,7 @@ public class OnDemandComposition private constructor(
     private fun requireOneTopLevelComponent() {
         disposingOnFailure(::dispose) {
             reportPlacementFailure()
-            rootHolder.children.fastForEach { child ->
+            rootHolder.flattenedChildren.fastForEach { child ->
                 check(
                     child.declaration.parentProtocol == null &&
                         child.declaration.parentLayoutElements.all { it.isLeftOutUnder(rootHolder.component) },

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.util.fastFirstOrNull
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Container
 import java.util.IdentityHashMap
@@ -20,21 +21,30 @@ import java.util.IdentityHashMap
  * children while a replacement arrives before the child it replaces leaves.
  */
 internal fun SwingNodeHolder<*>.checkChildIndexSpace() {
-    checkChildIndexSpace(owners = IdentityHashMap())
+    checkEachChildHeldOnce(owners = IdentityHashMap())
+    checkChildrenAreInReal()
 }
 
-private fun SwingNodeHolder<*>.checkChildIndexSpace(owners: MutableMap<SwingNodeHolder<*>, SwingNodeHolder<*>>) {
-    for (child in children) {
-        check(!child.awaitingAttachment) { childStillAwaitingAttachment(component, child.component) }
+/** Checks that each child is attached and every child belongs to only one parent. */
+private fun NodeHolder.checkEachChildHeldOnce(owners: MutableMap<NodeHolder, NodeHolder>) {
+    children.fastForEach { child ->
+        check(!child.awaitingAttachment) {
+            childStillAwaitingAttachment(declaredName, child.declaredName)
+        }
         val earlierHost = owners.put(child, this)
-        check(earlierHost == null) { childHeldByTwoHosts(child.component, earlierHost?.component, component) }
+        check(earlierHost == null) { childHeldByTwoHosts(child.declaredName, earlierHost?.declaredName, declaredName) }
     }
+    children.fastForEach { it.checkEachChildHeldOnce(owners) }
+}
+
+/** Checks component placements throughout this subtree. */
+private fun SwingNodeHolder<*>.checkChildrenAreInReal() {
     val placement = childPlacement
     if (placement.holdsRegions) {
-        for (child in children) {
+        flattenedChildren.fastForEach { child ->
             // A deactivated child already gave its region up in onDeactivate, and stands here only
             // until the composition removes it for good - see SwingNodeHolder.deactivated.
-            if (child.deactivated) continue
+            if (child.deactivated) return@fastForEach
             val installed = child.installation
             check(installed != null && installed.fillsRegion && installed.region == child.declaredSlot?.name) {
                 childNotInstalledWhereDeclared(component, child.component, child.declaredSlot?.name)
@@ -44,7 +54,7 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(owners: MutableMap<SwingNode
     } else {
         checkIndexedChildrenAreInReal()
     }
-    for (child in children) child.checkChildIndexSpace(owners)
+    flattenedChildren.fastForEach { it.checkChildrenAreInReal() }
 }
 
 /**
@@ -76,26 +86,26 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(owners: MutableMap<SwingNode
  */
 private fun SwingNodeHolder<*>.checkIndexedChildrenAreInReal() {
     val container = component as? Container ?: return
-    val lost = children.fastFirstOrNull { it.displaced } ?: return
+    val lost = flattenedChildren.fastFirstOrNull { it.displaced } ?: return
     error(indexedChildMissing(component, lost.component, container.childHost.components.toList()))
 }
 
-/** A holder [checkChildIndexSpace] finds still marked [SwingNodeHolder.awaitingAttachment]. */
+/** A holder [checkChildIndexSpace] finds still marked [NodeHolder.awaitingAttachment]. */
 private fun childStillAwaitingAttachment(
-    host: Component,
-    child: Component,
+    host: String,
+    child: String,
 ): String =
-    "Child index space check: a ${child.javaClass.name} is still awaiting attachment in the children of " +
-        "a ${host.javaClass.name}, a turn after the change pass that relocated it ended."
+    "Child index space check: a $child is still awaiting attachment in the children of " +
+        "a $host, a turn after the change pass that relocated it ended."
 
-/** A holder [checkChildIndexSpace] finds in two hosts' [SwingNodeHolder.children] lists at once. */
+/** A holder [checkChildIndexSpace] finds in two hosts' [NodeHolder.children] lists at once. */
 private fun childHeldByTwoHosts(
-    child: Component,
-    earlierHost: Component?,
-    laterHost: Component,
+    child: String,
+    earlierHost: String?,
+    laterHost: String,
 ): String =
-    "Child index space check: a ${child.javaClass.name} is held in the children of two hosts at once: " +
-        "a ${earlierHost?.javaClass?.name} and a ${laterHost.javaClass.name}."
+    "Child index space check: a $child is held in the children of two hosts at once: " +
+        "a $earlierHost and a $laterHost."
 
 /** A child of a region-holding host whose installed region does not match the one its modifier declares. */
 private fun childNotInstalledWhereDeclared(

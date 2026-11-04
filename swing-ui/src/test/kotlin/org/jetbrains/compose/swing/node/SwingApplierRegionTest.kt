@@ -64,7 +64,7 @@ class SwingApplierRegionTest {
      * must navigate there first via [SwingApplier.down].
      */
     private fun SwingApplier.onContainer(
-        holder: SwingNodeHolder<*>,
+        holder: NodeHolder,
         block: SwingApplier.() -> Unit,
     ) {
         down(holder)
@@ -172,8 +172,11 @@ class SwingApplierRegionTest {
     fun aChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = runSwingTest {
         // The host states a region-holding placement, so it reaches every child through a setter of its
         // own and a child merely added to it would be held by the host and laid out by nobody.
-        val applier = applierFor(JPanel())
-        applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
+        val owner = TestCompositionOwner()
+        owners += owner
+        val root = CreatedNodeHolder(JPanel()).attachedTo(owner)
+        val applier = SwingApplier(root)
+        root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
         val failure =
             assertFailsWith<IllegalStateException> { applier.insertChild(0, CreatedNodeHolder(JLabel("by index"))) }
@@ -193,10 +196,13 @@ class SwingApplierRegionTest {
     fun aHostStatingAnotherPlacementOverTheChildrenItHoldsIsRefused() = runSwingTest {
         // A node's children are one index space, and the two kinds are reached through different Swing
         // calls, so the placement a host states holds for as long as that host holds children.
-        val applier = applierFor(JPanel())
+        val owner = TestCompositionOwner()
+        owners += owner
+        val root = CreatedNodeHolder(JPanel()).attachedTo(owner)
+        val applier = SwingApplier(root)
         applier.insertChild(0, CreatedNodeHolder(JLabel("by index")))
 
-        applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
+        root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
         val failure =
             assertFailsWith<IllegalStateException> { applier.insertChild(1, slotHolder(JLabel("in a region"))) }
 
@@ -487,8 +493,11 @@ class SwingApplierRegionTest {
     fun aRelocatedChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = runSwingTest {
         // The host reaches every child through a setter of its own, so one that ends the pass naming no
         // region would be held by the host and laid out by nobody, whichever way it arrived.
-        val applier = applierFor(JPanel())
-        applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
+        val owner = TestCompositionOwner()
+        owners += owner
+        val root = CreatedNodeHolder(JPanel()).attachedTo(owner)
+        val applier = SwingApplier(root)
+        root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) { relocateChild(0, CreatedNodeHolder(JLabel("by index"))) }

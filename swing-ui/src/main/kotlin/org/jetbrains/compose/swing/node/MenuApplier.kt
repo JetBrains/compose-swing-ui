@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.util.DeferredAction
 import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachIn
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JComponent
@@ -79,11 +80,12 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and removing a detached
         // component is a no-op.
-        parent.removeChildren(index, count) {
-            val area = it.component.bounds
-            container.removeMenuChild(it.component)
+        parent.flattenedChildren.fastForEachIn(index until index + count) { child ->
+            val area = child.component.bounds
+            container.removeMenuChild(child.component)
             batch.markChanged(container, area)
         }
+        parent.removeChildren(index, count)
     }
 
     override fun move(
@@ -124,9 +126,8 @@ internal class MenuApplier(
         if (root.children.isEmpty()) return
         // The root is the caller's, so a component the caller added to it stays.
         val container = root.menuContainer("clear menu children")
-        root.children.removeComposedFrom(container) { batch.markChanged(container, it) }
-        root.children.fastForEach { it.parentTo(null) }
-        root.children.clear()
+        root.flattenedChildren.removeComposedFrom(container) { batch.markChanged(container, it) }
+        root.removeChildren(0, root.children.size)
     }
 
     override fun onBeginChanges() {
@@ -155,7 +156,7 @@ internal class MenuApplier(
             is JMenu -> node.popupMenu.let { if (it.isVisible) it.pack() }
             else -> Unit
         }
-        children.fastForEach { it.packShowingPopups() }
+        flattenedChildren.fastForEach { it.packShowingPopups() }
     }
 }
 

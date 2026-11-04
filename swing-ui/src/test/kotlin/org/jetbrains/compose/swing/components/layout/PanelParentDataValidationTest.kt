@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.node.attachedTo
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout

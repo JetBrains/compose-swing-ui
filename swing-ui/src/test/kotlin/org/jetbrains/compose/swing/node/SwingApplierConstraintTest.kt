@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
  */
 class SwingApplierConstraintTest {
     private fun SwingApplier.onContainer(
-        holder: SwingNodeHolder<*>,
+        holder: NodeHolder,
         block: SwingApplier.() -> Unit,
     ) {
         down(holder)

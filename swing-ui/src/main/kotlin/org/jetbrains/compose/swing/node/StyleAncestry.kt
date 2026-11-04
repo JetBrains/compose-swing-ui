@@ -124,12 +124,19 @@ private fun SwingNodeHolder<*>.hasStaleStyleSlots(state: SwingModifierState): Bo
  */
 internal fun SwingNodeHolder<*>.restyleBelow() {
     val batch = owner?.updateBatch
-    children.fastForEach { it.restyleSubtree(batch) }
+    flattenedChildren.fastForEach { it.restyleComponentSubtree(batch) }
     if (batch != null && !batch.isRunning && owner?.snapshotObserver?.isDelivering != true) batch.drainRestyles()
 }
 
 /** Resolves again every style of this subtree: held in [batch] for its drain where there is one, otherwise at once. */
-internal fun SwingNodeHolder<*>.restyleSubtree(batch: ComponentUpdateBatch?) {
+internal fun NodeHolder.restyleSubtree(batch: ComponentUpdateBatch?) {
+    val components = ArrayList<SwingNodeHolder<*>>()
+    flattenInto(components)
+    components.fastForEach { it.restyleComponentSubtree(batch) }
+}
+
+/** Resolves styles in component order. */
+private fun SwingNodeHolder<*>.restyleComponentSubtree(batch: ComponentUpdateBatch?) {
     val state = modifierState
     // Every component takes part: one that declares no style takes the unstyled declaration.
     if (state != null) {
@@ -141,7 +148,7 @@ internal fun SwingNodeHolder<*>.restyleSubtree(batch: ComponentUpdateBatch?) {
             refreshStyle()
         }
     }
-    children.fastForEach { it.restyleSubtree(batch) }
+    flattenedChildren.fastForEach { it.restyleComponentSubtree(batch) }
 }
 
 /** Diffs again where ancestor changes give a style declaration a slot or take one away, then resolves stale styles. */

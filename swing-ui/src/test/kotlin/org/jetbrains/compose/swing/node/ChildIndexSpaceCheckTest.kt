@@ -214,7 +214,7 @@ class ChildIndexSpaceCheckTest {
 
         // onDeactivate already detached this child's component from the real JPanel; it still stands in
         // host.children only because nothing has removed it from the composition for good yet.
-        host.children += CreatedNodeHolder(JLabel("parked")).apply { deactivated = true }
+        host.children += CreatedNodeHolder(JLabel("parked")).apply { onDeactivate() }
 
         root.checkChildIndexSpace()
     }
@@ -230,7 +230,7 @@ class ChildIndexSpaceCheckTest {
         val parked =
             CreatedNodeHolder(JLabel("parked")).apply {
                 declaredSlot = DeclaredSlot(RawParentProtocol, attachment, "a")
-                deactivated = true
+                onDeactivate()
             }
         host.children += parked
 

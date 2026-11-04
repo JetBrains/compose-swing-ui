@@ -21,7 +21,7 @@ import kotlin.test.assertSame
  */
 class SwingApplierArrayOrderTest {
     private fun SwingApplier.onContainer(
-        holder: SwingNodeHolder<*>,
+        holder: NodeHolder,
         block: SwingApplier.() -> Unit,
     ) {
         down(holder)

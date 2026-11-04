@@ -39,7 +39,7 @@ internal class ChildRegions(
             if (!host.childPlacement.holdsRegions) {
                 // A composed child of an indexed host that stands in no container was displaced by a
                 // sibling its container added after it.
-                val displaced = host.children.fastFirstOrNull { it.displaced } ?: return@DeferredChildCheck
+                val displaced = host.flattenedChildren.fastFirstOrNull { it.displaced } ?: return@DeferredChildCheck
                 // Names the call that declares the host where it fills a region, since that call is where
                 // the children are composed.
                 val declared = host.declaredSlot?.let { " declared through ${it.name}" }.orEmpty()
@@ -167,7 +167,7 @@ internal class ChildRegions(
             // The pass has settled, so every modifier has run for the host its node belongs to now and a
             // relocated child names the placement it fills here. Attaching them first is what leaves the
             // two steps below reading hosts whose children are all attached.
-            changes.relocated.fastForEach { (host, child) -> trace("attach") { host.attachRelocatedChild(child) } }
+            changes.relocated.fastForEach { (parent, child) -> trace("attach") { parent.attachRelocatedChild(child) } }
             // A modifier has named its child's region for the last time this pass, and each of these hosts
             // can be brought to what its children declare. This runs whole: the check below reads the
             // region each child is really in, and a component that arrives in a region as this runs is
@@ -195,11 +195,12 @@ internal class ChildRegions(
      * A child taken back out by the same pass has no place here to attach to, and a node that is not a
      * container is no host to attach one to.
      */
-    private fun SwingNodeHolder<*>.attachRelocatedChild(child: SwingNodeHolder<*>) {
+    private fun NodeHolder.attachRelocatedChild(child: NodeHolder) {
         val index = children.indexOf(child)
         if (index < 0) return
-        val container = component as? Container ?: return
-        checkPlacementOf(container, child)
+        val host = componentHost
+        val container = host.component as? Container ?: return
+        child.checkPlacementUnder(host, container, this@ChildRegions)
         // The child counts as attached from here on, so a pass attaching several of them lands the run
         // contiguously and in composition order; the check above is made while it still stands apart, since
         // a child that is not attached answers for no sibling's placement.
@@ -228,7 +229,7 @@ internal class ChildRegions(
         // not one holds none and so has no region to move a child between.
         val container = component as? Container ?: return
         batch.holdForChildSettle(this)
-        children.fastForEachIndexed { index, child ->
+        flattenedChildren.fastForEachIndexed { index, child ->
             if (!child.attachedToHost) return@fastForEachIndexed
             if (child.declaredSlot?.name != child.installation?.region) {
                 child.leaveHost(container, batch)
@@ -322,10 +323,10 @@ private class DeferredChildCheck(
  */
 internal class ChangeRecord {
     /** The announced inserts not taken in bottom-up yet. */
-    private val announced: MutableSet<SwingNodeHolder<*>> =
+    private val announced: MutableSet<NodeHolder> =
         Collections.newSetFromMap(IdentityHashMap())
 
-    private val relocations: MutableList<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> = ArrayList()
+    private val relocations: MutableList<Pair<NodeHolder, NodeHolder>> = ArrayList()
 
     /**
      * The hosts a child of which named a region other than the one its component is installed in. Each is
@@ -349,7 +350,7 @@ internal class ChangeRecord {
      * host before its own modifier chain has run there, so it is attached once the pass has settled and
      * the placement it names is what it declares at the host it is at now.
      */
-    val relocated: List<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> get() = relocations
+    val relocated: List<Pair<NodeHolder, NodeHolder>> get() = relocations
 
     /** The hosts whose children named a region other than the one they are installed in. */
     val hostsWithRestatedRegions: Set<SwingNodeHolder<*>> get() = restatedRegionHosts
@@ -365,20 +366,20 @@ internal class ChangeRecord {
      * node still awaiting attachment arrived as a relocated one and stays that, however many hosts the
      * pass hands it to.
      */
-    fun announceInsert(node: SwingNodeHolder<*>) {
+    fun announceInsert(node: NodeHolder) {
         if (!node.awaitingAttachment) announced += node
     }
 
     /** Whether [node] was announced as an insert, taking the announcement as it answers. */
-    fun takeAnnouncedInsert(node: SwingNodeHolder<*>): Boolean = announced.remove(node)
+    fun takeAnnouncedInsert(node: NodeHolder): Boolean = announced.remove(node)
 
-    /** Records [child] as relocated into [host], and owed attachment for the rest of the pass. */
+    /** Records [child] as relocated under [parent], and owed attachment for the rest of the pass. */
     fun recordRelocated(
-        host: SwingNodeHolder<*>,
-        child: SwingNodeHolder<*>,
+        parent: NodeHolder,
+        child: NodeHolder,
     ) {
         child.awaitingAttachment = true
-        relocations += host to child
+        relocations += parent to child
     }
 
     /** Records that a child of [host] named a region other than the one its component is installed in. */
@@ -542,7 +543,7 @@ private fun SwingNodeHolder<*>.standingSiblingsBefore(
     index: Int,
 ): Int {
     var standing = 0
-    children.fastForEachIn(0 until index) { if (it.standsByCompositionIn(host)) standing++ }
+    flattenedChildren.fastForEachIn(0 until index) { if (it.standsByCompositionIn(host)) standing++ }
     return standing
 }
 
@@ -558,7 +559,7 @@ private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
 ): Int {
     val depth = child.depthOn(pane)
     var standing = 0
-    children.fastForEachIn(0 until index) {
+    flattenedChildren.fastForEachIn(0 until index) {
         if (it.standsByCompositionIn(pane) && it.depthOn(pane) == depth) standing++
     }
     return standing

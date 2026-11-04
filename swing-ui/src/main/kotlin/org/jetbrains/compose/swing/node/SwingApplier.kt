@@ -4,6 +4,7 @@ import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachIn
 import java.awt.Container
 
 /**
@@ -49,7 +50,7 @@ import java.awt.Container
  *
  * Internal implementation type; not public API.
  *
- * @param root the node this composition is rooted at, attached to the composition that owns it.
+ * @param rootHolder the node this composition is rooted at, attached to the composition that owns it.
  * @param rootSlotPolicy observes the root after a pass has settled, before its single-child invariant is
  *   checked. The standard invariant check follows if the policy returns normally. `null` uses only the
  *   standard check.
@@ -57,11 +58,11 @@ import java.awt.Container
  */
 @PublishedApi
 internal class SwingApplier internal constructor(
-    root: SwingNodeHolder<Container>,
+    private val rootHolder: SwingNodeHolder<Container>,
     rootSlotPolicy: RootSlotPolicy? = null,
-) : AbstractApplier<SwingNodeHolder<*>>(root) {
+) : AbstractApplier<NodeHolder>(rootHolder) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
-    private val batch = root.requireOwner().updateBatch
+    private val batch = rootHolder.requireOwner().updateBatch
 
     /** What the change pass in flight has said about where children go. */
     private val changes = ChangeRecord()
@@ -70,10 +71,10 @@ internal class SwingApplier internal constructor(
     private val claims = ClaimedComponents()
 
     /** The regions this applier's hosts hold their children in. */
-    private val regions = ChildRegions(this.root, rootSlotPolicy, batch, changes, claims)
+    private val regions = ChildRegions(rootHolder, rootSlotPolicy, batch, changes, claims)
 
     init {
-        require(rootSlotPolicy == null || root.childPlacement.contentAttachment != null) {
+        require(rootSlotPolicy == null || rootHolder.childPlacement.contentAttachment != null) {
             "A root slot policy needs a root that installs its unnamed child as content."
         }
     }
@@ -85,18 +86,19 @@ internal class SwingApplier internal constructor(
         // mid-swap, and a node that arrived this pass is left before it is installed, so both would look
         // like a component in the wrong region. What the pass leaves behind is settled in onEndChanges,
         // where a host whose children all name the region they are in costs one walk of its child list.
-        val node = current
+        val node = current.componentHost
         super.up()
-        if (node.declaredSlot?.name != node.installation?.region) changes.recordRegionRestated(current)
-        val container = current.component as? Container
+        val host = current.componentHost
+        if (node.declaredSlot?.name != node.installation?.region) changes.recordRegionRestated(host)
+        val container = host.component as? Container
         if (container != null && node.installation?.fillsRegion == true) {
-            with(regions) { current.checkNoConstraintInRegion(container, node) }
+            with(regions) { host.checkNoConstraintInRegion(container, node) }
         }
     }
 
     override fun insertTopDown(
         index: Int,
-        instance: SwingNodeHolder<*>,
+        instance: NodeHolder,
     ) {
         trace("insert") {
             // A relocated node arrives here after insertBottomUp has marked it awaiting attachment, and is not
@@ -111,13 +113,14 @@ internal class SwingApplier internal constructor(
 
     override fun insertBottomUp(
         index: Int,
-        instance: SwingNodeHolder<*>,
+        instance: NodeHolder,
     ) {
         val parent = current
-        val container = parent.containerFor { "add child ${instance.component}" }
+        val host = parent.componentHost
+        val container = host.containerFor { "add child ${instance.declaredName}" }
         // Held here rather than at each of the three ways out below: a node settling against its
         // children answers for the children it ends the pass with, however each of them got there.
-        batch.holdForChildSettle(parent)
+        batch.holdForChildSettle(host)
         if (!changes.takeAnnouncedInsert(instance)) {
             // The composition is relocating a node composed under another parent, and hands it over
             // before its modifier chain has run for this host, so what it carries is the placement it
@@ -132,7 +135,7 @@ internal class SwingApplier internal constructor(
             // The node was already attached to its composition on the top-down pass (see insertTopDown);
             // here we only perform the Swing attachment. The holder joins this node's composition-ordered
             // child list once attached, which is what a remove or a move addresses it by.
-            parent.checkPlacementOf(container, instance)
+            instance.checkPlacementUnder(host, container, regions)
             instance.attachTo(parent, container, index, regions)
             parent.children.add(index, instance)
         }
@@ -144,13 +147,15 @@ internal class SwingApplier internal constructor(
     ) {
         trace("remove") {
             val parent = current
-            val container = parent.containerFor { "remove children" }
-            batch.holdForChildSettle(parent)
+            val host = parent.componentHost
+            val container = host.containerFor { "remove children" }
+            batch.holdForChildSettle(host)
             // Where a host keeps each child is the host's own business: a region holds one through its own
             // setter, and a `JLayeredPane` sorts its index space by the depth each child declares. The
             // composition-order child list is what says which children the pass drops, and each of them leaves
             // through the installation that put it where it stands.
-            parent.removeChildren(index, count) { it.leaveHost(container, batch) }
+            host.flattenedChildren.fastForEachIn(index until index + count) { it.leaveHost(container, batch) }
+            parent.removeChildren(index, count)
         }
     }
 
@@ -160,13 +165,14 @@ internal class SwingApplier internal constructor(
         count: Int,
     ) {
         val parent = current
-        val container = parent.containerFor { "move children" }
+        val host = parent.componentHost
+        val container = host.containerFor { "move children" }
         if (from == to) return
 
         trace("move") {
-            batch.holdForChildSettle(parent)
-            if (parent.childPlacement.holdsRegions) {
-                with(regions) { parent.moveRegionChildren(container, from, to, count) }
+            batch.holdForChildSettle(host)
+            if (host.childPlacement.holdsRegions) {
+                with(regions) { host.moveRegionChildren(container, from, to, count) }
                 return
             }
 
@@ -175,7 +181,7 @@ internal class SwingApplier internal constructor(
             // is composed at now. A child's pixels change only where it overlaps a sibling it now stands above or
             // below, which lies inside its own area, so its bounds before it leaves and after it is attached again
             // are what the pass repaints.
-            parent.moveChildren(
+            host.moveChildren(
                 from,
                 to,
                 count,
@@ -189,12 +195,9 @@ internal class SwingApplier internal constructor(
     override fun onClear() {
         // The root is user-supplied. Each root child leaves through what installed it; claimed components and
         // children the composition did not add stay.
-        val container = root.component as? Container ?: return
-        root.children.fastForEach {
-            it.leaveHost(container, batch)
-            it.parentTo(null)
-        }
-        root.children.clear()
+        val container = rootHolder.component
+        rootHolder.flattenedChildren.fastForEach { it.leaveHost(container, batch) }
+        rootHolder.removeChildren(0, rootHolder.children.size)
         changes.forget()
     }
 

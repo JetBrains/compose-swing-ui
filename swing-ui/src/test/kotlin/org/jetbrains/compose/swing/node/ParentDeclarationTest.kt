@@ -248,7 +248,8 @@ class ParentDeclarationTest {
     fun applierRefusesWrongSlotFamilyBeforeItsAttachmentMutatesTheHost() {
         val root = JPanel()
         val owner = TestCompositionOwner()
-        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val rootHolder = CreatedNodeHolder(root).attachedTo(owner)
+        val applier = SwingApplier(rootHolder)
         val child = CreatedNodeHolder(JButton("child"))
         var installs = 0
         val scrollPaneSlot = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
@@ -262,7 +263,7 @@ class ParentDeclarationTest {
                 },
             ),
         )
-        applier.root.childPlacement = ChildPlacement.Slots("viewport")
+        rootHolder.childPlacement = ChildPlacement.Slots("viewport")
 
         try {
             applier.onBeginChanges()

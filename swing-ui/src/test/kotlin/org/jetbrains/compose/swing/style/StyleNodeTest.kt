@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -122,7 +123,7 @@ internal class StyleNodeTest {
         val parent = CreatedNodeHolder(target).attachedTo(owner)
         val child = CreatedNodeHolder(JLabel()).attachedTo(owner)
         val resolutions = ArrayList<Unit>()
-        child.parentTo(parent)
+        child.parent = parent
         parent.children += child
         try {
             child.applyDeclaredModifier(

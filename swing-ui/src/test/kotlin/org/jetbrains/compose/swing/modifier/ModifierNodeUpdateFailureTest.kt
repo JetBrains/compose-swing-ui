@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
+import org.jetbrains.compose.swing.node.attachedTo
 import org.jetbrains.compose.swing.node.observeReads
 import javax.swing.JButton
 import javax.swing.JComponent
