@@ -55,18 +55,18 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val state = modifierState ?: return
     val diagnostics = requireOwner().diagnostics
     val held = state.startWrite()
-    var handsOver = false
+    var needsDeclaredNodes = false
     state.rewritePropertySlotsFrom(
         component,
         diagnostics,
-        afterUpdate = { if (it.node.shouldAutoInvalidate) handsOver = true },
+        afterUpdate = { if (it.node.shouldAutoInvalidate) needsDeclaredNodes = true },
     ) { it.node is CompositionLocalConsumerModifierNode }
     var laidOut = false
     state.chain.fastForEach { record ->
         if (record.node is CompositionLocalConsumerModifierNode) {
             if (record is ElementRecord<*, *>) {
                 record.refresh(component, diagnostics)
-                if (record.node.shouldAutoInvalidate) handsOver = true
+                if (record.node.shouldAutoInvalidate) needsDeclaredNodes = true
             } else {
                 laidOut = true
             }
@@ -77,7 +77,7 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
         component.revalidate()
         (component.parent ?: component).repaint()
     }
-    if (handsOver) notifyDeclaredNodes(chainChanged = true, handedNodes = state.handedNodes)
+    if (needsDeclaredNodes) notifyDeclaredNodes(chainChanged = true, handedNodes = state.handedNodes)
 }
 
 private fun SwingNodeHolder<*>.forEachLocalConsumer(action: (NodeRecord<*, *>) -> Unit) {

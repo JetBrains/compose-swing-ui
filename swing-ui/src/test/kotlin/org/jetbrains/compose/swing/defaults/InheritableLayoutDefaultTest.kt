@@ -362,7 +362,7 @@ class InheritableLayoutDefaultTest {
         )
     }
 
-    /** A changed value takes the adoption path, and a value provided or withdrawn the full modifier diff. */
+    /** A changed value takes the linear diff, and a value provided or withdrawn the full modifier diff. */
     @Test
     fun aCardDeckKeepsItsShownCardAndCardOrderWhenTheDefaultChanges() = runComposeSwingTest {
         var provided by mutableStateOf<Int?>(1)

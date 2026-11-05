@@ -628,7 +628,7 @@ class ModifierReapplicationTest {
         val button = holder.component
         assertEquals(Color.BLUE, button.background, "the modifier the pass after the failure declares is applied")
         assertEquals("hello", button.toolTipText, "including the slot the failed pass had already installed")
-        assertEquals(2, writes.get(), "that slot is written against what it holds, not adopted against a lost order")
+        assertEquals(2, writes.get(), "that slot is written against what it holds, not reused against a lost order")
     }
 
     @Test

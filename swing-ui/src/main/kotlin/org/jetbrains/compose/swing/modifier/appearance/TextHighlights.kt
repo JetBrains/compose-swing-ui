@@ -66,7 +66,7 @@ public fun SwingModifier.highlights(
  * The [painter] is the caller's own object, handed to the highlighter as the mark's painter, so it is
  * compared by identity: the highlighter tells one painter's marks from another's the same way.
  *
- * [ranges] is a list no caller holds. An equal element leaves the modifier it declares adopted as-is, so
+ * [ranges] is a list no caller holds. An equal element is reused as-is, so
  * what a later declaration is compared against must be a list nothing outside can change under it.
  */
 private class HighlightsElement(

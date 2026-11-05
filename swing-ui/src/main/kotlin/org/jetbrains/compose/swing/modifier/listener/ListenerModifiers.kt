@@ -214,7 +214,7 @@ private class InstanceListenerElement<T : Component, L : Any>(
 /**
  * The node backing [InstanceListenerElement]. It keeps the whole element as the unit of attachment,
  * pairing each instance with the registration it was added through. An instance is thus always removed
- * through its own registration, even after a positional rebind hands the node an element carrying a
+ * through its own registration, even after a positional update hands the node an element carrying a
  * different listener type.
  */
 private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.ComponentNode<T>() {
@@ -244,7 +244,7 @@ private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Compo
  * [registration] it sits on; what it *carries* is the callback that listener reads when it fires. Those
  * are two different questions, and this element answers them with two different comparisons.
  *
- * [adopt] answers the registration alone. It is what the apply path asks, and a slot whose registration
+ * [reuse] answers the registration alone. It is what the apply path asks, and a slot whose registration
  * is unchanged keeps its node and its listener however the callbacks compare - the newer callback is
  * written onto the node the listener reads it from. A chain differing only in its callbacks is therefore
  * applied without being diffed, and what a component rebuilding its own callback on every pass costs is
@@ -275,7 +275,7 @@ private class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
      * Answers whether [next] registers what this element registered, and where it does, writes [next]'s
      * callback onto [node] - which is the one place the listener this element registered reads it from.
      */
-    override fun adopt(
+    override fun reuse(
         node: LiveCallbackListenerNode<T, C, L>,
         next: SwingModifier.NodeElement<*, *>,
     ): Boolean {
@@ -328,7 +328,7 @@ private class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
 
     /**
      * Takes [next] as the element this node holds, and its callback as the one the listener runs. Called
-     * while the node is attached: from the element's `update`, and from an adopt, which reaches here
+     * while the node is attached: from the element's `update`, and from a reuse, which reaches here
      * with an element naming the same registration. A [next] naming a different one needs the component
      * to move the listener.
      */

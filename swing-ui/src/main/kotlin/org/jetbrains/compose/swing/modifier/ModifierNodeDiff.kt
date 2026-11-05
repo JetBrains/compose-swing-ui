@@ -19,14 +19,14 @@ internal val ParentLayoutNodeType = ModifierNodeType(ParentLayoutNodeElement::cl
 /**
  * Updates nodes by position within [nodeType], independently of the other node type.
  * Removes excess nodes from the end and preserves compatible nodes. A replacement attaches before the old node
- * detaches; if attachment fails, the old record remains. Equal elements can be adopted when [adoptable] is true.
+ * detaches; if attachment fails, the old record remains. Equal elements can be reused when [reusable] is true.
  */
 internal fun updateModifierNodes(
     holder: SwingNodeHolder<*>,
     state: SwingModifierState,
     elements: List<SwingModifier.Element>,
     nodeType: ModifierNodeType,
-    adoptable: Boolean,
+    reusable: Boolean,
 ): EnumSet<ModifierChange> {
     val diagnostics = holder.owner?.diagnostics
     val records = state.chain
@@ -58,8 +58,8 @@ internal fun updateModifierNodes(
                 changes.add(ModifierChange.NodesAddedOrRemoved)
             }
 
-            record.canRebind(element) -> {
-                if (!adoptable || !record.adopt(element)) updateNode(changes, holder, record, element, diagnostics)
+            record.canUpdate(element) -> {
+                if (!reusable || !record.reuse(element)) updateNode(changes, holder, record, element, diagnostics)
             }
 
             else -> {
@@ -86,7 +86,7 @@ private fun updateNode(
     diagnostics: SwingCompositionDiagnostics?,
 ) {
     val target = holder.component
-    record.rebindAndWrite(element, target, diagnostics)
+    record.updateTo(element, target, diagnostics)
     // Each updated node is checked, even if an earlier one already requires notification.
     if (record.node.shouldAutoInvalidate) {
         changes.add(ModifierChange.ListenerNeedsUpdatedNodes)
