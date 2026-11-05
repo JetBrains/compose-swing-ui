@@ -194,7 +194,13 @@ internal class ChildRegions(
             // two steps below reading hosts whose children are all attached. The records are taken out first, so
             // a group attached here attaches each of its children, a relocated one included.
             val relocated = changes.takeRelocated()
-            relocated.fastForEach { (parent, child) -> trace("attach") { parent.attachRelocatedChild(child) } }
+            if (relocated.isNotEmpty()) {
+                val indicesByParent = IdentityHashMap<NodeHolder, Map<NodeHolder, Int>>()
+                relocated.fastForEach { (parent, child) ->
+                    val index = indicesByParent.getOrPut(parent) { parent.childIndices() }[child] ?: -1
+                    trace("attach") { parent.attachRelocatedChild(child, index) }
+                }
+            }
             // A modifier has named its child's region for the last time this pass, and each of these hosts
             // can be brought to what its children declare. This runs whole: the check below reads the
             // region each child is really in, and a component that arrives in a region as this runs is
@@ -222,9 +228,14 @@ internal class ChildRegions(
      * A child taken back out by the same pass has no place here to attach to, and a node that is not a
      * container is no host to attach one to. A child a group above it attached already, and a parked one, are left
      * as they are. Under a group that is not placed, the group attaches the child as it is placed.
+     *
+     * @param child the node the pass relocated into this host.
+     * @param index the child's index among this node's children, or -1 where the pass took it back out.
      */
-    private fun NodeHolder.attachRelocatedChild(child: NodeHolder) {
-        val index = children.indexOf(child)
+    private fun NodeHolder.attachRelocatedChild(
+        child: NodeHolder,
+        index: Int,
+    ) {
         val attachesHere = child.awaitingAttachment && !child.deactivated && placesChildren
         if (index < 0 || !attachesHere) return
         val host = componentHost
@@ -232,6 +243,12 @@ internal class ChildRegions(
         child.checkPlacementUnder(host, container, this@ChildRegions)
         child.attachTo(this, container, index, this@ChildRegions)
     }
+
+    /** The index of each of this node's children, so a pass relocating several of them walks the list once. */
+    private fun NodeHolder.childIndices(): Map<NodeHolder, Int> =
+        IdentityHashMap<NodeHolder, Int>(children.size).also { indices ->
+            children.fastForEachIndexed { index, child -> indices[child] = index }
+        }
 
     /**
      * Moves every child of this host that ends the pass naming a region other than the one its component

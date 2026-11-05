@@ -2216,6 +2216,43 @@ class VirtualSwingNodeRefusalTest {
         assertEquals(listOf("before", "after"), arriving.components.texts())
     }
 
+    @Test
+    fun relocatedChildrenOfDifferentParentsAttachInCompositionOrder() = runComposeSwingTest {
+        val departing = MeasuringHost("source")
+        val arriving = MeasuringHost()
+        val inner = MeasuringHost()
+        var moved by mutableStateOf(false)
+        setContent {
+            val first = remember { movableContentOf { Label("first") } }
+            val nested = remember { movableContentOf { Label("nested") } }
+            val refused =
+                remember {
+                    movableContentOf {
+                        Label("refused", SwingModifier.mark("refused", protocol = protocolOf("source")))
+                    }
+                }
+            Host(departing) {
+                if (!moved) {
+                    first()
+                    nested()
+                    refused()
+                }
+            }
+            Host(arriving) {
+                if (moved) first()
+                Host(inner) { if (moved) nested() }
+                if (moved) refused()
+            }
+        }
+
+        assertFailsWith<IllegalStateException> {
+            moved = true
+            awaitIdle()
+        }
+
+        assertEquals(listOf("nested"), inner.texts())
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("siblingGroupChanges")
     fun aRefusedGroupChangeStillLetsAcceptedSiblingsPublish(
