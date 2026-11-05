@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.checkOneChildPerRegion
 import org.jetbrains.compose.swing.node.declaredName
 import org.jetbrains.compose.swing.node.isLeftOutUnder
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Container
@@ -254,10 +255,12 @@ public class OnDemandComposition private constructor(
     private fun requireOneTopLevelComponent() {
         disposingOnFailure(::dispose) {
             reportPlacementFailure()
-            rootHolder.children.fastForEach { child ->
+            rootHolder.unfoldedChildren.fastForEach { child ->
                 check(
                     child.declaration.parentProtocol == null &&
-                        child.declaration.parentLayoutElements.all { it.isLeftOutUnder(rootHolder.component) },
+                        child.declaration.parentLayoutElements.fastFirstOrNull {
+                            !it.isLeftOutUnder(rootHolder.component)
+                        } == null,
                 ) {
                     "A ${child.component.declaredName} at the top level of this composition carries parent data, " +
                         "but the top-level component is in no container of this composition, so nothing reads it. " +

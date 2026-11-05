@@ -41,23 +41,23 @@ internal class ModifierPartition(
 
     /** The parent-layout declarations retained after their [key][ParentElement.key] resolution. */
     val parentDeclarations: List<ParentElement>
-        get() = resolveParentDeclarations().declarations
+        get() = resolved().declarations
 
-    /** The parent data folded from the retained [ParentDataModifier]s, or `null` where none stand. */
+    /** The parent data folded from the retained [ParentDataModifier]s, or `null` where none is declared. */
     val parentData: Any?
-        get() = resolveParentDeclarations().parentData
+        get() = resolved().parentData
 
-    /** The family of [parentData], or `null` where no parent-data modifier stands. */
+    /** The family of [parentData], or `null` where no parent-data modifier is declared. */
     val parentProtocol: ParentProtocol?
-        get() = resolveParentDeclarations().parentProtocol
+        get() = resolved().parentProtocol
 
     /** The retained parent-layout declarations a measuring parent still interprets after parent-data folding. */
     val parentLayoutElements: List<ParentLayoutElement>
-        get() = resolveParentDeclarations().elements
+        get() = resolved().elements
 
     /** The one retained built-in slot declaration, or `null` when none remains. */
     val slot: SlotElement?
-        get() = resolveParentDeclarations().slot
+        get() = resolved().slot
 
     /**
      * The keys the modifier ties its application to, in the order they stand, or `null` where it
@@ -130,51 +130,9 @@ internal class ModifierPartition(
     }
 
     /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
-    private fun resolveParentDeclarations(): ResolvedParentDeclarations =
-        resolvedParentDeclarations ?: buildResolvedParentDeclarations().also { resolvedParentDeclarations = it }
-
-    private fun buildResolvedParentDeclarations(): ResolvedParentDeclarations {
-        if (pendingParentDeclarations.isEmpty()) return NoParentDeclarations
-        val declarations = retainedParentDeclarations()
-        val parentDataModifiers = declarations.filterIsInstance<ParentDataModifier>()
-        val parentProtocol = parentDataModifiers.firstOrNull()?.parentProtocol
-        require(parentDataModifiers.all { it.parentProtocol === parentProtocol }) {
-            val types = parentDataModifiers.map { it.parentProtocol.description }.distinct().joinToString()
-            "A child declares parent data for incompatible layout families: $types. Apply declarations " +
-                "only from the scope of its immediate parent."
-        }
-        val parentData =
-            parentDataModifiers.fold(null as Any?) { carried, modifier ->
-                modifier.modifyParentData(carried)
-            }
-        val slots = declarations.filterIsInstance<ParentSlotElement>()
-        require(slots.size <= 1) {
-            "A modifier can retain at most one parent slot declaration."
-        }
-        val slot = slots.singleOrNull()
-        require(slot == null || slot is SlotElement) {
-            "Parent slot declarations must be created with SwingModifier.slot()."
-        }
-        return ResolvedParentDeclarations(
-            declarations = declarations,
-            parentData = parentData,
-            parentProtocol = parentProtocol,
-            elements =
-                declarations.filterIsInstance<ParentLayoutElement>().filter { it !is ParentDataModifier },
-            slot = slot as? SlotElement,
-        )
-    }
-
-    /** Keeps each non-additive key's final declaration without moving it across additive declarations. */
-    private fun retainedParentDeclarations(): List<ParentElement> {
-        val retained = ArrayList<ParentElement>(pendingParentDeclarations.size)
-        val seenKeys = HashSet<Any>()
-        pendingParentDeclarations.asReversed().fastForEach { element ->
-            if (element.additive || seenKeys.add(element.key)) retained += element
-        }
-        retained.reverse()
-        return retained
-    }
+    internal fun resolved(): ResolvedParentDeclarations =
+        resolvedParentDeclarations
+            ?: resolveParentDeclarations(pendingParentDeclarations).also { resolvedParentDeclarations = it }
 
     /**
      * Declaring again adds keys, so a builder tying its own writes to a key keeps its caller's. One
@@ -185,27 +143,92 @@ internal class ModifierPartition(
         // stands where it was declared last, and counts once.
         keyElements = keyElements.filterNot { it == element } + element
     }
+}
 
-    private class ResolvedParentDeclarations(
-        val declarations: List<ParentElement>,
-        val parentData: Any?,
-        val parentProtocol: ParentProtocol?,
-        val elements: List<ParentLayoutElement>,
-        val slot: SlotElement?,
+/** This modifier's parent declarations, resolved by [resolveParentDeclarations]. Reads no other entry's key. */
+internal fun SwingModifier.resolvedParentDeclarations(): ResolvedParentDeclarations =
+    resolveParentDeclarations(
+        foldIn(ArrayList<ParentElement>()) { declarations, element ->
+            if (element is ParentElement) declarations += element
+            declarations
+        },
     )
 
-    private companion object {
-        /** What a modifier declaring no parent element resolves to. */
-        val NoParentDeclarations =
-            ResolvedParentDeclarations(
-                declarations = emptyList(),
-                parentData = null,
-                parentProtocol = null,
-                elements = emptyList(),
-                slot = null,
-            )
+/**
+ * [declarations] resolved by [key][ParentElement.key]: each non-additive key keeps its last declaration, and the
+ * retained parent data folds in declaration order. Refuses parent data of two layout families, and more than one
+ * slot.
+ */
+internal fun resolveParentDeclarations(declarations: List<ParentElement>): ResolvedParentDeclarations {
+    if (declarations.isEmpty()) return NoParentDeclarations
+    val retained = retainedParentDeclarations(declarations)
+    var parentProtocol: ParentProtocol? = null
+    var parentData: Any? = null
+    var slot: SlotElement? = null
+    val elements = ArrayList<ParentLayoutElement>()
+    retained.fastForEach { element ->
+        if (element is ParentDataModifier) {
+            val protocol = element.parentProtocol
+            require(parentProtocol == null || protocol === parentProtocol) {
+                "A child declares parent data for incompatible layout families: " +
+                    "${parentProtocol?.description}, ${protocol.description}. Apply declarations " +
+                    "only from the scope of its immediate parent."
+            }
+            parentProtocol = protocol
+            parentData = element.modifyParentData(parentData)
+        } else if (element is ParentLayoutElement) {
+            elements.add(element)
+        }
+        if (element is ParentSlotElement) {
+            require(slot == null) { "A modifier can retain at most one parent slot declaration." }
+            require(element is SlotElement) {
+                "Parent slot declarations must be created with SwingModifier.slot()."
+            }
+            slot = element
+        }
     }
+    return ResolvedParentDeclarations(retained, parentData, parentProtocol, elements, slot)
 }
+
+/** Keeps each non-additive key's final declaration without moving it across additive declarations. */
+internal fun retainedParentDeclarations(declarations: List<ParentElement>): List<ParentElement> {
+    if (declarations.isEmpty()) return emptyList()
+    val retained = ArrayList<ParentElement>(declarations.size)
+    val seenKeys = HashSet<Any>()
+    for (index in declarations.lastIndex downTo 0) {
+        val element = declarations[index]
+        if (element.additive || seenKeys.add(element.key)) retained += element
+    }
+    retained.reverse()
+    return retained
+}
+
+/**
+ * What [resolveParentDeclarations] keeps of a list of parent declarations.
+ *
+ * @property declarations the retained declarations, in declaration order.
+ * @property parentData the parent data the retained [ParentDataModifier]s fold to, or `null` where none is declared.
+ * @property parentProtocol the family of [parentData], or `null` without a parent-data modifier.
+ * @property elements the retained parent-layout declarations that fold no parent data.
+ * @property slot the one retained slot declaration, or `null` when none remains.
+ */
+internal class ResolvedParentDeclarations(
+    val declarations: List<ParentElement>,
+    val parentData: Any?,
+    val parentProtocol: ParentProtocol?,
+    val elements: List<ParentLayoutElement>,
+    val slot: SlotElement?,
+)
+
+/** What a list declaring no parent element resolves to. */
+private val NoParentDeclarations =
+    ResolvedParentDeclarations(
+        declarations = emptyList(),
+        parentData = null,
+        parentProtocol = null,
+        elements = emptyList(),
+        slot = null,
+    )
 
 /**
  * Whether this element's node holds a place in the modifier's chain, matched by position: an additive

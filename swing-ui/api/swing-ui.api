@@ -1124,13 +1124,17 @@ public abstract interface class org/jetbrains/compose/swing/node/CompositionLoca
 public final class org/jetbrains/compose/swing/node/CreatedNodeHolder : org/jetbrains/compose/swing/node/SwingNodeHolder {
 	public static final field $stable I
 	public fun <init> (Ljava/awt/Component;)V
+	public fun attachTo (Lorg/jetbrains/compose/swing/node/NodeHolder;Ljava/awt/Container;ILorg/jetbrains/compose/swing/node/ChildRegions;)V
 	public fun getComponent ()Ljava/awt/Component;
 }
 
 public final class org/jetbrains/compose/swing/node/ExistingNodeHolder : org/jetbrains/compose/swing/node/SwingNodeHolder {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Class;Ljava/lang/Class;Landroidx/compose/runtime/State;Lkotlin/jvm/functions/Function1;)V
+	public fun attachTo (Lorg/jetbrains/compose/swing/node/NodeHolder;Ljava/awt/Container;ILorg/jetbrains/compose/swing/node/ChildRegions;)V
+	public fun checkPlacementUnder (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;Ljava/awt/Container;Lorg/jetbrains/compose/swing/node/ChildRegions;)V
 	public fun getComponent ()Ljava/awt/Component;
+	public fun insertedUnder (Lorg/jetbrains/compose/swing/node/NodeHolder;)V
 	public fun onRelease ()V
 }
 
@@ -1168,12 +1172,15 @@ public abstract interface class org/jetbrains/compose/swing/node/MirrorState$Set
 }
 
 public final class org/jetbrains/compose/swing/node/NodeKt {
+	public static final fun RetryRefusedGroups (Landroidx/compose/runtime/Composer;I)V
+	public static final fun VirtualSwingNode (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun asNodeOf (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Ljava/awt/Component;)Lorg/jetbrains/compose/swing/node/SwingComponentNode;
 	public static final fun currentValueOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Landroidx/compose/runtime/CompositionLocal;)Ljava/lang/Object;
 	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)V
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun groupDeclarationsOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Ljava/util/List;
 	public static final fun invalidateLayout (Lorg/jetbrains/compose/swing/node/SwingComponentNode;)V
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
@@ -1199,9 +1206,9 @@ public abstract interface class org/jetbrains/compose/swing/node/ReconcileWithCh
 public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
 	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
-	public fun insertBottomUp (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public fun insertBottomUp (ILorg/jetbrains/compose/swing/node/NodeHolder;)V
 	public synthetic fun insertTopDown (ILjava/lang/Object;)V
-	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/NodeHolder;)V
 	public fun move (III)V
 	public fun onBeginChanges ()V
 	public fun onEndChanges ()V
@@ -1220,17 +1227,35 @@ public abstract interface class org/jetbrains/compose/swing/node/SwingComponentN
 	public abstract fun onDetached (Lorg/jetbrains/compose/swing/node/SwingComponentNode;)V
 }
 
-public abstract class org/jetbrains/compose/swing/node/SwingNodeHolder : org/jetbrains/compose/swing/node/SwingComponentNode, androidx/compose/runtime/ComposeNodeLifecycleCallback {
+public abstract class org/jetbrains/compose/swing/node/SwingNodeHolder : org/jetbrains/compose/swing/node/SwingComponentNode, org/jetbrains/compose/swing/node/NodeHolder {
 	public static final field $stable I
+	public fun checkPlacementUnder (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;Ljava/awt/Container;Lorg/jetbrains/compose/swing/node/ChildRegions;)V
+	public final fun checkUpdatedPlacement (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;Lorg/jetbrains/compose/swing/node/ChildRegions;)V
+	public fun getAwaitingAttachment ()Z
 	public final fun getCallerRelease ()Lkotlin/jvm/functions/Function0;
+	public final fun getChildGroupDeclarations ()Ljava/util/List;
 	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/layout/ChildPlacement;
+	public fun getChildren ()Ljava/util/List;
 	public abstract fun getComponent ()Ljava/awt/Component;
+	public final fun getComponentHost ()Lorg/jetbrains/compose/swing/node/SwingNodeHolder;
+	public final fun getDeactivated ()Z
+	public final fun getDeclaredName ()Ljava/lang/String;
 	public fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public final fun getOwner ()Lorg/jetbrains/compose/swing/node/SwingCompositionOwner;
+	public synthetic fun getOwner$org_jetbrains_compose_swing_swing_ui ()Lorg/jetbrains/compose/swing/node/SwingCompositionOwner;
+	public fun getParent ()Lorg/jetbrains/compose/swing/node/NodeHolder;
+	public final fun getPlacesChildren ()Z
+	public final fun insertIn (Lorg/jetbrains/compose/swing/node/ChildProjection;)V
+	public fun moveTo (Lorg/jetbrains/compose/swing/node/SwingCompositionOwner;Z)V
 	public fun onDeactivate ()V
 	public fun onRelease ()V
 	public fun onReuse ()V
+	public final fun removeFrom (Lorg/jetbrains/compose/swing/node/ChildProjection;)V
+	public fun setAwaitingAttachment (Z)V
 	public final fun setCallerRelease (Lkotlin/jvm/functions/Function0;)V
 	public final fun setChildPlacement (Lorg/jetbrains/compose/swing/layout/ChildPlacement;)V
+	public fun setParent (Lorg/jetbrains/compose/swing/node/NodeHolder;)V
+	public final fun unfoldInto (Ljava/util/List;)V
 }
 
 public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
@@ -1250,6 +1275,33 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
 	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class org/jetbrains/compose/swing/node/VirtualNodeHolder : org/jetbrains/compose/swing/node/NodeHolder {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun attachTo (Lorg/jetbrains/compose/swing/node/NodeHolder;Ljava/awt/Container;ILorg/jetbrains/compose/swing/node/ChildRegions;)V
+	public fun checkClaimable ()V
+	public fun checkPlacementUnder (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;Ljava/awt/Container;Lorg/jetbrains/compose/swing/node/ChildRegions;)V
+	public fun getAwaitingAttachment ()Z
+	public fun getChildGroupDeclarations ()Ljava/util/List;
+	public fun getChildren ()Ljava/util/List;
+	public fun getComponentHost ()Lorg/jetbrains/compose/swing/node/SwingNodeHolder;
+	public fun getDeactivated ()Z
+	public fun getDeclaredName ()Ljava/lang/String;
+	public fun getOwner ()Lorg/jetbrains/compose/swing/node/SwingCompositionOwner;
+	public fun getParent ()Lorg/jetbrains/compose/swing/node/NodeHolder;
+	public fun getPlacesChildren ()Z
+	public fun insertIn (Lorg/jetbrains/compose/swing/node/ChildProjection;)V
+	public fun moveTo (Lorg/jetbrains/compose/swing/node/SwingCompositionOwner;Z)V
+	public fun onDeactivate ()V
+	public fun onRelease ()V
+	public fun onReuse ()V
+	public fun removeFrom (Lorg/jetbrains/compose/swing/node/ChildProjection;)V
+	public fun setAwaitingAttachment (Z)V
+	public fun setParent (Lorg/jetbrains/compose/swing/node/NodeHolder;)V
+	public final fun storeGroupDeclarations (Ljava/util/List;)V
+	public fun unfoldInto (Ljava/util/List;)V
 }
 
 public final class org/jetbrains/compose/swing/text/TextRange {

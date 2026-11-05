@@ -49,6 +49,14 @@ internal class ComponentUpdateBatch {
     private val declaredForChildSettle: MutableSet<SwingNodeHolder<*>> =
         Collections.newSetFromMap(IdentityHashMap())
 
+    internal var groupRedeclarations: GroupRedeclarations? = null
+        private set
+
+    internal fun holdForGroupRedeclare(group: VirtualNodeHolder) {
+        val held = groupRedeclarations ?: GroupRedeclarations().also { groupRedeclarations = it }
+        if (held.declared.add(group)) held.groups.add(group)
+    }
+
     /**
      * The modifier state whose chain a modifier pass is diffing against [diffingDeclaration], `null` while no pass
      * runs. A pass restores the values it found when it ends, whichever way it ends.
@@ -74,6 +82,13 @@ internal class ComponentUpdateBatch {
      * finished touching.
      */
     fun begin() {
+        groupRedeclarations?.let {
+            it.groups.clear()
+            it.declared.clear()
+            it.hosts.clear()
+            it.components.clear()
+            it.declarations.clear()
+        }
         changedContainers.clear()
         heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
@@ -157,8 +172,13 @@ internal class ComponentUpdateBatch {
     /**
      * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
      * nodes that read a composition locals map this batch replaced, brings the containers this batch changed
-     * up to date, then runs every settle this batch held, and closes the section whichever way that goes - a
-     * batch that ends by throwing still leaves no section open.
+     * up to date, then runs every settle this batch held, and closes the section whichever way that goes -
+     * a batch that ends by throwing still
+     * leaves no section open.
+     *
+     * Each held group publishes its declarations to its children before its host settles. A group whose update
+     * is refused stays held to be checked again by [SwingApplier.redeclareGroups], and its host settles there,
+     * after the update publishes, rather than here.
      *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
@@ -167,6 +187,20 @@ internal class ComponentUpdateBatch {
             bringWidgetsUpToDate()
             heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
             heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
+            groupRedeclarations?.let { pending ->
+                var refused = 0
+                for (index in pending.groups.indices) {
+                    val group = pending.groups[index]
+                    if (group.redeclareChildren(pending.components, pending.declarations) == null) continue
+                    pending.groups[refused++] = group
+                    val host = group.componentHost
+                    if (host !in pending.hosts) pending.hosts.add(host)
+                }
+                pending.groups.subList(refused, pending.groups.size).clear()
+                pending.components.clear()
+                pending.declarations.clear()
+                heldForChildSettle.removeAll(pending.hosts)
+            }
             refreshChangedContainers()
             runHeldChildSettles()
         } finally {
@@ -207,4 +241,14 @@ internal class ComponentUpdateBatch {
         if (heldForChildSettle.isEmpty()) return
         for (node in heldForChildSettle) node.childSettle?.invoke()
     }
+}
+
+internal class GroupRedeclarations {
+    val groups: MutableList<VirtualNodeHolder> = ArrayList()
+    val declared: MutableSet<VirtualNodeHolder> = Collections.newSetFromMap(IdentityHashMap())
+
+    /** The hosts of the groups still held after the batch ended, whose settle waits for those groups to publish. */
+    val hosts: MutableList<SwingNodeHolder<*>> = ArrayList()
+    val components: MutableList<SwingNodeHolder<*>> = ArrayList()
+    val declarations: MutableList<MergedDeclaration> = ArrayList()
 }

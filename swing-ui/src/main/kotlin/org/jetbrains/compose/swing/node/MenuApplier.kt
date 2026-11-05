@@ -62,12 +62,12 @@ internal class MenuApplier(
         val parent = current
         val container = parent.menuContainer("add menu child ${instance.component}")
         batch.holdForChildSettle(parent)
+        parent.insertChild(index, instance)
         container.add(instance.component, parent.attachedSiblingsBefore(index))
         instance.installation = Installation.Indexed
         // A child that arrives where the container places it would stay unpainted, since no relayout changes
         // its bounds.
         batch.markChanged(container, instance.component.bounds)
-        parent.children.add(index, instance)
     }
 
     override fun remove(
@@ -80,11 +80,15 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and removing a detached
         // component is a no-op.
-        parent.removeChildRun(index, count) {
-            val area = it.component.bounds
-            container.removeMenuChild(it.component)
+        var childIndex = index
+        while (childIndex < index + count) {
+            val child = parent.unfoldedChildren[childIndex]
+            val area = child.component.bounds
+            container.removeMenuChild(child.component)
             batch.markChanged(container, area)
+            childIndex++
         }
+        parent.removeChildRun(index, count)
     }
 
     override fun move(
@@ -124,8 +128,8 @@ internal class MenuApplier(
         if (root.children.isEmpty()) return
         // The root is the caller's, so a component the caller added to it stays.
         val container = root.menuContainer("clear menu children")
-        root.children.removeComposedFrom(container) { batch.markChanged(container, it) }
-        root.children.clear()
+        root.unfoldedChildren.removeComposedFrom(container) { batch.markChanged(container, it) }
+        root.removeChildRun(0, root.children.size)
     }
 
     override fun onBeginChanges() {
@@ -154,7 +158,7 @@ internal class MenuApplier(
             is JMenu -> node.popupMenu.let { if (it.isVisible) it.pack() }
             else -> Unit
         }
-        children.fastForEach { it.packShowingPopups() }
+        unfoldedChildren.fastForEach { it.packShowingPopups() }
     }
 }
 

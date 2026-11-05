@@ -20,9 +20,6 @@ import javax.swing.JMenuBar
 import javax.swing.JPanel
 import kotlin.test.AfterTest
 
-/** An applier over nodes, which is what both the component applier and the menu applier are. */
-private typealias NodeApplier = AbstractApplier<SwingNodeHolder<*>>
-
 /**
  * What a change leaves a viewer looking at.
  *
@@ -123,8 +120,9 @@ class RepaintedRegionsTest {
             }
         },
         case("a child moved to another region") {
-            val (panel, applier, host) = panelOfRegions(blocks = 2)
-            val moving = host.children[1]
+            val (panel, applier, host) = panelOfRegions(blocks = 1)
+            val moving = regionBlock(Color.RED, REGIONS[1])
+            applier.pass(host) { insert(1, moving) }
             served(panel) {
                 applier.pass(host) {
                     down(moving)
@@ -305,8 +303,8 @@ private val AddedAtIndex =
     }
 
 /** Runs [block] against this applier over one change pass, with `current` on [node]. */
-internal fun <A : NodeApplier> A.pass(
-    node: SwingNodeHolder<*>,
+internal fun <N, A : AbstractApplier<N>> A.pass(
+    node: N,
     block: A.() -> Unit,
 ) {
     onBeginChanges()
@@ -317,7 +315,7 @@ internal fun <A : NodeApplier> A.pass(
 }
 
 /** Clears this applier the way the runtime does when it disposes a composition: inside a change pass of its own. */
-private fun NodeApplier.clearInPass() {
+private fun AbstractApplier<*>.clearInPass() {
     onBeginChanges()
     clear()
     onEndChanges()

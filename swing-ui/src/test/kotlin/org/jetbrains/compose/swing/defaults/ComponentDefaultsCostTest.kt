@@ -132,7 +132,7 @@ class ComponentDefaultsCostTest {
     }
 
     @Test
-    fun unchangedRecompositionRetainsWholeChainAdoptionFastPath() = runComposeSwingTest {
+    fun unchangedRecompositionRetainsWholeChainLinearDiffFastPath() = runComposeSwingTest {
         var tick by mutableStateOf(0)
         var writes = 0
 
@@ -170,7 +170,7 @@ class ComponentDefaultsCostTest {
         assertEquals(
             1,
             writes,
-            "subsequent unchanged recomposition must maintain adoption fast path without re-writing properties",
+            "subsequent unchanged recomposition must maintain the linear diff fast path without re-writing properties",
         )
     }
 

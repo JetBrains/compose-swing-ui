@@ -123,6 +123,10 @@ container's component array need not follow composition
 order: a `JLayeredPane` orders them by layer, and a [Foundation container](FOUNDATION.md) by the `zIndex` each
 child is placed with.
 
+The children of a [`VirtualSwingNode`](CUSTOM-CONTAINERS.md#grouping-children-without-a-component) are added
+to the container of the nearest ancestor that has a component. They take their places there in flattened
+composition order, so a group does not change the order of its siblings' children.
+
 Swing does not lay out or repaint added, removed, or moved children on its own: adding or removing a
 child only invalidates its container. Every container touched during a change pass is therefore
 revalidated once the pass completes, so a change that touches a container many times still costs a

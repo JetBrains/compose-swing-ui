@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.State
 import org.jetbrains.annotations.VisibleForTesting
@@ -28,7 +27,6 @@ import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.Rectangle
-import java.util.Collections
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
@@ -194,7 +192,7 @@ internal sealed interface Installation {
 @PublishedApi
 internal sealed class SwingNodeHolder<out T : Component> :
     SwingComponentNode<T>(),
-    ComposeNodeLifecycleCallback {
+    NodeHolder {
     abstract override val component: T
 
     /** What this node declares to its parent's layout manager: where it goes, and how it is measured. */
@@ -249,19 +247,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
     ): String
 
     /**
-     * Called as the applier inserts this node under [parent] for the first time, before the node's update runs.
-     */
-    internal abstract fun insertedUnder(parent: SwingNodeHolder<*>)
-
-    /** Attaches this node, composed at [index], to [container], the container of [host], through [regions]. */
-    internal abstract fun attachTo(
-        host: SwingNodeHolder<*>,
-        container: Container,
-        index: Int,
-        regions: ChildRegions,
-    )
-
-    /**
      * The region this node's modifier chain declares, or `null` when the modifier installs the
      * component through `Container.add` instead of a host's own method.
      *
@@ -289,7 +274,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * A child stands here from the moment the applier takes it in, which for a relocated child is
      * before its component is attached - see [awaitingAttachment].
      */
-    internal val children: MutableList<SwingNodeHolder<*>> = ArrayList()
+    override val children: MutableList<NodeHolder> = ArrayList()
 
     /**
      * Whether the host holding this node in its [children] has yet to attach the component.
@@ -299,9 +284,9 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * of the host - is read once the change pass has settled. It stands in the host's child list
      * meanwhile, which is what a remove or a move later in the same pass addresses it by.
      *
-     * Only the applier writes it.
+     * The applier marks it pending; the component clears it when its own attachment starts.
      */
-    internal var awaitingAttachment: Boolean = false
+    override var awaitingAttachment: Boolean = false
 
     /**
      * Whether [onDeactivate] has run on this node.
@@ -314,7 +299,8 @@ internal sealed class SwingNodeHolder<out T : Component> :
      *
      * Only [onDeactivate] writes it.
      */
-    internal var deactivated: Boolean = false
+    final override var deactivated: Boolean = false
+        internal set
 
     /**
      * How this node holds its children, as declared on [SwingNode] or [ExistingSwingNode]. It is
@@ -334,34 +320,60 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * or fails to build.
      */
     final override var owner: SwingCompositionOwner? = null
-        private set
+        internal set
+
+    override var parent: NodeHolder? = null
+
+    final override val componentHost: SwingNodeHolder<*> get() = this
+
+    final override val placesChildren: Boolean get() = !deactivated
+
+    final override val childGroupDeclarations: List<ParentElement> get() = emptyList()
+
+    final override val declaredName: String get() = component.declaredName
 
     final override val isAttached: Boolean get() = owner != null && !deactivated
 
+    override fun checkPlacementUnder(
+        host: SwingNodeHolder<*>,
+        container: Container,
+        regions: ChildRegions,
+    ) {
+        host.checkPlacementOf(container, this)
+        declaration.checkAttachableUnder(container.childHost)
+    }
+
+    final override fun checkUpdatedPlacement(
+        host: SwingNodeHolder<*>,
+        regions: ChildRegions,
+    ) = with(regions) { host.checkUpdatedPlacementOf(this@SwingNodeHolder) }
+
     /**
-     * Attaches this node and every node under it to the composition [owner] stands for, detaching them
-     * from the one they stood in, and answers this node. A [SwingComponentNodeListener] component is told each
-     * change.
+     * The ordered projection of the folded children, stopping at each component node. It includes component
+     * nodes awaiting attachment and deactivated ones. Attachment readiness, composition-owned installation and
+     * physical container membership are checked separately by each reader.
      *
-     * An applier attaches a node to the composition its parent stands in as it inserts it, so the
-     * owner travels the node tree. The root is attached by the composition itself, being the one node
-     * no parent hands an owner down to, and detached by it, with `null`, as it is disposed.
-     *
-     * A subtree inserted from another composition, as moved `movableContent`, leaves it whole and then
-     * joins this one whole: each node's modifier nodes detach and its reads and pending layout requests
-     * there are dropped, then its modifier nodes attach and update again. A deactivated node only takes
-     * the new composition.
-     *
-     * A listener's throw from `onDetached` or `onAttached`, or a modifier node's throw from `onDetach`, is
-     * reported to the uncaught-exception handler, and the owner change finishes as if the callback had
-     * returned. A modifier node's `onAttach` failure detaches that node and ends the pass and recomposer;
-     * a rollback `onDetach` failure is suppressed on it, and other applier work is not rolled back.
-     * Tracked reads and pending requests in the previous owner are dropped for this node and its attached
-     * modifier nodes. Children receive the new owner after this node's modifier nodes attach successfully.
+     * Region, root-slot and menu hosts refuse virtual children before reading this projection, so their unfolded
+     * indices equal composition indices. Without groups, this is the host's own child list without a copy.
+     * With groups, the flattened list is rebuilt at most once between structural mutations.
      */
-    internal fun attachedTo(owner: SwingCompositionOwner?): SwingNodeHolder<T> {
-        moveTo(owner, forGood = owner == null)
-        return this
+    internal val unfoldedChildren: List<SwingNodeHolder<*>>
+        get() = if (children.isEmpty()) emptyList() else childProjection.children
+
+    private var projection: ChildProjection? = null
+    internal val childProjection: ChildProjection
+        get() = projection ?: ChildProjection(this).also { projection = it }
+
+    final override fun insertIn(projection: ChildProjection) {
+        projection.childrenChanged()
+    }
+
+    final override fun removeFrom(projection: ChildProjection) {
+        projection.childrenChanged()
+    }
+
+    final override fun unfoldInto(destination: MutableList<SwingNodeHolder<*>>) {
+        destination.add(this)
     }
 
     /**
@@ -371,7 +383,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * Every step of leaving the previous composition is attempted for this node and for each child, even when one
      * throws. The first failure propagates, with the later ones suppressed on it, and the node does not join [owner].
      */
-    private fun moveTo(
+    override fun moveTo(
         owner: SwingCompositionOwner?,
         forGood: Boolean,
     ) {
@@ -419,39 +431,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * moves.
      */
     internal var childSettle: (() -> Unit)? = null
-
-    /**
-     * Puts the node back to the state a new node starts from.
-     *
-     * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
-     * restores the properties the modifier changed, drops the settle held against this node's children,
-     * and, once the modifier has torn down, drops this node's tracked reads and pending requests in its owner, so
-     * what the teardown records through this node goes with them. A settle left standing would be
-     * run against a declaration the composition no longer makes; an update that still declares one hands
-     * it over again on the pass that follows. The detach covers every modifier-installed listener,
-     * including the built-in domain listener of the component.
-     *
-     * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
-     * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
-     * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
-     * stops observing through the node before the modifier tears down.
-     *
-     * The published node is removed and the modifier torn down even when removing the published node throws; the
-     * first failure propagates, with the later one suppressed on it.
-     */
-    private fun reset(
-        resetNodes: Boolean,
-        detaching: Boolean,
-    ) {
-        if (detaching) tellComponentDetached()
-        try {
-            runEveryStep(::clearPublishedNode, { resetModifierState(resetNodes) })
-        } finally {
-            owner?.snapshotObserver?.clear(this)
-            owner?.cancelAfterValidation(this)
-            childSettle = null
-        }
-    }
 
     /**
      * The node is leaving the composition for good. The region it fills is released and its teardown runs
@@ -517,23 +496,6 @@ internal sealed class SwingNodeHolder<out T : Component> :
             }
         }
     }
-
-    /**
-     * Runs this terminal node's teardown once, whether removal or parking ends its lifetime. What the teardown
-     * records through this node in its owner is dropped after it.
-     */
-    private fun release(clearOwner: Boolean) {
-        try {
-            runReportingUncaught { callerRelease?.invoke() }
-            releaseBlock?.invoke()
-        } finally {
-            owner?.snapshotObserver?.clear(this)
-            owner?.cancelAfterValidation(this)
-            callerRelease = null
-            releaseBlock = null
-            if (clearOwner) owner = null
-        }
-    }
 }
 
 /** A node whose component its own factory built; the composition owns the component. */
@@ -543,16 +505,21 @@ internal class CreatedNodeHolder<out T : Component>
     internal constructor(
         override val component: T,
     ) : SwingNodeHolder<T>() {
-        /** The component is built by the node's own factory, so there is nothing to find. */
-        override fun insertedUnder(parent: SwingNodeHolder<*>) = Unit
-
-        /** The composition puts the component into [host]: installed into the region it names, or added by index. */
+        /**
+         * The composition puts the component into the container of [parent]'s host: installed into the region it
+         * names, or added by index.
+         */
         override fun attachTo(
-            host: SwingNodeHolder<*>,
+            parent: NodeHolder,
             container: Container,
             index: Int,
             regions: ChildRegions,
-        ) = with(regions) { host.attachCreated(container, this@CreatedNodeHolder, index) }
+        ) {
+            awaitingAttachment = false
+            val host = parent.componentHost
+            val componentIndex = host.childProjection.indexOf(this, index)
+            with(regions) { host.attachCreated(container, this@CreatedNodeHolder, componentIndex) }
+        }
 
         override fun noRegionRefusal(
             host: Container,
@@ -611,11 +578,12 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
             private set
 
         /** Runs the claim on the component of [parent], the node this one is first inserted under. */
-        override fun insertedUnder(parent: SwingNodeHolder<*>) {
+        override fun insertedUnder(parent: NodeHolder) {
             check(!::claimed.isInitialized) {
                 "An ExistingSwingNode claims its component once, when it is first inserted."
             }
-            val claimedFrom = parent.component
+            parent.checkClaimable()
+            val claimedFrom = parent.componentHost.component
             check(parentType.isInstance(claimedFrom)) {
                 "ExistingSwingNode claims its component from a ${parentType.simpleName}, but it is composed under a " +
                     "${claimedFrom.declaredName}. Compose it directly under the ${parentType.simpleName} whose " +
@@ -635,13 +603,27 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
             parentComponent = claimedFrom
         }
 
-        /** The parent already holds the component where it stands, so [host] only takes the node in. */
-        override fun attachTo(
+        override fun checkPlacementUnder(
             host: SwingNodeHolder<*>,
+            container: Container,
+            regions: ChildRegions,
+        ) {
+            super.checkPlacementUnder(host, container, regions)
+            parent?.checkClaimable()
+            with(regions) { host.checkClaim(this@ExistingNodeHolder) }
+        }
+
+        /** The parent already placed the claimed component, so attachment only registers the node. */
+        override fun attachTo(
+            parent: NodeHolder,
             container: Container,
             index: Int,
             regions: ChildRegions,
-        ) = with(regions) { host.takeClaimed(this@ExistingNodeHolder) }
+        ) {
+            declaration.checkAttachableUnder(container)
+            awaitingAttachment = false
+            with(regions) { parent.componentHost.takeClaimed(this@ExistingNodeHolder) }
+        }
 
         override fun noRegionRefusal(
             host: Container,
@@ -704,7 +686,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
         private fun removeComposedChildren() {
             val host = (component as? Container)?.childHost ?: return
             var removed = false
-            children.removeComposedFrom(host) {
+            unfoldedChildren.removeComposedFrom(host) {
                 host.repaint(it.x, it.y, it.width, it.height)
                 removed = true
             }
@@ -770,19 +752,6 @@ internal fun SwingNodeHolder<*>.leaveHost(
 }
 
 /**
- * Whether the applier has attached this child to its host and not parked it since. A child the pass has
- * taken in but not attached yet was never attached, and a parked one is not attached any more - the
- * runtime keeps its place in the composition, so it goes on standing in [SwingNodeHolder.children] with
- * its component already detached.
- *
- * It says nothing about where the component stands now: a look and feel moves one out of the container
- * it was declared in - a tool bar dragged into a window of its own - without the composition hearing of
- * it.
- */
-internal val SwingNodeHolder<*>.attachedToHost: Boolean
-    get() = !awaitingAttachment && !deactivated
-
-/**
  * Whether the composition put this child's component in [host] and it stands there now. A child
  * [ExistingSwingNode] claims never does, even where it stands in [host]: its parent placed it, as it places
  * a component nobody composed.
@@ -823,21 +792,8 @@ internal inline fun List<SwingNodeHolder<*>>.removeComposedFrom(
  */
 internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int {
     var attached = 0
-    children.fastForEachIn(0 until index) { if (it.attachedToHost) attached++ }
+    unfoldedChildren.fastForEachIn(0 until index) { if (it.attachedToHost) attached++ }
     return attached
-}
-
-/**
- * Takes the run of [count] children at [index] out of this host's composition-order child list, handing
- * each of them to [release] before the list loses it.
- */
-internal inline fun SwingNodeHolder<*>.removeChildRun(
-    index: Int,
-    count: Int,
-    crossinline release: (SwingNodeHolder<*>) -> Unit,
-) {
-    children.fastForEachIn(index until index + count) { release(it) }
-    children.subList(index, index + count).clear()
 }
 
 /**
@@ -858,30 +814,65 @@ internal inline fun SwingNodeHolder<*>.moveChildRun(
     val target = moveChildRun(from, to, count)
     // The whole run leaves its host before any of it goes back: a place addresses the position among the
     // children that stay, and a run still standing where it was would push each of them one along.
-    children.fastForEachIn(target until target + count) { detach(it) }
-    for (index in target until target + count) {
-        val child = children[index]
+    var index = target
+    while (index < target + count) {
+        detach(unfoldedChildren[index])
+        index++
+    }
+    index = target
+    while (index < target + count) {
+        val child = unfoldedChildren[index]
         if (child.attachedToHost) place(child, index)
+        index++
     }
 }
 
 /**
- * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, and
- * returns the index the run stands at once it has moved: taking a run out at [from] shifts the positions
- * above it down by [count], which is the index space [to] is given in.
+ * Puts the node back to the state a new node starts from.
  *
- * The run and the children it travels past swap places, so the move is a rotation of the span between
- * the two positions, and no child leaves the list.
+ * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
+ * restores the properties the modifier changed, drops the settle held against this node's children,
+ * and, once the modifier has torn down, drops this node's tracked reads and pending requests in its owner, so
+ * what the teardown records through this node goes with them. A settle left standing would be
+ * run against a declaration the composition no longer makes; an update that still declares one hands
+ * it over again on the pass that follows. The detach covers every modifier-installed listener,
+ * including the built-in domain listener of the component.
+ *
+ * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
+ * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
+ * detaches. With [detaching], a [SwingComponentNodeListener] component is first told this node detached, so it
+ * stops observing through the node before the modifier tears down.
+ *
+ * The published node is removed and the modifier torn down even when removing the published node throws; the
+ * first failure propagates, with the later one suppressed on it.
  */
-internal fun SwingNodeHolder<*>.moveChildRun(
-    from: Int,
-    to: Int,
-    count: Int,
-): Int {
-    val target = if (from > to) to else to - count
-    Collections.rotate(
-        children.subList(minOf(from, target), maxOf(from + count, to)),
-        if (from > to) count else -count,
-    )
-    return target
+private fun SwingNodeHolder<*>.reset(
+    resetNodes: Boolean,
+    detaching: Boolean,
+) {
+    if (detaching) tellComponentDetached()
+    try {
+        runEveryStep(::clearPublishedNode, { resetModifierState(resetNodes) })
+    } finally {
+        owner?.snapshotObserver?.clear(this)
+        owner?.cancelAfterValidation(this)
+        childSettle = null
+    }
+}
+
+/**
+ * Runs this terminal node's teardown once, whether removal or parking ends its lifetime. What the teardown
+ * records through this node in its owner is dropped after it.
+ */
+private fun SwingNodeHolder<*>.release(clearOwner: Boolean) {
+    try {
+        runReportingUncaught { callerRelease?.invoke() }
+        releaseBlock?.invoke()
+    } finally {
+        owner?.snapshotObserver?.clear(this)
+        owner?.cancelAfterValidation(this)
+        callerRelease = null
+        releaseBlock = null
+        if (clearOwner) owner = null
+    }
 }

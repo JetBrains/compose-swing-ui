@@ -35,7 +35,6 @@ internal fun SwingNodeHolder<*>.checkPlacementOf(
     child: SwingNodeHolder<*>,
 ) {
     val fillsRegion = fillsRegion(this, child)
-    child.declaration.checkAttachableUnder(host)
     checkChildKind(host, child, fillsRegion)
     // Every attached child here was held to this same rule as it arrived, so they agree with one another
     // and the first of them answers for them all. A holder in `children` carries the installation that put
@@ -43,7 +42,7 @@ internal fun SwingNodeHolder<*>.checkPlacementOf(
     // disagree with the arriving child only where the host declared one placement, took children under it,
     // and then declared another. A child still awaiting attachment carries no such answer yet and speaks
     // for none of them; a host holding nothing else has no child to compare against.
-    val held = children.fastFirstOrNull { it.attachedToHost } ?: return
+    val held = unfoldedChildren.fastFirstOrNull { it.attachedToHost } ?: return
     check((held.installation?.fillsRegion == true) == fillsRegion) {
         val kept = if (fillsRegion) "children added by index" else "children filling regions of its own"
         val arriving = if (fillsRegion) "a child filling ${child.namedRegion()}" else "a child added by index"
@@ -87,15 +86,19 @@ internal fun SwingNodeHolder<*>.checkChildKind(
                 "container that offers that region."
         }
     }
+}
+
+/** Refuses layout elements that [host] cannot interpret. */
+internal fun SwingNodeHolder<*>.checkLayoutElementsUnder(host: Container) {
     check(
-        child.declaration.parentLayoutElements.fastFirstOrNull { !it.isLeftOutUnder(host) } == null ||
+        declaration.parentLayoutElements.fastFirstOrNull { !it.isLeftOutUnder(host) } == null ||
             host.layout is MeasurementLayoutManager,
     ) {
         // Names the host being joined, not the one being left: on a relocation this fires as the child
         // attaches, and a message naming where it came from would read as a fault of that container.
-        val declared = child.declaration.layoutElementsUnder(host).joinToString { child.declaredCall(it) }
+        val declared = declaration.layoutElementsUnder(host).joinToString { declaredCall(it) }
         "A ${host.declaredName} lays each child out at the size the child asks for, so it never " +
-            "interprets parent-layout declarations, and the ${child.component.declaredName} joining it " +
+            "interprets parent-layout declarations, and the ${component.declaredName} joining it " +
             "declares $declared. Put the component in a Box inside this container and declare the layout " +
             "modifiers on the Box's child, which the Box interprets."
     }
@@ -126,12 +129,12 @@ internal fun SwingNodeHolder<*>.constraintInRegionRefusal(host: Container): Stri
 internal fun SwingNodeHolder<*>.checkOneChildPerRegion(
     contentFilledTwice: (Component, Component, Component) -> String = ::contentFilledTwice,
 ) {
-    children.fastForEachIndexed { index, child ->
+    unfoldedChildren.fastForEachIndexed { index, child ->
         val installation = child.installation
         if (installation == null || !installation.fillsRegion) return@fastForEachIndexed
         val name = installation.region
         for (earlier in 0 until index) {
-            val occupant = children[earlier]
+            val occupant = unfoldedChildren[earlier]
             val held = occupant.installation ?: continue
             if (held.fillsRegion && held.region == name) {
                 error(

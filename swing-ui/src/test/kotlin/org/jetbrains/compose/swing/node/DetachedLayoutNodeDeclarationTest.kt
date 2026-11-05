@@ -6,10 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
+import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
@@ -23,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -32,6 +35,48 @@ import kotlin.test.assertTrue
  * at that declaration leaves the child released.
  */
 class DetachedLayoutNodeDeclarationTest {
+    @Test
+    fun removingALayoutNodePreservesAlreadyFoldedParentData() = runComposeSwingTest {
+        val layout = RecordingMeasurementLayout()
+        val host = JPanel(layout)
+        val child = JLabel("child")
+        val data =
+            object : ParentDataModifier {
+                override val parentProtocol = parentProtocolOf("measuring") { it === host }
+
+                override fun modifyParentData(parentData: Any?): Any = object {
+                    override fun toString(): String = "data"
+                }
+            }
+        var removed by mutableStateOf(false)
+        setContent {
+            SwingNode(factory = { host }) {
+                SwingNode(
+                    factory = { child },
+                    modifier =
+                        (
+                            if (removed) {
+                                SwingModifier
+                            } else {
+                                SwingModifier then RecordingLayoutNodeElement("node", mutableListOf())
+                            }
+                        ) then data,
+                )
+            }
+        }
+        val original = layout.parentDataOf(child)
+        layout.declarations.clear()
+
+        removed = true
+        awaitIdle()
+
+        assertEquals(listOf(child), host.components.toList())
+        assertEquals(2, layout.declarations.size)
+        assertEquals(listOf("data", "data"), layout.declarations.map { it.parentData.toString() })
+        assertSame(original, layout.declarations[0].parentData)
+        assertEquals(listOf(emptyList<ParentLayoutElement>(), emptyList()), layout.declarations.map { it.elements })
+    }
+
     @Test
     fun theParentHoldsNoDetachedLayoutNodeAsANodeThatStandsIsWritten() {
         val owner = TestCompositionOwner()

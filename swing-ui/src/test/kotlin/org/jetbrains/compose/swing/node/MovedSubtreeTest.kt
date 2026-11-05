@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -19,18 +20,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsMenuInteropHost
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
+import java.awt.BorderLayout
 import java.awt.Component
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JScrollPane
+import javax.swing.JSplitPane
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,6 +62,186 @@ import kotlin.test.assertTrue
  * the subtree holding it.
  */
 class MovedSubtreeTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("crossCompositionGroupChanges")
+    fun movingAGroupAcrossCompositionsAppliesInnerChangesOnlyAtTheDestination(
+        case: String,
+        after: List<Int>,
+        expected: List<String>,
+        expectedWithSiblings: List<String>,
+        secondChildArrives: Boolean,
+    ) = runComposeSwingTest {
+        val departingLayout = RecordingMeasurementLayout()
+        val arrivingLayout = RecordingMeasurementLayout()
+        val departing = JPanel(departingLayout)
+        val arriving = JPanel(arrivingLayout)
+        val before = JLabel("before")
+        val afterLabel = JLabel("after")
+        var moved by mutableStateOf(false)
+        lateinit var context: CompositionContext
+        lateinit var content: @Composable (List<Int>) -> Unit
+        setContent {
+            context = rememberCompositionContext()
+            content =
+                remember {
+                    movableContentOf<List<Int>> { ids ->
+                        VirtualSwingNode {
+                            for (id in ids) key(id) { SwingNode(factory = { JLabel("g$id") }) }
+                        }
+                    }
+                }
+        }
+        val first =
+            JPanel().setContent(parent = context) {
+                SwingNode(factory = { departing }) { if (!moved) content(listOf(1, 2)) }
+            }
+        val second =
+            JPanel().setContent(parent = context) {
+                SwingNode(factory = { arriving }) {
+                    SwingNode(factory = { before })
+                    if (moved) content(after)
+                    SwingNode(factory = { afterLabel })
+                }
+            }
+        try {
+            awaitIdle()
+            assertEquals(listOf("g1", "g2"), departing.components.map { (it as JLabel).text }, case)
+            val retained = departing.components.first()
+            val secondChild = departing.components[1]
+            assertEquals(listOf(before, afterLabel), arriving.components.toList(), case)
+            departingLayout.declarations.clear()
+            arrivingLayout.declarations.clear()
+            arrivingLayout.registrations.clear()
+            arrivingLayout.removals.clear()
+
+            moved = true
+            awaitIdle()
+
+            assertEquals(emptyList(), departing.components.toList(), case)
+            assertEquals(expectedWithSiblings, arriving.components.map { (it as JLabel).text }, case)
+            assertSame(retained, arriving.components[1], case)
+            assertSame(arriving, retained.parent, case)
+            assertEquals(secondChildArrives, secondChild.parent === arriving, case)
+            assertEquals(emptyList(), departingLayout.declarations, case)
+            assertEquals(expected, arrivingLayout.registrations.map { (it.component as JLabel).text }, case)
+            assertEquals(expected, arrivingLayout.declarations.map { (it.component as JLabel).text }, case)
+            assertEquals(emptyList(), arrivingLayout.removals, case)
+        } finally {
+            first.dispose()
+            second.dispose()
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("groupAttachFailures")
+    fun aGroupAttachFailureStopsBeforeLaterChildrenEnterTheDestination(
+        case: String,
+        children: @Composable (SwingModifier, JLabel) -> Unit,
+    ) = runComposeSwingTest {
+        val later = JLabel("later")
+        val departing = JPanel(RecordingMeasurementLayout())
+        val arriving = JPanel(RecordingMeasurementLayout())
+        var moved by mutableStateOf(false)
+        var onAttach: () -> Unit = {}
+        val modifier =
+            SwingModifier then
+                RecordingLayoutNodeElement(
+                    "failure",
+                    mutableListOf(),
+                    onAttach = { onAttach() },
+                )
+        lateinit var context: CompositionContext
+        lateinit var content: @Composable () -> Unit
+        setContent {
+            context = rememberCompositionContext()
+            content = remember { movableContentOf { VirtualSwingNode { children(modifier, later) } } }
+        }
+        val first =
+            JPanel().setContent(parent = context) {
+                SwingNode(factory = { departing }) { if (!moved) content() }
+            }
+        val second =
+            JPanel().setContent(parent = context) {
+                SwingNode(factory = { arriving }) { if (moved) content() }
+            }
+        try {
+            awaitIdle()
+            assertEquals(emptyList(), arriving.components.toList(), case)
+            assertFalse(later.isEnabled, case)
+
+            onAttach = { throw UnsupportedOperationException() }
+            moved = true
+            assertFailsWith<UnsupportedOperationException> { awaitIdle() }
+
+            assertEquals(emptyList(), arriving.components.toList(), case)
+            assertTrue(later.isEnabled, case)
+        } finally {
+            first.dispose()
+            second.dispose()
+        }
+    }
+
+    @ParameterizedTest(name = "destination region: {0}")
+    @ValueSource(strings = ["left", "right"])
+    fun relocatingWithinTheSameHostRefusesANewSlotProtocol(destination: String) = runComposeSwingTest {
+        val host =
+            JSplitPane().apply {
+                leftComponent = null
+                rightComponent = null
+            }
+        val label = JLabel("moved")
+        val accepted = parentProtocolOf("split pane") { it === host }
+        val refused = parentProtocolOf("scroll pane") { it is JScrollPane }
+        val left =
+            SlotAttachment { _, component, _ ->
+                host.leftComponent = component
+                return@SlotAttachment { host.leftComponent = null }
+            }
+        val right =
+            SlotAttachment { _, component, _ ->
+                host.rightComponent = component
+                return@SlotAttachment { host.rightComponent = null }
+            }
+        var moved by mutableStateOf(false)
+        setContent {
+            val content =
+                remember {
+                    movableContentOf<ParentProtocol> { protocol ->
+                        SwingNode(
+                            factory = { label },
+                            modifier =
+                                if (protocol === accepted) {
+                                    SwingModifier.slot(protocol, "left", left)
+                                } else {
+                                    SwingModifier.slot(
+                                        protocol,
+                                        destination,
+                                        if (destination ==
+                                            "left"
+                                        ) {
+                                            left
+                                        } else {
+                                            right
+                                        },
+                                    )
+                                },
+                        )
+                    }
+                }
+            SwingNode(factory = { host }, childPlacement = ChildPlacement.Slots("left", "right")) {
+                if (!moved) content(accepted)
+                if (moved) content(refused)
+            }
+        }
+        assertSame(label, host.leftComponent)
+        assertEquals(null, host.rightComponent)
+
+        assertFailsWith<IllegalStateException> {
+            moved = true
+            awaitIdle()
+        }
+    }
+
     @Test
     fun everyNodeOfAMenuSubtreeMovedToAnotherCompositionMovesWithIt() = runComposeSwingTest {
         var inSecond by mutableStateOf(false)
@@ -229,6 +426,43 @@ class MovedSubtreeTest {
 
         assertEquals(listOf("attached", "onAttach"), top.events, "the moved node stays attached")
         assertEquals(listOf("attached", "onAttach"), child.events, "the node under it stays attached")
+    }
+
+    @Test
+    fun removingALayoutNodeWhileRelocatingChecksTheNewDeclarationAtTheDestination() = runComposeSwingTest {
+        val departingLayout = RecordingMeasurementLayout()
+        val departing = JPanel(departingLayout)
+        val arrivingLayout = BorderLayout()
+        val arriving = JPanel(arrivingLayout)
+        val label = JLabel("moved")
+        val layoutElement = RecordingLayoutNodeElement("layout", mutableListOf())
+        val north = with(PanelLayout.Border().contentScope) { SwingModifier.north() }
+        var moved by mutableStateOf(false)
+        setContent {
+            val content =
+                remember {
+                    movableContentOf<Boolean> { atDestination ->
+                        SwingNode(
+                            factory = { label },
+                            modifier = if (atDestination) north else SwingModifier then layoutElement,
+                        )
+                    }
+                }
+            SwingNode(factory = { departing }) { if (!moved) content(false) }
+            SwingNode(factory = { arriving }) { if (moved) content(true) }
+        }
+        assertEquals(listOf(label), departing.components.toList())
+        assertEquals(1, departingLayout.elementsOf(label).size)
+        departingLayout.declarations.clear()
+
+        moved = true
+        awaitIdle()
+
+        assertEquals(0, departing.componentCount)
+        assertEquals(listOf(label), arriving.components.toList())
+        assertSame(arriving, label.parent)
+        assertEquals(BorderLayout.NORTH, arrivingLayout.getConstraints(label))
+        assertEquals(emptyList(), departingLayout.declarations)
     }
 
     @Test
@@ -467,5 +701,50 @@ class MovedSubtreeTest {
                 error("onDetach fails")
             }
         }
+    }
+
+    companion object {
+        @JvmStatic
+        fun groupAttachFailures(): List<Arguments> {
+            val direct: @Composable (SwingModifier, JLabel) -> Unit = { modifier, later ->
+                SwingNode(factory = { JLabel("failure") }, modifier = modifier)
+                SwingNode(factory = { later }, modifier = SwingModifier.enabled(false))
+            }
+            val nested: @Composable (SwingModifier, JLabel) -> Unit = { modifier, later ->
+                VirtualSwingNode {
+                    SwingNode(factory = { JLabel("failure") }, modifier = modifier)
+                }
+                SwingNode(factory = { later }, modifier = SwingModifier.enabled(false))
+            }
+            return listOf(
+                Arguments.of("direct children", direct),
+                Arguments.of("nested group followed by a component", nested),
+            )
+        }
+
+        @JvmStatic
+        fun crossCompositionGroupChanges(): List<Arguments> = listOf(
+            Arguments.of(
+                "unchanged children",
+                listOf(1, 2),
+                listOf("g1", "g2"),
+                listOf("before", "g1", "g2", "after"),
+                true,
+            ),
+            Arguments.of(
+                "insert a child",
+                listOf(1, 2, 3),
+                listOf("g1", "g2", "g3"),
+                listOf("before", "g1", "g2", "g3", "after"),
+                true,
+            ),
+            Arguments.of(
+                "change an inner key",
+                listOf(1, 3),
+                listOf("g1", "g3"),
+                listOf("before", "g1", "g3", "after"),
+                false,
+            ),
+        )
     }
 }

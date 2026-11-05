@@ -405,6 +405,113 @@ part really moved are re-registered. A placement carrying the derived coordinate
 child the moment any one of them changed, and put the whole container through a remove-and-re-add on
 every pass.
 
+## Grouping children without a component
+
+`VirtualSwingNode` lays out its content as if it were written in the container its position belongs to. It
+has no component of its own. Its `modifier` declares to that container once for each component the content
+places there, so several children can share one parent-layout declaration. A wrapping panel is not needed for
+that, and would put a real container between the children and the layout.
+
+The children are added to the nearest ancestor that has a component, in flattened composition order among that
+ancestor's other children. A group in the middle of a container's children places its components between the
+ones before and after it.
+
+- **Modifier.** The modifier takes parent-layout declarations only: a `ParentLayoutElement` that is not a
+  `ParentLayoutNodeElement`, such as `layoutConstraint`. A property, a listener, a slot, a `NodeElement` or a
+  `ParentLayoutNodeElement` is refused when the composable is composed, with an error that names the element.
+- **Order.** A child under nested groups receives the outermost group's declarations first, then the inner
+  group's, then its own. A later non-additive declaration replaces an earlier declaration of the same key.
+  Additive declarations accumulate. Parent data must use the same protocol.
+- **Reach.** A group declares only to the components it places, directly or through nested groups. A component's
+  own children never receive the group's declarations.
+- **Container.** A group works under a container that places each child by its position among the container's
+  children, such as a `Panel`. A container that places each child in a named region, such as a `ScrollPane`,
+  refuses a group, and so does the content of a composition root. An `ExistingSwingNode` directly inside a group is
+  refused, and so is a group inside a menu composition.
+- **Protocol.** Each child's declarations are checked against the container as they are without a group. A
+  declaration the container refuses fails under a group. An inheritable declaration it refuses is left out, as
+  it is for a child. A group that declares parent data is refused under a container with no layout manager, such
+  as `JLayeredPane`, which reads parent data only when it adds a child. Each child can still declare its own
+  parent data there.
+- **Change.** Changing the group's modifier declares again to each child it places. The children stay in the
+  container, so they keep focus and selection. A `MeasurementLayoutManager` receives the new declarations through
+  `declareComponentLayout`. Any other `LayoutManager2` receives the new constraint again, after a
+  `removeLayoutComponent` and an `addLayoutComponent`, as [Parent data and layout modifiers](#parent-data-and-layout-modifiers)
+  describes.
+
+A named wrapper says what a group means. `GridRow` puts every component it places on one row of a raw
+`GridBagLayout`: each child takes the row as `gridy`, and the default `gridx`, `RELATIVE`, places it after the
+last component of that row:
+
+<!--- CLEAR -->
+<!--- INCLUDE .*custom-container-03.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.node.VirtualSwingNode
+import java.awt.GridBagConstraints
+-->
+
+```kotlin
+@Composable
+fun GridRow(row: Int, content: @Composable () -> Unit) {
+    // A bare GridBagConstraints compares by identity, so it is remembered rather than rebuilt on each pass.
+    val constraints = remember(row) { GridBagConstraints().apply { gridy = row } }
+    VirtualSwingNode(SwingModifier.layoutConstraint(constraints)) {
+        content()
+    }
+}
+```
+
+<!--- KNIT example-custom-container-03.kt -->
+
+A form then reads row by row, and the labels of each row stand side by side in composition order:
+
+<!--- CLEAR -->
+<!--- INCLUDE .*custom-container-04.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.VirtualSwingNode
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
+import javax.swing.JPanel
+
+@Composable
+fun GridRow(row: Int, content: @Composable () -> Unit) {
+    val constraints = remember(row) { GridBagConstraints().apply { gridy = row } }
+    VirtualSwingNode(SwingModifier.layoutConstraint(constraints)) {
+        content()
+    }
+}
+-->
+
+```kotlin
+@Composable
+fun Form() {
+    SwingNode(
+        factory = { JPanel(GridBagLayout()) },
+        content = {
+            GridRow(row = 0) {
+                Label("Name")
+                Label("Ada Lovelace")
+            }
+            GridRow(row = 1) {
+                Label("Email")
+                Label("ada@example.com")
+            }
+        },
+    )
+}
+```
+
+<!--- KNIT example-custom-container-04.kt -->
+<!--- CLEAR -->
+
 ## Building a custom shared hierarchy
 
 A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and
@@ -525,7 +632,7 @@ When the host needs one component back synchronously rather than a composition m
 `JComponent`, use `OnDemandComposition`:
 
 <!--- CLEAR -->
-<!--- INCLUDE .*custom-container-03.*
+<!--- INCLUDE .*custom-container-05.*
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -546,7 +653,7 @@ private class LabelRenderer(parent: CompositionContext) {
 }
 ```
 
-<!--- KNIT example-custom-container-03.kt -->
+<!--- KNIT example-custom-container-05.kt -->
 
 `OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and
 `CompositionLocal`s. Its constructor composes the content once. The content recomposes when snapshot state it
@@ -580,7 +687,7 @@ A component that shows a list of items asks a `ListCellRenderer` for one row at 
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
-<!--- INCLUDE .*custom-container-04.*
+<!--- INCLUDE .*custom-container-06.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.listItemRenderer
@@ -617,7 +724,7 @@ fun <T : Any> CustomComboBox(
 }
 ```
 
-<!--- KNIT example-custom-container-04.kt -->
+<!--- KNIT example-custom-container-06.kt -->
 
 The component is the caller's own, so a subclass with rendering or sizing behavior the built-in
 `ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.
