@@ -211,6 +211,12 @@ internal fun NodeHolder.joinHostIfWaiting(
     return true
 }
 
+/** The index of each of this node's children, so a pass relocating several of them walks the list once. */
+internal fun NodeHolder.childIndices(): Map<NodeHolder, Int> =
+    IdentityHashMap<NodeHolder, Int>(children.size).also { indices ->
+        children.fastForEachIndexed { index, child -> indices[child] = index }
+    }
+
 /**
  * Attaches this node and every descendant to [owner], detaching them from their previous composition,
  * and returns this node. A [SwingComponentNodeListener] component receives each change.
