@@ -23,7 +23,9 @@ import org.jetbrains.compose.swing.modifier.diffKeyedElements
 import org.jetbrains.compose.swing.modifier.handDeclaredNodes
 import org.jetbrains.compose.swing.modifier.rewriteRecordsFrom
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.checkParentElementsAccepted
 import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.node.parentReads
 import org.jetbrains.compose.swing.node.receivesAllComponents
 import org.jetbrains.compose.swing.node.restyleBelow
 import org.jetbrains.compose.swing.util.fastFirstOrNull
@@ -379,7 +381,9 @@ internal class StyleNode(
     /**
      * Detaches every slot and clears what this node provided, even when a step throws. Property slots keep their
      * nodes across moves. The next resolve attaches the declared property slots again in declared order.
-     * Layout declarations rebuild against the new parent on that resolve.
+     * Layout declarations rebuild against the new parent on that resolve. A style its holder's modifier drops
+     * declares the holder's layout again without it; a style detached as the whole modifier comes apart only
+     * withdraws its detached layout nodes from what the host last received.
      * The first failure propagates, with the later ones suppressed on it.
      */
     override fun onDetach() {
@@ -407,9 +411,15 @@ internal class StyleNode(
         if (declaredLayout.isNotEmpty()) {
             failure =
                 collectFailure(failure) {
-                    holder?.declaration?.restateStyleLayout(this) {
+                    val styled = holder
+                    if (styled != null && styled.owner?.updateBatch?.diffingState === styled.modifierState) {
+                        styled.declaration.restateStyleLayout(this) {
+                            declaredLayout = emptyList()
+                            false
+                        }
+                    } else {
                         declaredLayout = emptyList()
-                        false
+                        styled?.declaration?.withdrawLayoutNodes()
                     }
                 }
         }

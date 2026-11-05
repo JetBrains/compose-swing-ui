@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import org.jetbrains.compose.swing.core.collectFailure
+import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIn
 import org.jetbrains.compose.swing.util.fastForEachIndexed
@@ -43,7 +44,8 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
     /**
      * The node the applier last inserted this one under. `null` on a composition's root and on a removed node. Set as
      * the node is inserted top-down, so a relocated node, which is inserted bottom-up first, has its new parent before
-     * the change pass attaches it. Style resolution and host resolution ([componentHost]) walk it.
+     * the change pass attaches it. Style resolution and host resolution ([componentHost], [childGroupDeclarations])
+     * walk it.
      *
      * Written only as the node enters or leaves a child list: [insertInto] sets it, [removeChildren] clears it.
      */
@@ -57,6 +59,12 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
 
     /** Whether a child inserted under this node is attached at once, rather than when this node is placed. */
     val placesChildren: Boolean
+
+    /**
+     * The group declarations each child of this node receives ahead of its own, outermost first. A node with a
+     * component gives none: its children are added to its own container. A group gives its parent's, then its own.
+     */
+    val childGroupDeclarations: List<ParentElement>
 
     /** The component class or composable name used in placement refusals. */
     val declaredName: String
@@ -83,8 +91,8 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
     fun insertedUnder(parent: NodeHolder) = Unit
 
     /**
-     * Checks this node's declarations against [host] before [container] changes. A group checks each child it will
-     * attach, so a refusal leaves the host unchanged.
+     * Checks this node's declarations, including its group declarations, against [host] before [container]
+     * changes. A group checks each child it will attach, so a refusal leaves the host unchanged.
      *
      * @param host the node whose component this node's components are added to.
      * @param container the component of [host].
@@ -108,6 +116,24 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
         parent: NodeHolder,
         container: Container,
         index: Int,
+        regions: ChildRegions,
+    )
+
+    /**
+     * Gives each component this node places the declarations of the groups it is composed in, in composition order, in
+     * [GroupDeclarationEffect] after a group above it changed them: a component the pass left waiting joins
+     * [container] as `attachTo` attaches it, one that stands in [container] publishes its complete checked
+     * declaration again, and any other is skipped.
+     *
+     * @param parent the node this one is composed under.
+     * @param index the node's index among its parent's children.
+     * @param container the component of [parent]'s [componentHost].
+     * @param regions the regions of the applier attaching a waiting component.
+     */
+    fun takeGroupDeclarations(
+        parent: NodeHolder,
+        index: Int,
+        container: Container,
         regions: ChildRegions,
     )
 
@@ -149,6 +175,43 @@ internal sealed interface NodeHolder : ComposeNodeLifecycleCallback {
 }
 
 /**
+ * Whether this node is one of [groups] or is composed in one of them: a walk up through the groups, which stops at the
+ * first node with a component, since that node holds its own children.
+ *
+ * @param groups the groups whose declarations changed in the pass in flight.
+ */
+internal fun NodeHolder.composedInAnyOf(groups: List<VirtualNodeHolder>): Boolean {
+    val host = componentHost
+    var current: NodeHolder? = this
+    while (current != null && current !== host) {
+        if (current in groups) return true
+        current = current.parent
+    }
+    return false
+}
+
+/**
+ * Joins [container] a node the pass left waiting, as `attachTo` attaches it, checking it there first. Where the node
+ * is not waiting, nothing happens and `false` returns.
+ *
+ * @param parent the node this one is composed under.
+ * @param index the node's index among its parent's children.
+ * @param container the component of [parent]'s [componentHost].
+ * @param regions the regions of the applier attaching a waiting component.
+ */
+internal fun NodeHolder.joinHostIfWaiting(
+    parent: NodeHolder,
+    index: Int,
+    container: Container,
+    regions: ChildRegions,
+): Boolean {
+    if (!awaitingAttachment) return false
+    checkPlacementUnder(parent.componentHost, container, regions)
+    attachTo(parent, container, index, regions)
+    return true
+}
+
+/**
  * Attaches this node and every descendant to [owner], detaching them from their previous composition,
  * and returns this node. A [SwingComponentNodeListener] component receives each change.
  *
@@ -176,6 +239,14 @@ internal fun <H : NodeHolder> H.attachedTo(owner: SwingCompositionOwner?): H {
 /** Whether this node awaits attachment, for any [AttachmentWait] reason. */
 internal val NodeHolder.awaitingAttachment: Boolean
     get() = attachmentWait != AttachmentWait.None
+
+/**
+ * Whether a group this node is composed in changed its declaration in this pass: until [GroupDeclarationEffect],
+ * the node joins no host and publishes nothing, and only a withdrawal of its detached layout nodes reaches its
+ * host.
+ */
+internal val NodeHolder.awaitsGroupEffect: Boolean
+    get() = owner?.updateBatch?.changedGroups?.await(this) == true
 
 /**
  * Moves each child of this node to [owner]. With a `null` [owner] every child leaves its composition even when one
@@ -367,7 +438,8 @@ internal value class AttachmentWait private constructor(
 
         /**
          * Taken into a child list but not placed: a new group, a child under a group not placed yet, a child the
-         * pass took out, or a relocated child the settling pass has taken.
+         * pass took out, a relocated child the settling pass has taken, or a component under a group whose
+         * declaration changed in the pass, which joins in [GroupDeclarationEffect].
          */
         val Placement = AttachmentWait(2)
     }

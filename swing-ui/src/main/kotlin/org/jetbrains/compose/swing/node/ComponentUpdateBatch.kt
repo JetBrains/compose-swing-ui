@@ -61,6 +61,12 @@ internal class ComponentUpdateBatch {
         Collections.newSetFromMap(IdentityHashMap())
 
     /**
+     * The placed groups whose update stored a different declaration in this pass. Their components take it only in
+     * [GroupDeclarationEffect], which empties this.
+     */
+    internal val changedGroups = ChangedGroups()
+
+    /**
      * The modifier state whose chain a modifier pass is diffing against [diffingDeclaration], `null` while no pass
      * runs. A pass restores the values it found when it ends, whichever way it ends.
      */
@@ -86,6 +92,7 @@ internal class ComponentUpdateBatch {
      * finished touching.
      */
     fun begin() {
+        changedGroups.clear()
         changedContainers.clear()
         heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
@@ -204,6 +211,9 @@ internal class ComponentUpdateBatch {
      * again the styles those held in turn, and closes the section whichever way that goes - a batch that ends by
      * throwing still leaves no section open.
      *
+     * The host of a group whose declaration changed settles in [GroupDeclarationEffect] instead, once the group's
+     * components have taken that declaration.
+     *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
     fun end(bringWidgetsUpToDate: () -> Unit) {
@@ -212,6 +222,7 @@ internal class ComponentUpdateBatch {
             heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
             heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
             drainRestyles()
+            changedGroups.hosts.fastForEach { heldForChildSettle.remove(it) }
             refreshChangedContainers()
             // A settle writes a widget property and cannot re-enter the applier, so nothing it runs adds to the list.
             heldForChildSettle.fastForEach { it.childSettle?.invoke() }
@@ -230,16 +241,82 @@ internal class ComponentUpdateBatch {
 
     /**
      * Revalidates every container this batch changed, since `Container.add` and `Container.remove` only
-     * invalidate, then repaints the union of the areas [markChanged] named for it.
-     *
-     * The map is cleared by [end], whichever way this goes. The walk is entered only where the batch
-     * changed a container: a batch that just wrote widget properties takes no iterator over an empty map.
+     * invalidate, then repaints the union of the areas [markChanged] named for it, and forgets them, whichever way
+     * this goes. [end] calls it, and so does [GroupDeclarationEffect] for what it changed after the batch ended. The
+     * walk is entered only where a container changed: a batch that just wrote widget properties takes no iterator
+     * over an empty map.
      */
-    private fun refreshChangedContainers() {
+    fun refreshChangedContainers() {
         if (changedContainers.isEmpty()) return
-        for ((container, area) in changedContainers) {
-            container.revalidate()
-            if (!area.isEmpty) container.repaint(area.x, area.y, area.width, area.height)
+        try {
+            for ((container, area) in changedContainers) {
+                container.revalidate()
+                if (!area.isEmpty) container.repaint(area.x, area.y, area.width, area.height)
+            }
+        } finally {
+            changedContainers.clear()
         }
     }
 }
+
+/** The placed groups whose update stored a different declaration in the pass in flight, in update order. */
+internal class ChangedGroups {
+    /** The groups recorded, without those [take] handed over. */
+    private val pending: MutableList<VirtualNodeHolder> = ArrayList()
+
+    /** The component host of each group in [pending] when it was recorded, once each. */
+    val hosts: List<SwingNodeHolder<*>> get() = hostList
+
+    private val hostList = ArrayList<SwingNodeHolder<*>>()
+
+    /** The members of [pending], allocated when the first group is recorded. Empty whenever [pending] is. */
+    private val recordedGroups: MutableSet<VirtualNodeHolder> by lazy(LazyThreadSafetyMode.NONE) {
+        Collections.newSetFromMap(IdentityHashMap())
+    }
+
+    /** The members of [hosts], allocated when the first group is recorded. Empty whenever [hosts] is. */
+    private val recordedHosts: MutableSet<SwingNodeHolder<*>> by lazy(LazyThreadSafetyMode.NONE) {
+        Collections.newSetFromMap(IdentityHashMap())
+    }
+
+    /** Records that [group] stored a different declaration in this pass. */
+    fun record(group: VirtualNodeHolder) {
+        if (!recordedGroups.add(group)) return
+        pending += group
+        val host = group.componentHost
+        if (recordedHosts.add(host)) hostList += host
+    }
+
+    /**
+     * Whether a group [node] is composed in changed its declaration in this pass: until [GroupDeclarationEffect],
+     * the node joins no host and publishes nothing, and only a withdrawal of its detached layout nodes reaches its
+     * host.
+     */
+    fun await(node: NodeHolder): Boolean = pending.isNotEmpty() && node.parent?.composedInAnyOf(pending) == true
+
+    /** Takes out the groups recorded and their hosts, or returns `null` where there are none. */
+    fun take(): TakenGroups? {
+        if (pending.isEmpty()) return null
+        val taken = TakenGroups(pending.toList(), hosts.toList())
+        clear()
+        return taken
+    }
+
+    /** Forgets what was recorded. */
+    fun clear() {
+        if (pending.isEmpty()) return
+        pending.clear()
+        hostList.clear()
+        recordedGroups.clear()
+        recordedHosts.clear()
+    }
+}
+
+/**
+ * The groups whose declaration changed in a pass, in update order, and the component host each had then. A group
+ * deactivated before [GroupDeclarationEffect] runs still has its host settled.
+ */
+internal class TakenGroups(
+    val groups: List<VirtualNodeHolder>,
+    val hosts: List<SwingNodeHolder<*>>,
+)

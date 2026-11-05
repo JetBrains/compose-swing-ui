@@ -355,6 +355,8 @@ internal sealed class SwingNodeHolder<out T : Component> :
 
     final override val placesChildren: Boolean get() = !deactivated
 
+    final override val childGroupDeclarations: List<ParentElement> get() = emptyList()
+
     final override val declaredName: String get() = component.declaredName
 
     final override val isAttached: Boolean get() = owner != null && !deactivated
@@ -365,6 +367,22 @@ internal sealed class SwingNodeHolder<out T : Component> :
         regions: ChildRegions,
     ) {
         host.checkPlacementOf(container, this)
+        declaration.checkAttachableUnder(container.childHost)
+    }
+
+    final override fun takeGroupDeclarations(
+        parent: NodeHolder,
+        index: Int,
+        container: Container,
+        regions: ChildRegions,
+    ) {
+        if (deactivated) {
+            // Deactivated while waiting for this effect: it is never attached again, so nothing is left to wait for.
+            attachmentWait = AttachmentWait.None
+            return
+        }
+        if (joinHostIfWaiting(parent, index, container, regions)) return
+        if (standsByCompositionIn(container.childHost)) declaration.reapply()
     }
 
     final override fun checkUpdatedPlacement(
@@ -569,7 +587,8 @@ internal class CreatedNodeHolder<out T : Component>
     ) : SwingNodeHolder<T>() {
         /**
          * The composition puts the component into the container of [parent]'s host: installed into the region it
-         * names, or added by index.
+         * names, or added by index. Under a group whose declaration changed in this pass, the component waits for
+         * [GroupDeclarationEffect] instead.
          */
         override fun attachTo(
             parent: NodeHolder,
@@ -577,6 +596,10 @@ internal class CreatedNodeHolder<out T : Component>
             index: Int,
             regions: ChildRegions,
         ) {
+            if (awaitsGroupEffect) {
+                attachmentWait = AttachmentWait.Placement
+                return
+            }
             attachmentWait = AttachmentWait.None
             val host = parent.componentHost
             val componentIndex = host.childProjection.indexOf(this, index)
@@ -682,6 +705,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
             index: Int,
             regions: ChildRegions,
         ) {
+            declaration.checkAttachableUnder(container)
             attachmentWait = AttachmentWait.None
             with(regions) { parent.componentHost.takeClaimed(this@ExistingNodeHolder) }
         }

@@ -3,16 +3,20 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
+import java.awt.BorderLayout
 import java.awt.Container
 import java.awt.Rectangle
 import javax.swing.JButton
@@ -40,6 +44,32 @@ import kotlin.test.assertSame
  * [SwingApplierRegionTest].
  */
 class SwingApplierTest {
+    @Test
+    fun childSettlementReadsTheCurrentGroupConstraint() = runComposeSwingTest {
+        val layout = BorderLayout()
+        val host = JPanel(layout)
+        val child = JLabel("child")
+        var constraint by mutableStateOf(BorderLayout.NORTH)
+        setContent {
+            SwingNode(
+                factory = { host },
+                update = { reconcileWithChildren { component.name = layout.getConstraints(child) as String } },
+            ) {
+                VirtualSwingNode(SwingModifier.layoutConstraint(constraint)) {
+                    SwingNode(factory = { child })
+                }
+            }
+        }
+        assertEquals(BorderLayout.NORTH, host.name)
+
+        constraint = BorderLayout.SOUTH
+        awaitIdle()
+
+        assertEquals(listOf(child), host.components.toList())
+        assertEquals(BorderLayout.SOUTH, layout.getConstraints(child))
+        assertEquals(BorderLayout.SOUTH, host.name)
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("mutatedHosts")
     fun componentOnlyMutationsUpdateCompositionOrder(
@@ -76,34 +106,73 @@ class SwingApplierTest {
         assertEquals(listOf("before") + around + listOf("g4", "g5", "after"), host.components.texts(), case)
     }
 
-    @Test
-    fun stableBatchesWithoutGroupsPreserveAttachmentsAndDeclarations() = runComposeSwingTest {
-        val layout = RecordingMeasurementLayout()
-        val host = JPanel(layout)
-        val first = JLabel("first")
-        val second = JLabel("second")
-        var text by mutableStateOf("first")
-        setContent {
-            SwingNode(factory = { host }) {
-                SwingNode(factory = { first }, update = { set(text) { this.text = it } })
-                SwingNode(factory = { second })
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["no group", "a group", "a nested group"])
+    fun stableBatchesAndUnrelatedRecompositionsPreserveAttachmentsAndDeclarations(layout: String) =
+        runComposeSwingTest {
+            val host = MeasuringHost()
+            val tags = if (layout == "no group") emptyList() else listOf("G")
+            var text by mutableStateOf("initial")
+            var inserted by mutableStateOf(false)
+            var tick by mutableIntStateOf(0)
+            setContent {
+                SwingNode(factory = { host }) {
+                    tick
+                    val children: @Composable () -> Unit = {
+                        Label(text)
+                        if (inserted) Label("inserted")
+                    }
+                    when (layout) {
+                        "no group" -> children()
+                        "a group" -> VirtualSwingNode(SwingModifier.mark("G"), content = children)
+                        else -> VirtualSwingNode(SwingModifier.mark("G")) { VirtualSwingNode(content = children) }
+                    }
+                }
             }
-        }
-        assertEquals(listOf(first, second), host.components.toList())
-        layout.registrations.clear()
-        layout.declarations.clear()
-        layout.removals.clear()
+            val initial = host.components.toList()
+            val recording = host.recording
+            assertEquals(listOf("initial"), host.texts(), layout)
+            assertEquals(listOf(tags), initial.map { recording.tagsOf(it) }, layout)
 
-        for (update in listOf("updated", "final")) {
-            text = update
+            fun clearRecords() {
+                recording.registrations.clear()
+                recording.declarations.clear()
+                recording.removals.clear()
+            }
+
+            fun assertUntouched(expectedTexts: List<String>) {
+                assertEquals(expectedTexts, host.texts(), layout)
+                assertEquals(List(expectedTexts.size) { tags }, host.components.map { recording.tagsOf(it) }, layout)
+                assertEquals(emptyList(), recording.registrations, layout)
+                assertEquals(emptyList(), recording.declarations, layout)
+                assertEquals(emptyList(), recording.removals, layout)
+            }
+            clearRecords()
+
+            text = "updated"
             awaitIdle()
-            assertEquals(update, first.text)
-            assertEquals(listOf(first, second), host.components.toList())
-            assertEquals(emptyList(), layout.registrations)
-            assertEquals(emptyList(), layout.declarations)
-            assertEquals(emptyList(), layout.removals)
+            assertUntouched(listOf("updated"))
+            assertEquals(initial, host.components.toList(), layout)
+
+            inserted = true
+            awaitIdle()
+            assertEquals(listOf("updated", "inserted"), host.texts(), layout)
+            assertEquals(listOf(tags, tags), host.components.map { recording.tagsOf(it) }, layout)
+            assertSame(initial.single(), host.components.first(), layout)
+            val withInserted = host.components.toList()
+            clearRecords()
+
+            text = "final"
+            awaitIdle()
+            assertUntouched(listOf("final", "inserted"))
+            assertEquals(withInserted, host.components.toList(), layout)
+
+            repeat(3) {
+                tick++
+                awaitIdle()
+            }
+            assertUntouched(listOf("final", "inserted"))
         }
-    }
 
     /**
      * A JPanel that counts how many times [revalidate] is invoked and records the area each `repaint`

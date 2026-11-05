@@ -11,10 +11,14 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.LayoutDeclaration
+import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.captureParentContext
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
+import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
@@ -22,12 +26,14 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
+import org.jetbrains.compose.swing.modifier.ResolvedParentDeclarations
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.modifier.resolveParentDeclarations
 import org.jetbrains.compose.swing.style.NestedProbe
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.styleable
@@ -35,6 +41,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -64,6 +71,7 @@ class ParentDeclarationTest {
         initial: SwingModifier,
         updated: SwingModifier,
         expectedElementCounts: List<Int>,
+        expectedParentData: List<Any?>,
     ) = runComposeSwingTest {
         val layout = RecordingMeasurementLayout()
         val parent = JPanel(layout)
@@ -86,6 +94,8 @@ class ParentDeclarationTest {
             layout.declarations.map { it.elements.size },
             case,
         )
+        assertEquals(expectedParentData, layout.declarations.map { it.parentData }, case)
+        assertEquals(expectedParentData.last(), layout.parentDataOf(child), case)
         assertEquals(emptyList(), layout.removals, case)
     }
 
@@ -97,9 +107,12 @@ class ParentDeclarationTest {
         val first = TestParentLayoutElement("first")
         val second = TestParentLayoutElement("second")
 
-        child.declaration.applyComponentLayout("first constraint", RawParentProtocol, listOf(first, second))
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("first constraint", RawParentProtocol, listOf(first, second)),
+            listOf(first, second),
+        )
         root.add(child.component)
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
 
         assertEquals(
             LayoutDeclaration(child.component, "first constraint", listOf(first, second)),
@@ -108,7 +121,10 @@ class ParentDeclarationTest {
         assertEquals(1, layout.declarations.size, "attachment declares the complete initial state once")
         assertEquals(0, layout.removals.size, "capable layouts retain the attached child")
 
-        child.declaration.applyComponentLayout("second constraint", RawParentProtocol, listOf(first, second))
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("second constraint", RawParentProtocol, listOf(first, second)),
+            listOf(first, second),
+        )
 
         assertEquals(
             LayoutDeclaration(child.component, "second constraint", listOf(first, second)),
@@ -116,7 +132,10 @@ class ParentDeclarationTest {
         )
         assertEquals(2, layout.declarations.size, "a parent-data change must make one atomic call")
 
-        child.declaration.applyComponentLayout("second constraint", RawParentProtocol, listOf(second, first))
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("second constraint", RawParentProtocol, listOf(second, first)),
+            listOf(second, first),
+        )
 
         assertEquals(
             LayoutDeclaration(child.component, "second constraint", listOf(second, first)),
@@ -134,7 +153,10 @@ class ParentDeclarationTest {
         val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
         val child = CreatedNodeHolder(JButton("child"))
         val element = TestParentLayoutElement("padding")
-        child.declaration.applyComponentLayout("constraint", RawParentProtocol, listOf(element))
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("constraint", RawParentProtocol, listOf(element)),
+            listOf(element),
+        )
 
         try {
             applier.onBeginChanges()
@@ -186,9 +208,15 @@ class ParentDeclarationTest {
         val child = attached(root)
         val declaration = listOf(TestParentLayoutElement("padding"))
 
-        child.declaration.applyComponentLayout("constraint", RawParentProtocol, declaration)
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("constraint", RawParentProtocol, declaration),
+            declaration,
+        )
         val calls = layout.declarations.size
-        child.declaration.applyComponentLayout("constraint", RawParentProtocol, declaration)
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("constraint", RawParentProtocol, declaration),
+            declaration,
+        )
 
         assertEquals(calls, layout.declarations.size)
     }
@@ -199,7 +227,10 @@ class ParentDeclarationTest {
         val child = attached(JPanel(layout))
         val elements = mutableListOf<ParentLayoutElement>(TestParentLayoutElement("padding"))
 
-        child.declaration.applyComponentLayout("constraint", RawParentProtocol, elements)
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("constraint", RawParentProtocol, elements),
+            elements,
+        )
         elements.clear()
 
         assertEquals(listOf(TestParentLayoutElement("padding")), child.declaration.parentLayoutElements)
@@ -209,10 +240,13 @@ class ParentDeclarationTest {
     fun initialParentLayoutElementsUnderAnUnsupportedParentAreRefusedOnAttachment() {
         val root = JPanel(BorderLayout())
         val child = CreatedNodeHolder(JButton("child"))
-        child.declaration.applyComponentLayout(null, null, listOf(TestParentLayoutElement("padding")))
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration(null, null, listOf(TestParentLayoutElement("padding"))),
+            listOf(TestParentLayoutElement("padding")),
+        )
         root.add(child.component)
 
-        assertFailsWith<IllegalStateException> { child.declaration.attachedUnder(root) }
+        assertFailsWith<IllegalStateException> { child.declaration.checkAttachableUnder(root) }
     }
 
     @Test
@@ -221,7 +255,10 @@ class ParentDeclarationTest {
         val child = attached(root)
 
         assertFailsWith<IllegalStateException> {
-            child.declaration.applyComponentLayout(null, null, listOf(TestParentLayoutElement("padding")))
+            child.declaration.applyComponentLayout(
+                resolvedDeclaration(null, null, listOf(TestParentLayoutElement("padding"))),
+                listOf(TestParentLayoutElement("padding")),
+            )
         }
         assertTrue(child.declaration.parentLayoutElements.isEmpty(), "a rejected declaration must not be retained")
     }
@@ -232,7 +269,10 @@ class ParentDeclarationTest {
         val root = JPanel(layout)
         val child = attached(root)
 
-        child.declaration.applyComponentLayout("replacement", RawParentProtocol, emptyList())
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("replacement", RawParentProtocol, emptyList()),
+            emptyList(),
+        )
 
         assertSame(child.component, layout.removals.single())
         assertEquals("replacement", layout.registrations.last().constraints)
@@ -243,7 +283,10 @@ class ParentDeclarationTest {
         val layout = mockk<LayoutManager>(relaxed = true)
         val child = attached(JPanel(layout))
 
-        child.declaration.applyComponentLayout(null, RawParentProtocol, emptyList())
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration(null, RawParentProtocol, emptyList()),
+            emptyList(),
+        )
 
         verifyOrder {
             layout.removeLayoutComponent(child.component)
@@ -257,7 +300,10 @@ class ParentDeclarationTest {
         val owner = TestCompositionOwner()
         val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
         val child = CreatedNodeHolder(JButton("child"))
-        child.declaration.applyComponentLayout("region", BorderOnlyParentData, emptyList())
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration("region", BorderOnlyParentData, emptyList()),
+            emptyList(),
+        )
 
         try {
             applier.onBeginChanges()
@@ -337,7 +383,10 @@ class ParentDeclarationTest {
         val owner = TestCompositionOwner()
         val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
         val child = CreatedNodeHolder(JButton("child"))
-        child.declaration.applyComponentLayout(200, RawParentProtocol, emptyList())
+        child.declaration.applyComponentLayout(
+            resolvedDeclaration(200, RawParentProtocol, emptyList()),
+            emptyList(),
+        )
 
         try {
             applier.onBeginChanges()
@@ -362,6 +411,7 @@ class ParentDeclarationTest {
                     RecordingLayoutNodeElement("b", mutableListOf(), key = "second"),
                 SwingModifier then RecordingLayoutNodeElement("c", mutableListOf(), key = "first"),
                 listOf(1, 1),
+                listOf(null, null),
             ),
             Arguments.of(
                 "remove all layout nodes",
@@ -369,6 +419,14 @@ class ParentDeclarationTest {
                     RecordingLayoutNodeElement("b", mutableListOf()),
                 SwingModifier,
                 listOf(1, 0),
+                listOf(null, null),
+            ),
+            Arguments.of(
+                "remove a layout node and replace the parent data",
+                SwingModifier then NodeMark("own") then Data("old", 1, MeasuringProtocol),
+                SwingModifier then Data("new", 1, MeasuringProtocol),
+                listOf(0, 0),
+                listOf(listOf("old"), listOf("new")),
             ),
             Arguments.of(
                 "replace a layout node type and update another",
@@ -377,14 +435,33 @@ class ParentDeclarationTest {
                 SwingModifier then RecordingLayoutNodeElement("first", mutableListOf()) then
                     RecordingLayoutNodeElement("c", mutableListOf(), key = "second"),
                 listOf(1, 2),
+                listOf(null, null),
             ),
         )
+    }
+
+    private fun resolvedDeclaration(
+        data: Any?,
+        protocol: ParentProtocol?,
+        elements: List<ParentLayoutElement>,
+    ): ResolvedParentDeclarations = resolveParentDeclarations(
+        buildList {
+            if (protocol != null) add(TestParentData(data, protocol))
+            addAll(elements)
+        },
+    )
+
+    private data class TestParentData(
+        val data: Any?,
+        override val parentProtocol: ParentProtocol,
+    ) : ParentDataModifier {
+        override fun modifyParentData(parentData: Any?): Any? = data
     }
 
     private fun attached(root: JPanel): SwingNodeHolder<JButton> {
         val child = CreatedNodeHolder(JButton("child"))
         root.add(child.component)
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
         return child
     }
 }
@@ -425,7 +502,7 @@ class ParentLayoutNodeTest {
         val events = mutableListOf<String>()
 
         child.applyModifierDiff(SwingModifier.then(RecordingLayoutNodeElement("a", events)))
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
 
         assertEquals(listOf("create(a)", "onAttach", "update(a)"), events)
         owner.dispose()
@@ -486,7 +563,7 @@ class ParentLayoutNodeTest {
         val root = JPanel(layout)
         val child = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
         val events = mutableListOf<String>()
         val padding = TestParentLayoutElement("padding")
 
@@ -512,7 +589,7 @@ class ParentLayoutNodeTest {
         val root = JPanel(layout)
         val child: SwingNodeHolder<Component> = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
         val keyed = KeyReadingElement()
         val events = mutableListOf<String>()
         child.applyDeclaredModifier(SwingModifier then keyed then RecordingLayoutNodeElement("a", events, key = "slot"))
@@ -529,6 +606,37 @@ class ParentLayoutNodeTest {
         assertEquals(declarations + 1, layout.declarations.size, "the parent must be declared to once again")
         assertEquals(listOf(node), layout.declarations.last().elements, "the parent must be handed the same node")
         owner.dispose()
+    }
+
+    @ParameterizedTest(name = "grouped: {0}")
+    @ValueSource(booleans = [false, true])
+    fun aLayoutNodeWrittenInPlaceToAProtocolTheHostRefusesIsRefused(grouped: Boolean) = runComposeSwingTest {
+        val host = MeasuringHost()
+        val parentContext = captureParentContext()
+        var protocol by mutableStateOf(MeasuringProtocol)
+        val composition =
+            OnDemandComposition(parentContext) {
+                SwingNode(factory = { host }) {
+                    if (grouped) {
+                        VirtualSwingNode(SwingModifier.mark("group")) {
+                            Label("a", SwingModifier then ProtocolLayoutNodeElement(protocol))
+                        }
+                    } else {
+                        Label("a", SwingModifier then ProtocolLayoutNodeElement(protocol))
+                    }
+                }
+            }
+        try {
+            assertEquals(listOf("a"), host.texts())
+
+            host.recording.declarations.clear()
+            assertFailsWith<IllegalStateException> {
+                composition.recompose { protocol = RefusingParentProtocol }
+            }
+            assertEquals(emptyList(), host.recording.declarations)
+        } finally {
+            composition.dispose()
+        }
     }
 
     @Test
@@ -558,7 +666,7 @@ class ParentLayoutNodeTest {
         val root = JPanel(layout)
         val child = CreatedNodeHolder(ListenerButton()).attachedTo(owner)
         root.add(child.component)
-        child.declaration.attachedUnder(root)
+        child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
         val events = mutableListOf<String>()
 
         fun declaresAgain(modifier: SwingModifier): Boolean {
@@ -649,6 +757,50 @@ class ParentLayoutNodeTest {
         } finally {
             owner.dispose()
         }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("layoutNodeKeyWrites")
+    fun aLayoutNodeWrittenToAnotherNodesKeyDeclaresTheRetainedNodesValue(
+        case: String,
+        initial: SwingModifier,
+        updated: SwingModifier,
+        expected: List<String>,
+    ) {
+        val layout = RecordingMeasurementLayout()
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, JButton("child"), layout)
+        child.applyDeclaredModifier(initial)
+
+        child.applyDeclaredModifier(updated)
+
+        assertEquals(
+            expected,
+            layout.declarations
+                .last()
+                .elements
+                .map { (it as ValuedLayoutNode).value },
+            case,
+        )
+        owner.dispose()
+    }
+
+    companion object {
+        @JvmStatic
+        fun layoutNodeKeyWrites(): List<Arguments> = listOf(
+            Arguments.of(
+                "updated to the key of the node that follows",
+                SwingModifier then ValuedLayoutNodeElement("x", "a") then ValuedLayoutNodeElement("y", "b"),
+                SwingModifier then ValuedLayoutNodeElement("x", "a") then ValuedLayoutNodeElement("x", "b2"),
+                listOf("b2"),
+            ),
+            Arguments.of(
+                "written to the key of the node that follows",
+                SwingModifier then ValuedLayoutNodeElement("a", "A") then ValuedLayoutNodeElement("b", "B"),
+                SwingModifier then ValuedLayoutNodeElement("b", "A2") then ValuedLayoutNodeElement("b", "B"),
+                listOf("B"),
+            ),
+        )
     }
 
     @Test
@@ -844,7 +996,7 @@ internal fun <T : Component> attachedChild(
     val root = JPanel(layout)
     val child = CreatedNodeHolder(component).attachedTo(owner)
     root.add(child.component)
-    child.declaration.attachedUnder(root)
+    child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
     return child
 }
 
@@ -972,6 +1124,35 @@ private class ChainComponentNode(
     }
 }
 
+/**
+ * A layout node element of one key whose update moves its node to [protocol]. Its node does not invalidate its parent,
+ * so a parent measuring with it reads no update of it.
+ */
+internal data class ProtocolLayoutNodeElement(
+    private val protocol: ParentProtocol,
+) : ParentLayoutNodeElement<ProtocolLayoutNode>() {
+    override val parentProtocol: ParentProtocol get() = protocol
+
+    override val key: Any get() = "protocol"
+
+    override fun create(): ProtocolLayoutNode = ProtocolLayoutNode(protocol)
+
+    override fun update(node: ProtocolLayoutNode) {
+        node.protocol = protocol
+    }
+}
+
+internal class ProtocolLayoutNode(
+    var protocol: ParentProtocol,
+) : ParentLayoutNode() {
+    override val parentProtocol: ParentProtocol get() = protocol
+
+    override val shouldAutoInvalidate: Boolean get() = false
+}
+
+/** A protocol no host satisfies. */
+internal val RefusingParentProtocol: ParentProtocol = parentProtocolOf("refusing parent") { false }
+
 /** A layout node element whose protocol accepts any host, named apart from the class of the node it creates. */
 private data object AnyHostLayoutNodeElement : ParentLayoutNodeElement<AnyHostLayoutNode>() {
     override val name: String get() = "anyHostLayout"
@@ -1001,4 +1182,28 @@ private data object BorderOnlyParentData : ParentProtocol {
     override val description: String get() = "BorderLayout parent data"
 
     override fun accepts(parent: Container): Boolean = parent.layout is BorderLayout
+}
+
+private class ValuedLayoutNodeElement(
+    override val key: Any,
+    val value: String,
+) : ParentLayoutNodeElement<ValuedLayoutNode>() {
+    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+
+    override fun create(): ValuedLayoutNode = ValuedLayoutNode().also { it.value = value }
+
+    override fun update(node: ValuedLayoutNode) {
+        node.value = value
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is ValuedLayoutNodeElement && other.key == key && other.value == value
+
+    override fun hashCode(): Int = key.hashCode() * 31 + value.hashCode()
+}
+
+private class ValuedLayoutNode : ParentLayoutNode() {
+    var value: String = ""
+
+    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
 }

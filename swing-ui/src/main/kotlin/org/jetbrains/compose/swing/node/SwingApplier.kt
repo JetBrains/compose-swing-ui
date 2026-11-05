@@ -39,9 +39,10 @@ import java.awt.Container
  *   per region, which is checked once the change pass has settled - a pass that replaces the occupant of
  *   a region need not take the outgoing child out before the incoming one arrives.
  * - A [VirtualSwingNode] has no component. Its children are added to the container of the nearest ancestor that
- *   has one, at the place their composition order among that ancestor's other children gives them. It is placed
- *   only under a [ChildPlacement.Indexed] host. A child inserted under a group that is not placed yet is attached
- *   as the group is placed.
+ *   has one, at the place their composition order among that ancestor's other children gives them, and receive
+ *   its declarations ahead of their own. It is placed only under a [ChildPlacement.Indexed] host. A child
+ *   inserted under a group that is not placed yet is attached as the group is placed. A child inserted, relocated
+ *   or moved under a group whose declaration changed in the pass joins its host in [GroupDeclarationEffect].
  * - A child [ExistingSwingNode] claims stands where its parent put it, so the applier never adds, removes
  *   or moves its component: it holds the child in its child list, and under a region-holding host records
  *   the region the child names as filled.
@@ -82,6 +83,16 @@ internal class SwingApplier internal constructor(
     private val regions = ChildRegions(rootHolder, rootSlotPolicy, batch, changes, claims)
 
     private val flattenedRun = ArrayList<SwingNodeHolder<*>>()
+
+    /**
+     * Gives the components of each group whose update stored a different declaration in this pass that declaration,
+     * after the pass's node lifecycle callbacks, then settles each such group's host. Called by
+     * [GroupDeclarationEffect].
+     */
+    internal fun declareChangedGroups() {
+        val changed = batch.changedGroups.take() ?: return
+        regions.declareChangedGroups(changed)
+    }
 
     init {
         require(rootSlotPolicy == null || rootHolder.childPlacement.contentAttachment != null) {

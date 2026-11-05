@@ -45,10 +45,12 @@ import org.jetbrains.compose.swing.node.DeclaredSlot
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.checkParentElementsAccepted
 import org.jetbrains.compose.swing.node.finishStyleReconciliation
 import org.jetbrains.compose.swing.node.forEachStyle
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.observesLocals
+import org.jetbrains.compose.swing.node.parentReads
 import org.jetbrains.compose.swing.node.requireOwner
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.StyleNode
@@ -553,6 +555,33 @@ internal open class CombinedSwingModifier(
     override fun hashCode(): Int = outer.hashCode() + 31 * inner.hashCode()
 }
 
+/** Retains a modifier slot's node and declaration until permanent removal. */
+internal open class RetainedNodeRecord<N : SwingModifier.Node, E : SwingModifier.Element>(
+    /** The retained node, cleared after permanent removal. */
+    private var retainedNode: N?,
+    /** The retained declaration, cleared after permanent removal. */
+    private var retainedElement: E?,
+) {
+    /** Whether the retained node still occupies an attached lifecycle window. */
+    val isAttached: Boolean get() = retainedNode?.isAttached == true
+
+    /** The node retained by a standing record. */
+    val node: N get() = checkNotNull(retainedNode)
+
+    /** The declaration retained by a standing record. */
+    var element: E
+        get() = checkNotNull(retainedElement)
+        protected set(value) {
+            retainedElement = value
+        }
+
+    /** Releases the removed record's node and declaration. */
+    fun clear() {
+        retainedNode = null
+        retainedElement = null
+    }
+}
+
 /**
  * Mutable per-slot state held by the node holder across recompositions: one slot's node and the element
  * currently occupying it.
@@ -561,15 +590,13 @@ internal open class CombinedSwingModifier(
  * element of the same class; [canUpdate] checks that, so an update's narrowing is a verified [Class.cast].
  */
 internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Element>(
-    /** The retained node, cleared after permanent removal. */
-    private var retainedNode: N?,
-    /** The retained declaration, cleared after permanent removal. */
-    private var retainedElement: E?,
+    node: N?,
+    element: E?,
     /** The key of the keyed record, or null for a positional record. */
     val key: Any?,
     /** The node declaring this record, or null for the outer modifier. */
     val declaringNode: SwingModifier.Node?,
-) {
+) : RetainedNodeRecord<N, E>(node, element) {
     /** Whether a successful reconciliation committed this record's position. */
     var isCommitted: Boolean = false
         private set
@@ -606,30 +633,14 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
         invalidates: Boolean,
     ): ModifierChanges
 
-    /** Whether the retained node still occupies an attached lifecycle window. */
-    val isAttached: Boolean get() = retainedNode?.isAttached == true
-
-    /** The node retained by a standing record. */
-    val node: N get() = checkNotNull(retainedNode)
-
-    /** The declaration retained by a standing record. */
-    var element: E
-        get() = checkNotNull(retainedElement)
-        protected set(value) {
-            retainedElement = value
-        }
+    /** Adds this record's parent-layout contribution to [records], if any. */
+    internal open fun contributeParentLayout(records: MutableList<ParentLayoutNodeRecord>) {}
 
     /** Whether this record is standing for [declaringNode] and, unless [nodeType] is null, in that family. */
     fun isStandingFor(
         nodeType: ModifierNodeType<*>?,
         declaringNode: SwingModifier.Node?,
     ): Boolean = isStanding && this.declaringNode === declaringNode && (nodeType == null || this.nodeType === nodeType)
-
-    /** Releases the removed record's node and declaration. */
-    fun clear() {
-        retainedNode = null
-        retainedElement = null
-    }
 
     /**
      * Inserts this record into [state], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto
@@ -923,6 +934,10 @@ internal class ParentLayoutNodeRecord(
         (if (invalidates) ModifierChanges.ListenerNeedsUpdatedNodes else ModifierChanges.None) +
             (if (holder.declaration.parentReads(node)) ModifierChanges.ParentLayoutUpdated else ModifierChanges.None)
 
+    override fun contributeParentLayout(records: MutableList<ParentLayoutNodeRecord>) {
+        records.add(this)
+    }
+
     override fun reuse(incoming: SwingModifier.Element): Boolean {
         if (!canUpdate(this, incoming) || element != incoming) return false
         element = element.javaClass.cast(incoming)
@@ -930,15 +945,18 @@ internal class ParentLayoutNodeRecord(
     }
 
     /**
-     * Detaches the node, then [drops][org.jetbrains.compose.swing.node.ParentDeclaration.dropLayoutNodes] it from
-     * what the measuring parent of its component holds, even when the detach fails.
+     * Detaches the node, then [withdraws][org.jetbrains.compose.swing.node.ParentDeclaration.withdrawLayoutNodes] it
+     * from what the measuring parent of its component last received, even when the detach fails.
      */
     override fun detach(
         diagnostics: SwingCompositionDiagnostics?,
         reportCallbackFailure: Boolean,
     ) {
         val declaration = node.holder?.declaration
-        runEveryStep({ super.detach(diagnostics, reportCallbackFailure) }, { declaration?.dropLayoutNodes() })
+        runEveryStep(
+            { super.detach(diagnostics, reportCallbackFailure) },
+            { declaration?.withdrawLayoutNodes()?.revalidate() },
+        )
     }
 
     @Suppress("UNCHECKED_CAST") // The record's node was created by an element of this element's class.
@@ -1610,10 +1628,12 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
  * @param modifier the modifier to diff onto this node's chain.
  * @param needsDeclaredNodes whether a record written in place before this diff holds a node the holder's
  *   [DeclaredNodesListener] needs; the diff reuses that record and hands the nodes over.
+ * @param diffLayoutChange the layout declaration change from nodes the linear diff already updated.
  */
 internal fun SwingNodeHolder<Component>.applyModifierDiff(
     modifier: SwingModifier,
     needsDeclaredNodes: Boolean = false,
+    diffLayoutChange: ModifierChanges = ModifierChanges.None,
 ) {
     // A holder with no installed chain marks it whole before any attachment callback runs.
     val attachesWholeChain = modifierState?.attachesWholeChain != false
@@ -1623,15 +1643,13 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     val mode = if (state.startWrite() !is UnfinishedPass) WriteMode.ReuseEqual else WriteMode.RewriteEqual
     val handedNodes = state.handedNodes
     val initialChange = (mode === WriteMode.RewriteEqual) or needsDeclaredNodes
-    // Read off the owner rather than held: the node is attached to its composition before its update
-    // block runs, so the owner answers for every write this pass makes.
-    val diagnostics = owner?.diagnostics
 
     val incoming = partitionModifier(modifier, state)
     val multipleStyles = state.firstStyle?.nextStyle != null || incoming.styleCount > 1
     val previousStyleLayout = if (multipleStyles) declaration.parentLayoutElements else null
 
-    val chainChanged = reconcileModifierChain(state, incoming, mode, diagnostics, attachesWholeChain) || initialChange
+    val chainChanged =
+        reconcileModifierChain(state, incoming, mode, attachesWholeChain, diffLayoutChange) || initialChange
 
     state.adopt(modifier)
     if (previousStyleLayout != null && previousStyleLayout != declaration.parentLayoutElements) declaration.reapply()
@@ -1642,9 +1660,12 @@ private fun SwingNodeHolder<Component>.reconcileModifierChain(
     state: SwingModifierState,
     incoming: ModifierPartition,
     mode: WriteMode,
-    diagnostics: SwingCompositionDiagnostics?,
     wholeChain: Boolean,
+    diffLayoutChange: ModifierChanges,
 ): Boolean {
+    // Read off the owner rather than held: the node is attached to its composition before its update
+    // block runs, so the owner answers for every write this pass makes.
+    val diagnostics = owner?.diagnostics
     val reconcilesStyles = state.firstStyle != null || incoming.styleCount != 0
     // A holder with no owner has no batch to publish the declaration on; a visit mid-pass walks its stored chain.
     val batch = owner?.updateBatch
@@ -1674,7 +1695,7 @@ private fun SwingNodeHolder<Component>.reconcileModifierChain(
         // component node runs - and, by a pass that throws partway, with the layout nodes installed then.
         val marksNodes = attachesWholeChain && (incoming.keyed.isNotEmpty() || incoming.positional.isNotEmpty())
         marked = if (marksNodes) MarkedChain.mark(this, state, incoming) else null
-        if (applyLayoutNodes(state, incoming, marked, mode, diagnostics)) chainChanged = true
+        if (applyLayoutNodes(state, incoming, marked, mode, diffLayoutChange)) chainChanged = true
         if (applyComponentSlots(state, incoming, marked, mode)) chainChanged = true
         if (state.records?.order?.commitPositional(incoming.positionalFamilies) == true) chainChanged = true
     } finally {
@@ -1744,8 +1765,9 @@ private fun SwingNodeHolder<Component>.applyLayoutNodes(
     incoming: ModifierPartition,
     marked: MarkedChain?,
     mode: WriteMode,
-    diagnostics: SwingCompositionDiagnostics?,
+    diffLayoutChange: ModifierChanges,
 ): Boolean {
+    val diagnostics = owner?.diagnostics
     // Publish the remaining layout nodes even if their update throws.
     var chainChanged = false
     var layoutChange = ModifierChanges.NodesAddedOrRemoved + ModifierChanges.ParentLayoutUpdated
@@ -1764,12 +1786,8 @@ private fun SwingNodeHolder<Component>.applyLayoutNodes(
         layoutChange = changes
         chainChanged = changes.needsDeclaredNodes
     } finally {
-        declaration.applyComponentLayout(
-            incoming.parentData,
-            incoming.parentProtocol,
-            incoming.parentLayoutElements,
-            layoutChange,
-        )
+        layoutChange += diffLayoutChange
+        declaration.applyComponentLayout(incoming.resolved(), incoming.parentLayoutElements, layoutChange)
     }
     return chainChanged
 }
@@ -1980,10 +1998,10 @@ internal class MarkedChain(
  *
  * The whole chain comes apart in phases: on reuse and deactivation ([reset] set) every node runs
  * [SwingModifier.Node.onReset], then every node runs [SwingModifier.Node.onDetach], and only then is any node
- * marked detached. A measuring parent that received a layout node is then declared to without them, and lays the
- * component out anew unless it is being released. Each of these steps is attempted even when an earlier one throws;
- * the first failure reaches the caller, with the later ones suppressed on it, once the holder carries no modifier
- * state.
+ * marked detached. A measuring parent that received a layout node is then declared to without them, with the parent
+ * data it received and nothing merged or checked, and lays the component out anew unless it is being released. Each
+ * of these steps is attempted even when an earlier one throws; the first failure reaches the caller, with the later
+ * ones suppressed on it, once the holder carries no modifier state.
  *
  * @param reset whether the holder is being reused or deactivated rather than released.
  */
@@ -1996,7 +2014,7 @@ internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
         runEveryStep(
             { if (reset) unwinding.fastForEach { it.node.reset() } },
             { unwinding.detachAll(diagnostics) },
-            { declaration.dropLayoutNodes(layOut = reset) },
+            { declaration.withdrawLayoutNodes()?.let { if (reset) it.revalidate() } },
         )
     } finally {
         state?.records?.clear()

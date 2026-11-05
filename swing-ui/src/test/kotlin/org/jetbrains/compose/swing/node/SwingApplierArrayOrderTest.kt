@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
+import org.jetbrains.compose.swing.modifier.layout.LayoutConstraintElement
+import org.jetbrains.compose.swing.modifier.resolveParentDeclarations
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -37,7 +38,10 @@ class SwingApplierArrayOrderTest {
         component: Component,
         constraint: Any,
     ): SwingNodeHolder<*> = CreatedNodeHolder(component).also {
-        it.declaration.applyComponentLayout(constraint, RawParentProtocol, emptyList())
+        it.declaration.applyComponentLayout(
+            resolveParentDeclarations(listOf(LayoutConstraintElement(constraint))),
+            emptyList(),
+        )
     }
 
     private val owners = mutableListOf<TestCompositionOwner>()

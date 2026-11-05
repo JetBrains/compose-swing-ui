@@ -57,13 +57,13 @@ class VirtualSwingNodeTest {
             content(inserted)
             SwingNode(factory = { host }) { content(inserted) }
         }
-        assertEquals(before, host.texts(), case)
+        host.assertLabels(before, case)
         assertEquals(before, root.components.filterIsInstance<JLabel>().map { it.text }, case)
 
         inserted = true
         awaitIdle()
 
-        assertEquals(after, host.texts(), case)
+        host.assertLabels(after, case)
         assertEquals(after, root.components.filterIsInstance<JLabel>().map { it.text }, case)
     }
 
@@ -75,7 +75,7 @@ class VirtualSwingNodeTest {
             SwingNode(factory = { host }) {
                 for (id in if (reversed) listOf(2, 1) else listOf(1, 2)) {
                     key(id) {
-                        VirtualSwingNode {
+                        VirtualSwingNode(SwingModifier.mark("G$id")) {
                             Label("g$id-a")
                             Label("g$id-b")
                         }
@@ -90,6 +90,10 @@ class VirtualSwingNodeTest {
 
         assertEquals(listOf("g2-a", "g2-b", "g1-a", "g1-b"), host.texts())
         assertEquals(identities.slice(listOf(2, 3, 0, 1)), host.components.toList())
+        assertEquals(
+            listOf(listOf("G2"), listOf("G2"), listOf("G1"), listOf("G1")),
+            host.components.map { host.recording.tagsOf(it) },
+        )
     }
 
     @Test
@@ -103,7 +107,7 @@ class VirtualSwingNodeTest {
                         host.components.joinToString { (it as JLabel).text }
                 }
             }) {
-                VirtualSwingNode {
+                VirtualSwingNode(SwingModifier.mark("G")) {
                     Label("a")
                     if (more) Label("b")
                 }
@@ -115,6 +119,7 @@ class VirtualSwingNodeTest {
         awaitIdle()
 
         onNodeOfType<MeasuringHost>().assertProperty("a, b") { name }
+        onNodeWithText("b").assertProperty(listOf("G")) { host.recording.tagsOf(this) }
     }
 
     @Test
@@ -150,20 +155,20 @@ class VirtualSwingNodeTest {
                 }
             }
         }
-        assertEquals(listOf("p", "g1", "g2", "q"), host.texts(), "$case: mounted")
+        host.assertLabels(listOf("p", "g1", "g2", "q"), "$case: mounted")
 
         parked = true
         awaitIdle()
-        assertEquals(listOf("p", "q"), host.texts(), "$case: parked")
+        host.assertLabels(listOf("p", "q"), "$case: parked")
 
         inserted = true
         swapped = true
         awaitIdle()
-        assertEquals(listOf("n", "q", "p"), host.texts(), "$case: changed while parked")
+        host.assertLabels(listOf("n", "q", "p"), "$case: changed while parked")
 
         parked = false
         awaitIdle()
-        assertEquals(listOf("n", "q", "g1", "g2", "p"), host.texts(), "$case: reactivated")
+        host.assertLabels(listOf("n", "q", "g1", "g2", "p"), "$case: reactivated")
     }
 
     @ParameterizedTest(name = "{0}")
@@ -205,9 +210,9 @@ class VirtualSwingNodeTest {
                         SwingModifier
                     },
             ) {
-                VirtualSwingNode {
+                VirtualSwingNode(SwingModifier.mark("g")) {
                     if (nested) {
-                        VirtualSwingNode { ProbedLabel(label = label) }
+                        VirtualSwingNode(SwingModifier.mark("h", slot = 4)) { ProbedLabel(label = label) }
                     } else {
                         ProbedLabel(label = label)
                     }
@@ -236,7 +241,7 @@ class VirtualSwingNodeTest {
         setContent {
             val group =
                 remember {
-                    movableContentOf { VirtualSwingNode { ProbedLabel(label = label) } }
+                    movableContentOf { VirtualSwingNode(SwingModifier.mark("g")) { ProbedLabel(label = label) } }
                 }
             val fromHost: @Composable () -> Unit = { FixedStyledHost(source, "a") { if (!moved) group() } }
             val toHost: @Composable () -> Unit = {
@@ -250,14 +255,47 @@ class VirtualSwingNodeTest {
                 toHost()
             }
         }
-        assertEquals(listOf("a"), source.recording.tagsOf(label), "$case: before the move")
+        assertEquals(listOf("g", "a"), source.recording.tagsOf(label), "$case: before the move")
         source.recording.declarations.clear()
 
         moved = true
         awaitIdle()
 
-        assertEquals(listOf("b"), destination.recording.tagsOf(label), case)
+        assertEquals(listOf("g", "b"), destination.recording.tagsOf(label), case)
         assertEquals(emptyList(), source.recording.declarations, case)
+    }
+
+    @Test
+    fun aStyleThatReplacesARefusedGroupKeyInTheSamePassIsAccepted() = runComposeSwingTest {
+        val host = MeasuringHost("P")
+        val accepted = protocolOf("P")
+        val refused = protocolOf("Q")
+        var changed by mutableStateOf(false)
+        setContent {
+            StyledHost(
+                host,
+                "s1",
+                MarkProperty,
+                modifier =
+                    if (changed) {
+                        SwingModifier.styleable(PlainProbeContainer) {
+                            provideNestedStyle(Probes) { ReplacingMarkProperty.provide(LocalMark.currentValue) }
+                        }
+                    } else {
+                        SwingModifier
+                    },
+            ) {
+                VirtualSwingNode(SwingModifier.mark("g", protocol = if (changed) refused else accepted)) {
+                    ProbedLabel(SwingModifier.mark(if (changed) "o1" else "o0", slot = 3))
+                }
+            }
+        }
+        assertEquals(listOf(listOf("g", "o0")), host.components.map { host.recording.tagsOf(it) })
+
+        changed = true
+        awaitIdle()
+
+        assertEquals(listOf(listOf("o1", "s1")), host.components.map { host.recording.tagsOf(it) })
     }
 
     @ParameterizedTest(name = "{0}")
@@ -342,7 +380,7 @@ class VirtualSwingNodeTest {
             val removedGroup: @Composable (Boolean) -> Unit = { removed ->
                 Label("p")
                 if (!removed) {
-                    VirtualSwingNode {
+                    VirtualSwingNode(SwingModifier.mark("G")) {
                         Label("g1")
                         Label("g2")
                     }
@@ -356,7 +394,7 @@ class VirtualSwingNodeTest {
         private fun insertionCases(): List<Arguments> {
             val middle: @Composable (Boolean) -> Unit = { inserted ->
                 Label("p")
-                VirtualSwingNode {
+                VirtualSwingNode(SwingModifier.mark("G")) {
                     Label("g1")
                     if (inserted) Label("g2")
                     Label("g3")
@@ -365,11 +403,11 @@ class VirtualSwingNodeTest {
             }
             val emptyGroup: @Composable (Boolean) -> Unit = { inserted ->
                 Label("p")
-                VirtualSwingNode { if (inserted) Label("g1") }
+                VirtualSwingNode(SwingModifier.mark("G")) { if (inserted) Label("g1") }
                 Label("q")
             }
             val groupEnd: @Composable (Boolean) -> Unit = { inserted ->
-                VirtualSwingNode {
+                VirtualSwingNode(SwingModifier.mark("G")) {
                     Label("g1")
                     if (inserted) Label("g2")
                 }
@@ -377,9 +415,9 @@ class VirtualSwingNodeTest {
             }
             val nested: @Composable (Boolean) -> Unit = { inserted ->
                 Label("p")
-                VirtualSwingNode {
+                VirtualSwingNode(SwingModifier.mark("G")) {
                     Label("g0")
-                    VirtualSwingNode {
+                    VirtualSwingNode(SwingModifier.mark("G")) {
                         Label("g1")
                         if (inserted) Label("g2")
                     }
@@ -388,7 +426,7 @@ class VirtualSwingNodeTest {
             }
             val newGroup: @Composable (Boolean) -> Unit = { inserted ->
                 Label("p")
-                if (inserted) VirtualSwingNode { Label("g1") }
+                if (inserted) VirtualSwingNode(SwingModifier.mark("G")) { Label("g1") }
                 Label("q")
             }
             return listOf(
@@ -413,10 +451,10 @@ class VirtualSwingNodeTest {
         @JvmStatic
         fun parkings(): List<Arguments> {
             val inactiveHost: @Composable (Boolean) -> Unit = { parked ->
-                ReusableContentHost(active = !parked) { Group() }
+                ReusableContentHost(active = !parked) { Group("G") }
             }
             val unusedMovable: @Composable (Boolean) -> Unit = { parked ->
-                val group = remember { movableContentOf { Group() } }
+                val group = remember { movableContentOf { Group("G") } }
                 if (!parked) group()
             }
             return listOf(
@@ -444,10 +482,16 @@ class VirtualSwingNodeTest {
 
         @JvmStatic
         fun nestedStyleHosts(): List<Arguments> = listOf(
-            Arguments.of("styled from the start", true, false, listOf("s"), emptyList<String>()),
-            Arguments.of("styled later", false, false, listOf("s"), emptyList<String>()),
-            Arguments.of("styled from the start, in nested groups", true, true, listOf("s"), emptyList<String>()),
-            Arguments.of("styled later, in nested groups", false, true, listOf("s"), emptyList<String>()),
+            Arguments.of("styled from the start", true, false, listOf("g", "s"), listOf("g")),
+            Arguments.of("styled later", false, false, listOf("g", "s"), listOf("g")),
+            Arguments.of(
+                "styled from the start, in nested groups",
+                true,
+                true,
+                listOf("g", "h", "s"),
+                listOf("g", "h"),
+            ),
+            Arguments.of("styled later, in nested groups", false, true, listOf("g", "h", "s"), listOf("g", "h")),
         )
 
         @JvmStatic

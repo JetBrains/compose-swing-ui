@@ -1,18 +1,30 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.collectFailure
+import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentElement
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Container
 
 /**
  * The node of a [VirtualSwingNode]: it has no component, and its children are added to the container of its
- * [componentHost].
+ * [componentHost]. It declares its modifier's parent-layout declarations to that container for each component it
+ * places there.
  */
 @PublishedApi
 internal class VirtualNodeHolder
     @PublishedApi
     internal constructor() : NodeHolder {
+        /**
+         * The parent-layout declarations of this group's modifier, retained after key resolution, or `null` until the
+         * first update stores them.
+         */
+        private var storedDeclarations: List<ParentElement>? = null
+
+        private val groupDeclarations: List<ParentElement> get() = storedDeclarations.orEmpty()
+
         override val children: MutableList<NodeHolder> = ArrayList()
 
         override var attachmentWait: AttachmentWait = AttachmentWait.Placement
@@ -32,12 +44,29 @@ internal class VirtualNodeHolder
             private set
 
         override var parent: NodeHolder? = null
+            set(value) {
+                field = value
+                cachedGroupDeclarations = null
+            }
+
+        private var cachedGroupDeclarations: List<ParentElement>? = null
+        private var cachedOuterDeclarations: List<ParentElement>? = null
 
         override val placesChildren: Boolean
             get() = !awaitingAttachment && !deactivated
 
         override val componentHost: SwingNodeHolder<*>
             get() = insertedParent.componentHost
+
+        override val childGroupDeclarations: List<ParentElement>
+            get() {
+                val outer = insertedParent.childGroupDeclarations
+                if (cachedGroupDeclarations == null || cachedOuterDeclarations !== outer) {
+                    cachedOuterDeclarations = outer
+                    cachedGroupDeclarations = if (groupDeclarations.isEmpty()) outer else outer + groupDeclarations
+                }
+                return checkNotNull(cachedGroupDeclarations)
+            }
 
         override val declaredName: String get() = "VirtualSwingNode"
 
@@ -70,7 +99,8 @@ internal class VirtualNodeHolder
         }
 
         /**
-         * Refuses the group under a host that places its children in regions, then checks each child it will attach.
+         * Refuses the group under a host that places its children in regions, and where it declares parent data the
+         * host cannot receive again, then checks each child it will attach.
          */
         override fun checkPlacementUnder(
             host: SwingNodeHolder<*>,
@@ -81,6 +111,7 @@ internal class VirtualNodeHolder
                 "A VirtualSwingNode is placed among indexed children; a ${container.declaredName} places each child " +
                     "in a region it names. Compose the group inside a container that adds its children by index."
             }
+            checkGroupParentDataUnder(container, groupDeclarations)
             children.fastForEach { if (regions.attachesWithGroup(it)) it.checkPlacementUnder(host, container, regions) }
         }
 
@@ -99,6 +130,18 @@ internal class VirtualNodeHolder
             children.fastForEachIndexed { childIndex, child ->
                 if (!regions.attachesWithGroup(child)) return@fastForEachIndexed
                 child.attachTo(this, container, childIndex, regions)
+            }
+        }
+
+        override fun takeGroupDeclarations(
+            parent: NodeHolder,
+            index: Int,
+            container: Container,
+            regions: ChildRegions,
+        ) {
+            if (deactivated || joinHostIfWaiting(parent, index, container, regions)) return
+            children.fastForEachIndexed { childIndex, child ->
+                child.takeGroupDeclarations(this, childIndex, container, regions)
             }
         }
 
@@ -123,6 +166,26 @@ internal class VirtualNodeHolder
             )
         }
 
+        /**
+         * Stores [declarations] as this group's. Where the group is placed, refuses parent data its host cannot
+         * receive again. Records a change for [GroupDeclarationEffect], where every component the group places takes
+         * it, for a group that was placed before, one relocated and awaiting its reattachment included.
+         *
+         * @param declarations the group's retained parent declarations after key resolution.
+         */
+        @PublishedApi
+        internal fun storeGroupDeclarations(declarations: List<ParentElement>) {
+            if (placesChildren) {
+                val host = componentHost.component as? Container
+                if (host != null) checkGroupParentDataUnder(host, declarations)
+            }
+            if (storedDeclarations == declarations) return
+            val placedBefore = storedDeclarations != null && !deactivated
+            storedDeclarations = declarations
+            cachedGroupDeclarations = null
+            if (placedBefore) owner?.updateBatch?.changedGroups?.record(this)
+        }
+
         /** Deactivates the group, so it is never attached again. The runtime deactivates each child itself. */
         override fun onDeactivate() {
             deactivated = true
@@ -132,6 +195,25 @@ internal class VirtualNodeHolder
             owner = null
         }
     }
+
+/**
+ * Refuses group [declarations] of parent data under [container] where its child host has no layout manager: such a
+ * host reads parent data only as it adds a child, so a change of the group's could never reach it.
+ *
+ * @param container the container receiving the group's components.
+ * @param declarations the group's retained parent declarations.
+ */
+internal fun checkGroupParentDataUnder(
+    container: Container,
+    declarations: List<ParentElement>,
+) {
+    val childHost = container.childHost
+    check(childHost.layout != null || declarations.fastFirstOrNull { it is ParentDataModifier } == null) {
+        val host = childHost.declaredName
+        "A VirtualSwingNode under a $host cannot declare parent data, because a $host has no layout manager to " +
+            "declare it to again. Declare it on each child."
+    }
+}
 
 private fun NodeHolder.clearAwaitingAttachment() {
     attachmentWait = AttachmentWait.None

@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEachIndexed
@@ -35,7 +36,6 @@ internal fun SwingNodeHolder<*>.checkPlacementOf(
     child: SwingNodeHolder<*>,
 ) {
     val fillsRegion = fillsRegion(this, child)
-    child.declaration.checkAttachableUnder(host)
     checkChildKind(host, child, fillsRegion)
     // Every attached child here was held to this same rule as it arrived, so they agree with one another
     // and the first of them answers for them all. A holder in `children` carries the installation that put
@@ -87,15 +87,22 @@ internal fun SwingNodeHolder<*>.checkChildKind(
                 "container that offers that region."
         }
     }
+}
+
+/** Refuses the layout [elements] that [host] cannot interpret. */
+internal fun SwingNodeHolder<*>.checkLayoutElementsUnder(
+    host: Container,
+    elements: List<ParentLayoutElement>,
+) {
     check(
-        child.declaration.parentLayoutElements.fastFirstOrNull { !it.isLeftOutUnder(host) } == null ||
+        elements.fastFirstOrNull { !it.isLeftOutUnder(host) } == null ||
             host.layout is MeasurementLayoutManager,
     ) {
         // Names the host being joined, not the one being left: on a relocation this fires as the child
         // attaches, and a message naming where it came from would read as a fault of that container.
-        val declared = child.declaration.layoutElementsUnder(host).joinToString { child.declaredCall(it) }
+        val declared = declaration.layoutElementsUnder(host, elements).joinToString { declaredCall(it) }
         "A ${host.declaredName} lays each child out at the size the child asks for, so it never " +
-            "interprets parent-layout declarations, and the ${child.component.declaredName} joining it " +
+            "interprets parent-layout declarations, and the ${component.declaredName} joining it " +
             "declares $declared. Put the component in a Box inside this container and declare the layout " +
             "modifiers on the Box's child, which the Box interprets."
     }

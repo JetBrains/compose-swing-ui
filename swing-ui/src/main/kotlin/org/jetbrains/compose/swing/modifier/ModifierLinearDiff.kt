@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.declareWrittenLayoutNodes
 import org.jetbrains.compose.swing.style.StyleElement
 import org.jetbrains.compose.swing.style.collectsNothingUnder
 import org.jetbrains.compose.swing.style.requireKindTarget
@@ -21,12 +22,17 @@ import java.awt.Component
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
     var needsDeclaredNodes = false
+    var diffLayoutChange = ModifierChanges.None
     if (state != null) {
         val held = state.startWrite()
         if (held !is UnfinishedPass) {
             val handedNodes = state.handedNodes
             val diff = linearDiff(held, modifier, state.records)
-            if (!diff.aborted) {
+            val layoutChange = diff.layoutChange
+            diffLayoutChange = layoutChange
+            if (!diff.aborted &&
+                (!diff.parentDeclarationUpdated || declaration.declareWrittenLayoutNodes(layoutChange))
+            ) {
                 state.adopt(modifier)
                 notifyDeclaredNodes(diff.needsDeclaredNodes, handedNodes)
                 return
@@ -35,7 +41,7 @@ internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingMod
         }
         state.restore(held)
     }
-    applyModifierDiff(modifier, needsDeclaredNodes)
+    applyModifierDiff(modifier, needsDeclaredNodes, diffLayoutChange)
 }
 
 /**
@@ -47,18 +53,22 @@ internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingMod
 private value class LinearDiff private constructor(
     private val bits: Int,
 ) {
-    companion object {
-        private const val NEEDS_DECLARED_NODES = 1
-        private const val RECORD_INDEX_SHIFT = 1
-
-        inline val Start: LinearDiff get() = LinearDiff(0)
-    }
-
     inline val nextRecordIndex: Int get() = (bits and Int.MAX_VALUE) ushr RECORD_INDEX_SHIFT
 
     inline val needsDeclaredNodes: Boolean get() = bits and NEEDS_DECLARED_NODES != 0
 
     inline val aborted: Boolean get() = bits < 0
+
+    /** The layout node updates the diff wrote, as the parent declaration takes them. */
+    val layoutChange: ModifierChanges
+        get() =
+            when {
+                bits and PARENT_LAYOUT_UPDATED != 0 -> ModifierChanges.ParentLayoutUpdated
+                else -> ModifierChanges.None
+            }
+
+    /** Whether the diff wrote a layout node in place, which the parent declaration takes. */
+    val parentDeclarationUpdated: Boolean get() = bits and (PARENT_DECLARATION_UPDATED or PARENT_LAYOUT_UPDATED) != 0
 
     /**
      * One more record matched; [needsDeclaredNodes] where its write holds a node the listener needs, and from then
@@ -67,17 +77,34 @@ private value class LinearDiff private constructor(
     fun next(
         nextRecordIndex: Int,
         needsDeclaredNodes: Boolean,
-    ): LinearDiff {
-        val needs = if (needsDeclaredNodes) NEEDS_DECLARED_NODES else bits and NEEDS_DECLARED_NODES
-        return LinearDiff((nextRecordIndex shl RECORD_INDEX_SHIFT) or needs)
-    }
+    ): LinearDiff =
+        LinearDiff(
+            (nextRecordIndex shl RECORD_INDEX_SHIFT) or
+                (bits and (NEEDS_DECLARED_NODES or PARENT_DECLARATION_UPDATED or PARENT_LAYOUT_UPDATED)) or
+                (if (needsDeclaredNodes) NEEDS_DECLARED_NODES else 0),
+        )
+
+    /** Includes the declaration change of an updated layout node the parent reads. */
+    fun withParentLayoutUpdated(): LinearDiff = LinearDiff(bits or PARENT_LAYOUT_UPDATED)
+
+    /** Includes the declaration change of an updated layout node the parent does not read. */
+    fun withParentDeclarationUpdated(): LinearDiff = LinearDiff(bits or PARENT_DECLARATION_UPDATED)
 
     /** The walk parting ways here, keeping [needsDeclaredNodes]. */
     fun abort(): LinearDiff = LinearDiff(bits or Int.MIN_VALUE)
 
     /** The same position, [needsDeclaredNodes] from here on where the last write holds a node the listener needs. */
     fun withNeedsDeclaredNodes(needsDeclaredNodes: Boolean): LinearDiff =
-        if (needsDeclaredNodes) LinearDiff(bits or NEEDS_DECLARED_NODES) else this
+        LinearDiff(bits or (if (needsDeclaredNodes) NEEDS_DECLARED_NODES else 0))
+
+    companion object {
+        private const val NEEDS_DECLARED_NODES: Int = 1
+        private const val PARENT_DECLARATION_UPDATED: Int = 2
+        private const val PARENT_LAYOUT_UPDATED: Int = 4
+        private const val RECORD_INDEX_SHIFT: Int = 3
+
+        inline val Start: LinearDiff get() = LinearDiff(0)
+    }
 }
 
 /**
@@ -161,13 +188,13 @@ private fun SwingNodeHolder<Component>.reuseLastStyle(
 }
 
 /**
- * Hands [next] to the next positional record from [LinearDiff.nextRecordIndex], where [applied] is
- * the element it holds. The record reuses an element that declares what [applied] does, and is written
- * in place with one unequal but of [applied]'s own class, as androidx's `NodeChain.updateNode` updates
- * a node in place. Answers [LinearDiff.aborted] where the record holds another element, or where [next]
- * is of another class. A parent-layout record written so that its parent lays the component out again
- * declares it again to a parent that receives the record's node; a record written with a node the holder's
- * [DeclaredNodesListener] needs has the nodes handed over once the walk ends.
+ * Hands [next] to the next positional record from [LinearDiff.nextRecordIndex], where [applied] is the element it
+ * holds. The record reuses an element that declares what [applied] does, and is written in place with one unequal but
+ * of [applied]'s own class, as androidx's `NodeChain.updateNode` updates a node in place. Answers
+ * [LinearDiff.aborted] where the record holds another element, or where [next] is of another class. A parent-layout
+ * record written so that its parent lays the component out again declares it again to a parent that receives the
+ * record's node; a record written with a node the holder's [DeclaredNodesListener] needs has the nodes handed over
+ * once the walk ends.
  */
 private fun SwingNodeHolder<Component>.diffElement(
     applied: SwingModifier.Element,
@@ -198,10 +225,16 @@ private fun SwingNodeHolder<Component>.diffElement(
                     owner?.diagnostics,
                     mode = WriteMode.ReuseEqual,
                 )
-            if (record.updateChanges(this, invalidates).parentLayoutUpdated) {
-                declaration.reapply()
+            val updated = diff.next(checkNotNull(records).indexAfter(record, nextRecordIndex), invalidates)
+            if (record.nodeType === ParentLayoutNodeType) {
+                if (record.updateChanges(this, invalidates).parentLayoutUpdated) {
+                    updated.withParentLayoutUpdated()
+                } else {
+                    updated.withParentDeclarationUpdated()
+                }
+            } else {
+                updated
             }
-            diff.next(checkNotNull(records).indexAfter(record, nextRecordIndex), invalidates)
         }
     }
 }

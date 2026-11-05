@@ -12,7 +12,9 @@ import java.awt.LayoutManager2
  * [inheritable][ParentLayoutElement.inheritable] element whose protocol refuses this parent. It calls
  * again when either declaration changes, without removing and adding the child, so implementations
  * retain whatever per-child state belongs to the component. `elements` are in modifier declaration
- * order, outermost first. Every [ParentLayoutNode] among them is attached: the runtime calls again as one
+ * order, outermost first, after those of every
+ * [VirtualSwingNode][org.jetbrains.compose.swing.node.VirtualSwingNode] between the child and this parent,
+ * outermost group first. Every [ParentLayoutNode] among them is attached: the runtime calls again as one
  * detaches, before it runs another node of the child's modifier.
  *
  * A layout manager that does not implement this interface receives ordinary `LayoutManager2` parent-data

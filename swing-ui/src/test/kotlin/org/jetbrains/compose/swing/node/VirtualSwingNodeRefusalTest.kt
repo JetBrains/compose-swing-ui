@@ -3,22 +3,33 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.captureParentContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.modifier.listener.containerListener
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -27,20 +38,42 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.BorderLayout
 import java.awt.Container
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JViewport
+import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * Unsupported modifiers, hosts, and claimed children are refused; refused declarations preserve accepted state and
  * allow subsequent valid updates; relocation validates and attaches children in composition order across their hosts.
  */
 class VirtualSwingNodeRefusalTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("refusedModifiers")
+    fun aGroupModifierIsRefused(
+        modifier: SwingModifier,
+        failure: KClass<out Throwable>,
+    ) {
+        val host = MeasuringHost()
+        assertFailsWith(failure) {
+            runComposeSwingTest {
+                setContent { SwingNode(factory = { host }) { VirtualSwingNode(modifier) { Label("a") } } }
+                awaitIdle()
+            }
+        }
+        assertEquals(emptyList(), host.components.toList())
+        assertEquals(emptyList(), host.recording.declarations)
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("regionHosts")
     fun aGroupUnderARegionHostIsRefused(
@@ -75,6 +108,36 @@ class VirtualSwingNodeRefusalTest {
 
         assertEquals(emptyList(), menu.components.toList())
         assertEquals(emptyList(), layout.declarations)
+    }
+
+    @ParameterizedTest(name = "declared at once: {0}")
+    @MethodSource("layeredParentData")
+    fun aGroupWithParentDataUnderALayeredPaneIsRefused(
+        declaredAtOnce: Boolean,
+        layerOfTheLabel: Int,
+        componentCount: Int,
+    ) = runComposeSwingTest {
+        var declared by mutableStateOf(declaredAtOnce)
+        val label = JLabel("a")
+        val pane = JLayeredPane()
+        assertFailsWith<IllegalStateException> {
+            setContent {
+                SwingNode(factory = { pane }) {
+                    VirtualSwingNode(if (declared) SwingModifier.layoutConstraint(1) else SwingModifier) {
+                        SwingNode(
+                            factory = { label },
+                            modifier = SwingModifier.layoutConstraint(JLayeredPane.PALETTE_LAYER),
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            declared = true
+            awaitIdle()
+        }
+
+        assertEquals(componentCount, pane.componentCount)
+        assertEquals(layerOfTheLabel, JLayeredPane.getLayer(label))
     }
 
     @Test
@@ -155,6 +218,185 @@ class VirtualSwingNodeRefusalTest {
         }
     }
 
+    @ParameterizedTest(name = "accepted children before refusal: {0}")
+    @MethodSource("refusalPositions")
+    fun aRefusedGroupChangePublishesOnlyBeforeTheRefusedChildAndAllowsALaterChange(
+        earlierChildren: Int,
+        labels: List<String>,
+        initial: List<List<String>>,
+        beforeRefusal: List<List<String>>,
+        changed: List<List<String>>,
+    ) = runComposeSwingTest {
+        val host = MeasuringHost("P")
+        val accepted = protocolOf("P")
+        val refused = protocolOf("Q")
+        val parentContext = captureParentContext()
+        var tag by mutableStateOf("A")
+        val composition =
+            OnDemandComposition(parentContext) {
+                SwingNode(factory = { host }) {
+                    VirtualSwingNode(
+                        SwingModifier
+                            .mark(tag, protocol = if (tag == "B") refused else accepted)
+                            .mark(tag, slot = 2, protocol = accepted),
+                    ) {
+                        repeat(earlierChildren) { index ->
+                            Label("earlier-$index", SwingModifier.mark("own", protocol = accepted))
+                        }
+                        Label("a")
+                        Label("b")
+                    }
+                }
+            }
+        try {
+            assertEquals(labels, host.texts())
+            assertEquals(initial, host.components.map { host.recording.tagsOf(it) })
+
+            host.recording.declarations.clear()
+            assertFailsWith<IllegalStateException> { composition.recompose { tag = "B" } }
+            assertEquals(labels, host.texts())
+            assertEquals(beforeRefusal, host.components.map { host.recording.tagsOf(it) })
+            assertEquals(beforeRefusal.take(earlierChildren), host.recording.declarations.map { it.tags })
+
+            host.recording.declarations.clear()
+            composition.recompose { tag = "C" }
+
+            assertEquals(labels, host.texts())
+            assertEquals(changed, host.components.map { host.recording.tagsOf(it) })
+            assertEquals(changed, host.recording.declarations.map { it.tags })
+            assertEquals(emptyList(), host.recording.removals)
+        } finally {
+            composition.dispose()
+        }
+    }
+
+    @Test
+    fun aRefusedOwnElementUnderAChangedGroupFailsThePassBeforeTheHostReceivesIt() = runComposeSwingTest {
+        val host = MeasuringHost("P")
+        val accepted = protocolOf("P")
+        val refused = protocolOf("Q")
+        val parentContext = captureParentContext()
+        var group by mutableStateOf("A")
+        var childRefused by mutableStateOf(false)
+        val round by mutableStateOf(0)
+        val composition =
+            OnDemandComposition(parentContext) {
+                SwingNode(factory = { host }) {
+                    VirtualSwingNode(SwingModifier.mark(group, protocol = accepted)) {
+                        Label(
+                            "a$round",
+                            if (childRefused) SwingModifier.mark("own", protocol = refused) else SwingModifier,
+                        )
+                        Label("b")
+                    }
+                }
+            }
+        try {
+            assertEquals(listOf("a0", "b"), host.texts())
+
+            host.recording.declarations.clear()
+            assertFailsWith<IllegalStateException> {
+                composition.recompose {
+                    group = "B"
+                    childRefused = true
+                }
+            }
+            assertTrue(
+                host.recording.declarations.none { "own" in it.tags },
+                "the host never received the refused element",
+            )
+        } finally {
+            composition.dispose()
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("declarationsBeforeLayoutChange")
+    fun reorderingKeyedChildrenRechecksDeclarationsAfterTheHostLayoutChanges(
+        case: String,
+        modifier: SwingModifier,
+    ) = runComposeSwingTest {
+        val host = MeasuringHost()
+        val border = RecordingLayout(BorderLayout())
+        var changed by mutableStateOf(false)
+        setContent {
+            SwingNode(
+                factory = { host },
+                update = { set(changed) { layout = if (it) border else host.recording } },
+            ) {
+                VirtualSwingNode(modifier) {
+                    for (text in if (changed) listOf("b", "a") else listOf("a", "b")) {
+                        key(text) { Label(text) }
+                    }
+                }
+            }
+        }
+        assertEquals(listOf("a", "b"), host.texts())
+        assertFailsWith<IllegalStateException> {
+            changed = true
+            awaitIdle()
+        }
+
+        assertEquals(border, host.layout, case)
+        assertEquals(emptyList(), border.registrations, case)
+    }
+
+    @ParameterizedTest(name = "protocol conflict declared first: {0}")
+    @ValueSource(booleans = [true, false])
+    fun twoInvalidGroupChangesFailInDeclarationOrder(protocolConflictFirst: Boolean) {
+        runComposeSwingTest {
+            val conflictHost = MeasuringHost()
+            val refusalHost = MeasuringHost()
+            val conflictChild = JLabel("conflict")
+            val refusalChild = JLabel("refusal")
+            val otherMeasuringProtocol = parentProtocolOf("other measuring parent") { it is MeasuringHost }
+            val refusedProtocol = parentProtocolOf("border parent") { it.layout is BorderLayout }
+            var changed by mutableStateOf(false)
+            setContent {
+                for (conflict in if (protocolConflictFirst) listOf(true, false) else listOf(false, true)) {
+                    if (conflict) {
+                        SwingNode(factory = { conflictHost }) {
+                            VirtualSwingNode(
+                                SwingModifier then
+                                    Data("group", 1, if (changed) otherMeasuringProtocol else MeasuringProtocol),
+                            ) {
+                                SwingNode(
+                                    factory = { conflictChild },
+                                    modifier = SwingModifier then Data("child", 2, MeasuringProtocol),
+                                )
+                            }
+                        }
+                    } else {
+                        SwingNode(factory = { refusalHost }) {
+                            VirtualSwingNode(
+                                SwingModifier
+                                    .mark("group", protocol = if (changed) refusedProtocol else MeasuringProtocol),
+                            ) {
+                                SwingNode(factory = { refusalChild })
+                            }
+                        }
+                    }
+                }
+            }
+            assertEquals(listOf(conflictChild), conflictHost.components.toList())
+            assertEquals(listOf(refusalChild), refusalHost.components.toList())
+
+            val failure =
+                assertFails {
+                    Snapshot.withMutableSnapshot { changed = true }
+                    awaitIdle()
+                }
+
+            if (protocolConflictFirst) {
+                assertEquals(IllegalArgumentException::class, failure::class)
+            } else {
+                assertEquals(IllegalStateException::class, failure::class)
+            }
+            assertEquals(listOf(conflictChild), conflictHost.components.toList())
+            assertEquals(listOf(refusalChild), refusalHost.components.toList())
+        }
+    }
+
     @ParameterizedTest(name = "grouped: {0}")
     @ValueSource(booleans = [false, true])
     fun aRefusedDuplicateClaimLeavesTheContainerEmptyAndAllowsFollowingContent(grouped: Boolean) = runComposeSwingTest {
@@ -199,6 +441,53 @@ class VirtualSwingNodeRefusalTest {
             following.dispose()
         }
         assertEquals(emptyList(), container.components.toList())
+    }
+
+    @ParameterizedTest(name = "parent data: {0}")
+    @ValueSource(booleans = [false, true])
+    fun relocatingGroupsRefusesDeclarationsInCompositionOrder(parentData: Boolean) = runComposeSwingTest {
+        val departing = MeasuringHost()
+        val arriving = JPanel()
+        var moved by mutableStateOf(false)
+        setContent {
+            val refused =
+                remember {
+                    movableContentOf {
+                        VirtualSwingNode(
+                            if (parentData) {
+                                SwingModifier then Data("group", 1, MeasuringProtocol)
+                            } else {
+                                SwingModifier.mark("group")
+                            },
+                        ) { Label("refused") }
+                    }
+                }
+            val accepted = remember { movableContentOf { VirtualSwingNode { Label("accepted") } } }
+            SwingNode(factory = { departing }) {
+                if (!moved) {
+                    refused()
+                    accepted()
+                }
+            }
+            SwingNode(factory = { arriving }) {
+                Label("before")
+                if (moved) {
+                    refused()
+                    accepted()
+                }
+                Label("after")
+            }
+        }
+        assertEquals(listOf("refused", "accepted"), departing.components.texts())
+        assertEquals(listOf("before", "after"), arriving.components.texts())
+
+        assertFailsWith<IllegalStateException> {
+            moved = true
+            awaitIdle()
+        }
+
+        assertEquals(emptyList(), departing.components.toList())
+        assertEquals(listOf("before", "after"), arriving.components.texts())
     }
 
     @ParameterizedTest(name = "{0}")
@@ -261,6 +550,36 @@ class VirtualSwingNodeRefusalTest {
     }
 
     companion object {
+        @JvmStatic
+        fun refusedModifiers(): List<Arguments> {
+            val argument = IllegalArgumentException::class
+            val state = IllegalStateException::class
+            val north = with(PanelLayout.Border().contentScope) { SwingModifier.north() }
+            return listOf(
+                Arguments.of(Named.of("a property", SwingModifier.testTag("x")), argument),
+                Arguments.of(Named.of("a listener", SwingModifier.containerListener {}), argument),
+                Arguments.of(
+                    Named.of("a slot", SwingModifier.slot(parentProtocolOf("slot parent") { true }, "region")),
+                    argument,
+                ),
+                Arguments.of(Named.of("a parent-layout node", SwingModifier then NodeMark("x")), argument),
+                Arguments.of(Named.of("a component node", SwingModifier.onKeyStroke("ctrl S") {}), argument),
+                Arguments.of(
+                    Named.of(
+                        "an additive inheritable element",
+                        SwingModifier then
+                            object : ParentLayoutElement {
+                                override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+                                override val additive: Boolean get() = true
+                                override val inheritable: Boolean get() = true
+                            },
+                    ),
+                    argument,
+                ),
+                Arguments.of(Named.of("a declaration the host refuses", north), state),
+            )
+        }
+
         private fun inSlots(
             placement: ChildPlacement,
             group: @Composable () -> Unit,
@@ -327,6 +646,40 @@ class VirtualSwingNodeRefusalTest {
                 Arguments.of(panel, Named.of("empty group at a composition root", emptyRoot)),
             )
         }
+
+        @JvmStatic
+        fun layeredParentData(): List<Arguments> = listOf(Arguments.of(true, 0, 0), Arguments.of(false, 100, 1))
+
+        @JvmStatic
+        fun refusalPositions(): List<Arguments> = listOf(
+            Arguments.of(
+                0,
+                listOf("a", "b"),
+                listOf(listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("C", "C"), listOf("C", "C")),
+            ),
+            Arguments.of(
+                1,
+                listOf("earlier-0", "a", "b"),
+                listOf(listOf("A", "own"), listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("B", "own"), listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("C", "own"), listOf("C", "C"), listOf("C", "C")),
+            ),
+            Arguments.of(
+                2,
+                listOf("earlier-0", "earlier-1", "a", "b"),
+                listOf(listOf("A", "own"), listOf("A", "own"), listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("B", "own"), listOf("B", "own"), listOf("A", "A"), listOf("A", "A")),
+                listOf(listOf("C", "own"), listOf("C", "own"), listOf("C", "C"), listOf("C", "C")),
+            ),
+        )
+
+        @JvmStatic
+        fun declarationsBeforeLayoutChange(): List<Arguments> = listOf(
+            Arguments.of("layout element", SwingModifier.mark("G")),
+            Arguments.of("parent data only", SwingModifier then Data("G", 1, MeasuringProtocol)),
+        )
 
         @JvmStatic
         fun claimRelocationOrders(): List<Arguments> {

@@ -27,6 +27,7 @@ import java.awt.Component
 import java.awt.FlowLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /** Asserts that [block] fails with [T], including test teardown. */
@@ -66,6 +67,18 @@ internal class MeasuringHost(
     fun texts(): List<String> = components.texts()
 }
 
+/** Asserts the labels of this host are [expected] in order, and only the `g` labels carry the group's mark. */
+internal fun MeasuringHost.assertLabels(
+    expected: List<String>,
+    case: String,
+) {
+    assertEquals(expected, texts(), case)
+    for (component in components) {
+        val grouped = (component as JLabel).text.startsWith("g")
+        assertEquals(if (grouped) listOf("G") else emptyList(), recording.tagsOf(component), "$case: ${component.text}")
+    }
+}
+
 /** Parent data of [protocol]; folds into the list of the tags declared. */
 internal data class Data(
     val tag: String,
@@ -88,10 +101,10 @@ internal fun SwingModifier.mark(
     protocol: ParentProtocol = MeasuringProtocol,
 ): SwingModifier = this then Mark(tag, slot, inheritable = false, protocol)
 
-/** A group of two labels, `g1` and `g2`. */
+/** A group of two labels, `g1` and `g2`, declaring [tag]. */
 @Composable
-internal fun Group() {
-    VirtualSwingNode {
+internal fun Group(tag: String) {
+    VirtualSwingNode(SwingModifier.mark(tag)) {
         Label("g1")
         Label("g2")
     }
@@ -120,7 +133,11 @@ internal class NodeMarkNode(
     override val inheritable: Boolean get() = declaration.inheritable
 }
 
-/** The style value [StyledHost] provides to the nested style of its panel, read inside the style. */
+/**
+ * The style value [StyledHost] provides to the nested style of its panel, read inside the style. A static local, so a
+ * change replaces the locals map of the nodes below it, and the batch resolves their styles again once it has applied
+ * every node.
+ */
 internal val LocalMark = staticCompositionLocalOf { "none" }
 
 /** Provides a nested style whose value is read from a composition local. */

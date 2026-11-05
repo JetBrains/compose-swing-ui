@@ -18,35 +18,85 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import javax.swing.JLabel
 import javax.swing.JPanel
-import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+/** Where a moved content starts and ends; a null [destinationHost] keeps it on the source host. */
+class MoveRoute(
+    val sourceProtocol: String,
+    val destinationProtocol: String,
+    val destinationHost: String?,
+)
+
+/** The content to move, the texts it adds, and the declarations its components carry before and after the move. */
+class MovedContent(
+    val content: @Composable () -> Unit,
+    val texts: List<String>,
+    val sourceTags: List<String>,
+    val destinationTags: List<String>,
+    val wrapped: Boolean = true,
+)
 
 /** Relocated groups attach their components at the destination in composition order. */
 class VirtualSwingNodeRelocationTest {
-    @Test
-    fun movableContentMovesAGroupBetweenHosts() = runComposeSwingTest {
-        val first = MeasuringHost()
-        val second = MeasuringHost()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("movableMoves")
+    fun movableContentMovesBetweenGroupsAndHosts(
+        case: String,
+        route: MoveRoute,
+        moved: MovedContent,
+    ) = runComposeSwingTest {
+        val first = MeasuringHost(route.sourceProtocol)
+        val second = route.destinationHost?.let { MeasuringHost(it) } ?: first
+        val shared = first === second
         var inSecond by mutableStateOf(false)
         setContent {
-            val group = remember { movableContentOf { Group() } }
-            SwingNode(factory = { first }) {
-                Label("a0")
-                if (!inSecond) group()
+            val content = remember { movableContentOf(moved.content) }
+            val slot: @Composable (String, String, Boolean) -> Unit = { tag, protocol, active ->
+                if (moved.wrapped) {
+                    VirtualSwingNode(SwingModifier.mark(tag, protocol = protocolOf(protocol))) { if (active) content() }
+                } else if (active) {
+                    content()
+                }
             }
-            SwingNode(factory = { second }) {
+            val destination: @Composable () -> Unit = {
                 Label("b0")
-                if (inSecond) group()
+                slot("B", route.destinationProtocol, inSecond)
                 Label("b1")
             }
+            SwingNode(factory = { first }) {
+                Label("a0")
+                slot("A", route.sourceProtocol, !inSecond)
+                if (shared) destination()
+            }
+            if (!shared) SwingNode(factory = { second }, content = destination)
         }
-        assertEquals(listOf("a0", "g1", "g2"), first.texts(), "before")
+        assertEquals(listOf("a0") + moved.texts + if (shared) listOf("b0", "b1") else emptyList(), first.texts(), case)
+        assertEquals(
+            first.texts().map { if (it in moved.texts) moved.sourceTags else emptyList() },
+            first.components.map { first.recording.tagsOf(it) },
+            case,
+        )
 
+        if (route.destinationProtocol == "R") {
+            assertFailsWith<IllegalStateException> {
+                inSecond = true
+                awaitIdle()
+            }
+            return@runComposeSwingTest
+        }
         inSecond = true
         awaitIdle()
 
-        assertEquals(listOf("a0"), first.texts(), "the old host")
-        assertEquals(listOf("b0", "g1", "g2", "b1"), second.texts(), "the new host")
+        val arrived = listOf("b0") + moved.texts + listOf("b1")
+        assertEquals(if (shared) listOf("a0") + arrived else listOf("a0"), first.texts(), case)
+        if (!shared) assertEquals(arrived, second.texts(), case)
+        assertEquals(
+            second.texts().map { if (it in moved.texts) moved.destinationTags else emptyList() },
+            second.components.map { second.recording.tagsOf(it) },
+            case,
+        )
+        assertEquals(emptyList(), first.recording.tagsOf(first.components.first()), case)
     }
 
     @ParameterizedTest(name = "two children: {0}")
@@ -103,7 +153,7 @@ class VirtualSwingNodeRelocationTest {
             val group =
                 remember {
                     movableContentOf<@Composable () -> Unit> { inner ->
-                        VirtualSwingNode {
+                        VirtualSwingNode(SwingModifier.mark("G")) {
                             destination(inner)
                         }
                     }
@@ -121,8 +171,9 @@ class VirtualSwingNodeRelocationTest {
         moved = true
         awaitIdle()
 
-        assertEquals(emptyList(), first.texts(), "the old host")
+        first.assertLabels(emptyList(), "the old host")
         assertEquals(expected, second.texts(), case)
+        assertEquals(listOf(listOf("G"), listOf("G")), second.components.map { second.recording.tagsOf(it) })
     }
 
     @ParameterizedTest(name = "{0}")
@@ -141,7 +192,7 @@ class VirtualSwingNodeRelocationTest {
             val group =
                 remember {
                     movableContentOf<List<Int>> { current ->
-                        VirtualSwingNode {
+                        VirtualSwingNode(SwingModifier.mark("G")) {
                             for (id in current) key(id) { Label("g$id") }
                         }
                     }
@@ -159,8 +210,8 @@ class VirtualSwingNodeRelocationTest {
         }
         awaitIdle()
 
-        assertEquals(emptyList(), first.texts(), "the old host")
-        assertEquals(expected, second.texts(), case)
+        first.assertLabels(emptyList(), "the old host")
+        second.assertLabels(expected, case)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -276,6 +327,22 @@ class VirtualSwingNodeRelocationTest {
     }
 
     companion object {
+        @JvmStatic
+        fun movableMoves(): List<Arguments> {
+            val label =
+                MovedContent({ Label("m") }, listOf("m"), sourceTags = listOf("A"), destinationTags = listOf("B"))
+            return listOf(
+                Arguments.of("same host", MoveRoute("P", "P", null), label),
+                Arguments.of("different accepted protocol", MoveRoute("P", "Q", "Q"), label),
+                Arguments.of("refused protocol", MoveRoute("P", "R", "Q"), label),
+                Arguments.of(
+                    "a group between hosts",
+                    MoveRoute("", "", ""),
+                    MovedContent({ Group("G") }, listOf("g1", "g2"), listOf("G"), listOf("G"), wrapped = false),
+                ),
+            )
+        }
+
         @JvmStatic
         fun relocationOrders(): List<Arguments> {
             val first: @Composable (@Composable () -> Unit) -> Unit = { inner ->

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
@@ -105,9 +106,10 @@ internal class ChildRegions(
         if (attachment != null) {
             checkNoConstraintInRegion(container, child)
             val slotIndex = slotIndexOf(container, index)
+            val received = child.declaration.checkAttachableUnder(container)
             child.installation =
                 Installation.Region(child.declaredSlot?.name, attachment.install(container, child.component, slotIndex))
-            child.declaration.attachedUnder(container)
+            child.declaration.attachedUnder(container, received)
             changes.recordSlotFilled(this)
             batch.markSlotChanged(container, child)
         } else {
@@ -210,6 +212,33 @@ internal class ChildRegions(
         }
         childCheck.schedule()
         if (root.owner?.diagnostics != null) indexSpaceCheck.schedule()
+    }
+
+    /**
+     * Gives the components of [changed]'s groups the declarations those groups stored in the pass, in composition
+     * order, and settles each host once: a component the pass left waiting joins its host, and one standing there
+     * publishes its complete checked declaration again. A group composed in another of them is reached through that
+     * one. A refusal leaves the components declared before it with their new declaration, and the rest with what their
+     * host last received.
+     *
+     * @param changed the groups whose update stored a different declaration in this pass, and their hosts.
+     */
+    fun declareChangedGroups(changed: TakenGroups) {
+        val groups = changed.groups
+        runEveryStep(
+            {
+                groups.fastForEach { group ->
+                    if (!group.placesChildren || group.parent?.composedInAnyOf(groups) != false) return@fastForEach
+                    val container = group.componentHost.component as? Container ?: return@fastForEach
+                    group.children.fastForEachIndexed { index, child ->
+                        child.takeGroupDeclarations(group, index, container, this)
+                    }
+                }
+                changed.hosts.fastForEach { it.childSettle?.invoke() }
+            },
+            { batch.refreshChangedContainers() },
+            { childCheck.schedule() },
+        )
     }
 
     /**
@@ -551,20 +580,20 @@ internal fun SwingNodeHolder<*>.addToHost(
     index: Int,
 ) {
     val childHost = container.childHost
-    child.declaration.checkAttachableUnder(childHost)
     val position =
         if (childHost is JLayeredPane) {
             standingSiblingsOnDepthBefore(childHost, child, index)
         } else {
             standingSiblingsBefore(childHost, index)
         }
+    val received = child.declaration.checkAttachableUnder(childHost)
     val parentData = child.declaration.parentData
     if (parentData != null && childHost.layout !is MeasurementLayoutManager) {
         childHost.add(child.component, parentData, position)
     } else {
         childHost.add(child.component, position)
     }
-    child.declaration.attachedUnder(childHost)
+    child.declaration.attachedUnder(childHost, received)
 }
 
 /**
