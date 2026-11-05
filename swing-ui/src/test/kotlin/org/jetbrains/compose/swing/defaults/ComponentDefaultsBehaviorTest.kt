@@ -15,10 +15,10 @@ import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
@@ -53,8 +53,10 @@ private val CustomLabelProperty =
     )
 
 private fun SwingModifier.customLabelProperty(value: String): SwingModifier =
-    property(CustomLabelProperty, value, inheritable = true)
+    inheritableProperty(CustomLabelProperty, value)
 
+@Suppress("DEPRECATION")
+@Deprecated("Exercises the deprecated component-defaults API.")
 class ComponentDefaultsBehaviorTest {
     @Test
     // Exercises the deprecated component-defaults API.
@@ -725,6 +727,10 @@ class ComponentDefaultsBehaviorTest {
     ) : SwingModifier.NodeElement<JLabel, FailingDefaultElement.Node>() {
         override val targetType: Class<JLabel> get() = JLabel::class.java
 
+        @Deprecated(
+            "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
+                "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
+        )
         override val inheritable: Boolean get() = true
 
         override fun create(): Node = Node(events)

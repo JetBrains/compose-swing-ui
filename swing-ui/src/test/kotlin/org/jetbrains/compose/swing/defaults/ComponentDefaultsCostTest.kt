@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -22,11 +22,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
+@Suppress("DEPRECATION")
+@Deprecated("Exercises the deprecated component-defaults API.")
 class ComponentDefaultsCostTest {
     private fun SwingModifier.writeTracking(
         value: String,
         writeCounter: () -> Unit,
-    ): SwingModifier = property(
+    ): SwingModifier = inheritableProperty(
         ComponentPropertyDescriptor<JLabel, String>(
             name = "writeTracking",
             read = { it.text },
@@ -36,7 +38,6 @@ class ComponentDefaultsCostTest {
             },
         ),
         value,
-        inheritable = true,
     )
 
     /**
@@ -46,7 +47,7 @@ class ComponentDefaultsCostTest {
     private fun SwingModifier.buttonWriteTracking(
         value: String,
         writeCounter: () -> Unit,
-    ): SwingModifier = property(
+    ): SwingModifier = inheritableProperty(
         ComponentPropertyDescriptor<JButton, String>(
             name = "buttonWriteTracking",
             read = { it.text },
@@ -56,7 +57,6 @@ class ComponentDefaultsCostTest {
             },
         ),
         value,
-        inheritable = true,
     )
 
     @Test
@@ -244,6 +244,11 @@ class ComponentDefaultsCostTest {
             object : SwingModifier.NodeElement<JLabel, SwingModifier.ComponentNode<JLabel>>() {
                 override val targetType: Class<JLabel> = JLabel::class.java
 
+                @Deprecated(
+                    "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
+                        "For a parent-layout declaration on each child, " +
+                        "wrap the children in VirtualSwingNode(modifier).",
+                )
                 override val inheritable: Boolean get() = true
 
                 override fun create(): SwingModifier.ComponentNode<JLabel> =

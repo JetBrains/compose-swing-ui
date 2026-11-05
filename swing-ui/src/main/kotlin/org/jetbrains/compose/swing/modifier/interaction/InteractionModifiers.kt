@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ACTION
@@ -40,8 +41,7 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property
  * @see java.awt.Component.setEnabled
  */
 @Deprecated("Set it in the component's style: style = { enabled(enabled) }")
-public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
-    property(EnabledDescriptor, enabled, inheritable = true)
+public fun SwingModifier.enabled(enabled: Boolean): SwingModifier = inheritableProperty(EnabledDescriptor, enabled)
 
 /**
  * Installs mouse enter/exit handlers.

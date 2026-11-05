@@ -10,6 +10,9 @@ import androidx.compose.runtime.remember
 /**
  * Scopes a single inherited component default declaration over [content].
  *
+ * Provide a nested style: `style = { provideNestedStyle(AllComponents) { ... } }`. For a parent-layout
+ * declaration on each child, wrap the children in `VirtualSwingNode(modifier)`.
+ *
  * Applicable modifier declarations from [value] cascade onto every descendant Swing and menu node,
  * evaluated before the node's own explicit modifier.
  *
@@ -22,6 +25,8 @@ import androidx.compose.runtime.remember
  * @param content the composables scoped by this component default.
  */
 @Composable
+@Suppress("DEPRECATION")
+@Deprecated(COMPONENT_DEFAULTS_DEPRECATION)
 public fun ProvideComponentDefaults(
     value: ProvidedComponentDefault<*>,
     content: @Composable () -> Unit,
@@ -37,6 +42,9 @@ public fun ProvideComponentDefaults(
 /**
  * Scopes multiple inherited component default declarations over [content].
  *
+ * Provide a nested style: `style = { provideNestedStyle(AllComponents) { ... } }`. For a parent-layout
+ * declaration on each child, wrap the children in `VirtualSwingNode(modifier)`.
+ *
  * Provisions are applied in argument order: repeating a key is last-argument-wins.
  *
  * Applicable modifier declarations cascade onto every descendant Swing and menu node, evaluated before
@@ -51,6 +59,8 @@ public fun ProvideComponentDefaults(
  * @param content the composables scoped by these component defaults.
  */
 @Composable
+@Suppress("DEPRECATION")
+@Deprecated(COMPONENT_DEFAULTS_DEPRECATION)
 public fun ProvideComponentDefaults(
     vararg values: ProvidedComponentDefault<*>,
     content: @Composable () -> Unit,

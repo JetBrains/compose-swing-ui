@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.style.BackgroundDescriptor
 import java.awt.Color
 
@@ -17,5 +17,4 @@ import java.awt.Color
  * @see java.awt.Component.setBackground
  */
 @Deprecated("Set it in the component's style: style = { background(color) }")
-public fun SwingModifier.background(color: Color?): SwingModifier =
-    property(BackgroundDescriptor, color, inheritable = true)
+public fun SwingModifier.background(color: Color?): SwingModifier = inheritableProperty(BackgroundDescriptor, color)

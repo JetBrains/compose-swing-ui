@@ -1,4 +1,4 @@
-// Covers the deprecated modifiers beside the style while both are supported.
+// Covers the deprecated modifiers and component defaults beside the style while both are supported.
 @file:Suppress("DEPRECATION")
 
 package org.jetbrains.compose.swing.foundation.layout

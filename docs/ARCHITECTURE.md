@@ -262,6 +262,10 @@ own beside a declared import. Removing the last such element restores the compon
 
 ## Component defaults
 
+Component defaults are deprecated: use component styles and [nested styles](#nested-styles). A default that carries a parent-layout declaration to each child, such as a form row, is replaced by
+`VirtualSwingNode(modifier)`: it declares parent-layout modifier elements to the components the group places, not to
+their descendants.
+
 `ProvideComponentDefaults` scopes inherited modifier declarations over a composition subtree.
 It applies each matching declaration to every composed Swing or menu node below it, including custom
 components, menu content, rendered cells, and subcompositions that use the provider's composition
@@ -284,8 +288,7 @@ An explicit modifier therefore wins over an inherited default for the same prope
 changes, compatible existing nodes update in place. Removing it restores the component's value from
 before the declaration, unless another declaration still owns that property.
 
-Create a custom key with `componentDefaultKeyOf` when an application needs a reusable property or
-semantic combination:
+The deprecated API looks like this:
 
 ```kotlin
 val DefaultCardSurface = componentDefaultKeyOf<Color>("cardSurface") { color ->
@@ -319,8 +322,8 @@ ProvideComponentDefaults(
 
 One key can declare several related properties, such as a background and opacity. The key's `apply`
 function must be deterministic for its value. It may return only inheritable, non-additive property
-declarations; custom property declarations opt in with `property(..., inheritable = true)`. It may also
-return an inheritable parent-layout declaration, which applies to every component and is left out under a
+declarations; custom property declarations opt in with `property(..., inheritable = true)`, deprecated together with
+component defaults. It may also return an inheritable parent-layout declaration, which applies to every component and is left out under a
 parent that refuses it; see
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers). Listeners,
 focus behavior, bindings, other layout declarations, and additive elements are not component defaults. See

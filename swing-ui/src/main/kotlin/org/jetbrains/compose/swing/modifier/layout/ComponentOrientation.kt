@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.modifier.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.style.ComponentOrientationDescriptor
 import java.awt.ComponentOrientation
 
@@ -23,4 +23,4 @@ import java.awt.ComponentOrientation
  */
 @Deprecated("Set it in the component's style: style = { componentOrientation(orientation) }")
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
-    property(ComponentOrientationDescriptor, orientation, inheritable = true)
+    inheritableProperty(ComponentOrientationDescriptor, orientation)

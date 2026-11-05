@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.annotations.VerticalAlignment
 import org.jetbrains.compose.swing.components.style.HorizontalAlignmentDescriptor
 import org.jetbrains.compose.swing.components.style.VerticalAlignmentDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 
 /**
  * Sets where a component's content sits along its width, when it is given more width than it needs.
@@ -25,7 +25,7 @@ import org.jetbrains.compose.swing.modifier.property
 @Deprecated("Set it in the component's style: style = { horizontalAlignment(alignment) }")
 public fun SwingModifier.horizontalAlignment(
     @HorizontalAlignment alignment: Int,
-): SwingModifier = property(HorizontalAlignmentDescriptor, alignment, inheritable = true)
+): SwingModifier = inheritableProperty(HorizontalAlignmentDescriptor, alignment)
 
 /**
  * Sets where a component's content sits along its height, when it is given more height than it needs.
@@ -42,4 +42,4 @@ public fun SwingModifier.horizontalAlignment(
 @Deprecated("Set it in the component's style: style = { verticalAlignment(alignment) }")
 public fun SwingModifier.verticalAlignment(
     @VerticalAlignment alignment: Int,
-): SwingModifier = property(VerticalAlignmentDescriptor, alignment, inheritable = true)
+): SwingModifier = inheritableProperty(VerticalAlignmentDescriptor, alignment)

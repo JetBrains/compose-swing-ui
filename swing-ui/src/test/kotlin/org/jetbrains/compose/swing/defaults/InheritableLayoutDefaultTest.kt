@@ -59,6 +59,8 @@ import kotlin.test.assertTrue
  * An inheritable parent-layout declaration given as a component default: it reaches the children of a parent
  * whose protocol accepts it, and is left out under every other parent without the parent being told.
  */
+@Suppress("DEPRECATION")
+@Deprecated("Exercises the deprecated component-defaults API.")
 class InheritableLayoutDefaultTest {
     @Test
     fun aClaimedComponentIgnoresADefaultItsParentDoesNotAccept() = runComposeSwingTest {
@@ -556,6 +558,8 @@ class InheritableLayoutDefaultTest {
     }
 }
 
+@Suppress("DEPRECATION")
+@Deprecated("Exercises the deprecated component-defaults API.")
 private val DefaultInset: ComponentDefaultKey<Int> = componentDefaultKeyOf("inset") { this then Inset(it) }
 
 /** Declares the node inheritable, which [InsetNode] is, but is not itself. */

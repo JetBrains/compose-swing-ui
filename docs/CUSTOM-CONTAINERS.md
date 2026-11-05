@@ -149,15 +149,14 @@ data.
 
 **Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be set by a
 [style property](STYLES.md#a-property-written-by-an-element); the style's declaration counts as the last one in
-the modifier. A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
-[component default](ARCHITECTURE.md#component-defaults). Under a parent its protocol refuses, it is also
-left out of the declaration instead of refused, whether a default provides it, a style writes it, or the component declares
+the modifier. Under a parent its protocol refuses, it is also
+left out of the declaration instead of refused, whether a style writes it or the component declares
 it directly: that parent never receives it, and a conventional manager is never registered again because
 of it. A left-out declaration taking another value does not have a measuring parent declared to again,
 in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is
 not additive: one that is both is refused.
 `inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier`
-cannot be a component default, cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and
+cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and
 `inheritable` of a `ParentLayoutNodeElement` apply to the `ParentLayoutNode` it creates.
 
 **What the parent receives.** A declaration reaches the component's immediate parent and travels no

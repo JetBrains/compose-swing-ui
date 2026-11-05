@@ -4,8 +4,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Stable
-import org.jetbrains.compose.swing.defaults.ComponentDefaultKey
-import org.jetbrains.compose.swing.defaults.componentDefaultKeyOf
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
@@ -117,15 +115,6 @@ private data class FixedPaintOutsets(
 @Deprecated("Set it in the component's style: style = { paintOutsets(outsets) }")
 public fun SwingModifier.paintOutsets(outsets: PaintOutsets): SwingModifier = this then PaintOutsetsElement(outsets)
 
-/**
- * Key for the default [PaintOutsets] value applied to descendants via [paintOutsets].
- *
- * It comes first in a descendant's modifier, and a `paintOutsets` the descendant declares replaces it.
- */
-@Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { paintOutsets(outsets) } }")
-public val DefaultPaintOutsets: ComponentDefaultKey<PaintOutsets> =
-    componentDefaultKeyOf("paintOutsets") { this then PaintOutsetsElement(it) }
-
 private val PaintOutsetsProperty = stylePropertyOf { outsets: PaintOutsets -> PaintOutsetsElement(outsets) }
 
 /**
@@ -149,6 +138,10 @@ private data class PaintOutsetsElement(
 ) : ParentLayoutNodeElement<PaintOutsetsNode>() {
     override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
 
+    @Deprecated(
+        "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
+            "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
+    )
     override val inheritable: Boolean get() = true
 
     override val name: String get() = "paintOutsets"
@@ -171,6 +164,10 @@ private data class PaintOutsetsElement(
 internal class PaintOutsetsNode(
     var outsets: PaintOutsets,
 ) : LayoutModifierNode() {
+    @Deprecated(
+        "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
+            "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
+    )
     override val inheritable: Boolean get() = true
 
     /** The insets [excess] asks [outsets] with, set anew for each ask. */

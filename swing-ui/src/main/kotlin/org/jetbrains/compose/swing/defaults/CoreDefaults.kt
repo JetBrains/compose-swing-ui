@@ -31,6 +31,7 @@ import java.awt.Font
  *
  * Note that setting [DefaultBackground] does not automatically imply [DefaultOpaque].
  */
+@Suppress("DEPRECATION")
 @Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { background(color) } }")
 public val DefaultBackground: ComponentDefaultKey<Color> =
     componentDefaultKeyOf("background") { property(BackgroundDescriptor, it, inheritable = true) }
@@ -38,6 +39,7 @@ public val DefaultBackground: ComponentDefaultKey<Color> =
 /**
  * Key for the default foreground color applied to descendants via [foreground].
  */
+@Suppress("DEPRECATION")
 @Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { foreground(color) } }")
 public val DefaultForeground: ComponentDefaultKey<Color> =
     componentDefaultKeyOf("foreground") { property(ForegroundDescriptor, it, inheritable = true) }
@@ -45,6 +47,7 @@ public val DefaultForeground: ComponentDefaultKey<Color> =
 /**
  * Key for the default font applied to descendants via [font].
  */
+@Suppress("DEPRECATION")
 @Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { font(font) } }")
 public val DefaultFont: ComponentDefaultKey<Font> =
     componentDefaultKeyOf("font") { property(FontDescriptor, it, inheritable = true) }
@@ -55,6 +58,7 @@ public val DefaultFont: ComponentDefaultKey<Font> =
  * Unlike raw Swing containers (where disabling a container leaves children enabled), providing
  * `DefaultEnabled provides false` cascades to every composed descendant.
  */
+@Suppress("DEPRECATION")
 @Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { enabled(enabled) } }")
 public val DefaultEnabled: ComponentDefaultKey<Boolean> =
     componentDefaultKeyOf("enabled") { property(EnabledDescriptor, it, inheritable = true) }
@@ -62,6 +66,7 @@ public val DefaultEnabled: ComponentDefaultKey<Boolean> =
 /**
  * Key for the default cursor applied to descendants via [cursor].
  */
+@Suppress("DEPRECATION")
 @Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { cursor(cursor) } }")
 public val DefaultCursor: ComponentDefaultKey<Cursor> =
     componentDefaultKeyOf("cursor") { property(CursorDescriptor, it, inheritable = true) }
@@ -69,6 +74,7 @@ public val DefaultCursor: ComponentDefaultKey<Cursor> =
 /**
  * Key for the default component orientation applied to descendants via [componentOrientation].
  */
+@Suppress("DEPRECATION")
 @Deprecated(
     "Provide a nested style: " +
         "style = { provideNestedStyle(AllComponents) { componentOrientation(orientation) } }",
@@ -81,6 +87,7 @@ public val DefaultComponentOrientation: ComponentDefaultKey<ComponentOrientation
 /**
  * Key for the default opaque flag applied to compatible descendants via [opaque].
  */
+@Suppress("DEPRECATION")
 @Deprecated("Set it in each component's style: style = { opaque(opaque) }")
 public val DefaultOpaque: ComponentDefaultKey<Boolean> =
     componentDefaultKeyOf("opaque") {

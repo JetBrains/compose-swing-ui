@@ -1,3 +1,5 @@
+// Everything in this file serves the deprecated component defaults and is removed with them.
+@file:Suppress("DEPRECATION")
 @file:JvmMultifileClass
 @file:JvmName("ComponentDefaultsKt")
 

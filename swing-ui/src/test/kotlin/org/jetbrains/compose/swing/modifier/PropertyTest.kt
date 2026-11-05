@@ -12,7 +12,9 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
 import javax.swing.JLabel
 import kotlin.test.Test
@@ -68,17 +70,21 @@ class PropertyTest {
             ) { background }
         }
 
-    @Test
-    fun aDeclaredPropertyIsWrittenAndHandedBackFromTheWidget() = runComposeSwingTest {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("propertyDeclarations")
+    fun aDeclaredPropertyIsWrittenAndHandedBackFromTheWidget(
+        case: String,
+        declaration: SwingModifier,
+    ) = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
             SwingNode(
                 factory = { JLabel("target").apply { toolTipText = WIDGET_TIP } },
-                modifier = if (declared) SwingModifier.declaredTip(DECLARED_TIP) else SwingModifier,
+                modifier = if (declared) declaration else SwingModifier,
             )
         }
         val label = onNodeOfType<JLabel>()
-        label.assertProperty(DECLARED_TIP, "the declared value should reach the widget") { toolTipText }
+        label.assertProperty(DECLARED_TIP, case) { toolTipText }
 
         declared = false
         awaitIdle()
@@ -258,6 +264,35 @@ class PropertyTest {
         awaitIdle()
         onNodeOfType<JLabel>().assertProperty(laterName) { name }
     }
+
+    companion object {
+        @Suppress("DEPRECATION")
+        @Deprecated("Covers the deprecated inheritable property overload.")
+        @JvmStatic
+        fun propertyDeclarations(): List<Arguments> = listOf(
+            Arguments.of("default restoration", SwingModifier.property(ToolTipProperty, DECLARED_TIP)),
+            Arguments.of(
+                "explicit restoration",
+                SwingModifier.property(ToolTipProperty, DECLARED_TIP, RestorePolicy.EverythingWritten),
+            ),
+            Arguments.of(
+                "named inheritance with default restoration",
+                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = true),
+            ),
+            Arguments.of(
+                "named non-inheritance with default restoration",
+                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = false),
+            ),
+            Arguments.of(
+                "positional inheritance",
+                SwingModifier.property(ToolTipProperty, DECLARED_TIP, RestorePolicy.EverythingWritten, true),
+            ),
+            Arguments.of(
+                "named inheritance with rewrite",
+                SwingModifier.property(ToolTipProperty, DECLARED_TIP, inheritable = true, rewriteOn = "toolTipText"),
+            ),
+        )
+    }
 }
 
 /** A style property writing the component's name, rewriting it on every announced change of it. */
@@ -300,8 +335,6 @@ private val ToolTipProperty =
         read = { it.toolTipText },
         write = { label, value -> label.toolTipText = value },
     )
-
-private fun SwingModifier.declaredTip(tip: String): SwingModifier = property(ToolTipProperty, tip)
 
 /**
  * Writes the tooltip and, standing in for a look and feel that derives a property of its own from a

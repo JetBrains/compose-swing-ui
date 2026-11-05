@@ -5,7 +5,7 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.style.OpaqueDescriptor
 
 /**
@@ -23,11 +23,10 @@ import org.jetbrains.compose.swing.style.OpaqueDescriptor
  */
 @Deprecated("Set it in the component's style: style = { opaque(opaque) }")
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
-    property(
+    inheritableProperty(
         OpaqueDescriptor,
         opaque,
         restores = RestorePolicy.None,
-        inheritable = true,
         // The component announces every change of the flag, its own included, so the flag itself is what
         // to listen on.
         rewriteOn = "opaque",

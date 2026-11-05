@@ -999,6 +999,8 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun composed (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun property-oqAr94E (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;ILjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun property-oqAr94E$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;ILjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun property-zFZRf9k (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun property-zFZRf9k$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }

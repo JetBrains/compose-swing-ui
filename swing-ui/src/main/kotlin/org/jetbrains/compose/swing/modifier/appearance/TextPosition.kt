@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.components.style.HorizontalTextPositionDescri
 import org.jetbrains.compose.swing.components.style.IconTextGapDescriptor
 import org.jetbrains.compose.swing.components.style.VerticalTextPositionDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 
 /**
  * Sets which side of the icon the text is drawn on. Applies to labels and to everything built on a
@@ -24,7 +24,7 @@ import org.jetbrains.compose.swing.modifier.property
 @Deprecated("Set it in the component's style: style = { horizontalTextPosition(position) }")
 public fun SwingModifier.horizontalTextPosition(
     @HorizontalAlignment position: Int,
-): SwingModifier = property(HorizontalTextPositionDescriptor, position, inheritable = true)
+): SwingModifier = inheritableProperty(HorizontalTextPositionDescriptor, position)
 
 /**
  * Sets whether the text is drawn above, across or below the icon. Applies to labels and to everything
@@ -39,7 +39,7 @@ public fun SwingModifier.horizontalTextPosition(
 @Deprecated("Set it in the component's style: style = { verticalTextPosition(position) }")
 public fun SwingModifier.verticalTextPosition(
     @VerticalAlignment position: Int,
-): SwingModifier = property(VerticalTextPositionDescriptor, position, inheritable = true)
+): SwingModifier = inheritableProperty(VerticalTextPositionDescriptor, position)
 
 /**
  * Sets the space between a component's icon and its text. Applies to labels and to everything built on
@@ -54,4 +54,4 @@ public fun SwingModifier.verticalTextPosition(
  * @see javax.swing.AbstractButton.setIconTextGap
  */
 @Deprecated("Set it in the component's style: style = { iconTextGap(gap) }")
-public fun SwingModifier.iconTextGap(gap: Int): SwingModifier = property(IconTextGapDescriptor, gap, inheritable = true)
+public fun SwingModifier.iconTextGap(gap: Int): SwingModifier = inheritableProperty(IconTextGapDescriptor, gap)

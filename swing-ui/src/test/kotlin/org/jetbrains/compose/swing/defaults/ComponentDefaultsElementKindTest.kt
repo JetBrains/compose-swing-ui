@@ -51,6 +51,8 @@ private val TextProperty =
  * it never overrides, and given back on removal. An element that is not inheritable is refused as a default,
  * whatever its kind.
  */
+@Suppress("DEPRECATION")
+@Deprecated("Exercises the deprecated component-defaults API.")
 class ComponentDefaultsElementKindTest {
     @Test
     // Exercises the deprecated component-defaults API.

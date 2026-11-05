@@ -399,6 +399,10 @@ public interface SwingModifier {
          * `false`. A layout declaration cascades through
          * [ParentLayoutElement.inheritable][org.jetbrains.compose.swing.layout.ParentLayoutElement.inheritable].
          */
+        @Deprecated(
+            "Provide a nested style: style = { provideNestedStyle(AllComponents) { ... } }. " +
+                "For a parent-layout declaration on each child, wrap the children in VirtualSwingNode(modifier).",
+        )
         public open val inheritable: Boolean get() = false
 
         /**

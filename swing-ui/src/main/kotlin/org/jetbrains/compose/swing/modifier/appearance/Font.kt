@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.style.FontDescriptor
 import java.awt.Font
 
@@ -17,4 +17,4 @@ import java.awt.Font
  * @see java.awt.Component.setFont
  */
 @Deprecated("Set it in the component's style: style = { font(font) }")
-public fun SwingModifier.font(font: Font?): SwingModifier = property(FontDescriptor, font, inheritable = true)
+public fun SwingModifier.font(font: Font?): SwingModifier = inheritableProperty(FontDescriptor, font)

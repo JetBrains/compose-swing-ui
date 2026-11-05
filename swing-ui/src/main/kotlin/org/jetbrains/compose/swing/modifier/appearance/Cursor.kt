@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.style.CursorDescriptor
 import java.awt.Cursor
 
@@ -18,4 +18,4 @@ import java.awt.Cursor
  * @see java.awt.Component.setCursor
  */
 @Deprecated("Set it in the component's style: style = { cursor(cursor) }")
-public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier = property(CursorDescriptor, cursor, inheritable = true)
+public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier = inheritableProperty(CursorDescriptor, cursor)
