@@ -59,24 +59,24 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val diagnostics = requireOwner().diagnostics
     val handed = state.handedNodes
     val held = state.startWrite()
-    var handsOver = false
+    var needsDeclaredNodes = false
     state.rewritePropertySlotsFrom(
         component,
         diagnostics,
-        onInvalidates = { handsOver = true },
+        onInvalidates = { needsDeclaredNodes = true },
     ) { it.node.refreshesOnLocalMap }
     // A slot node of the style reads locals the modifier's own refresh does not reach.
     var laidOut = false
     state.forEachStyle(this) { style ->
         if (style.holdsLocalConsumers) {
-            style.rewriteSlotsFrom(onInvalidates = { handsOver = true }) { it.node.refreshesOnLocalMap }
+            style.rewriteSlotsFrom(onInvalidates = { needsDeclaredNodes = true }) { it.node.refreshesOnLocalMap }
             if (style.layoutRefreshesOnLocalMap) laidOut = true
         }
     }
     state.records?.fastForEach { record ->
         if (record.isStandingFor(null, null) && record.key == null && record.node.refreshesOnLocalMap) {
             if (record is ComponentNodeRecord<*, *>) {
-                if (record.refresh(component, diagnostics, mode = WriteMode.AdoptEqual)) handsOver = true
+                if (record.refresh(component, diagnostics, mode = WriteMode.ReuseEqual)) needsDeclaredNodes = true
             } else {
                 laidOut = true
             }
@@ -87,5 +87,5 @@ internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
         component.revalidate()
         (component.parent ?: component).repaint()
     }
-    if (handsOver) notifyDeclaredNodes(chainChanged = true, handedNodes = handed)
+    if (needsDeclaredNodes) notifyDeclaredNodes(chainChanged = true, handedNodes = handed)
 }

@@ -108,7 +108,7 @@ class CaretUpdatePolicyStyleTest {
             )
         }
         // The caret slot writes on this pass, so the policy slot declared after it is written again
-        // rather than adopted, onto the caret that has just arrived.
+        // rather than reused, onto the caret that has just arrived.
         swapped = true
         awaitIdle()
         onNodeOfType<JTextArea>().assertProperty(true) { caret === second }

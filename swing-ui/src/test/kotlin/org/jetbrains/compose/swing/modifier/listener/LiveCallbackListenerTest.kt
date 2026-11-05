@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
  * and added again: the callback is not what the registration is made of, and a registration held in a
  * `val` is the same instance every pass.
  *
- * The callback being no part of the registration is also what lets every slot in a chain adopt what the
+ * The callback being no part of the registration is also what lets every slot in a chain reuse what the
  * pass declares, so the chain is applied without being diffed - see
  * [org.jetbrains.compose.swing.modifier.ModifierChainSkipTest]. The callback that fires must be the
  * newest one across that skip, and two live callbacks on one chain must each keep their own.
@@ -214,7 +214,7 @@ class LiveCallbackListenerTest {
                     text = "press",
                     onClick = { },
                     // The tooltip holds a slot of its own, which the two callbacks are not counted
-                    // among. It declares the same value on every pass, so the chain is adopted rather
+                    // among. It declares the same value on every pass, so the chain is reused rather
                     // than diffed and position is the only thing telling the callbacks apart.
                     modifier =
                         SwingModifier

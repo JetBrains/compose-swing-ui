@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.style.requireKindTarget
 import java.awt.Component
 
 /**
- * Diffs [modifier] onto this node unless the slots take it in place, which is what [adoptDeclaration] answers -
+ * Diffs [modifier] onto this node unless the slots take it in place, which is what [linearDiff] answers -
  * and, for the part of a modifier that is read live rather than applied, is what hands the pass's own over.
  *
  * The two questions are not the same one asked twice. A modifier reaching here is one the caller declared
@@ -20,35 +20,35 @@ import java.awt.Component
  */
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
-    var handsOver = false
+    var needsDeclaredNodes = false
     if (state != null) {
         val held = state.startWrite()
         if (held !is UnfinishedPass) {
             val handedNodes = state.handedNodes
-            val adopted = adoptDeclaration(held, modifier, state.records)
-            if (!adopted.diverged) {
+            val diff = linearDiff(held, modifier, state.records)
+            if (!diff.aborted) {
                 state.adopt(modifier)
-                notifyDeclaredNodes(adopted.handsOver, handedNodes)
+                notifyDeclaredNodes(diff.needsDeclaredNodes, handedNodes)
                 return
             }
-            handsOver = adopted.handsOver
+            needsDeclaredNodes = diff.needsDeclaredNodes
         }
         state.restore(held)
     }
-    applyModifierDiff(modifier, handsOver)
+    applyModifierDiff(modifier, needsDeclaredNodes)
 }
 
 /**
- * What [adoptDeclaration] has paired so far: the next physical record position [nextRecordIndex], whether the modifiers
- * [diverged], so no slot past that point is asked, and whether a slot it wrote holds a node the holder's
- * [DeclaredNodesListener] needs ([handsOver]), which hands the nodes over once the walk ends.
+ * What [linearDiff] has paired so far: the next physical record position [nextRecordIndex], whether the diff
+ * [aborted], so no slot past that point is asked, and whether a slot it wrote holds a node the holder's
+ * [DeclaredNodesListener] needs ([needsDeclaredNodes]), which hands the nodes over once the walk ends.
  */
 @JvmInline
 private value class LinearDiff private constructor(
     private val bits: Int,
 ) {
     companion object {
-        private const val HANDOVER_MASK = 1
+        private const val NEEDS_DECLARED_NODES = 1
         private const val RECORD_INDEX_SHIFT = 1
 
         inline val Start: LinearDiff get() = LinearDiff(0)
@@ -56,31 +56,35 @@ private value class LinearDiff private constructor(
 
     inline val nextRecordIndex: Int get() = (bits and Int.MAX_VALUE) ushr RECORD_INDEX_SHIFT
 
-    inline val handsOver: Boolean get() = bits and HANDOVER_MASK != 0
+    inline val needsDeclaredNodes: Boolean get() = bits and NEEDS_DECLARED_NODES != 0
 
-    inline val diverged: Boolean get() = bits < 0
+    inline val aborted: Boolean get() = bits < 0
 
-    /** One more record matched; [handsOver] where its write holds a node the listener needs, and from then on. */
-    fun nextRecord(
+    /**
+     * One more record matched; [needsDeclaredNodes] where its write holds a node the listener needs, and from then
+     * on.
+     */
+    fun next(
         nextRecordIndex: Int,
-        handsOver: Boolean,
+        needsDeclaredNodes: Boolean,
     ): LinearDiff {
-        val handover = if (handsOver) HANDOVER_MASK else bits and HANDOVER_MASK
-        return LinearDiff((nextRecordIndex shl RECORD_INDEX_SHIFT) or handover)
+        val needs = if (needsDeclaredNodes) NEEDS_DECLARED_NODES else bits and NEEDS_DECLARED_NODES
+        return LinearDiff((nextRecordIndex shl RECORD_INDEX_SHIFT) or needs)
     }
 
-    /** The walk parting ways here, keeping [handsOver]. */
-    fun diverge(): LinearDiff = LinearDiff(bits or Int.MIN_VALUE)
+    /** The walk parting ways here, keeping [needsDeclaredNodes]. */
+    fun abort(): LinearDiff = LinearDiff(bits or Int.MIN_VALUE)
 
-    /** The same position, [handsOver] from here on where the last write holds a node the listener needs. */
-    fun handingOver(handsOver: Boolean): LinearDiff = if (handsOver) LinearDiff(bits or HANDOVER_MASK) else this
+    /** The same position, [needsDeclaredNodes] from here on where the last write holds a node the listener needs. */
+    fun withNeedsDeclaredNodes(needsDeclaredNodes: Boolean): LinearDiff =
+        if (needsDeclaredNodes) LinearDiff(bits or NEEDS_DECLARED_NODES) else this
 }
 
 /**
- * Walks [applied] and [next] in lockstep from [adopted], handing the slot behind each element of [applied] the
- * element [next] declares in its place, and answers how far it paired them, [diverged][LinearDiff.diverged] as soon as
+ * Walks [applied] and [next] in lockstep from [diff], handing the slot behind each element of [applied] the
+ * element [next] declares in its place, and answers how far it paired them, [aborted][LinearDiff.aborted] as soon as
  * the two modifiers differ in a way only the diff can apply. The diff that follows pairs every element with its slot
- * by key and by position, adopting as it goes.
+ * by key and by position, reusing as it goes.
  *
  * An element holding a record is paired with the next standing positional record of [records]: this walk follows
  * [SwingModifier.foldIn], so the records it reaches in order are the chain's. Every other element - a keyed one, or a
@@ -88,116 +92,116 @@ private value class LinearDiff private constructor(
  * write again, which the diff alone orders.
  *
  * A record is handed an element only where it holds the very element [applied] declares, so a walk taking another
- * path than the fold writes no record that is not its own: it answers [LinearDiff.diverged] there instead, and the diff
+ * path than the fold writes no record that is not its own: it answers [LinearDiff.aborted] there instead, and the diff
  * behind it pairs everything correctly. A record the walk wrote before parting ways holds its new element, which the
- * diff then adopts; where [LinearDiff.handsOver], the diff hands the nodes over.
+ * diff then reuses; where [LinearDiff.needsDeclaredNodes], the diff hands the nodes over.
  */
-private fun SwingNodeHolder<Component>.adoptDeclaration(
+private fun SwingNodeHolder<Component>.linearDiff(
     applied: SwingModifier,
     next: SwingModifier,
     records: NodeRecords?,
-    adopted: LinearDiff = LinearDiff.Start,
+    diff: LinearDiff = LinearDiff.Start,
     last: Boolean = true,
 ): LinearDiff =
     when {
         applied is CombinedSwingModifier && next is CombinedSwingModifier -> {
-            val outer = adoptDeclaration(applied.outer, next.outer, records, adopted, last = false)
-            if (outer.diverged) outer else adoptDeclaration(applied.inner, next.inner, records, outer, last)
+            val outer = linearDiff(applied.outer, next.outer, records, diff, last = false)
+            if (outer.aborted) outer else linearDiff(applied.inner, next.inner, records, outer, last)
         }
 
         last && applied is StyleElement<*, *> && next is StyleElement<*, *> && applied != next -> {
-            adoptLastStyle(applied, next, records, adopted)
+            reuseLastStyle(applied, next, records, diff)
         }
 
         applied is SwingModifier.Element && applied.isPositionalElement && next is SwingModifier.Element -> {
-            adoptElement(applied, next, records, adopted)
+            diffElement(applied, next, records, diff)
         }
 
         else -> {
-            if (applied == next) adopted else adopted.diverge()
+            if (applied == next) diff else diff.abort()
         }
     }
 
 /**
  * Hands [next] the slot of [applied], the last element of the chain, in place. Nothing keyed is written after the
  * last element, so the slot is written as the diff would write it. A declaration that held no slot because it could
- * collect nothing is adopted while [next] can collect nothing either. Answers [LinearDiff.diverged] where the node
+ * collect nothing is reused while [next] can collect nothing either. Answers [LinearDiff.aborted] where the node
  * holds more than one style slot or the slot holds another element.
  */
-private fun SwingNodeHolder<Component>.adoptLastStyle(
+private fun SwingNodeHolder<Component>.reuseLastStyle(
     applied: StyleElement<*, *>,
     next: StyleElement<*, *>,
     records: NodeRecords?,
-    adopted: LinearDiff,
+    diff: LinearDiff,
 ): LinearDiff {
     val state = modifierState
     val record = records?.get(ComponentNodeType, null, applied.key)
     return when {
         state == null || next.key != applied.key || state.firstStyle?.nextStyle != null -> {
-            adopted.diverge()
+            diff.abort()
         }
 
         record == null -> {
             if (next.collectsNothingUnder(this)) {
                 requireKindTarget(next.kind, component)
-                adopted
+                diff
             } else {
-                adopted.diverge()
+                diff.abort()
             }
         }
 
-        record.element !== applied || !NodeRecord.canRebind(record, next) -> {
-            adopted.diverge()
+        record.element !== applied || !NodeRecord.canUpdate(record, next) -> {
+            diff.abort()
         }
 
         else -> {
-            adopted.handingOver(record.rebindAndWrite(next, component, owner?.diagnostics, WriteMode.AdoptEqual))
+            diff.withNeedsDeclaredNodes(record.updateTo(next, component, owner?.diagnostics, WriteMode.ReuseEqual))
         }
     }
 }
 
 /**
  * Hands [next] to the next positional record from [LinearDiff.nextRecordIndex], where [applied] is
- * the element it holds. The record adopts an element that declares what [applied] does, and is written
+ * the element it holds. The record reuses an element that declares what [applied] does, and is written
  * in place with one unequal but of [applied]'s own class, as androidx's `NodeChain.updateNode` updates
- * a node in place. Answers [LinearDiff.diverged] where the record holds another element, or where [next]
+ * a node in place. Answers [LinearDiff.aborted] where the record holds another element, or where [next]
  * is of another class. A parent-layout record written so that its parent lays the component out again
  * declares it again to a parent that receives the record's node; a record written with a node the holder's
  * [DeclaredNodesListener] needs has the nodes handed over once the walk ends.
  */
-private fun SwingNodeHolder<Component>.adoptElement(
+private fun SwingNodeHolder<Component>.diffElement(
     applied: SwingModifier.Element,
     next: SwingModifier.Element,
     records: NodeRecords?,
-    adopted: LinearDiff,
+    diff: LinearDiff,
 ): LinearDiff {
-    val nextRecordIndex = records?.nextPositionalIndex(adopted.nextRecordIndex) ?: 0
+    val nextRecordIndex = records?.nextPositionalIndex(diff.nextRecordIndex) ?: 0
     val record = if (records != null && nextRecordIndex < records.size) records[nextRecordIndex] else null
     return when {
         record == null || record.element !== applied || !next.isPositionalElement -> {
-            adopted.diverge()
+            diff.abort()
         }
 
-        record.adopt(next) -> {
-            adopted.nextRecord(checkNotNull(records).indexAfter(record, nextRecordIndex), handsOver = false)
+        record.reuse(next) -> {
+            diff.next(checkNotNull(records).indexAfter(record, nextRecordIndex), needsDeclaredNodes = false)
         }
 
-        !NodeRecord.canRebind(record, next) -> {
-            adopted.diverge()
+        !NodeRecord.canUpdate(record, next) -> {
+            diff.abort()
         }
 
         else -> {
             val invalidates =
-                record.rebindAndWrite(
+                record.updateTo(
                     next,
                     component,
                     owner?.diagnostics,
-                    mode = WriteMode.AdoptEqual,
+                    mode = WriteMode.ReuseEqual,
                 )
             if (record.updateChanges(this, invalidates).parentLayoutUpdated) {
                 declaration.reapply()
             }
-            adopted.nextRecord(checkNotNull(records).indexAfter(record, nextRecordIndex), invalidates)
+            diff.next(checkNotNull(records).indexAfter(record, nextRecordIndex), invalidates)
         }
     }
 }

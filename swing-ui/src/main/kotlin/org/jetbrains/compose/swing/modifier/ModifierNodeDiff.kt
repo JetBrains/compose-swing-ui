@@ -83,7 +83,7 @@ internal object ComponentNodeType : ModifierNodeType<ComponentNodeRecord<*, *>>(
      * @param records the records holding the declarations to refresh.
      * @param holder the component holder supplying the component and its diagnostics.
      * @param declaringNode the node declaring the records, or `null` for the outer modifier.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
     fun refresh(
         records: NodeRecords?,
@@ -113,13 +113,13 @@ internal object ParentLayoutNodeType : ModifierNodeType<ParentLayoutNodeRecord>(
  * Updates the positional nodes of [partition] declared in [nodeType] by position within [nodeType], independently of
  * the other node type.
  * Removes excess nodes from the end and preserves compatible nodes. A replacement attaches before the old node
- * detaches; if attachment fails, the old record remains. Equal elements can be adopted when [mode] permits it.
+ * detaches; if attachment fails, the old record remains. Equal elements can be reused when [mode] permits it.
  *
  * @param holder the holder whose component the nodes target and whose owner supplies the diagnostics.
  * @param state the modifier state whose records are updated.
  * @param partition the partition whose positional elements are applied.
  * @param nodeType the family of positional elements to update.
- * @param mode whether equal declarations may be adopted or must be written again.
+ * @param mode whether equal declarations may be reused or must be written again.
  */
 internal fun updateModifierNodes(
     holder: SwingNodeHolder<*>,
@@ -146,8 +146,8 @@ internal fun updateModifierNodes(
                 changes += ModifierChanges.NodesAddedOrRemoved
             }
 
-            NodeRecord.canRebind(record, element) -> {
-                if (!mode.adopt(record, element)) changes += updateNode(holder, record, element, diagnostics)
+            NodeRecord.canUpdate(record, element) -> {
+                if (!mode.reuse(record, element)) changes += updateNode(holder, record, element, diagnostics)
             }
 
             else -> {
@@ -193,7 +193,7 @@ private fun updateNode(
     element: SwingModifier.Element,
     diagnostics: SwingCompositionDiagnostics?,
 ): ModifierChanges {
-    val invalidates = record.rebindAndWrite(element, holder.component, diagnostics, mode = WriteMode.AdoptEqual)
+    val invalidates = record.updateTo(element, holder.component, diagnostics, mode = WriteMode.ReuseEqual)
     return record.updateChanges(holder, invalidates)
 }
 
@@ -336,7 +336,7 @@ private fun NodeRecords.firstMovedKey(
  * Reconciles one declaring node's keyed component records, committing order only after success.
  *
  * @param incoming the keyed declarations of the declaring node, in declared order.
- * @param mode whether equal declarations may be adopted or must be written again.
+ * @param mode whether equal declarations may be reused or must be written again.
  * @param declaringNode the node declaring the records, or `null` for the outer modifier.
  * @param rewriteReleased receives the names of the properties released by departed declarations.
  * @param reconcileProperties reconciles the declarations that hold properties and returns the mode that follows them.
@@ -377,14 +377,14 @@ internal inline fun SwingNodeHolder<*>.diffKeyedElements(
                 updating = WriteMode.RewriteEqual
             }
 
-            !NodeRecord.canRebind(record, element) -> {
+            !NodeRecord.canUpdate(record, element) -> {
                 state.records?.detachAndRemove(record, diagnostics)
                 if (attachElement(element, this, key, declaringNode)) autoInvalidates = true
                 updating = WriteMode.RewriteEqual
             }
 
-            !updating.adopt(record, element) -> {
-                if (record.rebindAndWrite(element, component, diagnostics, updating)) autoInvalidates = true
+            !updating.reuse(record, element) -> {
+                if (record.updateTo(element, component, diagnostics, updating)) autoInvalidates = true
                 updating = WriteMode.RewriteEqual
             }
         }
@@ -451,7 +451,7 @@ internal fun rewriteRecordsFrom(
             val record = ComponentNodeType.typed(standing)
             if (record.key != null && record.node !== except) {
                 if (writing || from(record)) {
-                    val mode = if (writing) WriteMode.RewriteEqual else WriteMode.AdoptEqual
+                    val mode = if (writing) WriteMode.RewriteEqual else WriteMode.ReuseEqual
                     writing = true
                     rewrite(record, mode)
                 }

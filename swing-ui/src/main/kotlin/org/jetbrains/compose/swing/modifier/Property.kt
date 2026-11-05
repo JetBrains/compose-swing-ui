@@ -81,7 +81,7 @@ public fun <T : Component, V> SwingModifier.property(
  * Two elements are equal when they declare the *same* [descriptor] - identity, so a pair allocated once,
  * beside the builder or on the property object, compares equal across passes - and carry an equal
  * [value]. [restores], [inheritable], [rewriteOn] and [alsoOverwrites] take no part in equality.
- * Adopting an equal declaration keeps the existing node without updating it, including the [rewriteOn]
+ * Reusing an equal declaration keeps the existing node without updating it, including the [rewriteOn]
  * and [alsoOverwrites] supplied when that node was created.
  *
  * Internal rather than file-private so [org.jetbrains.compose.swing.defaults.ComponentDefaults] can tell

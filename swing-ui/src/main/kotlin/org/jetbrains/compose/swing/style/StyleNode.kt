@@ -137,7 +137,7 @@ private data class StyleKey(
 
 /**
  * Resolves a component's style and writes each property it sets through a property slot of its own, diffed the
- * way the keyed slots of a modifier are: an equal property is adopted, a changed one written, and one that leaves
+ * way the keyed slots of a modifier are: an equal property is reused, a changed one written, and one that leaves
  * the style restored. A parent-layout element the style sets is declared to the parent after the modifier's own,
  * a node-backed one through a layout slot of its own.
  *
@@ -288,11 +288,11 @@ internal class StyleNode(
      * A resolve that throws leaves no element behind, so the next one collects again and writes every slot.
      *
      * @param element the style declaration to apply.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
     fun resolve(
         element: StyleElement<*, *>,
-        mode: WriteMode = WriteMode.AdoptEqual,
+        mode: WriteMode = WriteMode.ReuseEqual,
     ): Boolean {
         val holder = checkNotNull(holder) { "Node is not attached" }
         // The node is reused across kinds, so the requirement is that of the element last applied, not of the first.
@@ -317,7 +317,7 @@ internal class StyleNode(
             }
         // A collection that threw left the node stale, so the next resolve collects again.
         isStale = false
-        // Attached slots can adopt equal declarations when no earlier slot wrote.
+        // Attached slots can reuse equal declarations when no earlier slot wrote.
         val updating = if (ownStyle != null) mode else WriteMode.RewriteEqual
         // A successful apply sets it again; an apply that throws leaves no element behind.
         ownStyle = null
@@ -434,7 +434,7 @@ internal class StyleNode(
      *
      * @param holder the component declaring the layout elements to its parent.
      * @param declared the replacement layout declarations in write order.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
     internal fun declareLayout(
         holder: SwingNodeHolder<*>,
@@ -471,18 +471,18 @@ internal class StyleNode(
                                 nodesChanged = true
                             }
 
-                            !NodeRecord.canRebind(record, element) -> {
+                            !NodeRecord.canUpdate(record, element) -> {
                                 state.records?.detachAndRemove(record, diagnostics)
                                 attachLayoutNode(holder, this, element, diagnostics)
                                 nodesChanged = true
                             }
 
-                            !mode.adopt(record, element) -> {
-                                record.rebindAndWrite(
+                            !mode.reuse(record, element) -> {
+                                record.updateTo(
                                     element,
                                     holder.component,
                                     diagnostics,
-                                    WriteMode.AdoptEqual,
+                                    WriteMode.ReuseEqual,
                                 )
                                 if (holder.declaration.parentReads(record.node)) written = true
                                 nodesChanged = true
@@ -611,7 +611,7 @@ internal class ProvidedStyles private constructor(
  *
  * @param element the declaration to retain after a successful apply.
  * @param collected the resolved declarations, or `null` when no style ran.
- * @param mode whether equal declarations may be adopted or must be written again.
+ * @param mode whether equal declarations may be reused or must be written again.
  * @param previous the previously published styles whose unchanged values may be retained.
  * @param table the retained descriptor properties, or `null` when none have been declared.
  */
@@ -685,7 +685,7 @@ private fun StyleNode.attachNodes(
                         attachElement(element, holder, element.key, this)
                     }
 
-                    !NodeRecord.canRebind(record, element) -> {
+                    !NodeRecord.canUpdate(record, element) -> {
                         records.detachAndRemove(record, diagnostics)
                         attachElement(element, holder, element.key, this)
                     }

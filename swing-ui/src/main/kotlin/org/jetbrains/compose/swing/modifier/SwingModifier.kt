@@ -472,10 +472,10 @@ public interface SwingModifier {
          * [update]s [node], where [mode] determines whether earlier declarations require rewriting,
          * and returns whether the write automatically invalidates its consumer. The default returns
          * [node]'s [shouldAutoInvalidate][SwingModifier.Node.shouldAutoInvalidate] value. An element whose node
-         * owns records writes each of them again instead of adopting equal elements under [WriteMode.RewriteEqual].
+         * owns records writes each of them again instead of reusing equal elements under [WriteMode.RewriteEqual].
          *
          * @param node the node [create] returned for this element, already attached.
-         * @param mode whether equal declarations may be adopted or must be written again.
+         * @param mode whether equal declarations may be reused or must be written again.
          */
         internal open fun update(
             node: N,
@@ -510,7 +510,7 @@ public interface SwingModifier {
          * What is written belongs to [node] and to no other, so an element handed to two slots carries
          * nothing either of them can reach the other by.
          */
-        internal open fun adopt(
+        internal open fun reuse(
             node: N,
             next: NodeElement<*, *>,
         ): Boolean = this == next
@@ -558,7 +558,7 @@ internal open class CombinedSwingModifier(
  * currently occupying it.
  *
  * The node hosts only elements of the exact class of the one it holds, as AndroidX reuses a node only for an
- * element of the same class; [canRebind] checks that, so a rebind's narrowing is a verified [Class.cast].
+ * element of the same class; [canUpdate] checks that, so an update's narrowing is a verified [Class.cast].
  */
 internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Element>(
     /** The retained node, cleared after permanent removal. */
@@ -665,7 +665,7 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
             clear()
             throw failure
         }
-        return refresh(checkNotNull(node.holder).component, null, WriteMode.AdoptEqual)
+        return refresh(checkNotNull(node.holder).component, null, WriteMode.ReuseEqual)
     }
 
     /**
@@ -693,15 +693,15 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
     ): Unit = runEveryStep({ runDetachLifecycle(diagnostics, reportCallbackFailure) }, node::detach)
 
     /**
-     * Rebinds the record to [element] and writes it against [target] whatever the record already carries.
-     * Only call when [canRebind] holds. [mode] controls adoption and rewriting; see [refresh].
+     * Updates the record to [element] and writes it against [target] whatever the record already carries.
+     * Only call when [canUpdate] holds. [mode] controls reuse and rewriting; see [refresh].
      *
      * @param element the declaration the record holds from now on.
      * @param target the component the declaration is written against.
      * @param diagnostics where a failing write is reported, or `null` for none.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
-    fun rebindAndWrite(
+    fun updateTo(
         element: SwingModifier.Element,
         target: Component,
         diagnostics: SwingCompositionDiagnostics?,
@@ -714,7 +714,7 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
     /**
      * Whether this record can keep the element it holds for [incoming], the element the pass being applied
      * declares in its place - having handed the node whatever [incoming] carries as read, not applied. See
-     * [SwingModifier.NodeElement.adopt].
+     * [SwingModifier.NodeElement.reuse].
      *
      * Where it can, [incoming] becomes the element the record holds. Nothing is written - it declares what
      * the one held did - but the element the last diff installed is released, and with it everything the
@@ -722,14 +722,14 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
      *
      * @param incoming the declaration the pass being applied declares in this record's place.
      */
-    abstract fun adopt(incoming: SwingModifier.Element): Boolean
+    abstract fun reuse(incoming: SwingModifier.Element): Boolean
 
     /**
      * Pushes the retained declaration onto the node under [mode]'s ordering policy.
      *
      * @param target the component the declaration is written against.
      * @param diagnostics where a failing write is reported, or `null` for none.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
     abstract fun refresh(
         target: Component,
@@ -744,7 +744,7 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
          * @param record the record whose node is checked.
          * @param element the declaration the record would hold.
          */
-        fun canRebind(
+        fun canUpdate(
             record: NodeRecord<*, *>,
             element: SwingModifier.Element,
         ): Boolean = element.javaClass === record.element.javaClass
@@ -839,9 +839,9 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
     }
 
     // Only a component element is paired with a component record.
-    override fun adopt(incoming: SwingModifier.Element): Boolean {
-        if (!canRebind(this, incoming) ||
-            !element.adopt(node, incoming as SwingModifier.NodeElement<*, *>)
+    override fun reuse(incoming: SwingModifier.Element): Boolean {
+        if (!canUpdate(this, incoming) ||
+            !element.reuse(node, incoming as SwingModifier.NodeElement<*, *>)
         ) {
             return false
         }
@@ -854,7 +854,7 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
      *
      * @param target the component the declaration is written against.
      * @param diagnostics where a failing write is reported, or `null` for none.
-     * @param mode whether equal declarations may be adopted or must be written again.
+     * @param mode whether equal declarations may be reused or must be written again.
      */
     override fun refresh(
         target: Component,
@@ -923,8 +923,8 @@ internal class ParentLayoutNodeRecord(
         (if (invalidates) ModifierChanges.ListenerNeedsUpdatedNodes else ModifierChanges.None) +
             (if (holder.declaration.parentReads(node)) ModifierChanges.ParentLayoutUpdated else ModifierChanges.None)
 
-    override fun adopt(incoming: SwingModifier.Element): Boolean {
-        if (!canRebind(this, incoming) || element != incoming) return false
+    override fun reuse(incoming: SwingModifier.Element): Boolean {
+        if (!canUpdate(this, incoming) || element != incoming) return false
         element = element.javaClass.cast(incoming)
         return true
     }
@@ -1352,7 +1352,7 @@ public class SwingModifierState internal constructor() {
      * the diff applied it. [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] reads it through
      * [declared].
      *
-     * Adopting decides what reaches the component, not what is held: a slot that adopts its element writes
+     * Reuse decides what reaches the component, not what is held: a slot that reuses its element writes
      * nothing, but it still takes the new instance, releasing everything the replaced one captured.
      *
      * An [UnfinishedPass] from the start of a pass or a slot refresh until it returns. If one is left behind
@@ -1480,31 +1480,31 @@ public class SwingModifierState internal constructor() {
         val diagnostics = holder?.owner?.diagnostics
         val handed = handedNodes
         val held = startWrite()
-        var handsOver = false
+        var needsDeclaredNodes = false
         if (!rewritePropertySlotsFrom(
                 node.component,
                 diagnostics,
-                onInvalidates = { handsOver = true },
+                onInvalidates = { needsDeclaredNodes = true },
             ) { it.node === node }
         ) {
             val rewritten = records?.fastFirstOrNull { it.key == null && it.node === node }
             if (rewritten != null) {
-                if (rewritten.refresh(node.component, diagnostics, mode = WriteMode.AdoptEqual)) {
-                    handsOver = true
+                if (rewritten.refresh(node.component, diagnostics, mode = WriteMode.ReuseEqual)) {
+                    needsDeclaredNodes = true
                 }
             } else {
                 // A node a style's slot holds is stored in the modifier's records with that style as its declaring
                 // node, so when no record above holds it, the lookup below rewrites each style's slots and only the
                 // style holding it matches.
                 forEachStyle(holder) { style ->
-                    style.rewriteSlotsFrom(onInvalidates = { handsOver = true }) { record ->
+                    style.rewriteSlotsFrom(onInvalidates = { needsDeclaredNodes = true }) { record ->
                         record.node === node
                     }
                 }
             }
         }
         applied = held
-        if (holder != null && handsOver) {
+        if (holder != null && needsDeclaredNodes) {
             holder.notifyDeclaredNodes(chainChanged = true, handedNodes = handed)
         }
     }
@@ -1608,21 +1608,21 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
 
 /**
  * @param modifier the modifier to diff onto this node's chain.
- * @param handsOver whether a record written in place before this diff holds a node the holder's
- *   [DeclaredNodesListener] needs; the diff adopts that record and hands the nodes over.
+ * @param needsDeclaredNodes whether a record written in place before this diff holds a node the holder's
+ *   [DeclaredNodesListener] needs; the diff reuses that record and hands the nodes over.
  */
 internal fun SwingNodeHolder<Component>.applyModifierDiff(
     modifier: SwingModifier,
-    handsOver: Boolean = false,
+    needsDeclaredNodes: Boolean = false,
 ) {
     // A holder with no installed chain marks it whole before any attachment callback runs.
     val attachesWholeChain = modifierState?.attachesWholeChain != false
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
     // A holder whose last write threw has records holding no declaration: every record is written again, and the
     // nodes it attached are handed over.
-    val mode = if (state.startWrite() !is UnfinishedPass) WriteMode.AdoptEqual else WriteMode.RewriteEqual
+    val mode = if (state.startWrite() !is UnfinishedPass) WriteMode.ReuseEqual else WriteMode.RewriteEqual
     val handedNodes = state.handedNodes
-    val initialChange = (mode === WriteMode.RewriteEqual) or handsOver
+    val initialChange = (mode === WriteMode.RewriteEqual) or needsDeclaredNodes
     // Read off the owner rather than held: the node is attached to its composition before its update
     // block runs, so the owner answers for every write this pass makes.
     val diagnostics = owner?.diagnostics
@@ -1758,7 +1758,7 @@ private fun SwingNodeHolder<Component>.applyLayoutNodes(
                 state,
                 incoming,
                 ParentLayoutNodeType,
-                if (attached) WriteMode.AdoptEqual else mode,
+                if (attached) WriteMode.ReuseEqual else mode,
             )
         if (attached) changes += ModifierChanges.NodesAddedOrRemoved
         layoutChange = changes
@@ -1778,7 +1778,7 @@ private fun SwingNodeHolder<Component>.applyLayoutNodes(
  * Runs the component nodes [marked] attaches, or diffs the keyed records of [partition] where none does, then diffs
  * the additive component records. Returns whether a record joined or left the chain, or was written with a new element
  * that automatically invalidates its consumer. A record standing
- * from before this pass adopts an equal element only where [mode] permits it.
+ * from before this pass reuses an equal element only where [mode] permits it.
  */
 private fun SwingNodeHolder<*>.applyComponentSlots(
     state: SwingModifierState,
@@ -1787,7 +1787,7 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
     mode: WriteMode,
 ): Boolean {
     val diagnostics = owner?.diagnostics
-    val needsHandover =
+    val needsDeclaredNodes =
         if (marked == null) {
             diffKeyedElements(partition.keyed, mode)
         } else {
@@ -1801,12 +1801,12 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
             partition,
             ComponentNodeType,
             if (marked != null) {
-                WriteMode.AdoptEqual
+                WriteMode.ReuseEqual
             } else {
                 mode
             },
         )
-    return needsHandover || changes.needsDeclaredNodes
+    return needsDeclaredNodes || changes.needsDeclaredNodes
 }
 
 /**

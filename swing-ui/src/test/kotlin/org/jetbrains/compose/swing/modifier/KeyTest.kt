@@ -114,7 +114,7 @@ class KeyTest {
         assertEquals(
             1,
             counts.updates.get(),
-            "a modifier declaring what it declared last is adopted, not written again",
+            "a modifier declaring what it declared last is reused, not written again",
         )
 
         // A modifier that did change is diffed, and the token standing still is what leaves its slots where

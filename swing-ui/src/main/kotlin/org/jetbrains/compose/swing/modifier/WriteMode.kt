@@ -8,7 +8,7 @@ internal sealed interface WriteMode {
      * @param record the record offered [incoming].
      * @param incoming the declaration offered to [record].
      */
-    fun adopt(
+    fun reuse(
         record: NodeRecord<*, *>,
         incoming: SwingModifier.Element,
     ): Boolean
@@ -28,7 +28,7 @@ internal sealed interface WriteMode {
     ): Boolean
 
     /** An equal declaration keeps its node without writing. */
-    data object AdoptEqual : WriteMode {
+    data object ReuseEqual : WriteMode {
         override val rewritesEqual: Boolean get() = false
 
         override fun writes(
@@ -36,10 +36,10 @@ internal sealed interface WriteMode {
             incoming: SwingModifier.Element,
         ): Boolean = held != incoming
 
-        override fun adopt(
+        override fun reuse(
             record: NodeRecord<*, *>,
             incoming: SwingModifier.Element,
-        ): Boolean = record.adopt(incoming)
+        ): Boolean = record.reuse(incoming)
     }
 
     /** An equal declaration is written again, because an earlier record wrote or moved. */
@@ -51,7 +51,7 @@ internal sealed interface WriteMode {
             incoming: SwingModifier.Element,
         ): Boolean = true
 
-        override fun adopt(
+        override fun reuse(
             record: NodeRecord<*, *>,
             incoming: SwingModifier.Element,
         ): Boolean = false

@@ -68,7 +68,7 @@ private val TestTagProperty =
  *
  * A look and feel may derive other properties from this entry; removing the declaration restores the
  * entry, not what was derived from it. A declaration of the same key and value as the pass before is
- * adopted rather than written again, since writing the value already standing announces nothing for a
+ * reused rather than written again, since writing the value already standing announces nothing for a
  * look and feel to answer. To have a derivation run again, use
  * [org.jetbrains.compose.swing.modifier.key].
  *
@@ -118,7 +118,7 @@ private class ClientPropertyElement(
         node.apply(declared)
     }
 
-    /** Two declarations of one key and one value are equal, so a modifier re-declaring the entry is adopted. */
+    /** Two declarations of one key and one value are equal, so a modifier re-declaring the entry is reused. */
     override fun equals(other: Any?): Boolean =
         other is ClientPropertyElement && propertyKey == other.propertyKey && declared == other.declared
 

@@ -38,7 +38,7 @@ public fun SwingModifier.drawBehind(onDraw: DrawScope.() -> Unit): SwingModifier
 public fun SwingModifier.drawWithContent(onDraw: ContentDrawScope.() -> Unit): SwingModifier =
     decoration(DrawWithContentElement(onDraw))
 
-/** The additive element behind [SwingModifier.drawBehind]. Its own class keeps a rebind from landing on a node. */
+/** The additive element behind [SwingModifier.drawBehind]. Its own class keeps an update from landing on a node. */
 private class DrawBehindElement(
     private val onDraw: DrawScope.() -> Unit,
 ) : SwingModifier.NodeElement<Component, DrawBehindNode>() {
@@ -80,7 +80,7 @@ private class DrawBehindNode(
 }
 
 /**
- * The additive element behind [SwingModifier.drawWithContent]. Its own class keeps a rebind from landing on
+ * The additive element behind [SwingModifier.drawWithContent]. Its own class keeps an update from landing on
  * a [DrawBehindNode].
  */
 private class DrawWithContentElement(
