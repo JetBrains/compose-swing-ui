@@ -51,6 +51,12 @@ public final class org/jetbrains/compose/swing/detekt/SwingModifierWithoutDefaul
 	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
 }
 
+public final class org/jetbrains/compose/swing/detekt/SwingStyleWithoutDefault : dev/detekt/api/Rule {
+	public fun <init> (Ldev/detekt/api/Config;)V
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
+}
+
 public final class org/jetbrains/compose/swing/detekt/UnheldColumnComparator : dev/detekt/api/Rule {
 	public fun <init> (Ldev/detekt/api/Config;)V
 	public fun getRuleName ()Ldev/detekt/api/RuleName;

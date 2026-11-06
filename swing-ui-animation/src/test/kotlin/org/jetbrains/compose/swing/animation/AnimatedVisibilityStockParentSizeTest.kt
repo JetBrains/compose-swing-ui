@@ -18,8 +18,8 @@ import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
@@ -135,8 +135,8 @@ class AnimatedVisibilityStockParentSizeTest {
                             SwingModifier
                                 .testTag(CONTENT)
                                 .fillMaxWidth()
-                                .aspectRatio(RATIO)
-                                .preferredSize(ownWidth, 20),
+                                .aspectRatio(RATIO),
+                        style = { preferredSize(ownWidth, 20) },
                     )
                 }
             }

@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.fillMaxSize
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -29,7 +29,7 @@ class AnimatedContentMeasureSwitchTest {
             var state by mutableStateOf("a")
             val targets = mutableListOf<Dimension>()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, 300)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, 300) }) {
                     AnimatedContent(state, SwingModifier.center().testTag("animation"), transitionSpec = {
                         (EnterTransition.None togetherWith ExitTransition.None) using
                             SizeTransform { _, target ->
@@ -37,7 +37,7 @@ class AnimatedContentMeasureSwitchTest {
                                 tween(1_000)
                             }
                     }) { target ->
-                        Label(target, modifier = SwingModifier.fillMaxSize().preferredSize(160, 80))
+                        Label(target, modifier = SwingModifier.fillMaxSize(), style = { preferredSize(160, 80) })
                     }
                 }
             }
@@ -66,7 +66,7 @@ class AnimatedContentMeasureSwitchTest {
             var state by mutableStateOf("a")
             val offsets = mutableListOf<Int>()
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, 300)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, 300) }) {
                     AnimatedContent(state, SwingModifier.center().testTag("animation"), transitionSpec = {
                         EnterTransition.None togetherWith
                             slideOutOfContainer(direction, animationSpec = tween(1_000)) { offset ->
@@ -74,7 +74,7 @@ class AnimatedContentMeasureSwitchTest {
                                 offset
                             }
                     }) { target ->
-                        Label(target, modifier = SwingModifier.fillMaxSize().preferredSize(160, 80))
+                        Label(target, modifier = SwingModifier.fillMaxSize(), style = { preferredSize(160, 80) })
                     }
                 }
             }

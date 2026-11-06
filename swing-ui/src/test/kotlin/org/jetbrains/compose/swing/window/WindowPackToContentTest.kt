@@ -5,8 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -31,7 +30,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -52,7 +51,7 @@ class WindowPackToContentTest {
         val state = DialogState()
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-pack-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -73,7 +72,7 @@ class WindowPackToContentTest {
         val state = WindowState(size = Dimension(420, 300))
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-explicit-size-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -89,7 +88,7 @@ class WindowPackToContentTest {
         val state = DialogState(size = Dimension(360, 240))
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-explicit-size-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -105,7 +104,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-writeback-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -121,7 +120,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-repack-test") {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -153,7 +152,7 @@ class WindowPackToContentTest {
         var windowTitle by mutableStateOf("window-repack-noop-test")
         setContent {
             Window(onCloseRequest = {}, state = state, title = windowTitle) {
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
+                Panel(PanelLayout.Flow(), style = { preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT) }) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()

@@ -12,8 +12,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -52,8 +53,8 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         return declared ?: error("the scroll pane did not compose")
@@ -95,8 +96,8 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState(y = 200)
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -119,8 +120,8 @@ class ScrollStateRevealTest {
                 revealed = state.revealRect(distantRegion)
                 onDispose {}
             }
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -141,11 +142,11 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                 Viewport {
                     SwingNode(
                         factory = { JLabel("body").also { view = it } },
-                        modifier = SwingModifier.preferredSize(300, 400),
+                        modifier = SwingModifier.styleable { preferredSize(300, 400) },
                     )
                     DisposableEffect(Unit) {
                         val viewport = assertIs<JViewport>(view.parent, "the view must be attached before revealing it")
@@ -176,9 +177,9 @@ class ScrollStateRevealTest {
                 state.revealRect(distantRegion)
                 onDispose {}
             }
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                 Viewport {
-                    Label("body", modifier = SwingModifier.preferredSize(300, 400))
+                    Label("body", style = { preferredSize(300, 400) })
                     DisposableEffect(Unit) {
                         state.revealRect(second)
                         onDispose {}
@@ -199,8 +200,8 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -225,8 +226,8 @@ class ScrollStateRevealTest {
             val state = rememberScrollState()
             declared = state
             if (shown) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -251,11 +252,11 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                 Viewport {
                     if (filled) {
                         key(generation) {
-                            Label("body", modifier = SwingModifier.preferredSize(300, 400))
+                            Label("body", style = { preferredSize(300, 400) })
                         }
                     }
                 }
@@ -281,8 +282,8 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -304,8 +305,8 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -327,8 +328,8 @@ class ScrollStateRevealTest {
             val state = rememberScrollState()
             declared = state
             scope = rememberCoroutineScope()
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { if (filled) Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -350,9 +351,9 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            val body = remember { movableContentOf { Label("body", modifier = SwingModifier.preferredSize(300, 400)) } }
+            val body = remember { movableContentOf { Label("body", style = { preferredSize(300, 400) }) } }
             Panel {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                     Viewport { if (inPane) body() }
                 }
                 if (!inPane) body()
@@ -378,10 +379,10 @@ class ScrollStateRevealTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) { Viewport {} }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) { Viewport {} }
             if (swapped) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }

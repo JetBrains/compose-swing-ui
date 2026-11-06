@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -97,6 +97,6 @@ private fun FrameVisibility(
     exit: ExitTransition,
 ) {
     AnimatedVisibility(state, SwingModifier.testTag("animation"), enter, exit) {
-        Label("", modifier = SwingModifier.testTag("body").preferredSize(80, 40))
+        Label("", modifier = SwingModifier.testTag("body"), style = { preferredSize(80, 40) })
     }
 }

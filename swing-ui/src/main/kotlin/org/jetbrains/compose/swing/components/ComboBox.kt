@@ -8,8 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
-import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
-import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberItemContentKind
+import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
+import org.jetbrains.compose.swing.components.style.ComboBoxes
+import org.jetbrains.compose.swing.components.style.listItemRenderer
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -21,6 +23,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.event.ActionListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
@@ -44,6 +51,7 @@ import javax.swing.JComboBox
  *   [items] do not contain
  * @param onSelectionChange callback invoked when the user chooses an item
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
  *   committed; a text that matches no item is reported here and nowhere else, since [selectedItem]
@@ -51,7 +59,8 @@ import javax.swing.JComboBox
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for one of [items]: text
  *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
  *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
@@ -62,6 +71,7 @@ public fun <T> ComboBox(
     selectedItem: T?,
     onSelectionChange: (T?) -> Unit,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     editable: Boolean = false,
     onValueCommit: (@Nls String) -> Unit = {},
     maximumRowCount: Int? = null,
@@ -72,6 +82,7 @@ public fun <T> ComboBox(
     val settled = rememberSelectionReader(declaredItems)
     ComboBoxNode(
         modifier = modifier.onSelectionAction(mirror, settled, onSelectionChange, onValueCommit),
+        style = style,
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -92,13 +103,15 @@ public fun <T> ComboBox(
  *   not contain
  * @param actionListener the listener notified of every action event the combo box fires
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
  *   whatever was typed as the combo box's selected item
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for one of [items]: text
  *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
  *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
@@ -109,6 +122,7 @@ public fun <T> ComboBox(
     selectedItem: T?,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     editable: Boolean = false,
     maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
@@ -132,6 +146,7 @@ public fun <T> ComboBox(
             modifier
                 .actionListener(actionListener)
                 .listener(itemMirror, COMBO_ITEM_SELECTION),
+        style = style,
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -148,6 +163,7 @@ public fun <T> ComboBox(
  *
  * @param model the combo box model to render; owns its items and selection
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param onSelectionChange callback invoked with the settled selected index when the user chooses an item
  * @param editable whether the user can type a value into the combo box's editor; `false` by default
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
@@ -156,7 +172,8 @@ public fun <T> ComboBox(
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for a value the [model]
  *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
  *   [editable] editor
  * @see javax.swing.JComboBox
@@ -165,6 +182,7 @@ public fun <T> ComboBox(
 public fun <T> ComboBox(
     model: ComboBoxModel<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     onSelectionChange: (Int) -> Unit = {},
     editable: Boolean = false,
     onValueCommit: (@Nls String) -> Unit = {},
@@ -177,6 +195,7 @@ public fun <T> ComboBox(
     val settled: JComboBox<*>.() -> Int = { this.selectedIndex }
     ComboBoxNode(
         modifier = modifier.onSelectionAction(null, settled, onSelectionChange, onValueCommit),
+        style = style,
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -194,13 +213,15 @@ public fun <T> ComboBox(
  * @param model the combo box model to render; owns its items and selection
  * @param actionListener the listener notified of every action event the combo box fires
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
  *   whatever was typed as the combo box's selected item
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
  *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   the default `toString` rendering. It wins over a `listItemRenderer` a nested style sets, and a
+ *   `listItemRenderer` that [style] sets wins over it. The display area composes a cell only for a value the [model]
  *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
  *   [editable] editor
  * @see javax.swing.JComboBox
@@ -210,12 +231,14 @@ public fun <T> ComboBox(
     model: ComboBoxModel<T>,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     editable: Boolean = false,
     maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ComboBoxNode(
         modifier = modifier.actionListener(actionListener),
+        style = style,
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -235,15 +258,19 @@ public fun <T> ComboBox(
 @Composable
 private inline fun <T> ComboBoxNode(
     modifier: SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope>,
     editable: Boolean,
     maximumRowCount: Int?,
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
 ) {
-    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
+    val content = rememberItemContentKind(ComboBoxKind, itemContent) { listItemRenderer(it) }
     SwingNode(
         factory = { JComboBox<T>() },
-        modifier = modifier.declaredListItemRenderer(cells).declaredMaximumRowCount(maximumRowCount),
+        modifier =
+            modifier
+                .declaredMaximumRowCount(maximumRowCount)
+                .styleable(style, content),
         update = {
             set(editable) { this.isEditable = it }
             installContent()
@@ -381,3 +408,11 @@ private val MaximumRowCountProperty =
 
 private fun SwingModifier.declaredMaximumRowCount(maximumRowCount: Int?): SwingModifier =
     if (maximumRowCount == null) this else property(MaximumRowCountProperty, maximumRowCount)
+
+private val ComboBoxKind =
+    nestingStyleKind<ComboBoxStyleScope, Unit>(
+        { base, _ -> object : ComboBoxStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(ComboBoxes)
+    }

@@ -7,8 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -46,8 +45,8 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState(x = x, y = y)
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         return declared ?: error("the scroll pane did not compose")
@@ -151,8 +150,8 @@ class ScrollStateTest {
             val state = rememberScrollState()
             declared = state
             if (visible) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -192,12 +191,12 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                 Viewport {
                     key(second) {
                         Label(
                             if (second) "second" else "first",
-                            modifier = SwingModifier.preferredSize(300, 400),
+                            style = { preferredSize(300, 400) },
                         )
                     }
                 }
@@ -227,9 +226,9 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
                 if (hasContent) {
-                    Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                    Viewport { Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -262,16 +261,16 @@ class ScrollStateTest {
             declaredOnSecond = fromSecond
             Panel(PanelLayout.Box()) {
                 ScrollPane(
-                    modifier = SwingModifier.preferredSize(100, 50),
+                    style = { preferredSize(100, 50) },
                     state = if (swapped) fromSecond else fromFirst,
                 ) {
-                    Viewport { Label("first", modifier = SwingModifier.preferredSize(300, 400)) }
+                    Viewport { Label("first", style = { preferredSize(300, 400) }) }
                 }
                 ScrollPane(
-                    modifier = SwingModifier.preferredSize(100, 50),
+                    style = { preferredSize(100, 50) },
                     state = if (swapped) fromFirst else fromSecond,
                 ) {
-                    Viewport { Label("second", modifier = SwingModifier.preferredSize(300, 400)) }
+                    Viewport { Label("second", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -333,14 +332,14 @@ class ScrollStateTest {
             declared = state
             val declareLeaving: @Composable () -> Unit = {
                 if (bothPanes) {
-                    ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                        Viewport { Label("leaving", modifier = SwingModifier.preferredSize(300, 400)) }
+                    ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                        Viewport { Label("leaving", style = { preferredSize(300, 400) }) }
                     }
                 }
             }
             val declareStaying: @Composable () -> Unit = {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { Label("staying", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { Label("staying", style = { preferredSize(300, 400) }) }
                 }
             }
             Panel(PanelLayout.Box()) {
@@ -380,14 +379,14 @@ class ScrollStateTest {
             val own = rememberScrollState()
             declaredOnBoth = shared
             Panel(PanelLayout.Box()) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = shared) {
-                    Viewport { Label("first", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = shared) {
+                    Viewport { Label("first", style = { preferredSize(300, 400) }) }
                 }
                 ScrollPane(
-                    modifier = SwingModifier.preferredSize(100, 50),
+                    style = { preferredSize(100, 50) },
                     state = if (secondPaneHasItsOwn) own else shared,
                 ) {
-                    Viewport { Label("second", modifier = SwingModifier.preferredSize(300, 400)) }
+                    Viewport { Label("second", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -418,10 +417,10 @@ class ScrollStateTest {
             val two = rememberScrollState(y = 15)
             second = two
             ScrollPane(
-                modifier = SwingModifier.preferredSize(100, 50),
+                style = { preferredSize(100, 50) },
                 state = if (useSecond) two else one,
             ) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         viewport().viewPosition = Point(0, 60)
@@ -450,8 +449,8 @@ class ScrollStateTest {
             val state = rememberScrollState()
             declared = state
             if (visible) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -482,10 +481,10 @@ class ScrollStateTest {
             first = one
             second = two
             ScrollPane(
-                modifier = SwingModifier.preferredSize(100, 50),
+                style = { preferredSize(100, 50) },
                 state = if (useSecond) two else one,
             ) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
         }
         val dropped = first ?: error("the scroll pane did not compose")
@@ -550,8 +549,8 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(300, 200), state = state) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(50, 40)) }
+            ScrollPane(style = { preferredSize(300, 200) }, state = state) {
+                Viewport { Label("body", style = { preferredSize(50, 40) }) }
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -571,8 +570,8 @@ class ScrollStateTest {
             val state = rememberScrollState()
             declared = state
             if (visible) {
-                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                    Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                    Viewport { Label("body", style = { preferredSize(300, 400) }) }
                 }
             }
         }
@@ -596,8 +595,8 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                Viewport { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {
+                Viewport { Label("body", style = { preferredSize(300, 400) }) }
             }
             RoomBelowReader(state) { answers += it }
         }
@@ -633,7 +632,7 @@ class ScrollStateTest {
         setContent {
             val state = rememberScrollState()
             declared = state
-            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {}
+            ScrollPane(style = { preferredSize(100, 50) }, state = state) {}
         }
         val state = declared ?: error("the scroll pane did not compose")
 

@@ -5,12 +5,11 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.HorizontalAlignment
 import org.jetbrains.compose.swing.annotations.VerticalAlignment
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
+import org.jetbrains.compose.swing.components.style.HorizontalTextPositionDescriptor
+import org.jetbrains.compose.swing.components.style.IconTextGapDescriptor
+import org.jetbrains.compose.swing.components.style.VerticalTextPositionDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import javax.swing.AbstractButton
-import javax.swing.JLabel
 
 /**
  * Sets which side of the icon the text is drawn on. Applies to labels and to everything built on a
@@ -22,9 +21,10 @@ import javax.swing.JLabel
  * @see javax.swing.JLabel.setHorizontalTextPosition
  * @see javax.swing.AbstractButton.setHorizontalTextPosition
  */
+@Deprecated("Set it in the component's style: style = { horizontalTextPosition(position) }")
 public fun SwingModifier.horizontalTextPosition(
     @HorizontalAlignment position: Int,
-): SwingModifier = property(HorizontalTextPositionProperty, position, inheritable = true)
+): SwingModifier = property(HorizontalTextPositionDescriptor, position, inheritable = true)
 
 /**
  * Sets whether the text is drawn above, across or below the icon. Applies to labels and to everything
@@ -36,9 +36,10 @@ public fun SwingModifier.horizontalTextPosition(
  * @see javax.swing.JLabel.setVerticalTextPosition
  * @see javax.swing.AbstractButton.setVerticalTextPosition
  */
+@Deprecated("Set it in the component's style: style = { verticalTextPosition(position) }")
 public fun SwingModifier.verticalTextPosition(
     @VerticalAlignment position: Int,
-): SwingModifier = property(VerticalTextPositionProperty, position, inheritable = true)
+): SwingModifier = property(VerticalTextPositionDescriptor, position, inheritable = true)
 
 /**
  * Sets the space between a component's icon and its text. Applies to labels and to everything built on
@@ -52,48 +53,5 @@ public fun SwingModifier.verticalTextPosition(
  * @see javax.swing.JLabel.setIconTextGap
  * @see javax.swing.AbstractButton.setIconTextGap
  */
-public fun SwingModifier.iconTextGap(gap: Int): SwingModifier = property(IconTextGapProperty, gap, inheritable = true)
-
-private val HorizontalTextPositionProperty =
-    ComponentPropertyDescriptor(
-        "horizontalTextPosition",
-        accessor<JLabel, Int>(
-            read = { it.horizontalTextPosition },
-            // A label re-lays out on every write of this one, unlike its neighbors, so skip an
-            // unchanged value rather than asking for a layout that changes nothing.
-            write = { component, value ->
-                if (component.horizontalTextPosition != value) component.horizontalTextPosition = value
-            },
-        ),
-        accessor<AbstractButton, Int>(
-            read = { it.horizontalTextPosition },
-            write = { component, value -> component.horizontalTextPosition = value },
-        ),
-    )
-
-private val VerticalTextPositionProperty =
-    ComponentPropertyDescriptor(
-        "verticalTextPosition",
-        accessor<JLabel, Int>(
-            read = { it.verticalTextPosition },
-            write = { component, value -> component.verticalTextPosition = value },
-        ),
-        accessor<AbstractButton, Int>(
-            read = { it.verticalTextPosition },
-            write = { component, value -> component.verticalTextPosition = value },
-        ),
-    )
-
-private val IconTextGapProperty =
-    ComponentPropertyDescriptor(
-        "iconTextGap",
-        accessor<JLabel, Int>(
-            read = { it.iconTextGap },
-            write = { component, value -> component.iconTextGap = value },
-        ),
-        accessor<AbstractButton, Int>(
-            read = { it.iconTextGap },
-            // Latched by the first write, as a button's painting flags are.
-            write = { component, value -> if (component.iconTextGap != value) component.iconTextGap = value },
-        ),
-    )
+@Deprecated("Set it in the component's style: style = { iconTextGap(gap) }")
+public fun SwingModifier.iconTextGap(gap: Int): SwingModifier = property(IconTextGapDescriptor, gap, inheritable = true)

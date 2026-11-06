@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.foundation
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -22,7 +23,7 @@ class CanvasScrollableTest {
         runComposeSwingTest {
             setContent {
                 Canvas(
-                    modifier = SwingModifier.testTag("canvas").preferredSize(100, 80),
+                    modifier = SwingModifier.testTag("canvas").styleable { preferredSize(100, 80) },
                     onDraw = {},
                 )
             }

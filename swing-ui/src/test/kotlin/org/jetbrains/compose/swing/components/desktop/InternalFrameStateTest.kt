@@ -6,8 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -159,7 +158,7 @@ class InternalFrameStateTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state, onClose = { }, modifier = SwingModifier.toolTip(tip)) {
+                InternalFrame(title = "Editor", state = state, onClose = { }, style = { toolTip(tip) }) {
                     Label(text = "body")
                 }
             }
@@ -244,7 +243,7 @@ class InternalFrameStateTest {
                     title = "Editor",
                     bounds = Rectangle(0, 0, 400, 300),
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                 ) { Label(text = "body") }
             }
         }
@@ -274,7 +273,7 @@ class InternalFrameStateTest {
                     title = "Editor",
                     state = state,
                     onClose = { },
-                    modifier = SwingModifier.toolTip(tip),
+                    style = { toolTip(tip) },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }

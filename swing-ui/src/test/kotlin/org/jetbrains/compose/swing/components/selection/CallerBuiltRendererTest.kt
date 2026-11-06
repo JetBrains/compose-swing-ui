@@ -6,8 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.listItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.TestComboNodeKind
+import org.jetbrains.compose.swing.style.TestListNodeKind
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -28,8 +32,8 @@ import kotlin.test.assertTrue
  * The composable cell renderer reached the way an external caller reaches it: on a component of the
  * caller's own, built in a plain [SwingNode], rather than through a wrapper this library ships.
  *
- * [rememberListItemRenderer] builds the renderer as composition work and [listItemRenderer] installs it
- * as a modifier property, which is the pair `docs/CUSTOM-COMPONENTS.md` tells a caller to write. The
+ * [rememberListItemRenderer] builds the renderer as composition work and `listItemRenderer` installs it
+ * as a style property, which is the pair `docs/CUSTOM-COMPONENTS.md` tells a caller to write. The
  * cell is asked for through the component itself - the renderer it carries, invoked for a row as the
  * widget invokes it when painting - so what these assert is what the caller's component would paint.
  */
@@ -111,7 +115,7 @@ class CallerBuiltRendererTest {
                     val cells = rememberListItemRenderer<String> { item -> Label(item) }
                     SwingNode(
                         factory = { WideList<Int>() },
-                        modifier = SwingModifier.listItemRenderer(cells),
+                        modifier = SwingModifier.styleable(TestListNodeKind) { listItemRenderer(cells) },
                         update = {
                             set(listOf(1, 2)) { setListData(it.toTypedArray()) }
                         },
@@ -170,7 +174,7 @@ class CallerBuiltRendererTest {
                     val cells = rememberListItemRenderer<String> { item -> Label(item) }
                     SwingNode(
                         factory = { WideList<String?>() },
-                        modifier = SwingModifier.listItemRenderer(cells),
+                        modifier = SwingModifier.styleable(TestListNodeKind) { listItemRenderer(cells) },
                         update = {
                             set(listOf("alpha", null)) { setListData(it.toTypedArray()) }
                         },
@@ -194,7 +198,7 @@ class CallerBuiltRendererTest {
             val cells = rememberListItemRenderer<String> { item -> Label(item) }
             SwingNode(
                 factory = { JComboBox<String>() },
-                modifier = SwingModifier.listItemRenderer(cells),
+                modifier = SwingModifier.styleable(TestComboNodeKind) { listItemRenderer(cells) },
                 update = {
                     set(listOf("alpha", "beta")) { model = DefaultComboBoxModel(it.toTypedArray()) }
                 },
@@ -222,7 +226,7 @@ class CallerBuiltRendererTest {
         setContent {
             SwingNode(
                 factory = { WideList<Person>() },
-                modifier = SwingModifier.listItemRenderer(own),
+                modifier = SwingModifier.styleable(TestListNodeKind) { listItemRenderer(own) },
                 update = {
                     set(listOf(Person("Ada", 36))) { setListData(it.toTypedArray()) }
                 },
@@ -260,7 +264,7 @@ private fun <T : Any> TypedItemList(
     val cells = rememberListItemRenderer(itemType) { item -> Label(item.toString()) }
     SwingNode(
         factory = { WideList<Any>() },
-        modifier = modifier.listItemRenderer(cells),
+        modifier = modifier.styleable(TestListNodeKind) { listItemRenderer(cells) },
         update = {
             set(items) { setListData(it.toTypedArray()) }
         },
@@ -269,7 +273,7 @@ private fun <T : Any> TypedItemList(
 
 /**
  * The caller's composable over [WideList], in the shape `docs/CUSTOM-COMPONENTS.md` shows: the renderer
- * is built in the composable body, and the node's update block installs it on the component.
+ * is built in the composable body, and the node's style installs it on the component.
  */
 @Composable
 private fun WideItemList(
@@ -280,7 +284,7 @@ private fun WideItemList(
     val cells = rememberListItemRenderer(itemContent)
     SwingNode(
         factory = { WideList<String>() },
-        modifier = modifier.listItemRenderer(cells),
+        modifier = modifier.styleable(TestListNodeKind) { listItemRenderer(cells) },
         update = {
             set(items) { setListData(it.toTypedArray()) }
         },

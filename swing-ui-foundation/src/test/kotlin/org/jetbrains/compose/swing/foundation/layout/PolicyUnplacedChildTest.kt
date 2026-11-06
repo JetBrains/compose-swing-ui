@@ -14,11 +14,13 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.ComposeTimeoutException
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
@@ -43,7 +45,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
-import org.jetbrains.compose.swing.modifier.appearance.background as swingBackground
 
 /** How a child the policy of a [Layout] stops placing is drawn, focused, shown and sized, and again once placed. */
 class PolicyUnplacedChildTest {
@@ -58,7 +59,13 @@ class PolicyUnplacedChildTest {
             setContent {
                 Layout(
                     content = {
-                        Panel(PanelLayout.Flow(), modifier = SwingModifier.opaque(true).swingBackground(Color.RED)) {}
+                        Panel(
+                            PanelLayout.Flow(),
+                            style = {
+                                background(Color.RED)
+                                opaque(true)
+                            },
+                        ) {}
                         Box(modifier = SwingModifier.background(brush = { _, _ -> Color.BLUE }))
                     },
                     measurePolicy = { measurables, _ ->
@@ -71,7 +78,7 @@ class PolicyUnplacedChildTest {
                             }
                         }
                     },
-                    modifier = containerModifier(2 * CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(2 * CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
             val container = onNodeWithTag(CONTAINER_TAG)
@@ -218,7 +225,7 @@ class PolicyUnplacedChildTest {
                 Box {
                     Layout(
                         content = {
-                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                            Box(modifier = SwingModifier.shadow(4, Color.BLACK).styleable { preferredSize(10, 10) })
                         },
                         measurePolicy = { measurables, _ ->
                             val placeable = measurables.single().measure(Constraints())
@@ -244,7 +251,7 @@ class PolicyUnplacedChildTest {
             var placed by mutableStateOf(true)
             setContent {
                 Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child").visible(false)) },
+                    content = { SizedChild(0, SwingModifier.testTag("child"), style = { visible(false) }) },
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(constraints)
                         layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
@@ -268,7 +275,7 @@ class PolicyUnplacedChildTest {
             var shown by mutableStateOf(true)
             setContent {
                 Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child").visible(shown)) },
+                    content = { SizedChild(0, SwingModifier.testTag("child"), style = { visible(shown) }) },
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(constraints)
                         layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
@@ -309,14 +316,18 @@ class PolicyUnplacedChildTest {
                     content = {
                         Panel(
                             PanelLayout.Flow(),
-                            modifier = SwingModifier.opaque(true).swingBackground(Color.RED).visible(visible),
+                            style = {
+                                background(Color.RED)
+                                opaque(true)
+                                visible(visible)
+                            },
                         ) {}
                     },
                     measurePolicy = { measurables, _ ->
                         val placeable = measurables.single().measure(Constraints.fixed(CHILD_WIDTH, CHILD_HEIGHT))
                         layout(CHILD_WIDTH, CHILD_HEIGHT) { if (placed) placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
             val container = onNodeWithTag(CONTAINER_TAG)
@@ -395,7 +406,9 @@ class PolicyUnplacedChildTest {
             var placed by mutableStateOf(true)
             setContent {
                 Layout(
-                    content = { SizedChild(0, SwingModifier.testTag("child").name("declared").enabled(false)) },
+                    content = {
+                        SizedChild(0, SwingModifier.testTag("child").name("declared"), style = { enabled(false) })
+                    },
                     measurePolicy = { measurables, constraints ->
                         val placeable = measurables.single().measure(constraints)
                         layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
@@ -421,14 +434,14 @@ class PolicyUnplacedChildTest {
                 Layout(
                     content = {
                         Box(modifier = SwingModifier.testTag("child")) {
-                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                            Box(modifier = SwingModifier.shadow(4, Color.BLACK).styleable { preferredSize(10, 10) })
                         }
                     },
                     measurePolicy = { measurables, _ ->
                         val placeable = measurables.single().measure(Constraints())
                         layout(CHILD_WIDTH, CHILD_HEIGHT) { if (placed) placeable.place(20, 20) }
                     },
-                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, CHILD_HEIGHT)),
                 )
             }
             val child = onNodeWithTag("child").fetch<Component>()

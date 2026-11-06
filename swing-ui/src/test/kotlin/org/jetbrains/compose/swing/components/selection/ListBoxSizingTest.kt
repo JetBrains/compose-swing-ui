@@ -5,12 +5,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.listItemRenderer
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.DefaultListCellRenderer
 import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -116,6 +119,31 @@ class ListBoxSizingTest {
             list.measurePrototypeCell().width,
             list.fixedCellWidth,
             "withdrawing the stated width should put the cells back on the prototype's measurement",
+        )
+    }
+
+    @Test
+    fun aDeclaredHeightStandsOverTheMeasurementOfARendererTheStyleSwapsIn() = runComposeSwingTest {
+        val renderer = DefaultListCellRenderer()
+        var styled by mutableStateOf(false)
+        setContent {
+            ListBox(
+                items = items,
+                prototypeCellValue = prototype,
+                fixedCellHeight = 40,
+                style = { if (styled) listItemRenderer(renderer) },
+            )
+        }
+
+        val list = onNodeOfType<JList<String>>().fetch()
+        styled = true
+        awaitIdle()
+        assertSame<Any>(renderer, list.cellRenderer, "the style's renderer should reach the list")
+        assertEquals(40, list.fixedCellHeight, "the height stated in pixels should stand over its measurement")
+        assertEquals(
+            list.measurePrototypeCell().width,
+            list.fixedCellWidth,
+            "the width, stated nowhere, should come from the new renderer's measurement",
         )
     }
 

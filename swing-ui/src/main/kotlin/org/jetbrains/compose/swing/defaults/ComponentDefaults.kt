@@ -212,7 +212,7 @@ internal fun SwingNodeHolder<Component>.refreshInheritedDefaults() {
     val declared = state.declared
     val defaults = compositionLocalMap[LocalComponentDefaults]
     val inheriting = declared as? InheritingSwingModifier
-    val finished = state.applied === declared
+    val finished = state.finished
     if (finished && (inheriting?.outer ?: SwingModifier) == defaults.modifierFor(component.javaClass)) return
     applyDeclaredModifier(defaults.effectiveModifier(component.javaClass, inheriting?.inner ?: declared))
 }

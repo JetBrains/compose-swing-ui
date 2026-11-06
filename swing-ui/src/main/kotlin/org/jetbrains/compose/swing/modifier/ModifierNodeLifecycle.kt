@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier
 
+import androidx.collection.MutableObjectList
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.core.runEveryStep
@@ -27,33 +28,36 @@ internal fun SwingModifierState.attachNodes(
     diagnostics: SwingCompositionDiagnostics?,
 ) {
     val held = startWrite()
-    val keys = ArrayList<Any>(records.size)
-    forEachStandingKeyInUnwindOrder { keys += it }
-    keys.reverse()
-    val chainOrder = ArrayList(chain)
+    val keys = ArrayList<ComponentNodeRecord<*, *>>()
+    records?.forEach(ComponentNodeType, null) { if (it.key != null) keys.add(it as ComponentNodeRecord<*, *>) }
+    val positional = elements
     val marked =
         MarkedChain(
-            keys.map { records.getValue(it) },
-            chainOrder.filterIsInstance<ElementRecord<*, *>>(),
-            chainOrder.filterIsInstance<LayoutNodeRecord>(),
+            keys,
+            positional.filterIsInstance<ComponentNodeRecord<*, *>>(),
+            positional.filterIsInstance<ParentLayoutNodeRecord>(),
         )
-    records.clear()
-    chain.clear()
+    keys.fastForEach { records?.withdraw(it) }
+    positional.fastForEach { records?.withdraw(it) }
     marked.markAttached(holder)
     val batch = holder.owner?.updateBatch
     val outerState = batch?.diffingState
     val outerDeclaration = batch?.diffingDeclaration
     batch?.diffingState = this
-    batch?.diffingDeclaration = chainOrder.map { it.element }
+    batch?.diffingDeclaration = positional.map { it.element }
     try {
         runEveryStep(
             {
                 marked.runLayoutLifecycles(this, diagnostics)
-                marked.runComponentLifecycles(this, keys, diagnostics)
-                applied = held
+                marked.runComponentLifecycles(this, diagnostics)
+                adopt(held)
             },
             { marked.detachOrphaned(this) },
-            { chain.sortBy(chainOrder::indexOf) },
+            {
+                val ordered = MutableObjectList<NodeRecord<*, *>>(positional.size)
+                positional.fastForEach { if (it.isStanding) ordered.add(it) }
+                records?.orderRecords(null, null, ordered)
+            },
         )
     } finally {
         batch?.diffingState = outerState
@@ -69,7 +73,7 @@ internal fun SwingModifierState.attachNodes(
  */
 internal fun List<NodeRecord<*, *>>.detachAll(diagnostics: SwingCompositionDiagnostics?) {
     var first: Throwable? = null
-    fastForEach { node -> first = collectFailure(first) { node.runDetachLifecycle(diagnostics) } }
-    fastForEach { node -> first = collectFailure(first) { node.markDetached() } }
+    fastForEach { record -> first = collectFailure(first) { record.runDetachLifecycle(diagnostics) } }
+    fastForEach { record -> first = collectFailure(first) { record.node.detach() } }
     first?.let { throw it }
 }

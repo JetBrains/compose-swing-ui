@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.TreeSelectionMode
+import org.jetbrains.compose.swing.components.style.Trees
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -15,6 +16,12 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -86,6 +93,7 @@ import javax.swing.tree.TreeSelectionModel
  * @param root the root value of the tree
  * @param children yields the child values of a value, in display order
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
@@ -125,6 +133,7 @@ public fun <T> Tree(
     root: T,
     children: (T) -> List<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
@@ -146,6 +155,7 @@ public fun <T> Tree(
         children = children,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         label = label,
         hasChildren = hasChildren,
         selectedPaths = selectedPaths,
@@ -179,6 +189,7 @@ public fun <T> Tree(
  * @param children yields the child values of a value, in display order
  * @param treeSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
@@ -217,6 +228,7 @@ public fun <T> Tree(
     children: (T) -> List<T>,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
@@ -237,6 +249,7 @@ public fun <T> Tree(
         children = children,
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
+        style = style,
         label = label,
         hasChildren = hasChildren,
         selectedPaths = selectedPaths,
@@ -269,6 +282,7 @@ private inline fun <T> TreeValuesImpl(
     noinline children: (T) -> List<T>,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     noinline label: (T) -> @Nls String,
     noinline hasChildren: ((T) -> Boolean)?,
     selectedPaths: Set<List<Int>>?,
@@ -301,6 +315,7 @@ private inline fun <T> TreeValuesImpl(
     TreeNode(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
+        style = style,
         selectedPaths = selectedPaths,
         state = state,
         treeExpansionListener = treeExpansionListener,
@@ -362,6 +377,7 @@ private inline fun <T> TreeValuesImpl(
  *
  * @param model the tree model to display; owned by the caller and never mutated by the library
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user changes the selection
@@ -385,6 +401,7 @@ private inline fun <T> TreeValuesImpl(
 public fun Tree(
     model: TreeModel,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedPaths: Set<List<Int>>? = null,
     onSelectionChange: (Set<List<Int>>) -> Unit = {},
     onExpansionChange: (Set<List<Int>>) -> Unit = {},
@@ -399,6 +416,7 @@ public fun Tree(
         model = model,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
         modifier = modifier,
+        style = style,
         selectedPaths = selectedPaths,
         state = null,
         treeExpansionListener = null,
@@ -424,6 +442,7 @@ public fun Tree(
  * @param model the tree model to display; owned by the caller and never mutated by the library
  * @param treeSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
  *   selection to the user
  * @param treeExpansionListener the listener notified of the user's expansions and collapses, and of a node
@@ -447,6 +466,7 @@ public fun Tree(
     model: TreeModel,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     selectedPaths: Set<List<Int>>? = null,
     treeExpansionListener: TreeExpansionListener? = null,
     @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
@@ -460,6 +480,7 @@ public fun Tree(
         model = model,
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
+        style = style,
         selectedPaths = selectedPaths,
         state = null,
         treeExpansionListener = treeExpansionListener,
@@ -485,6 +506,7 @@ private inline fun TreeModelImpl(
     model: TreeModel,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     selectedPaths: Set<List<Int>>?,
     state: TreeState?,
     treeExpansionListener: TreeExpansionListener?,
@@ -499,6 +521,7 @@ private inline fun TreeModelImpl(
     TreeNode(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
+        style = style,
         selectedPaths = selectedPaths,
         state = state,
         treeExpansionListener = treeExpansionListener,
@@ -542,6 +565,7 @@ private inline fun TreeModelImpl(
  * @param state the hoistable selection and expansion state the tree applies and reports into; see
  *   [TreeState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
@@ -577,6 +601,7 @@ public fun <T> Tree(
     children: (T) -> List<T>,
     state: TreeState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     onWillExpand: ((value: T, path: List<Int>) -> Boolean)? = null,
@@ -595,6 +620,7 @@ public fun <T> Tree(
         children = children,
         treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
+        style = style,
         label = label,
         hasChildren = hasChildren,
         selectedPaths = state.selectedPaths,
@@ -628,6 +654,7 @@ public fun <T> Tree(
  * @param state the hoistable selection and expansion state the tree applies and reports into; see
  *   [TreeState]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
@@ -647,6 +674,7 @@ public fun Tree(
     model: TreeModel,
     state: TreeState,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     @TreeSelectionMode selectionMode: Int = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION,
     rootVisible: Boolean = true,
     showsRootHandles: Boolean? = null,
@@ -658,6 +686,7 @@ public fun Tree(
         model = model,
         treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
+        style = style,
         selectedPaths = state.selectedPaths,
         state = state,
         treeExpansionListener = null,
@@ -670,6 +699,14 @@ public fun Tree(
         toggleClickCount = toggleClickCount,
     )
 }
+
+private val TreeKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(Trees)
+    }
 
 /**
  * The `JTree` node every [Tree] overload renders: all of it but the structure, which [installContent]
@@ -685,6 +722,7 @@ public fun Tree(
 private inline fun TreeNode(
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
     selectedPaths: Set<List<Int>>?,
     state: TreeState?,
     treeExpansionListener: TreeExpansionListener?,
@@ -776,7 +814,7 @@ private inline fun TreeNode(
                         },
                         install = { installContent(it) },
                     ),
-                ),
+                ).styleable(style, TreeKind),
         update = {
             applyMirror(selectionMirror)
             applyMirror(expansionMirror)

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -19,7 +20,7 @@ class AlignmentTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT)),
                     contentAlignment = BiasAlignment(0.6f, -0.6f),
                 ) {
                     SizedChild(0)
@@ -108,7 +109,7 @@ class AlignmentTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT)),
                     contentAlignment = Alignment.Start + Alignment.Bottom,
                 ) {
                     SizedChild(0)
@@ -127,7 +128,7 @@ class AlignmentTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT)),
                     contentAlignment = AbsoluteAlignment.TopRight,
                 ) {
                     SizedChild(0)
@@ -146,7 +147,10 @@ class AlignmentTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
                     contentAlignment = AbsoluteAlignment.TopRight,
                 ) {
                     SizedChild(0)
@@ -168,7 +172,7 @@ class AlignmentTest {
 
             setContent {
                 Box(
-                    modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT),
+                    modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT)),
                     contentAlignment = placeAtAFixedOffset,
                 ) {
                     SizedChild(0)

@@ -17,14 +17,15 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -64,31 +65,39 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         val orientation = if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT
         Label("End: leading child at x = $endX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().componentOrientation(orientation),
+            modifier =
+                SwingModifier.layoutTrack().fillMaxWidth().styleable {
+                    layoutTrack()
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.End,
         ) {
             LayoutSwatch(
                 "One",
                 LayoutSampleColors.Blue,
                 SwingModifier
-                    .preferredSize(72, 28)
                     .componentListener(onComponentMoved = { endX = it.component.x }),
+                style = { preferredSize(72, 28) },
             )
-            LayoutSwatch("Two", LayoutSampleColors.Orange, SwingModifier.preferredSize(72, 28))
+            LayoutSwatch("Two", LayoutSampleColors.Orange, style = { preferredSize(72, 28) })
         }
         Label("Absolute.Right: leading child at x = $absoluteX px")
         Row(
-            modifier = SwingModifier.layoutTrack().fillMaxWidth().componentOrientation(orientation),
+            modifier =
+                SwingModifier.layoutTrack().fillMaxWidth().styleable {
+                    layoutTrack()
+                    componentOrientation(orientation)
+                },
             horizontalArrangement = Arrangement.Absolute.Right,
         ) {
             LayoutSwatch(
                 "One",
                 LayoutSampleColors.Blue,
                 SwingModifier
-                    .preferredSize(72, 28)
                     .componentListener(onComponentMoved = { absoluteX = it.component.x }),
+                style = { preferredSize(72, 28) },
             )
-            LayoutSwatch("Two", LayoutSampleColors.Orange, SwingModifier.preferredSize(72, 28))
+            LayoutSwatch("Two", LayoutSampleColors.Orange, style = { preferredSize(72, 28) })
         }
     }
 }
@@ -111,34 +120,40 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
         Column(
             modifier =
                 SwingModifier
-                    .preferredSize(Dimension(220, 28))
                     .layoutTrack()
-                    .componentOrientation(orientation),
+                    .styleable {
+                        layoutTrack()
+                        preferredSize(Dimension(220, 28))
+                        componentOrientation(orientation)
+                    },
             horizontalAlignment = Alignment.Start,
         ) {
             LayoutSwatch(
                 "Start child",
                 LayoutSampleColors.Blue,
                 SwingModifier
-                    .preferredSize(96, 28)
                     .componentListener(onComponentMoved = { startX = it.component.x }),
+                style = { preferredSize(96, 28) },
             )
         }
         Label("AbsoluteAlignment.Left: child at x = $leftX px")
         Column(
             modifier =
                 SwingModifier
-                    .preferredSize(Dimension(220, 28))
                     .layoutTrack()
-                    .componentOrientation(orientation),
+                    .styleable {
+                        layoutTrack()
+                        preferredSize(Dimension(220, 28))
+                        componentOrientation(orientation)
+                    },
             horizontalAlignment = AbsoluteAlignment.Left,
         ) {
             LayoutSwatch(
                 "Left child",
                 LayoutSampleColors.Orange,
                 SwingModifier
-                    .preferredSize(96, 28)
                     .componentListener(onComponentMoved = { leftX = it.component.x }),
+                style = { preferredSize(96, 28) },
             )
         }
     }
@@ -174,7 +189,12 @@ internal fun ColumnScope.AlignByBaselineCard() {
                     .layoutTrack()
                     .fillMaxWidth()
                     .testTag(BASELINE_ROW_TAG)
-                    .alignmentGuides(guides, LocalAlignmentGuidesShown.current, marks, lines),
+                    .alignmentGuides(
+                        guides,
+                        LocalAlignmentGuidesShown.current,
+                        marks,
+                        lines,
+                    ).styleable { layoutTrack() },
             horizontalArrangement = Arrangement.spacedBy(16),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -182,19 +202,19 @@ internal fun ColumnScope.AlignByBaselineCard() {
                 text = "Label:",
                 modifier =
                     SwingModifier
-                        .font(Font(Font.SANS_SERIF, Font.PLAIN, 18))
                         .componentListener(onComponentMoved = { labelY = it.component.y })
                         .alignmentGuide(guides)
                         .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
+                style = { font(Font(Font.SANS_SERIF, Font.PLAIN, 18)) },
             )
             TextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier =
                     SwingModifier
-                        .font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize))
                         .alignmentGuide(guides)
                         .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
+                style = { font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize)) },
                 columns = 12,
             )
         }

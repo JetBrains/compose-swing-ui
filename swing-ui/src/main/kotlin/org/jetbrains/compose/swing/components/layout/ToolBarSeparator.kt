@@ -4,11 +4,18 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.style.Separators
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Dimension
 import javax.swing.JToolBar
 
@@ -27,6 +34,7 @@ import javax.swing.JToolBar
  * ```
  *
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param size the size of the separator; `null` by default, which leaves the size to the look and feel.
  *   Withdrawing a declared size hands back the size the look and feel gave the separator, where it gave
  *   one; a separator its look and feel named no size for keeps the last size declared
@@ -35,11 +43,12 @@ import javax.swing.JToolBar
 @Composable
 public fun ToolBarSeparator(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     size: Dimension? = null,
 ) {
     SwingNode(
         factory = { JToolBar.Separator() },
-        modifier = modifier.declaredSeparatorSize(size),
+        modifier = modifier.declaredSeparatorSize(size).styleable(style, ToolBarSeparatorKind),
     )
 }
 
@@ -68,4 +77,12 @@ private fun SwingModifier.declaredSeparatorSize(size: Dimension?): SwingModifier
         this
     } else {
         property(SeparatorSizeProperty, size, restores = RestorePolicy.None)
+    }
+
+private val ToolBarSeparatorKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(Separators)
     }

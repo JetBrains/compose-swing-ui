@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -67,7 +68,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var count by mutableStateOf(3)
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 300))) {
                     repeat(count) { SizedChild(it) }
                 }
             }
@@ -88,7 +89,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var count by mutableStateOf(2)
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 300))) {
                     repeat(count) { SizedChild(it) }
                 }
             }
@@ -109,7 +110,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var weighted by mutableStateOf(true)
             setContent {
-                Column(modifier = containerModifier(100, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 300))) {
                     SizedChild(0)
                     SizedChild(1, if (weighted) SwingModifier.weight(1f) else SwingModifier)
                 }
@@ -138,7 +139,10 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             val arrangement = GatedArrangement()
             setContent {
-                Column(modifier = containerModifier(100, 300), verticalArrangement = arrangement) {
+                Column(
+                    modifier = ContainerModifier.styleable(containerStyle(100, 300)),
+                    verticalArrangement = arrangement,
+                ) {
                     repeat(CHILD_COUNT) { SizedChild(it) }
                 }
             }
@@ -166,7 +170,7 @@ class RowColumnPassReuseTest {
                     name = "Row",
                     container = { content ->
                         Row(
-                            modifier = containerModifier(300, 100),
+                            modifier = ContainerModifier.styleable(containerStyle(300, 100)),
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.Bottom,
                         ) { content() }
@@ -182,7 +186,7 @@ class RowColumnPassReuseTest {
                     name = "Column",
                     container = { content ->
                         Column(
-                            modifier = containerModifier(100, 300),
+                            modifier = ContainerModifier.styleable(containerStyle(100, 300)),
                             verticalArrangement = Arrangement.Bottom,
                             horizontalAlignment = Alignment.End,
                         ) { content() }

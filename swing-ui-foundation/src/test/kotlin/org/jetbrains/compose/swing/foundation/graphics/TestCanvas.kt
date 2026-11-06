@@ -6,8 +6,11 @@ import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import java.awt.AlphaComposite
@@ -57,9 +60,9 @@ internal fun ComposeSwingTest.decoratedCanvases(
                     modifier =
                         SwingModifier
                             .testTag("canvas $index")
-                            .preferredSize(width, height)
                             .then(decoration(index))
-                            .drawBehind { draw(index) },
+                            .drawBehind { draw(index) }
+                            .styleable { preferredSize(width, height) },
                 )
             }
         }
@@ -67,15 +70,16 @@ internal fun ComposeSwingTest.decoratedCanvases(
     return List(count) { onNodeWithTag("canvas $it").fetch<JComponent>() }
 }
 
-/** The test's transparent [DecoratedPanel] declaring [modifier], drawing through [draw]. */
+/** The test's transparent [DecoratedPanel] declaring [modifier] and [style], drawing through [draw]. */
 @Composable
 internal fun DecoratedCanvas(
     modifier: SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
     draw: DrawScope.() -> Unit = {},
 ) {
     SwingNode(
         factory = { DecoratedPanel().apply { isOpaque = false } },
-        modifier = modifier.drawBehind(draw),
+        modifier = modifier.drawBehind(draw).styleable(style),
     )
 }
 
@@ -132,11 +136,12 @@ internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension
 @Composable
 internal fun Canvas(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComponentStyleScope> = SwingStyle,
     onDraw: (Graphics2D, Int, Int) -> Unit,
 ) {
     SwingNode(
         factory = { DecoratedPanel().apply { isOpaque = false } },
-        modifier = modifier then TestDrawElement(onDraw),
+        modifier = (modifier then TestDrawElement(onDraw)).styleable(style),
     )
 }
 

@@ -5,9 +5,10 @@ import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -43,22 +44,22 @@ class ClipToBoundsTest {
     fun theClippedChildsRealContentDoesNotBleedBeyondTheBoxItsChainReports() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.testTag("row").preferredSize(Dimension(200, 200))) {
+                Row(modifier = SwingModifier.testTag("row").styleable { preferredSize(Dimension(200, 200)) }) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("clipped")
                                 .clipToBounds()
                                 .reportedSize(20, 20)
-                                .preferredSize(Dimension(80, 80))
-                                .background(brush = { _, _ -> Color.RED }),
+                                .background(brush = { _, _ -> Color.RED })
+                                .styleable { preferredSize(Dimension(80, 80)) },
                     )
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("sibling")
-                                .preferredSize(Dimension(30, 30))
-                                .background(brush = { _, _ -> Color.BLUE }),
+                                .background(brush = { _, _ -> Color.BLUE })
+                                .styleable { preferredSize(Dimension(30, 30)) },
                     )
                 }
             }
@@ -109,18 +110,24 @@ class ClipToBoundsTest {
             val plain = repaintingChild()
             setContent {
                 SwingNode(factory = { host }) {
-                    Row(modifier = SwingModifier.preferredSize(Dimension(200, 200))) {
+                    Row(modifier = SwingModifier.styleable { preferredSize(Dimension(200, 200)) }) {
                         Box(
                             modifier =
                                 SwingModifier
                                     .clipToBounds()
                                     .reportedSize(20, 20)
-                                    .preferredSize(Dimension(80, 80)),
+                                    .styleable { preferredSize(Dimension(80, 80)) },
                         ) {
-                            SwingNode(factory = { clipped }, modifier = SwingModifier.preferredSize(Dimension(80, 80)))
+                            SwingNode(
+                                factory = { clipped },
+                                modifier = SwingModifier.styleable({ preferredSize(Dimension(80, 80)) }, RawKind),
+                            )
                         }
-                        Box(modifier = SwingModifier.preferredSize(Dimension(30, 30))) {
-                            SwingNode(factory = { plain }, modifier = SwingModifier.preferredSize(Dimension(30, 30)))
+                        Box(modifier = SwingModifier.styleable { preferredSize(Dimension(30, 30)) }) {
+                            SwingNode(
+                                factory = { plain },
+                                modifier = SwingModifier.styleable({ preferredSize(Dimension(30, 30)) }, RawKind),
+                            )
                         }
                     }
                 }
@@ -139,7 +146,7 @@ class ClipToBoundsTest {
     fun aClippedChildKeepsItsContentsBaseline() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(CHILD_WIDTH * 2, CHILD_HEIGHT * 2)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH * 2, CHILD_HEIGHT * 2))) {
                     DecoratedBaselineChild(10, SwingModifier.alignByBaseline().clipToBounds())
                     DecoratedBaselineChild(30, SwingModifier.alignByBaseline())
                 }
@@ -156,22 +163,22 @@ class ClipToBoundsTest {
     fun nestedClipsIntersect() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.testTag("row").preferredSize(Dimension(200, 200))) {
+                Row(modifier = SwingModifier.testTag("row").styleable { preferredSize(Dimension(200, 200)) }) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("clipped")
                                 .clipToBounds()
                                 .reportedSize(20, 80)
-                                .preferredSize(Dimension(80, 80)),
+                                .styleable { preferredSize(Dimension(80, 80)) },
                     ) {
                         Box(
                             modifier =
                                 SwingModifier
                                     .clipToBounds()
                                     .reportedSize(80, 20)
-                                    .preferredSize(Dimension(80, 80))
-                                    .background(brush = { _, _ -> Color.RED }),
+                                    .background(brush = { _, _ -> Color.RED })
+                                    .styleable { preferredSize(Dimension(80, 80)) },
                         )
                     }
                 }
@@ -198,9 +205,12 @@ class ClipToBoundsTest {
                                 .testTag(CONTAINER_TAG)
                                 .clipToBounds()
                                 .reportedSize(20, 20)
-                                .preferredSize(Dimension(80, 80)),
+                                .styleable { preferredSize(Dimension(80, 80)) },
                     ) {
-                        SwingNode(factory = { child }, modifier = SwingModifier.preferredSize(Dimension(80, 80)))
+                        SwingNode(
+                            factory = { child },
+                            modifier = SwingModifier.styleable({ preferredSize(Dimension(80, 80)) }, RawKind),
+                        )
                     }
                 }
             }
@@ -249,8 +259,16 @@ class ClipToBoundsTest {
             setWindowContent {
                 SwingNode(factory = { host }) {
                     Box {
-                        Box(modifier = SwingModifier.preferredSize(20, 20).placementLayer { scaleX = 2f })
-                        SwingNode(factory = { child }, modifier = SwingModifier.preferredSize(30, 30))
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .placementLayer { scaleX = 2f }
+                                    .styleable { preferredSize(20, 20) },
+                        )
+                        SwingNode(
+                            factory = { child },
+                            modifier = SwingModifier.styleable({ preferredSize(30, 30) }, RawKind),
+                        )
                     }
                 }
             }

@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildAt
@@ -48,11 +48,24 @@ class MutableTransitionValueTest {
                         enter = expandIn(tween(1600)) { Dimension(it.width / 2, it.height) },
                         exit = ExitTransition.None,
                     ) {
-                        Label("copy", SwingModifier.preferredSize(80, 40).opaque(true))
+                        Label(
+                            "copy",
+                            style = {
+                                preferredSize(80, 40)
+                                opaque(true)
+                            },
+                        )
                     }
                 }
                 AnimatedVisibility(visible, SwingModifier.testTag(CONTAINER), enter = enter, exit = exit) {
-                    Label("", SwingModifier.testTag("content").preferredSize(80, 40).opaque(true))
+                    Label(
+                        "",
+                        SwingModifier.testTag("content"),
+                        style = {
+                            preferredSize(80, 40)
+                            opaque(true)
+                        },
+                    )
                 }
             }
             awaitIdle()
@@ -84,44 +97,7 @@ class MutableTransitionValueTest {
         runComposeSwingTest {
             var visible by mutableStateOf(false)
             val received = mutableListOf<Dimension>()
-            val enter =
-                expandIn(tween(1600, easing = LinearEasing), Alignment.TopStart) { Dimension(it.width / 2, it.height) }
-
-            fun exit(targetSize: (Dimension) -> Dimension) =
-                shrinkOut(
-                    tween(1000, easing = LinearEasing),
-                    Alignment.BottomEnd,
-                    targetSize = targetSize,
-                )
-            setContent {
-                Column {
-                    Box {
-                        AnimatedVisibility(
-                            visible,
-                            SwingModifier.testTag("control"),
-                            enter = enter,
-                            exit = exit { Dimension(40, 20) },
-                        ) {
-                            Label("", SwingModifier.preferredSize(80, 40).opaque(true))
-                        }
-                    }
-                    Box {
-                        AnimatedVisibility(
-                            visible,
-                            SwingModifier.testTag(CONTAINER),
-                            enter = enter,
-                            exit =
-                                exit {
-                                    received += Dimension(it)
-                                    it.setSize(3, 4)
-                                    Dimension(40, 20)
-                                },
-                        ) {
-                            Label("", SwingModifier.preferredSize(80, 40).opaque(true))
-                        }
-                    }
-                }
-            }
+            setAlignedExitInterruptContent(isVisible = { visible }, received = received)
             awaitIdle()
             mainClock.autoAdvance = false
             visible = true
@@ -141,6 +117,62 @@ class MutableTransitionValueTest {
             }
             assertEquals(setOf(Dimension(80, 40)), received.toSet(), "every call receives the measured full size")
         }
+
+    private fun ComposeSwingTest.setAlignedExitInterruptContent(
+        isVisible: () -> Boolean,
+        received: MutableList<Dimension>,
+    ) {
+        val enter =
+            expandIn(tween(1600, easing = LinearEasing), Alignment.TopStart) { Dimension(it.width / 2, it.height) }
+
+        fun exit(targetSize: (Dimension) -> Dimension) =
+            shrinkOut(
+                tween(1000, easing = LinearEasing),
+                Alignment.BottomEnd,
+                targetSize = targetSize,
+            )
+        setContent {
+            Column {
+                Box {
+                    AnimatedVisibility(
+                        isVisible(),
+                        SwingModifier.testTag("control"),
+                        enter = enter,
+                        exit = exit { Dimension(40, 20) },
+                    ) {
+                        Label(
+                            "",
+                            style = {
+                                preferredSize(80, 40)
+                                opaque(true)
+                            },
+                        )
+                    }
+                }
+                Box {
+                    AnimatedVisibility(
+                        isVisible(),
+                        SwingModifier.testTag(CONTAINER),
+                        enter = enter,
+                        exit =
+                            exit {
+                                received += Dimension(it)
+                                it.setSize(3, 4)
+                                Dimension(40, 20)
+                            },
+                    ) {
+                        Label(
+                            "",
+                            style = {
+                                preferredSize(80, 40)
+                                opaque(true)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     @OptIn(ExperimentalDeferredTransitionApi::class)
     @ParameterizedTest(name = "{0}")

@@ -17,12 +17,13 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.emptyBorder
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -83,9 +84,11 @@ class PaintOutsetsInFoundationTest {
                     Canvas(
                         modifier =
                             SwingModifier
-                                .preferredSize(40, 30)
-                                .minimumSize(Dimension(21, 15))
-                                .shadow(4, Color.BLACK),
+                                .shadow(4, Color.BLACK)
+                                .styleable {
+                                    preferredSize(40, 30)
+                                    minimumSize(Dimension(21, 15))
+                                },
                     ) {}
                 }
             }
@@ -97,14 +100,16 @@ class PaintOutsetsInFoundationTest {
     fun aSetMaximumCapsTheLayoutWidthExactly() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.preferredSize(200, 60)) {
+                Row(modifier = SwingModifier.styleable { preferredSize(200, 60) }) {
                     Canvas(
                         modifier =
                             SwingModifier
                                 .testTag("canvas")
-                                .preferredSize(100, 30)
-                                .maximumSize(Dimension(40, 30))
-                                .shadow(4, Color.BLACK),
+                                .shadow(4, Color.BLACK)
+                                .styleable {
+                                    preferredSize(100, 30)
+                                    maximumSize(Dimension(40, 30))
+                                },
                     ) {}
                 }
             }
@@ -122,9 +127,9 @@ class PaintOutsetsInFoundationTest {
                             SwingModifier
                                 .testTag("card")
                                 .padding(16)
-                                .preferredSize(40, 30)
                                 .shadow(4, Color.BLACK)
-                                .background(Brush.of(Color.BLUE)),
+                                .background(Brush.of(Color.BLUE))
+                                .styleable { preferredSize(40, 30) },
                     ) {
                         Box(modifier = SwingModifier.testTag("content").fillMaxSize())
                     }
@@ -157,7 +162,7 @@ class PaintOutsetsInFoundationTest {
             setContent {
                 Row {
                     Box(modifier = SwingModifier.testTag("box")) {
-                        Canvas(modifier = SwingModifier.preferredSize(40, 30).shadow(4, Color.BLACK)) {}
+                        Canvas(modifier = SwingModifier.shadow(4, Color.BLACK).styleable { preferredSize(40, 30) }) {}
                     }
                 }
             }
@@ -177,15 +182,15 @@ class PaintOutsetsInFoundationTest {
     fun nestedRowsPlaceEveryChildInsideTheChildPlacementBounds() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = SwingModifier.testTag("row").emptyBorder(2)) {
+                Row(modifier = SwingModifier.testTag("row").styleable { emptyBorder(2) }) {
                     Column(modifier = SwingModifier.testTag("column")) {
                         Label("plain", modifier = SwingModifier.testTag("plain"))
                         Canvas(
                             modifier =
                                 SwingModifier
                                     .testTag("canvas")
-                                    .preferredSize(20, 20)
-                                    .shadow(6, Color.BLACK, offsetX = 4),
+                                    .shadow(6, Color.BLACK, offsetX = 4)
+                                    .styleable { preferredSize(20, 20) },
                         ) {
                             drawRect(Color.BLUE)
                         }
@@ -230,9 +235,9 @@ class PaintOutsetsInFoundationTest {
                             Canvas(
                                 modifier =
                                     SwingModifier
-                                        .preferredSize(40, 30)
                                         .shadow(4, Color.BLACK)
-                                        .onPlaced { canvasPlacements += it },
+                                        .onPlaced { canvasPlacements += it }
+                                        .styleable { preferredSize(40, 30) },
                             ) {}
                         }
                     },
@@ -299,8 +304,8 @@ class PaintOutsetsInFoundationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .preferredSize(60, 40)
-                                .shadow(6, Color.BLACK),
+                                .shadow(6, Color.BLACK)
+                                .styleable({ preferredSize(60, 40) }, RawKind),
                     ) {
                         SwingNode(
                             factory = { JPanel().apply { background = Color.BLUE } },
@@ -348,17 +353,17 @@ class PaintOutsetsInFoundationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .preferredSize(60, 40)
                                 .placementLayer { scaleX = scale }
                                 .shadow(4, Color.BLACK),
+                        style = { preferredSize(60, 40) },
                     ) {
                         Canvas(
                             modifier =
                                 SwingModifier
                                     .testTag("content")
-                                    .preferredSize(width, 20)
                                     .onPlaced { placed += it }
-                                    .shadow(6, Color.BLACK, offsetX = 10),
+                                    .shadow(6, Color.BLACK, offsetX = 10)
+                                    .styleable { preferredSize(width, 20) },
                         ) {
                             drawRect(Color.BLUE)
                         }
@@ -407,8 +412,8 @@ class PaintOutsetsInFoundationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .preferredSize(20, 20)
-                                .placementLayer { scaleX = scale },
+                                .placementLayer { scaleX = scale }
+                                .styleable({ preferredSize(20, 20) }, RawKind),
                     )
                 }
             }
@@ -429,7 +434,12 @@ class PaintOutsetsInFoundationTest {
                 Box {
                     SwingNode(
                         factory = { DecoratedPanel(BorderLayout()) },
-                        modifier = SwingModifier.testTag("panel").preferredSize(40, 30).spill(outsets),
+                        modifier =
+                            SwingModifier
+                                .testTag(
+                                    "panel",
+                                ).spill(outsets)
+                                .styleable({ preferredSize(40, 30) }, RawKind),
                     ) {
                         SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("child"))
                     }
@@ -468,7 +478,13 @@ class PaintOutsetsInFoundationTest {
         runComposeSwingTest {
             setContent {
                 Box {
-                    Box(modifier = SwingModifier.testTag("card").emptyBorder(2).shadow(4, Color.BLACK)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("card")
+                                .shadow(4, Color.BLACK)
+                                .styleable { emptyBorder(2) },
+                    ) {
                         SwingNode(
                             factory = { JList(arrayOf("one", "two", "three")) },
                             modifier = SwingModifier.testTag("plain"),

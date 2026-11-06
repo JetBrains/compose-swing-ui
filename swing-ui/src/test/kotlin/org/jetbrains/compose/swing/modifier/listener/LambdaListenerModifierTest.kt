@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -205,8 +205,8 @@ class LambdaListenerModifierTest {
                 onClick = {},
                 modifier =
                     SwingModifier
-                        .enabled(enabled)
                         .propertyChangeListener<JButton>("enabled") { receiver = this },
+                style = { enabled(enabled) },
             )
         }
 

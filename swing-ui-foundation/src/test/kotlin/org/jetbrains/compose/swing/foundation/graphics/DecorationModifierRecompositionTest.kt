@@ -9,9 +9,9 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -38,10 +38,12 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
                                 .shadow(radius, color, offsetX = offset, offsetY = offset)
                                 .background(Brush.of(Color.BLUE)),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }
@@ -73,9 +75,9 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .then(keyed)
                                 .background(Brush.of(color)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     )
                 }
             }
@@ -102,10 +104,10 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .then(keyed)
                                 .shadow(radius, Color.RED)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     )
                 }
             }
@@ -133,9 +135,9 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
                                 .blur(radius)
                                 .background(Brush.of(Color.BLUE)),
+                        style = { preferredSize(Dimension(64, 64)) },
                     )
                 }
             }
@@ -162,10 +164,12 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
                                 .clip(shape, antialias)
                                 .background(Brush.of(Color.BLUE)),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }
@@ -195,21 +199,25 @@ class DecorationModifierRecompositionTest {
                         modifier =
                             SwingModifier
                                 .testTag("recomposed")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
                                 .shadow(radius, color, offsetX = offset, offsetY = offset)
                                 .clip(CircleShape)
                                 .background(Brush.of(Color.BLUE)),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                     DecoratedBox(
                         modifier =
                             SwingModifier
                                 .testTag("declared")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
                                 .shadow(6, Color.GREEN, offsetX = 3, offsetY = 3)
                                 .clip(CircleShape)
                                 .background(Brush.of(Color.BLUE)),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     )
                 }
             }

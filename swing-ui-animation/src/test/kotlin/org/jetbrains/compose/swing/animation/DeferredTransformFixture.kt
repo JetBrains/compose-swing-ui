@@ -6,10 +6,9 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.Layout
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -56,11 +55,11 @@ internal fun ComposeSwingTest.sampledContent(
 internal fun DeferredBlock() =
     Label(
         text = "",
-        modifier =
-            SwingModifier
-                .preferredSize(width = DEFERRED_BLOCK_WIDTH, height = DEFERRED_BLOCK_HEIGHT)
-                .opaque(true)
-                .background(DeferredBlockColor),
+        style = {
+            preferredSize(width = DEFERRED_BLOCK_WIDTH, height = DEFERRED_BLOCK_HEIGHT)
+            background(DeferredBlockColor)
+            opaque(true)
+        },
     )
 
 /** The color the content fills itself with. */

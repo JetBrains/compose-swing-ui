@@ -16,16 +16,16 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.selection.rememberTreeState
+import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -118,7 +118,7 @@ private fun ColumnScope.SelectableTreeCard() {
             Spinner(rowHeight, onValueChange = { rowHeight = it.toInt() }, min = 0, max = 40, step = 2)
         }
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 220))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 220)) }) {
             Viewport {
                 Tree(
                     root = sampleTree,
@@ -156,7 +156,7 @@ private fun ColumnScope.ExpansionTreeCard() {
             onCheckedChange = { lockDocs = it },
         )
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 140)) }) {
             Viewport {
                 Tree(
                     root = sampleTree,
@@ -182,7 +182,7 @@ private fun ColumnScope.EditableTreeCard() {
     ExampleCard("Tree editing & composable nodes") {
         var renamed by remember { mutableStateOf<Map<Node, String>>(emptyMap()) }
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 180))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 180)) }) {
             Viewport {
                 Tree(
                     root = sampleTree,
@@ -193,14 +193,14 @@ private fun ColumnScope.EditableTreeCard() {
                 ) { value ->
                     Panel(
                         PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
-                        modifier = SwingModifier.opaque(false),
+                        style = { opaque(false) },
                     ) {
                         // The look-and-feel's own file icons, so a node reads the same on every platform.
                         val icon =
                             UIManager.getIcon(
                                 if (this@Tree.isLeaf) "FileView.fileIcon" else "FileView.directoryIcon",
                             )
-                        Label("", modifier = SwingModifier.icon(icon))
+                        Label("", style = { icon(icon) })
                         Label(renamed[value] ?: value.name)
                     }
                 }
@@ -225,7 +225,7 @@ private fun ColumnScope.ModelBackedTreeCard() {
             }
         var selection by remember { mutableStateOf<Set<List<Int>>>(emptySet()) }
 
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(280, 140))) {
+        ScrollPane(style = { preferredSize(Dimension(280, 140)) }) {
             Viewport {
                 Tree(
                     model = model,

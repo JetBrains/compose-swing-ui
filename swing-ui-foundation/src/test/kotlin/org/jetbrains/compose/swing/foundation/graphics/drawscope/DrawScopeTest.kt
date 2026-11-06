@@ -6,7 +6,8 @@ import org.jetbrains.compose.swing.foundation.graphics.LoadingImage
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -84,7 +85,7 @@ class DrawScopeTest {
 
             var drawsImage = false
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(20, 20)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(20, 20) }) {
                     if (drawsImage) drawImage(loading.image)
                 }
             }
@@ -106,7 +107,7 @@ class DrawScopeTest {
             val size = 20
             val loading = LoadingImage(200, 200, Color.RED)
             setContent {
-                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(size, size)) {
+                Canvas(modifier = SwingModifier.testTag("canvas").styleable { preferredSize(size, size) }) {
                     drawImage(loading.image, x = 0f, y = 0f, width = size.toFloat(), height = size.toFloat())
                 }
             }

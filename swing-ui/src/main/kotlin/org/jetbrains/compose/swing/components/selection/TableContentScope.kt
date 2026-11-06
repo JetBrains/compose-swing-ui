@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.movableContentOf
+import org.jetbrains.compose.swing.components.style.TableHeaders
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.parentProtocolOf
@@ -10,6 +11,12 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.ExistingSwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTable
 import javax.swing.table.JTableHeader
 
@@ -22,9 +29,9 @@ import javax.swing.table.JTableHeader
  * ```
  * Table(rows = people, columns = { column("Name") { it.name } }) {
  *     if (compact) {
- *         Header(modifier = SwingModifier.background(surface), reorderingAllowed = false)
+ *         Header(style = { background(surface) }, reorderingAllowed = false)
  *     } else {
- *         Header(modifier = SwingModifier.background(surfaceVariant))
+ *         Header(style = { background(surfaceVariant) })
  *     }
  * }
  * ```
@@ -42,6 +49,7 @@ public sealed interface TableContentScope {
      * where the table puts it: in the column header of the scroll pane whose viewport shows the table.
      *
      * @param modifier the [SwingModifier] applied to the table's `JTableHeader`
+     * @param style the [SwingStyle] applied to the table's `JTableHeader`
      * @param reorderingAllowed whether dragging a column header sideways reorders the columns; `true` - the
      *   default - lets the user reorder them
      * @param resizingAllowed whether dragging the divider between two column headers resizes the columns;
@@ -53,6 +61,7 @@ public sealed interface TableContentScope {
     @Composable
     public fun Header(
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
         reorderingAllowed: Boolean = true,
         resizingAllowed: Boolean = true,
     )
@@ -74,6 +83,7 @@ internal class TableContentScopeImpl : TableContentScope {
     @Composable
     override fun Header(
         modifier: SwingModifier,
+        style: SwingStyle<SwingComponentStyleScope>,
         reorderingAllowed: Boolean,
         resizingAllowed: Boolean,
     ) {
@@ -81,10 +91,19 @@ internal class TableContentScopeImpl : TableContentScope {
             modifier
                 .slot(TableParentProtocol, HEADER_REGION)
                 .property(ReorderingAllowedProperty, reorderingAllowed)
-                .property(ResizingAllowedProperty, resizingAllowed),
+                .property(ResizingAllowedProperty, resizingAllowed)
+                .styleable(style, TableHeaderKind),
         )
     }
 }
+
+private val TableHeaderKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(TableHeaders)
+    }
 
 private val TableParentProtocol = parentProtocolOf("JTable slot") { it is JTable }
 

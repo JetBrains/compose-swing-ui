@@ -9,12 +9,15 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.emptyBorder
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageAgainstGoldenPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -45,13 +48,23 @@ import kotlin.test.assertNotNull
 class PaintOutsetsUnderSwingParentTest {
     @Test
     fun everyStockLayoutSeesPlainSizesAndTheBorderInsets() {
+        // Every size set: [PREFERRED], [MINIMUM] and [MAXIMUM], and a border of [BORDER].
+        val everySize: SwingStyle<SwingComponentStyleScope> =
+            SwingStyle {
+                preferredSize(PREFERRED)
+                minimumSize(MINIMUM)
+                maximumSize(MAXIMUM)
+                emptyBorder(BORDER)
+            }
         for (layout in StockLayout.entries) {
             runComposeSwingTest {
                 val placed = mutableMapOf<String, Rectangle>()
                 setContent {
                     SwingNode(factory = { layout.panel() }, modifier = SwingModifier.testTag("stock")) {
-                        Box(modifier = sized(BOX) { placed[BOX] = it })
-                        Canvas(modifier = sized(CANVAS) { placed[CANVAS] = it }) {
+                        Box(modifier = sized(BOX) { placed[BOX] = it }.styleable(everySize))
+                        Canvas(
+                            modifier = sized(CANVAS) { placed[CANVAS] = it }.styleable(everySize),
+                        ) {
                             drawRect(Color.BLUE)
                         }
                     }
@@ -157,10 +170,12 @@ class PaintOutsetsUnderSwingParentTest {
                     Box(
                         modifier =
                             SwingModifier
-                                .preferredSize(48, 32)
-                                .maximumSize(Dimension(48, 32))
                                 .shadow(RADIUS, Color(0, 0, 0, 160), offsetX = 2, offsetY = 2)
-                                .background(Brush.of(Color(0x42, 0x85, 0xF4))),
+                                .background(Brush.of(Color(0x42, 0x85, 0xF4)))
+                                .styleable {
+                                    preferredSize(48, 32)
+                                    maximumSize(Dimension(48, 32))
+                                },
                     )
                     SwingNode(
                         factory = {
@@ -240,17 +255,13 @@ class PaintOutsetsUnderSwingParentTest {
 
         operator fun Dimension.plus(other: Dimension): Dimension = Dimension(width + other.width, height + other.height)
 
-        /** A component tagged [tag] with every size set, a border and a shadow over a fill. */
+        /** A component tagged [tag] with a shadow over a fill. */
         fun sized(
             tag: String,
             onPlaced: (Rectangle) -> Unit,
         ): SwingModifier =
             SwingModifier
                 .testTag(tag)
-                .preferredSize(PREFERRED)
-                .minimumSize(MINIMUM)
-                .maximumSize(MAXIMUM)
-                .emptyBorder(BORDER)
                 .onPlaced(onPlaced)
                 .shadow(RADIUS, Color.BLACK)
                 .background(Brush.of(Color.BLUE))

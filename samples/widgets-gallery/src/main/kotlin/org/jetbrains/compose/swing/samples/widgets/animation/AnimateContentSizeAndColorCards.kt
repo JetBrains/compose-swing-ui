@@ -19,14 +19,15 @@ import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.BoxLayout
@@ -51,15 +52,16 @@ internal fun ColumnScope.AnimateContentSizeCard() {
         Box(
             modifier =
                 SwingModifier
-                    .background(themePanelColor())
-                    .opaque(true)
-                    .border(detailsBorder)
                     .animateContentSize(
                         alignment = contentPlacements[placement].alignment,
                         finishedListener = { initial, target ->
                             lastRun = "${initial.width}x${initial.height} to ${target.width}x${target.height}"
                         },
-                    ),
+                    ).styleable {
+                        background(themePanelColor())
+                        opaque(true)
+                        border(detailsBorder)
+                    },
         ) {
             Label(
                 text = stanza.take(lines).joinToString(separator = "<br>", prefix = "<html>", postfix = "</html>"),
@@ -163,13 +165,13 @@ private fun Swatch(
 ) {
     Label(
         text = "",
-        modifier =
-            SwingModifier
-                .preferredSize(Dimension(140, 36))
-                .background(color)
-                .opaque(true)
-                .lineBorder(Color.GRAY)
-                .accessibleName(name),
+        style = {
+            preferredSize(Dimension(140, 36))
+            background(color)
+            accessibleName(name)
+            opaque(true)
+            lineBorder(Color.GRAY)
+        },
     )
 }
 

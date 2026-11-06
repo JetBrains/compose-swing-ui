@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -87,7 +88,7 @@ class AnimatedScrollableTest {
     fun `a table inside an animated container scrolls by its own rows`(animated: AnimatedContainer) =
         runComposeSwingTest {
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
+                ScrollPane(style = { preferredSize(PANE_SIDE, PANE_SIDE) }) {
                     Viewport {
                         animated.Wrap(SwingModifier.testTag(ANIMATED)) {
                             Table(rows = people, columns = { column("Name") { it.name } })
@@ -111,7 +112,7 @@ class AnimatedScrollableTest {
     fun `a table that takes the viewport's width is laid out at it without a scroll bar`(animated: AnimatedContainer) =
         runComposeSwingTest {
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
+                ScrollPane(style = { preferredSize(PANE_SIDE, PANE_SIDE) }) {
                     Viewport {
                         animated.Wrap(SwingModifier.testTag(ANIMATED)) {
                             Table(
@@ -148,7 +149,7 @@ class AnimatedScrollableTest {
         runComposeSwingTest {
             var state by mutableStateOf(0)
             setContent {
-                ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
+                ScrollPane(style = { preferredSize(PANE_SIDE, PANE_SIDE) }) {
                     Viewport {
                         AnimatedContent(targetState = state) { shown ->
                             Table(rows = people, columns = { column("Name $shown") { it.name } })
@@ -200,10 +201,13 @@ class AnimatedScrollableTest {
         contentSize: Dimension,
     ) = runComposeSwingTest {
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(PANE_SIDE, PANE_SIDE)) {
+            ScrollPane(style = { preferredSize(PANE_SIDE, PANE_SIDE) }) {
                 Viewport {
                     animated.Wrap(SwingModifier.testTag(ANIMATED)) {
-                        Column(SwingModifier.preferredSize(contentSize.width, contentSize.height)) {}
+                        Column(
+                            modifier =
+                                SwingModifier.styleable { preferredSize(contentSize.width, contentSize.height) },
+                        ) {}
                     }
                 }
             }

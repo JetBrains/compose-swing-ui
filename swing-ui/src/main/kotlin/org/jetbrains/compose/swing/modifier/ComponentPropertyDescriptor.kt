@@ -3,17 +3,19 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * One Swing property of one or more component types. Define it once, in a top-level `val`, and declare
- * it on a component with [SwingModifier.property]; see that function for the full contract.
+ * One Swing property of one or more component types. Define it once, in a top-level `val`, and pass it
+ * to [org.jetbrains.compose.swing.style.stylePropertyOf] for a style setter, or
+ * [org.jetbrains.compose.swing.style.styleLocalOf] for a property descendants inherit. A component's own
+ * parameter that no style setter covers can declare it through [SwingModifier.property].
  *
  * Build a property of a single component type with the single-type [invoke] overload:
  *
  * ```
- * private val OpaqueProperty =
- *     ComponentPropertyDescriptor<JComponent, Boolean>(
- *         name = "opaque",
- *         read = { it.isOpaque },
- *         write = { c, v -> c.isOpaque = v }
+ * private val DividerSizeDescriptor =
+ *     ComponentPropertyDescriptor<JSplitPane, Int>(
+ *         name = "dividerSize",
+ *         read = { it.dividerSize },
+ *         write = { component, value -> component.dividerSize = value },
  *     )
  * ```
  *
@@ -40,11 +42,8 @@ import java.awt.Component
  * The primary constructor is public intentionally for callers who need to provide a custom supported-type
  * predicate. Prefer the companion builders when they express the property: they derive the runtime type
  * information and keep the accessors together. When using this constructor directly, [targetType] must be
- * compatible with [T], [handles] must return `true` exactly for component types whose instances [read] and
- * [write] can safely handle, [read] must return the current property value, and [write] must apply the
- * supplied value to that property. The constructor's `name` is the stable property identity;
- * `targetType` identifies the represented component type, `read` and `write` access its value, and
- * `handles` reports which component types the descriptor supports.
+ * compatible with [T], and [handles] must return `true` exactly for component types whose instances [read]
+ * and [write] can safely handle.
  */
 public class ComponentPropertyDescriptor<in T : Component, V>(
     public val name: String,
@@ -54,7 +53,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
     internal val handles: (componentClass: Class<*>) -> Boolean,
 ) {
     /**
-     * Takes a hold on this property for [component], capturing what it stands at where nothing holds it
+     * Takes a capture of this property for [component], reading what it stands at where none exists
      * yet. A member of this class, rather than a top-level function taking the accessors apart, so
      * [SwingModifier.property]'s `alsoOverwrites` - a `List<ComponentPropertyDescriptor<T, *>>` - can call it without
      * needing this property's own value type.
@@ -62,7 +61,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
     internal fun holdCapture(
         captures: PropertyCaptures,
         component: T,
-    ): PropertyCaptures.Hold = captures.hold(name, component, read, write)
+    ): PropertyCaptures.Capture<*, *> = captures.capture(name, component, read, write)
 
     /** This property's name, which is also how a tool showing a modifier's elements names it. */
     override fun toString(): String = name
@@ -72,10 +71,7 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
         /**
          * The property [name] of components of type [T].
          *
-         * Declare it in a function of its own, not inline at a call site, the way
-         * [SwingModifier.property]'s own documentation directs: a `write` written out once gives every
-         * widget declaring the property one slot, and a `write` that captures anything is a fresh
-         * instance each pass.
+         * Keep the descriptor in a top-level `val` so every declaration uses the same accessors.
          *
          * @param name the Swing property [read] and [write] reach.
          * @param read answers with the value a component of type [T] holds.
@@ -94,8 +90,8 @@ public class ComponentPropertyDescriptor<in T : Component, V>(
          * The property [name] that each of [accessors] declares for its own component type.
          *
          * Applying the built property to a component none of [accessors] serves fails with a message naming
-         * the served types - whether that application is a direct declaration or an inherited default -
-         * the same way applying a single-type property outside its declared component type does; see [SwingModifier.property].
+         * the served types, the same way applying a single-type property outside its declared component type
+         * does; see [SwingModifier.property].
          *
          * @param name the property every case declares under its own accessors.
          * @param accessors one accessor per component type the property serves, built with [accessor].

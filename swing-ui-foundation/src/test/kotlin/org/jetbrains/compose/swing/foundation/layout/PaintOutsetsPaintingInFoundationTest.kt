@@ -14,11 +14,11 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -43,6 +43,7 @@ import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.jetbrains.compose.swing.style.background as styleBackground
 
 /** The ground a container's paint outsets show, the opacity it reports, and what a clip or a fade keeps out of them. */
 class PaintOutsetsPaintingInFoundationTest {
@@ -56,8 +57,8 @@ class PaintOutsetsPaintingInFoundationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .preferredSize(20, 20)
-                                .spill(Insets(4, 4, 4, 4)),
+                                .spill(Insets(4, 4, 4, 4))
+                                .styleable({ preferredSize(20, 20) }, RawKind),
                     )
                 }
             }
@@ -114,7 +115,15 @@ class PaintOutsetsPaintingInFoundationTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("card").opaque(true).background(Color.WHITE)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("card")
+                                .styleable {
+                                    styleBackground(Color.WHITE)
+                                    opaque(true)
+                                },
+                    ) {
                         Box(
                             modifier =
                                 SwingModifier
@@ -149,7 +158,12 @@ class PaintOutsetsPaintingInFoundationTest {
                 Box {
                     SwingNode(
                         factory = { DecoratedPanel() },
-                        modifier = SwingModifier.testTag("faded").preferredSize(20, 20).alpha(0.5f),
+                        modifier =
+                            SwingModifier
+                                .testTag(
+                                    "faded",
+                                ).alpha(0.5f)
+                                .styleable({ preferredSize(20, 20) }, RawKind),
                     )
                 }
             }

@@ -13,20 +13,20 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.caretUpdatePolicy
+import org.jetbrains.compose.swing.components.style.highlights
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.highlights
-import org.jetbrains.compose.swing.modifier.interaction.caretUpdatePolicy
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.caretListener
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.text.TextRange
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
@@ -88,10 +88,10 @@ private fun ColumnScope.DocumentEditorCard() {
         // canUndo / canRedo are snapshot-observable, so the buttons enable and disable themselves as
         // history changes - no listener, no state mirror to keep in sync.
         Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
-            Button(text = "Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
-            Button(text = "Redo", onClick = state::redo, modifier = SwingModifier.enabled(state.canRedo))
+            Button(text = "Undo", onClick = state::undo, style = { enabled(state.canUndo) })
+            Button(text = "Redo", onClick = state::redo, style = { enabled(state.canRedo) })
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 200))) {
+        ScrollPane(style = { preferredSize(Dimension(440, 200)) }) {
             Viewport { TextArea(state = state, rows = 12, columns = 60) }
         }
         Label("$lines lines · $words words · $characters characters")
@@ -164,7 +164,7 @@ private fun ColumnScope.HighlightCard() {
         TextArea(
             value = source,
             onValueChange = { source = it },
-            modifier = SwingModifier.highlights(matches, painter),
+            style = { highlights(matches, painter) },
             rows = 4,
             columns = 50,
             lineWrap = true,
@@ -211,7 +211,7 @@ private fun ColumnScope.CaretCard() {
         ) {
             CARET_UPDATE_POLICIES.forEach { (name, _) -> option(name) }
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 90))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 90)) }) {
             Viewport {
                 TextArea(
                     value = text,
@@ -219,8 +219,8 @@ private fun ColumnScope.CaretCard() {
                     modifier =
                         SwingModifier
                             .caretListener(caretMoveListener)
-                            .documentListener(documentEditListener)
-                            .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
+                            .documentListener(documentEditListener),
+                    style = { caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second) },
                     rows = 6,
                     columns = 40,
                 )

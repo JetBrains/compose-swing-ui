@@ -13,38 +13,39 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.components.style.borderPainted
+import org.jetbrains.compose.swing.components.style.contentAreaFilled
+import org.jetbrains.compose.swing.components.style.disabledIcon
+import org.jetbrains.compose.swing.components.style.disabledSelectedIcon
+import org.jetbrains.compose.swing.components.style.focusPainted
+import org.jetbrains.compose.swing.components.style.horizontalTextPosition
+import org.jetbrains.compose.swing.components.style.icon
+import org.jetbrains.compose.swing.components.style.iconTextGap
+import org.jetbrains.compose.swing.components.style.pressedIcon
+import org.jetbrains.compose.swing.components.style.rolloverEnabled
+import org.jetbrains.compose.swing.components.style.rolloverIcon
+import org.jetbrains.compose.swing.components.style.rolloverSelectedIcon
+import org.jetbrains.compose.swing.components.style.selectedIcon
+import org.jetbrains.compose.swing.components.style.verticalTextPosition
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.borderPainted
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
-import org.jetbrains.compose.swing.modifier.appearance.contentAreaFilled
-import org.jetbrains.compose.swing.modifier.appearance.cursor
-import org.jetbrains.compose.swing.modifier.appearance.disabledIcon
-import org.jetbrains.compose.swing.modifier.appearance.disabledSelectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.focusPainted
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.appearance.horizontalTextPosition
-import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.iconTextGap
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.appearance.pressedIcon
-import org.jetbrains.compose.swing.modifier.appearance.rolloverEnabled
-import org.jetbrains.compose.swing.modifier.appearance.rolloverIcon
-import org.jetbrains.compose.swing.modifier.appearance.rolloverSelectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.selectedIcon
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.appearance.verticalTextPosition
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.cursor
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.toolTip
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -60,18 +61,18 @@ internal fun ColumnScope.AppearanceCard() {
     ExampleCard("background / foreground / font / lineBorder") {
         var fancy by remember { mutableStateOf(true) }
         CheckBox(text = "Fancy styling", checked = fancy, onCheckedChange = { fancy = it })
-        val styled =
-            if (fancy) {
-                SwingModifier
-                    .opaque(true)
-                    .background(Color(0xFF, 0xF3, 0xE0))
-                    .foreground(Color(0xBF, 0x36, 0x0C))
-                    .font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
-                    .lineBorder(Color(0xBF, 0x36, 0x0C), 2)
-            } else {
-                SwingModifier
-            }
-        Label("Styled when the box is checked", modifier = styled)
+        Label(
+            "Styled when the box is checked",
+            style = {
+                if (fancy) {
+                    opaque(true)
+                    lineBorder(Color(0xBF, 0x36, 0x0C), 2)
+                    background(Color(0xFF, 0xF3, 0xE0))
+                    foreground(Color(0xBF, 0x36, 0x0C))
+                    font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
+                }
+            },
+        )
     }
 }
 
@@ -100,16 +101,16 @@ internal fun ColumnScope.IconFamilyCard() {
             text = "Status",
             checked = checked,
             onCheckedChange = { checked = it },
-            modifier =
-                SwingModifier
-                    .enabled(enabled)
-                    .icon(baseDot)
-                    .selectedIcon(selectedDot)
-                    .pressedIcon(pressedDot)
-                    .rolloverIcon(rolloverDot)
-                    .rolloverSelectedIcon(rolloverSelectedDot)
-                    .disabledIcon(disabledDot)
-                    .disabledSelectedIcon(disabledSelectedDot),
+            style = {
+                enabled(enabled)
+                icon(baseDot)
+                selectedIcon(selectedDot)
+                pressedIcon(pressedDot)
+                rolloverIcon(rolloverDot)
+                rolloverSelectedIcon(rolloverSelectedDot)
+                disabledIcon(disabledDot)
+                disabledSelectedIcon(disabledSelectedDot)
+            },
         )
     }
 }
@@ -143,16 +144,16 @@ internal fun ColumnScope.TextPositionCard() {
         }
         val textSide = intArrayOf(SwingConstants.LEFT, SwingConstants.CENTER, SwingConstants.RIGHT)[horizontal]
         val textRow = intArrayOf(SwingConstants.TOP, SwingConstants.CENTER, SwingConstants.BOTTOM)[vertical]
-        Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
+        Panel(PanelLayout.Flow(), style = { preferredSize(Dimension(260, 90)) }) {
             Button(
                 "Labeled",
                 onClick = { },
-                modifier =
-                    SwingModifier
-                        .icon(dot)
-                        .horizontalTextPosition(textSide)
-                        .verticalTextPosition(textRow)
-                        .iconTextGap(gap),
+                style = {
+                    icon(dot)
+                    horizontalTextPosition(textSide)
+                    verticalTextPosition(textRow)
+                    iconTextGap(gap)
+                },
             )
         }
     }
@@ -178,12 +179,12 @@ internal fun ColumnScope.ButtonPaintingCard() {
             Button(
                 "Hover, focus or click me",
                 onClick = { },
-                modifier =
-                    SwingModifier
-                        .borderPainted(isBorderPainted)
-                        .contentAreaFilled(isContentAreaFilled)
-                        .rolloverEnabled(isRolloverEnabled)
-                        .focusPainted(isFocusPainted),
+                style = {
+                    borderPainted(isBorderPainted)
+                    contentAreaFilled(isContentAreaFilled)
+                    rolloverEnabled(isRolloverEnabled)
+                    focusPainted(isFocusPainted)
+                },
             )
         }
     }
@@ -196,13 +197,13 @@ internal fun ColumnScope.CursorAndToolTipCard() {
         CheckBox(text = "Hand cursor", checked = hand, onCheckedChange = { hand = it })
         Label(
             "Hover me: cursor + tooltip",
-            modifier =
-                SwingModifier
-                    .opaque(true)
-                    .background(Color(0xE8, 0xF5, 0xE9))
-                    .preferredSize(Dimension(260, 32))
-                    .cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
-                    .toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer"),
+            style = {
+                background(Color(0xE8, 0xF5, 0xE9))
+                preferredSize(Dimension(260, 32))
+                cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
+                opaque(true)
+                toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer")
+            },
         )
     }
 }
@@ -218,13 +219,14 @@ internal fun ColumnScope.PerLocationToolTipCard() {
             )
         Canvas(
             modifier =
-                SwingModifier
-                    .preferredSize(Dimension(300, 56))
-                    .lineBorder(Color.GRAY)
-                    .toolTip { event ->
+                SwingModifier.styleable {
+                    preferredSize(Dimension(300, 56))
+                    lineBorder(Color.GRAY)
+                    toolTip { event ->
                         val width = event.component.width.coerceAtLeast(1)
                         bands.getOrNull(event.x * bands.size / width)?.first
-                    },
+                    }
+                },
         ) {
             val band = width / bands.size
             bands.forEachIndexed { index, (_, color) ->

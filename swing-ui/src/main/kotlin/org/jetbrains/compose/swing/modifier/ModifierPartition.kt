@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
+import androidx.collection.MutableObjectList
+import androidx.collection.ObjectList
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -17,23 +19,34 @@ import org.jetbrains.compose.swing.util.fastForEach
  * Built by the walk and dropped after it, so nothing of one pass outlives the pass that made it.
  *
  * @param keyedCapacity how many keyed elements the modifier is expected to declare, which [keyed] is sized for.
- * @param chainCapacity how many elements the modifier is expected to hold slots for, which [chain] is sized for.
+ * @param positionalCapacity how many elements the modifier is expected to hold slots for, which [positional] is
+ *   sized for.
  */
 internal class ModifierPartition(
     keyedCapacity: Int = 0,
-    chainCapacity: Int = 0,
+    positionalCapacity: Int = 0,
 ) {
     /** The keyed (last-wins) elements of the modifier being applied, by [SwingModifier.NodeElement.key]. */
-    val keyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> =
-        // Holds keyedCapacity entries under the default load factor of 0.75 without growing.
-        LinkedHashMap(keyedCapacity + keyedCapacity / 3 + 1)
+    val keyed: ObjectList<SwingModifier.Element> get() = keyedElements
+
+    /** Keyed declarations mutated only while this partition takes elements. */
+    private val keyedElements = MutableObjectList<SwingModifier.Element>(keyedCapacity)
+
+    /** The [SwingModifier.NodeElement.key] of each of [keyed], asked once when the walk takes the element. */
+    val keyedKeys: ObjectList<Any> get() = keyedKeyList
+
+    /** Keys mutated only while this partition takes elements. */
+    private val keyedKeyList = MutableObjectList<Any>(keyedCapacity)
 
     /**
      * The elements whose nodes hold a place in the modifier, in declaration order: every additive (subscription)
      * [SwingModifier.NodeElement], and every [ParentLayoutNodeElement] among [parentLayoutElements]; see
-     * [isChainElement].
+     * [isPositionalElement].
      */
-    val chain: ArrayList<SwingModifier.Element> = ArrayList(chainCapacity)
+    val positional: ObjectList<SwingModifier.Element> get() = positionalElements
+
+    /** Positional declarations mutated only while this partition takes elements. */
+    private val positionalElements = MutableObjectList<SwingModifier.Element>(positionalCapacity)
 
     private val pendingParentDeclarations: ArrayList<ParentElement> = ArrayList()
 
@@ -101,21 +114,27 @@ internal class ModifierPartition(
     }
 
     private fun takeElement(element: SwingModifier.NodeElement<*, *>) {
-        if (element.isChainElement) {
-            chain.add(element)
+        if (element.isPositionalElement) {
+            positionalElements.add(element)
             return
         }
         // Last wins the place as well as the value: the modifier settles two writes of one property by its
         // own order, so a key declared again later stands where it was declared last. The key is asked for
         // once, which is what the walk over a modifier costs.
         val key = element.key
-        keyed.remove(key)
-        keyed[key] = element
+        val previous = keyedKeyList.indexOf(key)
+        element.checkPreviousDeclaration(if (previous >= 0) keyedElements[previous] else null)
+        if (previous >= 0) {
+            keyedElements.removeAt(previous)
+            keyedKeyList.removeAt(previous)
+        }
+        keyedElements.add(element)
+        keyedKeyList.add(key)
     }
 
     /**
      * Records every parent declaration so keyed and additive declarations share one order. A node-backed layout
-     * declaration also takes its place in [chain], which it gives up to a later declaration of its key, as
+     * declaration also takes its place in [positional], which it gives up to a later declaration of its key, as
      * [retainedParentDeclarations] does. A layout declaration is
      * [refused where inheritable and additive][requireInheritableIsNotAdditive].
      */
@@ -124,9 +143,11 @@ internal class ModifierPartition(
         resolvedParentDeclarations = null
         pendingParentDeclarations += element
         if (!element.additive) {
-            chain.removeAll { it is ParentLayoutNodeElement<*> && !it.additive && it.key == element.key }
+            positionalElements.asMutableList().removeAll {
+                it is ParentLayoutNodeElement<*> && !it.additive && it.key == element.key
+            }
         }
-        if (element.isChainElement) chain += element
+        if (element.isPositionalElement) positionalElements.add(element)
     }
 
     /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
@@ -208,10 +229,10 @@ internal class ModifierPartition(
 }
 
 /**
- * Whether this element's node holds a place in the modifier's chain, matched by position: an additive
- * [SwingModifier.NodeElement], or a [ParentLayoutNodeElement] that folds no parent data.
+ * Whether this element is positional, its node matched by position: an additive [SwingModifier.NodeElement], or a
+ * [ParentLayoutNodeElement] that folds no parent data.
  */
-internal val SwingModifier.Element.isChainElement: Boolean
+internal val SwingModifier.Element.isPositionalElement: Boolean
     get() =
         if (this is SwingModifier.NodeElement<*, *>) {
             additive

@@ -2,8 +2,7 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.layout.ScrollPane
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import java.awt.Point
 import javax.swing.JTable
 import javax.swing.table.DefaultTableModel
@@ -15,7 +14,7 @@ import javax.swing.table.TableColumnModel
  */
 @Composable
 internal inline fun HeaderPane(crossinline content: @Composable () -> Unit) {
-    ScrollPane(modifier = SwingModifier.preferredSize(400, 200)) { Viewport { content() } }
+    ScrollPane(style = { preferredSize(400, 200) }) { Viewport { content() } }
 }
 
 internal fun JTable.columnHeaders(): List<Any?> = columnModel.columns.toList().map { it.headerValue }

@@ -15,7 +15,8 @@ import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -200,7 +201,13 @@ class PlacementRotationTest {
             setContent {
                 Column {
                     Row(modifier = SwingModifier.testTag("row")) {
-                        Box(modifier = SwingModifier.testTag("layered").preferredSize(40, 40).placementLayer(block)) {
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("layered")
+                                    .placementLayer(block)
+                                    .styleable { preferredSize(40, 40) },
+                        ) {
                             SizedChild(0)
                         }
                     }
@@ -414,7 +421,7 @@ class PlacementRotationTest {
                             SwingModifier
                                 .testTag("reference")
                                 .shadow(3, Color.BLACK, offsetX = -2, offsetY = 6)
-                                .preferredSize(32, 32),
+                                .styleable { preferredSize(32, 32) },
                         renderingHints = null,
                     ) {
                         drawRect(Color.RED)
@@ -470,7 +477,7 @@ private fun MarkedCanvas(
     width: Int = 40,
     height: Int = 24,
 ) {
-    Canvas(modifier = modifier.preferredSize(width, height), renderingHints = null) {
+    Canvas(modifier = modifier.styleable { preferredSize(width, height) }, renderingHints = null) {
         drawRect(Color.RED)
         drawRect(Color.BLUE, 4f, 4f, 10f, 6f)
     }

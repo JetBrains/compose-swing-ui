@@ -18,6 +18,8 @@ import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
+import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
@@ -27,15 +29,13 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.icon
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -78,7 +78,7 @@ private fun ColumnScope.ButtonAndLabelCard() {
             Button("Decrement", onClick = { counter-- })
             Button("Reset", onClick = { counter = 0 })
         }
-        Label("Right-aligned label", modifier = SwingModifier.horizontalAlignment(SwingConstants.RIGHT))
+        Label("Right-aligned label", style = { horizontalAlignment(SwingConstants.RIGHT) })
     }
 }
 
@@ -126,7 +126,7 @@ private fun ColumnScope.TextAreaOptionsCard() {
             Label("Tab size:")
             Spinner(tabSize, onValueChange = { tabSize = it.toInt() }, min = 1, max = 16, step = 1)
         }
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 100)) }) {
             Viewport {
                 TextArea(
                     value = notes,
@@ -169,7 +169,7 @@ private fun ColumnScope.PasswordStateCard() {
         Panel {
             Label("Password:")
             PasswordField(state = state, columns = 20)
-            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
+            Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
         }
         Label("Length: ${state.text.length}")
     }
@@ -275,15 +275,17 @@ private fun ColumnScope.ChoiceCard() {
                 // holds a slot of its own on the leading edge, so every name starts in the same place
                 // whatever glyph precedes it, and the name takes the space that is left.
                 val swatch = rememberDotIcon(language.swatch)
-                Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
+                Panel(PanelLayout.Border(), style = { opaque(false) }) {
                     Label(
                         "",
                         modifier =
                             SwingModifier
-                                .west()
-                                .icon(swatch)
-                                .preferredSize(GLYPH_SLOT, GLYPH_SLOT)
-                                .horizontalAlignment(SwingConstants.CENTER),
+                                .west(),
+                        style = {
+                            preferredSize(GLYPH_SLOT, GLYPH_SLOT)
+                            icon(swatch)
+                            horizontalAlignment(SwingConstants.CENTER)
+                        },
                     )
                     Label(language.name, SwingModifier.center())
                 }

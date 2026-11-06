@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
@@ -25,7 +25,7 @@ class AnimationOverloadSelectionTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(PARENT)) {
                     AnimatedVisibility(visible, modifier = SwingModifier.testTag(CONTAINER)) { Body() }
-                    Label("right", modifier = SwingModifier.testTag(RIGHT).preferredSize(5, 5))
+                    Label("right", modifier = SwingModifier.testTag(RIGHT), style = { preferredSize(5, 5) })
                 }
             }
 
@@ -49,7 +49,7 @@ class AnimationOverloadSelectionTest {
             setContent {
                 Column(modifier = SwingModifier.testTag(PARENT)) {
                     AnimatedVisibility(visible, modifier = SwingModifier.testTag(CONTAINER)) { Body() }
-                    Label("below", modifier = SwingModifier.testTag(BELOW).preferredSize(5, 5))
+                    Label("below", modifier = SwingModifier.testTag(BELOW), style = { preferredSize(5, 5) })
                 }
             }
 
@@ -79,9 +79,9 @@ class AnimationOverloadSelectionTest {
                         Box {
                             AnimatedVisibility(visible, modifier = SwingModifier.testTag(CONTAINER)) { Body() }
                         }
-                        Label("right", modifier = SwingModifier.testTag(RIGHT).preferredSize(5, 5))
+                        Label("right", modifier = SwingModifier.testTag(RIGHT), style = { preferredSize(5, 5) })
                     }
-                    Label("below", modifier = SwingModifier.testTag(BELOW).preferredSize(5, 5))
+                    Label("below", modifier = SwingModifier.testTag(BELOW), style = { preferredSize(5, 5) })
                 }
             }
 
@@ -178,7 +178,7 @@ class AnimationOverloadSelectionTest {
         }
 
     @Composable
-    private fun Body() = Label("Animated", modifier = SwingModifier.preferredSize(BODY_WIDTH, BODY_HEIGHT))
+    private fun Body() = Label("Animated", style = { preferredSize(BODY_WIDTH, BODY_HEIGHT) })
 
     private companion object {
         const val CONTAINER = "animated-container"
@@ -195,6 +195,6 @@ class AnimationOverloadSelectionTest {
 @Composable
 private fun ExtractedVisibility(visible: Boolean) {
     AnimatedVisibility(visible, modifier = SwingModifier.testTag("animated-container")) {
-        Label("Animated", modifier = SwingModifier.preferredSize(80, 40))
+        Label("Animated", style = { preferredSize(80, 40) })
     }
 }

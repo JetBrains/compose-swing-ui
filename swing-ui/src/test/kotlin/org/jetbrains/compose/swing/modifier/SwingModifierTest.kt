@@ -10,54 +10,37 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.layout.SlotAttachment
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
-import org.jetbrains.compose.swing.modifier.interaction.actionCommand
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.interaction.caret
-import org.jetbrains.compose.swing.modifier.interaction.caretBlinkRate
-import org.jetbrains.compose.swing.modifier.interaction.caretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
-import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
-import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
-import org.jetbrains.compose.swing.modifier.interaction.navigationFilter
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
-import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
-import org.jetbrains.compose.swing.modifier.layout.alignmentX
-import org.jetbrains.compose.swing.modifier.layout.alignmentY
-import org.jetbrains.compose.swing.modifier.layout.bounds
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.height
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.location
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.modifier.layout.visible
-import org.jetbrains.compose.swing.modifier.layout.width
-import org.jetbrains.compose.swing.modifier.layout.x
-import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.alignmentX
+import org.jetbrains.compose.swing.style.alignmentY
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -67,7 +50,6 @@ import java.awt.Color
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Dimension
-import java.awt.Point
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
@@ -77,7 +59,6 @@ import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -109,17 +90,17 @@ class SwingModifierTest {
     }
 
     @Test
-    fun appearanceModifierAppliesAndReactsToState() = runComposeSwingTest {
+    fun appearanceStyleAppliesAndReactsToState() = runComposeSwingTest {
         var accent by mutableStateOf(true)
         setContent {
-            Label("X", modifier = SwingModifier.foreground(if (accent) Color.RED else Color.BLUE))
+            Label("X", style = { foreground(if (accent) Color.RED else Color.BLUE) })
         }
         val label = onNodeOfType<JLabel>()
-        label.assertProperty(Color.RED, "the modifier should apply the initial color") { foreground }
+        label.assertProperty(Color.RED, "the style should apply the initial color") { foreground }
 
         accent = false
         awaitIdle()
-        label.assertProperty(Color.BLUE, "the modifier should react to the state change") { foreground }
+        label.assertProperty(Color.BLUE, "the style should react to the state change") { foreground }
     }
 
     @Test
@@ -127,11 +108,11 @@ class SwingModifierTest {
         setContent {
             Label(
                 "X",
-                modifier =
-                    SwingModifier
-                        .foreground(Color.RED)
-                        .background(Color.BLUE)
-                        .opaque(true),
+                style = {
+                    foreground(Color.RED)
+                    background(Color.BLUE)
+                    opaque(true)
+                },
             )
         }
         val label = onNodeOfType<JLabel>()
@@ -141,11 +122,11 @@ class SwingModifierTest {
     }
 
     @Test
-    fun removingAnElementRestoresThePriorDefault() = runComposeSwingTest {
+    fun removingAStylePropertyRestoresThePriorDefault() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
             Label("untouched")
-            Label("styled", modifier = if (styled) SwingModifier.background(Color.YELLOW) else SwingModifier)
+            Label("styled", style = { if (styled) background(Color.YELLOW) })
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().background
@@ -156,8 +137,8 @@ class SwingModifierTest {
 
         styled = false
         awaitIdle()
-        // The element left the modifier, so the background is restored to what it was before the
-        // modifier first touched it (the same default the untouched control still shows).
+        // The property left the style, so the background is restored to what it was before the
+        // style first touched it (the same default the untouched control still shows).
         styledLabel.assertProperty(
             default,
             "removing the element should restore the prior default",
@@ -212,45 +193,45 @@ class SwingModifierTest {
     }
 
     @Test
-    fun enabledModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun enabledStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var disabled by mutableStateOf(true)
         setContent {
-            Button("X", onClick = { }, modifier = if (disabled) SwingModifier.enabled(false) else SwingModifier)
+            Button("X", onClick = { }, style = { if (disabled) enabled(false) })
         }
         val button = onNodeOfType<JButton>()
         button.assertIsNotEnabled()
 
         disabled = false
         awaitIdle()
-        // The element left the modifier, so isEnabled is restored to the pre-modifier default.
+        // The property left the style, so isEnabled is restored to the pre-style default.
         button.assertIsEnabled()
     }
 
     @Test
-    fun visibleModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun visibleStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var hidden by mutableStateOf(true)
         setContent {
-            Button("X", onClick = { }, modifier = if (hidden) SwingModifier.visible(false) else SwingModifier)
+            Button("X", onClick = { }, style = { if (hidden) visible(false) })
         }
         val button = onNodeOfType<JButton>()
         button.assertIsNotVisible()
 
         hidden = false
         awaitIdle()
-        // The element left the modifier, so isVisible is restored to the pre-modifier default.
+        // The property left the style, so isVisible is restored to the pre-style default.
         button.assertIsVisible()
     }
 
     @Test
-    fun minimumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun minimumSizeStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
-            Label("X", modifier = if (constrained) SwingModifier.minimumSize(120, 40) else SwingModifier)
+            Label("X", style = { if (constrained) minimumSize(120, 40) })
         }
         val constrainedLabel = onNodeOfType<JLabel>()
         constrainedLabel.assertProperty(
             Dimension(120, 40),
-            "the modifier should apply the minimum size",
+            "the style should apply the minimum size",
         ) { minimumSize }
         constrainedLabel.assertProperty(
             true,
@@ -259,23 +240,23 @@ class SwingModifierTest {
 
         constrained = false
         awaitIdle()
-        // The element left the modifier, so the explicit minimum size is cleared again.
+        // The property left the style, so the explicit minimum size is cleared again.
         onNodeOfType<JLabel>().assertProperty(
             false,
-            "removing the modifier should clear the minimum-size-set flag",
+            "removing the property should clear the minimum-size-set flag",
         ) { isMinimumSizeSet }
     }
 
     @Test
-    fun maximumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun maximumSizeStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
-            Label("X", modifier = if (constrained) SwingModifier.maximumSize(Dimension(200, 80)) else SwingModifier)
+            Label("X", style = { if (constrained) maximumSize(Dimension(200, 80)) })
         }
         val constrainedLabel = onNodeOfType<JLabel>()
         constrainedLabel.assertProperty(
             Dimension(200, 80),
-            "the modifier should apply the maximum size",
+            "the style should apply the maximum size",
         ) { maximumSize }
         constrainedLabel.assertProperty(
             true,
@@ -284,17 +265,17 @@ class SwingModifierTest {
 
         constrained = false
         awaitIdle()
-        // The element left the modifier, so the explicit maximum size is cleared again.
+        // The property left the style, so the explicit maximum size is cleared again.
         onNodeOfType<JLabel>().assertProperty(
             false,
-            "removing the modifier should clear the maximum-size-set flag",
+            "removing the property should clear the maximum-size-set flag",
         ) { isMaximumSizeSet }
     }
 
     @Test
     fun maximumSizeWidthHeightOverloadAppliesTheDimension() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.maximumSize(200, 80))
+            Label("X", style = { maximumSize(200, 80) })
         }
         val label = onNodeOfType<JLabel>()
         label.assertProperty(Dimension(200, 80), "the overload should apply the dimension") { maximumSize }
@@ -304,116 +285,115 @@ class SwingModifierTest {
     @Test
     fun alignmentXModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.alignmentX(0.0f))
+            Label("X", style = { alignmentX(0.0f) })
         }
         onNodeOfType<JLabel>().assertProperty(
             0.0f,
-            "the modifier should set the x alignment",
+            "the style should set the x alignment",
         ) { alignmentX }
     }
 
     @Test
     fun alignmentYModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.alignmentY(1.0f))
+            Label("X", style = { alignmentY(1.0f) })
         }
         onNodeOfType<JLabel>().assertProperty(
             1.0f,
-            "the modifier should set the y alignment",
+            "the style should set the y alignment",
         ) { alignmentY }
     }
 
     @Test
-    fun alignmentXModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
+    fun alignmentXStyleRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
-            Panel(PanelLayout.Box(), modifier = if (declared) SwingModifier.alignmentX(0.5f) else SwingModifier) {
-                Label("child", modifier = SwingModifier.alignmentX(1.0f))
+            Panel(PanelLayout.Box(), style = { if (declared) alignmentX(0.5f) }) {
+                Label("child", style = { alignmentX(1.0f) })
             }
         }
         val panel = onNodeWithText("child").onParent()
-        panel.assertProperty(0.5f, "the modifier should set the x alignment") { alignmentX }
+        panel.assertProperty(0.5f, "the style should set the x alignment") { alignmentX }
 
         declared = false
         awaitIdle()
-        // The element left the modifier, so the panel takes its x alignment from its child again - the
-        // value a panel without the modifier reports.
+        // The style stopped setting it, so the panel takes its x alignment from its child again - the
+        // value a panel without the style reports.
         panel.assertProperty(
             1.0f,
-            "removing the modifier should hand the x alignment back to the one the layout derives",
+            "a style that stops setting the x alignment should hand it back to the one the layout derives",
         ) { alignmentX }
     }
 
     @Test
-    fun alignmentYModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
+    fun alignmentYStyleRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
             Panel(
                 PanelLayout.Box(axis = BoxLayout.X_AXIS),
-                modifier = if (declared) SwingModifier.alignmentY(0.5f) else SwingModifier,
+                style = { if (declared) alignmentY(0.5f) },
             ) {
-                Label("child", modifier = SwingModifier.alignmentY(1.0f))
+                Label("child", style = { alignmentY(1.0f) })
             }
         }
         val panel = onNodeWithText("child").onParent()
-        panel.assertProperty(0.5f, "the modifier should set the y alignment") { alignmentY }
+        panel.assertProperty(0.5f, "the style should set the y alignment") { alignmentY }
 
         declared = false
         awaitIdle()
         // A horizontal BoxLayout derives the y alignment from its children.
         panel.assertProperty(
             1.0f,
-            "removing the modifier should hand the y alignment back to the one the layout derives",
+            "a style that stops setting the y alignment should hand it back to the one the layout derives",
         ) { alignmentY }
     }
 
     @Test
-    fun alignmentXModifierRestoresAnAlignmentTheComponentHeldOfItsOwn() = runComposeSwingTest {
+    fun alignmentXStyleRestoresAnAlignmentTheComponentHeldOfItsOwn() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
             // 0.25f is neither the alignment a JLabel starts with nor the centered value a component
             // holding none reports, so only the label's own alignment can restore it.
             SwingNode(
                 factory = { JLabel("pinned").apply { alignmentX = 0.25f } },
-                modifier = if (declared) SwingModifier.alignmentX(1.0f) else SwingModifier,
+                modifier = SwingModifier.styleable { if (declared) alignmentX(1.0f) },
             )
         }
         val label = onNodeOfType<JLabel>()
-        label.assertProperty(1.0f, "the modifier should set the x alignment") { alignmentX }
+        label.assertProperty(1.0f, "the style should set the x alignment") { alignmentX }
 
         declared = false
         awaitIdle()
         label.assertProperty(
             0.25f,
-            "removing the modifier should restore the alignment the label carried of its own",
+            "a style that stops setting the x alignment should restore the one the label carried of its own",
         ) { alignmentX }
     }
 
     @Test
-    fun componentOrientationModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
+    fun componentOrientationStyleAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var rtl by mutableStateOf(true)
         setContent {
             Label("untouched")
             Label(
                 "styled",
-                modifier =
-                    if (rtl) SwingModifier.componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) else SwingModifier,
+                style = { if (rtl) componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) },
             )
         }
         val styledLabel = onNodeWithText("styled")
         val default = onNodeWithText("untouched").fetch<JLabel>().componentOrientation
         styledLabel.assertProperty(
             ComponentOrientation.RIGHT_TO_LEFT,
-            "the modifier should apply the RTL orientation",
+            "the style should apply the RTL orientation",
         ) { componentOrientation }
 
         rtl = false
         awaitIdle()
-        // The element left the modifier, so the orientation is restored to the pre-modifier default
+        // The property left the style, so the orientation is restored to the pre-style default
         // (the same one the untouched control still shows).
         styledLabel.assertProperty(
             default,
-            "removing the modifier should restore the default orientation",
+            "removing the property should restore the default orientation",
         ) { componentOrientation }
     }
 
@@ -462,11 +442,14 @@ class SwingModifierTest {
     }
 
     @Test
-    fun repeatedPropertyElementStillLastWins() = runComposeSwingTest {
+    fun repeatedStylePropertyStillLastWins() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.background(Color.RED).background(Color.BLUE))
+            Label("X", style = {
+                background(Color.RED)
+                background(Color.BLUE)
+            })
         }
-        // Property elements keep last-wins semantics: two backgrounds collapse, the later wins.
+        // A style keeps last-wins semantics: two backgrounds collapse, the later wins.
         onNodeOfType<JLabel>().assertProperty(Color.BLUE) { background }
     }
 
@@ -649,8 +632,8 @@ class SwingModifierTest {
                     "X",
                     modifier =
                         SwingModifier
-                            .background(Color.GREEN)
                             .onHover(onEnter = { enterCount++ }),
+                    style = { background(Color.GREEN) },
                 )
             }
         }
@@ -845,51 +828,21 @@ class SwingModifierTest {
 
     @Test
     fun everyLayoutBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { alignmentX(0f) }
-        assertDeclaredChainCarriedOnce { alignmentY(0f) }
-        assertDeclaredChainCarriedOnce { componentOrientation(ComponentOrientation.LEFT_TO_RIGHT) }
         assertDeclaredChainCarriedOnce { layoutConstraint("region") }
         assertDeclaredChainCarriedOnce { slot(RawParentProtocol, "region", SlotAttachment { _, _, _ -> {} }) }
-        assertDeclaredChainCarriedOnce { bounds(0, 0, 1, 1) }
-        assertDeclaredChainCarriedOnce { location(0, 0) }
-        assertDeclaredChainCarriedOnce { location(Point(0, 0)) }
-        assertDeclaredChainCarriedOnce { x(0) }
-        assertDeclaredChainCarriedOnce { y(0) }
-        assertDeclaredChainCarriedOnce { preferredSize(null) }
-        assertDeclaredChainCarriedOnce { preferredSize(1, 1) }
-        assertDeclaredChainCarriedOnce { minimumSize(null) }
-        assertDeclaredChainCarriedOnce { minimumSize(1, 1) }
-        assertDeclaredChainCarriedOnce { maximumSize(null) }
-        assertDeclaredChainCarriedOnce { maximumSize(1, 1) }
-        assertDeclaredChainCarriedOnce { size(1, 1) }
-        assertDeclaredChainCarriedOnce { size(Dimension(1, 1)) }
-        assertDeclaredChainCarriedOnce { width(1) }
-        assertDeclaredChainCarriedOnce { height(1) }
-        assertDeclaredChainCarriedOnce { visible(true) }
     }
 
     @Test
     fun everyInteractionBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { actionCommand(null) }
         assertDeclaredChainCarriedOnce { buttonGroup(ButtonGroup()) }
-        assertDeclaredChainCarriedOnce { caret(DefaultCaret()) }
-        assertDeclaredChainCarriedOnce { caretBlinkRate(1) }
-        assertDeclaredChainCarriedOnce { caretUpdatePolicy(DefaultCaret.NEVER_UPDATE) }
         assertDeclaredChainCarriedOnce { defaultButton() }
-        assertDeclaredChainCarriedOnce { documentFilter(null) }
-        assertDeclaredChainCarriedOnce { focusAccelerator('a') }
         assertDeclaredChainCarriedOnce { focusRequester(FocusRequester()) }
-        assertDeclaredChainCarriedOnce { focusTraversalIndex(0) }
         assertDeclaredChainCarriedOnce { orderedFocusTraversal() }
         assertDeclaredChainCarriedOnce { initialFocus() }
         assertDeclaredChainCarriedOnce { inputVerifier { true } }
-        assertDeclaredChainCarriedOnce { verifyInputWhenFocusTarget(true) }
-        assertDeclaredChainCarriedOnce { focusable(true) }
-        assertDeclaredChainCarriedOnce { enabled(true) }
         assertDeclaredChainCarriedOnce { onHover { } }
         assertDeclaredChainCarriedOnce { onFocus { } }
         assertDeclaredChainCarriedOnce { onPointerEvent { } }
-        assertDeclaredChainCarriedOnce { navigationFilter(null) }
         assertDeclaredChainCarriedOnce { onAccept { } }
     }
 

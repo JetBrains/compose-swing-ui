@@ -8,16 +8,16 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.documentFilter
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
-import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.verifyInputWhenFocusTarget
 import javax.swing.text.AttributeSet
 import javax.swing.text.DocumentFilter
 
@@ -30,7 +30,7 @@ internal fun ColumnScope.DigitsOnlyCard() {
             TextField(
                 value = pin,
                 onValueChange = { pin = it },
-                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
+                style = { documentFilter(DigitsOnlyFilter) },
                 columns = 12,
             )
         }
@@ -74,7 +74,7 @@ internal fun ColumnScope.InputVerifierCard() {
             Button(
                 "Reset",
                 onClick = { port = "8080" },
-                modifier = SwingModifier.verifyInputWhenFocusTarget(false),
+                style = { verifyInputWhenFocusTarget(false) },
             )
         }
         Label(if (portValid) "Port is valid" else "Port is invalid - focus is held here until it is fixed")
@@ -90,7 +90,7 @@ internal fun ColumnScope.DocumentStateCard() {
         Panel {
             Label("Text:")
             TextField(state = state, columns = 16)
-            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
+            Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
         }
         Label("Length is ${state.text.length}")
     }

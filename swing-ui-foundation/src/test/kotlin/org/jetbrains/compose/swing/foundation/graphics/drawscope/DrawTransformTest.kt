@@ -6,9 +6,9 @@ import org.jetbrains.compose.swing.foundation.graphics.DecoratedBox
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.drawWithContent
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -97,10 +97,12 @@ class DrawTransformTest {
                         modifier =
                             SwingModifier
                                 .testTag("box")
-                                .preferredSize(32, 32)
-                                .opaque(false)
                                 .drawWithContent { inset(8f) { this@drawWithContent.drawContent() } }
                                 .background(Brush.of(Color.RED)),
+                        style = {
+                            opaque(false)
+                            preferredSize(32, 32)
+                        },
                     )
                 }
             }

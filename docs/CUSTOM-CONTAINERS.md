@@ -147,16 +147,18 @@ other, in declaration order. A modifier declares either a host slot or other par
 one declaring both is refused, unless each of the other declarations is inheritable and folds no parent
 data.
 
-**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
+**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be set by a
+[style property](STYLES.md#a-property-written-by-an-element); the style's declaration counts as the last one in
+the modifier. A `ParentLayoutElement` whose `inheritable` is `true` can be given as a
 [component default](ARCHITECTURE.md#component-defaults). Under a parent its protocol refuses, it is also
-left out of the declaration instead of refused, whether a default provides it or the component declares
+left out of the declaration instead of refused, whether a default provides it, a style writes it, or the component declares
 it directly: that parent never receives it, and a conventional manager is never registered again because
 of it. A left-out declaration taking another value does not have a measuring parent declared to again,
 in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is
 not additive: one that is both is refused.
 `inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier`
-cannot be a component default, folds, and fails under a parent its protocol refuses. A `ParentLayoutNode`
-declares the same `parentProtocol` and `inheritable` as its element.
+cannot be a component default, cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and
+`inheritable` of a `ParentLayoutNodeElement` apply to the `ParentLayoutNode` it creates.
 
 **What the parent receives.** A declaration reaches the component's immediate parent and travels no
 further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data
@@ -172,7 +174,7 @@ runs `update(node)` when a later declaration is unequal to it, as a `NodeElement
 the node in the element's place in `elements`. Every node among `elements` is attached: the parent is
 handed the elements again as a node detaches, before another node of the modifier runs. Stateful
 declarations are paired by position among themselves, as
-[additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering
+[additive elements](MODIFIERS.md#keyed-and-additive-elements) are, so an element of another kind entering
 or leaving shifts none of them. A layout node has the
 [lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
 of any other node, and it stays attached through a `key` change. It reads the component whose modifier
@@ -441,10 +443,18 @@ private object FramedScopeImpl : FramedScope {
 fun Framed(
     title: String,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     content: @Composable FramedScope.() -> Unit,
 ) {
     val border = remember(title) { TitledBorder(title) }
-    Panel(PanelLayout.Border(), modifier = modifier.border(border)) {
+    Panel(
+        PanelLayout.Border(),
+        modifier = modifier,
+        style = {
+            border(border)
+            with(style) { applyStyle() }
+        },
+    ) {
         FramedScopeImpl.content()
     }
 }
@@ -467,13 +477,13 @@ Four things make a composite of this shape behave:
 - **Hold the scope to its three rules** - a `@Composable` content block, children composed directly,
   and each check run where its answer is whole (see *Placing children under constraints*). A
   composite's regions are placements like any other, so nothing about them is special.
-- **Keep the composite composable-shaped** - state in, callbacks out, and a `modifier` parameter
-  chained onto the outermost container it emits, so a caller styles the composite the way they style
-  any component.
+- **Keep the composite composable-shaped** - state in, callbacks out, and `modifier` and `style`
+  parameters passed to the outermost container it emits, with the composite's own properties set first so the
+  caller's style wins, so a caller styles the composite the way they style any component.
 - **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`,
   as above. A `Border` or `Icon` built in the composable body is a different instance on every
-  recomposition, and neither overrides `equals`, so the chain element sees a changed value on every
-  pass and re-applies: `JComponent.setBorder` repaints for any instance that is not the one it already
+  recomposition, and neither overrides `equals`, so every
+  pass counts as a changed value and the write is applied again: `JComponent.setBorder` repaints for any instance that is not the one it already
   holds, and relayouts when the insets differ. Handing the same instance back makes the re-applied write
   a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
   equal instance already compares equal to the chain element applied last time and the write is skipped.
@@ -576,17 +586,25 @@ Construct, recompose, and dispose an `OnDemandComposition` on the Event Dispatch
 
 A component that shows a list of items asks a `ListCellRenderer` for one row at a time.
 `rememberListItemRenderer` builds a renderer that renders a composable there and
-`SwingModifier.listItemRenderer` installs it: one reused composition renders every row, and the
+the `listItemRenderer` style property installs it: one reused composition renders every row, and the
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
 <!--- INCLUDE .*custom-container-04.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.selection.ListItemScope
-import org.jetbrains.compose.swing.components.selection.listItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
+import org.jetbrains.compose.swing.components.style.ComboBoxes
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.components.style.listItemRenderer
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Dimension
 import java.util.Vector
 import javax.swing.DefaultComboBoxModel
@@ -605,13 +623,25 @@ fun <T : Any> CustomComboBox(
     items: List<T>,
     itemType: KClass<T>,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
     itemContent: @Composable ListItemScope.(item: T) -> Unit,
 ) {
     val cells = rememberListItemRenderer(itemType, itemContent)
+    // The renderer is part of the component's default style, so the caller's `style` overrides it.
+    val kind =
+        remember(cells) {
+            SwingStyleKind<ComboBoxStyleScope, Unit>(
+                { base, _ -> object : ComboBoxStyleScope, ComponentStyleScope by base {} },
+            ) {
+                applyNestedStyle(AllComponents)
+                applyNestedStyle(ComboBoxes)
+                listItemRenderer(cells)
+            }
+        }
     val declaredItems = items.toList()
     SwingNode(
         factory = { WideComboBox<T>() },
-        modifier = modifier.listItemRenderer(cells),
+        modifier = modifier.styleable(style, kind),
         update = { set(declaredItems) { model = DefaultComboBoxModel(Vector(it)) } },
     )
 }
@@ -644,4 +674,4 @@ particular row, and a cell that composes more than one component is refused - pu
 compose that.
 
 `listItemRenderer` also takes a renderer written against the Swing interface:
-`modifier.listItemRenderer(MyExistingRenderer())`.
+`style = { listItemRenderer(MyExistingRenderer()) }`.

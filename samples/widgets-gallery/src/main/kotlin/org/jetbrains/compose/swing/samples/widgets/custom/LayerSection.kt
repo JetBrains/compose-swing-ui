@@ -10,12 +10,11 @@ import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.ListBox
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -45,7 +44,7 @@ internal fun LayerSection() {
                 Label("Presses over the layer: $presses")
             }
             Layer(
-                modifier = SwingModifier.preferredSize(Dimension(240, 130)),
+                style = { preferredSize(Dimension(240, 130)) },
                 // The tint is painted after the view, so the list shows through it.
                 onPaint = { g, width, height, paintView ->
                     paintView()

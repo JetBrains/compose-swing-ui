@@ -12,13 +12,13 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.lastElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingComponentNodeListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -50,19 +50,23 @@ class DecorationModifierTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
-                                .opaque(false)
                                 .cut()
-                                .preferredSize(Dimension(64, 64))
                                 .fill(Color.BLUE),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     ) { Label(text = "child") }
                     DecoratedFlowPanel(
                         modifier =
                             SwingModifier
                                 .testTag("reversed-panel")
-                                .opaque(false)
                                 .fill(Color.BLUE)
-                                .preferredSize(Dimension(64, 64))
                                 .cut(),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     ) { Label(text = "child") }
                 }
             }
@@ -101,9 +105,11 @@ class DecorationModifierTest {
                         modifier =
                             leading
                                 .testTag("decorated-panel")
-                                .opaque(false)
-                                .preferredSize(Dimension(64, 64))
                                 .fill(Color.BLUE),
+                        style = {
+                            opaque(false)
+                            preferredSize(Dimension(64, 64))
+                        },
                     ) {
                         Label(text = "child")
                     }
@@ -201,7 +207,11 @@ class DecorationModifierTest {
                                     "decorated-panel",
                                 ).spill(Insets(outsets, outsets, outsets, outsets)),
                     ) {
-                        Label(text = "child", modifier = SwingModifier.testTag("decorated-child").preferredSize(40, 20))
+                        Label(
+                            text = "child",
+                            modifier = SwingModifier.testTag("decorated-child"),
+                            style = { preferredSize(40, 20) },
+                        )
                     }
                 }
             }
@@ -257,9 +267,12 @@ class DecorationModifierTest {
             var clipped by mutableStateOf(true)
             setContent {
                 DecoratedBox {
-                    val base = SwingModifier.testTag("decorated-panel").opaque(false)
+                    val base = SwingModifier.testTag("decorated-panel")
                     val clip = if (clipped) base.cut() else base
-                    DecoratedFlowPanel(modifier = clip.fill(Color.BLUE)) { Label(text = "child") }
+                    DecoratedFlowPanel(
+                        modifier = clip.fill(Color.BLUE),
+                        style = { opaque(false) },
+                    ) { Label(text = "child") }
                 }
             }
             onNodeWithTag(

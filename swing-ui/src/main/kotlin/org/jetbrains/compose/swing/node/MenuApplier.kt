@@ -51,8 +51,7 @@ internal class MenuApplier(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
-        instance.attachedTo(current.owner)
-        instance.publishForInspection()
+        instance.insertInto(current)
     }
 
     override fun insertBottomUp(
@@ -80,7 +79,7 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and removing a detached
         // component is a no-op.
-        parent.removeChildRun(index, count) {
+        parent.removeChildren(index, count) {
             val area = it.component.bounds
             container.removeMenuChild(it.component)
             batch.markChanged(container, area)
@@ -97,7 +96,7 @@ internal class MenuApplier(
         val container = parent.menuContainer("move menu children")
         batch.holdForChildSettle(parent)
 
-        parent.moveChildRun(
+        parent.moveChildren(
             from,
             to,
             count,
@@ -113,6 +112,7 @@ internal class MenuApplier(
         )
     }
 
+    /** Removes the composed children and their parent links while preserving the caller's root. */
     override fun onClear() {
         val selection = MenuSelectionManager.defaultManager()
         val path = selection.selectedPath
@@ -125,6 +125,7 @@ internal class MenuApplier(
         // The root is the caller's, so a component the caller added to it stays.
         val container = root.menuContainer("clear menu children")
         root.children.removeComposedFrom(container) { batch.markChanged(container, it) }
+        root.children.fastForEach { it.parentTo(null) }
         root.children.clear()
     }
 

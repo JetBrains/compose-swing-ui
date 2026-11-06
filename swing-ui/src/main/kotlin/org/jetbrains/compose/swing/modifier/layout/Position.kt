@@ -3,10 +3,14 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.BoundsDescriptor
+import org.jetbrains.compose.swing.style.HeightDescriptor
+import org.jetbrains.compose.swing.style.LocationDescriptor
+import org.jetbrains.compose.swing.style.WidthDescriptor
+import org.jetbrains.compose.swing.style.XDescriptor
+import org.jetbrains.compose.swing.style.YDescriptor
 import java.awt.Point
 import java.awt.Rectangle
 
@@ -21,6 +25,7 @@ import java.awt.Rectangle
  * @return this modifier with the bounds declared on it.
  * @see java.awt.Component.setBounds
  */
+@Deprecated("Set it in the component's style: style = { bounds(x, y, width, height) }")
 public fun SwingModifier.bounds(
     x: Int,
     y: Int,
@@ -28,9 +33,9 @@ public fun SwingModifier.bounds(
     height: Int,
 ): SwingModifier =
     property(
-        BoundsProperty,
+        BoundsDescriptor,
         Rectangle(x, y, width, height),
-        alsoOverwrites = listOf(XProperty, YProperty, WidthProperty, HeightProperty),
+        alsoOverwrites = listOf(XDescriptor, YDescriptor, WidthDescriptor, HeightDescriptor),
     )
 
 /**
@@ -49,10 +54,16 @@ public fun SwingModifier.bounds(
  * @return this modifier with the location declared on it.
  * @see java.awt.Component.setLocation
  */
+@Deprecated("Set it in the component's style: style = { location(x, y) }")
 public fun SwingModifier.location(
     x: Int,
     y: Int,
-): SwingModifier = location(Point(x, y))
+): SwingModifier =
+    property(
+        LocationDescriptor,
+        Point(x, y),
+        alsoOverwrites = listOf(XDescriptor, YDescriptor),
+    )
 
 /**
  * Sets the component's actual location to [point], like `setLocation`. See [location] (the `Int`
@@ -65,11 +76,12 @@ public fun SwingModifier.location(
  * @return this modifier with the location declared on it.
  * @see java.awt.Component.setLocation
  */
+@Deprecated("Set it in the component's style: style = { location(point) }")
 public fun SwingModifier.location(point: Point): SwingModifier =
     property(
-        LocationProperty,
+        LocationDescriptor,
         point,
-        alsoOverwrites = listOf(XProperty, YProperty),
+        alsoOverwrites = listOf(XDescriptor, YDescriptor),
     )
 
 /**
@@ -83,7 +95,8 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * @return this modifier with the x position declared on it.
  * @see java.awt.Component.setLocation
  */
-public fun SwingModifier.x(value: Int): SwingModifier = property(XProperty, value)
+@Deprecated("Set it in the component's style: style = { x(value) }")
+public fun SwingModifier.x(value: Int): SwingModifier = property(XDescriptor, value)
 
 /**
  * Sets the component's actual y position to [value], keeping its current x, like `setLocation(x, y)`.
@@ -96,37 +109,5 @@ public fun SwingModifier.x(value: Int): SwingModifier = property(XProperty, valu
  * @return this modifier with the y position declared on it.
  * @see java.awt.Component.setLocation
  */
-public fun SwingModifier.y(value: Int): SwingModifier = property(YProperty, value)
-
-/**
- * The horizontal axis's own accessors, so the [x] declaration and every coarser write that covers the
- * axis - a whole location, a whole geometry - name one property.
- */
-internal val XProperty =
-    ComponentPropertyDescriptor<Component, Int>(
-        name = "x",
-        read = { it.x },
-        write = { component, value -> component.setLocation(value, component.y) },
-    )
-
-/** The vertical axis's own accessors, as [XProperty] is the horizontal one's. */
-internal val YProperty =
-    ComponentPropertyDescriptor<Component, Int>(
-        name = "y",
-        read = { it.y },
-        write = { component, value -> component.setLocation(component.x, value) },
-    )
-
-private val BoundsProperty =
-    ComponentPropertyDescriptor<Component, Rectangle>(
-        name = "bounds",
-        read = { it.bounds },
-        write = { component, value -> component.bounds = value },
-    )
-
-private val LocationProperty =
-    ComponentPropertyDescriptor<Component, Point>(
-        name = "location",
-        read = { it.location },
-        write = { component, value -> component.location = value },
-    )
+@Deprecated("Set it in the component's style: style = { y(value) }")
+public fun SwingModifier.y(value: Int): SwingModifier = property(YDescriptor, value)

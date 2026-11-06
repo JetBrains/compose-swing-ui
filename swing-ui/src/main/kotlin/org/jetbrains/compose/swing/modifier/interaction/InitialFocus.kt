@@ -11,7 +11,8 @@ import java.awt.Component
  * or a dialog opens on.
  *
  * Focus is taken once, as soon as the component is on screen, and never again: a later re-show does not
- * pull the keyboard back from wherever the user has moved it. Where [focusTraversalIndex] and
+ * pull the keyboard back from wherever the user has moved it. Where
+ * [focusTraversalIndex][org.jetbrains.compose.swing.style.focusTraversalIndex] and
  * [orderedFocusTraversal] decide the order Tab walks, this decides only where that walk starts.
  *
  * Declaring it on two components of one window is a contradiction the modifier does not resolve: the

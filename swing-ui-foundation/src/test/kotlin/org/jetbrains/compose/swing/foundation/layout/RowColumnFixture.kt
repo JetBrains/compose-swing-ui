@@ -1,13 +1,18 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Component
 import java.awt.ComponentOrientation
@@ -31,26 +36,35 @@ internal const val CHILD_HEIGHT: Int = 40
 /** How many children a fixture declares when the point being made needs more than one. */
 internal const val CHILD_COUNT: Int = 3
 
+/** The modifier of the container under test: the tag to find it by. */
+internal val ContainerModifier: SwingModifier = SwingModifier.testTag(CONTAINER_TAG)
+
 /**
- * The modifier of the container under test: a tag to find it by, a size for its parent to impose on it,
- * and the reading direction its placement of a child resolves against.
+ * The style of the container under test: a size for its parent to impose on it, and the reading direction its
+ * placement of a child resolves against.
  */
-internal fun containerModifier(
+internal fun containerStyle(
     width: Int,
     height: Int,
     orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
-): SwingModifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(width, height).componentOrientation(orientation)
+): SwingStyle<ComponentStyleScope> =
+    SwingStyle {
+        preferredSize(width, height)
+        componentOrientation(orientation)
+    }
 
 /**
  * A child asking for one fixed size and declaring no maximum of its own, so the extent it ends up
  * occupying is the extent its container granted it and nothing else.
  */
 @Composable
+@NonRestartableComposable
 internal fun SizedChild(
     index: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<LabelStyleScope> = SwingStyle,
 ) {
-    Label("child $index", modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT))
+    Child(index, CHILD_WIDTH, CHILD_HEIGHT, modifier, style)
 }
 
 /** The fixture child at a size of its own, for a container holding children of more than one size. */
@@ -60,8 +74,16 @@ internal fun Child(
     width: Int,
     height: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<LabelStyleScope> = SwingStyle,
 ) {
-    Label("child $index", modifier = modifier.preferredSize(width, height))
+    Label(
+        "child $index",
+        modifier = modifier,
+        style = {
+            preferredSize(width, height)
+            with(style) { applyStyle() }
+        },
+    )
 }
 
 /**
@@ -75,7 +97,7 @@ internal fun DecoratedBaselineChild(
 ) {
     SwingNode(
         factory = { DecoratedBaselinePanel(baseline) },
-        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+        modifier = modifier.styleable({ preferredSize(CHILD_WIDTH, CHILD_HEIGHT) }, RawKind),
     )
 }
 

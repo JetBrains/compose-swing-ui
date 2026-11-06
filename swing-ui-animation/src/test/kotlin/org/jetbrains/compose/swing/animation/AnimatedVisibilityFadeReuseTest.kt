@@ -18,7 +18,8 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -119,7 +120,11 @@ class AnimatedVisibilityFadeReuseTest {
         setContent {
             Window(onCloseRequest = {}, title = "fade-reuse", state = WindowState(size = Dimension(240, 160))) {
                 Box(
-                    SwingModifier.testTag("frame").preferredSize(100, 80).background(Brush.of(Color.WHITE)),
+                    SwingModifier
+                        .testTag(
+                            "frame",
+                        ).styleable { preferredSize(100, 80) }
+                        .background(Brush.of(Color.WHITE)),
                 ) { content(this, active, frameNumber) { paints++ } }
             }
         }
@@ -165,7 +170,7 @@ class AnimatedVisibilityFadeReuseTest {
                         targetState = active,
                         modifier = SwingModifier.drawBehind { painted() },
                     ) { state ->
-                        Canvas(SwingModifier.preferredSize(60, 40)) {
+                        Canvas(SwingModifier.styleable { preferredSize(60, 40) }) {
                             graphics.color = if (state) Color.BLUE else Color.RED
                             graphics.fillRect(0, 0, width, height)
                         }
@@ -195,7 +200,7 @@ private fun FrameLabel(frame: IntState) = Label(text = "frame ${frame.intValue.t
 
 @Composable
 private fun BlueBox() =
-    Canvas(SwingModifier.preferredSize(60, 40)) {
+    Canvas(SwingModifier.styleable { preferredSize(60, 40) }) {
         graphics.color = Color.BLUE
         graphics.fillRect(0, 0, width, height)
     }

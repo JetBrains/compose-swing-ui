@@ -6,16 +6,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimatedContainersSection
 import org.jetbrains.compose.swing.samples.widgets.animation.AnimationSection
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
@@ -46,6 +41,12 @@ import org.jetbrains.compose.swing.samples.widgets.text.RichTextSection
 import org.jetbrains.compose.swing.samples.widgets.window.LayeredAndMdiSection
 import org.jetbrains.compose.swing.samples.widgets.window.TraySection
 import org.jetbrains.compose.swing.samples.widgets.window.WindowsSection
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.FlowLayout
 import java.awt.Font
@@ -112,7 +113,7 @@ internal fun ColumnScope.ExampleCard(
                 BorderFactory.createEmptyBorder(6, 6, 6, 6),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
+    Column(modifier = SwingModifier.fillMaxWidth().styleable { border(cardBorder) }) {
         content()
     }
 }
@@ -127,7 +128,13 @@ internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
         horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
     ) {
         Viewport {
-            Column(SwingModifier.background(UIManager.getColor("Panel.background")).opaque(true)) {
+            Column(
+                modifier =
+                    SwingModifier.styleable {
+                        background(UIManager.getColor("Panel.background"))
+                        opaque(true)
+                    },
+            ) {
                 cards()
             }
         }
@@ -139,10 +146,10 @@ internal fun SectionHeading(text: String) {
     Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
         Label(
             text = text,
-            modifier =
-                SwingModifier
-                    .font(Font(Font.SANS_SERIF, Font.BOLD, 16))
-                    .foreground(Color(0x2D4B73)),
+            style = {
+                font(Font(Font.SANS_SERIF, Font.BOLD, 16))
+                foreground(Color(0x2D4B73))
+            },
         )
     }
 }
@@ -156,6 +163,6 @@ internal fun WrappedCaption(
 ) {
     Label(
         text = "<html><body style='width:${width}px'>$text</body></html>",
-        modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
+        style = { horizontalAlignment(SwingConstants.LEADING) },
     )
 }

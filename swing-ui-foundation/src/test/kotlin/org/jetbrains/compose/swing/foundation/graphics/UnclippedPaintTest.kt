@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.foundation.graphics
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -46,9 +46,9 @@ class UnclippedPaintTest {
                         modifier =
                             SwingModifier
                                 .testTag("decorated")
-                                .preferredSize(48, 48)
                                 .decoration(offscreen)
                                 .blur(2),
+                        style = { preferredSize(48, 48) },
                     ) { drawRect(Color.RED) }
                 }
             }
@@ -70,7 +70,8 @@ class UnclippedPaintTest {
             setContent {
                 Box {
                     DecoratedCanvas(
-                        modifier = SwingModifier.testTag("decorated").preferredSize(48, 48).decorate(),
+                        modifier = SwingModifier.testTag("decorated").decorate(),
+                        style = { preferredSize(48, 48) },
                     ) {
                         drawRect(Color.RED)
                     }

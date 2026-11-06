@@ -13,8 +13,9 @@ import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -209,8 +210,14 @@ class PartialRepaintSpreadTest {
                 Box(modifier = decorated.background(Brush.of(Color.WHITE))) {
                     Column {
                         SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 30, 30)) }) {
-                            val placed = SwingModifier.testTag("leaf").preferredSize(40, 40)
-                            Canvas(modifier = placed.shadow(8, Color.BLACK, 4, 4), onDraw = leaf.draw)
+                            Canvas(
+                                modifier =
+                                    SwingModifier
+                                        .testTag("leaf")
+                                        .shadow(8, Color.BLACK, 4, 4)
+                                        .styleable { preferredSize(40, 40) },
+                                onDraw = leaf.draw,
+                            )
                         }
                     }
                 }
@@ -503,8 +510,10 @@ class PartialRepaintSpreadTest {
                         val shifted = SwingModifier.testTag("shifted").drawBehind(leaf.onPaint).decoration(Shifted(-20))
                         Box(modifier = shifted) {
                             SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
-                                val placed = SwingModifier.testTag("leaf").preferredSize(40, 40)
-                                Canvas(modifier = placed, onDraw = leaf.draw)
+                                Canvas(
+                                    modifier = SwingModifier.testTag("leaf").styleable { preferredSize(40, 40) },
+                                    onDraw = leaf.draw,
+                                )
                             }
                         }
                     }
@@ -546,8 +555,17 @@ class PartialRepaintSpreadTest {
             setWindowContent {
                 Box(modifier = SwingModifier.testTag("root")) {
                     SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 30, 30)) }) {
-                        val placed = SwingModifier.testTag("leaf").preferredSize(60, 60).drawBehind(leaf.onPaint)
-                        Canvas(modifier = placed.decoration(Shifted(-20)), onDraw = leaf.draw)
+                        Canvas(
+                            modifier =
+                                SwingModifier
+                                    .testTag("leaf")
+                                    .drawBehind(leaf.onPaint)
+                                    .decoration(Shifted(-20))
+                                    .styleable {
+                                        preferredSize(60, 60)
+                                    },
+                            onDraw = leaf.draw,
+                        )
                     }
                 }
             }

@@ -31,8 +31,9 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.tooling.findDeclaringGroup
@@ -98,7 +99,7 @@ class AnimationModifierUpstreamParityTest {
                                     finishedListener = finishedListener,
                                 ),
                         ) {
-                            Box(modifier = SwingModifier.preferredSize(Dimension(100, 100)))
+                            Box(modifier = SwingModifier.styleable { preferredSize(Dimension(100, 100)) })
                         }
                     }
                 }
@@ -131,42 +132,44 @@ class AnimationModifierUpstreamParityTest {
         val moving =
             remember {
                 movableContentOf {
+                    val size = if (expanded.value) Dimension(200, 200) else Dimension(100, 100)
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag("moving-content")
                                 .animateContentSize(tween(160, easing = LinearEasing)),
                     ) {
-                        Box(
-                            modifier =
-                                SwingModifier.preferredSize(
-                                    if (expanded.value) {
-                                        Dimension(200, 200)
-                                    } else {
-                                        Dimension(100, 100)
-                                    },
-                                ),
-                        )
+                        Box(modifier = SwingModifier.styleable { preferredSize(size) })
                     }
                 }
             }
         Row(modifier = SwingModifier.testTag("root-row")) {
-            Box(modifier = SwingModifier.preferredSize(Dimension(300, 300))) {
+            Box(modifier = SwingModifier.styleable { preferredSize(Dimension(300, 300)) }) {
                 Column {
                     Row {
                         if (inFirstContainer) moving()
-                        Box(modifier = SwingModifier.testTag("first-width").preferredSize(Dimension(1, 1)))
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("first-width")
+                                    .styleable { preferredSize(Dimension(1, 1)) },
+                        )
                     }
-                    Box(modifier = SwingModifier.testTag("first-height").preferredSize(Dimension(1, 1)))
+                    Box(modifier = SwingModifier.testTag("first-height").styleable { preferredSize(Dimension(1, 1)) })
                 }
             }
-            Box(modifier = SwingModifier.preferredSize(Dimension(300, 300))) {
+            Box(modifier = SwingModifier.styleable { preferredSize(Dimension(300, 300)) }) {
                 Column {
                     Row {
                         if (!inFirstContainer) moving()
-                        Box(modifier = SwingModifier.testTag("second-width").preferredSize(Dimension(1, 1)))
+                        Box(
+                            modifier =
+                                SwingModifier
+                                    .testTag("second-width")
+                                    .styleable { preferredSize(Dimension(1, 1)) },
+                        )
                     }
-                    Box(modifier = SwingModifier.testTag("second-height").preferredSize(Dimension(1, 1)))
+                    Box(modifier = SwingModifier.testTag("second-height").styleable { preferredSize(Dimension(1, 1)) })
                 }
             }
         }

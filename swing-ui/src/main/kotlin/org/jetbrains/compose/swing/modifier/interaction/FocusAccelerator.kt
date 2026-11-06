@@ -3,10 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.components.style.FocusAcceleratorDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import javax.swing.text.JTextComponent
 
 /**
  * The key that moves the keyboard focus to this text component when pressed with the platform's
@@ -25,11 +24,5 @@ import javax.swing.text.JTextComponent
  * @return this chain with the focus accelerator declared on it.
  * @see javax.swing.text.JTextComponent.setFocusAccelerator
  */
-public fun SwingModifier.focusAccelerator(key: Char): SwingModifier = property(FocusAcceleratorProperty, key)
-
-private val FocusAcceleratorProperty =
-    ComponentPropertyDescriptor<JTextComponent, Char>(
-        name = "focusAccelerator",
-        read = { it.focusAccelerator },
-        write = { component, value -> component.focusAccelerator = value },
-    )
+@Deprecated("Set it in the component's style: style = { focusAccelerator(key) }")
+public fun SwingModifier.focusAccelerator(key: Char): SwingModifier = property(FocusAcceleratorDescriptor, key)

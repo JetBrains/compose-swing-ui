@@ -9,8 +9,8 @@ import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
@@ -115,7 +115,7 @@ class PanelLayoutExtensionTest {
         var inset by mutableIntStateOf(0)
         var shift by mutableIntStateOf(0)
         setContent {
-            Panel(Shifted(inset, shift), SwingModifier.preferredSize(200, 40)) { Label("child") }
+            Panel(Shifted(inset, shift), style = { preferredSize(200, 40) }) { Label("child") }
         }
         val panel = onNodeWithText("child").onParent().fetch<JPanel>()
         val child = onNodeWithText("child").fetch<JLabel>()

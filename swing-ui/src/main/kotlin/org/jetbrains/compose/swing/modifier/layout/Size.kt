@@ -3,10 +3,14 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import java.awt.Component
+import org.jetbrains.compose.swing.style.HeightDescriptor
+import org.jetbrains.compose.swing.style.MaximumSizeDescriptor
+import org.jetbrains.compose.swing.style.MinimumSizeDescriptor
+import org.jetbrains.compose.swing.style.PreferredSizeDescriptor
+import org.jetbrains.compose.swing.style.SizeDescriptor
+import org.jetbrains.compose.swing.style.WidthDescriptor
 import java.awt.Dimension
 
 /**
@@ -16,7 +20,8 @@ import java.awt.Dimension
  * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
  */
-public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier = property(PreferredSizeProperty, size)
+@Deprecated("Set it in the component's style: style = { preferredSize(size) }")
+public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier = property(PreferredSizeDescriptor, size)
 
 /**
  * Sets `preferredSize` to `Dimension(width, height)` and relays out.
@@ -26,10 +31,11 @@ public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier = proper
  * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
  */
+@Deprecated("Set it in the component's style: style = { preferredSize(width, height) }")
 public fun SwingModifier.preferredSize(
     width: Int,
     height: Int,
-): SwingModifier = preferredSize(Dimension(width, height))
+): SwingModifier = property(PreferredSizeDescriptor, Dimension(width, height))
 
 /**
  * Sets `minimumSize` and relays out; `null` restores the layout-computed minimum size.
@@ -39,7 +45,8 @@ public fun SwingModifier.preferredSize(
  * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
  */
-public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier = property(MinimumSizeProperty, size)
+@Deprecated("Set it in the component's style: style = { minimumSize(size) }")
+public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier = property(MinimumSizeDescriptor, size)
 
 /**
  * Sets `minimumSize` to `Dimension(width, height)` and relays out.
@@ -49,10 +56,11 @@ public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier = property
  * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
  */
+@Deprecated("Set it in the component's style: style = { minimumSize(width, height) }")
 public fun SwingModifier.minimumSize(
     width: Int,
     height: Int,
-): SwingModifier = minimumSize(Dimension(width, height))
+): SwingModifier = property(MinimumSizeDescriptor, Dimension(width, height))
 
 /**
  * Sets `maximumSize` and relays out; `null` restores the layout-computed maximum size.
@@ -62,7 +70,8 @@ public fun SwingModifier.minimumSize(
  * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
  */
-public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier = property(MaximumSizeProperty, size)
+@Deprecated("Set it in the component's style: style = { maximumSize(size) }")
+public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier = property(MaximumSizeDescriptor, size)
 
 /**
  * Sets `maximumSize` to `Dimension(width, height)` and relays out.
@@ -72,10 +81,11 @@ public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier = property
  * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
  */
+@Deprecated("Set it in the component's style: style = { maximumSize(width, height) }")
 public fun SwingModifier.maximumSize(
     width: Int,
     height: Int,
-): SwingModifier = maximumSize(Dimension(width, height))
+): SwingModifier = property(MaximumSizeDescriptor, Dimension(width, height))
 
 /**
  * Sets the component's actual size to [width] by [height], like `setSize`. A layout manager overrides
@@ -93,10 +103,16 @@ public fun SwingModifier.maximumSize(
  * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
  */
+@Deprecated("Set it in the component's style: style = { size(width, height) }")
 public fun SwingModifier.size(
     width: Int,
     height: Int,
-): SwingModifier = size(Dimension(width, height))
+): SwingModifier =
+    property(
+        SizeDescriptor,
+        Dimension(width, height),
+        alsoOverwrites = listOf(WidthDescriptor, HeightDescriptor),
+    )
 
 /**
  * Sets the component's actual size to [size], like `setSize`. See [size] (the `Int` overload) for when
@@ -107,11 +123,12 @@ public fun SwingModifier.size(
  * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
  */
+@Deprecated("Set it in the component's style: style = { size(size) }")
 public fun SwingModifier.size(size: Dimension): SwingModifier =
     property(
-        SizeProperty,
+        SizeDescriptor,
         size,
-        alsoOverwrites = listOf(WidthProperty, HeightProperty),
+        alsoOverwrites = listOf(WidthDescriptor, HeightDescriptor),
     )
 
 /**
@@ -124,7 +141,8 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
  * @return this modifier with the width declared on it.
  * @see java.awt.Component.setSize
  */
-public fun SwingModifier.width(width: Int): SwingModifier = property(WidthProperty, width)
+@Deprecated("Set it in the component's style: style = { width(width) }")
+public fun SwingModifier.width(width: Int): SwingModifier = property(WidthDescriptor, width)
 
 /**
  * Sets the component's actual height to [height], keeping its current width, like `setSize(width,
@@ -136,60 +154,5 @@ public fun SwingModifier.width(width: Int): SwingModifier = property(WidthProper
  * @return this modifier with the height declared on it.
  * @see java.awt.Component.setSize
  */
-public fun SwingModifier.height(height: Int): SwingModifier = property(HeightProperty, height)
-
-/**
- * The width axis's own accessors, so the width declaration and every coarser write that covers the
- * axis - a whole size, a whole geometry - name one property.
- */
-internal val WidthProperty =
-    ComponentPropertyDescriptor<Component, Int>(
-        name = "width",
-        read = { it.width },
-        write = { component, value -> component.setSize(value, component.height) },
-    )
-
-/** The height axis's own accessors, as [WidthProperty] is the width's. */
-internal val HeightProperty =
-    ComponentPropertyDescriptor<Component, Int>(
-        name = "height",
-        read = { it.height },
-        write = { component, value -> component.setSize(component.width, value) },
-    )
-
-private val PreferredSizeProperty =
-    ComponentPropertyDescriptor<Component, Dimension?>(
-        name = "preferredSize",
-        read = { if (it.isPreferredSizeSet) it.preferredSize else null },
-        write = { component, value ->
-            component.preferredSize = value
-            component.revalidate()
-        },
-    )
-
-private val MinimumSizeProperty =
-    ComponentPropertyDescriptor<Component, Dimension?>(
-        name = "minimumSize",
-        read = { if (it.isMinimumSizeSet) it.minimumSize else null },
-        write = { component, value ->
-            component.minimumSize = value
-            component.revalidate()
-        },
-    )
-
-private val MaximumSizeProperty =
-    ComponentPropertyDescriptor<Component, Dimension?>(
-        name = "maximumSize",
-        read = { if (it.isMaximumSizeSet) it.maximumSize else null },
-        write = { component, value ->
-            component.maximumSize = value
-            component.revalidate()
-        },
-    )
-
-private val SizeProperty =
-    ComponentPropertyDescriptor<Component, Dimension>(
-        name = "size",
-        read = { it.size },
-        write = { component, value -> component.size = value },
-    )
+@Deprecated("Set it in the component's style: style = { height(height) }")
+public fun SwingModifier.height(height: Int): SwingModifier = property(HeightDescriptor, height)

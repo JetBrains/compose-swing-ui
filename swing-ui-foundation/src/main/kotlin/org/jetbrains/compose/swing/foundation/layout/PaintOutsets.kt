@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.invalidateLayout
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.stylePropertyOf
 import java.awt.Component
 import java.awt.Insets
 import javax.swing.JComponent
@@ -108,17 +110,37 @@ private data class FixedPaintOutsets(
  * Declares which part of this component's insets is paint outsets; see [PaintOutsets]. Under a Swing parent it
  * changes only what a `Decoratable` reports and clips.
  */
+@Deprecated("Set it in the component's style: style = { paintOutsets(outsets) }")
 public fun SwingModifier.paintOutsets(outsets: PaintOutsets): SwingModifier = this then PaintOutsetsElement(outsets)
+
+// The modifier remains supported beside the style until its removal.
 
 /**
  * Key for the default [PaintOutsets] value applied to descendants via [paintOutsets].
  *
  * It comes first in a descendant's modifier, and a `paintOutsets` the descendant declares replaces it.
  */
+@Deprecated("Provide a nested style: style = { provideNestedStyle(AllComponents) { paintOutsets(outsets) } }")
+@Suppress("DEPRECATION")
 public val DefaultPaintOutsets: ComponentDefaultKey<PaintOutsets> =
     componentDefaultKeyOf("paintOutsets") { paintOutsets(it) }
 
-/** The `paintOutsets` declaration; a later one replaces it, an inherited one included. */
+private val PaintOutsetsProperty = stylePropertyOf { outsets: PaintOutsets -> PaintOutsetsElement(outsets) }
+
+/**
+ * Declares which part of this component's insets is paint outsets; see [PaintOutsets]. Under a Swing parent it
+ * changes only what a `Decoratable` reports and clips. It applies after every layout declaration of the component's
+ * modifier: under `width(100)`, the layout box is 100 wide and the component grows by the excess.
+ *
+ * A container gives it to every styled component below it with
+ * `provideNestedStyle(AllComponents) { paintOutsets(value) }`; a nearer provider of [PaintOutsets.Decoration]
+ * withdraws it. A `SwingNode` without a style never receives it.
+ */
+public fun ComponentStyleScope.paintOutsets(outsets: PaintOutsets) {
+    PaintOutsetsProperty.provide(outsets)
+}
+
+/** The `paintOutsets` declaration. */
 private data class PaintOutsetsElement(
     val outsets: PaintOutsets,
 ) : ParentLayoutNodeElement<PaintOutsetsNode>() {

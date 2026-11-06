@@ -10,8 +10,9 @@ import org.jetbrains.compose.swing.foundation.graphics.TapElement
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
@@ -78,7 +79,7 @@ internal suspend fun ComposeSwingTest.mountFade(
                 modifier = (if (inWindow) SwingModifier.then(fixture.tap) else SwingModifier).then(parent.modifier),
                 enter = EnterTransition.None,
                 exit = fadeOut(tween(480, easing = LinearEasing)),
-            ) { SwingNode(factory = { fixture.leaf }, modifier = SwingModifier.preferredSize(60, 40)) }
+            ) { SwingNode(factory = { fixture.leaf }, modifier = SwingModifier.styleable { preferredSize(60, 40) }) }
         }
     }
     if (inWindow) {

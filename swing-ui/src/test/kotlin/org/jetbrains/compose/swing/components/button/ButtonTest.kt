@@ -4,8 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -33,7 +32,7 @@ class ButtonTest {
     @Test
     fun enabledModifierIsReflectedOnTheComponent() = runComposeSwingTest {
         setContent {
-            Button(text = "Disabled", onClick = {}, modifier = SwingModifier.enabled(false))
+            Button(text = "Disabled", onClick = {}, style = { enabled(false) })
         }
         onNodeWithText("Disabled").assertIsNotEnabled()
     }
@@ -64,7 +63,7 @@ class ButtonTest {
     fun enabledStateTogglesAcrossRecomposition() = runComposeSwingTest {
         var enabledState by mutableStateOf(true)
         setContent {
-            Button(text = "Toggle", onClick = {}, modifier = SwingModifier.enabled(enabledState))
+            Button(text = "Toggle", onClick = {}, style = { enabled(enabledState) })
         }
         onNodeWithText("Toggle").assertIsEnabled()
 

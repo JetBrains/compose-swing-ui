@@ -18,8 +18,9 @@ import org.jetbrains.compose.swing.components.layout.PanelScope
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -173,7 +174,7 @@ class ConstrainedPanelObservationTest {
             val width = mutableIntStateOf(10)
             val policy = WidthPolicy(width)
             setContent {
-                Column(modifier = SwingModifier.preferredSize(300, 200)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     Layout(policy, modifier = SwingModifier.testTag("panel"))
                 }
             }
@@ -196,9 +197,12 @@ class ConstrainedPanelObservationTest {
             var declared by mutableStateOf(true)
             val host = JPanel(BorderLayout())
             setContent {
-                Column(modifier = SwingModifier.preferredSize(300, 200)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     if (declared) Layout(policy, modifier = SwingModifier.testTag("panel"))
-                    SwingNode(factory = { host }, modifier = SwingModifier.preferredSize(300, 100))
+                    SwingNode(
+                        factory = { host },
+                        modifier = SwingModifier.styleable({ preferredSize(300, 100) }, RawKind),
+                    )
                 }
             }
             awaitIdle()
@@ -234,11 +238,14 @@ class ConstrainedPanelObservationTest {
             val host = JPanel(BorderLayout())
             setContent {
                 val declaration = remember { movableContentOf { SwingNode(factory = { panel }) } }
-                Column(modifier = SwingModifier.preferredSize(300, 200)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(300, 200) }) {
                     if (declared) {
                         if (inRow) Row { declaration() } else Box { declaration() }
                     }
-                    SwingNode(factory = { host }, modifier = SwingModifier.preferredSize(300, 100))
+                    SwingNode(
+                        factory = { host },
+                        modifier = SwingModifier.styleable({ preferredSize(300, 100) }, RawKind),
+                    )
                 }
             }
             awaitIdle()
@@ -751,8 +758,8 @@ class ConstrainedPanelObservationTest {
             modifier: S.(SwingModifier) -> SwingModifier,
         ): Slot =
             { width, subject ->
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, SLOT_HEIGHT)) {
-                    Panel(layout, modifier = SwingModifier.north().preferredSize(width, 70)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, SLOT_HEIGHT) }) {
+                    Panel(layout, modifier = SwingModifier.north(), style = { preferredSize(width, 70) }) {
                         subject(modifier(SwingModifier))
                     }
                 }

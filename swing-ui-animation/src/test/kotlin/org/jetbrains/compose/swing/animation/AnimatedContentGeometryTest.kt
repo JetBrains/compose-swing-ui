@@ -10,8 +10,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -112,7 +111,7 @@ class AnimatedContentGeometryTest {
             for (case in cases) {
                 AnimatedContent(
                     targetState = state,
-                    modifier = SwingModifier.componentOrientation(case.orientation),
+                    modifier = SwingModifier.containerOrientation(case.orientation),
                     transitionSpec = {
                         slideIntoContainer(case.towards, animationSpec = HeldOffset) togetherWith
                             ExitTransition.None
@@ -158,7 +157,7 @@ private class SlideCase(
 private fun Body(state: String) {
     val width = if (state == "a") 200 else 40
     val height = if (state == "a") 100 else 20
-    Label(text = "", modifier = SwingModifier.preferredSize(width = width, height = height))
+    Label(text = "", style = { preferredSize(width = width, height = height) })
 }
 
 /**

@@ -5,12 +5,14 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.foundation.layout.RawKind
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -43,19 +45,19 @@ class DecorationDestinationChangeTest {
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(size, size)
                                 .blur(radius)
                                 .clip(CircleShape, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
                                 .testTag("reference")
-                                .preferredSize(size, size)
                                 .clip(CircleShape, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                 }
             }
@@ -79,19 +81,19 @@ class DecorationDestinationChangeTest {
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(size, size)
                                 .blur(radius)
                                 .shadow(6, Color.BLACK, 3, 3)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
                                 .testTag("reference")
-                                .preferredSize(size, size)
                                 .shadow(6, Color.BLACK, 3, 3)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                 }
             }
@@ -114,18 +116,18 @@ class DecorationDestinationChangeTest {
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(size, size)
                                 .clip(CircleShape, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
                                 .testTag("reference")
-                                .preferredSize(size, size)
                                 .clip(CircleShape, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                 }
             }
@@ -146,22 +148,23 @@ class DecorationDestinationChangeTest {
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            SwingModifier.placementLayer { this.alpha = alpha }.then(
-                                SwingModifier
-                                    .testTag("subject")
-                                    .preferredSize(size, size)
-                                    .clip(CircleShape, antialias = true)
-                                    .fill(Color.RED),
-                            ),
+                            SwingModifier
+                                .placementLayer { this.alpha = alpha }
+                                .then(
+                                    SwingModifier
+                                        .testTag("subject")
+                                        .clip(CircleShape, antialias = true)
+                                        .fill(Color.RED),
+                                ).styleable({ preferredSize(size, size) }, RawKind),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
                                 .testTag("reference")
-                                .preferredSize(size, size)
                                 .clip(CircleShape, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                 }
             }
@@ -190,21 +193,21 @@ class DecorationDestinationChangeTest {
                         modifier =
                             SwingModifier
                                 .testTag("subject")
-                                .preferredSize(size, size)
                                 .let { if (blurEnabled) it.blur(8) else it }
                                 .shadow(6, Color.BLACK, 3, 3)
                                 .clip(Triangle, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
                             SwingModifier
                                 .testTag("reference")
-                                .preferredSize(size, size)
                                 .shadow(6, Color.BLACK, 3, 3)
                                 .clip(Triangle, antialias = true)
-                                .fill(Color.RED),
+                                .fill(Color.RED)
+                                .styleable({ preferredSize(size, size) }, RawKind),
                     )
                 }
             }

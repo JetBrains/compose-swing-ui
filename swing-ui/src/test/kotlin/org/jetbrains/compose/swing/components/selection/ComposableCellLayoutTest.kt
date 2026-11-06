@@ -4,8 +4,7 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -72,7 +71,7 @@ class ComposableCellLayoutTest {
         // than by the cell would come out shorter.
         setContent {
             ComboBox(items = listOf("Kotlin", "Java"), selectedItem = "Kotlin", onSelectionChange = {}) { item ->
-                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(80, 90)) { Label(item) }
+                Panel(PanelLayout.Flow(), style = { preferredSize(80, 90) }) { Label(item) }
             }
         }
 

@@ -190,7 +190,7 @@ class ContainerContentScopeCompilationTest {
             @Composable
             fun Wrapped() {
                 Row {
-                    ProvideComponentDefaults { Label("x", modifier = SwingModifier.weight(1f).$SHADOW) }
+                    CompositionLocalProvider { Label("x", modifier = SwingModifier.weight(1f).$SHADOW) }
                     key(1) { Label("y", modifier = SwingModifier.weight(1f).$SHADOW) }
                 }
             }
@@ -257,6 +257,7 @@ class ContainerContentScopeCompilationTest {
                 "ContainerContentScopeSnippet.kt",
                 """
                 import androidx.compose.runtime.Composable
+                import androidx.compose.runtime.CompositionLocalProvider
                 import androidx.compose.runtime.key
                 import org.jetbrains.compose.swing.components.*
                 import org.jetbrains.compose.swing.components.button.*
@@ -264,7 +265,6 @@ class ContainerContentScopeCompilationTest {
                 import org.jetbrains.compose.swing.components.layout.*
                 import org.jetbrains.compose.swing.components.menu.*
                 import org.jetbrains.compose.swing.components.selection.*
-                import org.jetbrains.compose.swing.defaults.*
                 import org.jetbrains.compose.swing.foundation.graphics.*
                 import org.jetbrains.compose.swing.foundation.layout.*
                 import org.jetbrains.compose.swing.modifier.SwingModifier

@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -20,7 +21,7 @@ class FillMaxTest {
     fun fillMaxWidthAndHeightUseOnlyTheAxisTheyName() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth())
                     SizedChild(1, SwingModifier.fillMaxHeight())
                 }
@@ -40,7 +41,7 @@ class FillMaxTest {
     fun widthAndHeightFillsUseTheirRequestedFractions() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth(QUARTER))
                     SizedChild(1, SwingModifier.fillMaxHeight(QUARTER))
                 }
@@ -60,7 +61,7 @@ class FillMaxTest {
     fun fillMaxSizeUsesTheRequestedFractionOnBothAxes() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(ODD_WIDTH, ODD_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(ODD_WIDTH, ODD_HEIGHT))) {
                     SizedChild(0, SwingModifier.fillMaxSize(HALF))
                 }
             }
@@ -105,12 +106,11 @@ class FillMaxTest {
     fun aFillFractionUsesTheMaximumSizeCappedOffer() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(
                         0,
-                        SwingModifier
-                            .maximumSize(MAXIMUM_WIDTH, CONTAINER_HEIGHT)
-                            .fillMaxWidth(HALF),
+                        SwingModifier.fillMaxWidth(HALF),
+                        style = { maximumSize(MAXIMUM_WIDTH, CONTAINER_HEIGHT) },
                     )
                 }
             }
@@ -126,7 +126,7 @@ class FillMaxTest {
     fun anExactMatchParentOfferCannotBeReducedByAFillFraction() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0)
                     SizedChild(1, SwingModifier.matchParentSize().fillMaxWidth(HALF))
                 }
@@ -185,7 +185,7 @@ class FillMaxTest {
     fun fillAndPaddingApplyInDeclarationOrder() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth(HALF).padding(PADDING))
                     SizedChild(1, SwingModifier.padding(PADDING).fillMaxWidth(HALF))
                 }
@@ -226,7 +226,7 @@ class FillMaxTest {
     fun aFractionOutsideTheRangeIsHeldBetweenTheOfferedMinimumAndMaximum() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                Box(modifier = ContainerModifier.styleable(containerStyle(CONTAINER_WIDTH, CONTAINER_HEIGHT))) {
                     SizedChild(0, SwingModifier.fillMaxWidth(1.5f))
                     SizedChild(1, SwingModifier.fillMaxHeight(-0.5f))
                     SizedChild(2, SwingModifier.fillMaxSize(Float.NaN))

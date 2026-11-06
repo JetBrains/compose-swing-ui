@@ -6,8 +6,15 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import org.jetbrains.compose.swing.annotations.Orientation
+import org.jetbrains.compose.swing.components.style.Fillers
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Dimension
 import javax.swing.Box
 import javax.swing.SwingConstants
@@ -29,6 +36,7 @@ import javax.swing.SwingConstants
  * @param width the horizontal size
  * @param height the vertical size
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.Box.Filler
  */
 @Composable
@@ -37,9 +45,10 @@ public fun RigidArea(
     width: Int,
     height: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
 ) {
     val size = Dimension(width, height)
-    EmptySpace(minimum = size, preferred = size, maximum = size, modifier = modifier)
+    EmptySpace(minimum = size, preferred = size, maximum = size, modifier = modifier, style = style)
 }
 
 /**
@@ -48,14 +57,16 @@ public fun RigidArea(
  *
  * @param size the horizontal and vertical size
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.Box.Filler
  */
 @Composable
 public fun Spacer(
     size: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
 ) {
-    RigidArea(width = size, height = size, modifier = modifier)
+    RigidArea(width = size, height = size, modifier = modifier, style = style)
 }
 
 /**
@@ -71,6 +82,7 @@ public fun Spacer(
  * @param orientation the axis the strut occupies (an [Orientation] `SwingConstants` value)
  * @param size the size along [orientation]
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @see javax.swing.Box.Filler
  */
 @Composable
@@ -78,11 +90,12 @@ public fun Strut(
     @Orientation orientation: Int,
     size: Int,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
 ) {
     val horizontal = orientation.isHorizontal("Strut")
     val fixed = if (horizontal) Dimension(size, 0) else Dimension(0, size)
     val maximum = if (horizontal) Dimension(size, UNBOUNDED) else Dimension(UNBOUNDED, size)
-    EmptySpace(minimum = fixed, preferred = fixed, maximum = maximum, modifier = modifier)
+    EmptySpace(minimum = fixed, preferred = fixed, maximum = maximum, modifier = modifier, style = style)
 }
 
 /**
@@ -106,6 +119,7 @@ public fun Strut(
  * [Arrangement.End], [Arrangement.Center] and [Arrangement.SpaceBetween] among them.
  *
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
  * @param orientation the axis to absorb along (an [Orientation] `SwingConstants` value); `null` - the
  *   default - absorbs along both
  * @see javax.swing.Box.Filler
@@ -113,6 +127,7 @@ public fun Strut(
 @Composable
 public fun Glue(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     @Orientation orientation: Int? = null,
 ) {
     val maximum =
@@ -121,7 +136,13 @@ public fun Glue(
             orientation.isHorizontal("Glue") -> Dimension(UNBOUNDED, 0)
             else -> Dimension(0, UNBOUNDED)
         }
-    EmptySpace(minimum = Dimension(0, 0), preferred = Dimension(0, 0), maximum = maximum, modifier = modifier)
+    EmptySpace(
+        minimum = Dimension(0, 0),
+        preferred = Dimension(0, 0),
+        maximum = maximum,
+        modifier = modifier,
+        style = style,
+    )
 }
 
 /**
@@ -139,10 +160,11 @@ private inline fun EmptySpace(
     preferred: Dimension,
     maximum: Dimension,
     modifier: SwingModifier,
+    style: SwingStyle<SwingComponentStyleScope>,
 ) {
     SwingNode(
         factory = { Box.Filler(Dimension(), Dimension(), Dimension()) },
-        modifier = modifier,
+        modifier = modifier.styleable(style, FillerKind),
         update = {
             set(Triple(minimum, preferred, maximum)) { (min, pref, max) -> changeShape(min, pref, max) }
         },
@@ -162,3 +184,11 @@ private fun Int.isHorizontal(composable: String): Boolean {
 // The size a filler asks for on an axis it absorbs - the same value javax.swing.Box's own glue and
 // strut factories use.
 private const val UNBOUNDED: Int = Short.MAX_VALUE.toInt()
+
+private val FillerKind =
+    nestingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(Fillers)
+    }

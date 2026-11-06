@@ -11,10 +11,10 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
@@ -57,10 +57,10 @@ class LayerCallbackTest {
     fun anUndeclaredPaintCallbackPaintsTheViewAsTheBareComponentPaints() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                Layer(modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE), onMouseEvent = {}) {
+                Layer(modifier = SwingModifier.testTag(LAYER), style = { preferredSize(SIZE) }, onMouseEvent = {}) {
                     Label(text = VIEW_TEXT)
                 }
-                Label(text = VIEW_TEXT, modifier = SwingModifier.testTag(BARE).preferredSize(SIZE))
+                Label(text = VIEW_TEXT, modifier = SwingModifier.testTag(BARE), style = { preferredSize(SIZE) })
             }
         }
 
@@ -78,10 +78,16 @@ class LayerCallbackTest {
     fun aPaintCallbackThatNeverPaintsTheViewLeavesItUnpainted() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                Layer(modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE), onPaint = { _, _, _, _ -> }) {
+                Layer(modifier = SwingModifier.testTag(LAYER), style = { preferredSize(SIZE) }, onPaint = {
+                    _,
+                    _,
+                    _,
+                    _,
+                    ->
+                }) {
                     FilledView()
                 }
-                Layer(modifier = SwingModifier.testTag(PLAIN).preferredSize(SIZE), onMouseEvent = {}) {
+                Layer(modifier = SwingModifier.testTag(PLAIN), style = { preferredSize(SIZE) }, onMouseEvent = {}) {
                     FilledView()
                 }
             }
@@ -105,7 +111,8 @@ class LayerCallbackTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Layer(
-                    modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                    modifier = SwingModifier.testTag(LAYER),
+                    style = { preferredSize(SIZE) },
                     onPaint = { g, _, _, paintView ->
                         g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f)
                         paintView()
@@ -113,7 +120,7 @@ class LayerCallbackTest {
                 ) {
                     FilledView()
                 }
-                Layer(modifier = SwingModifier.testTag(PLAIN).preferredSize(SIZE), onMouseEvent = {}) {
+                Layer(modifier = SwingModifier.testTag(PLAIN), style = { preferredSize(SIZE) }, onMouseEvent = {}) {
                     FilledView()
                 }
             }
@@ -142,7 +149,8 @@ class LayerCallbackTest {
         var handed: Dimension? = null
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = { g, width, height, _ ->
                     handed = Dimension(width, height)
                     g.color = OVERLAY
@@ -163,7 +171,8 @@ class LayerCallbackTest {
     fun aPaintCallbackDrawingAfterTheViewPaintsOverIt() = runComposeSwingTest {
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = { g, width, height, paintView ->
                     paintView()
                     // The color is chosen after the view paints: painting the view writes the layer's own
@@ -191,7 +200,8 @@ class LayerCallbackTest {
         var kept: (() -> Unit)? = null
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = { _, _, _, paintView ->
                     paintView()
                     kept = paintView
@@ -218,7 +228,8 @@ class LayerCallbackTest {
             // Read here, in the composition, so each pass hands the layer a fresh lambda of its own.
             val captured = declaration
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = { _, _, _, paintView ->
                     painted += captured
                     paintView()
@@ -256,7 +267,8 @@ class LayerCallbackTest {
         var paints by mutableStateOf(false)
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = if (paints) { _, _, _, paintView -> paintView() } else UNDECLARED_PAINT,
                 onMouseEvent = {},
             ) {
@@ -297,7 +309,8 @@ class LayerCallbackTest {
         var newMouse by mutableStateOf(false)
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = if (newPaint) secondPaint else firstPaint,
                 onMouseEvent = if (newMouse) secondMouse else firstMouse,
             ) {
@@ -341,7 +354,8 @@ class LayerCallbackTest {
         val painted = mutableListOf<Int>()
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint = { _, _, _, paintView ->
                     painted += veil.intValue
                     paintView()
@@ -423,7 +437,8 @@ class LayerCallbackTest {
         var declared by mutableStateOf(true)
         setContent {
             Layer(
-                modifier = SwingModifier.testTag(LAYER).preferredSize(SIZE),
+                modifier = SwingModifier.testTag(LAYER),
+                style = { preferredSize(SIZE) },
                 onPaint =
                     if (declared) {
                         { g, width, height, _ ->

@@ -16,8 +16,8 @@ import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -39,7 +39,7 @@ class AnimatedStockLeafSettlingTest {
     ) = runComposeSwingTest {
         var entered by mutableStateOf(false)
         setContent {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                 AnimatedContent(
                     entered,
                     SwingModifier.north().testTag(CONTAINER),

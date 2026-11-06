@@ -3,10 +3,11 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -32,7 +33,7 @@ class RowColumnEdgeCaseTest {
         runComposeSwingTest {
             setContent {
                 // Narrower and shorter than the two fixture children combined, so a deficit is unmistakable.
-                Row(modifier = containerModifier(30, 10)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(30, 10))) {
                     SizedChild(0)
                     SizedChild(1)
                 }
@@ -53,7 +54,7 @@ class RowColumnEdgeCaseTest {
     fun aColumnGivesEveryChildTheSpaceLeftOnceTheEarlierOnesHaveTakenTheirs() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(10, 30)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(10, 30))) {
                     SizedChild(0)
                     SizedChild(1)
                 }
@@ -74,7 +75,7 @@ class RowColumnEdgeCaseTest {
     fun threeEquallyWeightedChildrenSplitASurplusThatDoesNotDivideEvenlyAndStillFillItExactly() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 100)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 100))) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
                     SizedChild(2, SwingModifier.weight(1f))
@@ -98,7 +99,7 @@ class RowColumnEdgeCaseTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(40, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(40, 100)),
                     horizontalArrangement = Arrangement.spacedBy(8),
                 ) {
                     SizedChild(0, SwingModifier.weight(1f))
@@ -124,7 +125,7 @@ class RowColumnEdgeCaseTest {
                 // Two 20px children in a 44px row: 24px of space for a gap declared far wider than that, which
                 // the gap then takes in full, leaving the second child nothing to be measured in.
                 Row(
-                    modifier = containerModifier(44, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(44, 100)),
                     horizontalArrangement = Arrangement.spacedBy(1000),
                 ) {
                     SmallChild(0)
@@ -150,7 +151,7 @@ class RowColumnEdgeCaseTest {
             setContent {
                 // Wide enough that a negative gap's overlap, not a shortfall, is what the row demonstrates.
                 Row(
-                    modifier = containerModifier(300, 100),
+                    modifier = ContainerModifier.styleable(containerStyle(300, 100)),
                     horizontalArrangement = Arrangement.spacedBy(-10),
                 ) {
                     SizedChild(0)
@@ -173,7 +174,7 @@ class RowColumnEdgeCaseTest {
     fun aRowNestedInAColumnIsMeasuredAndPlacedAsAWeightedChildAndThenLaysOutItsOwnChildren() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 200))) {
                     SizedChild(0)
                     Row(
                         modifier = SwingModifier.testTag("nestedRow").weight(1f),
@@ -210,7 +211,7 @@ class RowColumnEdgeCaseTest {
             setContent {
                 // Wider than the nested row's own preferred width (two fixture children), so a stretched row
                 // would be caught: a column exactly as wide as the row prefers cannot tell the two apart.
-                Column(modifier = containerModifier(150, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(150, 200))) {
                     SizedChild(0)
                     Row(
                         modifier = SwingModifier.testTag("nestedRow").weight(1f),
@@ -242,7 +243,7 @@ class RowColumnEdgeCaseTest {
             setContent {
                 // Four times the width a nested row prefers, so a share of it is unmistakably wider than a
                 // child asks for and a second division of the row's own width grants visibly less.
-                Column(modifier = containerModifier(400, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(400, 200))) {
                     Row(modifier = SwingModifier.testTag("nestedRow")) {
                         SizedChild(0, SwingModifier.weight(1f, fill = false))
                         SizedChild(1, SwingModifier.weight(3f, fill = false))
@@ -264,8 +265,8 @@ class RowColumnEdgeCaseTest {
     fun aChildWhoseMaximumSizeIsNegativeIsHeldToNothingRatherThanTakingTheRowsPassDown() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(100, 100)) {
-                    SizedChild(0, SwingModifier.weight(1f).maximumSize(-1, -1))
+                Row(modifier = ContainerModifier.styleable(containerStyle(100, 100))) {
+                    SizedChild(0, SwingModifier.weight(1f), style = { maximumSize(-1, -1) })
                 }
             }
 
@@ -284,8 +285,9 @@ class RowColumnEdgeCaseTest {
                 Row(
                     modifier =
                         SwingModifier
-                            .testTag(CONTAINER_TAG)
-                            .border(EmptyBorder(3, 7, 11, 13)),
+                            .testTag(
+                                CONTAINER_TAG,
+                            ).styleable { border(EmptyBorder(3, 7, 11, 13)) },
                 ) {
                     SizedChild(0, SwingModifier.weight(Float.MAX_VALUE))
                     SizedChild(1, SwingModifier.weight(1f))
@@ -306,5 +308,5 @@ class RowColumnEdgeCaseTest {
 /** A child narrower than [SizedChild], so a 44px row still has space to hold part of an oversized gap. */
 @Composable
 private fun SmallChild(index: Int) {
-    Label("small $index", modifier = SwingModifier.preferredSize(20, 40))
+    Label("small $index", style = { preferredSize(20, 40) })
 }

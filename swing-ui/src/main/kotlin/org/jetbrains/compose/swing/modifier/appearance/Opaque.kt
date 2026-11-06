@@ -3,13 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
-import javax.swing.AbstractButton
-import javax.swing.JComponent
-import javax.swing.JMenuItem
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
 
 /**
  * Sets `isOpaque` - required for [background] to actually paint. Requires a `JComponent` target.
@@ -24,30 +21,14 @@ import javax.swing.JMenuItem
  * @return this modifier with the opaque flag declared on it.
  * @see javax.swing.JComponent.setOpaque
  */
+@Deprecated("Set it in the component's style: style = { opaque(opaque) }")
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
     property(
-        OpaqueProperty,
+        OpaqueDescriptor,
         opaque,
         restores = RestorePolicy.None,
         inheritable = true,
         // The component announces every change of the flag, its own included, so the flag itself is what
         // to listen on.
         rewriteOn = "opaque",
-    )
-
-/**
- * The flag's own accessors. The read answers null for a button whose flag follows its fill, which is the
- * flag being none of the button's own; only such a button is what a null write resolves against, so the
- * cast there holds.
- */
-internal val OpaqueProperty =
-    ComponentPropertyDescriptor<JComponent, Boolean?>(
-        name = "opaque",
-        read = {
-            val derived = (it as? AbstractButton)?.takeIf { button -> button !is JMenuItem }?.isContentAreaFilled
-            if (it.isOpaque == derived) null else it.isOpaque
-        },
-        write = { component, value ->
-            component.isOpaque = value ?: (component as AbstractButton).isContentAreaFilled
-        },
     )

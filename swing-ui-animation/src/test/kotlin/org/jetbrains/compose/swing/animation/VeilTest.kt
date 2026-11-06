@@ -8,9 +8,9 @@ import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -194,7 +194,7 @@ class VeilTest {
         setContent {
             AnimatedVisibility(
                 visible = visible,
-                modifier = SwingModifier.preferredSize(width = 80, height = 40),
+                modifier = SwingModifier.containerPreferredSize(width = 80, height = 40),
                 enter = unveilIn(HeldVeil, matchParentSize = matchParentSize),
                 exit = ExitTransition.None,
             ) {
@@ -226,11 +226,11 @@ private fun assertEqualsSorted(readings: List<Int>) =
 private fun Block() =
     Label(
         text = "",
-        modifier =
-            SwingModifier
-                .preferredSize(width = BLOCK_WIDTH, height = BLOCK_HEIGHT)
-                .opaque(true)
-                .background(Content),
+        style = {
+            preferredSize(width = BLOCK_WIDTH, height = BLOCK_HEIGHT)
+            background(Content)
+            opaque(true)
+        },
     )
 
 /**

@@ -4,13 +4,22 @@
 package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ButtonGroupOption
 import org.jetbrains.compose.swing.components.selection.applyGroupSelection
 import org.jetbrains.compose.swing.components.selection.rememberButtonGroup
+import org.jetbrains.compose.swing.components.style.RadioButtonMenuItems
+import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
@@ -58,9 +67,10 @@ public fun RadioButtonMenuGroup(
     scope.options.forEachIndexed { index, option ->
         val selected = index == selectedIndex
         ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
+            val selectedState = rememberUpdatedState(selected)
             MenuNode(
                 factory = { JRadioButtonMenuItem() },
-                modifier = optionModifier,
+                modifier = optionModifier.styleable(option.style, RadioButtonMenuOptionKind, selectedState),
                 update = {
                     set(option.text) { this.text = it }
                     set(option.accelerator) { this.accelerator = it }
@@ -85,6 +95,7 @@ public sealed interface RadioButtonMenuGroupScope {
      *
      * @param text the text of the menu item
      * @param modifier the [SwingModifier] applied to this option's menu item
+     * @param style the [SwingStyle] applied to this option's menu item
      * @param accelerator the key combination that activates the item without navigating the menu
      *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
      * @see javax.swing.JRadioButtonMenuItem
@@ -92,14 +103,16 @@ public sealed interface RadioButtonMenuGroupScope {
     public fun option(
         text: @Nls String,
         modifier: SwingModifier = SwingModifier,
+        style: SwingStyle<SelectableStyleScope> = SwingStyle,
         accelerator: KeyStroke? = null,
     )
 }
 
-/** One declared choice: its text, accelerator and the [SwingModifier] for its menu item. */
+/** One declared choice: its text, accelerator, and the [SwingModifier] and [SwingStyle] for its menu item. */
 private class RadioButtonMenuOption(
     val text: @Nls String,
     val modifier: SwingModifier,
+    val style: SwingStyle<SelectableStyleScope>,
     val accelerator: KeyStroke?,
 )
 
@@ -109,8 +122,19 @@ private class RadioButtonMenuGroupScopeImpl : RadioButtonMenuGroupScope {
     override fun option(
         text: @Nls String,
         modifier: SwingModifier,
+        style: SwingStyle<SelectableStyleScope>,
         accelerator: KeyStroke?,
     ) {
-        options.add(RadioButtonMenuOption(text, modifier, accelerator))
+        options.add(RadioButtonMenuOption(text, modifier, style, accelerator))
     }
 }
+
+private val RadioButtonMenuOptionKind =
+    nestingStyleKind<SelectableStyleScope, State<Boolean>>({ base, selected ->
+        object : SelectableStyleScope, ComponentStyleScope by base {
+            override val isSelected: Boolean get() = selected.value
+        }
+    }) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(RadioButtonMenuItems)
+    }

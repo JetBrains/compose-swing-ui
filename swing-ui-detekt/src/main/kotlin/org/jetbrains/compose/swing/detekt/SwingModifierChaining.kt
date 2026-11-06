@@ -83,7 +83,7 @@ public class SwingModifierUnreferencedReceiver(
     /** Whether this body demonstrably returns a fresh chain without its receiver. */
     private fun KtExpression.restartsTheChainFromScratch(declaration: KtCallableDeclaration): Boolean =
         returnedExpressions().any {
-            (it.chainRoot() as? KtNameReferenceExpression)?.isLibrarySwingModifierValue() == true &&
+            (it.chainRoot() as? KtNameReferenceExpression)?.isLibraryCompanionValue() == true &&
                 !it.reachesTheReceiver(declaration)
         }
 

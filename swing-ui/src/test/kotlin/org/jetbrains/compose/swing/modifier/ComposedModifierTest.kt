@@ -10,11 +10,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
-import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.OpaqueDescriptor
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -54,13 +54,17 @@ class ComposedModifierTest {
     }
 
     @Test
-    fun aBackgroundAFactoryReturnsIsPaintedAndLeavesWithTheEntry() = runComposeSwingTest {
+    fun aPropertyAFactoryReturnsIsPaintedAndLeavesWithTheEntry() = runComposeSwingTest {
         var declared by mutableStateOf(false)
         setContent {
-            val base = SwingModifier.testTag("composed").opaque(true).preferredSize(32, 32)
+            val base = SwingModifier.testTag("composed")
             Label(
                 "",
-                modifier = if (declared) base.composed { background(Color.RED) } else base,
+                modifier = if (declared) base.composed { property(OpaqueDescriptor, true) } else base,
+                style = {
+                    preferredSize(32, 32)
+                    background(Color.RED)
+                },
             )
         }
         val undecorated = onNodeWithTag("composed").captureToImage().getRGB(16, 16)
@@ -74,7 +78,7 @@ class ComposedModifierTest {
         assertEquals(
             undecorated,
             onNodeWithTag("composed").captureToImage().getRGB(16, 16),
-            "the background the entry declared is restored once the entry leaves the modifier",
+            "the opacity the entry declared is restored once the entry leaves the modifier",
         )
     }
 
@@ -90,7 +94,7 @@ class ComposedModifierTest {
         val tag = "pane"
         setContent {
             ScrollPane(modifier = SwingModifier.testTag(tag)) {
-                Label("", modifier = SwingModifier.preferredSize(32, 32).composed { rowHeader() })
+                Label("", modifier = SwingModifier.composed { rowHeader() }, style = { preferredSize(32, 32) })
             }
         }
 

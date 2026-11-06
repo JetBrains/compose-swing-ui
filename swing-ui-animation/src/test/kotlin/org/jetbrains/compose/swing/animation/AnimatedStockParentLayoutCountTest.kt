@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
@@ -72,7 +72,7 @@ private fun FlowVisibility(
     exit: ExitTransition,
 ) {
     AnimatedVisibility(state, SwingModifier.testTag("animation"), enter, exit) {
-        Label("", modifier = SwingModifier.testTag("body").preferredSize(80, 40))
+        Label("", modifier = SwingModifier.testTag("body"), style = { preferredSize(80, 40) })
     }
 }
 
@@ -86,8 +86,8 @@ private fun FlowTween(changed: Boolean) {
             "",
             modifier =
                 SwingModifier
-                    .testTag(if (it) "body" else "old")
-                    .preferredSize(if (it) 400 else 80, 40),
+                    .testTag(if (it) "body" else "old"),
+            style = { preferredSize(if (it) 400 else 80, 40) },
         )
     }
 }

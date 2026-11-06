@@ -14,12 +14,11 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.net.URI
@@ -56,7 +55,7 @@ private fun ColumnScope.MarkupPreviewCard() {
         var activated by remember { mutableStateOf("nothing yet") }
 
         Label("Source")
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 90))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 90)) }) {
             Viewport {
                 TextArea(
                     value = markup,
@@ -66,7 +65,7 @@ private fun ColumnScope.MarkupPreviewCard() {
             }
         }
         Label("Rendered")
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 120)) }) {
             Viewport {
                 EditorPane(
                     markup = markup,
@@ -90,7 +89,7 @@ private fun ColumnScope.RichTextEditorCard() {
         var editable by remember { mutableStateOf(true) }
 
         CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 120)) }) {
             Viewport { EditorPane(state = notes, editable = editable) }
         }
         Label("Length: ${notes.text.length}   Undo available: ${if (notes.canUndo) "yes" else "no"}")
@@ -135,7 +134,7 @@ private fun ColumnScope.TextPaneCard() {
         var editable by remember { mutableStateOf(true) }
 
         CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
+        ScrollPane(style = { preferredSize(Dimension(360, 100)) }) {
             Viewport {
                 TextPane(
                     value = notes,
@@ -157,8 +156,8 @@ private fun ColumnScope.TextPaneStateCard() {
                     "Edits here go through the undo manager.}",
                 contentType = "text/rtf",
             )
-        Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
-        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
+        Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
+        ScrollPane(style = { preferredSize(Dimension(360, 100)) }) {
             Viewport { TextPane(state = state) }
         }
         Label("Length: ${state.text.length}")

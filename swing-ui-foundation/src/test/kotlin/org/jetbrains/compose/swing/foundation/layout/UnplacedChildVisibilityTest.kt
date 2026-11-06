@@ -7,12 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.defaults.DefaultComponentOrientation
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.ComponentOrientation
@@ -26,14 +25,14 @@ import kotlin.test.assertTrue
 
 /** How a child's visibility carries through a policy leaving it unplaced and placing it again. */
 class UnplacedChildVisibilityTest {
-    /** A child left unplaced stays hidden when the component defaults it inherits change. */
+    /** A child left unplaced stays hidden when a style local it inherits changes. */
     @Test
-    fun anUnplacedChildStaysHiddenWhenItsComponentDefaultsChange() =
+    fun anUnplacedChildStaysHiddenWhenAnInheritedStyleLocalChanges() =
         runComposeSwingTest {
             var placed by mutableStateOf(true)
             var orientation by mutableStateOf(ComponentOrientation.LEFT_TO_RIGHT)
             setContent {
-                ProvideComponentDefaults(DefaultComponentOrientation provides orientation) {
+                Box(modifier = SwingModifier.styleable { componentOrientation(orientation) }) {
                     Layout(
                         content = { SizedChild(0, SwingModifier.testTag("child")) },
                         measurePolicy = { measurables, constraints ->
@@ -51,7 +50,7 @@ class UnplacedChildVisibilityTest {
             orientation = ComponentOrientation.RIGHT_TO_LEFT
             awaitIdle()
 
-            assertEquals(ComponentOrientation.RIGHT_TO_LEFT, child.componentOrientation, "the defaults must apply")
+            assertEquals(ComponentOrientation.RIGHT_TO_LEFT, child.componentOrientation, "the orientation must apply")
             assertEquals(emptyList(), reported, "the unplaced child must stay hidden")
 
             placed = true
@@ -97,7 +96,7 @@ class UnplacedChildVisibilityTest {
             setContent {
                 val child =
                     remember {
-                        movableContentOf { SizedChild(0, SwingModifier.testTag("child").visible(false)) }
+                        movableContentOf { SizedChild(0, SwingModifier.testTag("child"), style = { visible(false) }) }
                     }
                 if (inLayout) {
                     Layout(

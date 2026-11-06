@@ -22,10 +22,10 @@ import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -71,7 +71,12 @@ internal fun Block(
     height: Int = 20,
 ) = Label(
     text = "",
-    modifier = modifier.preferredSize(width = width, height = height).opaque(true).background(Color.BLUE),
+    modifier = modifier,
+    style = {
+        opaque(true)
+        preferredSize(width = width, height = height)
+        background(Color.BLUE)
+    },
 )
 
 private const val FOCUS_WINDOW = "exit-focus"
@@ -810,24 +815,23 @@ class AnimatedVisibilityInLayoutTest {
 @Composable
 private fun InRow(container: @Composable RowScope.() -> Unit) =
     Row {
-        Label(text = "first", modifier = SwingModifier.preferredSize(width = 40, height = 10))
+        Label(text = "first", style = { preferredSize(width = 40, height = 10) })
         container()
-        Label(text = "last", modifier = SwingModifier.preferredSize(width = 40, height = 10))
+        Label(text = "last", style = { preferredSize(width = 40, height = 10) })
     }
 
 /** A column holding the container between two siblings; see [InRow]. */
 @Composable
 private fun InColumn(container: @Composable ColumnScope.() -> Unit) =
     Column {
-        Label(text = "first", modifier = SwingModifier.preferredSize(width = 10, height = 40))
+        Label(text = "first", style = { preferredSize(width = 10, height = 40) })
         container()
-        Label(text = "last", modifier = SwingModifier.preferredSize(width = 10, height = 40))
+        Label(text = "last", style = { preferredSize(width = 10, height = 40) })
     }
 
 /** The content the layouts animate, of a size neither sibling has. */
 @Composable
-private fun Part() =
-    Label(text = "body", modifier = SwingModifier.preferredSize(width = PART_WIDTH, height = PART_HEIGHT))
+private fun Part() = Label(text = "body", style = { preferredSize(width = PART_WIDTH, height = PART_HEIGHT) })
 
 private const val PART_WIDTH = 80
 private const val PART_HEIGHT = 40
@@ -1238,7 +1242,7 @@ class AnimatedVisibilityStateMachineTest {
                     exit = veilOut(animationSpec = tween(640), targetColor = Color.BLUE),
                 ) {
                     // Paints nothing of its own, so a pixel read back is the scrim alone.
-                    Label(text = "", modifier = SwingModifier.preferredSize(width = BLOCK_WIDTH, height = BLOCK_HEIGHT))
+                    Label(text = "", style = { preferredSize(width = BLOCK_WIDTH, height = BLOCK_HEIGHT) })
                 }
             }
 

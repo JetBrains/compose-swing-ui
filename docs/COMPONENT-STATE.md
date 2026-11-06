@@ -494,7 +494,7 @@ there, since the model is free to change between the holder being constructed an
 Reaching the component that renders the holder is a separate binding, and `set` is the wrong channel
 for it: the binding has to end exactly when the component stops rendering the holder - the node
 released or deactivated - and that is a modifier node's lifecycle. Bind through an element of your own,
-the pair [Writing a custom property element](MODIFIERS.md#writing-a-custom-property-element)
+the pair [A property written by an element](STYLES.md#a-property-written-by-an-element)
 describes: attach the holder in `update`, release it in `onDetach`, and compare the element by identity,
 as [Equality and skipping](MODIFIERS.md#equality-and-skipping) asks of anything a node
 registers, so a holder that only looks like the bound one is still a different holder to give the

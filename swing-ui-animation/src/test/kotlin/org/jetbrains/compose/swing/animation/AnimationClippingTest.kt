@@ -17,11 +17,12 @@ import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.requiredHeight
 import org.jetbrains.compose.swing.foundation.layout.zIndex
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -111,12 +112,20 @@ class AnimationClippingTest {
                 modifier =
                     SwingModifier
                         .testTag(HOST)
-                        .preferredSize(80, 40)
-                        .maximumSize(80, 40)
-                        .opaque(true)
-                        .background(Color.BLUE),
+                        .styleable {
+                            preferredSize(80, 40)
+                            maximumSize(80, 40)
+                            background(Color.BLUE)
+                            opaque(true)
+                        },
             ) {
-                Column(SwingModifier.preferredSize(80, 40).maximumSize(80, 40)) {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            preferredSize(80, 40)
+                            maximumSize(80, 40)
+                        },
+                ) {
                     this.AnimatedVisibility(
                         visible = visible,
                         enter = enter,
@@ -395,10 +404,12 @@ private fun RedBlock(
         text = "",
         modifier =
             modifier
-                .testTag(tag)
-                .preferredSize(width, height)
-                .opaque(true)
-                .background(Color.RED),
+                .testTag(tag),
+        style = {
+            preferredSize(width, height)
+            background(Color.RED)
+            opaque(true)
+        },
     )
 }
 
@@ -408,10 +419,12 @@ private fun BlueBlock() {
         text = "",
         modifier =
             SwingModifier
-                .testTag(BELOW)
-                .preferredSize(80, 20)
-                .opaque(true)
-                .background(Color.BLUE),
+                .testTag(BELOW),
+        style = {
+            preferredSize(80, 20)
+            background(Color.BLUE)
+            opaque(true)
+        },
     )
 }
 
@@ -421,20 +434,24 @@ private fun StockHost(content: @Composable () -> Unit) {
         PanelLayout.Border(),
         modifier =
             SwingModifier
-                .testTag(STOCK)
-                .preferredSize(80, 80)
-                .opaque(true)
-                .background(Color.BLUE),
+                .testTag(STOCK),
+        style = {
+            preferredSize(80, 80)
+            background(Color.BLUE)
+            opaque(true)
+        },
     ) {
         Panel(
             PanelLayout.Border(),
             modifier =
                 SwingModifier
                     .north()
-                    .testTag(HOST)
-                    .preferredSize(80, 40)
-                    .opaque(true)
-                    .background(Color.BLUE),
+                    .testTag(HOST),
+            style = {
+                preferredSize(80, 40)
+                background(Color.BLUE)
+                opaque(true)
+            },
         ) { content() }
     }
 }
@@ -445,10 +462,12 @@ private fun ConstrainedHost(content: @Composable BoxScope.() -> Unit) {
         modifier =
             SwingModifier
                 .testTag(HOST)
-                .preferredSize(80, 40)
-                .maximumSize(80, 40)
-                .opaque(true)
-                .background(Color.BLUE),
+                .styleable {
+                    preferredSize(80, 40)
+                    maximumSize(80, 40)
+                    background(Color.BLUE)
+                    opaque(true)
+                },
         content = content,
     )
 }

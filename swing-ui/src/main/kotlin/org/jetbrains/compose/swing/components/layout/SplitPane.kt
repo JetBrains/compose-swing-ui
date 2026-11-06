@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SplitOrientation
+import org.jetbrains.compose.swing.components.style.SplitPanes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
@@ -12,6 +13,12 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.NestedStyleProviderScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.nestingStyleKind
+import org.jetbrains.compose.swing.style.styleable
 import java.beans.PropertyChangeListener
 import javax.swing.JSplitPane
 
@@ -39,6 +46,7 @@ import javax.swing.JSplitPane
  * look and feel settling the request, not a move, and is not reported.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
+ * @param style the [SwingStyle] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged; the default
  *   `HORIZONTAL_SPLIT` puts them side by side, with the divider running top to bottom
  * @param dividerLocation the divider offset (controlled), a value the look and feel reads; a
@@ -65,6 +73,7 @@ import javax.swing.JSplitPane
 @Composable
 public fun SplitPane(
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @SplitOrientation orientation: Int = JSplitPane.HORIZONTAL_SPLIT,
     dividerLocation: Int = -1,
     onDividerLocationChange: (Int) -> Unit = {},
@@ -93,6 +102,7 @@ public fun SplitPane(
             modifier.propertyChangeListener<JSplitPane>(JSplitPane.DIVIDER_LOCATION_PROPERTY) {
                 onMoved(this.dividerLocation)
             },
+        style = style,
         orientation = orientation,
         dividerLocation = dividerLocation,
         mirror = mirror,
@@ -114,6 +124,7 @@ public fun SplitPane(
  *
  * @param dividerLocationListener the listener notified when the `dividerLocation` property changes
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
+ * @param style the [SwingStyle] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged; the default
  *   `HORIZONTAL_SPLIT` puts them side by side, with the divider running top to bottom
  * @param dividerLocation the divider offset (controlled), a value the look and feel reads; a
@@ -138,6 +149,7 @@ public fun SplitPane(
 public fun SplitPane(
     dividerLocationListener: PropertyChangeListener,
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ContainerStyleScope> = SwingStyle,
     @SplitOrientation orientation: Int = JSplitPane.HORIZONTAL_SPLIT,
     dividerLocation: Int = -1,
     resizeWeight: Double = 0.0,
@@ -149,6 +161,7 @@ public fun SplitPane(
     val mirror = rememberMirrorState(dividerLocation)
     SplitPaneImpl(
         modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener),
+        style = style,
         orientation = orientation,
         dividerLocation = dividerLocation,
         mirror = mirror,
@@ -169,6 +182,7 @@ public fun SplitPane(
 @Composable
 private inline fun SplitPaneImpl(
     modifier: SwingModifier,
+    style: SwingStyle<ContainerStyleScope>,
     @SplitOrientation orientation: Int,
     dividerLocation: Int,
     mirror: MirrorState<Int>,
@@ -183,7 +197,7 @@ private inline fun SplitPaneImpl(
         // look and feel's own, and a pane's sides hold what the composition declares there: a side no
         // child names stays empty rather than showing a widget nobody declared.
         factory = { JSplitPane(JSplitPane.HORIZONTAL_SPLIT, null, null) },
-        modifier = modifier.declaredPaneProperties(oneTouchExpandable, dividerSize),
+        modifier = modifier.declaredPaneProperties(oneTouchExpandable, dividerSize).styleable(style, SplitPaneKind),
         update = {
             set(orientation) { this.orientation = it }
             set(resizeWeight) { this.resizeWeight = it }
@@ -238,3 +252,11 @@ private fun SwingModifier.declaredPaneProperties(
     }
     return properties
 }
+
+private val SplitPaneKind =
+    nestingStyleKind<ContainerStyleScope, Unit>(
+        { base, _ -> object : ContainerStyleScope, NestedStyleProviderScope by base {} },
+    ) {
+        applyNestedStyle(AllComponents)
+        applyNestedStyle(SplitPanes)
+    }

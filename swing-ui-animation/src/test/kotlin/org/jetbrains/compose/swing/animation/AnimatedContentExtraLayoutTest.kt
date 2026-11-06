@@ -6,7 +6,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.assertTrue
@@ -41,7 +41,8 @@ private fun TweenContent(changed: Boolean) {
     }) {
         Label(
             "",
-            modifier = SwingModifier.testTag(if (it) "body" else "old").preferredSize(if (it) 400 else 80, 40),
+            modifier = SwingModifier.testTag(if (it) "body" else "old"),
+            style = { preferredSize(if (it) 400 else 80, 40) },
         )
     }
 }

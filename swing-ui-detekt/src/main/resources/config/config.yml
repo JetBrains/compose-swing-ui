@@ -23,6 +23,8 @@ compose-swing:
     active: true
   SwingModifierWithoutDefault:
     active: true
+  SwingStyleWithoutDefault:
+    active: true
   UnheldColumnComparator:
     active: true
   UnusedAnimatedContentTargetState:

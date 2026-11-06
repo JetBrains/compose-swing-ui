@@ -5,8 +5,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.style.horizontalTextPosition
+import org.jetbrains.compose.swing.components.style.margin
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.TestLabelKind
+import org.jetbrains.compose.swing.style.TestNodeKind
+import org.jetbrains.compose.swing.style.TestTextNodeKind
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -20,30 +30,29 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
-import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Behavioral regression tests for the appearance modifiers' invalidation, branched on the target kind.
+ * Behavioral regression tests for the appearance properties' invalidation, branched on the target kind.
  *
- * A `JComponent` self-revalidates and self-repaints inside its own setters, so the modifier must add
+ * A `JComponent` self-revalidates and self-repaints inside its own setters, so the property must add
  * nothing on that path. A plain AWT [Component] does not: its `setFont` only invalidates (no layout
  * pass, no repaint) and `setForeground`/`setBackground` do neither. So for a non-`JComponent` target
- * the modifier must itself request what the change needs: a font changes both the size and the
+ * the property must itself request what the change needs: a font changes both the size and the
  * pixels, so it asks for a relayout and a repaint; a color changes only the pixels, so it asks for a
  * repaint and no relayout.
  *
  * A widget that does invalidate for itself sets the opposite requirement, on the two properties where
  * its setter is unusual: `JTextComponent.setMargin` marks the component invalid without asking for the
- * layout pass that would act on it or for a paint of the text it moves, so the modifier must ask for both;
+ * layout pass that would act on it or for a paint of the text it moves, so the property must ask for both;
  * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
  * nothing, so a declaration the label is already carrying must reach its setter no further - a
- * recomposition rebuilds the chain, and a redundant write would cost a layout and a paint each time.
+ * recomposition declares the style again, and a redundant write would cost a layout and a paint each time.
  *
- * Every case drives the change through the real public API ([SwingNode] plus the modifier under test,
- * re-applied across a recomposition) and observes behavior deterministically under headless.
+ * Every case drives the change through the real public API ([SwingNode] plus the modifier or style under
+ * test, applied again when its state changes) and observes behavior deterministically under headless.
  */
 class AppearanceInvalidationTest {
     /**
@@ -122,7 +131,8 @@ class AppearanceInvalidationTest {
                 // The growing label gets a small font initially and a much larger one when `large` flips.
                 SwingNode(
                     factory = { growing },
-                    modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
+                    modifier =
+                        SwingModifier.styleable { font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)) },
                 )
                 SwingNode(factory = { sibling })
             }
@@ -154,7 +164,11 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { target },
-                modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
+                modifier =
+                    SwingModifier.styleable(
+                        { font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)) },
+                        TestNodeKind,
+                    ),
             )
         }
 
@@ -181,20 +195,20 @@ class AppearanceInvalidationTest {
 
     @Test
     fun reactiveBackgroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
-        assertColorChangeRepaintsOnly { SwingModifier.background(it) }
+        assertColorChangeRepaintsOnly { background(it) }
     }
 
     @Test
     fun reactiveForegroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
-        assertColorChangeRepaintsOnly { SwingModifier.foreground(it) }
+        assertColorChangeRepaintsOnly { foreground(it) }
     }
 
-    private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: (Color) -> SwingModifier) {
+    private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: ComponentStyleScope.(Color) -> Unit) {
         var color by mutableStateOf(Color.RED)
         val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
 
         setContent {
-            SwingNode(factory = { target }, modifier = declare(color))
+            SwingNode(factory = { target }, modifier = SwingModifier.styleable({ declare(color) }, TestNodeKind))
         }
 
         awaitIdle()
@@ -222,7 +236,7 @@ class AppearanceInvalidationTest {
         val field = CountingTextField()
 
         setContent {
-            SwingNode(factory = { field }, modifier = SwingModifier.margin(margin))
+            SwingNode(factory = { field }, modifier = SwingModifier.styleable({ margin(margin) }, TestTextNodeKind))
         }
 
         awaitIdle()
@@ -255,10 +269,10 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { label },
-                modifier = SwingModifier.horizontalTextPosition(SwingConstants.RIGHT),
+                modifier = SwingModifier.styleable({ horizontalTextPosition(SwingConstants.RIGHT) }, TestLabelKind),
             )
-            // Read by this composable, so a change recomposes it and the label's modifier chain is
-            // rebuilt declaring the very same position.
+            // Read by this composable, so a change recomposes it and the label's style is declared again
+            // with the very same position.
             Label("tick $tick")
         }
 
@@ -285,42 +299,8 @@ class AppearanceInvalidationTest {
 
     @Test
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { background(null) }
-        assertDeclaredChainCarriedOnce { border(null) }
-        assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1, 1, 1, 1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(Insets(1, 1, 1, 1)) }
-        assertDeclaredChainCarriedOnce { borderPainted(true) }
-        assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
-        assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
-        assertDeclaredChainCarriedOnce { focusPainted(true) }
-        assertDeclaredChainCarriedOnce { cursor(null) }
-        assertDeclaredChainCarriedOnce { font(null) }
-        assertDeclaredChainCarriedOnce { foreground(null) }
-        assertDeclaredChainCarriedOnce { icon(null) }
-        assertDeclaredChainCarriedOnce { pressedIcon(null) }
-        assertDeclaredChainCarriedOnce { selectedIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { margin(Insets(1, 1, 1, 1)) }
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
-        assertDeclaredChainCarriedOnce { opaque(true) }
-        assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { disabledTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { highlights(emptyList(), DefaultHighlightPainter(Color.RED)) }
-        assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { iconTextGap(4) }
-        assertDeclaredChainCarriedOnce { toolTip("tip") }
-        assertDeclaredChainCarriedOnce { toolTip { null } }
     }
 }

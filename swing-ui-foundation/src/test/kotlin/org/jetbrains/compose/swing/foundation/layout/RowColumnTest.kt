@@ -26,9 +26,10 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
@@ -156,7 +157,7 @@ class RowColumnTest {
     fun aWeightedChildTakesTheWholeOfAWidthItsParentImposes() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(400, 100)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(400, 100))) {
                     Child(0, 50, 50, SwingModifier.weight(1f))
                     Child(1, 100, 100)
                 }
@@ -211,7 +212,7 @@ class RowColumnTest {
     fun testRow_withChildrenWithWeight() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(300, 80)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(300, 80))) {
                     Child(0, 50, 80, SwingModifier.weight(1f))
                     Child(1, 50, 80, SwingModifier.weight(2f))
                 }
@@ -232,7 +233,7 @@ class RowColumnTest {
     fun testRow_withChildrenWithWeightNonFilling() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(300, 2 * 80)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(300, 2 * 80))) {
                     Child(0, 50, 80, SwingModifier.weight(1f, fill = false))
                     Child(1, 50, 2 * 80, SwingModifier.weight(2f, fill = false))
                 }
@@ -253,7 +254,7 @@ class RowColumnTest {
     fun testRow_withChildrenWithMaxValueWeight() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(300, 80)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(300, 80))) {
                     Child(0, 50, 80, SwingModifier.weight(Float.MAX_VALUE))
                     Child(1, 50, 80, SwingModifier.weight(1f))
                 }
@@ -274,7 +275,7 @@ class RowColumnTest {
     fun testRow_withChildrenWithPositiveInfinityWeight() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(300, 80)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(300, 80))) {
                     Child(
                         0,
                         50,
@@ -336,7 +337,7 @@ class RowColumnTest {
     fun testColumn_withChildrenWithWeight() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(80, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(80, 300))) {
                     Child(0, 80, 50, SwingModifier.weight(1f))
                     Child(1, 80, 50, SwingModifier.weight(2f))
                 }
@@ -357,7 +358,7 @@ class RowColumnTest {
     fun testColumn_withChildrenWithWeightNonFilling() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(80, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(80, 300))) {
                     Child(
                         0,
                         80,
@@ -388,7 +389,7 @@ class RowColumnTest {
     fun testColumn_withChildrenWithMaxValueWeight() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(80, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(80, 300))) {
                     Child(
                         0,
                         80,
@@ -414,7 +415,7 @@ class RowColumnTest {
     fun testColumn_withChildrenWithPositiveInfinityWeight() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(80, 300)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(80, 300))) {
                     Child(
                         0,
                         80,
@@ -455,7 +456,7 @@ class RowColumnTest {
     fun testRow_doesNotPlaceChildrenOutOfBounds_becauseOfRoundings() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(11, CHILD_HEIGHT)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(11, CHILD_HEIGHT))) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
                 }
@@ -481,7 +482,7 @@ class RowColumnTest {
     fun testRow_isNotLargerThanItsChildren_becauseOfRoundings() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(8, CHILD_HEIGHT)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(8, CHILD_HEIGHT))) {
                     SizedChild(0, SwingModifier.weight(2f))
                     SizedChild(1, SwingModifier.weight(2f))
                     SizedChild(2, SwingModifier.weight(3f))
@@ -509,7 +510,7 @@ class RowColumnTest {
     fun testColumn_isNotLargetThanItsChildren_becauseOfRoundings() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CHILD_WIDTH, 8)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 8))) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
                     SizedChild(2, SwingModifier.weight(1f))
@@ -537,7 +538,7 @@ class RowColumnTest {
     fun testColumn_doesNotPlaceChildrenOutOfBounds_becauseOfRoundings() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CHILD_WIDTH, 11)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 11))) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
                 }
@@ -565,7 +566,7 @@ class RowColumnTest {
             val alignment = RecordingVerticalAlignment()
             setContent {
                 Row(
-                    modifier = containerModifier(200, 200),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 200)),
                     verticalAlignment = alignment,
                 ) {
                     Child(0, 20, 20)
@@ -603,7 +604,7 @@ class RowColumnTest {
             val alignment = RecordingHorizontalAlignment()
             setContent {
                 Column(
-                    modifier = containerModifier(300, 200),
+                    modifier = ContainerModifier.styleable(containerStyle(300, 200)),
                     horizontalAlignment = alignment,
                 ) {
                     Child(0, 40, 40)
@@ -640,7 +641,7 @@ class RowColumnTest {
         runComposeSwingTest {
             val alignment = RecordingHorizontalAlignment()
             setContent {
-                Column(modifier = containerModifier(300, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(300, 200))) {
                     Child(
                         index = 0,
                         width = 40,
@@ -680,7 +681,7 @@ class RowColumnTest {
         runComposeSwingTest {
             val alignment = RecordingVerticalAlignment()
             setContent {
-                Row(modifier = containerModifier(200, 200)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(200, 200))) {
                     Child(
                         index = 0,
                         width = 20,
@@ -721,7 +722,7 @@ class RowColumnTest {
             setContent {
                 Column {
                     val columnModifier = SwingModifier.align(Alignment.End)
-                    Row(modifier = containerModifier(20, 100)) {
+                    Row(modifier = ContainerModifier.styleable(containerStyle(20, 100))) {
                         Child(0, 20, 50, columnModifier)
                     }
                 }
@@ -749,7 +750,7 @@ class RowColumnTest {
             setContent {
                 Row {
                     val rowModifier = SwingModifier.align(Alignment.Bottom)
-                    Column(modifier = containerModifier(100, 20)) {
+                    Column(modifier = ContainerModifier.styleable(containerStyle(100, 20))) {
                         Child(0, 50, 20, rowModifier)
                     }
                 }
@@ -775,7 +776,7 @@ class RowColumnTest {
     fun testRow_withStretchCrossAxisAlignment() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(150, 200)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(150, 200))) {
                     Child(0, 50, 50, SwingModifier.fillMaxHeight())
                     Child(1, 2 * 50, 2 * 50, SwingModifier.fillMaxHeight())
                 }
@@ -797,7 +798,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(150, 200),
+                    modifier = ContainerModifier.styleable(containerStyle(150, 200)),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Child(0, 50, 50, SwingModifier.align(Alignment.Top))
@@ -818,7 +819,7 @@ class RowColumnTest {
     fun testRow_withGravityModifier() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(150, 200)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(150, 200))) {
                     Child(0, 50, 50, SwingModifier.align(Alignment.Top))
                     Child(
                         index = 1,
@@ -869,7 +870,7 @@ class RowColumnTest {
     fun testRow_withAlignByModifier_andWeight() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(200, 100)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(200, 100))) {
                     LineChild(TestHorizontalLine, 30, SwingModifier.alignBy(TestHorizontalLine))
                     Child(1, 0, 40, SwingModifier.alignBy { it.measuredHeight / 2 }.weight(1f))
                 }
@@ -889,7 +890,7 @@ class RowColumnTest {
     fun testColumn_withStretchCrossAxisAlignment() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(200, 150)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(200, 150))) {
                     Child(0, 50, 50, SwingModifier.fillMaxWidth())
                     Child(1, 2 * 50, 2 * 50, SwingModifier.fillMaxWidth())
                 }
@@ -910,7 +911,7 @@ class RowColumnTest {
     fun testColumn_withGravityModifier() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(200, 150)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(200, 150))) {
                     Child(0, 50, 50, SwingModifier.align(Alignment.Start))
                     Child(
                         index = 1,
@@ -936,7 +937,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(200, 150),
+                    modifier = ContainerModifier.styleable(containerStyle(200, 150)),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Child(0, 50, 50, SwingModifier.align(Alignment.Start))
@@ -982,7 +983,7 @@ class RowColumnTest {
     fun testColumn_withAlignByModifier_andWeight() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 200))) {
                     LineChild(TestVerticalLine, 30, SwingModifier.alignBy(TestVerticalLine))
                     Child(1, 40, 0, SwingModifier.alignBy { it.measuredWidth / 2 }.weight(1f))
                 }
@@ -1002,7 +1003,7 @@ class RowColumnTest {
     fun testRow_expandedWidth_withExpandedModifier() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(400, 2 * 50)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(400, 2 * 50) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxWidth()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1039,7 +1040,7 @@ class RowColumnTest {
     fun testRow_withMaxCrossAxisSize() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(3 * 50, 300)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(3 * 50, 300) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxHeight()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1077,7 +1078,7 @@ class RowColumnTest {
     fun testRow_withExpandedModifier_respectsMaxWidthConstraint() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(250, 2 * 50)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(250, 2 * 50) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxWidth()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1096,7 +1097,7 @@ class RowColumnTest {
     fun testRow_withChildrenWithWeight_respectsMaxWidthConstraint() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(250, 2 * 50)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(250, 2 * 50) }) {
                     Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50, SwingModifier.weight(1f))
                         Child(1, 2 * 50, 2 * 50)
@@ -1124,7 +1125,7 @@ class RowColumnTest {
     fun testRow_withNoWeightChildren_respectsMinWidthConstraint() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(250, 2 * 50)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(250, 2 * 50) }) {
                     Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1153,7 +1154,7 @@ class RowColumnTest {
     fun testRow_withMaxCrossAxisSize_respectsMaxHeightConstraint() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(3 * 50, 250)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(3 * 50, 250) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxHeight()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1172,7 +1173,7 @@ class RowColumnTest {
     fun testRow_withMinCrossAxisSize_respectsMinHeightConstraint() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(3 * 50, 150)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(3 * 50, 150) }) {
                     Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1200,7 +1201,7 @@ class RowColumnTest {
     fun testRow_withMinMainAxisSize() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(400, 400) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).widthIn(min = 250).width(IntrinsicSize.Max)) {
                         Child(0, 50, 50, SwingModifier.weight(1f))
                     }
@@ -1223,7 +1224,7 @@ class RowColumnTest {
     fun testRow_measuresNoWeightChildrenCorrectly() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(100, 200)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(100, 200))) {
                     Child(0, 50, 100)
                     Child(1, 200, 100)
                 }
@@ -1268,7 +1269,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(40, 40),
+                    modifier = ContainerModifier.styleable(containerStyle(40, 40)),
                     horizontalArrangement = Arrangement.spacedBy(8),
                 ) {
                     Child(0, 0, 40, SwingModifier.weight(1f))
@@ -1293,7 +1294,7 @@ class RowColumnTest {
     fun testColumn_expandedHeight_withExpandedModifier() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(300, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(300, 400) }) {
                     Column(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxHeight()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1331,7 +1332,7 @@ class RowColumnTest {
     fun testColumn_withMaxCrossAxisSize() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(300, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(300, 400) }) {
                     Column(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxWidth()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1369,7 +1370,7 @@ class RowColumnTest {
     fun testColumn_withExpandedModifier_respectsMaxHeightConstraint() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(300, 250)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(300, 250) }) {
                     Column(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxHeight()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1389,7 +1390,7 @@ class RowColumnTest {
     fun testColumn_withWeightChildren_respectsMaxHeightConstraint() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(300, 250)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(300, 250) }) {
                     Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50, SwingModifier.weight(1f))
                         Child(1, 2 * 50, 2 * 50)
@@ -1418,7 +1419,7 @@ class RowColumnTest {
     fun testColumn_withChildren_respectsMinHeightConstraint() =
         runComposeSwingTest {
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(300, 250)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(300, 250) }) {
                     Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1446,7 +1447,7 @@ class RowColumnTest {
     fun testColumn_withMaxCrossAxisSize_respectsMaxWidthConstraint() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(250, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(250, 400) }) {
                     Column(modifier = SwingModifier.testTag(CONTAINER_TAG).fillMaxWidth()) {
                         Child(0, 50, 50)
                         Child(1, 2 * 50, 2 * 50)
@@ -1468,7 +1469,7 @@ class RowColumnTest {
             setContent {
                 Panel(
                     PanelLayout.Border(),
-                    modifier = SwingModifier.preferredSize(150, 400),
+                    style = { preferredSize(150, 400) },
                 ) {
                     Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
                         Child(0, 50, 50)
@@ -1498,7 +1499,7 @@ class RowColumnTest {
     fun testColumn_withMinMainAxisSize() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(400, 400) }) {
                     Column(
                         modifier = SwingModifier.testTag(CONTAINER_TAG).heightIn(min = 250).height(IntrinsicSize.Max),
                     ) {
@@ -1523,7 +1524,7 @@ class RowColumnTest {
     fun testColumn_measuresNoWeightChildrenCorrectly() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(100, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(100, 200))) {
                     Child(0, 2 * 100, 100)
                     Child(1, 2 * 100, 2 * 200)
                 }
@@ -1567,7 +1568,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Column(
-                    modifier = containerModifier(CHILD_WIDTH, 40),
+                    modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 40)),
                     verticalArrangement = Arrangement.spacedBy(8),
                 ) {
                     SizedChild(0, SwingModifier.weight(1f))
@@ -1591,7 +1592,7 @@ class RowColumnTest {
     fun testRow_withStartArrangement() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(450, 50)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(450, 50))) {
                     repeat(CHILD_COUNT) { Child(it, 50, 50) }
                 }
             }
@@ -1768,10 +1769,8 @@ class RowColumnTest {
             setContent {
                 Row(
                     modifier =
-                        containerModifier(
-                            20 * 2 + 10 + 15,
-                            20,
-                            ComponentOrientation.RIGHT_TO_LEFT,
+                        ContainerModifier.styleable(
+                            containerStyle(20 * 2 + 10 + 15, 20, ComponentOrientation.RIGHT_TO_LEFT),
                         ),
                     horizontalArrangement = Arrangement.spacedBy(10),
                 ) {
@@ -1817,7 +1816,7 @@ class RowColumnTest {
     fun testColumn_withTopArrangement() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(50, 450)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(50, 450))) {
                     repeat(CHILD_COUNT) { Child(it, 50, 50) }
                 }
             }
@@ -1979,7 +1978,7 @@ class RowColumnTest {
     fun testRow_doesNotUseMinConstraintsOnChildren() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(50, 50)) {
+                Row(modifier = ContainerModifier.styleable(containerStyle(50, 50))) {
                     FixedChild(0, 30, 30)
                 }
             }
@@ -1997,7 +1996,7 @@ class RowColumnTest {
     fun testColumn_doesNotUseMinConstraintsOnChildren() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(50, 50)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(50, 50))) {
                     FixedChild(0, 30, 30)
                 }
             }
@@ -2016,10 +2015,8 @@ class RowColumnTest {
             setContent {
                 Column(
                     modifier =
-                        containerModifier(
-                            width = 20,
-                            height = 100,
-                            orientation = ComponentOrientation.RIGHT_TO_LEFT,
+                        ContainerModifier.styleable(
+                            containerStyle(width = 20, height = 100, orientation = ComponentOrientation.RIGHT_TO_LEFT),
                         ),
                     verticalArrangement = Arrangement.spacedBy(10),
                 ) {
@@ -2225,7 +2222,7 @@ class RowColumnTest {
     fun aRowAtItsMinimumHeightStretchesAFillingSiblingToItsTallestChild() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
                     Row(modifier = SwingModifier.testTag(CONTAINER_TAG).requiredWidth(40).height(IntrinsicSize.Min)) {
                         Box(modifier = SwingModifier.requiredWidth(10).fillMaxHeight())
                         FixedChild(1, 30, 15)
@@ -2245,7 +2242,7 @@ class RowColumnTest {
     fun aColumnAtItsMinimumWidthStretchesAFillingSiblingToItsWidestChild() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
                     Column(
                         modifier = SwingModifier.testTag(CONTAINER_TAG).requiredHeight(40).width(IntrinsicSize.Min),
                     ) {
@@ -2267,7 +2264,7 @@ class RowColumnTest {
     fun scenarioShouldNotCrash() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                Box(modifier = SwingModifier.styleable { preferredSize(400, 400) }) {
                     Column(modifier = SwingModifier.width(IntrinsicSize.Max)) {
                         Row(modifier = SwingModifier.testTag(CONTAINER_TAG).width(200)) {
                             Box(modifier = SwingModifier.weight(0.8f))
@@ -2288,7 +2285,7 @@ class RowColumnTest {
     fun testRowColumnModifiersChain_lastDeclarationWins() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CHILD_WIDTH, 24)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(CHILD_WIDTH, 24))) {
                     Child(0, CHILD_WIDTH, 0, SwingModifier.weight(2f).weight(1f))
                     Child(1, CHILD_WIDTH, 0, SwingModifier.weight(1f))
                 }
@@ -2427,8 +2424,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier =
-                        containerModifier(50, 50, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier = ContainerModifier.styleable(containerStyle(50, 50, ComponentOrientation.RIGHT_TO_LEFT)),
                     horizontalArrangement = Arrangement.spacedBy(10, Alignment.End),
                 ) {
                     Child(0, 20, 20)
@@ -2459,7 +2455,9 @@ class RowColumnTest {
             setContent {
                 Column(
                     modifier =
-                        containerModifier(420, 3 * 35, ComponentOrientation.RIGHT_TO_LEFT),
+                        ContainerModifier.styleable(
+                            containerStyle(420, 3 * 35, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
                 ) {
                     Child(0, 35, 35)
                     Child(1, 2 * 35, 2 * 35)
@@ -2488,10 +2486,8 @@ class RowColumnTest {
             setContent {
                 Column(
                     modifier =
-                        containerModifier(
-                            420,
-                            3 * 50,
-                            ComponentOrientation.RIGHT_TO_LEFT,
+                        ContainerModifier.styleable(
+                            containerStyle(420, 3 * 50, ComponentOrientation.RIGHT_TO_LEFT),
                         ),
                 ) {
                     Child(0, 50, 50, SwingModifier.align(Alignment.End))
@@ -2519,7 +2515,12 @@ class RowColumnTest {
     fun testColumn_Rtl_gravityAlignBy() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(200, 100, ComponentOrientation.RIGHT_TO_LEFT)) {
+                Column(
+                    modifier =
+                        ContainerModifier.styleable(
+                            containerStyle(200, 100, ComponentOrientation.RIGHT_TO_LEFT),
+                        ),
+                ) {
                     Child(0, 50, 50, SwingModifier.alignBy { it.measuredWidth })
                     Child(1, 50, 50, SwingModifier.alignBy { it.measuredHeight / 2 })
                 }
@@ -2698,12 +2699,7 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier =
-                        containerModifier(
-                            50,
-                            50,
-                            ComponentOrientation.RIGHT_TO_LEFT,
-                        ),
+                    modifier = ContainerModifier.styleable(containerStyle(50, 50, ComponentOrientation.RIGHT_TO_LEFT)),
                     horizontalArrangement = Arrangement.Absolute.spacedBy(10, Alignment.End),
                 ) {
                     repeat(2) { Child(it, 20, 20) }
@@ -2880,7 +2876,7 @@ private fun ArrangedRow(
     children: Int = CHILD_COUNT,
 ) {
     Row(
-        modifier = containerModifier(450, 50),
+        modifier = ContainerModifier.styleable(containerStyle(450, 50)),
         horizontalArrangement = arrangement,
     ) {
         repeat(children) { Child(it, 50, 50) }
@@ -2891,7 +2887,7 @@ private fun ArrangedRow(
 @Composable
 private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
     Column(
-        modifier = containerModifier(50, 450),
+        modifier = ContainerModifier.styleable(containerStyle(50, 450)),
         verticalArrangement = arrangement,
     ) {
         repeat(CHILD_COUNT) { Child(it, 50, 50) }
@@ -2907,10 +2903,12 @@ private fun TightRow(
 ) {
     Row(
         modifier =
-            containerModifier(
-                50,
-                50,
-                if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+            ContainerModifier.styleable(
+                containerStyle(
+                    50,
+                    50,
+                    if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                ),
             ),
         horizontalArrangement = arrangement,
     ) {
@@ -2925,7 +2923,7 @@ private fun TightColumn(
     children: Int,
 ) {
     Column(
-        modifier = containerModifier(50, 50),
+        modifier = ContainerModifier.styleable(containerStyle(50, 50)),
         verticalArrangement = arrangement,
     ) {
         repeat(children) { Child(it, 20, 20) }
@@ -2952,7 +2950,14 @@ private fun FixedChild(
     height: Int,
     modifier: SwingModifier = SwingModifier,
 ) {
-    Label("child $index", modifier = modifier.preferredSize(width, height).minimumSize(width, height))
+    Label(
+        "child $index",
+        modifier = modifier,
+        style = {
+            preferredSize(width, height)
+            minimumSize(width, height)
+        },
+    )
 }
 
 /** A child asking for no extent of its own along either axis, which its container adds nothing for. */
@@ -2975,7 +2980,7 @@ private fun RightToLeftRow(
     count: Int = 3,
 ) {
     Row(
-        modifier = containerModifier(420, 100, ComponentOrientation.RIGHT_TO_LEFT),
+        modifier = ContainerModifier.styleable(containerStyle(420, 100, ComponentOrientation.RIGHT_TO_LEFT)),
         horizontalArrangement = arrangement,
     ) {
         repeat(count) { Child(it, 100, 100) }
@@ -2986,8 +2991,7 @@ private fun RightToLeftRow(
 @Composable
 private fun UnevenRightToLeftRow(arrangement: Arrangement.Horizontal) {
     Row(
-        modifier =
-            containerModifier(420, 2 * 35, ComponentOrientation.RIGHT_TO_LEFT),
+        modifier = ContainerModifier.styleable(containerStyle(420, 2 * 35, ComponentOrientation.RIGHT_TO_LEFT)),
         horizontalArrangement = arrangement,
     ) {
         Child(0, 35, 35)
@@ -3007,10 +3011,12 @@ private fun AbsoluteArrangementRow(
 ) {
     Row(
         modifier =
-            containerModifier(
-                600,
-                100,
-                if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+            ContainerModifier.styleable(
+                containerStyle(
+                    600,
+                    100,
+                    if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                ),
             ),
         horizontalArrangement = arrangement,
     ) {

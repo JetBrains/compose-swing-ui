@@ -5,7 +5,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
@@ -58,7 +58,7 @@ class ViewportStretchTest {
             setContent {
                 InViewport {
                     Layout(zeroSizePolicy, modifier = SwingModifier.testTag("view")) {
-                        Label("", modifier = SwingModifier.testTag(CHILD).preferredSize(WIDE, 40))
+                        Label("", modifier = SwingModifier.testTag(CHILD), style = { preferredSize(WIDE, 40) })
                     }
                 }
             }
@@ -106,8 +106,8 @@ class ViewportStretchTest {
                                     modifier =
                                         SwingModifier
                                             .testTag(CHILD)
-                                            .aspectRatio(16f / 9f)
-                                            .preferredSize(WIDE, 20),
+                                            .aspectRatio(16f / 9f),
+                                    style = { preferredSize(WIDE, 20) },
                                 )
                             }
                         },
@@ -134,7 +134,7 @@ class ViewportStretchTest {
 
 @Composable
 private fun InViewport(view: @Composable () -> Unit) {
-    ScrollPane(modifier = SwingModifier.preferredSize(300, 200)) {
+    ScrollPane(style = { preferredSize(300, 200) }) {
         Viewport(modifier = SwingModifier.testTag(VIEWPORT)) { view() }
     }
 }

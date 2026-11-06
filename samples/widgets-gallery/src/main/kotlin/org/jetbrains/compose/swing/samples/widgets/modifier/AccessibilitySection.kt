@@ -9,23 +9,23 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.mnemonic
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.accessibleDescription
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.focusTraversalIndex
 import org.jetbrains.compose.swing.tooling.Preview
 
 // The accessibility modifiers: assistive-technology metadata (accessibleName/Description), label
@@ -52,10 +52,10 @@ private fun ColumnScope.AccessibleMetadataCard() {
         TextField(
             value = value,
             onValueChange = { value = it },
-            modifier =
-                SwingModifier
-                    .accessibleName("Search query")
-                    .accessibleDescription("Type a term to filter the results list."),
+            style = {
+                accessibleName("Search query")
+                accessibleDescription("Type a term to filter the results list.")
+            },
             columns = 24,
         )
     }
@@ -69,7 +69,8 @@ private fun ColumnScope.LabelForCard() {
         Panel {
             Label(
                 "Username:",
-                modifier = SwingModifier.labelFor(usernameField).mnemonic('U'),
+                modifier = SwingModifier.labelFor(usernameField),
+                style = { mnemonic('U') },
             )
             TextField(
                 value = name,
@@ -89,7 +90,7 @@ private fun ColumnScope.MnemonicCard() {
             Button(
                 "Save",
                 onClick = { saves++ },
-                modifier = SwingModifier.mnemonic('S'),
+                style = { mnemonic('S') },
             )
             Label("Saved $saves time(s)")
         }
@@ -122,19 +123,19 @@ private fun ColumnScope.FocusTraversalCard() {
             TextField(
                 value = third,
                 onValueChange = { third = it },
-                modifier = SwingModifier.focusTraversalIndex(3),
+                style = { focusTraversalIndex(3) },
                 columns = 20,
             )
             TextField(
                 value = second,
                 onValueChange = { second = it },
-                modifier = SwingModifier.focusTraversalIndex(2),
+                style = { focusTraversalIndex(2) },
                 columns = 20,
             )
             TextField(
                 value = first,
                 onValueChange = { first = it },
-                modifier = SwingModifier.focusTraversalIndex(1),
+                style = { focusTraversalIndex(1) },
                 columns = 20,
             )
         }

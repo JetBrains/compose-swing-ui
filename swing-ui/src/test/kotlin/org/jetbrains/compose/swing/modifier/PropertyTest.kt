@@ -4,12 +4,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.stylePropertyOf
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import javax.swing.JLabel
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * The public builder a custom component declares a Swing property through: it writes the declared value
@@ -17,6 +20,7 @@ import kotlin.test.assertEquals
  *
  * A caller states through `restores` whether the component is held to carrying that value again, and
  * may name a `rewriteOn` bean property whose announced change means the declared value was overwritten.
+ * Where two declarations rewrite on one property, the one written last stands.
  */
 class PropertyTest {
     @Test
@@ -77,23 +81,79 @@ class PropertyTest {
                 modifier = SwingModifier.property(DeclaredNameProperty, DECLARED_TIP, rewriteOn = "name"),
             )
         }
-        val label = onNodeOfType<JLabel>().fetch()
-        assertEquals(DECLARED_TIP, label.name, "the declared value should reach the widget")
+        val label = onNodeOfType<JLabel>()
+        label.assertProperty("named by the declaration", "the declared value should reach the widget") { name }
 
         // Something outside the modifier overwrites the property and announces the change, the way a
         // look and feel does; the node listens for the property it declares to be announced - "name"
         // reliably fires a PropertyChangeEvent of that exact name, unlike "toolTipText", which Swing
         // announces under the differently-cased client-property key "ToolTipText" - and writes the
         // declared value again.
-        label.name = "elsewhere"
+        label.fetch().name = "elsewhere"
         awaitIdle()
-        assertEquals(
-            DECLARED_TIP,
-            label.name,
+        label.assertProperty(
+            "named by the declaration",
             "an external overwrite of a rewriteOn property is reasserted",
-        )
+        ) {
+            name
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("false, false", "false, true", "true, false")
+    fun lastDeclarationWinsRewrites(
+        twoStyles: Boolean,
+        joinsLater: Boolean,
+    ) = runComposeSwingTest {
+        var joined by mutableStateOf(!joinsLater)
+        val laterName = if (twoStyles) "named later by the style" else "named by the style"
+        setContent {
+            val first =
+                if (joined && !twoStyles) {
+                    SwingModifier.property(DeclaredNameProperty, "named by the modifier", rewriteOn = "name")
+                } else {
+                    SwingModifier
+                }
+            SwingNode(
+                factory = { JLabel("target") },
+                modifier =
+                    first.styleable {
+                        StyleNameProperty.provide("named by the style")
+                        if (twoStyles) LaterStyleNameProperty.provide(laterName)
+                    },
+            )
+        }
+        val node = onNodeOfType<JLabel>()
+        joined = true
+        awaitIdle()
+        node.assertProperty(laterName) { name }
+        node.fetch().name = "elsewhere"
+        awaitIdle()
+        node.assertProperty(laterName) { name }
     }
 }
+
+/** A style property writing the component's name, rewriting it on every announced change of it. */
+private val StyleNameProperty =
+    stylePropertyOf(
+        ComponentPropertyDescriptor<JLabel, String?>(
+            name = "name",
+            read = { it.name },
+            write = { label, value -> label.name = value },
+        ),
+        rewriteOn = "name",
+    )
+
+/** A second style property as [StyleNameProperty], held in a slot of its own within the style. */
+private val LaterStyleNameProperty =
+    stylePropertyOf(
+        ComponentPropertyDescriptor<JLabel, String?>(
+            name = "laterStyleName",
+            read = { it.name },
+            write = { label, value -> label.name = value },
+        ),
+        rewriteOn = "name",
+    )
 
 /** The property [rewriteOnReassertsTheDeclaredValueWhenTheNamedPropertyAnnouncesAChange] declares and listens on. */
 private val DeclaredNameProperty =

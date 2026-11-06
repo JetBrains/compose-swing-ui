@@ -25,8 +25,8 @@ package org.jetbrains.compose.swing.modifier
  * [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode] writes nothing onto the
  * component, so it stands and is diffed as usual, keeping its state.
  *
- * The keys belong to the modifier rather than to a place in it: `SwingModifier.key(t).background(c)` and
- * `SwingModifier.background(c).key(t)` say the same thing. Declaring again adds keys rather than
+ * The keys belong to the modifier rather than to a place in it: `SwingModifier.key(t).testTag(x)` and
+ * `SwingModifier.testTag(x).key(t)` say the same thing. Declaring again adds keys rather than
  * replacing them, so a builder that ties its own writes to a key keeps the one its caller declared:
  * `key(a).key(b)` says what `key(a, b)` does. One declaration repeated counts once, standing where it
  * was declared last.

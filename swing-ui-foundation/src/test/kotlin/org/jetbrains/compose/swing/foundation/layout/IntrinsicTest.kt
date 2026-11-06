@@ -12,12 +12,14 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.emptyBorder
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -109,7 +111,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, width = 200, height = 160, modifier = SwingModifier.maximumSize(50, 40))
+                    Child(0, width = 200, height = 160, style = { maximumSize(50, 40) })
                 }
             }
 
@@ -124,7 +126,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Label("child", modifier = SwingModifier.weight(2f).preferredSize(1, 1))
+                    Label("child", modifier = SwingModifier.weight(2f), style = { preferredSize(1, 1) })
                 }
             }
 
@@ -165,7 +167,7 @@ class IntrinsicTest {
             val counting = CountingPolicy()
             val inner = ConstrainedPanel(counting)
             setContent {
-                Column(modifier = containerModifier(200, 200)) {
+                Column(modifier = ContainerModifier.styleable(containerStyle(200, 200))) {
                     SwingNode(factory = { inner })
                 }
             }
@@ -196,7 +198,7 @@ class IntrinsicTest {
                 }
             setContent {
                 Column(
-                    modifier = if (queryOnly) SwingModifier.testTag(CONTAINER_TAG) else containerModifier(200, 200),
+                    modifier = ContainerModifier.styleable(if (queryOnly) SwingStyle else containerStyle(200, 200)),
                 ) { Layout(measurePolicy = policy) }
             }
             if (queryOnly) {
@@ -218,7 +220,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             var intrinsicHeight = -1
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(320, 600)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(320, 600) }) {
                     Layout(
                         content = {
                             Column { Label("Preview", modifier = SwingModifier.fillMaxWidth().aspectRatio(2f)) }
@@ -448,8 +450,8 @@ class IntrinsicTest {
     fun anExplicitContainerSizeAlsoDeterminesItsConstrainedSize() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(400, 100)) {
-                    Row(modifier = SwingModifier.preferredSize(200, 60)) { SizedChild(0) }
+                Row(modifier = ContainerModifier.styleable(containerStyle(400, 100))) {
+                    Row(modifier = SwingModifier.styleable { preferredSize(200, 60) }) { SizedChild(0) }
                 }
             }
 
@@ -465,7 +467,7 @@ class IntrinsicTest {
     fun aSplitPaneTakesItsDividerLimitFromTheMinimumTheRowsPolicyWorksOut() =
         runComposeSwingTest {
             setContent {
-                SplitPane(modifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(400, 100)) {
+                SplitPane(modifier = SwingModifier.testTag(CONTAINER_TAG), style = { preferredSize(400, 100) }) {
                     Row(modifier = SwingModifier.first()) {
                         ShrinkableChild(0, prefers = 80, shrinksTo = 20)
                         ShrinkableChild(1, prefers = 80, shrinksTo = 30)
@@ -488,7 +490,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").emptyBorder(3)) {
+                    Box(modifier = SwingModifier.testTag("box").styleable { emptyBorder(3) }) {
                         Box(modifier = SwingModifier.size(100, 50).shadow(6, Color.BLACK))
                     }
                 }
@@ -517,7 +519,7 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").emptyBorder(3)) {
+                    Box(modifier = SwingModifier.testTag("box").styleable { emptyBorder(3) }) {
                         SwingNode(factory = { HalfAsTallAsWide() })
                     }
                 }
@@ -538,7 +540,13 @@ class IntrinsicTest {
         runComposeSwingTest {
             setContent {
                 Row {
-                    Box(modifier = SwingModifier.testTag("box").width(200).emptyBorder(3)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("box")
+                                .width(200)
+                                .styleable { emptyBorder(3) },
+                    ) {
                         Box(modifier = SwingModifier.fillMaxWidth().aspectRatio(2f).shadow(6, Color.BLACK))
                     }
                 }
@@ -669,7 +677,7 @@ private fun CenteredColumn(
     width: Int,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width, 600)) {
+    Panel(PanelLayout.Border(), style = { preferredSize(width, 600) }) {
         Column(modifier = SwingModifier.center(), content = content)
     }
 }
@@ -761,7 +769,11 @@ private fun ShrinkableChild(
 ) {
     Label(
         "child $index",
-        modifier = modifier.preferredSize(prefers, prefers).minimumSize(shrinksTo, shrinksTo),
+        modifier = modifier,
+        style = {
+            preferredSize(prefers, prefers)
+            minimumSize(shrinksTo, shrinksTo)
+        },
     )
 }
 

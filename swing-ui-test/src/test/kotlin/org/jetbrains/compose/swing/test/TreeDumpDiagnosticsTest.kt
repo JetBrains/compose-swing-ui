@@ -4,9 +4,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.enabled
 import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -33,7 +32,7 @@ class TreeDumpDiagnosticsTest {
                         set("the-a11y-description") { this.accessibleContext.accessibleDescription = it }
                     },
                 )
-                Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
+                Button(text = "off", onClick = {}, style = { enabled(false) })
                 SwingNode(factory = { PlainAwtComponent() })
             }
         }

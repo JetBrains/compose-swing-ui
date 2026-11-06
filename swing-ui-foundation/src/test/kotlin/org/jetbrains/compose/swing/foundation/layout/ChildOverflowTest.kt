@@ -18,12 +18,13 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOnto
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
@@ -89,9 +90,14 @@ class ChildOverflowTest {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier =
-                            SwingModifier.testTag("box").preferredSize(40, 40).opaque(true).let {
-                                if (shadowed) it.shadow(8, Color.BLACK) else it
-                            },
+                            SwingModifier
+                                .testTag("box")
+                                .let {
+                                    if (shadowed) it.shadow(8, Color.BLACK) else it
+                                }.styleable {
+                                    opaque(true)
+                                    preferredSize(40, 40)
+                                },
                     ) {
                         Box(modifier = SwingModifier.requiredSize(56, 56).background(Brush.of(Color.BLUE)))
                     }
@@ -124,10 +130,22 @@ class ChildOverflowTest {
             var visible by mutableStateOf(true)
             setContent {
                 Box(modifier = SwingModifier.testTag("root")) {
-                    Row(modifier = SwingModifier.testTag("row").padding(20).opaque(true)) {
+                    Row(
+                        modifier =
+                            SwingModifier
+                                .testTag("row")
+                                .padding(20)
+                                .styleable { opaque(true) },
+                    ) {
                         SwingNode(
                             factory = { JPanel().apply { background = Color.BLUE } },
-                            modifier = SwingModifier.size(20, 20).offset(x = -10).visible(visible),
+                            modifier =
+                                SwingModifier
+                                    .size(
+                                        20,
+                                        20,
+                                    ).offset(x = -10)
+                                    .styleable({ visible(visible) }, RawKind),
                         )
                     }
                 }

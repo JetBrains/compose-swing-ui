@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
@@ -515,7 +516,7 @@ private const val CONTAINER_CROSS = 100
 @Composable
 private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
     Column(
-        modifier = containerModifier(CONTAINER_CROSS, CONTAINER_MAIN),
+        modifier = ContainerModifier.styleable(containerStyle(CONTAINER_CROSS, CONTAINER_MAIN)),
         verticalArrangement = arrangement,
     ) {
         repeat(CHILD_COUNT) { SizedChild(it) }
@@ -526,7 +527,7 @@ private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
 @Composable
 private fun ArrangedLoneColumn(arrangement: Arrangement.Vertical) {
     Column(
-        modifier = containerModifier(CONTAINER_CROSS, CONTAINER_MAIN),
+        modifier = ContainerModifier.styleable(containerStyle(CONTAINER_CROSS, CONTAINER_MAIN)),
         verticalArrangement = arrangement,
     ) {
         SizedChild(0)
@@ -540,7 +541,7 @@ private fun ArrangedRow(
     orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
 ) {
     Row(
-        modifier = containerModifier(CONTAINER_MAIN, CONTAINER_CROSS, orientation),
+        modifier = ContainerModifier.styleable(containerStyle(CONTAINER_MAIN, CONTAINER_CROSS, orientation)),
         horizontalArrangement = arrangement,
     ) {
         repeat(CHILD_COUNT) { SizedChild(it) }
@@ -555,7 +556,9 @@ private fun ArrangedRow(
 private fun ArrangedLoneRightToLeftRow(arrangement: Arrangement.Horizontal) {
     Row(
         modifier =
-            containerModifier(CONTAINER_MAIN, CONTAINER_CROSS, ComponentOrientation.RIGHT_TO_LEFT),
+            ContainerModifier.styleable(
+                containerStyle(CONTAINER_MAIN, CONTAINER_CROSS, ComponentOrientation.RIGHT_TO_LEFT),
+            ),
         horizontalArrangement = arrangement,
     ) {
         SizedChild(0)

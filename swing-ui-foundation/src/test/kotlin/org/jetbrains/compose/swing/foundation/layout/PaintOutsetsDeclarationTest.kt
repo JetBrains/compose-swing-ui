@@ -16,8 +16,6 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
@@ -28,12 +26,19 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Color
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -44,14 +49,16 @@ import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JPanel
+import javax.swing.JTextField
 import javax.swing.SwingUtilities
+import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * A `paintOutsets` value declared on a component or provided through [DefaultPaintOutsets]: one per component, taking
+ * A `paintOutsets` value set in a component's style or provided through a nested style: one per component, taking
  * effect under a Foundation parent and left out under any other.
  */
 class PaintOutsetsDeclarationTest {
@@ -67,11 +74,21 @@ class PaintOutsetsDeclarationTest {
             var provided by mutableStateOf<PaintOutsets?>(value)
             setContent {
                 Column {
-                    ProvideComponentDefaults(DefaultPaintOutsets provides provided) {
-                        Column {
-                            LinedField("first")
-                            Row { LinedField("nested") }
-                            ProvideComponentDefaults(DefaultPaintOutsets provides null) { LinedField("masked") }
+                    Column(
+                        modifier =
+                            SwingModifier.styleable {
+                                provided?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                            },
+                    ) {
+                        LinedField("first")
+                        Row { LinedField("nested") }
+                        Column(
+                            modifier =
+                                SwingModifier.styleable {
+                                    provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.Decoration) }
+                                },
+                        ) {
+                            LinedField("masked")
                         }
                     }
                     LinedField("outside")
@@ -81,7 +98,10 @@ class PaintOutsetsDeclarationTest {
             val nested = onNodeWithTag("nested").fetch<JComponent>()
             assertEquals(-LINE, first.layoutBounds.x)
             assertEquals(-LINE, nested.layoutBounds.x)
-            onNodeWithTag("masked").assertProperty(0, "a nested provides null keeps the full bounds") { layoutBounds.x }
+            onNodeWithTag("masked").assertProperty(
+                0,
+                "a nearer provider of the decoration's outsets keeps the full bounds",
+            ) { layoutBounds.x }
             onNodeWithTag("outside").assertProperty(
                 0,
                 "a sibling outside the provision is unchanged",
@@ -111,7 +131,12 @@ class PaintOutsetsDeclarationTest {
         runComposeSwingTest {
             var provided by mutableStateOf<PaintOutsets?>(PaintOutsets.FullInsets)
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides provided) {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provided?.let { provideNestedStyle(AllComponents) { paintOutsets(it) } }
+                        },
+                ) {
                     Column { LinedField("foundation") }
                     Panel(PanelLayout.Border()) { LinedField("border", SwingModifier.center()) }
                     Panel(PanelLayout.Box()) { LinedField("box") }
@@ -133,13 +158,13 @@ class PaintOutsetsDeclarationTest {
             val foundation = onNodeWithTag("foundation").fetch()
             val leftOut = listOf("border", "box", "viewport", "first", "second", "tab", "layer")
             val placed = leftOut.associateWith { onNodeWithTag(it).fetch().bounds }
-            assertEquals(-LINE, foundation.x, "the Foundation child takes the value")
+            assertEquals(-LINE, foundation.layoutBounds.x, "the Foundation child takes the value")
 
             for ((next, x) in listOf(TwoPixels to -2, null to 0)) {
                 provided = next
                 awaitIdle()
 
-                assertEquals(x, foundation.x, "$next: the Foundation child takes the new value")
+                assertEquals(x, foundation.layoutBounds.x, "$next: the Foundation child takes the new value")
                 assertEquals(
                     placed,
                     leftOut.associateWith { onNodeWithTag(it).fetch().bounds },
@@ -154,10 +179,15 @@ class PaintOutsetsDeclarationTest {
             var provided by mutableStateOf(PaintOutsets.FullInsets)
             val layout = OwnElementsLayout()
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides provided) {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(provided) }
+                        },
+                ) {
                     SwingNode(factory = { JPanel(layout) }) {
                         LinedField("inheriting")
-                        LinedField("declaring", SwingModifier.paintOutsets(TwoPixels) then OwnElement)
+                        LinedField("declaring", OwnElement, style = { paintOutsets(TwoPixels) })
                     }
                 }
             }
@@ -176,7 +206,7 @@ class PaintOutsetsDeclarationTest {
         }
 
     @Test
-    fun anExplicitValueReplacesTheProvidedOneAtItsOwnPosition() =
+    fun aComponentsOwnValueReplacesTheProvidedOne() =
         runComposeSwingTest {
             val provided =
                 mockk<PaintOutsets> {
@@ -185,21 +215,52 @@ class PaintOutsetsDeclarationTest {
                     }
                 }
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides provided) {
-                    Column {
-                        Label("label", modifier = SwingModifier.testTag("label"))
-                        LinedField("inheriting")
-                        LinedField("field", SwingModifier.width(200).paintOutsets(PaintOutsets.FullInsets))
-                    }
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(provided) }
+                        },
+                ) {
+                    Label("label", modifier = SwingModifier.testTag("label"))
+                    LinedField("inheriting")
+                    LinedField("field", SwingModifier.width(200), style = { paintOutsets(PaintOutsets.FullInsets) })
                 }
             }
             val inheriting = onNodeWithTag("inheriting").fetch<JComponent>()
             val field = onNodeWithTag("field").fetch<JComponent>()
             assertEquals(-2, inheriting.x, "a field declaring nothing takes the provided value")
             assertEquals(-LINE, field.x, "counted once, the explicit value")
-            assertEquals(200 + 2 * LINE, field.width, "inside the width, where it is declared")
+            assertEquals(200 + 2 * LINE, field.width, "after the modifier's width")
             verify { provided.outsetsOf(inheriting, any(), any()) }
             verify(exactly = 0) { provided.outsetsOf(field, any(), any()) }
+        }
+
+    @Test
+    fun aSwingNodeOfAKindApplyingNoNestedStyleNeverReceivesAProvidedValue() =
+        runComposeSwingTest {
+            setContent {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.FullInsets) }
+                        },
+                ) {
+                    LinedField("styled")
+                    SwingNode(
+                        factory = { JTextField(8) },
+                        modifier =
+                            SwingModifier
+                                .testTag("raw")
+                                .styleable({ border(LineBorder(Color.RED, LINE)) }, BareKind),
+                    )
+                }
+            }
+            onNodeWithTag("styled").assertProperty(-LINE, "a styled field takes the value") { x }
+            onNodeWithTag("raw").assertProperty(0, "a raw node keeps its full bounds") { x }
+            onNodeWithTag("raw").assertProperty(true, "its insets take layout space") {
+                val styled = parent.components.single { it !== this }
+                y == styled.y + styled.height - LINE
+            }
         }
 
     @Test
@@ -208,13 +269,18 @@ class PaintOutsetsDeclarationTest {
             var inColumn by mutableStateOf(true)
             val field = movableContentOf { LinedField("field") }
             setContent {
-                ProvideComponentDefaults(DefaultPaintOutsets provides PaintOutsets.FullInsets) {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.FullInsets) }
+                        },
+                ) {
                     Column { if (inColumn) field() }
                     Panel(PanelLayout.Flow(hgap = 0, vgap = 0)) { if (!inColumn) field() }
                 }
             }
             val moved = onNodeWithTag("field").fetch()
-            assertEquals(-LINE, moved.x)
+            assertEquals(-LINE, moved.layoutBounds.x)
 
             inColumn = false
             awaitIdle()
@@ -228,7 +294,7 @@ class PaintOutsetsDeclarationTest {
             awaitIdle()
 
             assertSame(moved, onNodeWithTag("field").fetch())
-            assertEquals(-LINE, moved.x, "back in the column its insets are paint outsets again")
+            assertEquals(-LINE, moved.layoutBounds.x, "back in the column its insets are paint outsets again")
         }
 
     @Test
@@ -243,9 +309,8 @@ class PaintOutsetsDeclarationTest {
                         Row(modifier = SwingModifier.testTag("row").let { if (clipped) it.clipToBounds() else it }) {
                             LinedField(
                                 "field",
-                                SwingModifier
-                                    .paintOutsets(PaintOutsets.FullInsets)
-                                    .mouseListener(onMousePressed = { presses++ }),
+                                SwingModifier.mouseListener(onMousePressed = { presses++ }),
+                                style = { paintOutsets(PaintOutsets.FullInsets) },
                             )
                         }
                     }
@@ -280,9 +345,8 @@ class PaintOutsetsDeclarationTest {
                         for (tag in listOf("upper", "lower")) {
                             LinedField(
                                 tag,
-                                SwingModifier
-                                    .paintOutsets(PaintOutsets.FullInsets)
-                                    .mouseListener(onMousePressed = { pressed += tag }),
+                                SwingModifier.mouseListener(onMousePressed = { pressed += tag }),
+                                style = { paintOutsets(PaintOutsets.FullInsets) },
                             )
                         }
                     }
@@ -339,3 +403,9 @@ private class OwnElementsLayout :
 
     override fun invalidateLayout(target: Container): Unit = Unit
 }
+
+/** The kind of a raw node's component that takes none of the styles provided for every component. */
+private val BareKind =
+    SwingStyleKind<SwingComponentStyleScope, Unit>(
+        { base, _ -> object : SwingComponentStyleScope, ComponentStyleScope by base {} },
+    )

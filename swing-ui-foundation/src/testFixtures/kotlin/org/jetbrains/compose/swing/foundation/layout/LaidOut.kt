@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.JComponent
@@ -48,7 +48,7 @@ public fun laidOut(
     lateinit var laidOut: LaidOut
     runComposeSwingTest {
         setContent {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(width = 400, height = 600)) {
+            Panel(PanelLayout.Border(), style = { preferredSize(width = 400, height = 600) }) {
                 Column(modifier = SwingModifier.center()) { content() }
             }
         }

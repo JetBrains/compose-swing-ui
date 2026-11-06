@@ -10,9 +10,9 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
@@ -40,8 +40,8 @@ class DrawModifierNodeMoveTest {
                                 modifier =
                                     SwingModifier
                                         .testTag("box")
-                                        .preferredSize(Dimension(16, 16))
                                         .drawBehind { drawRect(color) },
+                                style = { preferredSize(Dimension(16, 16)) },
                             )
                         }
                     }

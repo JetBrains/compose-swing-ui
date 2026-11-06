@@ -234,9 +234,10 @@ listener once and a fresh lambda re-registers nothing.
 
 ## Styling and configuration with modifiers
 
-`SwingModifier` is the Compose-shaped way to configure a component: appearance, layout hints,
-keyboard and interaction wiring, data transfer, accessibility, and listeners are expressed as
-modifier elements declared on a component. How a component's own elements combine with the caller's,
+`SwingModifier` is the Compose-shaped way to configure a component: layout hints, decoration,
+keyboard and interaction wiring, data transfer, and listeners are expressed as modifier elements
+declared on a component. The properties of the component itself, such as its colors, font and sizes, are set
+by its [style](#styles) instead. How a component's own elements combine with the caller's,
 and how a modifier is matched across passes, is described in
 [`MODIFIERS.md`](MODIFIERS.md#order-and-merge).
 
@@ -265,10 +266,6 @@ A property declaration is skipped for components it does not target, and a paren
 left out under a parent whose protocol refuses it, so a mixed subtree is valid. New or reactivated nodes
 receive the defaults currently scoped around them.
 
-The library ships atomic `Default...` keys for broad component properties. The public API and KDoc
-define the exact current set; the keys provide no implicit values and each declares only its named
-property, so a background default does not imply opacity.
-
 The precedence is:
 
 ```text
@@ -279,47 +276,37 @@ An explicit modifier therefore wins over an inherited default for the same prope
 changes, compatible existing nodes update in place. Removing it restores the component's value from
 before the declaration, unless another declaration still owns that property.
 
-Create a custom key with `componentDefaultKeyOf` when an application needs a reusable property or
-semantic combination:
+Use component styles for component properties and nested styles for shared properties:
 
 ```kotlin
-val DefaultCardSurface = componentDefaultKeyOf<Color>("cardSurface") { color ->
-    background(color).opaque(true)
-}
-
 val cardColor = Color.LIGHT_GRAY
 val accentColor = Color.BLUE
 
-ProvideComponentDefaults(
-    DefaultComponentOrientation provides ComponentOrientation.LEFT_TO_RIGHT,
-) {
-    ProvideComponentDefaults(DefaultCardSurface provides cardColor) {
-        val background = DefaultCardSurface.current ?: Color.WHITE
-        Label("Title")
-        Button(
-            "OK",
-            modifier = SwingModifier.background(accentColor), // explicit modifier wins
-            onClick = {},
-        )
-        Canvas { drawRect(background) }
-
-        ProvideComponentDefaults(DefaultCardSurface provides null) {
-            val maskedBackground = DefaultCardSurface.current ?: Color.WHITE
-            Canvas { drawRect(maskedBackground) }
-            ToolBar { /* The surface is absent; the outer orientation remains. */ }
+Panel(
+    style = {
+        componentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        provideNestedStyle(Labels) {
+            background(cardColor)
+            opaque(true)
         }
-    }
+    },
+) {
+    Label("Title")
+    Label("Accent", style = { background(accentColor) })
+    Button("OK", onClick = {})
 }
 ```
 
-One key can declare several related properties, such as a background and opacity. The key's `apply`
+The labels inherit the orientation and receive the nested surface style. The second label's own style overrides its background. The button inherits the orientation and keeps its look and feel's background.
+
+A custom key created with `componentDefaultKeyOf` can declare related modifier properties. The key's `apply`
 function must be deterministic for its value. It may return only inheritable, non-additive property
 declarations; custom property declarations opt in with `property(..., inheritable = true)`. It may also
 return an inheritable parent-layout declaration, which applies to every component and is left out under a
 parent that refuses it; see
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers). Listeners,
 focus behavior, bindings, other layout declarations, and additive elements are not component defaults. See
-[`Keyed and additive slots`](MODIFIERS.md#keyed-and-additive-slots).
+[`Keyed and additive elements`](MODIFIERS.md#keyed-and-additive-elements).
 
 The single-value and vararg overloads both accept `key provides value`. A nested provision replaces the
 outer provision for that key while its content is composed. `key provides null` masks the key in that
@@ -332,8 +319,86 @@ masked. Reading it observes changes to the declaration. It reports the declarati
 value after another key or an explicit modifier wins.
 
 Call `ProvideComponentDefaults` on the Event Dispatch Thread. Keep a provider around the smallest
-coherent subtree that needs the shared property; use a direct modifier for an isolated component or a
+coherent subtree that needs the shared property; use a component style for an isolated property or a
 local exception.
+
+---
+
+## Styles
+
+A `SwingStyle` sets the properties of one component. A component takes it as its `style` parameter, and a
+container can also provide styles to its descendants. [`STYLES.md`](STYLES.md) covers using and authoring
+styles; this section describes how a composition resolves them.
+
+### Resolution
+
+A style never runs in composition. A component declares it with `styleable`, which puts one keyed style
+element last in the component's modifier chain. The element's node resolves the style when changes are
+applied, inside the node's observed reads, on the owner's single snapshot observer. A resolve runs when the
+component attaches, when it declares an unequal style, and when a snapshot state the style reads changes. A
+recomposition that declares an equal style, and a frame, run nothing.
+
+One resolve collects the style into an ordered set of property elements. The last write of a property wins,
+and the existing keyed diff applies them: an equal value is adopted without a write, a changed one is written,
+and a property that leaves the style gets back the value the widget held before the style wrote it. The widget
+and its look and feel stay the store.
+
+A component that does not call `styleable`, such as a raw `SwingNode`, applies no style and receives no
+nested style or local.
+
+### The ancestor walk
+
+Each style node holds the nearest node above it that provides a nested style or a style local: the nearest one in
+its composition. A node that provides one is its own nearest. The parent link and each provider's flag keep
+that pointer current, so a resolve walks only those nodes, not every parent. Another composition, such
+as the cells a list, table or tree renders, a spinner editor, a tab header, popup and context menus, secondary
+windows, window menu bars, tray menus and a `setContent(parent = ...)` composition, starts a chain of its own. A component that is not composed, or a root a caller owns, is untouched.
+
+Each style node publishes its nested blocks per key and the style locals it sets. A descendant applying a key observes the blocks published for that key. Style locals fill properties the descendant's style leaves unset. Published blocks and locals notify their consumers only when they change, so changing a provider property leaves consumers of unchanged nested blocks alone.
+
+The applier updates a parent before it inserts the children, so on the first frame every descendant reads what
+its ancestors resolved, and resolves once. A node moved under another parent and a style added
+above existing children resolve every style below them again once the batch of
+changes ends. A descendant that resolves in the same pass as an ancestor that changes can resolve a second time
+and write nothing.
+
+### Locals
+
+A style local (`styleLocalOf`) is a property a descendant inherits. `foreground`, `font` and
+`componentOrientation` are locals. A component that sets none takes the value of the nearest styled ancestor
+that set one, where the property's descriptor handles the component's class. An ancestor that sets `null`
+stops the inheritance at that container, so its descendants keep the look and feel's value.
+
+### Nested styles
+
+A container provides a style for a descendant kind with `provideNestedStyle(key, style)`, and a component applies the styles provided for a key with `applyNestedStyle(key)`. The provider records the nested blocks for each key during its own resolve. A consumer applies those blocks directly, farthest provider first, in declaration order within each provider. Each block runs against the consumer's scope and state. A composition local read through `currentValue` inside the block comes from the provider's composition locals. Changes to that local update the consumers even when they override it.
+
+Each library component's default style applies `AllComponents` and then the key of its kind, so a kind key wins
+over `AllComponents` whatever the distance between the providers. A raw `SwingNode` or a third-party widget
+receives nested styles only where its kind applies a key.
+
+### Precedence
+
+For one property, from lowest to highest:
+
+```text
+component factory / look and feel
+< SwingNode or MenuNode update
+< nested styles for AllComponents, farthest provider first
+< nested styles for the component's kind key, farthest provider first
+< the rest of the kind's default style
+< the caller's style
+```
+
+A style local fills only a property that none of these set. The style is the last slot of the modifier chain,
+so where a modifier element and a style write one widget property, the style's value stands. A nested style is
+part of the component's own resolve, so a `foreground` provided for `AllComponents` by a far ancestor beats a
+nearer container's local `foreground`.
+
+A nested style is opt-in by kind. `enabled`, `cursor`, `background` and `opaque` have no default that cascades
+to every descendant: a disabled section is `provideNestedStyle(AllComponents) { enabled(false) }`, and a card
+surface names the kinds it colors, so a button keeps its look and feel's face. A change that a nested block
+reads recomposes nothing; it resolves again only the components that ran the block.
 
 ---
 

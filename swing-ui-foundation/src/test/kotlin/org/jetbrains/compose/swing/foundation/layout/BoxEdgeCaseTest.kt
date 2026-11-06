@@ -2,8 +2,9 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import kotlin.test.Test
@@ -20,12 +21,13 @@ class BoxEdgeCaseTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM))
+                    Child(0, CHILD_WIDTH, CHILD_HEIGHT, style = { maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM) })
                     Child(
                         index = 1,
                         width = CHILD_WIDTH,
                         height = CHILD_HEIGHT,
-                        modifier = SwingModifier.matchParentSize().maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM),
+                        modifier = SwingModifier.matchParentSize(),
+                        style = { maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM) },
                     )
                 }
             }
@@ -42,7 +44,7 @@ class BoxEdgeCaseTest {
     fun aNestedBoxCentersItsChildInTheExtentItSettledOnRatherThanTheOneItWasOffered() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.preferredSize(SPACIOUS_EXTENT, SPACIOUS_EXTENT)) {
+                Column(modifier = SwingModifier.styleable { preferredSize(SPACIOUS_EXTENT, SPACIOUS_EXTENT) }) {
                     Box(modifier = SwingModifier.testTag(CONTAINER_TAG), contentAlignment = Alignment.Center) {
                         Child(0, CHILD_WIDTH, CHILD_HEIGHT)
                     }

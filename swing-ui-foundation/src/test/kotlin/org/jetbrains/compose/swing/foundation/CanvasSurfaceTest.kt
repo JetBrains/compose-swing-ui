@@ -9,11 +9,12 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -42,8 +43,10 @@ class CanvasSurfaceTest {
                     modifier =
                         SwingModifier
                             .testTag("canvas")
-                            .preferredSize(Dimension(64, 48))
-                            .border(EmptyBorder(8, 8, 8, 8)),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                border(EmptyBorder(8, 8, 8, 8))
+                            },
                 ) {
                     drawRect(Color.RED)
                 }
@@ -73,8 +76,10 @@ class CanvasSurfaceTest {
                     modifier =
                         SwingModifier
                             .testTag("canvas")
-                            .preferredSize(Dimension(64, 48))
-                            .border(EmptyBorder(8, 8, 8, 8)),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                border(EmptyBorder(8, 8, 8, 8))
+                            },
                 ) {
                     drawRect(Color.RED, x = -8f, y = -8f, width = 64f, height = 48f)
                 }
@@ -94,8 +99,10 @@ class CanvasSurfaceTest {
                     modifier =
                         SwingModifier
                             .testTag("canvas")
-                            .preferredSize(Dimension(64, 48))
-                            .border(LineBorder(Color.BLUE, 8)),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                border(LineBorder(Color.BLUE, 8))
+                            },
                 ) {
                     drawRect(Color.RED)
                     graphics.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0f)
@@ -122,8 +129,10 @@ class CanvasSurfaceTest {
                     modifier =
                         SwingModifier
                             .testTag("canvas")
-                            .preferredSize(Dimension(64, 48))
-                            .border(LineBorder(Color.BLUE, 8)),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                border(LineBorder(Color.BLUE, 8))
+                            },
                 ) {
                     graphics.setXORMode(Color.WHITE)
                 }
@@ -144,20 +153,27 @@ class CanvasSurfaceTest {
                         modifier =
                             SwingModifier
                                 .testTag("bordered")
-                                .preferredSize(64, 48)
-                                .border(EmptyBorder(3, 4, 5, 6)),
+                                .styleable {
+                                    preferredSize(64, 48)
+                                    border(EmptyBorder(3, 4, 5, 6))
+                                },
                         renderingHints = null,
                     ) { drawRect(Color.RED) }
-                    Canvas(modifier = SwingModifier.testTag("expected").preferredSize(64, 48), renderingHints = null) {
+                    Canvas(
+                        modifier = SwingModifier.testTag("expected").styleable { preferredSize(64, 48) },
+                        renderingHints = null,
+                    ) {
                         drawRect(Color.RED, x = 4f, y = 3f, width = 54f, height = 40f)
                     }
                     Canvas(
                         modifier =
                             SwingModifier
                                 .testTag("decorated")
-                                .preferredSize(64, 48)
-                                .border(LineBorder(Color.BLUE, 2))
-                                .shadow(4, Color.BLACK),
+                                .shadow(4, Color.BLACK)
+                                .styleable {
+                                    preferredSize(64, 48)
+                                    border(LineBorder(Color.BLUE, 2))
+                                },
                     ) { drawingSize = size }
                 }
             }
@@ -179,12 +195,14 @@ class CanvasSurfaceTest {
         runComposeSwingTest {
             setContent {
                 SwingNode(factory = { JPanel() }) {
-                    Canvas(modifier = SwingModifier.testTag("faded").preferredSize(Dimension(16, 16))) {
+                    Canvas(modifier = SwingModifier.testTag("faded").styleable { preferredSize(Dimension(16, 16)) }) {
                         drawRect(Color.RED)
                         graphics.composite = AlphaComposite.DstOut
                         drawRect(Color.BLACK, alpha = 0.5f)
                     }
-                    Canvas(modifier = SwingModifier.testTag("expected").preferredSize(Dimension(16, 16))) {
+                    Canvas(
+                        modifier = SwingModifier.testTag("expected").styleable { preferredSize(Dimension(16, 16)) },
+                    ) {
                         drawRect(Color.RED)
                         graphics.composite = AlphaComposite.getInstance(AlphaComposite.DST_OUT, 0.5f)
                         drawRect(Color.BLACK)
@@ -203,7 +221,12 @@ class CanvasSurfaceTest {
         runComposeSwingTest {
             setContent {
                 Canvas(modifier = SwingModifier.testTag("bare")) { }
-                Canvas(modifier = SwingModifier.testTag("bordered").border(EmptyBorder(1, 2, 3, 4))) { }
+                Canvas(
+                    modifier =
+                        SwingModifier.testTag("bordered").styleable {
+                            border(EmptyBorder(1, 2, 3, 4))
+                        },
+                ) { }
             }
 
             onNodeWithTag("bare").assertProperty(Dimension(), "a canvas with no size set asks for none") {
@@ -247,8 +270,10 @@ class CanvasSurfaceTest {
                     modifier =
                         SwingModifier
                             .testTag("canvas")
-                            .preferredSize(Dimension(64, 48))
-                            .border(LineBorder(Color.BLUE, 2)),
+                            .styleable {
+                                preferredSize(Dimension(64, 48))
+                                border(LineBorder(Color.BLUE, 2))
+                            },
                 ) { }
             }
             val given = Insets(0, 0, 0, 0)
@@ -271,9 +296,11 @@ class CanvasSurfaceTest {
                         modifier =
                             SwingModifier
                                 .testTag("canvas")
-                                .preferredSize(Dimension(64, 48))
-                                .minimumSize(minimum)
-                                .shadow(4, Color.BLACK),
+                                .shadow(4, Color.BLACK)
+                                .styleable {
+                                    preferredSize(Dimension(64, 48))
+                                    minimumSize(minimum)
+                                },
                     ) { }
                 }
             }

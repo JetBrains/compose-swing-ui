@@ -9,10 +9,12 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.ContainerStyleScope
+import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -37,7 +39,7 @@ class TabbedPaneSelectionReportingTest {
      * A pane wide enough for its whole tab strip. A click is aimed at a tab's position on the strip, so
      * a pane laid out too narrow for a tab leaves that click nothing to land on.
      */
-    private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
+    private val roomForTheStrip = SwingStyle<ContainerStyleScope> { preferredSize(600, 400) }
 
     @Test
     fun openingOnADeclaredTabReportsNothing() = runComposeSwingTest {
@@ -78,7 +80,7 @@ class TabbedPaneSelectionReportingTest {
     @Test
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         setContent {
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))
@@ -258,7 +260,7 @@ class TabbedPaneSelectionReportingTest {
         var showThird by mutableStateOf(true)
         var firstTitle by mutableStateOf("One")
         setContent {
-            TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab(firstTitle))
                 Label("2", SwingModifier.tab("Two"))
                 if (showThird) Label("3", SwingModifier.tab("Three"))
@@ -289,7 +291,7 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(
                 selectedIndex = selected,
                 onSelectedIndexChange = { reported += it },
-                modifier = roomForTheStrip,
+                style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -357,7 +359,7 @@ class TabbedPaneSelectionReportingTest {
     fun aSelectionMadeWhileNoneIsDeclaredIsReported() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = -1, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = -1, onSelectedIndexChange = { reported += it }, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
             }
@@ -403,7 +405,7 @@ class TabbedPaneSelectionReportingTest {
     fun selectingATabReportsIt() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))
@@ -425,7 +427,7 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(
                 selectedIndex = selected,
                 onSelectedIndexChange = { reported += it },
-                modifier = roomForTheStrip,
+                style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -478,7 +480,7 @@ class TabbedPaneSelectionReportingTest {
             // reported. Read here so the whole pane recomposes and the failing node's apply runs inside
             // the pass that re-settles the selection.
             val failing = failApply
-            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, style = roomForTheStrip) {
                 SwingNode(
                     factory = { JPanel() },
                     modifier = SwingModifier.tab("One"),
@@ -515,7 +517,8 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(
                 selectedIndex = selected,
                 onSelectedIndexChange = { reported += it },
-                modifier = roomForTheStrip.changeListener(failing),
+                modifier = SwingModifier.changeListener(failing),
+                style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -574,7 +577,7 @@ class TabbedPaneSelectionReportingTest {
         setContent {
             val listener =
                 remember { ChangeListener { event -> reported += (event.source as JTabbedPane).selectedIndex } }
-            TabbedPane(selectedIndex = selected, changeListener = listener, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = selected, changeListener = listener, style = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))

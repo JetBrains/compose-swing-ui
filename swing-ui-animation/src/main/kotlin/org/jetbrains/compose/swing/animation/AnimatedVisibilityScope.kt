@@ -37,7 +37,7 @@ import java.awt.Dimension
  * ```
  * AnimatedVisibility(visible = expanded) {
  *     val inset by transition.animateInt { if (it == EnterExitState.Visible) 16 else 0 }
- *     Label(text = "Details", modifier = SwingModifier.emptyBorder(inset))
+ *     Label(text = "Details", style = { emptyBorder(inset) })
  * }
  * ```
  */

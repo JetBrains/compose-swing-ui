@@ -5,16 +5,17 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
-import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.border
+import org.jetbrains.compose.swing.style.emptyBorder
+import org.jetbrains.compose.swing.style.font
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
@@ -29,7 +30,7 @@ internal const val ROW_GAP: Int = 8
 // The whole screen wrapped in a uniform body inset. main composes exactly this; so does the test.
 @Composable
 internal fun ReactiveTaskListScreen() {
-    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(16)) {
+    Panel(PanelLayout.Border(), style = { emptyBorder(16) }) {
         ReactiveTaskList(SwingModifier.center())
     }
 }
@@ -38,11 +39,11 @@ internal fun ReactiveTaskListScreen() {
 internal fun SampleTitle(text: String) {
     Label(
         text = text,
-        modifier =
-            SwingModifier
-                .font(Font(Font.SANS_SERIF, Font.BOLD, 20))
-                .foreground(Color(0x2D, 0x4B, 0x73))
-                .horizontalAlignment(SwingConstants.LEADING),
+        style = {
+            font(Font(Font.SANS_SERIF, Font.BOLD, 20))
+            foreground(Color(0x2D, 0x4B, 0x73))
+            horizontalAlignment(SwingConstants.LEADING)
+        },
     )
 }
 
@@ -52,11 +53,11 @@ internal fun SampleTitle(text: String) {
 internal fun Caption(text: String) {
     Label(
         text = "<html><body style='width:520px'>$text</body></html>",
-        modifier =
-            SwingModifier
-                .font(Font(Font.SANS_SERIF, Font.PLAIN, 14))
-                .foreground(Color(0x5A, 0x5A, 0x5A))
-                .horizontalAlignment(SwingConstants.LEADING),
+        style = {
+            font(Font(Font.SANS_SERIF, Font.PLAIN, 14))
+            foreground(Color(0x5A, 0x5A, 0x5A))
+            horizontalAlignment(SwingConstants.LEADING)
+        },
     )
 }
 
@@ -76,7 +77,7 @@ internal fun ColumnScope.Card(
                 BorderFactory.createEmptyBorder(ROW_GAP, ROW_GAP, ROW_GAP, ROW_GAP),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
+    Column(modifier = SwingModifier.fillMaxWidth().styleable { border(cardBorder) }) {
         content()
     }
 }
@@ -91,9 +92,9 @@ internal fun ValueLabel(
 ) {
     Label(
         text = text,
-        modifier =
-            SwingModifier
-                .preferredSize(Dimension(width, 22))
-                .horizontalAlignment(SwingConstants.LEADING),
+        style = {
+            preferredSize(Dimension(width, 22))
+            horizontalAlignment(SwingConstants.LEADING)
+        },
     )
 }

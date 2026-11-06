@@ -16,16 +16,16 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.components.layout.ToolBarSeparator
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.lineBorder
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
@@ -64,7 +64,7 @@ private fun ColumnScope.ControlledSplitCard() {
             Spinner(dividerSize, onValueChange = { dividerSize = it.toInt() }, min = 4, max = 30, step = 1)
         }
         SplitPane(
-            modifier = SwingModifier.preferredSize(Dimension(360, 120)),
+            style = { preferredSize(Dimension(360, 120)) },
             orientation = JSplitPane.HORIZONTAL_SPLIT,
             dividerLocation = divider,
             onDividerLocationChange = { divider = it },
@@ -88,12 +88,13 @@ private fun SplitPaneSide(
 ) {
     Label(
         text = text,
-        modifier =
-            modifier
-                .opaque(true)
-                .background(color)
-                .lineBorder(Color(0x90, 0xA4, 0xAE))
-                .horizontalAlignment(SwingConstants.CENTER),
+        modifier = modifier,
+        style = {
+            horizontalAlignment(SwingConstants.CENTER)
+            opaque(true)
+            lineBorder(Color(0x90, 0xA4, 0xAE))
+            background(color)
+        },
     )
 }
 
@@ -101,7 +102,7 @@ private fun SplitPaneSide(
 private fun ColumnScope.WeightedSplitCard() {
     ExampleCard("SplitPane (vertical, resizeWeight)") {
         SplitPane(
-            modifier = SwingModifier.preferredSize(Dimension(360, 160)),
+            style = { preferredSize(Dimension(360, 160)) },
             orientation = JSplitPane.VERTICAL_SPLIT,
             resizeWeight = 0.75,
         ) {

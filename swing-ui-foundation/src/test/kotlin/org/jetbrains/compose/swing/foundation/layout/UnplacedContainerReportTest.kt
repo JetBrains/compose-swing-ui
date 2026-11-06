@@ -9,8 +9,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -86,7 +86,7 @@ class UnplacedContainerReportTest {
                 content = {
                     StockAncestor(stockAncestor) {
                         Layout(
-                            content = { Label("leaf", SwingModifier.preferredSize(10, 10)) },
+                            content = { Label("leaf", style = { preferredSize(10, 10) }) },
                             modifier = SwingModifier.testTag("inner"),
                             measurePolicy = { measurables, _ ->
                                 val placeable = measurables.single().measure(Constraints())
@@ -149,9 +149,9 @@ private fun UnplacedBoxTree(
                                     text = "leaf",
                                     modifier =
                                         SwingModifier
-                                            .preferredSize(leafSize(), leafSize())
                                             .onPlaced(reportPlaced)
                                             .onSizeChanged(reportSized),
+                                    style = { preferredSize(leafSize(), leafSize()) },
                                 )
                             }
                         }

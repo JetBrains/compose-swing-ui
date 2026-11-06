@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -152,22 +152,20 @@ class RadioButtonBehaviorTest {
                 text = "Compact",
                 selected = false,
                 onSelectedChange = {},
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
         val radio = onNodeOfType<JRadioButton>()
-        radio.assertProperty("Denser layout", "the modifier applies to the button") { toolTipText }
+        radio.assertProperty("Denser layout", "the modifier applies to the button") { name }
 
         tip = "Fits more rows on screen"
         awaitIdle()
-        radio.assertProperty("Fits more rows on screen", "the modifier follows the state driving it") { toolTipText }
+        radio.assertProperty("Fits more rows on screen", "the modifier follows the state driving it") { name }
 
         tip = null
         awaitIdle()
-        radio.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
-            toolTipText
-        }
+        radio.assertProperty(null, "dropping the element restores the name the button had without it") { name }
     }
 
     @Test
@@ -183,7 +181,7 @@ class RadioButtonBehaviorTest {
                 text = text,
                 selected = selected,
                 actionListener = listener,
-                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
 
@@ -197,9 +195,7 @@ class RadioButtonBehaviorTest {
         awaitIdle()
         radioButton.assertTextEquals("Comfortable")
         radioButton.assert(SwingMatcher.isSelected())
-        radioButton.assertProperty(null, "dropping the element restores the tooltip the button had without it") {
-            toolTipText
-        }
+        radioButton.assertProperty(null, "dropping the element restores the name the button had without it") { name }
         radioButton.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
 
         selected = false

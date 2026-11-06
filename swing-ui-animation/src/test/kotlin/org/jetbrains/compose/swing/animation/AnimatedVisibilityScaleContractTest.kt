@@ -14,7 +14,8 @@ import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.click
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.interaction.performMouseInput
@@ -131,14 +132,19 @@ class AnimatedVisibilityScaleContractTest {
                     title = "scoped-scale-hit-test",
                     state = WindowState(size = Dimension(240, 120)),
                 ) {
-                    Box(SwingModifier.preferredSize(100, 40)) {
+                    Box(modifier = SwingModifier.styleable { preferredSize(100, 40) }) {
                         val transition = updateTransition(visible)
                         transition.AnimatedVisibility(
                             visible = { it },
                             enter = scaleIn(tween(160), initialScale = 0.5f),
                             exit = ExitTransition.None,
                         ) {
-                            Button("Go", { clicks++ }, SwingModifier.testTag("scaledButton").preferredSize(100, 40))
+                            Button(
+                                "Go",
+                                { clicks++ },
+                                SwingModifier.testTag("scaledButton"),
+                                style = { preferredSize(100, 40) },
+                            )
                         }
                     }
                 }

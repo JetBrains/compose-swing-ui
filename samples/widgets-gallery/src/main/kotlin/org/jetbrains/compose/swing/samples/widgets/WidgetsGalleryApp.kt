@@ -28,14 +28,14 @@ import org.jetbrains.compose.swing.components.menu.RadioButtonMenuGroup
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
-import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.samples.widgets.layout.LocalAlignmentGuidesShown
 import org.jetbrains.compose.swing.samples.widgets.text.setEditorText
+import org.jetbrains.compose.swing.style.accessibleName
+import org.jetbrains.compose.swing.style.emptyBorder
+import org.jetbrains.compose.swing.style.enabled
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.window.LocalWindow
 import java.awt.FlowLayout
 import java.awt.Toolkit
@@ -134,7 +134,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
                 },
         )
     val current = backStack.last().title
-    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(12)) {
+    Panel(PanelLayout.Border(), style = { emptyBorder(12) }) {
         AnimatedVisibility(
             visible = sidebarShown,
             modifier = SwingModifier.west(),
@@ -142,7 +142,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
             exit = shrinkHorizontally(),
         ) {
             // fillMaxHeight gives the sidebar the region's height, which it cannot ask for itself.
-            ScrollPane(modifier = SwingModifier.fillMaxHeight().preferredSize(180, 0)) {
+            ScrollPane(modifier = SwingModifier.fillMaxHeight(), style = { preferredSize(180, 0) }) {
                 Viewport {
                     ListBox(
                         items = showcaseSections.map { it.title },
@@ -154,7 +154,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
                         },
                         selectionMode = ListSelectionModel.SINGLE_SELECTION,
                         visibleRowCount = showcaseSections.size,
-                        modifier = SwingModifier.accessibleName("Sections"),
+                        style = { accessibleName("Sections") },
                     )
                 }
             }
@@ -167,7 +167,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
             Button(
                 text = "Back",
                 onClick = { backStack.removeLastOrNull() },
-                modifier = SwingModifier.enabled(backStack.size > 1),
+                style = { enabled(backStack.size > 1) },
             )
             Button(
                 text = if (sidebarShown) "Hide sidebar" else "Show sidebar",

@@ -14,10 +14,12 @@ import org.jetbrains.compose.swing.foundation.graphics.border
 import org.jetbrains.compose.swing.foundation.graphics.clip
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.componentOrientation
+import org.jetbrains.compose.swing.style.opaque
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -30,7 +32,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import org.jetbrains.compose.swing.modifier.appearance.background as componentBackground
 
 /**
  * A decoration paints at the box of the first layout modifier declared after it, as androidx draws it with that
@@ -311,7 +312,7 @@ class PaddingDecorationTest {
     fun theRingFollowsTheReadingOrderThePaddingIsPlacedBy() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.componentOrientation(ComponentOrientation.RIGHT_TO_LEFT)) {
+                Box(modifier = SwingModifier.styleable { componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) }) {
                     Box(modifier = SwingModifier.testTag("card").background(Red).padding(start = 4, end = 10)) {
                         Content()
                     }
@@ -336,10 +337,12 @@ class PaddingDecorationTest {
                         modifier =
                             SwingModifier
                                 .testTag("card")
-                                .opaque(true)
-                                .componentBackground(Color.GREEN)
                                 .border(1, Color.BLUE)
-                                .padding(8),
+                                .padding(8)
+                                .styleable {
+                                    background(Color.GREEN)
+                                    opaque(true)
+                                },
                     ) { Content() }
                 }
             }

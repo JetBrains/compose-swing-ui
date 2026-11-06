@@ -174,7 +174,8 @@ class AnimatedVisibilityCardsTest {
 private fun ComposeSwingTest.veiledRectangles(): Pair<Rectangle, Rectangle> {
     val veiled = onNodeWithText("Veiled: a scrim over sharp text.").fetch<Component>()
     val faded = onNodeWithText("Faded: the text itself goes translucent.").fetch<Component>()
-    val box = veiled.childOf(containerHolding(veiled, faded))
+    // The 260 by 90 panel holds the animated container, which fills it.
+    val box = veiled.childOf(veiled.childOf(containerHolding(veiled, faded)))
     val panel = veiled.childOf(box)
     val root = onRoot().fetch()
     val content = SwingUtilities.convertRectangle(box, panel.bounds, root)

@@ -9,9 +9,9 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -101,7 +101,7 @@ class BaselineAtWidthTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(400)
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400 * 2, SLOT_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400 * 2, SLOT_HEIGHT) }) {
                     Row(modifier = SwingModifier.center().testTag("row")) {
                         val sized = SwingModifier.testTag("leaf").width(width).height(100)
                         when (route) {
@@ -153,7 +153,7 @@ class BaselineAtWidthTest {
                     }
                 }
             setContent {
-                Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(400, SLOT_HEIGHT)) {
+                Panel(PanelLayout.Border(), style = { preferredSize(400, SLOT_HEIGHT) }) {
                     Box(modifier = SwingModifier.center()) {
                         SwingNode(
                             factory = { label },

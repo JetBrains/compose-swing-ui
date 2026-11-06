@@ -19,17 +19,17 @@ import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
+import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.foreground
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.tooling.Preview
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.DialogState
@@ -194,15 +194,17 @@ private fun WindowScope.SecondaryWindowContent(
     Layer {
         Panel(
             PanelLayout.Border(),
-            modifier = SwingModifier.background(background),
+            style = { background(background) },
         ) {
             Label(
                 "A second top-level window, composed declaratively.",
                 modifier =
                     SwingModifier
-                        .center()
-                        .horizontalAlignment(SwingConstants.CENTER)
-                        .foreground(if (dark) Color.WHITE else Color.BLACK),
+                        .center(),
+                style = {
+                    foreground(if (dark) Color.WHITE else Color.BLACK)
+                    horizontalAlignment(SwingConstants.CENTER)
+                },
             )
             Panel(PanelLayout.Flow(), SwingModifier.south()) {
                 Button("Click me", onClick = onClick)
@@ -215,11 +217,13 @@ private fun WindowScope.SecondaryWindowContent(
                     "Input is blocked while this pane is up",
                     modifier =
                         SwingModifier
-                            .north()
-                            .opaque(true)
-                            .background(DarkThemeBackground)
-                            .foreground(Color.WHITE)
-                            .horizontalAlignment(SwingConstants.CENTER),
+                            .north(),
+                    style = {
+                        background(DarkThemeBackground)
+                        foreground(Color.WHITE)
+                        opaque(true)
+                        horizontalAlignment(SwingConstants.CENTER)
+                    },
                 )
             }
         }
@@ -325,7 +329,8 @@ private fun ModalDialogContent(
     Panel(PanelLayout.Border()) {
         Label(
             "The modality selected above decides whether this dialog blocks its owner.",
-            modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+            modifier = SwingModifier.center(),
+            style = { horizontalAlignment(SwingConstants.CENTER) },
         )
         // The readout and the grow button live inside the dialog because a modal dialog blocks its
         // owner, so its own content is the only place a control can reach it.
@@ -359,7 +364,8 @@ private fun ColumnScope.ApplicationEntryPointCard() {
                             Panel(PanelLayout.Border()) {
                                 Label(
                                     "Its own composition, closed by its own exitApplication().",
-                                    modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+                                    modifier = SwingModifier.center(),
+                                    style = { horizontalAlignment(SwingConstants.CENTER) },
                                 )
                                 Panel(PanelLayout.Flow(), SwingModifier.south()) {
                                     Label("Clicks: $clicks")

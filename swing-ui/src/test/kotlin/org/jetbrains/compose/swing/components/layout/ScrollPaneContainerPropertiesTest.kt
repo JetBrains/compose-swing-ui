@@ -4,8 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -112,9 +111,9 @@ class ScrollPaneContainerPropertiesTest {
         setContent {
             ScrollPane {
                 if (declared) {
-                    Viewport(modifier = SwingModifier.background(Color.RED)) {}
-                    VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-                    HorizontalScrollbar(modifier = SwingModifier.background(Color.BLUE))
+                    Viewport(style = { background(Color.RED) }) {}
+                    VerticalScrollbar(style = { background(Color.BLUE) })
+                    HorizontalScrollbar(style = { background(Color.BLUE) })
                 }
             }
         }
@@ -145,7 +144,7 @@ class ScrollPaneContainerPropertiesTest {
         setContent {
             ScrollPane(verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS) {
                 Viewport { Label(text = "Body") }
-                if (declared) VerticalScrollbar(modifier = SwingModifier.background(Color.RED))
+                if (declared) VerticalScrollbar(style = { background(Color.RED) })
             }
         }
 
@@ -172,8 +171,8 @@ class ScrollPaneContainerPropertiesTest {
         setContent {
             ScrollPane {
                 Viewport(unitIncrement = unitIncrement) { Label(text = "Body") }
-                VerticalScrollbar(modifier = SwingModifier.background(Color.BLUE))
-                HorizontalScrollbar(modifier = SwingModifier.background(Color.BLUE))
+                VerticalScrollbar(style = { background(Color.BLUE) })
+                HorizontalScrollbar(style = { background(Color.BLUE) })
             }
         }
 

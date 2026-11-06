@@ -94,6 +94,7 @@ internal class SwingApplier internal constructor(
         }
     }
 
+    /** Parents and attaches the inserted subtree before its own updates run. */
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,
@@ -104,8 +105,7 @@ internal class SwingApplier internal constructor(
             if (!instance.awaitingAttachment) instance.insertedUnder(current)
             // Attach the node to the composition its parent stands in. This MUST happen on the top-down
             // pass - see SwingCompositionOwner.
-            instance.attachedTo(current.owner)
-            instance.publishForInspection()
+            instance.insertInto(current)
             changes.announceInsert(instance)
         }
     }
@@ -151,7 +151,7 @@ internal class SwingApplier internal constructor(
             // setter, and a `JLayeredPane` sorts its index space by the depth each child declares. The
             // composition-order child list is what says which children the pass drops, and each of them leaves
             // through the installation that put it where it stands.
-            parent.removeChildRun(index, count) { it.leaveHost(container, batch) }
+            parent.removeChildren(index, count) { it.leaveHost(container, batch) }
         }
     }
 
@@ -176,7 +176,7 @@ internal class SwingApplier internal constructor(
             // is composed at now. A child's pixels change only where it overlaps a sibling it now stands above or
             // below, which lies inside its own area, so its bounds before it leaves and after it is attached again
             // are what the pass repaints.
-            parent.moveChildRun(
+            parent.moveChildren(
                 from,
                 to,
                 count,
@@ -186,11 +186,15 @@ internal class SwingApplier internal constructor(
         }
     }
 
+    /** Removes the composed children and their parent links while preserving the caller's root. */
     override fun onClear() {
         // The root is user-supplied. Each root child leaves through what installed it; claimed components and
         // children the composition did not add stay.
         val container = root.component as? Container ?: return
-        root.children.fastForEach { it.leaveHost(container, batch) }
+        root.children.fastForEach {
+            it.leaveHost(container, batch)
+            it.parentTo(null)
+        }
         root.children.clear()
         changes.forget()
     }

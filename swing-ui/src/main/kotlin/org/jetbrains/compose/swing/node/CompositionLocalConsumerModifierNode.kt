@@ -4,11 +4,13 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.CompositionLocal
+import org.jetbrains.compose.swing.modifier.ComponentNodeRecord
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
-import org.jetbrains.compose.swing.modifier.ElementRecord
 import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.WriteMode
 import org.jetbrains.compose.swing.modifier.notifyDeclaredNodes
+import org.jetbrains.compose.swing.style.rewriteSlotsFrom
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -54,30 +56,36 @@ internal fun SwingNodeHolder<*>.observesLocals(): Boolean {
 internal fun SwingNodeHolder<*>.refreshLocalConsumers() {
     val state = modifierState ?: return
     val diagnostics = requireOwner().diagnostics
+    val handed = state.handedNodes
     val held = state.startWrite()
     var handsOver = false
+    val style = styleNode
     state.rewritePropertySlotsFrom(
         component,
         diagnostics,
-        afterUpdate = { if (it.node.shouldAutoInvalidate) handsOver = true },
-    ) { it.node is CompositionLocalConsumerModifierNode }
+        onInvalidates = { handsOver = true },
+    ) { it.node.refreshesOnLocalMap }
+    // A slot node of the style reads locals the modifier's own refresh does not reach.
     var laidOut = false
-    state.chain.fastForEach { record ->
-        if (record.node is CompositionLocalConsumerModifierNode) {
-            if (record is ElementRecord<*, *>) {
-                record.refresh(component, diagnostics)
-                if (record.node.shouldAutoInvalidate) handsOver = true
+    if (style != null && style.holdsLocalConsumers) {
+        style.rewriteSlotsFrom(onInvalidates = { handsOver = true }) { it.node.refreshesOnLocalMap }
+        if (style.layoutRefreshesOnLocalMap) laidOut = true
+    }
+    state.elements.fastForEach { record ->
+        if (record.node.refreshesOnLocalMap) {
+            if (record is ComponentNodeRecord<*, *>) {
+                if (record.refresh(component, diagnostics, mode = WriteMode.AdoptEqual)) handsOver = true
             } else {
                 laidOut = true
             }
         }
     }
-    state.applied = held
+    state.adopt(held)
     if (laidOut) {
         component.revalidate()
         (component.parent ?: component).repaint()
     }
-    if (handsOver) notifyDeclaredNodes(chainChanged = true, handedNodes = state.handedNodes)
+    if (handsOver) notifyDeclaredNodes(chainChanged = true, handedNodes = handed)
 }
 
 private fun SwingNodeHolder<*>.forEachLocalConsumer(action: (NodeRecord<*, *>) -> Unit) {

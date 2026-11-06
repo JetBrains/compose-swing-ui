@@ -14,13 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.style.ListItemRendererElement
+import org.jetbrains.compose.swing.components.style.erased
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
-import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.style.ComponentStyleScope
+import org.jetbrains.compose.swing.style.SwingStyleKind
 import java.awt.Component
-import javax.swing.JComboBox
 import javax.swing.JList
 import javax.swing.ListCellRenderer
 import javax.swing.ListModel
@@ -207,7 +207,7 @@ private class MutableListItemScope : ListItemScope {
  * A call site that cannot reify [T] names the item type through the overload that takes it.
  *
  * @param content the composable cell body, invoked with the [ListItemScope] and the item.
- * @return the renderer, to install on a component with [listItemRenderer].
+ * @return the renderer, to install on a component with its `listItemRenderer` style property.
  */
 @Composable
 public inline fun <reified T : Any> rememberListItemRenderer(
@@ -225,7 +225,7 @@ public inline fun <reified T : Any> rememberListItemRenderer(
  * @param itemType the item type [content] is written over, which every item a render hands over is
  *   checked against.
  * @param content the composable cell body, invoked with the [ListItemScope] and the item.
- * @return the renderer, to install on a component with [listItemRenderer].
+ * @return the renderer, to install on a component with its `listItemRenderer` style property.
  */
 @Composable
 public fun <T : Any> rememberListItemRenderer(
@@ -274,31 +274,30 @@ internal fun <T> rememberListItemRenderer(
  * @return this modifier with the renderer declared on it.
  * @see javax.swing.ListCellRenderer
  */
-public fun SwingModifier.listItemRenderer(renderer: ListCellRenderer<*>): SwingModifier {
-    // JList.setCellRenderer takes a ListCellRenderer<? super E>, and this element names one component
-    // type for every widget it serves.
-    @Suppress("UNCHECKED_CAST")
-    val erased = renderer as ListCellRenderer<in Any?>
-    return property(ListCellRendererProperty, erased)
-}
-
-/** As [listItemRenderer]; a `null` renderer is no cell body declared, and the widget keeps the one it has. */
-internal fun SwingModifier.declaredListItemRenderer(renderer: ListCellRenderer<*>?): SwingModifier =
-    if (renderer == null) this else listItemRenderer(renderer)
+@Deprecated("Set it in the component's style: style = { listItemRenderer(renderer) }")
+public fun SwingModifier.listItemRenderer(renderer: ListCellRenderer<*>): SwingModifier =
+    this then ListItemRendererElement(renderer.erased())
 
 /**
- * The renderer a `JList` renders its rows through and the one a `JComboBox` renders its items through:
- * one property, reached through the accessor of whichever widget carries it.
+ * [kind], for a component that renders its items through the renderer built from [itemContent]: its default
+ * style runs [kind]'s and then [setRenderer], after the nested keys, so the renderer wins over one a nested
+ * style sets and loses to the caller's. Without [itemContent] it is [kind] itself.
  */
-private val ListCellRendererProperty =
-    ComponentPropertyDescriptor(
-        "listItemRenderer",
-        accessor<JList<Any?>, ListCellRenderer<in Any?>?>(
-            read = { it.cellRenderer },
-            write = { list, renderer -> list.cellRenderer = renderer },
-        ),
-        accessor<JComboBox<Any?>, ListCellRenderer<in Any?>?>(
-            read = { it.renderer },
-            write = { combo, renderer -> combo.renderer = renderer },
-        ),
-    )
+@Composable
+internal fun <S : ComponentStyleScope, T> rememberItemContentKind(
+    kind: SwingStyleKind<S, Unit>,
+    itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
+    setRenderer: S.(ListCellRenderer<*>) -> Unit,
+): SwingStyleKind<S, Unit> {
+    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
+    return remember(kind, cells) {
+        if (cells == null) {
+            kind
+        } else {
+            SwingStyleKind(kind.scope) {
+                with(kind.default) { applyStyle() }
+                setRenderer(cells)
+            }
+        }
+    }
+}

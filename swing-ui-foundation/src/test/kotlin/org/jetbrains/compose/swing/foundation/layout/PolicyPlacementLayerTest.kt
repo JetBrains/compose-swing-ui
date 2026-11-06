@@ -19,8 +19,9 @@ import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.preferredSize
+import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.click
@@ -231,7 +232,10 @@ class PolicyPlacementLayerTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             val presses = ArrayList<Point>()
             setWindowContent {
-                Box(modifier = SwingModifier.preferredSize(300, 300), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = SwingModifier.styleable { preferredSize(300, 300) },
+                    contentAlignment = Alignment.Center,
+                ) {
                     Layout(
                         content = {
                             Canvas(
@@ -287,7 +291,7 @@ class PolicyPlacementLayerTest {
                                     SwingModifier
                                         .testTag(LAYERED_TAG)
                                         .background(Brush.of(Color.RED))
-                                        .preferredSize(40, 20),
+                                        .styleable { preferredSize(40, 20) },
                             )
                         }
                     }
@@ -338,7 +342,7 @@ class PolicyPlacementLayerTest {
                                 SwingModifier
                                     .testTag(LAYERED_TAG)
                                     .background(Brush.of(Color.RED))
-                                    .preferredSize(20, 20),
+                                    .styleable { preferredSize(20, 20) },
                         )
                     },
                     measurePolicy =
@@ -348,7 +352,7 @@ class PolicyPlacementLayerTest {
                                 placeable.placeRelativeWithLayer(0, 0) { alpha = 0.5f }
                             }
                         },
-                    modifier = containerModifier(40, 20, ComponentOrientation.RIGHT_TO_LEFT),
+                    modifier = ContainerModifier.styleable(containerStyle(40, 20, ComponentOrientation.RIGHT_TO_LEFT)),
                 )
             }
 

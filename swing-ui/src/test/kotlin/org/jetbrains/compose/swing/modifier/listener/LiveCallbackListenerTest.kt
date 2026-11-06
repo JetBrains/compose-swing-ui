@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -219,8 +219,8 @@ class LiveCallbackListenerTest {
                     modifier =
                         SwingModifier
                             .actionListener { first += captured }
-                            .toolTip("steady")
                             .actionListener { second += captured },
+                    style = { toolTip("steady") },
                 )
             }
         }
@@ -279,8 +279,8 @@ class LiveCallbackListenerTest {
                     // the callback has to arrive through the diff as well as around it.
                     modifier =
                         SwingModifier
-                            .toolTip(declared)
                             .listener(recording(pressed, declared), counted),
+                    style = { toolTip(declared) },
                 )
             }
         }

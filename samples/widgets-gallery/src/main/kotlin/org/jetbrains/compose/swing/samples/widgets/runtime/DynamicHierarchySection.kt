@@ -15,11 +15,11 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.tooling.Preview
 
 // State-driven dynamic hierarchy: conditional composition (if{}) inserts or removes a whole subtree
@@ -79,7 +79,7 @@ private fun ColumnScope.VisibleContrastCard() {
         )
 
         var clicks by remember { mutableIntStateOf(0) }
-        Panel(PanelLayout.Border(hgap = 8, vgap = 8), modifier = SwingModifier.visible(shown)) {
+        Panel(PanelLayout.Border(hgap = 8, vgap = 8), style = { visible(shown) }) {
             Label("This panel is always composed; only its visibility changes.", SwingModifier.north())
             Panel(PanelLayout.Flow(), SwingModifier.center()) {
                 Button("Clicked $clicks time(s)", onClick = { clicks++ })

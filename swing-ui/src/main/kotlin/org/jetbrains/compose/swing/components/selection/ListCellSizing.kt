@@ -1,27 +1,34 @@
 package org.jetbrains.compose.swing.components.selection
 
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.JList
 
 /**
  * Folds the sizing of a list's cells into the chain: [prototype] is an item measured once to size every
  * cell, and [width] and [height] state a size outright, `-1` stating none.
  *
- * It goes into the chain behind the renderer a prototype is measured through, since the chain applies its
- * elements in the order they are declared. Removing the element puts the list back on the sizing it had
- * before one was declared - captured as the element attaches, written back as it detaches - so a released
- * or parked list measures its rows the way a list that was never given a prototype does.
+ * A list measures its prototype again through every renderer it is given, which overwrites a stated size,
+ * so the declared sizing is written again on each `cellRenderer` change, wherever the renderer is declared.
+ * Removing the element puts the list back on the sizing it had before one was declared - captured as the
+ * element attaches, written back as it detaches - so a released or parked list measures its rows the way a
+ * list that was never given a prototype does.
  */
 internal fun SwingModifier.listCellSizing(
     prototype: Any?,
     width: Int,
     height: Int,
-): SwingModifier = this then CellSizingElement(CellSizing(prototype, width, height))
+): SwingModifier = property(CellSizingProperty, CellSizing(prototype, width, height), rewriteOn = "cellRenderer")
 
 /**
  * The three declarations that together decide how large a list's cells are. They travel as one value
  * because they are applied in an order - the prototype's measurement first, a stated size over it - that
  * only holds when a change to any one of them re-applies all three.
+ *
+ * What a removal puts back is read off the list once, on attach, rather than tracked across writes: a
+ * dimension no declaration states is left at whatever the prototype measured, and the list is the only
+ * thing that knows what that came out as.
  */
 private data class CellSizing(
     val prototype: Any?,
@@ -29,53 +36,12 @@ private data class CellSizing(
     val height: Int,
 )
 
-/**
- * The [SwingModifier.NodeElement] behind [listCellSizing]. Two declaring the same three values are equal,
- * so a pass that sizes the list the way the last one did leaves the slot as it stands.
- */
-private data class CellSizingElement(
-    private val sizing: CellSizing,
-) : SwingModifier.NodeElement<JList<Any?>, CellSizingNode>() {
-    override val name: String get() = "listCellSizing"
-
-    override val declaredValues: Map<String, Any?> get() = mapOf("cellSizing" to sizing)
-    override val targetType: Class<JList<Any?>> get() = listType()
-
-    override fun create(): CellSizingNode = CellSizingNode()
-
-    override fun update(node: CellSizingNode) {
-        node.apply(sizing)
-    }
-}
-
-/**
- * The [SwingModifier.ComponentNode] behind [listCellSizing]. It sizes the list as its element declares, and puts
- * back the sizing the list had before the chain reached it.
- *
- * What it puts back is read off the list once, on attach, rather than tracked across writes: a dimension
- * no declaration states is left at whatever the prototype measured, and the list is the only thing that
- * knows what that came out as.
- */
-private class CellSizingNode : SwingModifier.ComponentNode<JList<Any?>>() {
-    private var restore: CellSizing? = null
-
-    override fun onAttach() {
-        restore = component.readCellSizing()
-    }
-
-    /**
-     * Sizes the list as [sizing] declares; call from the owning element's `update`.
-     *
-     * There is no guard against re-sizing the list the way it is already sized, because the chain never
-     * asks: [CellSizingElement] compares by value, so a slot holding an equal element skips this call.
-     */
-    fun apply(sizing: CellSizing): Unit = component.applyCellSizing(sizing)
-
-    override fun onDetach() {
-        restore?.let { component.applyCellSizing(it) }
-        restore = null
-    }
-}
+private val CellSizingProperty =
+    ComponentPropertyDescriptor<JList<Any?>, CellSizing>(
+        name = "listCellSizing",
+        read = { it.readCellSizing() },
+        write = { list, sizing -> list.applyCellSizing(sizing) },
+    )
 
 /** The sizing this list currently holds, as a declaration that would leave it holding the same. */
 private fun JList<Any?>.readCellSizing(): CellSizing = CellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight)
@@ -95,10 +61,3 @@ private fun JList<Any?>.applyCellSizing(sizing: CellSizing) {
     if (sizing.prototype == null || sizing.width != -1) fixedCellWidth = sizing.width
     if (sizing.prototype == null || sizing.height != -1) fixedCellHeight = sizing.height
 }
-
-/**
- * The class a modifier element names as the target of a list property, derived from the reified [T] so no
- * cast stands between the element and the accessors it writes through. A list's items are its own, and
- * erasure makes every `JList` a list of whatever the element declares its values over.
- */
-private inline fun <reified T : JList<*>> listType(): Class<T> = T::class.java

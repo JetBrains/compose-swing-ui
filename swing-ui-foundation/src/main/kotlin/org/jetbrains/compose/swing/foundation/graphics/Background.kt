@@ -13,8 +13,8 @@ import java.awt.RenderingHints
  * Fills [shape]'s outline with [brush] under the component's content.
  *
  * An opaque component, such as a custom `JPanel`-based [Decoratable] under most looks and feels, fills its
- * background over the brush, so declare [opaque][org.jetbrains.compose.swing.modifier.appearance.opaque]`(false)`
- * on such a component for the fill to show. A [Row][org.jetbrains.compose.swing.foundation.layout.Row],
+ * background over the brush, so set [opaque][org.jetbrains.compose.swing.style.opaque]`(false)` in the style
+ * of such a component for the fill to show. A [Row][org.jetbrains.compose.swing.foundation.layout.Row],
  * [Column][org.jetbrains.compose.swing.foundation.layout.Column] and
  * [Box][org.jetbrains.compose.swing.foundation.layout.Box] are transparent unless set opaque. An outline other than
  * [RectangleShape] is filled with an antialiased edge, as AndroidX's `background` fills it.
@@ -35,9 +35,8 @@ public fun SwingModifier.background(
  * Fills [shape]'s outline with [color] under the component's content; the solid-color overload of
  * [background][SwingModifier.background].
  *
- * [shape] has no default here: the [background][org.jetbrains.compose.swing.modifier.appearance.background] taking
- * a [Color] alone writes the Swing property, which is the one a look and feel honors, and a call naming only a color
- * keeps meaning that one wherever both are imported.
+ * [shape] has no default here, so a call naming only a color is always the style setter
+ * [background][org.jetbrains.compose.swing.style.background], which writes the Swing property a look and feel honors.
  *
  * @param color the fill.
  * @param shape the outline to fill; [RectangleShape] for the whole decorated box.

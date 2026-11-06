@@ -1,8 +1,9 @@
 # Modifiers: concepts and authoring
 
-A `SwingModifier` gives a component its colors, borders, listeners and its place in its parent. This
-page explains how a modifier is applied, and how to accept one in your own component and write your own
-elements. Building the component itself is covered in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+A `SwingModifier` gives a component its listeners, decoration and its place in its parent. The component's
+own properties, such as its colors and fonts, are set by its [style](STYLES.md). This page explains how a
+modifier is applied, and how to accept one in your own component. Building the component itself is covered in
+[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
 <!--- INCLUDE .*modifier.*
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -13,14 +14,18 @@ import javax.swing.JComponent
 
 A modifier is an immutable, ordered list of elements. The empty modifier is `SwingModifier` itself - the
 companion object - and it is the default of every `modifier` parameter. A builder is an extension
-function that appends one element with `then`: `SwingModifier.foreground(Color.RED).lineBorder(Color.GRAY)`
-is the empty modifier, then a foreground, then a border. `a then b` applies `a` and then `b`; `then`
+function that appends one element with `then`: `SwingModifier.testTag("save").key(id)`
+is the empty modifier, then a test tag, then a key. `a then b` applies `a` and then `b`; `then`
 with the empty modifier on either side returns the other side. `foldIn` visits the elements in that
 order.
 
-Elements come in three kinds. A property element, such as a background, writes one value. An additive
+A property element, such as a client property, writes one value. An additive
 element, such as a listener, installs something. A parent declaration is read by the component's parent
 instead: see [Parent declarations](#parent-declarations).
+
+A property of the component itself - a color, a font, an icon, a size - is not a modifier element.
+The component's `style` sets it, and a style writes after the modifier; see
+[Style or modifier](STYLES.md#style-or-modifier).
 
 A modifier is immutable, and two modifiers built the same way from equal elements are equal, so one built
 in place on every pass matches the previous pass. Reuse is a builder function: an extension that appends
@@ -37,45 +42,47 @@ property element, in their own declared order.
 - **Additive elements accumulate.** Two listeners from the same builder both install and both fire.
 - **After the component's own properties.** The modifier is applied after the `update` block of
   `SwingNode`, so an element overrides a value that `update` sets for the same property.
+- **A style writes after the modifier.** Where a [style](STYLES.md) and a modifier element write the same widget
+  property, the style's value stands.
 
-## Matching across passes
+## Updating across passes
 
 Each time the composable that declares a component recomposes, it declares the component's modifier
 again; this page calls that one pass. A modifier equal to the one applied last writes nothing.
-Otherwise each element is matched to a slot and judged on its own.
+Otherwise each element is compared with the element that held its place on the last pass, and only a
+changed element writes.
 
 ### Equality and skipping
 
 Your `NodeElement` must implement `equals` and `hashCode` to compare what it declares, not rely on
 instance equality. Every pass builds a fresh element, so an element equal only to itself is unequal on
 every pass: its `update` runs each time, and the composable that takes the modifier cannot skip. Use a
-`data class` to compare the declared values. An element equal to the one its slot applied last is
+`data class` to compare the declared values. An element equal to its counterpart from the last pass is
 skipped, so a modifier built inline needs no `remember`.
 
-Compare a field that the node registers (a listener, a binding, a slot) with `===`, and avoid a
+Compare a field that the node registers (a listener or a binding) with `===`, and avoid a
 `data class` there: an `equals` on the registered object could make two different registrations look
 equal, and the node would keep the old one. An element's equality must match what its node does in
 `update`.
 
 Make the whole element equal only to itself (`this === other`) only for a write that must be redone on
-every pass. Declare an element that carries nothing as an `object`: the slot gets the same instance
-every pass and applies it once.
+every pass. Declare an element that carries nothing as an `object`: the same instance is
+reused every pass and applies once.
 
-A property element is updated even when equal on a pass where a property element declared before it
-wrote, where it or one declared before it changed place, or where a property element left the
-modifier. That keeps the later declaration standing where two elements write the same property. An
-additive element equal to the one its slot holds is always skipped.
+A property element is written again, even when equal, on a pass where an earlier property element wrote,
+where it or an earlier element moved place, or where any property element left the modifier. That keeps the later declaration standing where two elements write the same
+property. An additive element equal to its counterpart is always skipped.
 
-### Keyed and additive slots
+### Keyed and additive elements
 
-A property element - `additive` left at its default `false` - takes the slot of its `key`, which
+A property element - `additive` left at its default `false` - is identified by its `key`, which
 defaults to the element's class, so elements of different types never collide. Declared under the same
-key on the next pass, it keeps that slot and its node. Override `key` only when several instances of the
-*same* type must coexist as independent slots, such as a client property keyed by its property name.
+key on the next pass, it updates the same node. Override `key` only when several instances of the
+*same* type must coexist independently, such as a client property keyed by its property name.
 
-An additive element has no key and is paired by position instead: the k-th additive element of the
-modifier takes the slot of the k-th additive element the modifier applied last. Only additive elements
-are counted, so a property element entering or leaving shifts no additive slot.
+An additive element has no key and is identified by its position among the additive elements: the k-th
+additive element of the modifier takes over from the k-th one of the last pass. A property element
+entering or leaving does not change those positions.
 
 Set `inheritable = true` only on a non-additive property that makes sense across a whole subtree, such
 as a color or a font. Of the property elements, only such an element may be provided to descendants as a
@@ -84,17 +91,22 @@ a default applies to each descendant whose component the element targets. An inh
 declaration can be a component default too, and applies to every component; see
 [Parent declarations](#parent-declarations).
 
-### What stands and what is recreated
+A second `styleable` in one modifier is refused with an error. An equal style is not run again unless
+a state it reads changes. When a style runs, a property whose value did not change can still be written again, so that the
+declaration order keeps holding; see
+[When a style runs](STYLES.md#when-a-style-runs).
 
-- An element matched to a slot built by an element of its own class keeps that slot's node. Where it is
-  unequal to the element the slot held, its `update` runs against that node; the node is not created
-  again, and a listener it installed is not reattached.
-- An element matched to a slot built by an element of another class - a conditional modifier changing
-  shape, or one key declared through two kinds of element - replaces it with a node of its own. In a
-  keyed slot the old node detaches first, putting back what it wrote, so the new node captures what the
-  component held before that key was declared. In an additive or parent-layout slot the new node
-  attaches first, while the old one is still in place, and the old node detaches after.
-- The node of a slot left without an element detaches, and a new element takes a new slot.
+### What is kept and what is replaced
+
+- An element that takes the place of an element of its own class keeps that element's node. Where the two
+  are unequal, its `update` runs against that node; the node is not created again, and a listener it
+  installed is not reattached.
+- An element that takes the place of an element of another class - a conditional modifier changing
+  shape, or one key declared through two kinds of element - gets a new node. Under a key, the old node
+  detaches first, putting back what it wrote, so the new node captures what the component held before
+  that key was declared. For an additive or parent-layout element, the new node attaches first, while the
+  old one is still in place, and the old node detaches after.
+- The node of an element that leaves the modifier detaches, and a new element gets a new node.
 
 ## Node lifecycle
 
@@ -102,7 +114,7 @@ A node is the stateful object an element creates for one component: a `Component
 that writes to the component, or a `ParentLayoutNode` for a declaration its parent reads (see
 [Parent declarations](#parent-declarations)).
 
-A node is created by its element's `create()`, once per slot. Its callbacks then run in this order:
+A node is created by its element's `create()`, once for each element that enters the modifier. Its callbacks then run in this order:
 
 1. `onAttach()`, as the node attaches;
 2. the element's `update(node)`, right after, and again on each later pass that hands the slot an
@@ -144,18 +156,19 @@ every component node of the modifier detaches, putting back what it captured, an
 capturing what it finds then; whatever such a node binds - a caret, a document, an installed listener -
 is built again with it. Parent-layout nodes stay attached and keep their state.
 
-The keys belong to the modifier rather than to a place in it: `key(t).background(c)` and
-`background(c).key(t)` say the same thing. `key(a).key(b)` says what `key(a, b)` does, and the same
+The keys belong to the modifier rather than to a place in it: `key(t).testTag(tag)` and
+`testTag(tag).key(t)` say the same thing. `key(a).key(b)` says what `key(a, b)` does, and the same
 declaration repeated counts once.
 
 ## Parent declarations
 
 Some elements are read by the component's immediate parent rather than applied to the component: where
 it sits in a `BorderLayout`, its `GridBagConstraints`, a weight in a `Row`. Each such declaration names
-the family of parents that understands it, and one placed under any other parent fails with an error
+the family of parents that understands it, and one placed under any other parent is refused with an error
 naming that family. An inheritable declaration, one that can be given as a
 [component default](ARCHITECTURE.md#component-defaults), is left out under such a parent instead, whether
-a default provides it or the component declares it, as Foundation's
+a default provides it or the component declares it. An inheritable declaration a style property can write is left out under such
+a parent instead, as Foundation's
 [`paintOutsets`](FOUNDATION.md#paint-outsets-taken-from-the-insets) is under a Swing parent. Writing
 a declaration of your own, and what the parent receives, is covered in
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers).
@@ -201,8 +214,8 @@ invalidates immediately and defers revalidation until the component tree lock is
 [Writing a decorator or draw node](FOUNDATION.md#writing-a-decorator-or-draw-node).
 
 A component that implements `SwingComponentNodeListener` is told each `SwingComponentNode` holding it as the node
-attaches and detaches. Two kinds of node hold it: the node a composition declares for it, and the root node of the
-content `setContent` mounts on it. A `SwingComponentNode` is typed by its component, and the listener types the node
+attaches and detaches. It is told about the node a composition declares for it and the root node of content
+mounted on it with `setContent`. A `SwingComponentNode` is typed by its component, and the listener types the node
 it is told with `node.asNodeOf(this)`. On an attached node, the extensions `observeReads(onChanged) { ... }` and
 `requestAfterValidation(action)` work as the node capabilities above do, so a component can follow state without a
 modifier node; both throw on a node that is not attached. The extension `invalidateLayout()` does nothing on such a
@@ -234,12 +247,18 @@ detaches as if the callback had returned. What it leaves the modifier's nodes in
 
 A `SwingModifier` differs from `androidx.compose.ui.Modifier` in these ways:
 
-- **Nodes write onto a live component.** The Swing component measures and paints itself; a component
-  node sets properties on it and puts back what it wrote when it leaves, as its element's `restores`
-  policy says.
+- **Style versus modifier.** As in AndroidX, where a `Style` sets the properties of a component and a
+  `Modifier` keeps layout, drawing and input, a `SwingStyle` sets the properties of the Swing component and a
+  `SwingModifier` keeps listeners, parent data, decoration and metadata. A style setter the component does
+  not offer is a compile error. A modifier is untyped, so an element its component cannot take fails when
+  it is applied. See
+  [Style or modifier](STYLES.md#style-or-modifier).
+- **Properties are written onto the live component.** The Swing component measures and paints itself.
+  A modifier sets properties on it and puts back what it wrote when the element leaves, as the
+  element's `restores` policy says.
 - **One value per property.** A property element replaces an earlier one under the same key, where
   an AndroidX `Modifier` keeps both and runs both; additive elements accumulate (see
-  [Keyed and additive slots](#keyed-and-additive-slots)).
+  [Keyed and additive elements](#keyed-and-additive-elements)).
 - **Bound to a component type.** An element names the component type it targets and is refused on any
   other, as a parent declaration is under a parent of another family.
 - **`key` rebuilds.** A changed key detaches and attaches again every component node of the
@@ -248,22 +267,26 @@ A `SwingModifier` differs from `androidx.compose.ui.Modifier` in these ways:
   matched by its key, and additive and parent-layout elements each by position among their own kind, so
   an element inserted before others of its kind moves each of them one slot along: a slot's node is
   updated with the element it now gets, or replaced where that element's class differs.
-- **Attach order.** A modifier attaching as a whole attaches its parent-layout nodes first, then its
-  property nodes, then its additive nodes, where an AndroidX `Modifier` attaches head to tail.
+- **No head-to-tail attach order.** The nodes of a modifier attach together, so during `onAttach()` and
+  `onDetach()` every node of the modifier is attached, whatever its place in the modifier (see
+  [Node lifecycle](#node-lifecycle)).
 
-## Styling with a `modifier: SwingModifier` parameter
+## Styling with a `style` parameter
 
-Give your component a `modifier: SwingModifier = SwingModifier` parameter and hand it to the node:
+Give your component a `modifier: SwingModifier = SwingModifier` parameter and a `style` parameter next to it,
+and hand both to the node. The style declares the component's properties and the modifier its place and
+listeners:
 
 ```kotlin
 @Composable
 public fun MyWidget(
     /* state + callbacks */
     modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<MyWidgetStyleScope> = SwingStyle,
 ) {
     SwingNode(
         factory = { /* ... */ },
-        modifier = modifier,
+        modifier = modifier.styleable(style, MyWidgetKind),
         update = {
             set(/* ... */) { /* ... */ }
         },
@@ -276,7 +299,10 @@ public fun MyWidget(
 Always pass `modifier` to the node. A child's place in its parent (a `BorderLayout` region,
 `GridBagConstraints`, a cell in your own layout) is declared on its modifier, so a component that drops
 the parameter cannot be placed: every container adds it by index. Add your component's own elements
-after the caller's, as [Order and merge](#order-and-merge) says.
+after the caller's, as [Order and merge](#order-and-merge) says, and `styleable` last of all.
+[Components that take a style](STYLES.md#components-that-take-a-style) explains how to write the scope and
+the kind. A caller's own `styleable` in the
+modifier is refused, since the component already makes that call.
 
 ## Writing a builder
 
@@ -284,27 +310,28 @@ The simplest builder chains builders that already exist. It extends `this`, so t
 declared before it stay in the modifier; a builder that starts again from `SwingModifier` drops them.
 
 <!--- INCLUDE .*custom-modifier-01.*
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
+import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.background
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import java.awt.Color
 -->
 
 ```kotlin
-public fun SwingModifier.card(): SwingModifier = lineBorder(Color.GRAY).background(Color.WHITE)
+public fun SwingModifier.card(): SwingModifier =
+    shadow(radius = 8, color = Color(0, 0, 0, 96)).background(Color.WHITE, RectangleShape)
 ```
 
 <!--- KNIT example-custom-modifier-01.kt -->
 <!--- CLEAR -->
 
-Where a builder needs a value the caller holds or shares - a handle, an anchor, a renderer - split it in
-two: a `remember*` composable that creates the value, and a plain builder that takes it.
-`rememberPopupAnchor()` with `popupAnchor(anchor)`, and `rememberListItemRenderer { }` with
-`listItemRenderer(renderer)`, are both that pair.
+Where a builder needs a value the caller holds or shares - a handle, an anchor - split it in two: a
+`remember*` composable that creates the value, and a plain builder that takes it. `rememberPopupAnchor()`
+with `popupAnchor(anchor)` is that pair.
 
 State private to each component the modifier reaches, such as whether that component is hovered, belongs
 on a `ComponentNode`, created once per component: it holds that state in its fields, runs coroutines in
 its `coroutineScope` and, implementing `CompositionLocalConsumerModifierNode`, reads composition locals
-through `currentValueOf` (see [Writing a custom property element](#writing-a-custom-property-element)
+through `currentValueOf` (see [A property written by an element](STYLES.md#a-property-written-by-an-element)
 and [Node capabilities](#node-capabilities)).
 
 `composed` is not recommended; use it only when the modifier can only be built by calling composables.
@@ -318,7 +345,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import java.awt.Color
@@ -329,111 +357,22 @@ public fun SwingModifier.hoverBackground(color: Color): SwingModifier =
     composed {
         var hovered by remember { mutableStateOf(false) }
         val hover = onHover(onEnter = { hovered = true }, onExit = { hovered = false })
-        if (hovered) hover.background(color) else hover
+        if (hovered) hover.background(color, RectangleShape) else hover
     }
 ```
 
 <!--- KNIT example-custom-modifier-02.kt -->
 <!--- CLEAR -->
 
-## Writing a custom property element
+## Writing an element of your own
 
-For a single read/write property, `SwingModifier.property` is enough: see
+A property of a component is written by a style, not by a modifier element. To write one from an element
+of your own, see [A property written by an element](STYLES.md#a-property-written-by-an-element). For a
+single read/write property, `stylePropertyOf` over a descriptor is enough: see
+[Declaring a property](STYLES.md#declaring-a-property). For a property that several unrelated component
+types declare, see [A property several components share](STYLES.md#a-property-several-components-share).
+A property that a component declares through one of its own parameters stays `SwingModifier.property`: see
 [A property the look and feel decides](CUSTOM-COMPONENTS.md#a-property-the-look-and-feel-decides).
-Write a `NodeElement` and `ComponentNode` pair when you need a wider target type, several components
-written from one element, or a registration that is not a property:
-
-- `NodeElement<T : Component, N : ComponentNode<T>>` is the immutable description: the value to write
-  and the component type it targets. Every pass builds a fresh one.
-- `ComponentNode<T : Component>` holds the per-component state, such as the captured original value. It
-  is created once per slot, kept across passes, and exposes the live, already-typed `component`.
-
-An element must be a `NodeElement` or a parent declaration, and not both; an element of your own that
-is neither is refused when the modifier is applied.
-
-`targetType` is the `Class` of the element's `T`: the most general component type the property needs,
-such as `Component::class.java` for any AWT component, `JComponent::class.java` for a tooltip or border,
-or a widget class for a widget-only property. The node's `component` is then typed `T`, and a component
-that is not a `T` is rejected when the modifier is applied.
-
-What each callback of the pair is for (see [Node lifecycle](#node-lifecycle) for when each runs):
-
-- `NodeElement.create()` builds the node;
-- `ComponentNode.onAttach()` - **capture the component's existing value here** so it can be restored;
-- `NodeElement.update(node)` - **write the new value here**, so a fresh element instance reaches the
-  live node without re-creating it. A composition local read here runs it again (see
-  [Node capabilities](#node-capabilities));
-- `ComponentNode.onReset()` - **drop state tied to the old content here**;
-- `ComponentNode.onDetach()` - **restore the captured original here**: every property your write
-  changed, not only the one the element is named for - a whole geometry covers each axis it spans - and
-  list them all in `NodeElement.heldProperties`. Where you cannot restore them all, declare
-  `NodeElement.restores`; see `RestorePolicy` for each option.
-
-A tooltip lives on `JComponent`, so the element targets `JComponent` and the node reads its
-already-typed `component` without casting:
-
-```kotlin
-private class ToolTipNode : SwingModifier.ComponentNode<JComponent>() {
-    private var original: String? = null
-    var text: String? = null
-
-    override fun onAttach() {
-        original = component.toolTipText
-    }
-
-    fun apply() {
-        component.toolTipText = text
-    }
-
-    override fun onDetach() {
-        component.toolTipText = original
-    }
-}
-
-private data class ToolTipElement(
-    private val text: String?,
-) : SwingModifier.NodeElement<JComponent, ToolTipNode>() {
-    override val name: String get() = "toolTip"
-
-    override val declaredValues: Map<String, Any?> get() = mapOf("text" to text)
-
-    override val targetType: Class<JComponent> get() = JComponent::class.java
-
-    override fun create(): ToolTipNode = ToolTipNode()
-
-    override fun update(node: ToolTipNode) {
-        node.text = text
-        node.apply()
-    }
-}
-
-public fun SwingModifier.toolTip(text: String?): SwingModifier =
-    this then ToolTipElement(text)
-```
-
-<!--- KNIT example-custom-modifier-03.kt -->
-
-### Naming the element for a message and for a tool
-
-`name` and `declaredValues` are shown in error messages and in inspection tools (see
-[`INSPECTING-COMPOSITIONS.md`](INSPECTING-COMPOSITIONS.md#reading-the-chain-a-component-carries)). By
-default `name` is the class name and `declaredValues` is empty; override both when the element carries
-a value worth showing. `key`, not `name`, decides which slot an element takes. Leave a callback out of
-`declaredValues` unless showing it says something - a lambda renders as its class.
-
-### When several unrelated components declare the same property
-
-An element names one `targetType`, which is enough whenever the components sharing a property also
-share a class that declares it. Some properties are not like that: an icon is declared separately by
-`JLabel` and by `AbstractButton`, and the class between them declares neither accessor.
-
-For those, accept the widest type the property could appear on and choose the accessors from what the
-component turns out to be. Two rules make it behave:
-
-- route the read and the write through the **same** choice, or a value captured through one accessor
-  is restored through another;
-- reject a component no accessor serves, naming the kinds that are served, so a caller learns the same
-  thing a target-type mismatch would have told them.
 
 ## Attaching a listener
 
@@ -502,7 +441,7 @@ A registration is where a listener is registered, named by the event source it r
 one per event source, at the top level or in a companion, and hand it to every declaration that
 registers there:
 
-<!--- INCLUDE .*custom-modifier-04.*
+<!--- INCLUDE .*custom-modifier-03.*
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -534,7 +473,7 @@ public fun SwingModifier.onAncestorChange(onChange: (AncestorEvent) -> Unit): Sw
     listener(onChange, ANCESTOR_EVENTS)
 ```
 
-<!--- KNIT example-custom-modifier-04.kt -->
+<!--- KNIT example-custom-modifier-03.kt -->
 
 It registers the listener `adapter` builds and hands that listener the latest `callback` every time an
 event fires, so a `callback` written at the call site needs no `remember`.
@@ -551,7 +490,7 @@ sites - the name of a bound property, say - wrap it in a key type of the site's 
 Use `listener(instance, registration)` only when you hold a listener object for an event source that
 has no builder.
 
-<!--- INCLUDE .*custom-modifier-05.*
+<!--- INCLUDE .*custom-modifier-04.*
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import javax.swing.JMenu
@@ -569,7 +508,7 @@ private val MENU_EVENTS =
 public fun SwingModifier.menuListener(instance: MenuListener): SwingModifier = listener(instance, MENU_EVENTS)
 ```
 
-<!--- KNIT example-custom-modifier-05.kt -->
+<!--- KNIT example-custom-modifier-04.kt -->
 
 Like the typed builders, it is additive: the instance is added when the element enters the modifier and
 removed when it leaves or the component is released, reused or deactivated. The add and remove functions

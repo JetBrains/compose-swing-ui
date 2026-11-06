@@ -7,8 +7,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -132,7 +132,7 @@ class ScrollPaneRegionTest {
     fun replacingTheContentRepaintsOnlyInsideTheViewport() = runComposeSwingTest {
         var content by mutableStateOf("first")
         setContent {
-            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+            ScrollPane(style = { preferredSize(200, 100) }) {
                 Viewport { key(content) { Label(text = content) } }
             }
         }
