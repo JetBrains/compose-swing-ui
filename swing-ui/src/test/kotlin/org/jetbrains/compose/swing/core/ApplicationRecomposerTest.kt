@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,7 +91,7 @@ class ApplicationRecomposerTest {
 
         withTimeout(SETTLE_TIMEOUT) {
             awaitApplication {
-                LaunchedEffect(Unit) {
+                SideEffect(Unit) {
                     val handle = recomposer.observe(registered.observer)
                     try {
                         reported = registered.compositions.size
@@ -140,7 +141,7 @@ class ApplicationRecomposerTest {
                 if (isWindowDeclared) {
                     Window(onCloseRequest = ::exitApplication, visible = false) {
                         Label(text = "in-application")
-                        LaunchedEffect(Unit) {
+                        SideEffect(Unit) {
                             // The window's content is mounted by now, so its composition has registered.
                             afterWindow = registered.compositions.size
                             exitApplication()

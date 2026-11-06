@@ -4,7 +4,7 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
@@ -721,7 +721,7 @@ class CompositionLifecycleTest {
             awaitApplication {
                 Window(onCloseRequest = ::exitApplication, title = APPLICATION_TITLE, visible = false) {
                     windowContent.Observe()
-                    LaunchedEffect(Unit) { exitApplication() }
+                    SideEffect(Unit) { exitApplication() }
                 }
             }
         }

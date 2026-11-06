@@ -2,7 +2,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -366,7 +366,7 @@ class WidgetIdentityTest {
             ) { changed ->
                 val state = rememberDocumentState(remember { StyledEditorKit() }, "a")
                 TextPane(state = state)
-                LaunchedEffect(changed) {
+                SideEffect(changed) {
                     if (changed) state.edit { setText("b") }
                 }
             },
@@ -1269,7 +1269,7 @@ class WidgetIdentityTest {
                     onValueChange = {},
                     style = { highlights(ranges, painter) },
                 )
-                LaunchedEffect(changed) {
+                SideEffect(changed) {
                     if (changed) ranges.add(TextRange(6, 11))
                 }
             },

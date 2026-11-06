@@ -1,7 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.window
 
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -37,7 +37,7 @@ class ApplicationLifecycleTest {
                 // LocalWindow is null under a bare application scope that has created no Window;
                 // read it to prove the documented default reaches application-scope content.
                 sawWindow = LocalWindow.current != null
-                LaunchedEffect(Unit) {
+                SideEffect(Unit) {
                     // Requesting exit drops the content and lets awaitApplication unwind.
                     exitApplication()
                 }
@@ -55,7 +55,7 @@ class ApplicationLifecycleTest {
     fun launchApplicationCompletesItsJobWhenExitIsRequested() = runBlocking {
         val scope = CoroutineScope(coroutineContext + Job())
         try {
-            val job = scope.launchApplication { LaunchedEffect(Unit) { exitApplication() } }
+            val job = scope.launchApplication { SideEffect(Unit) { exitApplication() } }
             withTimeout(WALL_CLOCK_TIMEOUT) { job.join() }
             assertTrue(job.isCompleted, "the launched application job must complete after exit")
         } finally {

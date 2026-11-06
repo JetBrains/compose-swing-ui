@@ -34,6 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  * coroutine exception from its next wait for idle; a test that calls no gate afterwards fails with it as it
  * ends.
  */
+@Suppress("UnnecessaryLaunchedEffect") // Each LaunchedEffect is the coroutine whose failure a test pins.
 class EffectFailureTest {
     @Test
     fun aThrowFromAnEffectFailsTheNextGateAndLeavesLaterGatesAndActionsWorking() = runComposeSwingTest {

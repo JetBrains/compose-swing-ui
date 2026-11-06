@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.samples.widgets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -141,7 +142,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
     val sectionsState = rememberListState(setOf(showcaseSections.indexOfFirst { it.title == current }))
     // Driving the selection from the back stack does not push, so a pop moves the highlight without pushing the
     // row it lands on: a selection naming the section already on top is not a new destination.
-    LaunchedEffect(current) {
+    SideEffect(current) {
         sectionsState.selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current })
     }
     LaunchedEffect(sectionsState) {

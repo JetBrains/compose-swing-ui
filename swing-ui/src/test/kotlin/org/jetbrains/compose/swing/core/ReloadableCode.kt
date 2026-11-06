@@ -47,6 +47,8 @@ internal class ReloadableCode {
  * again from scratch.
  */
 @Composable
+// The effect failure is raised in an effect coroutine, apart from the apply-phase failure of the SideEffect.
+@Suppress("UnnecessaryLaunchedEffect")
 internal fun Reloadable(
     code: ReloadableCode,
     parentRemembered: String? = null,

@@ -1,8 +1,8 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReusableContentHost
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -105,7 +105,7 @@ class SelectionStateRevealTest {
         val reachedFromEffect = mutableListOf<Boolean>()
         val state = ListState()
         setContent {
-            LaunchedEffect(items) { reachedFromEffect += state.revealIndex(items.lastIndex) }
+            SideEffect(items) { reachedFromEffect += state.revealIndex(items.lastIndex) }
             ScrollPane(style = { preferredSize(160, 80) }) {
                 Viewport { ListBox(items = items, state = state) }
             }

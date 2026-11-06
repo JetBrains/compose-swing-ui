@@ -2,7 +2,7 @@
 package org.jetbrains.compose.swing.samples.widgets.animation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +48,7 @@ internal fun ColumnScope.DeferredDismissCard() {
         // The slider goes back to zero once the phase is over, never in the handler that ends it: the
         // phase is still standing there, so the transform would move the card first and the transition
         // would take it over from that value instead of from where the gesture left it.
-        LaunchedEffect(state.pendingTargetState) {
+        SideEffect(state.pendingTargetState) {
             if (state.pendingTargetState == null) dragged = 0
         }
         val transform = remember { MutableTransform() }
@@ -100,7 +100,7 @@ internal fun ColumnScope.DeferredPageSwipeCard() {
         val pages = listOf("Inbox · 3 unread", "Drafts · 1 unsent", "Archive · 12 messages")
         val state = remember { DeferredTransitionState(0) }
         var swiped by remember { mutableIntStateOf(0) }
-        LaunchedEffect(state.pendingTargetState) {
+        SideEffect(state.pendingTargetState) {
             if (state.pendingTargetState == null) swiped = 0
         }
 

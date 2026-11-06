@@ -23,7 +23,7 @@ tasks.withType<KotlinCompile>().matching { it.name == "compileFixturesKotlin" }.
 }
 
 dependencies {
-    add(fixtures.implementationConfigurationName, project)
+    add(fixtures.implementationConfigurationName, project(path))
 }
 
 (components["java"] as AdhocComponentWithVariants).run {

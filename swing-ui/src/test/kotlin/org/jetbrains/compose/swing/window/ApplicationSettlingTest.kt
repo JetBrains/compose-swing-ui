@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCompositionContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -32,6 +33,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 class ApplicationSettlingTest {
     @Test
+    // The nested composition mounts after the application's apply ends; from a SideEffect, Compose rejects it.
+    @Suppress("UnnecessaryLaunchedEffect")
     fun aChangeReportedUnderAnApplicationSettlesInsideTheEventThatMadeIt() = runBlocking {
         // Read inside the composition and asserted after it ends, so a settle that never arrives fails as
         // an assertion rather than as an exception thrown through the application's teardown.
@@ -89,7 +92,7 @@ class ApplicationSettlingTest {
 
         withTimeout(WALL_CLOCK_TIMEOUT) {
             awaitApplication {
-                LaunchedEffect(Unit) {
+                SideEffect(Unit) {
                     whileRunning = EventDispatchHook.subscriberCount(toolkit)
                     exitApplication()
                 }

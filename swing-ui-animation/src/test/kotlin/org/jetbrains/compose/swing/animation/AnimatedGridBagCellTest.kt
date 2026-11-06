@@ -2,7 +2,7 @@
 package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -575,6 +575,6 @@ private fun ConstrainedScope.TallContent(onSize: (Dimension) -> Unit = {}) {
 @Composable
 private fun rememberGrown(): Boolean {
     var grown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { grown = true }
+    SideEffect(Unit) { grown = true }
     return grown
 }

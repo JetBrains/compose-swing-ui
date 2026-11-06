@@ -106,6 +106,8 @@ class WindowRecomposerFailureTest {
     }
 
     @Test
+    // The failure has to come from an effect coroutine; a SideEffect would fail the apply instead.
+    @Suppress("UnnecessaryLaunchedEffect")
     fun anEffectThatThrowsIsReportedAndEndsTheWindowsRecomposer() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
