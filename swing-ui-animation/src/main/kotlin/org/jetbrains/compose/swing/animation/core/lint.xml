@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license. -->
+
 <!--
   Directory-scoped Android Lint configuration for the vendored Compose animation-core engine.
 
