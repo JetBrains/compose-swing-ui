@@ -8,12 +8,14 @@ import dev.detekt.api.Rule
 import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
@@ -214,8 +216,30 @@ private fun KtNameReferenceExpression.isShadowedByValue(): Boolean {
             }
         }
     val hasTopLevel = containingKtFile.declarations.filterIsInstance<KtProperty>().any { it.name == name }
-    return hasParameter || hasLocal || hasTopLevel
+    // Object and companion members are reachable from any depth.
+    val owners = parents.filterIsInstance<KtClassOrObject>().toList()
+    val instanceMembersReachable =
+        owners.runningFold(true) { reachable, owner -> reachable && owner.keepsEnclosingInstance }
+    val scopes =
+        owners.zip(instanceMembersReachable).flatMap { (owner, reachable) ->
+            listOfNotNull(owner.takeIf { reachable || it is KtObjectDeclaration }) +
+                (owner as? KtClass)?.companionObjects.orEmpty()
+        }
+    return hasParameter || hasLocal || hasTopLevel || scopes.any { name in it.valueNames }
 }
+
+/** Whether code inside [this] can still reach the instance members of the class that encloses it. */
+private val KtClassOrObject.keepsEnclosingInstance: Boolean
+    get() = isLocal || (this is KtClass && isInner()) || (this is KtObjectDeclaration && isObjectLiteral())
+
+/**
+ * The names of the properties and `val` constructor parameters [this] declares. An extension property is left
+ * out: without its receiver it names nothing.
+ */
+private val KtClassOrObject.valueNames: List<String?>
+    get() =
+        declarations.filterIsInstance<KtProperty>().filter { it.receiverTypeReference == null }.map { it.name } +
+            primaryConstructorParameters.filter { it.hasValOrVar() }.map { it.name }
 
 /**
  * Whether [this] is declared inside `SwingModifier` itself, where it is already on the chain and an

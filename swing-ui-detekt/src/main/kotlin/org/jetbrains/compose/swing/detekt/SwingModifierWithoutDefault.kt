@@ -7,6 +7,7 @@ import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
@@ -72,16 +73,37 @@ internal const val SWING_MODIFIER: String = "SwingModifier"
 internal fun KtCallableDeclaration.isComposable(): Boolean =
     when (this) {
         is KtProperty -> {
-            annotationEntries.any {
-                it.shortName?.asString() == "Composable" && it.useSiteTarget?.text == "get"
-            } ||
-                getter?.annotationEntries?.any { it.shortName?.asString() == "Composable" } == true
+            annotationEntries.any { it.isComposableAnnotation() && it.useSiteTarget?.text == "get" } ||
+                getter?.annotationEntries?.any { it.isComposableAnnotation() } == true
         }
 
         else -> {
-            annotationEntries.any { it.shortName?.asString() == "Composable" }
+            annotationEntries.any { it.isComposableAnnotation() }
         }
     }
+
+/**
+ * Whether [this] is `@Composable`, written by its own name or, unqualified, by an alias the file imports it
+ * under. A class declared under the alias's name shadows the import inside the class that declares it, or
+ * that declares the companion that does. A top-level class does not: the import wins over it.
+ */
+private fun KtAnnotationEntry.isComposableAnnotation(): Boolean {
+    val name = shortName?.asString() ?: return false
+    return name == "Composable" ||
+        (
+            typeReference?.text == name &&
+                containingKtFile.importDirectives.any {
+                    it.aliasName == name && it.importPath?.fqName?.asString() == "androidx.compose.runtime.Composable"
+                } &&
+                !declaresClassNamed(name)
+        )
+}
+
+private fun KtAnnotationEntry.declaresClassNamed(name: String): Boolean =
+    parents
+        .filterIsInstance<KtClassOrObject>()
+        .flatMap { owner -> owner.declarations + owner.companionObjects.flatMap { it.declarations } }
+        .any { it is KtClassOrObject && it.name == name }
 
 /**
  * Whether a caller outside this library can reach [this]: neither it nor any declaration around it is

@@ -40,6 +40,18 @@ class SwingStyleWithoutDefaultTest {
                 ),
             "override" to source("@Composable override fun Button(style: SwingStyle<Any>) = Unit"),
             "noncomposable" to source("fun Button(style: SwingStyle<Any>) = Unit"),
+            "nested class beside an outer property of the same name" to
+                source(
+                    """
+                    class Outer {
+                        val SwingStyle: Any = Any()
+
+                        class Nested {
+                            @Composable fun Button(style: SwingStyle<Any> = SwingStyle) = Unit
+                        }
+                    }
+                    """,
+                ),
         ).plus(companionStyles()).map { (name, source) ->
             dynamicTest(name) {
                 assertEquals(0, lint(source).size)
