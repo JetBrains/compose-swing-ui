@@ -1,3 +1,5 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+
 // The remote repositories publications are uploaded to, each described by the same structure so the
 // publishing convention configures them in one loop. Credentials are providers rather than values:
 // maven-publish validates them only when a remote publish task actually executes, so a repository with

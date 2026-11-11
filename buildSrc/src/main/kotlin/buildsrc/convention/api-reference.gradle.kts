@@ -1,3 +1,5 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+
 // Renders the API reference of every published module as one HTML site. Applied to the root project,
 // which owns the aggregation the site is built from.
 package buildsrc.convention

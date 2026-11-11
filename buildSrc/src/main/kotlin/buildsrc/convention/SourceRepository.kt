@@ -1,3 +1,5 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+
 // Resolves the repository the sources live in, which the POM's url and scm metadata describe. Kept as
 // a plain Kotlin file (not inside the .gradle.kts script) so the script stays readable and the
 // derivation logic is unit-reviewable. Derives from the standard GitHub Actions environment, adapted to

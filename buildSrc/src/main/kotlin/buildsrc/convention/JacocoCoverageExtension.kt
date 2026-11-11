@@ -1,3 +1,5 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+
 // Extension type for the `buildsrc.convention.jacoco-coverage` precompiled plugin.
 // Kept as a plain Kotlin file (not inside the .gradle.kts script), matching the project's convention
 // of extracting non-DSL declarations so the script stays readable.

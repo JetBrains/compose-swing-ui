@@ -1,3 +1,5 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+
 // Signing credentials, resolved identically for the module publications that sign and the aggregation
 // that refuses to upload unsigned. A workflow expands an undefined secret to an empty value rather than
 // leaving the variable unset, so a blank key counts as no key.
