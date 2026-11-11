@@ -117,6 +117,47 @@ class StylePropertyRestoreTest {
             }
         }
 
+        @Test
+        fun aToolTipStyleSharesItsOriginalWithAModifierWritingToolTipText() = runComposeSwingTest {
+            val tipDescriptor =
+                ComponentPropertyDescriptor<JLabel, String?>(
+                    "toolTipText",
+                    { it.toolTipText },
+                    { label, value -> label.toolTipText = value },
+                )
+            val writer =
+                ComponentPropertyDescriptor<JLabel, String?>(
+                    "name",
+                    { it.name },
+                    { label, value ->
+                        label.name = value
+                        label.toolTipText = "modifier"
+                    },
+                )
+            var modifierOn by mutableStateOf(true)
+            var styleOn by mutableStateOf(true)
+            setContent {
+                val base =
+                    if (modifierOn) {
+                        SwingModifier.property(writer, "x", alsoOverwrites = listOf(tipDescriptor))
+                    } else {
+                        SwingModifier
+                    }
+                SwingNode(
+                    factory = { JLabel() },
+                    modifier = base.styleable(TestNodeKind) { if (styleOn) toolTip("style") },
+                )
+            }
+            onNodeOfType<JLabel>().assertProperty("style") { toolTipText }
+
+            modifierOn = false
+            awaitIdle()
+            styleOn = false
+            awaitIdle()
+
+            onNodeOfType<JLabel>().assertProperty(null) { toolTipText }
+        }
+
         @ParameterizedTest(name = "{0} then {2}")
         @CsvSource(
             "both, both, name only, own tip",

@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
@@ -78,9 +79,9 @@ private object OrderedFocusTraversalElement :
         }
 
         fun apply() {
-            component.isFocusCycleRoot = true
-            component.isFocusTraversalPolicyProvider = true
-            component.focusTraversalPolicy = IndexOrderFocusTraversalPolicy()
+            runReportingUncaught { component.isFocusCycleRoot = true }
+            runReportingUncaught { component.isFocusTraversalPolicyProvider = true }
+            runReportingUncaught { component.focusTraversalPolicy = IndexOrderFocusTraversalPolicy() }
         }
 
         override fun onDetach() {

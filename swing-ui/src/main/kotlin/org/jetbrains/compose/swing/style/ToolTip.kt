@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.style
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.PropertyCaptures
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -112,7 +113,7 @@ internal class ToolTipElement(
         override fun onAttach() {
             captured =
                 checkNotNull(holder?.modifierState).captures().capture(
-                    "toolTip",
+                    "toolTipText",
                     component,
                     { it.toolTipText },
                     { component, value -> component.toolTipText = value },
@@ -127,15 +128,15 @@ internal class ToolTipElement(
             this.textAt = textAt
             if (textAt == null) {
                 stopFollowing()
-                component.toolTipText = text
+                runReportingUncaught { component.toolTipText = text }
             } else if (!following) {
                 // Arriving over a tooltip this declaration did not write - a constant one it takes over
                 // from, or one the component came with. The tooltip of the place under the pointer is
                 // published as soon as the pointer reports where that is.
-                component.toolTipText = null
+                runReportingUncaught { component.toolTipText = null }
                 follow()
             } else {
-                component.toolTipText = pointerText
+                runReportingUncaught { component.toolTipText = pointerText }
                 ToolTipManager.sharedInstance().registerComponent(component)
             }
         }

@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.style
 
 import org.jetbrains.compose.swing.modifier.PropertyCaptures
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Color
 import java.awt.Insets
 import javax.swing.BorderFactory
@@ -162,7 +163,7 @@ internal data class BorderElement(
             if (held == spec && component.border === border) return
             border = spec.resolve()
             applied = spec
-            component.border = border
+            runReportingUncaught { component.border = border }
         }
 
         override fun onDetach() {

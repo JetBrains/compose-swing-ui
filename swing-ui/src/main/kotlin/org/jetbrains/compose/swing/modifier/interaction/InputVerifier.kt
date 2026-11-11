@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.VerifyInputWhenFocusTargetDescriptor
 import javax.swing.InputVerifier
 import javax.swing.JComponent
@@ -93,7 +94,7 @@ private class InputVerifierElement(
         }
 
         fun apply() {
-            component.inputVerifier = installed
+            runReportingUncaught { component.inputVerifier = installed }
         }
 
         override fun onDetach() {

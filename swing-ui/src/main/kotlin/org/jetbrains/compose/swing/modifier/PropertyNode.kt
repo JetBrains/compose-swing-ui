@@ -2,6 +2,8 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.core.collectFailure
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -88,19 +90,23 @@ internal class PropertyNode<T : Component, V>(
         }
     }
 
-    /** Writes [value]; call from the owning element's `update` with its latest data. */
+    /**
+     * Writes [value]; call from the owning element's `update` with its latest data. A listener on the
+     * component that throws from the write is reported to the uncaught-exception handler instead of ending the
+     * apply.
+     */
     fun apply(value: V) {
         val component = component
         val rewrites = rewrites
         if (rewrites == null) {
-            write(component, value)
+            runReportingUncaught { write(component, value) }
             return
         }
         sequence = rewrites.next()
         val written = {
             rewrites.enter(sequence)
             try {
-                write(component, value)
+                runReportingUncaught { write(component, value) }
             } finally {
                 rewrites.exit()
             }
@@ -116,8 +122,9 @@ internal class PropertyNode<T : Component, V>(
 
     override fun onDetach() {
         rewriteOn?.let { component.removePropertyChangeListener(it, this) }
-        capture?.release()
-        overwrittenCaptures?.fastForEach { it.release() }
+        var first = collectFailure(null) { capture?.release() }
+        overwrittenCaptures?.fastForEach { overwritten -> first = collectFailure(first) { overwritten.release() } }
+        first?.let { throw it }
     }
 }
 

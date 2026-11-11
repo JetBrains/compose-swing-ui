@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.annotations.CaretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.PropertyCaptures
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
@@ -238,7 +239,12 @@ internal class CaretElement(
         fun apply(caret: Caret) {
             // Installing a caret resets offset and selection, so skip the write when it is already installed.
             if (component.caret === caret) return
-            if (caret === installed) component.replaceCaretKeepingSelection(caret) else component.caret = caret
+            // A listener on the component that throws from the install is reported; the install stands.
+            if (caret === installed) {
+                component.replaceCaretKeepingSelection(caret) { runReportingUncaught { component.caret = it } }
+            } else {
+                runReportingUncaught { component.caret = caret }
+            }
             installed = caret
         }
 
@@ -253,10 +259,13 @@ internal class CaretElement(
  * Installs [caret] at the position and selection the caret it replaces holds. Installing a caret puts it at
  * offset 0 and drops the selection, but both belong to the text, not to the caret object.
  */
-private fun JTextComponent.replaceCaretKeepingSelection(caret: Caret?) {
+private inline fun JTextComponent.replaceCaretKeepingSelection(
+    caret: Caret?,
+    install: (Caret?) -> Unit = { this.caret = it },
+) {
     val dot = this.caret?.dot ?: 0
     val mark = this.caret?.mark ?: dot
-    this.caret = caret
+    install(caret)
     caret?.let {
         it.dot = mark
         if (dot != mark) it.moveDot(dot)

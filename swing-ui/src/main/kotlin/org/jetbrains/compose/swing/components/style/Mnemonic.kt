@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companio
 import org.jetbrains.compose.swing.modifier.PropertyRewrites
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import java.awt.Component
 import java.awt.event.KeyEvent
@@ -207,9 +208,17 @@ internal class DisplayedMnemonicIndexNode :
         rewrites.enter(sequence)
         try {
             if (value == null) {
-                MnemonicTextDescriptor.write(component, MnemonicTextDescriptor.read(component))
+                // The read refuses a widget without text, and that refusal stays the caller's; only the write's
+                // listeners are reported.
+                val text = MnemonicTextDescriptor.read(component)
+                runReportingUncaught { MnemonicTextDescriptor.write(component, text) }
             } else {
-                DisplayedMnemonicIndexDescriptor.write(component, value)
+                // Swing refuses an index its text does not carry; that refusal belongs to the caller, while a
+                // listener's throw from the write is reported.
+                require(value in -1 until (MnemonicTextDescriptor.read(component)?.length ?: 0)) {
+                    "displayedMnemonicIndex $value lies outside the text"
+                }
+                runReportingUncaught { DisplayedMnemonicIndexDescriptor.write(component, value) }
             }
         } finally {
             rewrites.exit()

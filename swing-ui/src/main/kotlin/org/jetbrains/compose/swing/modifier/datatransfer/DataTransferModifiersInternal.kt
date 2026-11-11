@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.datatransfer
 
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.platform.hostOs
 import java.awt.HeadlessException
 import java.awt.Toolkit
@@ -60,7 +61,8 @@ internal fun installedHandler(component: JComponent): SharedTransferHandler {
     if (existing is SharedTransferHandler) return existing
     val handler = SharedTransferHandler()
     handler.original = existing
-    component.transferHandler = handler
+    // A listener on the component that throws from the install is reported; the install stands.
+    runReportingUncaught { component.transferHandler = handler }
     return handler
 }
 

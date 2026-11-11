@@ -35,6 +35,7 @@ import javax.swing.text.DefaultCaret
 import javax.swing.text.JTextComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 /**
@@ -52,6 +53,51 @@ class CaretStyleTest {
             textCase("caretBlinkRate", 250, 750, { it.caret.blinkRate }) { caretBlinkRate(it) },
         ),
     )
+
+    @Test
+    fun aCaretListenerThatThrowsDuringTheReinstallAfterAMoveIsReportedAndTheSelectionStillCarriesOver() =
+        runComposeSwingTest {
+            val failure = IllegalStateException()
+            val caret = DefaultCaret()
+            var armed = false
+            val field =
+                JTextField("hello world").apply {
+                    addPropertyChangeListener("caret") { if (armed && it.newValue === caret) throw failure }
+                }
+            val host = JPanel()
+            var inOuter by mutableStateOf(false)
+            lateinit var context: CompositionContext
+            lateinit var content: @Composable () -> Unit
+            setContent {
+                context = rememberCompositionContext()
+                content =
+                    remember {
+                        movableContentOf {
+                            SwingNode(
+                                factory = { field },
+                                modifier = SwingModifier.styleable(TestTextNodeKind) { caret(caret) },
+                            )
+                        }
+                    }
+                SwingNode(factory = { host })
+                if (inOuter) content()
+            }
+            awaitIdle()
+            val nested = host.setContent(parent = context) { if (!inOuter) content() }
+            try {
+                awaitIdle()
+                field.select(2, 5)
+
+                armed = true
+                inOuter = true
+                assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
+
+                assertSame(caret, field.caret, "the install the listener was notified from ran")
+                assertEquals(2 to 5, field.selectionStart to field.selectionEnd)
+            } finally {
+                nested.dispose()
+            }
+        }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("textComponents")

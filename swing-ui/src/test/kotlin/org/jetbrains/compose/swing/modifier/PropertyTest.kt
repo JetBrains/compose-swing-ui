@@ -20,6 +20,8 @@ import java.awt.Color
 import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 
 /**
  * The public builder a custom component declares a Swing property through: it writes the declared value
@@ -103,7 +105,7 @@ class PropertyTest {
                 factory = {
                     JLabel("target").apply {
                         toolTipText = WIDGET_TIP
-                        name = WIDGET_NAME
+                        name = "named by the widget"
                     }
                 },
                 modifier = if (declared) SwingModifier.declaredTipDerivingName(DECLARED_TIP) else SwingModifier,
@@ -230,6 +232,53 @@ class PropertyTest {
             "named by the first",
             "a later declaration that names no rewriteOn does not win again after the announced change",
         ) { name }
+    }
+
+    @Test
+    fun aRemovalWhoseRestoreOfTheDeclaredPropertyThrowsStillRestoresThePropertyItOverwrote() = runComposeSwingTest {
+        val failure = IllegalStateException("The restore failed")
+        val failingName =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                name = "name",
+                read = { it.name },
+                write = { component, value ->
+                    if (value == "own name") throw failure
+                    component.name = value
+                    component.toolTipText = value
+                },
+            )
+        val tip =
+            ComponentPropertyDescriptor<JLabel, String?>(
+                name = "toolTipText",
+                read = { it.toolTipText },
+                write = { component, value -> component.toolTipText = value },
+            )
+        var declared by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = {
+                    JLabel().apply {
+                        name = "own name"
+                        toolTipText = "own tip"
+                    }
+                },
+                modifier =
+                    if (declared) {
+                        SwingModifier.property(failingName, "outer", alsoOverwrites = listOf(tip))
+                    } else {
+                        SwingModifier
+                    },
+            )
+        }
+        onNodeOfType<JLabel>().assertProperty("outer", "the declaration writes the tooltip") { toolTipText }
+
+        declared = false
+        assertSame(failure, assertFailsWith<IllegalStateException> { awaitIdle() })
+
+        onNodeOfType<JLabel>().assertProperty(
+            "own tip",
+            "the overwritten property is restored although the primary threw",
+        ) { toolTipText }
     }
 
     @ParameterizedTest
@@ -359,10 +408,7 @@ private const val WIDGET_TIP = "carried by the widget"
 
 private const val DECLARED_TIP = "named by the declaration"
 
-/** What the widget is built named, so leaving a derived name standing is a difference from this. */
-private const val WIDGET_NAME = "named by the widget"
-
-private val BackgroundProperty =
+internal val BackgroundProperty =
     ComponentPropertyDescriptor<JLabel, Color?>(
         "background",
         read = { if (it.isBackgroundSet) it.background else null },
