@@ -126,11 +126,11 @@ class AnimatedContentPreferencesAtWidthTest {
             transitionTime = SlideExitTime,
         )
         // A wrapping JTextArea in a JPanel does not settle under the scroll pane slot.
+        val wrappingPanelSlots =
+            PreferenceSlots.mapValues { DefaultLeaves } + (scrollPane to DefaultLeaves - WRAPPING_TEXT_AREA_PANEL)
         assertPreferencesSettle(
             containers.filterKeys { it in wrappingPanelContainers },
-            slots =
-                PreferenceSlots.mapValues { DefaultLeaves } +
-                    (scrollPane to DefaultLeaves - WRAPPING_TEXT_AREA_PANEL),
+            slots = wrappingPanelSlots,
             transitionTime = PartWay,
         )
     }

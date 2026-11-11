@@ -24,6 +24,8 @@ import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
@@ -40,13 +42,20 @@ import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.MethodSource
+import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.GraphicsEnvironment
+import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -1060,102 +1069,45 @@ class AnimatedVisibilityStateMachineTest {
             ) { location }
         }
 
-    @Test
-    fun `an expand under a stock parent places the content at the origin whatever corner its alignment names`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent {
-                for (anchor in ANCHORS) {
+    @ParameterizedTest(name = "{0} under {1}")
+    @MethodSource("sizeChangesUnderStockParents")
+    fun `content stands at the origin on an axis its stock parent sets and at its alignment's edge on one it follows`(
+        change: ContainerSizeChange,
+        parent: StockParentKind,
+        box: Dimension,
+        content: List<Rectangle>,
+    ) = runComposeSwingTest {
+        var visible by mutableStateOf(change.startsVisible)
+        setContent {
+            for (anchor in ANCHORS) {
+                parent.Hosting { constraint ->
                     AnimatedVisibility(
                         visible = visible,
-                        modifier = SwingModifier.testTag("$anchor"),
-                        enter = expandIn(tween(1600), anchor.alignment),
-                        exit = ExitTransition.None,
+                        modifier = constraint.testTag("$anchor"),
+                        enter = change.enter(anchor.alignment),
+                        exit = change.exit(anchor.alignment),
                     ) {
                         Block(width = 80, height = 40)
                     }
                 }
             }
-
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
-
-            for (anchor in ANCHORS) {
-                val container = onNodeWithTag("$anchor")
-                val box = container.fetch().size
-                assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the expand was not under way: $box")
-                container.onChild().assertProperty(
-                    Rectangle(Point(), box),
-                    "$anchor: the content was not laid out at the bounds the stock parent assigned",
-                ) { bounds }
-            }
         }
 
-    @Test
-    fun `a shrink under a stock parent places the content at the origin whatever corner its alignment names`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(true)
-            setContent {
-                for (anchor in ANCHORS) {
-                    AnimatedVisibility(
-                        visible = visible,
-                        modifier = SwingModifier.testTag("$anchor"),
-                        enter = EnterTransition.None,
-                        exit = shrinkOut(tween(1600), anchor.alignment),
-                    ) {
-                        Block(width = 80, height = 40)
-                    }
-                }
-            }
-
-            mainClock.autoAdvance = false
-            visible = false
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
-
-            for (anchor in ANCHORS) {
-                val container = onNodeWithTag("$anchor")
-                val box = container.fetch().size
-                assertTrue(box.width in 1..79 && box.height in 1..39, "$anchor: the shrink was not under way: $box")
-                container.onChild().assertProperty(
-                    Rectangle(Point(), box),
-                    "$anchor: the content was not laid out at the bounds the stock parent assigned",
-                ) { bounds }
-            }
+        mainClock.autoAdvance = false
+        change.visibilities.forEachIndexed { step, shown ->
+            visible = shown
+            repeat(if (step == 0) FRAMES_INTO_THE_SIZE_CHANGE else 1) { mainClock.advanceTimeByFrame() }
         }
 
-    @Test
-    fun `an exit that changes no size under a stock parent leaves the content at the origin the enter left it`() =
-        runComposeSwingTest {
-            var visible by mutableStateOf(false)
-            setContent {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = expandIn(animationSpec = tween(1600)),
-                    exit = fadeOut(animationSpec = tween(1600)),
-                ) {
-                    Block(width = 80, height = 40)
-                }
-            }
-
-            mainClock.autoAdvance = false
-            visible = true
-            repeat(FRAMES_INTO_THE_SIZE_CHANGE) { mainClock.advanceTimeByFrame() }
-            val panel = onRoot().onChild()
-            panel.assertProperty(true, "precondition: the expand was under way") { width in 1..79 }
-            panel.onChildAt(0).assertProperty(
-                Rectangle(Point(), panel.fetch().size),
-                "the expand did not lay the content out at the bounds the stock parent assigned",
-            ) { bounds }
-
-            visible = false
-            mainClock.advanceTimeByFrame()
-            panel.assertProperty(true, "precondition: the box was still short of the content") { width < 80 }
-            panel.onChildAt(0).assertProperty(
-                Rectangle(Point(), panel.fetch().size),
-                "the exit, which changes no size of its own, moved the content off the bounds the parent assigned",
+        ANCHORS.forEachIndexed { index, anchor ->
+            val container = onNodeWithTag("$anchor")
+            container.assertProperty(box, "$anchor: the size change was not at the frame the rows pin") { size }
+            container.onChild().assertProperty(
+                content[index],
+                "$anchor: the content was not laid out at the bounds this kind of parent gives it",
             ) { bounds }
         }
+    }
 
     @Test
     fun `with neither an enter nor an exit the content leaves the pass after the transition settles`() =
@@ -1280,6 +1232,118 @@ class AnimatedVisibilityStateMachineTest {
 
     private fun ComposeSwingTest.scrim(): Color =
         Color(onRoot().onChild().captureToImage().getRGB(SAMPLE, SAMPLE), true)
+
+    /**
+     * A size change of an [AnimatedVisibility] over content 80 by 40, begun from [startsVisible] and driven through
+     * [visibilities], the first for [FRAMES_INTO_THE_SIZE_CHANGE] frames and each next for one.
+     */
+    enum class ContainerSizeChange(
+        val startsVisible: Boolean,
+        val visibilities: List<Boolean>,
+        val enter: (Alignment) -> EnterTransition,
+        val exit: (Alignment) -> ExitTransition,
+    ) {
+        Expand(false, listOf(true), { expandIn(tween(1600), it) }, { ExitTransition.None }),
+        Shrink(true, listOf(false), { EnterTransition.None }, { shrinkOut(tween(1600), it) }),
+        ExitChangingNoSize(false, listOf(true, false), { expandIn(tween(1600), it) }, { fadeOut(tween(1600)) }),
+    }
+
+    /**
+     * A stock parent, by what it does with the extent a container requests along each axis.
+     */
+    enum class StockParentKind {
+        /** Assigns each container a fixed 60 by 30, whatever the size it requests: it sets both axes. */
+        GridCell {
+            @Composable
+            override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
+                SwingNode(factory = { JPanel(GridLayout(0, 1)).apply { preferredSize = Dimension(60, 30) } }) {
+                    content(SwingModifier)
+                }
+        },
+
+        /** Sizes each container to the size it requests: it follows both axes. */
+        FlowLayout {
+            @Composable
+            override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
+                SwingNode(factory = { JPanel(FlowLayout()) }) { content(SwingModifier) }
+        },
+
+        /** Sets the width of each container, wider than the content, and follows the height it requests. */
+        NorthRegion {
+            @Composable
+            override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
+                SwingNode(factory = { JPanel(BorderLayout()).apply { preferredSize = Dimension(200, 300) } }) {
+                    content(SwingModifier.layoutConstraint(BorderLayout.NORTH))
+                }
+        },
+        ;
+
+        /** Lays out the container [content] declares under this kind of parent, given the constraint it takes. */
+        @Composable
+        abstract fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit)
+    }
+
+    private companion object {
+        /** The box each kind of parent leaves a container at, and where the content stands in it, per anchor. */
+        @JvmStatic
+        fun sizeChangesUnderStockParents(): List<Arguments> =
+            listOf(
+                arguments(
+                    ContainerSizeChange.Expand,
+                    StockParentKind.GridCell,
+                    Dimension(60, 30),
+                    listOf(Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30)),
+                ),
+                arguments(
+                    ContainerSizeChange.Expand,
+                    StockParentKind.FlowLayout,
+                    Dimension(2, 1),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(-78, -39, 80, 40), Rectangle(0, -39, 80, 40)),
+                ),
+                arguments(
+                    ContainerSizeChange.Expand,
+                    StockParentKind.NorthRegion,
+                    Dimension(200, 1),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(0, -39, 80, 40), Rectangle(0, -39, 80, 40)),
+                ),
+                arguments(
+                    ContainerSizeChange.Shrink,
+                    StockParentKind.GridCell,
+                    Dimension(60, 30),
+                    listOf(Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30)),
+                ),
+                arguments(
+                    ContainerSizeChange.Shrink,
+                    StockParentKind.FlowLayout,
+                    Dimension(78, 39),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(-2, -1, 80, 40), Rectangle(0, -1, 80, 40)),
+                ),
+                arguments(
+                    ContainerSizeChange.Shrink,
+                    StockParentKind.NorthRegion,
+                    Dimension(200, 39),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(0, -1, 80, 40), Rectangle(0, -1, 80, 40)),
+                ),
+                arguments(
+                    ContainerSizeChange.ExitChangingNoSize,
+                    StockParentKind.GridCell,
+                    Dimension(60, 30),
+                    listOf(Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30), Rectangle(0, 0, 60, 30)),
+                ),
+                arguments(
+                    ContainerSizeChange.ExitChangingNoSize,
+                    StockParentKind.FlowLayout,
+                    Dimension(3, 1),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(-77, -39, 80, 40), Rectangle(0, -39, 80, 40)),
+                ),
+                arguments(
+                    ContainerSizeChange.ExitChangingNoSize,
+                    StockParentKind.NorthRegion,
+                    Dimension(200, 1),
+                    listOf(Rectangle(0, 0, 80, 40), Rectangle(0, -39, 80, 40), Rectangle(0, -39, 80, 40)),
+                ),
+            )
+    }
 }
 
 /** A transition state that is invisible where it is built and enters from there on the pass that mounts it. */

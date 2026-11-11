@@ -143,10 +143,14 @@ class AnimatedGridBagCellTest {
         }
     }
 
-    /** The content fits the cell's grant on every frame, from no room or from the container's minimum size. */
+    /**
+     * The cell sets the container's width and gives it the height it requests, so on every frame with room the content
+     * keeps the cell's width and its height there, from no room or from the container's minimum size, except on the
+     * frame the running width equals the cell's: there the content takes its rest size.
+     */
     @ParameterizedTest(name = "{0}")
     @MethodSource("zeroCellEnters")
-    fun `zero cell entry preserves the minimum size and fits the granted rectangle on every frame`(
+    fun `zero cell entry preserves the minimum size and keeps the content at the cell's width on every frame`(
         kind: String,
         enter: EnterTransition,
     ) {
@@ -175,7 +179,13 @@ class AnimatedGridBagCellTest {
                 assertTrue(fitted.size < frames.size, "$kind: precondition: the container began without room")
             }
             for ((granted, size) in fitted) {
-                assertEquals(atAspectWithin(granted), size, "$kind: the content in $granted")
+                val expected =
+                    if (kind == "expandIn" && granted == AtCellWidth) {
+                        Dimension(2 * AtCellWidth.width, 2 * AtCellWidth.height)
+                    } else {
+                        AtCellWidth
+                    }
+                assertEquals(expected, size, "$kind: the content in $granted")
             }
             val container = onNodeWithTag(CONTAINER).fetch<JComponent>()
             assertEquals(0, cyclesUntilStable(container), "a paint requests no layout")
@@ -187,6 +197,8 @@ class AnimatedGridBagCellTest {
     fun `visibility and replacement content fill the space a cell narrowed during a size change grants`(
         name: String,
         container: @Composable (SwingModifier) -> Unit,
+        held: Dimension,
+        expected: Dimension,
     ) {
         val cell = swingParentSlots(emptyList()).getValue("GridBagLayout fill HORIZONTAL")
         runComposeSwingTest {
@@ -201,13 +213,8 @@ class AnimatedGridBagCellTest {
             cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
             val holder = onNodeWithTag(CONTAINER).fetch<JComponent>()
             val content = onNodeWithTag(CONTENT).fetch<JComponent>()
-            assertEquals(InNarrowedCell.width, holder.width, "$name: precondition: the cell was narrowed")
-            assertTrue(holder.height > 0, "$name: precondition: the container has room: ${holder.size}")
-            assertEquals(
-                Dimension(holder.width, minOf(content.preferredSize.height, holder.height)),
-                content.size,
-                name,
-            )
+            assertEquals(held, holder.size, "$name: precondition: the cell was narrowed")
+            assertEquals(expected, content.size, name)
         }
     }
 
@@ -230,23 +237,22 @@ class AnimatedGridBagCellTest {
         }
 
     @Test
-    fun `an expand in a cell narrowed part-way lays the content out within each grant and then fits it`() =
+    fun `an expand in a cell narrowed part-way keeps the content at the cell's width bar one frame, then fits it`() =
         runComposeSwingTest {
             val (trace) = expandInACellNarrowedPartWay()
-            val granted = trace.steps.filter { it.phase == Phase.COMPLETED }.associate { it.frame to it.size }
             val reported = trace.steps.filter { it.phase == Phase.REPORTED }
             assertEquals(
-                Dimension(WIDTH, InNarrowedCell.height),
-                reported.first().size,
-                "the content is first laid out in the cell's ordinary preference",
-            )
-            assertEquals(
-                reported.drop(1).map { step ->
-                    val grant = granted.getValue(step.frame)
-                    Dimension(grant.width, minOf(InNarrowedCell.height, grant.height))
-                },
-                reported.drop(1).map { it.size },
-                "the content reports the size that fits the grant of the frame it is laid out in",
+                listOf(
+                    Dimension(WIDTH, InNarrowedCell.height),
+                    Dimension(0, 0),
+                    Dimension(WIDTH, InNarrowedCell.height),
+                    InNarrowedCell,
+                    Dimension(2 * InNarrowedCell.width, InNarrowedCell.height),
+                    FittingInNarrowedCell,
+                ),
+                reported.map { it.size },
+                "the content keeps the cell's width and its preferred height there while the expand runs, " +
+                    "bar the frame the running width equals the cell's",
             )
             assertEquals(FittingInNarrowedCell, reported.last().size, "the content ends at the size that fits the cell")
             val fitFrame =
@@ -474,23 +480,25 @@ class AnimatedGridBagCellTest {
         @JvmStatic
         fun narrowedContainers(): List<Arguments> {
             val transform = expandIn(spec()) togetherWith shrinkOut(spec())
-            val containers: Map<String, @Composable (SwingModifier) -> Unit> =
-                buildMap {
-                    for (entering in listOf(true, false)) {
-                        this["Visibility entering=$entering"] = { modifier ->
-                            VisibilityCell(
-                                modifier,
-                                entering = entering,
-                                enter = if (entering) expandIn(spec()) else EnterTransition.None,
-                                exit = if (entering) ExitTransition.None else shrinkOut(spec()),
-                            ) { TallContent() }
-                        }
-                        this["Content entering=$entering"] = { modifier ->
-                            ReplacementCell(modifier, transform, entering) { TallContent() }
-                        }
-                    }
+            val visibility: (Boolean) -> @Composable (SwingModifier) -> Unit = { entering ->
+                { modifier ->
+                    VisibilityCell(
+                        modifier,
+                        entering = entering,
+                        enter = if (entering) expandIn(spec()) else EnterTransition.None,
+                        exit = if (entering) ExitTransition.None else shrinkOut(spec()),
+                    ) { TallContent() }
                 }
-            return containers.map { (name, container) -> Arguments.of(name, container) }
+            }
+            val replacement: (Boolean) -> @Composable (SwingModifier) -> Unit = { entering ->
+                { modifier -> ReplacementCell(modifier, transform, entering) { TallContent() } }
+            }
+            return listOf(
+                Arguments.of("Visibility entering=true", visibility(true), Dimension(40, 38), Dimension(40, 160)),
+                Arguments.of("Content entering=true", replacement(true), Dimension(40, 20), Dimension(40, 20)),
+                Arguments.of("Visibility entering=false", visibility(false), Dimension(40, 20), Dimension(40, 20)),
+                Arguments.of("Content entering=false", replacement(false), Dimension(40, 20), Dimension(40, 20)),
+            )
         }
     }
 }

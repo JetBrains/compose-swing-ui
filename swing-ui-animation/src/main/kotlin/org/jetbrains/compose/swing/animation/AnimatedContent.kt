@@ -96,7 +96,9 @@ import kotlin.math.max
  * This overload works under any parent, including a panel with a standard Swing layout manager and a
  * scroll pane. The container runs the size animation over its own contents and reports the animated size
  * as its preferred size. A parent that assigns fixed bounds, such as a border layout's center or a
- * filling grid-bag cell, shows no size change; the contents' enter and exit still run. In the content lambda of
+ * filling grid-bag cell, shows no size change; the contents' enter and exit still run. A parent that sizes the
+ * container to that request, such as a flow layout or a border layout's north, does not squeeze the contents
+ * below the size each rests at, and the container clips them. In the content lambda of
  * a `Box`, `Row`, `Column` or other Foundation layout, the scoped overload applies instead, and the parent lays
  * the container out through the size animation. Called from a composable of its own under a Foundation parent,
  * this overload measures each content within the parent's constraints. Where a stock parent sizes that
@@ -772,6 +774,11 @@ private class AnimatedContentMeasurePolicy(
     private var contentsSize = Dimension()
     private var contentsOffset = Point()
 
+    // The running size and bounds [cachedConstraints] were worked out for; the running size is null when there is none.
+    private var cachedRunning: Dimension? = null
+    private val cachedBounds = Dimension()
+    private val cachedConstraints = HashMap<AnimatedContentChildData, Constraints>()
+
     private val placementBlock: PlacementScope.() -> Unit = {
         if (rootScope.transition.currentState == rootScope.transition.targetState) {
             rootScope.isLeftToRight = isLeftToRight
@@ -814,19 +821,21 @@ private class AnimatedContentMeasurePolicy(
         constraints: Constraints,
         assigned: Dimension?,
     ): MeasureResult {
-        // An assigned pass reads the natural sizes before the contents are measured, which can change them.
-        val natural = assigned?.let { naturalSizesOf(measurables) }
+        val targetState = rootScope.transition.targetState
+        rootScope.isTargetMeasured =
+            measurables.any { (it.parentData as? AnimatedContentChildData)?.stateForContent == targetState }
+        val running = if (assigned == null) null else aimAtNaturalSizes(measurables)
         val placeables = arrayOfNulls<Placeable>(measurables.size)
         // Measure the target content first, but place it on top unless a zIndex is specified.
         measurables.forEachIndexed { index, measurable ->
             if ((measurable.parentData as? AnimatedContentChildData)?.isTarget == true) {
-                placeables[index] = measurable.measure(constraints)
+                placeables[index] = measurable.measure(childConstraintsAt(measurable, constraints, running))
             }
         }
         // The other contents are measured after the target, since they have no impact on the size animation.
         measurables.forEachIndexed { index, measurable ->
             if (placeables[index] == null) {
-                placeables[index] = measurable.measure(constraints)
+                placeables[index] = measurable.measure(childConstraintsAt(measurable, constraints, running))
             }
         }
         var maxW = 0
@@ -840,22 +849,65 @@ private class AnimatedContentMeasurePolicy(
             }
         }
         rootScope.measuredSize = Dimension(maxW, maxH)
-        val targetState = rootScope.transition.targetState
-        rootScope.isTargetMeasured =
-            measurables.any { (it.parentData as? AnimatedContentChildData)?.stateForContent == targetState }
         this@AnimatedContentMeasurePolicy.placeables = placeables
         // A container its parent offers more than its contents need takes that room, and aligns them inside it.
         contentsSize = Dimension(maxW, maxH)
         val size =
-            if (assigned == null || natural == null) {
+            if (assigned == null) {
                 constraints.constrain(sizeAnimation?.measure(maxW, maxH) ?: contentsSize)
             } else {
-                // The animation runs between the natural sizes read above; the container keeps its assigned bounds.
-                sizeAnimation?.measure(natural.width, natural.height)
                 assigned
             }
         contentsOffset = rootScope.contentAlignment.align(contentsSize, size, ComponentOrientation.LEFT_TO_RIGHT)
         return layout(size.width, size.height, placementBlock = placementBlock)
+    }
+
+    /**
+     * Aims the size animation at the contents' natural sizes for a pass at assigned bounds, and returns the size a
+     * running size change stands at. Read before the contents are measured: measuring one can change its intrinsics,
+     * and the contents' constraints need the running size from the pass a size change starts in.
+     */
+    private fun aimAtNaturalSizes(measurables: List<Measurable>): Dimension? {
+        val natural = naturalSizesOf(measurables)
+        sizeAnimation?.measure(natural.width, natural.height)
+        return rootScope.animatedSize?.value?.takeIf { sizeAnimation?.animation != null }
+    }
+
+    /**
+     * The constraints [measurable] is measured with at assigned bounds of the maxima of [constraints]: those bounds at
+     * rest, as upstream measures, and the [followingConstraints] at the content's natural size while a size change runs
+     * at [running].
+     *
+     * The constraints are worked out once for each content at a running size and assigned size, so the layout passes
+     * of one frame measure a content alike: a stock leaf can answer another natural size for each size it is given,
+     * and constraints that followed it would never settle.
+     */
+    private fun childConstraintsAt(
+        measurable: Measurable,
+        constraints: Constraints,
+        running: Dimension?,
+    ): Constraints {
+        if (running == null) {
+            cachedRunning = null
+            cachedConstraints.clear()
+            return constraints
+        }
+        val data = measurable.parentData as? AnimatedContentChildData
+        val natural = data?.let { rootScope.naturalSizes[it.stateForContent] }
+        return if (data == null || natural == null) {
+            constraints
+        } else {
+            val width = constraints.maxWidth
+            val height = constraints.maxHeight
+            if (running != cachedRunning || cachedBounds.width != width || cachedBounds.height != height) {
+                cachedRunning = Dimension(running)
+                cachedBounds.setSize(width, height)
+                cachedConstraints.clear()
+            }
+            cachedConstraints.getOrPut(data) {
+                followingConstraints(width, height, running, natural) { measurable.maxIntrinsicHeight(it) }
+            }
+        }
     }
 
     /**

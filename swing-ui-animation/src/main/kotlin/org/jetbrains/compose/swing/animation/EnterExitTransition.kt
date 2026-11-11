@@ -53,6 +53,7 @@ import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JComponent
+import kotlin.math.min
 
 // Derived from androidx.compose.animation.EnterExitTransition: the types below keep upstream's shape,
 // with java.awt.Dimension, java.awt.Point and java.awt.Color standing in for IntSize, IntOffset and
@@ -802,6 +803,8 @@ private val DefaultSizeAnimationSpec: FiniteAnimationSpec<Dimension> =
 /**
  * The size and placement of one enter/exit's content: upstream's `EnterExitTransitionModifierNode.measure`, shared by
  * the layout-modifier node a Foundation parent runs and by a container that runs the transition over its own children.
+ * Inside bounds a Swing parent assigns, it differs from upstream: it aligns the content laid out there instead of the
+ * size it animates towards, and only on an axis where that content is larger than the bounds.
  *
  * The inputs are snapshot state, so a pass measuring with them measures again when a recomposition changes them.
  */
@@ -984,17 +987,13 @@ internal class EnterExitTransitionLayout(
     /** The height of the content [measure] was handed. */
     val contentHeight: Int get() = target.height
 
-    /**
-     * Animates towards content measured at [measuredWidth] by [measuredHeight], under [constraints]. Where [anchored]
-     * is false, the content is not aligned inside the animated box: the box is the bounds a Swing parent assigned.
-     */
+    /** Animates towards content measured at [measuredWidth] by [measuredHeight], under [constraints]. */
     fun measure(
         measuredWidth: Int,
         measuredHeight: Int,
         constraints: Constraints,
-        anchored: Boolean = true,
     ) {
-        if (!anchored || transition.currentState == transition.targetState) {
+        if (transition.currentState == transition.targetState) {
             currentAlignment = null
         } else if (currentAlignment == null) {
             currentAlignment = alignment ?: Alignment.TopStart
@@ -1046,18 +1045,37 @@ internal class EnterExitTransitionLayout(
             ?.takeIf { transition.currentState != transition.targetState || transition.pendingTargetState != null }
             ?.value
 
-    /** Resolves [contentX] and [contentY] for the result [measure] settled on; called while placing. */
-    fun place() {
+    /**
+     * Resolves [contentX] and [contentY] for the result [measure] settled on; called while placing. [assignedContent]
+     * is the size of the content laid out inside bounds a Swing parent assigned, or null where the box is the animated
+     * size.
+     */
+    fun place(assignedContent: Dimension? = null) {
         val combinedSlideOffset =
             mutableTransformState.combinedSlide(
                 transitionValue = animSlideOffsetState?.value ?: ZeroOffset,
                 fullSize = target,
             )
         val aligned =
-            currentAlignment?.align(target, currentSize, ComponentOrientation.LEFT_TO_RIGHT) ?: ZeroOffset
+            currentAlignment?.align(assignedContent ?: target, currentSize, ComponentOrientation.LEFT_TO_RIGHT)
+                ?: ZeroOffset
         val delta = offsetDelta?.value ?: ZeroOffset
-        contentX = aligned.x + combinedSlideOffset.x + delta.x
-        contentY = aligned.y + combinedSlideOffset.y + delta.y
+        val x = aligned.x + delta.x
+        val y = aligned.y + delta.y
+        contentX =
+            combinedSlideOffset.x +
+            when {
+                assignedContent == null -> x
+                assignedContent.width > currentSize.width -> min(0, x)
+                else -> 0
+            }
+        contentY =
+            combinedSlideOffset.y +
+            when {
+                assignedContent == null -> y
+                assignedContent.height > currentSize.height -> min(0, y)
+                else -> 0
+            }
     }
 }
 

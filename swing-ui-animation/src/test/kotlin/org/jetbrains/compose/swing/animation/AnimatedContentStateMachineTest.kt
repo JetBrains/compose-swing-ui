@@ -193,11 +193,11 @@ class AnimatedContentStateMachineTest {
             ) { location }
             val arriving = panelShowing("b")
             arriving.assertProperty(
-                57,
-                "the arriving content was not measured within the room the container was assigned",
+                WIDE_WIDTH,
+                "the arriving content was squeezed to the container's running size instead of keeping its own",
             ) { width }
             arriving.assertProperty(
-                Point(0, 0),
+                Point(-103, 0),
                 "the arriving content was placed by something other than the container's alignment",
             ) { location }
         }

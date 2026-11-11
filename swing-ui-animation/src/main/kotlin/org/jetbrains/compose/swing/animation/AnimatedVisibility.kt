@@ -83,7 +83,9 @@ import kotlin.math.max
  * container within its parent.
  *
  * A size transition reports the animated size as the container's preferred size. A parent that assigns
- * fixed bounds, such as a border layout's center or a filling grid-bag cell, shows no size change. Set
+ * fixed bounds, such as a border layout's center or a filling grid-bag cell, shows no size change. A parent that sizes
+ * the container to that request, such as a flow layout or a border layout's north, does not squeeze the content below
+ * the size it rests at: the container clips it, and the transition's alignment decides which part shows. Set
  * `clip = false` on [expandIn] or [shrinkOut] to let content extend past the animated size under a
  * Foundation parent. A stock Swing ancestor still clips at its own bounds.
  *
@@ -594,10 +596,13 @@ private class AnimatedEnterExitMeasurePolicy(
  * [AnimatedEnterExitMeasurePolicy] for a container that runs the transition's size change and slide over its own
  * children, because no Foundation parent runs them.
  *
- * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size. The
- * bounds it assigns are the container's own: the content is measured within them, and the size animation aims at the
- * content's natural size. While a size change runs, the preferred height is computed at the natural width, so wrapping
- * content in a following parent can clip while the width animates.
+ * A foreign parent sizes the container from its preferred size, so the intrinsic sizes are the animated size, and the
+ * size animation aims at the content's natural size. While a size change runs, the preferred height is computed at the
+ * natural width, so wrapping content in a following parent can clip while the width animates.
+ *
+ * The content is measured within the bounds the parent assigns, except on an axis where they are the running size of a
+ * size change: that extent is the container's own request coming back, not room, so the content is offered the extent
+ * it rests at; see [childConstraintsAt].
  *
  * Where a Foundation parent measures the container, the bounds it assigns follow the animation, not the available
  * space, so while the transition runs the content is offered at least the size it was last measured at.
@@ -606,6 +611,11 @@ private class EnterExitContainerMeasurePolicy(
     val scope: AnimatedVisibilityScopeImpl,
     val layout: EnterExitTransitionLayout,
 ) : MeasurePolicy {
+    // The running size and bounds [cachedConstraints] were worked out for; the running size is null when there is none.
+    private var cachedRunning: Dimension? = null
+    private val cachedBounds = Dimension()
+    private var cachedConstraints = Constraints()
+
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
         constraints: Constraints,
@@ -638,10 +648,13 @@ private class EnterExitContainerMeasurePolicy(
         height: Int,
     ): MeasureResult {
         val natural = naturalSize(measurables)
-        val placeables = measurables.fastMap { it.measure(Constraints(maxWidth = width, maxHeight = height)) }
-        layout.measure(natural.width, natural.height, Constraints.fixed(width, height), anchored = false)
+        layout.measure(natural.width, natural.height, Constraints.fixed(width, height))
+        val childConstraints = childConstraintsAt(measurables, width, height, natural)
+        val placeables = measurables.fastMap { it.measure(childConstraints) }
+        val contentWidth = placeables.fastMaxOfOrDefault(0) { it.width }
+        val content = Dimension(contentWidth, placeables.fastMaxOfOrDefault(0) { it.height })
         return layout(width, height) {
-            layout.place()
+            layout.place(content)
             placeables.fastForEach { it.place(layout.contentX, layout.contentY) }
         }
     }
@@ -680,6 +693,44 @@ private class EnterExitContainerMeasurePolicy(
         width: Int,
     ): Int = animatedIntrinsicSize(measurables, Constraints.Infinity, width).height
 
+    /**
+     * The constraints the content is measured with at the assigned [width] by [height]: those bounds at rest, and the
+     * [followingConstraints] at the [natural] size while a size change runs.
+     *
+     * The constraints are worked out once for each running size and assigned size, so the layout passes of one
+     * frame measure the content alike: a stock leaf can answer another natural size for each size it is given, and
+     * constraints that followed it would never settle.
+     */
+    private fun childConstraintsAt(
+        measurables: List<Measurable>,
+        width: Int,
+        height: Int,
+        natural: Dimension,
+    ): Constraints {
+        val running = layout.runningSize()
+        if (running == null) {
+            cachedRunning = null
+            return Constraints(maxWidth = width, maxHeight = height)
+        }
+        if (running != cachedRunning ||
+            cachedBounds.width != width ||
+            cachedBounds.height != height
+        ) {
+            cachedRunning = Dimension(running)
+            cachedBounds.setSize(width, height)
+            cachedConstraints =
+                followingConstraints(
+                    width,
+                    height,
+                    running,
+                    natural,
+                ) { assignedWidth ->
+                    measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(assignedWidth) }
+                }
+        }
+        return cachedConstraints
+    }
+
     /** The contents' width unbounded, and their height at that width: what the size animation aims at. */
     private fun naturalSize(measurables: List<IntrinsicMeasurable>): Dimension {
         val naturalWidth = measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicWidth(Constraints.Infinity) }
@@ -706,6 +757,35 @@ private class EnterExitContainerMeasurePolicy(
                 measurables.fastMaxOfOrDefault(0) { it.maxIntrinsicHeight(width) },
             )
     }
+}
+
+/**
+ * The constraints content is measured with at assigned bounds of [width] by [height] while a size change runs. On an
+ * axis whose assigned extent is above zero and equals the [running] size, the bounds are taken as the container's
+ * own request coming back, not room, so there the content is offered the extent it rests at: the [natural] width, and
+ * on the height [heightAt] the width the parent sets, or the natural height where both axes follow. The assigned extent
+ * stays a floor.
+ *
+ * A parent that sets an axis to exactly the running extent gets the rest extent on that pass, and clips the content.
+ */
+internal inline fun followingConstraints(
+    width: Int,
+    height: Int,
+    running: Dimension,
+    natural: Dimension,
+    heightAt: (width: Int) -> Int,
+): Constraints {
+    val followsWidth = width > 0 && width == running.width
+    val followsHeight = height > 0 && height == running.height
+    return Constraints(
+        maxWidth = if (followsWidth) max(width, natural.width) else width,
+        maxHeight =
+            when {
+                !followsHeight -> height
+                followsWidth -> max(height, natural.height)
+                else -> max(height, heightAt(width))
+            },
+    )
 }
 
 // This converts Boolean visible to EnterExitState

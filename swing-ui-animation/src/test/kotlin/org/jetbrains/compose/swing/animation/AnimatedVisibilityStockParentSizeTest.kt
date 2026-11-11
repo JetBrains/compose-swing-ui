@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.WRAPPING_TEXT
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
+import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -35,11 +36,11 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.LayoutManager
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * An [AnimatedVisibility] and an [AnimatedContent] under a stock parent, which reads its sizes with no constraints.
@@ -165,8 +166,10 @@ class AnimatedVisibilityStockParentSizeTest {
         }
         mainClock.autoAdvance = false
         shown = true
-        repeat((RESIZE_MILLIS.milliseconds / mainClock.frameDuration).toInt() + 1) { mainClock.advanceTimeByFrame() }
+        mainClock.autoAdvance = true
         awaitIdle()
+        // A text area rewraps at the width it holds only when painted, as a window's next frame does.
+        cyclesUntilStable(onNodeWithTag(CONTAINER).fetch<JComponent>())
 
         onNodeWithTag(CONTAINER).assertProperty(
             wrappingTextPanelPreferredAfter(length, leafSizes.toList()),

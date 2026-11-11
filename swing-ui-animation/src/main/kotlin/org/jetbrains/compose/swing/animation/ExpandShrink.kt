@@ -32,8 +32,8 @@ import java.awt.Dimension
  * The content keeps its own size and is aligned inside that space, so the corner [expandFrom] names
  * stays in place. Content outside the space is clipped when [clip] is true.
  *
- * The container reports that space as its preferred size. The clip and the alignment follow the space,
- * not the bounds the parent assigns, so a parent that stretches the container shows the same animation.
+ * The container reports that space as its preferred size. Under a Swing parent that assigns the
+ * container at least the content's size on an axis, the content stays at the container's start on that axis.
  * Size callbacks receive a fresh copy of the full size.
  * For one axis, use [expandHorizontally] or [expandVertically].
  *
@@ -82,7 +82,7 @@ public fun shrinkOut(
 
 /**
  * Expands the width the content is given, from [initialWidth] to the content's full width, keeping the
- * full height. The content is centered vertically.
+ * full height.
  *
  * @param animationSpec how the width travels, a medium-low stiffness spring by default.
  * @param expandFrom the edge the width grows from, the trailing one by default. Any alignment other than
@@ -104,7 +104,7 @@ public fun expandHorizontally(
 
 /**
  * Expands the height the content is given, from [initialHeight] to the content's full height, keeping
- * the full width. The content is centered horizontally.
+ * the full width.
  *
  * @param animationSpec how the height travels, a medium-low stiffness spring by default.
  * @param expandFrom the edge the height grows from, the bottom by default. Any alignment other than
@@ -126,7 +126,7 @@ public fun expandVertically(
 
 /**
  * Shrinks the width the content is given, from the content's full width to [targetWidth], keeping the
- * full height. The content is centered vertically.
+ * full height.
  *
  * @param animationSpec how the width travels, a medium-low stiffness spring by default.
  * @param shrinkTowards the edge the width shrinks towards, the trailing one by default. Any alignment
@@ -146,7 +146,7 @@ public fun shrinkHorizontally(
 
 /**
  * Shrinks the height the content is given, from the content's full height to [targetHeight], keeping the
- * full width. The content is centered horizontally.
+ * full width.
  *
  * @param animationSpec how the height travels, a medium-low stiffness spring by default.
  * @param shrinkTowards the edge the height shrinks towards, the bottom by default. Any alignment other

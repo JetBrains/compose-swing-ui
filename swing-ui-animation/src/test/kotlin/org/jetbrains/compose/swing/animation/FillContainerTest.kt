@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.EnumSource
 import java.awt.Color
 import java.awt.Component
 import java.awt.Point
+import java.awt.Rectangle
 import javax.swing.JScrollPane
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -39,6 +40,7 @@ import kotlin.test.assertTrue
 private const val FILLED_EXTENT = 300
 private const val CONTENT_WIDTH = 120
 private const val CONTENT_HEIGHT = 40
+private const val SCROLL_PANE_WIDTH = 180
 private const val CANVAS = "filled"
 
 /**
@@ -68,6 +70,7 @@ class FillContainerTest {
 
         assertTrue(case.underway(filled), "the transition was not under way yet")
         assertEquals(0 until FILLED_EXTENT, case.axis.span(filled), "the shrink took the filled extent with it")
+        assertEquals(case.bounds(filled), filled.bounds, "the filled node's bounds in the container")
         val (container, edge) = case.edge(filled)
         val onScreen = SwingUtilities.convertPoint(container, edge, root)
         captureToImage().assertPixelColor(
@@ -139,6 +142,7 @@ class FillContainerTest {
      * @property axis the axis the node fills.
      * @property underway whether the transition has begun to take the container's room from the filled node.
      * @property edge the point where the filled node ends, and the component whose coordinates it is in.
+     * @property bounds where the filled node stands in its container while the transition is under way.
      */
     enum class FillCase(
         val content: @Composable (shown: Boolean) -> Unit,
@@ -146,6 +150,7 @@ class FillContainerTest {
         val axis: FilledAxis,
         val underway: (Component) -> Boolean,
         val edge: (Component) -> Pair<Component, Point>,
+        val bounds: (Component) -> Rectangle,
     ) {
         FilledHeight(
             content = { shown ->
@@ -157,16 +162,21 @@ class FillContainerTest {
             axis = FilledAxis.Height,
             underway = { it.parent.width < CONTENT_WIDTH },
             edge = { it.parent to Point(1, FILLED_EXTENT - 1) },
+            bounds = { Rectangle(it.parent.width - CONTENT_WIDTH, 0, CONTENT_WIDTH, FILLED_EXTENT) },
         ),
         ScrollPaneFillingHeight(
             content = { shown -> Region(shown) { TallScrollPane() } },
             filled = { onNodeOfType<JScrollPane>().fetch() },
             axis = FilledAxis.Height,
-            underway = { it.parent.width < CONTENT_WIDTH },
+            underway = { it.parent.width < SCROLL_PANE_WIDTH },
             edge = {
                 val viewport = (it as JScrollPane).viewport
-                viewport to Point(1, viewport.height - 1)
+                // Shrinking horizontally slides the left columns out of the clip, so probe the last column of the
+                // viewport that the container still shows.
+                val lastShown = SwingUtilities.convertPoint(it.parent, it.parent.width - 1, 0, viewport).x
+                viewport to Point(minOf(lastShown, viewport.width - 1), viewport.height - 1)
             },
+            bounds = { Rectangle(it.parent.width - SCROLL_PANE_WIDTH, 0, SCROLL_PANE_WIDTH, FILLED_EXTENT) },
         ),
         FilledWidthOfNorthRegion(
             content = { shown ->
@@ -188,6 +198,7 @@ class FillContainerTest {
             axis = FilledAxis.Width,
             underway = { it.parent.height < CONTENT_HEIGHT },
             edge = { it.parent to Point(it.parent.width - 1, 1) },
+            bounds = { Rectangle(0, it.parent.height - CONTENT_HEIGHT, FILLED_EXTENT, CONTENT_HEIGHT) },
         ),
         AnimatedContentFillingHeight(
             content = { shown ->
@@ -211,6 +222,7 @@ class FillContainerTest {
             axis = FilledAxis.Height,
             underway = { it.parent.x < 0 },
             edge = { it.parent to Point(it.parent.width - 1, FILLED_EXTENT - 1) },
+            bounds = { Rectangle(0, 0, CONTENT_WIDTH, FILLED_EXTENT) },
         ),
     }
 }
@@ -239,7 +251,7 @@ private fun Region(
 /** A scroll pane that fills the height of the container it is in over content taller than that. */
 @Composable
 private fun ConstrainedScope.TallScrollPane() {
-    ScrollPane(modifier = SwingModifier.fillMaxHeight()) {
+    ScrollPane(modifier = SwingModifier.fillMaxHeight(), style = { preferredSize(SCROLL_PANE_WIDTH, 0) }) {
         Viewport { RedCanvas(style = { preferredSize(CONTENT_WIDTH, 2 * FILLED_EXTENT) }) }
     }
 }

@@ -123,12 +123,15 @@ internal object Stretch {
      * @property settled the size the content settles at in the parent.
      * @property assignsRoomFromFirstFrame whether the parent assigns its container the same room on every frame,
      * whatever the container requests.
+     * @property settledContainer the size the container settles at in the parent: the content's, unless the parent
+     * assigns the container an extent of its own on an axis.
      */
     class ParentCase(
         val name: String,
         val parent: StockParent,
         val settled: Dimension,
         val assignsRoomFromFirstFrame: Boolean = false,
+        val settledContainer: Dimension = settled,
     ) {
         override fun toString(): String = name
     }
@@ -219,6 +222,21 @@ internal object Stretch {
                 }
             },
             Dimension(160, 90),
+        )
+
+    /** Grants its west child the height of a fixed panel and the preferred width of the child. */
+    val WestSlot =
+        ParentCase(
+            "BorderLayout WEST",
+            { child ->
+                Panel(PanelLayout.Flow()) {
+                    Panel(PanelLayout.Border(), style = { preferredSize(WIDE + NARROW, WIDE) }) {
+                        child(SwingModifier.west())
+                    }
+                }
+            },
+            Dimension(320, 180),
+            settledContainer = Dimension(320, 320),
         )
 
     /** The parents of every kind, for content that settles at the size they grant it. */

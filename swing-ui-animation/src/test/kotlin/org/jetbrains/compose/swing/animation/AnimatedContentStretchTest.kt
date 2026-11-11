@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.animation.Stretch.TRANSITION_MILLIS
 import org.jetbrains.compose.swing.animation.Stretch.WideContent
 import org.jetbrains.compose.swing.animation.Stretch.recordEntering
 import org.jetbrains.compose.swing.animation.Stretch.resizedFrames
+import org.jetbrains.compose.swing.animation.core.keyframes
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -29,13 +30,14 @@ import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Point
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** How an [AnimatedContent] directly under a stock parent lays its content out while its content changes. */
 internal class AnimatedContentStretchTest {
-    /** Unscoped content is measured within the container's size on every frame of a size change. */
+    /** Unscoped content under a parent that grants its room is measured within the container's size on every frame. */
     @ParameterizedTest(name = "{0}, {1}")
-    @MethodSource("stockParentsAndTransforms")
-    fun `replacement content is measured within the container on every frame under each stock parent protocol`(
+    @MethodSource("stretchingParentsAndTransforms")
+    fun `replacement content is measured within the container on every frame under each stretching stock parent`(
         parent: ParentCase,
         transform: TransformCase,
     ) {
@@ -44,6 +46,34 @@ internal class AnimatedContentStretchTest {
         assertContentFitsContainer(entering.frames)
         assertEquals(emptyList(), entering.taken.shrinkages(), "the content shrank while the container grew")
         assertEquals(parent.settled, entering.settled)
+        assertLayoutsSettle(entering.frames)
+    }
+
+    /**
+     * Under a parent that sizes the container to the size it requests, the container is part-way to the size the
+     * content settles at while the content already has that size, and the container clips it. Where the container is
+     * held at the width the slot sets, the content takes its rest width while the hold lasts.
+     */
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("followingParentsAndTransforms")
+    fun `replacement content keeps its settled size on every frame under each following stock parent`(
+        parent: ParentCase,
+        transform: TransformCase,
+    ) {
+        val entering = recordEntering(parent.parent, replacing(transform.transform))
+
+        val expected =
+            if (transform.heldAtSlot) {
+                listOf(parent.settled, Dimension(320, 180), parent.settled)
+            } else {
+                listOf(parent.settled)
+            }
+        assertEquals(expected, entering.taken, "the sizes the content took")
+        val firstContainer = entering.frames.first().container
+        assertTrue(
+            firstContainer.height < parent.settled.height,
+            "the container was not part-way to the size the content settles at",
+        )
         assertLayoutsSettle(entering.frames)
     }
 
@@ -59,19 +89,37 @@ internal class AnimatedContentStretchTest {
     }
 
     /**
-     * Content resized part-way through a change is measured within the container on every frame, so it holds the ratio
-     * at the room the container has, and takes the new width once the container has grown to it.
+     * Content resized part-way through a change keeps the size it rests at under a parent that grants the preferred
+     * size: it never takes less than the size it settles at, takes more only to the room the container has, and takes
+     * the new size at the end, while the container is part-way on the first frame.
      */
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("resizesAndTransforms")
-    fun `under a stock parent that grants the preferred size resized content is measured within the container`(
+    fun `under a stock parent that grants the preferred size resized content keeps the size it rests at`(
         resize: ResizeCase,
         transform: TransformCase,
     ) {
         val resized = resizedFrames(resize, { content -> replacing(transform.transform, content) })
+        val frames = resized.afterResize
 
-        assertContentFitsContainer(resized.afterResize)
-        assertEquals(resize.settled, resized.afterResize.last().content)
+        assertEquals(resize.settled, frames.first().content, "the content on the first frame after the resize")
+        val firstContainer = frames.first().container
+        assertTrue(
+            firstContainer.width < resize.settled.width,
+            "the container was not part-way to the size the content settles at",
+        )
+        assertEquals(
+            emptyList(),
+            frames
+                .filter {
+                    it.content.width < resize.settled.width ||
+                        it.content.height < resize.settled.height ||
+                        it.content.width > maxOf(it.container.width, resize.settled.width) ||
+                        it.content.height > maxOf(it.container.height, resize.settled.height)
+                }.map { it.content },
+            "the content that took less than the size it rests at, or more than the room the container had",
+        )
+        assertEquals(resize.settled, frames.last().content)
         assertLayoutsSettle(resized.all)
     }
 
@@ -140,6 +188,7 @@ internal class AnimatedContentStretchTest {
     class TransformCase(
         val name: String,
         val transform: ContentTransform,
+        val heldAtSlot: Boolean = false,
     ) {
         override fun toString(): String = name
     }
@@ -157,7 +206,30 @@ internal class AnimatedContentStretchTest {
             )
 
         @JvmStatic
-        fun stockParentsAndTransforms(): List<Arguments> = withTransforms(Stretch.StockParents)
+        fun stretchingParentsAndTransforms(): List<Arguments> = withTransforms(Stretch.StretchingParents)
+
+        @JvmStatic
+        fun followingParentsAndTransforms(): List<Arguments> =
+            withTransforms(Stretch.FollowingParents + Stretch.NorthSlot) +
+                Arguments.of(
+                    Stretch.NorthSlot,
+                    TransformCase(
+                        "width held at the slot's while the height changes",
+                        ContentTransform(
+                            fadeIn(tween(TRANSITION_MILLIS)),
+                            fadeOut(tween(TRANSITION_MILLIS)),
+                            sizeTransform =
+                                SizeTransform { initial, target ->
+                                    keyframes {
+                                        durationMillis = TRANSITION_MILLIS
+                                        Dimension(NARROW, initial.height) at TRANSITION_MILLIS / 4
+                                        Dimension(NARROW, target.height) at TRANSITION_MILLIS * 3 / 4
+                                    }
+                                },
+                        ),
+                        heldAtSlot = true,
+                    ),
+                )
 
         @JvmStatic
         fun parentsAssigningRoomFromFirstFrameAndTransforms(): List<Arguments> =

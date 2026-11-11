@@ -73,11 +73,12 @@ class MutableTransitionValueTest {
             mainClock.autoAdvance = false
             visible = !case.startsVisible
             mainClock.advanceTimeByFrame()
-            onNodeWithTag("content").assertProperty(case.startBounds, "starts with the callback's returned geometry") {
-                bounds
-            }
+            onNodeWithTag("content").assertProperty(
+                case.start.content,
+                "starts with the callback's returned geometry",
+            ) { bounds }
             container().assertProperty(
-                Dimension(case.startBounds.width, case.startBounds.height),
+                case.start.container,
                 "starts at the full size or the returned initial size",
             ) { size }
             mainClock.advanceTimeBy(500.milliseconds)
@@ -225,9 +226,15 @@ class MutableTransitionValueTest {
         val startsVisible: Boolean,
         val withControl: Boolean = false,
         val transitions: (MutableList<Dimension>) -> Pair<EnterTransition, ExitTransition>,
-        val startBounds: Rectangle,
+        val start: Start,
         val midway: ComposeSwingTest.() -> Unit,
         val settled: ComposeSwingTest.() -> Unit,
+    )
+
+    /** Where the content sits and how large the container is when the transition starts. */
+    class Start(
+        val content: Rectangle,
+        val container: Dimension,
     )
 
     companion object {
@@ -243,7 +250,7 @@ class MutableTransitionValueTest {
                                 it.apply { width /= 2 }
                             } to ExitTransition.None
                         },
-                        startBounds = Rectangle(0, 0, 40, 40),
+                        start = Start(Rectangle(-40, 0, 80, 40), Dimension(40, 40)),
                         midway = {
                             container().assertProperty(
                                 onNodeWithTag("control").fetch().preferredSize,
@@ -272,15 +279,15 @@ class MutableTransitionValueTest {
                                     Dimension(40, 20)
                                 }
                         },
-                        startBounds = Rectangle(0, 0, 80, 40),
+                        start = Start(Rectangle(0, 0, 80, 40), Dimension(80, 40)),
                         midway = {
                             container().assertProperty(
                                 Dimension(59, 30),
                                 "the exit shrinks toward the returned size",
                             ) { size }
                             onNodeWithTag("content").assertProperty(
-                                Rectangle(0, 0, 59, 30),
-                                "the content travels toward the callback's returned geometry",
+                                Rectangle(-21, -10, 80, 40),
+                                "the content keeps its size and its bottom-end corner follows the container's",
                             ) { bounds }
                         },
                         settled = { onNodeWithTag(CONTAINER).assertDoesNotExist() },
@@ -295,7 +302,7 @@ class MutableTransitionValueTest {
                                 Point(-20, 10)
                             } to ExitTransition.None
                         },
-                        startBounds = Rectangle(-20, 10, 80, 40),
+                        start = Start(Rectangle(-20, 10, 80, 40), Dimension(80, 40)),
                         midway = {
                             onNodeWithTag("content").assertProperty(
                                 Rectangle(-10, 5, 80, 40),
@@ -324,7 +331,7 @@ class MutableTransitionValueTest {
                                     Point(-20, 10)
                                 }
                         },
-                        startBounds = Rectangle(0, 0, 80, 40),
+                        start = Start(Rectangle(0, 0, 80, 40), Dimension(80, 40)),
                         midway = {
                             onNodeWithTag("content").assertProperty(
                                 Rectangle(-10, 5, 80, 40),
