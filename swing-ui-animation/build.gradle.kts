@@ -54,6 +54,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinxCoroutinesTest)
     testImplementation(libs.junitJupiterParams)
+    testImplementation(libs.mockk)
     testImplementation(libs.composeRuntimeSaveable)
 }
 

@@ -20,12 +20,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.runSwingTest
-import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
-import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -44,13 +41,13 @@ import kotlin.test.assertFailsWith
  *
  * The ratio a composition declares reaches its child only through what the applier tells the box holding
  * it, which a hand-built container says nothing about; that is
- * [aRatioIsMeasuredThroughWhereTheChildIsComposed].
+ * [AspectRatioSwingTest.aRatioIsMeasuredThroughWhereTheChildIsComposed].
  *
  * That test's `testAspectRatioModifier_intrinsicDimensions` is not here. It asks for one extent while
  * fixing the other, and `java.awt.LayoutManager2` asks a container what it prefers, the least it can
  * occupy and the most it may, never a width for a given height; [IntrinsicTest] says the same of the
  * questions this tree does ask. What that case asks with neither extent fixed - the ratio reporting the
- * content's own size - is [aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered].
+ * content's own size - is [AspectRatioSwingTest.aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered].
  */
 @ExtendWith(ComposedPanels::class)
 class AspectRatioTest {
@@ -149,98 +146,6 @@ class AspectRatioTest {
         }
 
     @Test
-    fun aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered() =
-        runSwingTest {
-            assertEquals(
-                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-                sizeAt(2f, Constraints.Unbounded),
-                "with no extent to take a size from on either axis - the question a container asks when it is " +
-                    "asked what it prefers - no size satisfies the ratio, so the child must be measured under " +
-                    "the constraints it was offered and answer with the extent it asks for",
-            )
-            assertEquals(
-                Dimension(1, 2),
-                sizeAt(0.5f, Constraints(minWidth = 1)),
-                "a least width of one still names a size at a ratio that implies a height above nothing from it",
-            )
-            assertEquals(
-                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-                sizeAt(100f, Constraints(minWidth = 1)),
-                "and where the ratio implies no height at all from that width, the child must again be measured " +
-                    "under the constraints it was offered",
-            )
-        }
-
-    @Test
-    fun aRatioReportsTheExtentItSizedItsChildTo() =
-        runSwingTest {
-            val (sized, reported) = laidOutAt(2f, Constraints(200, 200, 200, 200))
-
-            assertEquals(
-                Dimension(200, 100),
-                sized,
-                "a ratio no size within an extent fixed on both axes satisfies must size its child at the " +
-                    "ratio all the same, outside the extent it was offered",
-            )
-            assertEquals(
-                Dimension(200, 200),
-                reported,
-                "and the parent must see an apparent extent coerced into the fixed offer it made",
-            )
-        }
-
-    @Test
-    fun aRatioIsMeasuredThroughWhereTheChildIsComposed() =
-        runComposeSwingTest {
-            setContent {
-                Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.aspectRatio(2f))
-                }
-            }
-
-            assertEquals(
-                Dimension(CHILD_WIDTH, CHILD_WIDTH / 2),
-                containerPreferredSize(),
-                "a box whose preferred size is read takes the child's preferred width and the ratio's height at that " +
-                    "width, as androidx's width(IntrinsicSize.Max).height(IntrinsicSize.Max) does",
-            )
-            assertEquals(
-                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_WIDTH / 2)),
-                stackedChildBounds(),
-                "and the pass that lays the box out bounds the width, so the child must take half of it as its " +
-                    "height - the ratio reaching the child only where the composition declared it",
-            )
-        }
-
-    @Test
-    fun aColumnAtItsOwnWidthTakesARatioChildsWidthFromTheChildsHeight() =
-        runComposeSwingTest {
-            setContent {
-                Column {
-                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                        SizedChild(0)
-                        SizedChild(1, SwingModifier.aspectRatio(2f).alignBy { it.measuredWidth })
-                    }
-                }
-            }
-
-            assertEquals(
-                Dimension(2 * CHILD_HEIGHT, 2 * CHILD_HEIGHT),
-                containerPreferredSize(),
-                "a column asking for its own width must ask the ratio for its width at the height the child " +
-                    "takes, as androidx's AspectRatioNode answers it",
-            )
-            assertEquals(
-                listOf(
-                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, CHILD_HEIGHT, 2 * CHILD_HEIGHT, CHILD_HEIGHT),
-                ),
-                childBounds(),
-                "and the column laid out at that width must size the child from its height too",
-            )
-        }
-
-    @Test
     fun testAspectRatioModifier_zeroRatio() {
         with(BoxScopeInstance) {
             assertFailsWith<IllegalArgumentException>("no width per unit height is no ratio at all") {
@@ -254,21 +159,6 @@ class AspectRatioTest {
         with(BoxScopeInstance) {
             assertFailsWith<IllegalArgumentException>("a width below zero per unit height names no size") {
                 SwingModifier.aspectRatio(-2f)
-            }
-        }
-    }
-
-    @Test
-    fun aRatioThatIsNotFiniteIsRefused() {
-        with(BoxScopeInstance) {
-            assertFailsWith<IllegalArgumentException>("a ratio no arithmetic can name is no ratio") {
-                SwingModifier.aspectRatio(Float.NaN)
-            }
-            assertFailsWith<IllegalArgumentException>("a width without end per unit height implies no height") {
-                SwingModifier.aspectRatio(Float.POSITIVE_INFINITY)
-            }
-            assertFailsWith<IllegalArgumentException>("a ratio below zero is refused however far below it is") {
-                SwingModifier.aspectRatio(Float.NEGATIVE_INFINITY)
             }
         }
     }
@@ -288,51 +178,51 @@ class AspectRatioTest {
             "and must report the ratio it was declared with, and whether it takes a size from the height first",
         )
     }
-
-    /**
-     * The extent a child declaring [ratio] settles on when it is offered [constraints] outright, read off
-     * the component the way androidx's own suite reads it off a position latch.
-     *
-     * No container this library ships offers a child the constraints named here - a box and a row each work
-     * theirs out from their own extent - so the child is held by a container built for the case, whose
-     * policy hands on what the case names. The ratio is declared through the scope a caller spells it in.
-     */
-    private fun sizeAt(
-        ratio: Float,
-        constraints: Constraints,
-        matchHeightConstraintsFirst: Boolean = false,
-    ): Dimension = laidOutAt(ratio, constraints, matchHeightConstraintsFirst).first
-
-    /**
-     * The extent the component was sized to and the extent its measurable reported, which a parent
-     * aligns and sums against; see [sizeAt] for how the child is held.
-     */
-    private fun laidOutAt(
-        ratio: Float,
-        constraints: Constraints,
-        matchHeightConstraintsFirst: Boolean = false,
-    ): Pair<Dimension, Dimension> {
-        val child = FixedSizeChild(CHILD_WIDTH, CHILD_HEIGHT)
-        val policy = OfferedConstraints(constraints)
-        val layout = MeasurePolicyLayout(policy, null)
-        val panel = composed(ConstrainedPanel(layout))
-        panel.add(child)
-        // After the add, which is what builds the measurable the chain lives on.
-        layout.declareLayoutChain(child, ratioChain(ratio, matchHeightConstraintsFirst))
-        // Large enough that the container built for a case never itself decides what its child occupies.
-        panel.setSize(1000, 1000)
-
-        panel.doLayout()
-
-        return child.size to Dimension(policy.width, policy.height)
-    }
-
-    /** The layout modifiers a child declaring [ratio] is measured through, as its container reads them. */
-    private fun ratioChain(
-        ratio: Float,
-        matchHeightConstraintsFirst: Boolean,
-    ): List<LayoutModifierNode> = layoutChainOf { SwingModifier.aspectRatio(ratio, matchHeightConstraintsFirst) }
 }
+
+/**
+ * The extent a child declaring [ratio] settles on when it is offered [constraints] outright, read off
+ * the component the way androidx's own suite reads it off a position latch.
+ *
+ * No container this library ships offers a child the constraints named here - a box and a row each work
+ * theirs out from their own extent - so the child is held by a container built for the case, whose
+ * policy hands on what the case names. The ratio is declared through the scope a caller spells it in.
+ */
+internal fun sizeAt(
+    ratio: Float,
+    constraints: Constraints,
+    matchHeightConstraintsFirst: Boolean = false,
+): Dimension = laidOutAt(ratio, constraints, matchHeightConstraintsFirst).first
+
+/**
+ * The extent the component was sized to and the extent its measurable reported, which a parent
+ * aligns and sums against; see [sizeAt] for how the child is held.
+ */
+internal fun laidOutAt(
+    ratio: Float,
+    constraints: Constraints,
+    matchHeightConstraintsFirst: Boolean = false,
+): Pair<Dimension, Dimension> {
+    val child = FixedSizeChild(CHILD_WIDTH, CHILD_HEIGHT)
+    val policy = OfferedConstraints(constraints)
+    val layout = MeasurePolicyLayout(policy, null)
+    val panel = composed(ConstrainedPanel(layout))
+    panel.add(child)
+    // After the add, which is what builds the measurable the chain lives on.
+    layout.declareLayoutChain(child, ratioChain(ratio, matchHeightConstraintsFirst))
+    // Large enough that the container built for a case never itself decides what its child occupies.
+    panel.setSize(1000, 1000)
+
+    panel.doLayout()
+
+    return child.size to Dimension(policy.width, policy.height)
+}
+
+/** The layout modifiers a child declaring [ratio] is measured through, as its container reads them. */
+internal fun ratioChain(
+    ratio: Float,
+    matchHeightConstraintsFirst: Boolean,
+): List<LayoutModifierNode> = layoutChainOf { SwingModifier.aspectRatio(ratio, matchHeightConstraintsFirst) }
 
 /**
  * A policy handing its one child the constraints the case named, whatever extent the container it belongs

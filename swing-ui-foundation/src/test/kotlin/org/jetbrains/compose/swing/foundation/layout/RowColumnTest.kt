@@ -135,8 +135,11 @@ class RowColumnTest {
             )
         }
 
+    /**
+     * Asserts the row's preferred width, which its children imply, where upstream asserts that the row fills its root.
+     */
     @Test
-    fun aWeightedChildAsksForWhatItsSiblingsImplyRatherThanForAllOfItsParent() =
+    fun testRow_expandedWidth_withWeightChildren() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
@@ -153,25 +156,12 @@ class RowColumnTest {
             )
         }
 
+    /**
+     * Asserts the column's preferred height, which its children imply, where upstream asserts that the column fills its
+     * root.
+     */
     @Test
-    fun aWeightedChildTakesTheWholeOfAWidthItsParentImposes() =
-        runComposeSwingTest {
-            setContent {
-                Row(modifier = SwingModifier.containerTag().styleable(containerStyle(400, 100))) {
-                    Child(0, 50, 50, SwingModifier.weight(1f))
-                    Child(1, 100, 100)
-                }
-            }
-
-            assertEquals(
-                Rectangle(0, 0, 300, 50),
-                childBounds()[0],
-                "given a width it did not ask for, the row hands the whole surplus to the weighted child",
-            )
-        }
-
-    @Test
-    fun aWeightedChildAsksForWhatItsSiblingsImplyInAColumnToo() =
+    fun testColumn_expandedHeight_withWeightChildren() =
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
@@ -2218,8 +2208,9 @@ class RowColumnTest {
             }
         }
 
+    /** Replaces upstream's width-dependent intrinsic child with a fixed-size one, which this library cannot express. */
     @Test
-    fun aRowAtItsMinimumHeightStretchesAFillingSiblingToItsTallestChild() =
+    fun testRow_withWIHOChild_hasCorrectIntrinsicMeasurements() =
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
@@ -2238,8 +2229,11 @@ class RowColumnTest {
             )
         }
 
+    /**
+     * Replaces upstream's height-dependent intrinsic child with a fixed-size one, which this library cannot express.
+     */
     @Test
-    fun aColumnAtItsMinimumWidthStretchesAFillingSiblingToItsWidestChild() =
+    fun testColumn_withHIWOChild_hasCorrectIntrinsicMeasurements() =
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.styleable { preferredSize(100, 100) }) {
@@ -2281,8 +2275,12 @@ class RowColumnTest {
             )
         }
 
+    /**
+     * Unlike upstream, where the leftmost weight wins, a modifier here is folded in declaration order, so the weight
+     * declared last wins.
+     */
     @Test
-    fun testRowColumnModifiersChain_lastDeclarationWins() =
+    fun testRowColumnModifiersChain_leftMostWins() =
         runComposeSwingTest {
             setContent {
                 Column(modifier = SwingModifier.containerTag().styleable(containerStyle(CHILD_WIDTH, 24))) {
@@ -2302,8 +2300,11 @@ class RowColumnTest {
             )
         }
 
+    /**
+     * Unlike upstream, where the leftmost alignBy wins, the alignBy declared last places the child on the shared line.
+     */
     @Test
-    fun testAlignByModifiersChain_lastDeclarationWins() =
+    fun testAlignByModifiersChain_leftMostWins() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {

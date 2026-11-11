@@ -274,7 +274,7 @@ class AnimatableTest {
     }
 
     @Test
-    fun testDimension_alwaysWithinValidBounds() = runTest {
+    fun testIntSize_alwaysWithinValidBounds() = runTest {
         val animatable =
             Animatable(
                 initialValue = Dimension(10, 10),

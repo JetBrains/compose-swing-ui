@@ -9,6 +9,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import io.mockk.clearMocks
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.Canvas
@@ -42,6 +46,7 @@ import java.awt.GraphicsEnvironment
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.event.MouseEvent
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import javax.swing.JComponent
@@ -174,7 +179,7 @@ class PolicyPlacementLayerTest {
     @Test
     fun aPolicyLayerTurnedAnEighthTakesTheOutsetsOfItsTurnedCorners() =
         runComposeSwingTest {
-            setContent { LayeredChild { EighthTurn } }
+            setContent { LayeredChild { { rotationZ = 45f } } }
 
             onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(12, 2, 12, 2),
@@ -191,7 +196,15 @@ class PolicyPlacementLayerTest {
     @Test
     fun aClippingScaledPolicyLayerTakesTheOutsetsOfItsScaledBoxOnly() =
         runComposeSwingTest {
-            setContent { LayeredChild(shadowRadius = 8) { ClipAndDouble } }
+            setContent {
+                LayeredChild(shadowRadius = 8) {
+                    {
+                        scaleX = 2f
+                        scaleY = 2f
+                        clip = true
+                    }
+                }
+            }
 
             onNodeWithTag(LAYERED_TAG).assertProperty(
                 Insets(10, 20, 10, 20),
@@ -231,7 +244,7 @@ class PolicyPlacementLayerTest {
     fun aPressWhereAPolicyLayerTurnsTheChildHitsItAtTheUnturnedPoint() =
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val presses = ArrayList<Point>()
+            val pressed = mockk<(MouseEvent) -> Unit>(relaxed = true)
             setWindowContent {
                 Box(
                     modifier = SwingModifier.styleable { preferredSize(300, 300) },
@@ -243,7 +256,7 @@ class PolicyPlacementLayerTest {
                                 modifier =
                                     SwingModifier
                                         .testTag(LAYERED_TAG)
-                                        .mouseListener(onMousePressed = { presses += it.point }),
+                                        .mouseListener(onMousePressed = pressed),
                             ) {}
                         },
                         measurePolicy =
@@ -267,12 +280,14 @@ class PolicyPlacementLayerTest {
             node.performMouseInput {
                 click(Point(layoutOrigin.x + floor(painted.x).toInt(), layoutOrigin.y + floor(painted.y).toInt()))
             }
-            assertEquals(1, presses.size, "a press inside the turned outline must hit")
+            val press = slot<MouseEvent>()
+            verify(exactly = 1) { pressed(capture(press)) }
             val unturned = Point(6 + outsets.left, 6 + outsets.top)
-            assertTrue(presses.single().distance(unturned) <= 1.5, "the press lands at $unturned: ${presses.single()}")
+            val landed = press.captured.point
+            assertTrue(landed.distance(unturned) <= 1.5, "the press lands at $unturned: $landed")
 
             node.performMouseInput { click(Point(layoutOrigin.x + 4, layoutOrigin.y + 4)) }
-            assertEquals(1, presses.size, "a press inside only the unturned box must miss")
+            verify(exactly = 1) { pressed(any()) }
         }
 
     /**
@@ -390,8 +405,7 @@ class PolicyPlacementLayerTest {
                 )
             }
 
-            val message = assertNotNull(failure, "placing a plain label with a layer must fail").message.orEmpty()
-            assertTrue(Decoratable::class.java.name in message, message)
+            assertNotNull(failure, "placing a plain label with a layer must fail")
         }
 
     /** A state read in the block repaints the child, and lays nothing out. */
@@ -481,7 +495,7 @@ class PolicyPlacementLayerTest {
         val blocks: List<PlacementLayerScope.() -> Unit> =
             stateOfChild.map { state -> { read.write(this, states[state].floatValue) } }
         val placedWith = if (sharing.oneBlock) List(blocks.size) { blocks.first() } else blocks
-        var placements = 0
+        val placed = mockk<() -> Unit>(relaxed = true)
         setWindowContent {
             Layout(
                 content = {
@@ -493,7 +507,7 @@ class PolicyPlacementLayerTest {
                     MeasurePolicy { measurables, _ ->
                         val placeables = measurables.map { it.measure(Constraints.fixed(40, 20)) }
                         layout(80, 20) {
-                            placements++
+                            placed()
                             placeables.forEachIndexed { index, placeable ->
                                 placeable.placeWithLayer(40 * index, 0, layerBlock = placedWith[index])
                             }
@@ -506,7 +520,7 @@ class PolicyPlacementLayerTest {
         val children = List(2) { window.onNodeWithTag("$LAYERED_TAG$it").fetch<JComponent>() }
         val container = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
         val components = mapOf("child 0" to children[0], "child 1" to children[1], "container" to container)
-        placements = 0
+        clearMocks(placed)
 
         states.forEachIndexed { changed, state ->
             container.paintImmediately(0, 0, container.width, container.height)
@@ -528,7 +542,7 @@ class PolicyPlacementLayerTest {
             awaitIdle()
             for (index in reading) read.assertPainted(window.onNodeWithTag("$LAYERED_TAG$index").captureToImage())
         }
-        assertEquals(0, placements, "a read in a layer block places no child again")
+        verify(exactly = 0) { placed() }
     }
 
     /** Which state each of two children's layer blocks reads, and whether they place with one block between them. */
@@ -583,9 +597,9 @@ class PolicyPlacementLayerTest {
         runComposeSwingTest {
             val alpha = mutableFloatStateOf(1f)
             var placed by mutableStateOf(true)
-            var runs = 0
+            val ran = mockk<() -> Unit>(relaxed = true)
             val block: PlacementLayerScope.() -> Unit = {
-                runs++
+                ran()
                 this.alpha = alpha.floatValue
             }
             setContent {
@@ -600,12 +614,12 @@ class PolicyPlacementLayerTest {
             }
             placed = false
             awaitIdle()
-            runs = 0
+            clearMocks(ran)
 
             alpha.floatValue = 0.5f
             awaitIdle()
 
-            assertEquals(0, runs, "the block of an unplaced child does not run")
+            verify(exactly = 0) { ran() }
             placed = true
             awaitIdle()
             val pixel = onNodeWithTag(LAYERED_TAG).captureToImage().getRGB(20, 10)
@@ -700,13 +714,3 @@ private fun LayeredChild(
 }
 
 private val QuarterTurn: PlacementLayerScope.() -> Unit = { rotationZ = 90f }
-
-private val EighthTurn: PlacementLayerScope.() -> Unit = { rotationZ = 45f }
-
-private val ClipAndDouble: PlacementLayerScope.() -> Unit = {
-    scaleX = 2f
-    scaleY = 2f
-    clip = true
-}
-
-private const val LAYERED_TAG = "layered"

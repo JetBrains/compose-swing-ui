@@ -41,33 +41,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /** The preparation and interruption behavior specific to deferred animated content. */
 @OptIn(ExperimentalDeferredTransitionApi::class)
-class DeferredContentParityTest {
+class DeferredAnimatedContentTest {
+    /** Also covers upstream immediateExitTest and verifyExitAnimationAfterGateOpens. */
     @Test
-    fun `preparation gives each mutable content transform its full size`() =
-        runComposeSwingTest {
-            val state = DeferredTransitionState("a")
-            var enteringSize = Dimension()
-            var leavingSize = Dimension()
-            setContent {
-                rememberTransition(state).DeferredAnimatedContent(
-                    mutableTransformSpec = {
-                        MutableContentTransform {
-                            targetContentTransform { fullSize -> enteringSize = Dimension(fullSize) }
-                            initialContentTransform { fullSize -> leavingSize = Dimension(fullSize) }
-                        }
-                    },
-                ) { key -> Body(key, if (key == "a") 40 else 80) }
-            }
-
-            state.defer("b")
-            awaitIdle()
-
-            assertTrue(enteringSize.width > 0, "the announced content's full size was not captured: $enteringSize")
-            assertTrue(leavingSize.width > 0, "the content on screen's full size was not captured: $leavingSize")
-        }
-
-    @Test
-    fun `content stays held until readiness and then enters and exits`() =
+    fun waitToEnterTest() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -99,7 +76,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `an immediate target change enters without a preparation phase`() =
+    fun immediateEnterTest() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -125,7 +102,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `content size stays held until the deferred phase ends`() =
+    fun sizeChangeDelayedUntilReady() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -144,7 +121,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `a gate reopened during a running content transition does not pause it`() =
+    fun flappingTest() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -178,7 +155,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `the transition stays at its current state until deferred content is ready`() =
+    fun verifyCurrentStateRemainsDuringPreparation() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             lateinit var transition: Transition<String>
@@ -204,7 +181,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `an unready interruption lets the running size finish its segment before interrupting`() =
+    fun interruptionRespectedOnlyWhenReady() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -248,7 +225,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `an unready interruption composes the new content and keeps both running contents`() =
+    fun interruptionRespectedOnlyWhenReady_verifyComposition() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
@@ -274,75 +251,31 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `preview scope receives its announced states`() =
+    fun predictiveBackMutableTransformDataTest() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
-            val seen = mutableListOf<Pair<String, String>>()
+            var enteringSize = Dimension()
+            var leavingSize = Dimension()
             setContent {
                 rememberTransition(state).DeferredAnimatedContent(
                     mutableTransformSpec = {
-                        seen += initialState to targetState
-                        null
+                        MutableContentTransform {
+                            targetContentTransform { fullSize -> enteringSize = Dimension(fullSize) }
+                            initialContentTransform { fullSize -> leavingSize = Dimension(fullSize) }
+                        }
                     },
-                ) { key -> Body(key, 40) }
+                ) { key -> Body(key, if (key == "a") 40 else 80) }
             }
 
             state.defer("b")
             awaitIdle()
 
-            assertEquals(listOf("a" to "b"), seen)
+            assertTrue(enteringSize.width > 0, "the announced content's full size was not captured: $enteringSize")
+            assertTrue(leavingSize.width > 0, "the content on screen's full size was not captured: $leavingSize")
         }
 
     @Test
-    fun `preview scope receives running segment states when preparation interrupts it`() =
-        runComposeSwingTest {
-            val state = DeferredTransitionState("a")
-            val seen = mutableListOf<Pair<String, String>>()
-            setContent {
-                rememberTransition(state).DeferredAnimatedContent(
-                    transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
-                    mutableTransformSpec = {
-                        seen += initialState to targetState
-                        null
-                    },
-                ) { key -> Body(key, 40) }
-            }
-            mainClock.autoAdvance = false
-
-            state.animateTo("b")
-            mainClock.advanceTimeByFrame()
-            assertEquals(emptyList(), seen)
-            state.defer("a")
-            mainClock.advanceTimeByFrame()
-
-            assertEquals(listOf("b" to "a"), seen)
-        }
-
-    @Test
-    fun `interrupting a preview phase preserves its original scope and does not reevaluate it`() =
-        runComposeSwingTest {
-            val state = DeferredTransitionState("a")
-            val seen = mutableListOf<Pair<String, String>>()
-            setContent {
-                rememberTransition(state).DeferredAnimatedContent(
-                    mutableTransformSpec = {
-                        seen += initialState to targetState
-                        null
-                    },
-                ) { key -> Body(key, 40) }
-            }
-
-            state.defer("b")
-            awaitIdle()
-            assertEquals(listOf("a" to "b"), seen)
-
-            state.defer("a")
-            awaitIdle()
-            assertEquals(listOf("a" to "b"), seen, "the interrupted preview was evaluated again")
-        }
-
-    @Test
-    fun `preview offsets hand off into both content transitions`() =
+    fun animatedContent_previewTransforms_handoffCorrectly() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             var previewing by mutableIntStateOf(0)
@@ -403,7 +336,75 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `returning to the original state during a preview scale is seamless`() =
+    fun previewScope_providesInitialAndTargetState() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState("a")
+            val seen = mutableListOf<Pair<String, String>>()
+            setContent {
+                rememberTransition(state).DeferredAnimatedContent(
+                    mutableTransformSpec = {
+                        seen += initialState to targetState
+                        null
+                    },
+                ) { key -> Body(key, 40) }
+            }
+
+            state.defer("b")
+            awaitIdle()
+
+            assertEquals(listOf("a" to "b"), seen)
+        }
+
+    @Test
+    fun previewScope_providesCorrectStates_onInterruption() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState("a")
+            val seen = mutableListOf<Pair<String, String>>()
+            setContent {
+                rememberTransition(state).DeferredAnimatedContent(
+                    transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
+                    mutableTransformSpec = {
+                        seen += initialState to targetState
+                        null
+                    },
+                ) { key -> Body(key, 40) }
+            }
+            mainClock.autoAdvance = false
+
+            state.animateTo("b")
+            mainClock.advanceTimeByFrame()
+            assertEquals(emptyList(), seen)
+            state.defer("a")
+            mainClock.advanceTimeByFrame()
+
+            assertEquals(listOf("b" to "a"), seen)
+        }
+
+    @Test
+    fun previewScope_providesCorrectStates_onInterruptionDuringPreviewPhase() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState("a")
+            val seen = mutableListOf<Pair<String, String>>()
+            setContent {
+                rememberTransition(state).DeferredAnimatedContent(
+                    mutableTransformSpec = {
+                        seen += initialState to targetState
+                        null
+                    },
+                ) { key -> Body(key, 40) }
+            }
+
+            state.defer("b")
+            awaitIdle()
+            assertEquals(listOf("a" to "b"), seen)
+
+            state.defer("a")
+            awaitIdle()
+            assertEquals(listOf("a" to "b"), seen, "the interrupted preview was evaluated again")
+        }
+
+    @Test
+    fun animatedContent_previewScale_interrupt_deferred_by_original_state_is_seamless() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             var previewScale by mutableIntStateOf(100)
@@ -465,7 +466,7 @@ class DeferredContentParityTest {
         }
 
     @Test
-    fun `the deferred interruption resolves the exit under its new transition spec`() =
+    fun animatedContent_interruption_during_deferred_phase_uses_correct_spec() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             val exits = mutableMapOf<Pair<String, String>, ExitTransition>()

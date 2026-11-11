@@ -42,9 +42,9 @@ import kotlin.test.assertTrue
 
 /** Behavioral parity cases ported from Compose Animation 1.12 DeferredAnimatedVisibilityTest. */
 @OptIn(ExperimentalDeferredTransitionApi::class)
-class DeferredVisibilityParityTest {
+class DeferredAnimatedVisibilityTest {
     @Test
-    fun `visibility enter gate closed defers animation until ready`() =
+    fun visibility_enterGateClosed_defersAnimationUntilReady() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var composed = false
@@ -82,7 +82,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `visibility exit gate closed holds content in its exit state`() =
+    fun visibility_exitGateClosed_holdsContentInExitStateUntilReady() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var composed = false
@@ -119,7 +119,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an enter gate cannot be closed after the enter starts`() =
+    fun visibility_enterGateFlapping_cannotBeClosedOnceStarted() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             setContent {
@@ -143,7 +143,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an exit gate cannot be closed after the exit starts`() =
+    fun visibility_exitGateFlapping_cannotBeClosedOnceStarted() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             setContent {
@@ -169,7 +169,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `the child transition stays at pre enter during preparation`() =
+    fun transition_childState_remainsInPreEnterDuringPreparation() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var childState: EnterExitState? = null
@@ -198,7 +198,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `expand size stays at its initial value during preparation`() =
+    fun layout_size_isHeldAtInitialStateDuringPreparation() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var animatedSize = Dimension(-1, -1)
@@ -242,7 +242,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an interruption waits for the closed exit gate`() =
+    fun interruption_isDeferred_whenGateIsClosed() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var animatedSize = Dimension(-1, -1)
@@ -293,7 +293,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `a scale preview stays in place through a fade handoff`() =
+    fun visibility_previewScaleSustained_whenNoScaleInTransitions() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewScale by mutableStateOf(1f)
@@ -327,7 +327,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an offset preview stays in place through a fade handoff`() =
+    fun visibility_previewOffsetSustained_whenNoOffsetInTransitions() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewOffset by mutableStateOf(0)
@@ -360,7 +360,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `a scale preview hands off to the exit scale`() =
+    fun visibility_previewScale_handoffToExitTransition() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewScale by mutableStateOf(1f)
@@ -397,7 +397,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an offset preview hands off to the enter slide`() =
+    fun visibility_previewOffset_handoffToEnterTransition() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var previewOffset by mutableStateOf(0)
@@ -435,7 +435,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `a preview scale combines with an enter already in progress`() =
+    fun visibility_midAnimation_updateTargetState_combinesTransformAndTransition() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             var previewScale by mutableStateOf(1f)
@@ -475,7 +475,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `a second preview does not snap straight to full scale`() =
+    fun visibility_doublePreview_doesNotSnap() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewScale by mutableStateOf(1f)
@@ -524,7 +524,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an exit scale handoff interrupted by a new target remains seamless`() =
+    fun visibility_previewScale_handoff_thenInterrupted_isSeamless() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewScale by mutableStateOf(1f)
@@ -569,7 +569,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `an offset handoff uses the supplied velocity`() =
+    fun visibility_previewOffset_handoffVelocity() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var velocity = Point2D.Float()
@@ -614,7 +614,7 @@ class DeferredVisibilityParityTest {
         }
 
     @Test
-    fun `a deferred scale interrupted by its original state returns without a jump`() =
+    fun visibility_previewScale_interrupt_deferred_by_original_state_is_seamless() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
             var previewScale by mutableStateOf(1f)

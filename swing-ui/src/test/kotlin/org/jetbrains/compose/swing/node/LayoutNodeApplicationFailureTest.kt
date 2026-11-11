@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.visitDeclaredNodes
+import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -25,7 +26,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aReplacementLayoutNodeThatFailsToCreateLeavesItsSlotHoldingTheAttachedNode() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val chain = mutableListOf<SwingModifier.Node>()
         val sightings = mutableListOf<String>()
         val events = mutableListOf<String>()
@@ -59,7 +60,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aDeclarationWhoseApplicationThrewIsAppliedWhenDeclaredAgain() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val standing = RecordingLayoutNodeElement("a", events)
         child.declare(listOf(standing))
@@ -81,7 +82,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun theDeclarationStandingBeforeAFailedApplicationIsAppliedWhenDeclaredAgain() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val standing = listOf(RecordingLayoutNodeElement("a", events), RecordingLayoutNodeElement("b", events))
         child.declare(standing)
@@ -99,7 +100,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aFailedApplicationLeavesTheParentReadingOnlyTheLayoutNodesStanding() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         child.declare(listOf(RecordingLayoutNodeElement("a", events), RecordingLayoutNodeElement("b", events)))
         val (first, second) = child.layoutNodes()
@@ -114,7 +115,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aWholeChainWhoseLayoutNodeFailsToAttachReleasesOnlyTheNodesThatAttached() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val chain = mutableListOf<SwingModifier.Node>()
         val sightings = mutableListOf<String>()
         val events = mutableListOf<String>()
@@ -153,7 +154,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aWholeChainWhoseLayoutNodeFailsToUpdateReleasesItOnce() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val declared = listOf(RecordingLayoutNodeElement("a", events), FailingUpdateLayoutNodeElement(events))
 
@@ -174,7 +175,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aLayoutNodeEnteringAStandingChainThatFailsToUpdateIsReleasedOnce() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val standing = RecordingLayoutNodeElement("a", events)
         child.declare(listOf(standing))
@@ -196,7 +197,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aReplacementLayoutNodeThatFailsToUpdateTakesItsSlotAndIsReleasedOnce() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         child.declare(listOf(RecordingLayoutNodeElement("a", events)))
         val replaced = child.layoutNodes().single()
@@ -220,7 +221,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aWholeChainLayoutNodeWhoseUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val declared = listOf(RecordingLayoutNodeElement("a", events), FailingUpdateOnceLayoutNodeElement(events))
         assertFailsWith<IllegalStateException> {
@@ -248,7 +249,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aLayoutNodeEnteringAStandingChainWhoseUpdateThrewIsUpdatedAgainWhenDeclaredAgain() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val standing = RecordingLayoutNodeElement("a", events)
         child.declare(listOf(standing))
@@ -278,7 +279,7 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aLayoutNodeWhoseUpdateThrewTakesBackTheModifierDeclaredBeforeIt() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         val standing = SwingModifier.then(ValueLayoutNodeElement("a", events))
         child.applyDeclaredModifier(standing)
@@ -307,57 +308,47 @@ class LayoutNodeApplicationFailureTest {
     @Test
     fun aLayoutNodeUpdatedByAnElementDeclaringAnotherInheritableIsRefused() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         child.applyDeclaredModifier(SwingModifier.then(InheritableByInstanceElement(inheritable = false)))
+        val node = child.layoutNodes().single()
 
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                child.applyDeclaredModifier(SwingModifier.then(InheritableByInstanceElement(inheritable = true)))
-            }
+        assertFailsWith<IllegalStateException> {
+            child.applyDeclaredModifier(SwingModifier.then(InheritableByInstanceElement(inheritable = true)))
+        }
 
-        val message = failure.message.orEmpty()
-        assertTrue(
-            message.contains(RecordingLayoutNode::class.java.name) &&
-                message.contains(InheritableByInstanceElement::class.java.name),
-            "The refusal must name the node and its element, but said: $message",
-        )
+        assertEquals(listOf(node), child.layoutNodes())
+        assertTrue(node.isAttached)
         owner.dispose()
     }
 
     @Test
     fun anInheritableLayoutNodeUpdatedByAnAdditiveElementIsRefused() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         child.applyDeclaredModifier(SwingModifier.then(AdditiveByInstanceElement(additive = false)))
+        val node = child.layoutNodes().single()
 
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                child.applyDeclaredModifier(SwingModifier.then(AdditiveByInstanceElement(additive = true)))
-            }
+        assertFailsWith<IllegalArgumentException> {
+            child.applyDeclaredModifier(SwingModifier.then(AdditiveByInstanceElement(additive = true)))
+        }
 
-        val message = failure.message.orEmpty()
-        assertTrue(
-            message.startsWith(AdditiveByInstanceElement::class.java.name) &&
-                message.endsWith("an inheritable element is not additive."),
-            "The refusal must name the element and the rule, but said: $message",
-        )
+        assertEquals(listOf(node), child.layoutNodes())
+        assertTrue(node.isAttached)
         owner.dispose()
     }
 
     @Test
     fun inheritableParentDataItsParentRefusesIsRefusedBeforeALayoutNodeIsWritten() {
         val owner = TestCompositionOwner()
-        val child = attachedLayoutNode(owner)
+        val child = attachedChild(owner, JButton("child"))
         val events = mutableListOf<String>()
         child.declare(listOf(RecordingLayoutNodeElement("a", events)))
         events.clear()
 
-        val refusal =
-            assertFailsWith<IllegalStateException> {
-                child.declare(listOf(RecordingLayoutNodeElement("b", events), RefusedInheritableParentData))
-            }
+        assertFailsWith<IllegalStateException> {
+            child.declare(listOf(RecordingLayoutNodeElement("b", events), RefusedInheritableParentData))
+        }
 
-        assertTrue(refusal.message.orEmpty().startsWith("refusing parent can be declared only under"))
         assertEquals(emptyList(), events, "the refusal comes before the modifier writes a layout node")
         owner.dispose()
     }

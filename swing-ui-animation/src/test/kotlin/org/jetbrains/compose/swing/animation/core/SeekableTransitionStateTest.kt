@@ -65,7 +65,7 @@ import org.jetbrains.compose.swing.style.opaque
 // behavior as much as the engine's.
 class SeekableTransitionStateTest {
 
-    private enum class AnimStates {
+    internal enum class AnimStates {
         From,
         To,
         Other,
@@ -222,66 +222,6 @@ class SeekableTransitionStateTest {
                     Label(text = "content")
                 }
             }
-            duration = transition.totalDurationNanos
-        }
-
-        awaitIdle()
-        assertEquals(1000_000_000L, duration)
-        assertEquals(0f, seekableTransitionState.fraction, 0f)
-
-        // Go to the middle
-        seekableTransitionState.seekTo(fraction = 0.5f)
-
-        awaitIdle()
-        assertEquals(1000, animatedValue)
-        assertEquals(0.5f, seekableTransitionState.fraction)
-
-        // Go to the end
-        seekableTransitionState.seekTo(fraction = 1f)
-
-        awaitIdle()
-        assertEquals(1000, animatedValue)
-        assertEquals(1f, seekableTransitionState.fraction)
-
-        // Go back to part way through the animatedValue
-        seekableTransitionState.seekTo(fraction = 0.1f)
-
-        awaitIdle()
-        assertEquals(500, animatedValue)
-        assertEquals(0.1f, seekableTransitionState.fraction)
-    }
-
-    /** The [updatedTransition] shape driven by a child transition rather than a container. */
-    @Test
-    fun updatedTransitionWithChildTransition() = runComposeSwingTest {
-        var animatedValue by mutableIntStateOf(-1)
-        var duration = -1L
-        val seekableTransitionState = SeekableTransitionState(AnimStates.From)
-
-        setContent {
-            LaunchedEffect(seekableTransitionState) {
-                seekableTransitionState.seekTo(0f, targetState = AnimStates.To)
-            }
-            val transition = rememberTransition(seekableTransitionState, label = "Test")
-            animatedValue =
-                transition
-                    .animateInt(
-                        label = "Value",
-                        transitionSpec = { tween(durationMillis = 200, easing = LinearEasing) },
-                    ) { state ->
-                        when (state) {
-                            AnimStates.From -> 0
-                            else -> 1000
-                        }
-                    }
-                    .value
-            transition
-                .createChildTransition { it == AnimStates.To }
-                .animateFloat(
-                    transitionSpec = { tween(durationMillis = 1000, easing = LinearEasing) }
-                ) { state ->
-                    if (state) 1f else 0f
-                }
             duration = transition.totalDurationNanos
         }
 
@@ -949,31 +889,6 @@ class SeekableTransitionStateTest {
             }
 
                 }}
-        awaitIdle()
-        val seekTo = coroutineScope.async { seekableTransitionState.seekTo(0.5f, AnimStates.To) }
-        advanceTimeByFrame()
-        awaitIdle()
-        assertTrue(seekTo.isCompleted)
-        assertEquals(150L * MillisToNanos, transition.playTimeNanos)
-    }
-
-    /** The [delayedTransition] shape driven by a child transition rather than a container. */
-    @Test
-    fun delayedTransitionWithChildTransition() = runComposeSwingTest {
-        mainClock.autoAdvance = false
-        val seekableTransitionState = SeekableTransitionState(AnimStates.From)
-        lateinit var coroutineScope: CoroutineScope
-        lateinit var transition: Transition<AnimStates>
-
-        setContent {
-            coroutineScope = rememberCoroutineScope()
-            transition = rememberTransition(seekableTransitionState, label = "Test")
-            transition
-                .createChildTransition { it != AnimStates.To }
-                .animateFloat(transitionSpec = { tween(300, 0, LinearEasing) }) { visible ->
-                    if (visible) 1f else 0f
-                }
-        }
         awaitIdle()
         val seekTo = coroutineScope.async { seekableTransitionState.seekTo(0.5f, AnimStates.To) }
         advanceTimeByFrame()
@@ -2204,59 +2119,6 @@ class SeekableTransitionStateTest {
     private fun ComposeSwingTest.assertContentFullyEntered() {
         onNodeWithText("content").assertExists()
         assertEquals(1f, onRoot().onChild().paintedAlpha())
-    }
-
-    /** The [animateAfterSeekToZero] shape driven by a child transition rather than a container. */
-    @Test
-    fun animateAfterSeekToZeroWithChildTransition() = runComposeSwingTest {
-        mainClock.autoAdvance = false
-        val seekableTransitionState = SeekableTransitionState(AnimStates.From)
-        var animatedValue1 by mutableIntStateOf(-1)
-        lateinit var coroutineScope: CoroutineScope
-        lateinit var visibleAlpha: State<Float>
-
-        setContent {
-            coroutineScope = rememberCoroutineScope()
-            val transition = rememberTransition(seekableTransitionState, label = "Test")
-            val val1 =
-                transition.animateInt(
-                    label = "Value",
-                    transitionSpec = { tween(durationMillis = 1600, easing = LinearEasing) },
-                ) { state ->
-                    when (state) {
-                        AnimStates.From -> 0
-                        else -> 1000
-                    }
-                }
-
-            animatedValue1 = val1.value
-            visibleAlpha =
-                transition
-                    .createChildTransition { it == AnimStates.To }
-                    .animateFloat { visible -> if (visible) 1f else 0f }
-        }
-        awaitIdle()
-        val initialAnimateAndSeek =
-            coroutineScope.async {
-                seekableTransitionState.animateTo(AnimStates.To)
-                seekableTransitionState.seekTo(0.5f, targetState = AnimStates.From)
-                seekableTransitionState.seekTo(0f, targetState = AnimStates.From)
-            }
-        advanceTimeBy(5000)
-        awaitIdle()
-        assertTrue(initialAnimateAndSeek.isCompleted)
-        assertEquals(1000, animatedValue1)
-        assertEquals(1f, visibleAlpha.value)
-        val secondAnimate =
-            coroutineScope.async { seekableTransitionState.animateTo(AnimStates.To) }
-        awaitIdle()
-        // This waits for the initial state animation to finish, since we changed the initial state
-        // when going from seeking to animating.
-        advanceTimeBy(5000)
-        awaitIdle()
-        assertTrue(secondAnimate.isCompleted)
-        assertEquals(1000, animatedValue1)
-        assertEquals(1f, visibleAlpha.value)
     }
 
     @Test

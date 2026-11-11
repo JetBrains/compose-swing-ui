@@ -45,7 +45,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.milliseconds
 
-class AnimationModifierUpstreamParityTest {
+class AnimationModifierTest {
     private fun ComposeSwingTest.layoutRootRow() {
         val row = onNodeWithTag("root-row").fetch<JComponent>()
         row.size = row.preferredSize
@@ -53,37 +53,7 @@ class AnimationModifierUpstreamParityTest {
     }
 
     @Test
-    fun animateContentSizeReattachingMovableContentKeepsTheTargetSize() =
-        runComposeSwingTest {
-            val expanded = mutableStateOf(false)
-            var inFirstContainer by mutableStateOf(true)
-            setContent {
-                MovableAnimatedContent(expanded, inFirstContainer)
-            }
-            awaitIdle()
-            mainClock.autoAdvance = false
-
-            expanded.value = true
-            mainClock.advanceTimeByFrame()
-            mainClock.advanceTimeByFrame()
-            mainClock.advanceTimeByFrame(80.milliseconds)
-            layoutRootRow()
-            assertEquals(150, onNodeWithTag("first-width").fetch<JComponent>().x)
-            assertEquals(150, onNodeWithTag("first-height").fetch<JComponent>().y)
-
-            inFirstContainer = false
-            awaitIdle()
-            layoutRootRow()
-            mainClock.autoAdvance = true
-            awaitIdle()
-            layoutRootRow()
-
-            assertEquals(200, onNodeWithTag("second-width").fetch<JComponent>().x)
-            assertEquals(200, onNodeWithTag("second-height").fetch<JComponent>().y)
-        }
-
-    @Test
-    fun animateContentSizeIsExposedThroughTheEffectiveModifierChain() =
+    fun testInspectorValue() =
         runComposeSwingTest {
             val animationSpec = tween<Dimension>(160, easing = LinearEasing)
             val finishedListener: (Dimension, Dimension) -> Unit = { _, _ -> }
@@ -122,6 +92,36 @@ class AnimationModifierUpstreamParityTest {
             } finally {
                 isDebugInspectorInfoEnabled = originalInspectorSetting
             }
+        }
+
+    @Test
+    fun properFinalStateAfterReAttach() =
+        runComposeSwingTest {
+            val expanded = mutableStateOf(false)
+            var inFirstContainer by mutableStateOf(true)
+            setContent {
+                MovableAnimatedContent(expanded, inFirstContainer)
+            }
+            awaitIdle()
+            mainClock.autoAdvance = false
+
+            expanded.value = true
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame(80.milliseconds)
+            layoutRootRow()
+            assertEquals(150, onNodeWithTag("first-width").fetch<JComponent>().x)
+            assertEquals(150, onNodeWithTag("first-height").fetch<JComponent>().y)
+
+            inFirstContainer = false
+            awaitIdle()
+            layoutRootRow()
+            mainClock.autoAdvance = true
+            awaitIdle()
+            layoutRootRow()
+
+            assertEquals(200, onNodeWithTag("second-width").fetch<JComponent>().x)
+            assertEquals(200, onNodeWithTag("second-height").fetch<JComponent>().y)
         }
 
     @Composable
