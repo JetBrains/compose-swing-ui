@@ -25,6 +25,13 @@ public final class org/jetbrains/compose/swing/detekt/MultipleSwingModifierParam
 	public fun visitTypeReference (Lorg/jetbrains/kotlin/psi/KtTypeReference;)V
 }
 
+public final class org/jetbrains/compose/swing/detekt/MultipleSwingNodeCalls : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
+	public fun <init> (Ldev/detekt/api/Config;)V
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
+	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
+}
+
 public final class org/jetbrains/compose/swing/detekt/SwingComponentInComposableSignature : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
 	public fun <init> (Ldev/detekt/api/Config;)V
 	public fun getRuleName ()Ldev/detekt/api/RuleName;

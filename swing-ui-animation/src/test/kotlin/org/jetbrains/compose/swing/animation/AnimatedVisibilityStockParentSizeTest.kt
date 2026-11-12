@@ -13,13 +13,14 @@ import org.jetbrains.compose.swing.animation.Stretch.atAspect
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.WRAPPING_TEXT
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
 import org.jetbrains.compose.swing.foundation.layout.cyclesUntilStable
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -29,8 +30,6 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.MethodSource
-import java.awt.BorderLayout
-import java.awt.BorderLayout.NORTH
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -217,10 +216,8 @@ class AnimatedVisibilityStockParentSizeTest {
     /** A stock border panel holding a flow panel in its north, which is where its content reads sizes with no limit. */
     @Composable
     private fun UnderStockParent(content: @Composable () -> Unit) {
-        SwingNode(factory = { JPanel(BorderLayout()) }) {
-            SwingNode(factory = { JPanel(FlowLayout()) }, modifier = SwingModifier.layoutConstraint(NORTH)) {
-                content()
-            }
+        Panel(PanelLayout.Border()) {
+            Panel(SwingModifier.north()) { content() }
         }
     }
 

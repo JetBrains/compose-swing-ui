@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.BlurEffect
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
@@ -33,6 +35,8 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -126,10 +130,7 @@ internal class ExternalDecoratableTest {
                                 .shadow(8, Color.BLACK)
                                 .styleable { emptyBorder(3) },
                     ) {
-                        SwingNode(
-                            factory = { JPanel() },
-                            modifier = SwingModifier.testTag("child").styleable { preferredSize(40, 30) },
-                        )
+                        Panel(style = { preferredSize(40, 30) }) {}
                     }
                 }
             }
@@ -146,7 +147,7 @@ internal class ExternalDecoratableTest {
                 insets,
                 "the insets are the border plus the paint outsets",
             )
-            onNodeWithTag("child").assertProperty(
+            onNodeWithTag("panel").onChild().assertProperty(
                 Rectangle(
                     insets.left,
                     insets.top,
@@ -161,9 +162,13 @@ internal class ExternalDecoratableTest {
     fun underAFlowLayoutTheCardHasNoOutsetsAndItsShadowIsClippedAtItsBounds() =
         runComposeSwingTest {
             setContent {
-                SwingNode(
-                    factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } },
-                    modifier = SwingModifier.testTag("stock").styleable { preferredSize(100, 80) },
+                Panel(
+                    PanelLayout.Flow(FlowLayout.LEADING, 0, 0),
+                    modifier = SwingModifier.testTag("stock"),
+                    style = {
+                        opaque(false)
+                        preferredSize(100, 80)
+                    },
                 ) {
                     SwingNode(
                         factory = { Card() },
@@ -416,7 +421,12 @@ internal class ExternalDecoratableTest {
         window.awaitWindowSystemIdle()
         marked.root = window.onNodeWithTag("root").fetch<JComponent>()
         marked.component = window.onNodeWithTag("decoratable").fetch<JComponent>()
-        marked.child = window.onAllNodesWithTag("child").fetchAll<JComponent>().singleOrNull()
+        marked.child =
+            window
+                .onNodeWithTag("decoratable")
+                .onChildren()
+                .fetchAll<JComponent>()
+                .singleOrNull()
         val before = marked.root.paintedOver()
 
         marked.isMarked = true
@@ -557,10 +567,12 @@ internal class ExternalDecoratableTest {
         @Composable
         private fun PanelNode(modifier: SwingModifier) =
             SwingNode(factory = { DecoratedPanel(BorderLayout()) }, modifier = modifier) {
-                SwingNode(
-                    factory = { JPanel().apply { isOpaque = false } },
-                    modifier = SwingModifier.testTag("child").styleable { preferredSize(120, 80) },
-                )
+                Panel(
+                    style = {
+                        preferredSize(120, 80)
+                        opaque(false)
+                    },
+                ) {}
             }
     }
 }

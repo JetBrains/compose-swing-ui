@@ -5,7 +5,6 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.BoxAxis
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -13,6 +12,7 @@ import org.jetbrains.compose.swing.components.style.RadioButtons
 import org.jetbrains.compose.swing.components.style.RadioGroups
 import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.style.ComponentStyleScope
@@ -22,6 +22,7 @@ import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
 import javax.swing.BoxLayout
+import javax.swing.ButtonGroup
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 
@@ -69,37 +70,48 @@ public fun RadioGroup(
     val scope = RadioGroupScopeImpl().apply(content)
     val group = rememberButtonGroup()
 
-    val layout = PanelLayout.Box(axis = axis)
-
     SwingNode<JPanel>(
         factory = { JPanel() },
         modifier = modifier.styleable(RadioGroupKind, style),
         update = {
-            layout.installOn(this)
+            PanelLayout.Box(axis = axis).installOn(this)
         },
         content = {
-            key(layout.javaClass) {
-                scope.options.forEachIndexed { index, option ->
-                    val selected = index == selectedIndex
-                    ButtonGroupOption(
-                        group,
-                        index,
-                        option.modifier,
-                        selected,
-                        onSelectionChange,
-                    ) { optionModifier, mirror ->
-                        SwingNode(
-                            factory = { JRadioButton() },
-                            modifier = optionModifier.styleable(RadioOptionKind, selected, option.style),
-                            update = {
-                                set(option.text) { this.text = it }
-                                init { addItemListener { mirror.observed(isSelected) } }
-                                declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
-                            },
-                        )
-                    }
+            scope.options.forEachIndexed { index, option ->
+                val selected = index == selectedIndex
+                ButtonGroupOption(
+                    group,
+                    index,
+                    option.modifier,
+                    selected,
+                    onSelectionChange,
+                ) { optionModifier, mirror ->
+                    RadioOptionButton(group, option, optionModifier, selected, mirror)
                 }
             }
+        },
+    )
+}
+
+/**
+ * The radio button of one declared [RadioOption], joined to [group] through [modifier] and reporting its
+ * selection to [mirror]; [selected] is the state the composition declares for it.
+ */
+@Composable
+private fun RadioOptionButton(
+    group: ButtonGroup,
+    option: RadioOption,
+    modifier: SwingModifier,
+    selected: Boolean,
+    mirror: MirrorState<Boolean>,
+) {
+    SwingNode(
+        factory = { JRadioButton() },
+        modifier = modifier.styleable(RadioOptionKind, selected, option.style),
+        update = {
+            set(option.text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
+            declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
         },
     )
 }

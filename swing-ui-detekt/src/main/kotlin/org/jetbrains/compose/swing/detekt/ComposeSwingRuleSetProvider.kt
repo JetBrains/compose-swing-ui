@@ -20,6 +20,8 @@ import dev.detekt.api.RuleSetProvider
  * Node factories: whether a node factory reuses one component for every node.
  * Whether a node factory reads a value its composable declares.
  *
+ * Node calls: whether a composable calls `SwingNode` more than once.
+ *
  * Animation: whether animation lambdas use their target state.
  */
 public class ComposeSwingRuleSetProvider : RuleSetProvider {
@@ -35,6 +37,9 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
             },
             RuleName("MultipleSwingModifierParameters") to { config: Config ->
                 MultipleSwingModifierParameters(config)
+            },
+            RuleName("MultipleSwingNodeCalls") to { config: Config ->
+                MultipleSwingNodeCalls(config)
             },
             RuleName("SwingComponentInComposableSignature") to { config: Config ->
                 SwingComponentInComposableSignature(config)

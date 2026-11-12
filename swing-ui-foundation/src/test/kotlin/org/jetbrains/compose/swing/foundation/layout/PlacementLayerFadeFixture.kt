@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -195,7 +194,7 @@ internal fun FadeContent(
                     )
             when (leaf) {
                 FadeLeaf.NodeLeaf -> {
-                    SwingNode(factory = { ConstrainedPanel() }, modifier = modifier) { child?.invoke() }
+                    Box(modifier, propagateMinConstraints = true) { child?.invoke() }
                 }
 
                 FadeLeaf.CanvasLeaf -> {
@@ -203,7 +202,7 @@ internal fun FadeContent(
                 }
 
                 FadeLeaf.CanvasChild -> {
-                    SwingNode(factory = { ConstrainedPanel() }, modifier = modifier) {
+                    Box(modifier, propagateMinConstraints = true) {
                         Canvas(SwingModifier.size(side, side)) { fixture.paintVersion(graphics, width, height) }
                     }
                 }
