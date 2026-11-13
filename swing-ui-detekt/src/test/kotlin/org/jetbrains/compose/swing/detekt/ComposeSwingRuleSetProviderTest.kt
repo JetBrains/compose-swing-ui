@@ -46,6 +46,7 @@ class ComposeSwingRuleSetProviderTest {
                 RuleName("SwingModifierWithoutDefault"),
                 RuleName("SwingNodeFactoryReadsDeclaredValue"),
                 RuleName("SwingNodeFactoryReusesComponent"),
+                RuleName("SwingNodeUpdateConditionalCall"),
                 RuleName("SwingNodeUpdateRepeatsInvalidation"),
                 RuleName("SwingNodeUpdateStoresCallback"),
                 RuleName("SwingNodeUpdateWritesComponentPart"),

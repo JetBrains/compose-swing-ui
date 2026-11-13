@@ -86,6 +86,12 @@ public final class org/jetbrains/compose/swing/detekt/SwingNodeFactoryReusesComp
 	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
 }
 
+public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateConditionalCall : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
+	public fun <init> (Ldev/detekt/api/Config;)V
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
+}
+
 public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateRepeatsInvalidation : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
 	public fun <init> (Ldev/detekt/api/Config;)V
 	public fun getRuleName ()Ldev/detekt/api/RuleName;
