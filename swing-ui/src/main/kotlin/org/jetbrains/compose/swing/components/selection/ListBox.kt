@@ -6,9 +6,9 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.ListLayoutOrientation
 import org.jetbrains.compose.swing.annotations.SelectionMode
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.components.style.ListBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ListBoxes
@@ -509,7 +509,7 @@ public fun <T> ListBox(
  *   default - renders each item through the renderer the list carries
  * @see javax.swing.JList
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun <T> ListBox(
     factory: () -> JList<T>,
@@ -637,7 +637,7 @@ public fun <T> ListBox(
  *   default - renders each item through the renderer the list carries
  * @see javax.swing.JList
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun <T> ListBox(
     factory: () -> JList<T>,

@@ -6,6 +6,12 @@ plugins {
     application
 }
 
+kotlin {
+    sourceSets.configureEach {
+        languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
+    }
+}
+
 dependencies {
     implementation(project(":swing-ui"))
     implementation(project(":swing-ui-foundation"))

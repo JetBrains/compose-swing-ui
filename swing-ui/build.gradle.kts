@@ -27,6 +27,7 @@ kotlin {
 
     sourceSets.configureEach {
         languageSettings.optIn("org.jetbrains.compose.swing.annotations.InternalSwingUiApi")
+        languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
     }
 }
 

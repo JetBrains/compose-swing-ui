@@ -75,6 +75,7 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
         "org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi",
         "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
         "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
+        "org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi",
     )
 }
 

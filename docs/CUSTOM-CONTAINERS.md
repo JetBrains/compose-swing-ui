@@ -7,7 +7,8 @@ component is [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md). How the layout syst
 [`FOUNDATION.md`](FOUNDATION.md).
 
 Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime
-and `SwingNode` remain in `swing-ui`.
+and `SwingNode` remain in `swing-ui`. `SwingNode` requires opt-in to
+`SwingComponentLibraryApi`.
 
 Where a container of your own starts depends on where its placement rules live:
 

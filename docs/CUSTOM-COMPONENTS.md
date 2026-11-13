@@ -2,7 +2,8 @@
 
 Compose Swing UI ships wrappers for the common widgets (`Button`, `TextField`, `Slider`, ...), but
 real applications host many bespoke Swing components. Wrapping your own component uses the same
-public `SwingNode` API every built-in wrapper is built on. This guide shows how.
+public `SwingNode` API every built-in wrapper is built on. This guide shows how. `SwingNode` and
+the other APIs it uses require opt-in to `SwingComponentLibraryApi`.
 
 Further documents carry the rest:
 

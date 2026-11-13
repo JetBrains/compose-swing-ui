@@ -9,6 +9,7 @@ import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.currentComposer
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentElement
@@ -52,6 +53,7 @@ import org.jetbrains.compose.swing.modifier.retainedParentDeclarations
  * @param content the composables whose components the container receives.
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingComposable
 public inline fun VirtualSwingNode(
     modifier: SwingModifier = SwingModifier,

@@ -37,6 +37,7 @@ val knitTask =
     }
 
 kotlin.sourceSets.main {
+    languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
     kotlin.srcDir(knitOutputDir)
 }
 

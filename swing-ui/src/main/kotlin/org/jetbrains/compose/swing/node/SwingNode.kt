@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.currentComposer
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -48,6 +49,7 @@ import java.awt.Component
  *   to [ChildPlacement.Indexed].
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
@@ -112,6 +114,7 @@ public inline fun <reified T : Component> SwingNode(
  * @param content the composables this component holds as its children.
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,

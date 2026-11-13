@@ -7,7 +7,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.HorizontalScrollbarPolicy
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.VerticalScrollbarPolicy
 import org.jetbrains.compose.swing.components.style.ScrollPanes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
@@ -126,7 +126,7 @@ public fun ScrollPane(
  * @param content the composable content of the pane; see [ScrollPaneScope]
  * @see javax.swing.JScrollPane
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun ScrollPane(
     factory: () -> JScrollPane,

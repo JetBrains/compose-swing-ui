@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AutoResizeMode
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SelectionMode
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.components.style.Tables
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -706,7 +706,7 @@ public fun <R> Table(
  * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
  * @see javax.swing.JTable
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun <R> Table(
     factory: () -> JTable,
@@ -842,7 +842,7 @@ public fun Table(
  * @param content configures the parts the table builds itself, or none when `null`; see [TableContentScope]
  * @see javax.swing.JTable
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun Table(
     factory: () -> JTable,

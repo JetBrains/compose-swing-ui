@@ -24,6 +24,12 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+kotlin {
+    sourceSets.named("test") {
+        languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
+    }
+}
+
 benchmark {
     targets { register("main") }
 }

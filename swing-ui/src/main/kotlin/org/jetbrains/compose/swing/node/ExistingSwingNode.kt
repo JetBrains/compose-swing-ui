@@ -9,6 +9,7 @@ import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -64,6 +65,7 @@ import java.awt.Component
  *   the node is inserted, or, when set later, when a second claim of the component is inserted.
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingComposable
 public inline fun <reified P : Component, R : Component, reified T : R> ExistingSwingNode(
     noinline claim: @DisallowComposableCalls P.() -> R?,
@@ -102,6 +104,7 @@ public inline fun <reified P : Component, R : Component, reified T : R> Existing
  * @param content the composables the claimed container holds as its children.
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingComposable
 public inline fun <reified P : Component, R : Component, reified T : R> ExistingSwingNode(
     noinline claim: @DisallowComposableCalls P.() -> R?,

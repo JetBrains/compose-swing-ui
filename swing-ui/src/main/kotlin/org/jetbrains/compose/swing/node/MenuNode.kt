@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.currentComposer
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyCompositionLocalMap
@@ -29,6 +30,7 @@ import java.awt.Component
  * @param content the nested menu items. Defaults to none, which is what a leaf declares.
  */
 @Composable
+@SwingComponentLibraryApi
 @SwingMenuComposable
 public inline fun <reified T : Component> MenuNode(
     noinline factory: () -> T,

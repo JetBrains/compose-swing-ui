@@ -10,7 +10,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.TreeSelectionMode
 import org.jetbrains.compose.swing.components.style.Trees
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
@@ -702,7 +702,7 @@ public fun <T> Tree(
  *   default - renders each node's [label] through the renderer the tree carries
  * @see javax.swing.JTree
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun <T> Tree(
     factory: () -> JTree,
@@ -838,7 +838,7 @@ public fun Tree(
  *   double click, and `0` takes that gesture away
  * @see javax.swing.JTree
  */
-@InternalSwingUiApi
+@SwingComponentLibraryApi
 @Composable
 public fun Tree(
     factory: () -> JTree,
