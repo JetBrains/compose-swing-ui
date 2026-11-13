@@ -27,7 +27,7 @@ import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 
 /**
- * Reports a `comparator` argument to a table `column` or `addColumn` call that is built where the column
+ * Reports a `comparator` argument to a table `column` call that is built where the column
  * is declared: a lambda, an object expression, or a call other than Compose runtime `remember`.
  *
  * A column's comparator is compared by identity, so a new instance on every pass has the table sort its
@@ -40,7 +40,7 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
  */
 public class UnheldColumnComparator(
     config: Config,
-) : Rule(config, "A table column's comparator should be held across passes, not built where the column is declared.") {
+) : Rule(config, "A table column's `comparator` should be reused across recompositions") {
     override val ruleName: RuleName = RuleName("UnheldColumnComparator")
 
     private companion object {
@@ -53,10 +53,6 @@ public class UnheldColumnComparator(
         const val COMPOSE_REMEMBER_FQN: String = "$COMPOSE_RUNTIME_PACKAGE.remember"
         const val REMEMBER_CALL_NAME: String = "remember"
         const val RUN_CALL_NAME: String = "run"
-        const val MESSAGE: String =
-            "This comparator is built anew on every pass, so the table sorts its rows again on each of them. " +
-                "Hold one instance instead: a top-level or member value, or a `remember` in the composable that " +
-                "declares the table."
     }
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -66,7 +62,7 @@ public class UnheldColumnComparator(
         report(
             Finding(
                 entity = Entity.from(comparator),
-                message = MESSAGE,
+                message = UNHELD_COLUMN_COMPARATOR_MESSAGE,
             ),
         )
     }
@@ -210,3 +206,9 @@ public class UnheldColumnComparator(
     private fun KtProperty.isVisibleAt(reference: KtNameReferenceExpression): Boolean =
         reference.parents.any { it === parent }
 }
+
+private const val UNHELD_COLUMN_COMPARATOR_MESSAGE: String =
+    "This `comparator` can make the table sort its rows again on every recomposition while this column is " +
+        "sorted. A new comparator object counts as a new sort order, and a sort costs more the more rows the " +
+        "table has. Keep the comparator in a top-level or member value. If it depends on values that change, " +
+        "create it with `remember` keyed on those values."

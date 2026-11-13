@@ -45,7 +45,7 @@ import org.jetbrains.kotlin.psi.psiUtil.parents
  */
 public class SwingModifierUnreferencedReceiver(
     config: Config,
-) : Rule(config, "A SwingModifier factory should return a chain that includes the receiver it was given.") {
+) : Rule(config, "A `SwingModifier` factory should return a chain that includes its receiver") {
     override val ruleName: RuleName = RuleName("SwingModifierUnreferencedReceiver")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -72,11 +72,7 @@ public class SwingModifierUnreferencedReceiver(
         report(
             Finding(
                 entity = Entity.from(declaration),
-                message =
-                    "The `${declaration.name}` factory returns a chain built from `$SWING_MODIFIER` " +
-                        "itself and never reaches the receiver it was given. Return a chain that " +
-                        "includes the receiver, `this.then(MyElement)`, or a call to another factory " +
-                        "on it, `myElement()`.",
+                message = swingModifierUnreferencedReceiverMessage(declaration.name),
             ),
         )
     }
@@ -171,7 +167,7 @@ public class SwingModifierUnreferencedReceiver(
  */
 public class SwingModifierThen(
     config: Config,
-) : Rule(config, "then given a factory call that takes its receiver implicitly chains the receiver twice.") {
+) : Rule(config, "`then` should not take a factory call that runs on the receiver implicitly") {
     override val ruleName: RuleName = RuleName("SwingModifierThen")
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -189,11 +185,7 @@ public class SwingModifierThen(
         report(
             Finding(
                 entity = Entity.from(chainedTwice),
-                message =
-                    "Calling a `$SWING_MODIFIER` factory with an implicit receiver inside `then` chains " +
-                        "the receiver twice. Chain the factory onto the receiver directly, " +
-                        "`this.${chainedTwice.text}`, or give it the empty chain, " +
-                        "`this.then($SWING_MODIFIER.${chainedTwice.text})`.",
+                message = swingModifierThenMessage(chainedTwice.text),
             ),
         )
     }
@@ -263,3 +255,15 @@ public class SwingModifierThen(
         return candidates.singleOrNull()?.receiverTypeReference.declaresSwingModifier()
     }
 }
+
+private fun swingModifierUnreferencedReceiverMessage(name: String?): String =
+    "A return of the `$name` factory starts a new chain from `$SWING_MODIFIER` " +
+        "and leaves out the receiver. The receiver holds the modifiers the caller already " +
+        "applied, so this return drops them. Build the returned chain on `this`, or call " +
+        "another factory on the receiver."
+
+private fun swingModifierThenMessage(callText: String): String =
+    "The `$callText` call inside `then` runs on the receiver implicitly. " +
+        "A factory returns its receiver's modifiers along with its own, so `then` adds " +
+        "the receiver's modifiers a second time. Call the factory on the receiver itself, " +
+        "or on `$SWING_MODIFIER` inside `then`."

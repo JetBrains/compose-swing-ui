@@ -9,7 +9,6 @@ import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class SwingModifierWithoutDefaultTest {
     private fun lint(source: String) =
@@ -58,7 +57,11 @@ class SwingModifierWithoutDefaultTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("`modifier` parameter has no default"))
+        assertEquals(
+            "The `modifier` parameter has no default. A caller that has no modifiers to apply must still " +
+                "pass one. Add `= SwingModifier` as the default.",
+            findings.single().message,
+        )
     }
 
     @Test
@@ -178,7 +181,12 @@ class SwingModifierWithoutDefaultTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("defaults to `SwingModifier.padded()`, not the empty chain"))
+        assertEquals(
+            "The `modifier` parameter defaults to `SwingModifier.padded()` instead of the empty modifier. " +
+                "Every caller that leaves it out gets these modifiers without asking for them. " +
+                "Default it to the `SwingModifier` companion.",
+            findings.single().message,
+        )
     }
 
     @Test

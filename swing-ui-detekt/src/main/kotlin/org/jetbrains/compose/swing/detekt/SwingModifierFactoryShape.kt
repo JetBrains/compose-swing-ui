@@ -30,7 +30,8 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  * Reports a `SwingModifier` factory that returns the element it builds instead of the chain.
  *
  * A caller reads one type all the way through a chain of factory calls. A factory that narrows its
- * return type to the element it builds breaks that chain and makes the element part of the API.
+ * return type to the element it builds makes callers depend on the concrete type, and so makes the element
+ * part of the API.
  *
  * Only a declaration already declared as an extension on the chain is a factory candidate here:
  * nothing short of resolving types tells a plain declaration's return type apart from any other type
@@ -38,7 +39,7 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  */
 public class SwingModifierFactoryReturnType(
     config: Config,
-) : Rule(config, "A SwingModifier factory should return SwingModifier, not the element type it builds.") {
+) : Rule(config, "A `SwingModifier` factory should declare `SwingModifier` as its return type") {
     override val ruleName: RuleName = RuleName("SwingModifierFactoryReturnType")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -60,12 +61,18 @@ public class SwingModifierFactoryReturnType(
         report(
             Finding(
                 entity = Entity.from(returnType),
-                message =
-                    "The `${declaration.name}` factory returns `${returnType.text}`. Return `$SWING_MODIFIER` " +
-                        "so a caller can keep chaining onto it.",
+                message = factoryReturnTypeMessage(declaration.name, returnType.text),
             ),
         )
     }
+
+    private fun factoryReturnTypeMessage(
+        name: String?,
+        returnTypeText: String,
+    ): String =
+        "The `$name` factory returns `$returnTypeText` instead of `$SWING_MODIFIER`. " +
+            "Callers then depend on that concrete type, so the factory cannot change what it builds " +
+            "without breaking them. Declare `$SWING_MODIFIER` as the return type."
 }
 
 /**
@@ -80,25 +87,22 @@ public class SwingModifierFactoryReturnType(
  */
 public class SwingModifierFactoryExtensionFunction(
     config: Config,
-) : Rule(config, "A SwingModifier factory should be declared as an extension on SwingModifier.") {
+) : Rule(config, "A `SwingModifier` factory should be an extension on `SwingModifier`") {
     override val ruleName: RuleName = RuleName("SwingModifierFactoryExtensionFunction")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
         super.visitNamedFunction(function)
-        reportIfNotAnExtension(function, declaredAs = "fun $SWING_MODIFIER.${function.name}(...)")
+        reportIfNotAnExtension(function)
     }
 
     override fun visitProperty(property: KtProperty) {
         super.visitProperty(property)
         if (property.isFactoryCandidate()) {
-            reportIfNotAnExtension(property, declaredAs = "val $SWING_MODIFIER.${property.name} get() = ...")
+            reportIfNotAnExtension(property)
         }
     }
 
-    private fun reportIfNotAnExtension(
-        declaration: KtCallableDeclaration,
-        declaredAs: String,
-    ) {
+    private fun reportIfNotAnExtension(declaration: KtCallableDeclaration) {
         val returnType = declaration.typeReference
         if (returnType == null || !returnType.declaresSwingModifier() || !declaration.isReachableFromOutside()) {
             return
@@ -107,12 +111,17 @@ public class SwingModifierFactoryExtensionFunction(
         report(
             Finding(
                 entity = Entity.from(declaration),
-                message =
-                    "The `${declaration.name}` factory is not an extension on `$SWING_MODIFIER`. Declare it as " +
-                        "`$declaredAs` so calls chain fluently.",
+                message = factoryNotExtensionMessage(declaration.name),
             ),
         )
     }
+
+    private fun factoryNotExtensionMessage(name: String?): String =
+        "The `$name` factory is not an extension on `$SWING_MODIFIER`. " +
+            "Callers build a chain by calling one factory after another, " +
+            "and only an extension joins that chain. " +
+            "Declare it as an extension on `$SWING_MODIFIER` and build the result on `this`. " +
+            "If the factory has another receiver now, take that value as a parameter."
 }
 
 /**

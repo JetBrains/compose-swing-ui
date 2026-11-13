@@ -31,7 +31,11 @@ class UnheldColumnComparatorTest {
             lintTable("column(\"Name\", comparator = compareBy<String> { it }) { it }")
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("built anew on every pass"))
+        assertTrue(
+            findings.single().message.contains(
+                "This `comparator` can make the table sort its rows again on every recomposition",
+            ),
+        )
     }
 
     @Test

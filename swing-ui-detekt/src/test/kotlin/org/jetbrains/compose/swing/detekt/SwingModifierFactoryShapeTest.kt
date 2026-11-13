@@ -508,7 +508,7 @@ class SwingModifierFactoryExtensionFunctionTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("Declare it as `val SwingModifier.highlighted"))
+        assertTrue(findings.single().message.contains("Declare it as an extension on `SwingModifier`"))
     }
 
     @Test

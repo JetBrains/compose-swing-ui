@@ -23,7 +23,12 @@ class ComposableSwingModifierFactoryTest {
                 """.trimIndent(),
             )
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("build state private to each component with a `ComponentNode`"))
+        assertTrue(
+            findings.single().message.contains(
+                "Keep state for each component in a `SwingModifier.ComponentNode` " +
+                    "that a `SwingModifier.NodeElement` creates",
+            ),
+        )
     }
 
     @Test

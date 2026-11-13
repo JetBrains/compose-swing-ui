@@ -5,7 +5,6 @@ import dev.detekt.api.Config
 import dev.detekt.test.lint
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class SwingModifierUnreferencedReceiverTest {
     private fun lint(source: String) =
@@ -254,7 +253,12 @@ class SwingModifierUnreferencedReceiverTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("`dropped` factory returns a chain built from"))
+        assertEquals(
+            "A return of the `dropped` factory starts a new chain from `SwingModifier` and leaves out the " +
+                "receiver. The receiver holds the modifiers the caller already applied, so this return drops " +
+                "them. Build the returned chain on `this`, or call another factory on the receiver.",
+            findings.single().message,
+        )
     }
 
     @Test
@@ -371,7 +375,12 @@ class SwingModifierUnreferencedReceiverTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("`dropped` factory returns a chain built from"))
+        assertEquals(
+            "A return of the `dropped` factory starts a new chain from `SwingModifier` and leaves out the " +
+                "receiver. The receiver holds the modifiers the caller already applied, so this return drops " +
+                "them. Build the returned chain on `this`, or call another factory on the receiver.",
+            findings.single().message,
+        )
     }
 
     @Test
@@ -462,7 +471,12 @@ class SwingModifierThenTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("chains the receiver twice"))
+        assertEquals(
+            "The `padded()` call inside `then` runs on the receiver implicitly. A factory returns its " +
+                "receiver's modifiers along with its own, so `then` adds the receiver's modifiers a second " +
+                "time. Call the factory on the receiver itself, or on `SwingModifier` inside `then`.",
+            findings.single().message,
+        )
     }
 
     @Test
@@ -550,7 +564,12 @@ class SwingModifierThenTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("chains the receiver twice"))
+        assertEquals(
+            "The `padded()` call inside `then` runs on the receiver implicitly. A factory returns its " +
+                "receiver's modifiers along with its own, so `then` adds the receiver's modifiers a second " +
+                "time. Call the factory on the receiver itself, or on `SwingModifier` inside `then`.",
+            findings.single().message,
+        )
     }
 
     @Test

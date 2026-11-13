@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class SwingStyleWithoutDefaultTest {
     private fun lint(source: String) = SwingStyleWithoutDefault(Config.empty).lint(source.trimIndent())
@@ -137,8 +136,11 @@ class SwingStyleWithoutDefaultTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("`style` parameter has no default"))
-        assertTrue(findings.single().message.contains("Add `= SwingStyle`"))
+        assertEquals(
+            "The `style` parameter has no default. A caller that sets no style must still pass one. " +
+                "Add `= SwingStyle` as the default.",
+            findings.single().message,
+        )
     }
 
     @Test
@@ -156,7 +158,12 @@ class SwingStyleWithoutDefaultTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("defaults to `SwingStyle { }`, not the empty style"))
+        assertEquals(
+            "The `style` parameter defaults to `SwingStyle { }` instead of the empty style. " +
+                "Every caller that leaves it out gets this style without asking for it. " +
+                "Default it to the `SwingStyle` companion.",
+            findings.single().message,
+        )
     }
 
     private fun source(

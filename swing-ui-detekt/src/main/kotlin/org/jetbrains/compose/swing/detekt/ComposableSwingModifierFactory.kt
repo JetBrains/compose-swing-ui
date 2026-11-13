@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.psi.KtProperty
  */
 public class ComposableSwingModifierFactory(
     config: Config,
-) : Rule(config, "A SwingModifier factory should be plain, not composable.") {
+) : Rule(config, "A `SwingModifier` factory should not be `@Composable`") {
     override val ruleName: RuleName = RuleName("ComposableSwingModifierFactory")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -44,11 +44,16 @@ public class ComposableSwingModifierFactory(
         report(
             Finding(
                 entity = Entity.from(declaration),
-                message =
-                    "`${declaration.name}` builds a $SWING_MODIFIER and is `@Composable`, which ties the chain " +
-                        "to the composition that called it. Take what it needs to remember as a parameter, or build " +
-                        "state private to each component with a `ComponentNode`.",
+                message = composableSwingModifierFactoryMessage(declaration.name),
             ),
         )
     }
 }
+
+private fun composableSwingModifierFactoryMessage(name: String?): String =
+    "`$name` is a `$SWING_MODIFIER` factory marked `@Composable`. " +
+        "What it remembers belongs to the composable that calls it, " +
+        "not to the component the modifier reaches. " +
+        "Remove `@Composable`, and let the caller create remembered values and pass them in. " +
+        "Keep state for each component in a `$SWING_MODIFIER.ComponentNode` " +
+        "that a `$SWING_MODIFIER.NodeElement` creates."

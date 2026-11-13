@@ -56,7 +56,7 @@ class UnusedAnimatedContentTargetStateTest {
             )
 
         assertEquals(1, findings.size)
-        assertTrue(findings.single().message.contains("makes two states one content"))
+        assertTrue(findings.single().message.contains("States with equal keys keep the same content"))
     }
 
     @Test

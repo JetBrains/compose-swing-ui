@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  */
 public class UnusedTransitionTargetState(
     config: Config,
-) : Rule(config, "A transition's state-to-value lambda has to read the state it is handed.") {
+) : Rule(config, "A transition's value lambda should use the state it receives") {
     override val ruleName: RuleName = RuleName("UnusedTransitionTargetState")
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -47,10 +47,7 @@ public class UnusedTransitionTargetState(
         report(
             Finding(
                 entity = Entity.from(lambda.parameterOrSelf()),
-                message =
-                    "This lambda gives the value a state animates toward and never reads the state it is " +
-                        "handed, so every state animates toward the same value. Read the parameter, or hold " +
-                        "a value that does not follow the transition outside it.",
+                message = UNUSED_TRANSITION_TARGET_STATE_MESSAGE,
             ),
         )
     }
@@ -69,7 +66,8 @@ public class UnusedAnimatedContentTargetState(
     config: Config,
 ) : Rule(
         config,
-        "The content and contentKey lambdas of AnimatedContent and Crossfade have to read the state they are handed.",
+        "The `content` and `contentKey` lambdas of `AnimatedContent` and `Crossfade` should use the state " +
+            "they receive",
     ) {
     override val ruleName: RuleName = RuleName("UnusedAnimatedContentTargetState")
 
@@ -79,14 +77,9 @@ public class UnusedAnimatedContentTargetState(
         val content = expression.lambdaArgumentNamed("content") ?: expression.trailingLambda()
         val reported =
             listOf(
-                content to
-                    "This lambda gives the content of a state and never reads the state it is handed, so " +
-                    "the state being left and the state being entered build the same content and it " +
-                    "animates on top of itself.",
+                content to UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_MESSAGE,
                 expression.lambdaArgumentNamed("contentKey") to
-                    "This lambda gives the key that makes two states one content and never reads the " +
-                    "state it is handed, so every state shares one key and the content on screen is " +
-                    "kept rather than animated.",
+                    UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_KEY_MESSAGE,
             )
         reported.forEach { (lambda, message) ->
             if (lambda == null || lambda.readsTheValueItTakes()) return@forEach
@@ -157,3 +150,21 @@ internal fun KtParameter.namesItBinds(): Set<String> =
 
 /** Where [this] lambda's unread value is reported: the parameter declaring it, or the lambda itself. */
 internal fun KtLambdaExpression.parameterOrSelf(): KtElement = valueParameters.singleOrNull() ?: this
+
+private const val UNUSED_TRANSITION_TARGET_STATE_MESSAGE: String =
+    "This lambda does not use the state it receives. The transition calls it for both its " +
+        "current and its target state, so a lambda that ignores the state can give the value " +
+        "of the wrong state. Compute the value from the state parameter, and name the " +
+        "parameter first if it is `_`. If the value does not depend on the state, it does " +
+        "not belong in this transition."
+
+private const val UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_MESSAGE: String =
+    "This `content` lambda does not use the state it receives. `AnimatedContent` and " +
+        "`Crossfade` call it for the state animating out as well as the state animating in, so " +
+        "the outgoing content can show the new state while it leaves. Build the content from " +
+        "the lambda's state parameter."
+
+private const val UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_KEY_MESSAGE: String =
+    "This `contentKey` lambda does not use the state it receives. States with equal keys " +
+        "keep the same content instead of animating between them, so different states can get " +
+        "one key and no animation. Build the key from the lambda's state parameter."

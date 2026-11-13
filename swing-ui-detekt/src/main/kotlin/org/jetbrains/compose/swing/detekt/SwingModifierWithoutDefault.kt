@@ -26,12 +26,12 @@ import org.jetbrains.kotlin.psi.psiUtil.parents
  * A caller that has nothing to declare should not have to say so. The parameter defaults to the empty
  * chain, as `Modifier` does in Compose, and every wrapper in this library is written that way.
  *
- * Only a declaration a caller outside its own file can reach is checked. A private helper is always
+ * Only a declaration a caller outside its module can reach is checked. A private helper is always
  * called with a chain by the composable that owns it, and a default there would stand for nothing.
  */
 public class SwingModifierWithoutDefault(
     config: Config,
-) : Rule(config, "A composable's SwingModifier parameter should default to the empty chain.") {
+) : Rule(config, "A composable's `SwingModifier` parameter should default to the empty modifier") {
     override val ruleName: RuleName = RuleName("SwingModifierWithoutDefault")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -48,9 +48,7 @@ public class SwingModifierWithoutDefault(
             report(
                 Finding(
                     entity = Entity.from(parameter),
-                    message =
-                        "The `${parameter.name}` parameter has no default. Default it to `$SWING_MODIFIER` so a " +
-                            "caller with nothing to declare can leave it out.",
+                    message = missingDefaultMessage(parameter.name),
                 ),
             )
             return
@@ -59,10 +57,7 @@ public class SwingModifierWithoutDefault(
         report(
             Finding(
                 entity = Entity.from(default),
-                message =
-                    "The `${parameter.name}` parameter defaults to `${default.text}`, not the empty chain. " +
-                        "Default it to `$SWING_MODIFIER` so a caller with nothing to declare inherits nothing " +
-                        "it did not ask for.",
+                message = wrongDefaultMessage(parameter.name, default.text),
             ),
         )
     }
@@ -146,3 +141,15 @@ internal fun KtExpression.isLibraryCompanionDefault(fullyQualifiedName: String):
         else -> false
     }
 }
+
+private fun missingDefaultMessage(name: String?): String =
+    "The `$name` parameter has no default. A caller that has no modifiers " +
+        "to apply must still pass one. Add `= $SWING_MODIFIER` as the default."
+
+private fun wrongDefaultMessage(
+    name: String?,
+    defaultText: String,
+): String =
+    "The `$name` parameter defaults to `$defaultText` instead of the empty " +
+        "modifier. Every caller that leaves it out gets these modifiers without asking for " +
+        "them. Default it to the `$SWING_MODIFIER` companion."

@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  */
 public class SwingStyleWithoutDefault(
     config: Config,
-) : Rule(config, "A composable's SwingStyle parameter should default to the empty style.") {
+) : Rule(config, "A composable's `SwingStyle` parameter should default to the empty style") {
     override val ruleName: RuleName = RuleName("SwingStyleWithoutDefault")
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -41,9 +41,7 @@ public class SwingStyleWithoutDefault(
             report(
                 Finding(
                     entity = Entity.from(parameter),
-                    message =
-                        "The `${parameter.name}` parameter has no default. Add `= $SWING_STYLE` so a caller " +
-                            "with nothing to declare can leave it out.",
+                    message = noDefaultMessage(parameter.name),
                 ),
             )
             return
@@ -52,9 +50,7 @@ public class SwingStyleWithoutDefault(
         report(
             Finding(
                 entity = Entity.from(default),
-                message =
-                    "The `${parameter.name}` parameter defaults to `${default.text}`, not the empty style. " +
-                        "Use `= $SWING_STYLE` so a caller with nothing to declare sets nothing it did not ask for.",
+                message = wrongDefaultMessage(parameter.name, default.text),
             ),
         )
     }
@@ -66,3 +62,15 @@ private fun KtTypeReference?.declaresSwingStyle(): Boolean =
 private const val SWING_STYLE: String = "SwingStyle"
 
 private const val SWING_STYLE_FQN: String = "org.jetbrains.compose.swing.style.$SWING_STYLE"
+
+private fun noDefaultMessage(name: String?): String =
+    "The `$name` parameter has no default. A caller that sets no style " +
+        "must still pass one. Add `= $SWING_STYLE` as the default."
+
+private fun wrongDefaultMessage(
+    name: String?,
+    defaultText: String,
+): String =
+    "The `$name` parameter defaults to `$defaultText` instead of the empty " +
+        "style. Every caller that leaves it out gets this style without asking for it. " +
+        "Default it to the `$SWING_STYLE` companion."
