@@ -33,6 +33,8 @@ compose-swing:
     active: true
   SwingNodeFactoryReusesComponent:
     active: true
+  SwingNodeUpdateRepeatsInvalidation:
+    active: true
   SwingNodeUpdateWritesComponentPart:
     active: true
   SwingStyleWithoutDefault:

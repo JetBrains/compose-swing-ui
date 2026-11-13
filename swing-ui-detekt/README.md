@@ -21,6 +21,7 @@ adds one line rather than two.
 | `MultipleSwingNodeCalls` | a composable that calls `SwingNode` or `MenuNode` more than once, building its UI from raw Swing components instead of from composables that each wrap one |
 | `SwingNodeFactoryReadsDeclaredValue` | a `SwingNode` or `MenuNode` factory lambda that reads a parameter of its composable, or of a lambda around the node, which the node takes only at construction, unless `update` applies it or a `key` call around the node names it; a local and a function-typed parameter of the composable that the factory invokes are not reported |
 | `SwingNodeFactoryReusesComponent` | a `SwingNode` or `MenuNode` factory lambda that answers with a name, `this` or property access declared outside it, so every node it builds shares one component |
+| `SwingNodeUpdateRepeatsInvalidation` | a `set` or `update` block of `SwingNode` or `MenuNode` that calls `revalidate`, `invalidate` or `repaint` beside writes whose JDK setters already request it |
 | `SwingNodeUpdateWritesComponentPart` | a `SwingNode` or `MenuNode` whose `update` writes a part of a composite component that source code assembles |
 | `UnheldColumnComparator` | a table column given a comparator built where the column is declared, which sorts the rows again on every pass |
 | `UnusedTransitionTargetState` | the state-to-value lambda of `animateValue`, `animateFloat`, `animateInt` or `animateColor` that never reads the state it is handed, so every state animates toward one value |
@@ -35,6 +36,7 @@ type that does not resolve is never reported.
 - `MultipleSwingNodeCalls`
 - `SwingNodeFactoryReadsDeclaredValue`
 - `SwingNodeFactoryReusesComponent`
+- `SwingNodeUpdateRepeatsInvalidation`
 - `SwingNodeUpdateWritesComponentPart`
 
 `SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a
