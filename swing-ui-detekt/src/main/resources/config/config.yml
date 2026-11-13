@@ -35,6 +35,8 @@ compose-swing:
     active: true
   SwingNodeUpdateRepeatsInvalidation:
     active: true
+  SwingNodeUpdateStoresCallback:
+    active: true
   SwingNodeUpdateWritesComponentPart:
     active: true
   SwingStyleWithoutDefault:

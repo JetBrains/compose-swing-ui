@@ -47,6 +47,7 @@ class ComposeSwingRuleSetProviderTest {
                 RuleName("SwingNodeFactoryReadsDeclaredValue"),
                 RuleName("SwingNodeFactoryReusesComponent"),
                 RuleName("SwingNodeUpdateRepeatsInvalidation"),
+                RuleName("SwingNodeUpdateStoresCallback"),
                 RuleName("SwingNodeUpdateWritesComponentPart"),
                 RuleName("SwingStyleWithoutDefault"),
                 RuleName("UnheldColumnComparator"),

@@ -24,6 +24,7 @@ import dev.detekt.api.RuleSetProvider
  *
  * Node updates: whether a node update writes a part of a component that source code assembles.
  * Whether a node update repeats a layout or repaint request that its property writes already make.
+ * Whether a node update stores a callback on a component that listens to itself.
  *
  * Animation: whether animation lambdas use their target state.
  */
@@ -70,6 +71,9 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
             },
             RuleName("SwingNodeUpdateRepeatsInvalidation") to { config: Config ->
                 SwingNodeUpdateRepeatsInvalidation(config)
+            },
+            RuleName("SwingNodeUpdateStoresCallback") to { config: Config ->
+                SwingNodeUpdateStoresCallback(config)
             },
             RuleName("SwingNodeUpdateWritesComponentPart") to { config: Config ->
                 SwingNodeUpdateWritesComponentPart(config)
