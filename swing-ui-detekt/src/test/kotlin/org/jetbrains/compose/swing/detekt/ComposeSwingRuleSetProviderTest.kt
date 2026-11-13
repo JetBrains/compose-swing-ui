@@ -46,6 +46,7 @@ class ComposeSwingRuleSetProviderTest {
                 RuleName("SwingModifierWithoutDefault"),
                 RuleName("SwingNodeFactoryReadsDeclaredValue"),
                 RuleName("SwingNodeFactoryReusesComponent"),
+                RuleName("SwingNodeUpdateWritesComponentPart"),
                 RuleName("SwingStyleWithoutDefault"),
                 RuleName("UnheldColumnComparator"),
                 RuleName("UnusedAnimatedContentTargetState"),

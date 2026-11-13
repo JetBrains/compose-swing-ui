@@ -22,6 +22,8 @@ import dev.detekt.api.RuleSetProvider
  *
  * Node calls: whether a composable calls `SwingNode` more than once.
  *
+ * Node updates: whether a node update writes a part of a component that source code assembles.
+ *
  * Animation: whether animation lambdas use their target state.
  */
 public class ComposeSwingRuleSetProvider : RuleSetProvider {
@@ -64,6 +66,9 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
             },
             RuleName("SwingNodeFactoryReusesComponent") to { config: Config ->
                 SwingNodeFactoryReusesComponent(config)
+            },
+            RuleName("SwingNodeUpdateWritesComponentPart") to { config: Config ->
+                SwingNodeUpdateWritesComponentPart(config)
             },
             RuleName("SwingStyleWithoutDefault") to { config: Config ->
                 SwingStyleWithoutDefault(config)

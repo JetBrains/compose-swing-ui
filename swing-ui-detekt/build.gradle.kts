@@ -22,6 +22,15 @@ detekt {
     )
 }
 
+// Fixture classes the rule tests lint against: compiled apart from the tests, so analysis sees them as
+// compiled classes, the way it sees a consumer's dependency, instead of as source of the module under analysis.
+val testLibrary: SourceSet by sourceSets.creating
+
+// The gate runs detektTest, so it lints the fixtures through this dependency as well.
+tasks.named("detektTest") {
+    dependsOn("detektTestLibrary")
+}
+
 kotlin {
     explicitApi()
 
@@ -44,6 +53,7 @@ dependencies {
         exclude(group = "dev.detekt", module = "detekt-api")
     }
     testImplementation(libs.detekt.api)
+    testImplementation(testLibrary.output)
     testImplementation(kotlin("test"))
     testImplementation(libs.junitJupiterParams)
 }

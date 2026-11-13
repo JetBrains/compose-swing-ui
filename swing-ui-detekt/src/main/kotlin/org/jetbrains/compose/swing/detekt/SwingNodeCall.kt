@@ -10,8 +10,10 @@ import org.jetbrains.kotlin.analysis.api.resolution.KaReceiverValue
 import org.jetbrains.kotlin.analysis.api.resolution.KaSmartCastedReceiverValue
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -22,6 +24,7 @@ import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtThisExpression
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import java.util.Collections
 import java.util.WeakHashMap
 
@@ -78,6 +81,51 @@ internal fun KaFunctionCall<*>.argumentExpression(name: Name): KtExpression? =
 internal fun KaFunctionSymbol.isUpdaterWrite(): Boolean {
     val id = callableId ?: return false
     return id.callableName in setOf(Name.identifier("set"), UPDATE) && id.classId == SWING_NODE_UPDATER
+}
+
+/**
+ * An updater block: the block lambda literal of a `set` or `update` call, the parameter symbol of its receiver and
+ * the class symbol of the receiver's type, or null when that type is not a class.
+ */
+internal class UpdaterBlock(
+    val block: KtLambdaExpression,
+    val receiver: KaSymbol,
+    val component: KaClassSymbol?,
+)
+
+/** A node call and the updater blocks of the `update` lambda literal it passes, in source order. */
+internal class NodeUpdate(
+    val call: KaFunctionCall<*>,
+    val blocks: List<UpdaterBlock>,
+)
+
+/** The node call [call] makes with an `update` lambda literal, or null when it is not one. */
+internal fun KaSession.nodeUpdate(call: KtCallExpression): NodeUpdate? {
+    val resolved = call.resolveToCall()?.successfulFunctionCallOrNull()?.takeIf { it.isNodeCall() }
+    val update = resolved?.argumentExpression(UPDATE) as? KtLambdaExpression
+    return if (resolved != null && update != null) NodeUpdate(resolved, updaterBlocks(update)) else null
+}
+
+/**
+ * The blocks of the `set` and `update` calls that the `update` lambda literal [update] makes on its own receiver. A
+ * call on any other updater, such as one the lambda captures, is left out.
+ */
+@OptIn(KaExperimentalApi::class)
+private fun KaSession.updaterBlocks(update: KtLambdaExpression): List<UpdaterBlock> {
+    val updater = update.functionLiteral.symbol.receiverParameter ?: return emptyList()
+    return update
+        .collectDescendantsOfType<KtCallExpression>()
+        .mapNotNull { call ->
+            call
+                .resolveToCall()
+                ?.successfulFunctionCallOrNull()
+                ?.takeIf { it.symbol.isUpdaterWrite() && isOnReceiver(it, updater) }
+        }.mapNotNull { write -> write.argumentExpression(BLOCK) as? KtLambdaExpression }
+        .mapNotNull { block ->
+            block.functionLiteral.symbol.receiverParameter?.let {
+                UpdaterBlock(block, it, (it.returnType as? KaClassType)?.symbol as? KaClassSymbol)
+            }
+        }
 }
 
 /**
