@@ -18,12 +18,16 @@ import org.jetbrains.compose.swing.rules.composerules.StaleRememberUpdatedStateI
 import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
 import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
 import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
+import org.jetbrains.compose.swing.rules.runtime.AutoboxingStateValueProperty
 import org.jetbrains.compose.swing.rules.runtime.CoroutineCreationDuringComposition
 import org.jetbrains.compose.swing.rules.runtime.FlowOperatorInvokedInComposition
+import org.jetbrains.compose.swing.rules.runtime.FrequentlyChangingValue
+import org.jetbrains.compose.swing.rules.runtime.MutableCollectionMutableState
 import org.jetbrains.compose.swing.rules.runtime.OpaqueUnitKey
 import org.jetbrains.compose.swing.rules.runtime.ProduceStateDoesNotAssignValue
 import org.jetbrains.compose.swing.rules.runtime.RememberInComposition
 import org.jetbrains.compose.swing.rules.runtime.RememberReturnType
+import org.jetbrains.compose.swing.rules.runtime.StateFlowValueCalledInComposition
 
 /** Every rule this library carries, by the id of the rule set that holds it. */
 public object ComposeSwingRuleSets {
@@ -163,16 +167,20 @@ public object ComposeSwingRuleSets {
             "compose-swing-internal" to listOf(PreferImportsOverFqn, PublicDataClass),
             "compose-runtime" to
                 listOf(
+                    AutoboxingStateValueProperty,
                     ComposableNaming,
                     CompositionLocalNaming,
                     CoroutineCreationDuringComposition,
                     FlowOperatorInvokedInComposition,
+                    FrequentlyChangingValue,
+                    MutableCollectionMutableState,
                     MutableStateAutoboxing,
                     OpaqueUnitKey,
                     ProduceStateDoesNotAssignValue,
                     RememberInComposition,
                     RememberMissing,
                     RememberReturnType,
+                    StateFlowValueCalledInComposition,
                 ),
         )
 }

@@ -14,16 +14,20 @@ class ComposeRuntimeRuleSetProviderTest {
         assertEquals(RuleSetId("compose-runtime"), ruleSet.id)
         assertEquals(
             setOf(
+                RuleName("AutoboxingStateValueProperty"),
                 RuleName("ComposableNaming"),
                 RuleName("CompositionLocalNaming"),
                 RuleName("CoroutineCreationDuringComposition"),
                 RuleName("FlowOperatorInvokedInComposition"),
+                RuleName("FrequentlyChangingValue"),
+                RuleName("MutableCollectionMutableState"),
                 RuleName("MutableStateAutoboxing"),
                 RuleName("OpaqueUnitKey"),
                 RuleName("ProduceStateDoesNotAssignValue"),
                 RuleName("RememberInComposition"),
                 RuleName("RememberMissing"),
                 RuleName("RememberReturnType"),
+                RuleName("StateFlowValueCalledInComposition"),
             ),
             ruleSet.rules.keys,
         )

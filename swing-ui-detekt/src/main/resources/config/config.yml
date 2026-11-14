@@ -167,6 +167,9 @@ compose-swing-internal:
     active: false
 
 compose-runtime:
+  AutoboxingStateValueProperty:
+    active: true
+    severity: warning
   ComposableNaming:
     active: true
     allowedComposableFunctionNames: []
@@ -176,6 +179,12 @@ compose-runtime:
     active: true
   FlowOperatorInvokedInComposition:
     active: true
+  FrequentlyChangingValue:
+    active: true
+    severity: warning
+  MutableCollectionMutableState:
+    active: true
+    severity: warning
   MutableStateAutoboxing:
     active: true
     severity: warning
@@ -189,4 +198,6 @@ compose-runtime:
   RememberMissing:
     active: true
   RememberReturnType:
+    active: true
+  StateFlowValueCalledInComposition:
     active: true
