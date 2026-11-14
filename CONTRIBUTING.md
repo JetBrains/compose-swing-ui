@@ -79,18 +79,16 @@ See [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for the fixtures and the suites
 
 ## Quality gates (all must pass)
 
-`build` runs every module's `check` - compilation, ktlint, detekt, the Compose lint checks, tests,
-the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
+`build` runs every module's `check` - compilation, `staticAnalysis` (ktlint, detekt and the Compose
+lint checks), tests, the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
 the convention plugins it applies: the vendored engine package under `swing-ui-animation` is
 exempt from ktlint, detekt and Compose lint checks; the hand-written animation APIs and containers
 remain under those gates. `samples/docs`, which holds generated code, carries none beyond compilation.
-Two gates sit outside `build`: `buildSrc` is an included build the root-level tasks do not reach,
-and `check` runs only the plain `detekt` task, not the type-resolution variants. So the full gate is
-two commands, and they are what to run locally before pushing:
+One gate sits outside `build`: `buildSrc` is an included build the root-level tasks do not reach. So
+the full gate is one command, and it is what to run locally before pushing:
 
 ```bash
-./gradlew :buildSrc:ktlintCheck :buildSrc:detekt detektMain detektTest detektTestFixtures
-./gradlew build
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt build
 ```
 
 CI runs the same gates, plus `dokkaGenerate` and `publishToMavenLocal`, which `build` does not
@@ -106,9 +104,10 @@ Piece by piece:
   ```
 - **`detekt`** - static analysis (`config/detekt/detekt.yml`, on top of the default config). Rules
   that need the compile classpath fire only in the type-resolution variants, `detektMain`,
-  `detektTest` and `detektTestFixtures`, which the full gate runs by name. When scoping a run to one
-  module while iterating, invoke `:module:detektMain` and `:module:detektTest` rather than the plain
-  `:module:detekt` task, which runs without type resolution and stays silent on those rules. This
+  `detektTest`, `detektTestFixtures` and `detektFixtures`, which `staticAnalysis` runs for every
+  source set; `check` reaches them only through it. When scoping a run to one module while iterating,
+  invoke `:module:detektMain` and `:module:detektTest` rather than the plain `:module:detekt` task,
+  which runs without type resolution, stays silent on those rules and is not part of `check`. This
   does not apply to `buildSrc`, whose plain `detekt` task (below) is its own gate.
 - **`checkKotlinAbi`** - the Kotlin Gradle plugin's built-in ABI validation, comparing the compiled
   surface against the committed `.api` dumps. If you change the **public API**, regenerate them and

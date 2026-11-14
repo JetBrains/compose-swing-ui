@@ -2,7 +2,9 @@
 package buildsrc.convention
 
 import dev.detekt.gradle.Detekt
+import org.gradle.api.Task
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
 
@@ -57,6 +59,33 @@ lint {
     // it reads the fixtures in place of the library and misjudges the library's composables. Lint checks main
     // sources only.
     ignoreTestSources = true
+}
+
+private val staticAnalysis: TaskProvider<Task> =
+    tasks.register("staticAnalysis") {
+        group = "verification"
+        description = "Runs ktlint, Android Lint, and detekt with type resolution on every source set."
+        dependsOn("ktlintCheck", "lint")
+        dependsOn(
+            tasks.withType<Detekt>().matching { task ->
+                task.name != "detekt" && !task.name.endsWith("SourceSet")
+            },
+        )
+    }
+
+// The ktlint, detekt and Android Lint plugins each wire their task into `check`. Rewiring them behind
+// staticAnalysis lets `-x staticAnalysis` drop every static check from `check`.
+private fun Task.isStaticCheck(): Boolean = name == "lint" || name == "detekt" || name.startsWith("ktlint")
+
+afterEvaluate {
+    tasks.named("check") {
+        setDependsOn(
+            dependsOn.filterNot { dependency ->
+                dependency is TaskProvider<*> && dependency.get().isStaticCheck()
+            },
+        )
+        dependsOn(staticAnalysis)
+    }
 }
 
 dependencies {

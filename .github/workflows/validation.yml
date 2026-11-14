@@ -5,11 +5,9 @@ on:
 
 env:
   ANDROIDX_FORKS: :swing-ui-foundation :swing-ui-animation
-  # The Static Analysis job runs exactly the tasks the verify jobs exclude. A task `check` reaches
-  # that is missing here still runs in verify.
-  STATIC_ANALYSIS: >-
-    lint detekt detektMain detektTest detektTestFixtures
-    ktlintKotlinScriptCheck ktlintMainSourceSetCheck ktlintTestSourceSetCheck ktlintTestFixturesSourceSetCheck
+  # The verify jobs exclude staticAnalysis and the Static Analysis job runs it. `check` reaches the
+  # static checks (ktlint, detekt, Android Lint) only through staticAnalysis, so excluding it drops all of them.
+  STATIC_ANALYSIS: staticAnalysis
 
 jobs:
   verify:
