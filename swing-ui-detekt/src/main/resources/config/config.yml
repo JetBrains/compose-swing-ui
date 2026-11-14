@@ -165,3 +165,22 @@ compose-swing-internal:
     active: false
   PublicDataClass:
     active: false
+
+compose-runtime:
+  ComposableNaming:
+    active: true
+    allowedComposableFunctionNames: []
+  CompositionLocalNaming:
+    active: true
+  MutableStateAutoboxing:
+    active: true
+    severity: warning
+  OpaqueUnitKey:
+    active: true
+    severity: warning
+  RememberInComposition:
+    active: true
+  RememberMissing:
+    active: true
+  RememberReturnType:
+    active: true

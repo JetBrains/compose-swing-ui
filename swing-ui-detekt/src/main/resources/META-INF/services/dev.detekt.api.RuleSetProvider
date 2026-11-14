@@ -1,2 +1,3 @@
+org.jetbrains.compose.swing.detekt.ComposeRuntimeRuleSetProvider
 org.jetbrains.compose.swing.detekt.ComposeSwingInternalRuleSetProvider
 org.jetbrains.compose.swing.detekt.ComposeSwingRuleSetProvider

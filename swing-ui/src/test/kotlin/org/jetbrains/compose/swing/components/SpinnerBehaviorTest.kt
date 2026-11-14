@@ -5,6 +5,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.SpinnerDateFixture
@@ -513,7 +514,7 @@ class SpinnerBehaviorTest {
         val model = InPlaceSteppingSpinnerModel()
         val observed = mutableListOf<Int>()
         setContent {
-            var counter by mutableStateOf(model.value, neverEqualPolicy())
+            var counter by remember { mutableStateOf(model.value, neverEqualPolicy()) }
             observed += counter.n
             Spinner(
                 model = model,

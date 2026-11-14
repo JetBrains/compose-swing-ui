@@ -673,6 +673,8 @@ internal suspend fun ComposeSwingTest.composeInNestedComposition(
         }
         if (!hosted.value) SideEffect(afterDisposal.value)
         if (movedOut.value) {
+            // Runs once while the pass that moves the content composes; an effect would run after the move is applied.
+            @Suppress("RememberReturnType")
             remember { onMovingOut() }
             movable()
         }

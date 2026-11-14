@@ -24,7 +24,7 @@ import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Named
@@ -119,7 +119,7 @@ class AnimatedVisibilityFadeReuseTest {
         var active by mutableStateOf(false)
         var paints = 0
         setContent {
-            Window(onCloseRequest = {}, title = "fade-reuse", state = WindowState(size = Dimension(240, 160))) {
+            Window(onCloseRequest = {}, title = "fade-reuse", state = rememberWindowState(size = Dimension(240, 160))) {
                 Box(
                     SwingModifier
                         .testTag("frame")

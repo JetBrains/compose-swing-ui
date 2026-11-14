@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import java.awt.Container
@@ -24,7 +24,7 @@ internal suspend fun ComposeSwingTest.setWindowContent(content: @Composable () -
     setContent {
         Window(
             onCloseRequest = {},
-            state = WindowState(size = Dimension(400, 400)),
+            state = rememberWindowState(size = Dimension(400, 400)),
             title = WINDOW_TITLE,
         ) { content() }
     }

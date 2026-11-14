@@ -22,7 +22,7 @@ import org.jetbrains.compose.swing.test.interaction.performMouseInput
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
@@ -129,7 +129,7 @@ class AnimatedVisibilityScaleContractTest {
                 Window(
                     onCloseRequest = {},
                     title = "scoped-scale-hit-test",
-                    state = WindowState(size = Dimension(240, 120)),
+                    state = rememberWindowState(size = Dimension(240, 120)),
                 ) {
                     Box(modifier = SwingModifier.styleable { preferredSize(100, 40) }) {
                         val transition = updateTransition(visible)

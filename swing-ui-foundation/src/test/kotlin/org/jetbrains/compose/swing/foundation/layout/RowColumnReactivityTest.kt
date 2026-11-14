@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.Font
@@ -218,7 +218,7 @@ class RowColumnReactivityTest {
             setContent {
                 Window(
                     onCloseRequest = {},
-                    state = WindowState(size = Dimension(MAIN_EXTENT, CROSS_EXTENT)),
+                    state = rememberWindowState(size = Dimension(MAIN_EXTENT, CROSS_EXTENT)),
                     title = BASELINE_WINDOW_TITLE,
                 ) {
                     Row(verticalAlignment = Alignment.Bottom) {

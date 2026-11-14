@@ -42,7 +42,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -408,7 +408,11 @@ internal class ExternalDecoratableTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val marked = Marked()
         setContent {
-            Window(onCloseRequest = {}, state = WindowState(size = Dimension(400, 400)), title = REPAINT_WINDOW) {
+            Window(
+                onCloseRequest = {},
+                state = rememberWindowState(size = Dimension(400, 400)),
+                title = REPAINT_WINDOW,
+            ) {
                 Box(modifier = SwingModifier.testTag("root")) {
                     Box(modifier = SwingModifier.padding(40)) {
                         val recorded = SwingModifier.testTag("decoratable").drawBehind(marked.record)

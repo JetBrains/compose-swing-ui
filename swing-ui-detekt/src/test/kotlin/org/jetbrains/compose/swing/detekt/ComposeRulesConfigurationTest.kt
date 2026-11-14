@@ -25,6 +25,7 @@ class ComposeRulesConfigurationTest {
                 .single { it.trimStart().startsWith("excludes:") }
         val providers =
             listOf(
+                ComposeRuntimeRuleSetProvider(),
                 ComposeSwingInternalRuleSetProvider(),
                 ComposeSwingRuleSetProvider(),
             )

@@ -40,14 +40,26 @@ Run the following rules with the type-resolving Detekt tasks `detektMain`, `dete
 - `SwingNodeUpdateRepeatsInvalidation`
 - `SwingNodeUpdateStoresCallback`
 - `SwingNodeUpdateWritesComponentPart`
+- `ComposableNaming`
+- `CompositionLocalNaming`
+- `MutableStateAutoboxing`
+- `RememberMissing`
+- `ModifierShouldBeForwardedToEveryBranch`
+- `ConditionHoist`
+- `InvalidReadOnlyComposable`
+- `MissingNonRestartableComposable`
+- `MissingReadOnlyComposable`
+- `StaleRememberUpdatedStateInRemember`
+- `UnnecessaryComposable`
+- `UnnecessaryLaunchedEffect`
+- `VarsWithoutStateBacking`
+
+The `compose-runtime` rule set also uses type resolution.
 
 `SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a
 class marked with it. Every rule in the bundled config except `ModifierNodeInspectableProperties` runs on test sources.
 
-`ModifierNodeInspectableProperties` is ported from Android Lint's
-`ModifierNodeInspectablePropertiesDetector` and redistributed under the Apache License, Version 2.0,
-copyright The Android Open Source Project. See [`META-INF/NOTICE`](src/main/resources/META-INF/NOTICE)
-for the attribution and what the port changed.
+See [`META-INF/NOTICE`](src/main/resources/META-INF/NOTICE) for source attribution.
 
 ## Usage
 
@@ -63,10 +75,6 @@ dependencies {
 }
 ```
 
-The Compose rules recognize `SwingModifier` and the library's Swing widgets and layouts. Use `customModifiers` and `contentEmitters` to add your own modifier types and emitters. Where a rule offers `contentEmittersDenylist`, use it to mark content boundaries such as separate windows.
-
-`ConditionHoist` checks `Panel`, `Box`, `Column`, and `Row` calls that use their layout defaults. Its `contentEmitters` setting can also identify custom layouts.
-
 Use `buildUponDefaultConfig` to apply the bundled defaults alongside your own configuration.
 
 ```kotlin
@@ -76,14 +84,16 @@ detekt {
 }
 ```
 
-```yaml
-compose-swing:
-  ModifierMissing:
-    contentEmitters: ['CustomNode', 'OtherNode']
-  MultipleEmitters:
-    contentEmitters: 'CustomNode;OtherNode'
-  ModifierNaming:
-    customModifiers: 'CustomModifier, OtherModifier'
+Configure the Swing rules under `compose-swing`, the Compose runtime checks under `compose-runtime`, and the repository-internal rules under `compose-swing-internal`.
+
+Detekt fails the build on errors by default. Set `failOnSeverity` to `Warning` to fail on warnings as well.
+
+```kotlin
+import dev.detekt.gradle.extensions.FailOnSeverity
+
+detekt {
+    failOnSeverity.set(FailOnSeverity.Warning)
+}
 ```
 
 ## Related

@@ -25,6 +25,76 @@ import kotlin.test.assertTrue
 
 class ComposeSwingInspectionVisitorTest {
     @Test
+    fun `reports each state creation from its call on every visit`() {
+        KotlinAnalysisApiEngine().use { engine ->
+            val file =
+                engine.compile(
+                    """
+                    import androidx.compose.runtime.Composable
+                    import androidx.compose.runtime.mutableStateOf
+                    import androidx.compose.runtime.snapshots.StateFactoryMarker
+
+                    @StateFactoryMarker
+                    fun otherState() = mutableStateOf(0)
+
+                    @Composable
+                    fun Outer() {
+                        @Composable
+                        fun Inner() {
+                            mutableStateOf(1)
+                            otherState()
+                        }
+                        Inner()
+                    }
+                    """.trimIndent(),
+                    jvmClasspathRoots = createEnvironment().jvmClasspathRoots,
+                )
+            val calls =
+                file.collectDescendantsOfType<KtCallExpression> {
+                    it.text == "mutableStateOf(1)" || it.text == "otherState()"
+                }
+            checkVisits(
+                "RememberMissing",
+                calls,
+                listOf("mutableStateOf(1)", "otherState()"),
+            ) { reports ->
+                listOf("mutableStateOf", "otherState").zip(reports).forEach { (factory, report) ->
+                    assertTrue(report.message.startsWith("This call to `$factory` creates state"))
+                    assertTrue(report.message.endsWith("Call `$factory` inside `remember`."))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `reports composable naming with the same message on every visit`() {
+        KotlinAnalysisApiEngine().use { engine ->
+            val file =
+                engine.compile(
+                    """
+                    import androidx.compose.runtime.Composable
+
+                    @Composable
+                    fun lower() {}
+
+                    @Composable
+                    fun Factory() = 42
+                    """.trimIndent(),
+                    jvmClasspathRoots = createEnvironment().jvmClasspathRoots,
+                )
+            checkVisits(
+                "ComposableNaming",
+                file.collectDescendantsOfType<KtNamedFunction>(),
+                listOf("lower", "Factory"),
+            ) { reports ->
+                assertTrue(reports[0].message.startsWith("This composable returns `Unit`"))
+                assertTrue(reports[1].message.startsWith("This composable returns a value"))
+                assertTrue(reports.all { "https://" !in it.message })
+            }
+        }
+    }
+
+    @Test
     fun `reports composition locals without a file visit`() {
         val file =
             compileContentForTest(

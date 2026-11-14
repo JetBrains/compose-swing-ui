@@ -79,6 +79,12 @@ class FindingSignatureTest {
                         "@Composable\nfun parentOf() = JPanel().parent",
                     "@Composable fun parentOf",
                 ),
+                case(
+                    "ComposableNaming names the declaration",
+                    { RuntimeRuleLint.lint("ComposableNaming", it) },
+                    "import androidx.compose.runtime.Composable\n\n@Composable\nfun greeting() {}",
+                    "@Composable fun greeting",
+                ),
             )
     }
 }

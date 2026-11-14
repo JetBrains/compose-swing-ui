@@ -18,9 +18,11 @@ class ComposeSwingRuleCatalogTest {
     private val upstreamSettings =
         mapOf(
             "ComposableAnnotationNaming" to emptyMap(),
+            "ComposableNaming" to mapOf("allowedComposableFunctionNames" to "[]"),
             "ComposableNestingDepth" to emitters + ("composableNestingDepthThreshold" to "3"),
             "ComposableParamOrder" to modifiers + lambdas,
             "CompositionLocalAllowlist" to mapOf("allowedCompositionLocals" to "[]"),
+            "CompositionLocalNaming" to emptyMap(),
             "ConditionHoist" to
                 mapOf(
                     "contentEmitters" to "[]",
@@ -48,12 +50,14 @@ class ComposeSwingRuleCatalogTest {
             "ModifierShouldBeForwardedToEveryBranch" to modifiers,
             "MultipleEmitters" to emitters,
             "MutableParams" to emptyMap(),
+            "MutableStateAutoboxing" to emptyMap(),
             "MutableStateParam" to emptyMap(),
             "ParameterNaming" to mapOf("treatAsLambda" to "[]", "allowedLambdaParameterNames" to "[]"),
             "PreviewAnnotationNaming" to emptyMap(),
             "PreviewNaming" to mapOf("previewNamingStrategy" to "'suffix'"),
             "PreviewPublic" to emptyMap(),
             "RememberContentMissing" to emptyMap(),
+            "RememberMissing" to emptyMap(),
             "StateParam" to emptyMap(),
             "UnnecessaryLaunchedEffect" to
                 mapOf(

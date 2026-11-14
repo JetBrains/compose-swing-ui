@@ -16,6 +16,7 @@ class ComposeSwingRuleSetProviderTest {
             setOf(
                 ComposeSwingRuleSetProvider::class.java,
                 ComposeSwingInternalRuleSetProvider::class.java,
+                ComposeRuntimeRuleSetProvider::class.java,
             )
         val discovered =
             ServiceLoader

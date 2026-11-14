@@ -59,6 +59,10 @@ compose-swing:
   VarsWithoutStateBacking:
     excludes: ["**/src/test/**"]
 
+compose-runtime:
+  MutableStateAutoboxing:
+    excludes: ["**/src/test/**"]
+
 # Off by default in the artifact: these say nothing about what the library requires, and are declared
 # there only because no published ruleset provides them. This repository holds itself to them.
 compose-swing-internal:

@@ -45,7 +45,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Named.named
 import org.junit.jupiter.params.ParameterizedTest
@@ -145,7 +145,11 @@ class AnimatedVisibilityContainerTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var visible by mutableStateOf(false)
             setContent {
-                Window(onCloseRequest = {}, state = WindowState(size = Dimension(400, 400)), title = CLIP_WINDOW) {
+                Window(
+                    onCloseRequest = {},
+                    state = rememberWindowState(size = Dimension(400, 400)),
+                    title = CLIP_WINDOW,
+                ) {
                     Column(SwingModifier.testTag(COLUMN)) {
                         AnimatedVisibility(
                             visible = visible,

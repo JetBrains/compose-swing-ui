@@ -30,7 +30,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Color
@@ -168,7 +168,11 @@ class PolicyUnplacedChildTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var placesSecond by mutableStateOf(true)
             setContent {
-                Window(onCloseRequest = {}, state = WindowState(size = Dimension(300, 200)), title = "background") {
+                Window(
+                    onCloseRequest = {},
+                    state = rememberWindowState(size = Dimension(300, 200)),
+                    title = "background",
+                ) {
                     Layout(
                         content = {
                             TextField("", onValueChange = {}, modifier = SwingModifier.testTag("first"))
@@ -183,7 +187,7 @@ class PolicyUnplacedChildTest {
                         },
                     )
                 }
-                Window(onCloseRequest = {}, state = WindowState(size = Dimension(300, 200)), title = "active") {
+                Window(onCloseRequest = {}, state = rememberWindowState(size = Dimension(300, 200)), title = "active") {
                     TextField("", onValueChange = {}, modifier = SwingModifier.testTag("other"))
                 }
             }

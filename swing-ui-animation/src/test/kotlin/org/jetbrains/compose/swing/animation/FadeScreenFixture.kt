@@ -20,7 +20,7 @@ import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -97,7 +97,11 @@ internal suspend fun ComposeSwingTest.mountFade(
     }
     if (inWindow) {
         setContent {
-            Window(onCloseRequest = {}, title = "fade", state = WindowState(size = Dimension(400, 300))) { fade() }
+            Window(
+                onCloseRequest = {},
+                title = "fade",
+                state = rememberWindowState(size = Dimension(400, 300)),
+            ) { fade() }
         }
         awaitIdle()
         onWindowWithTitle("fade").awaitWindowSystemIdle()

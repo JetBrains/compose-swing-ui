@@ -49,6 +49,9 @@ dependencies {
         exclude(group = "dev.detekt", module = "detekt-psi-utils")
     }
 
+    // The fixtures compile against the published Compose runtime artifacts, so their annotations are the real ones.
+    "testLibraryImplementation"(libs.composeRuntime)
+
     testImplementation(libs.composeRuntime)
     testImplementation(libs.detekt.api)
 

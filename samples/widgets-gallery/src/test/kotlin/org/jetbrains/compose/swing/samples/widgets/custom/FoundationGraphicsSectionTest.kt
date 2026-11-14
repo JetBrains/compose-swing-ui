@@ -31,7 +31,7 @@ import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -448,7 +448,11 @@ class FoundationGraphicsSectionTest {
         runComposeSwingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             setContent {
-                Window(onCloseRequest = {}, state = WindowState(size = Dimension(1200, 900)), title = FOCUS_WINDOW) {
+                Window(
+                    onCloseRequest = {},
+                    state = rememberWindowState(size = Dimension(1200, 900)),
+                    title = FOCUS_WINDOW,
+                ) {
                     ShowcaseShell()
                 }
             }
