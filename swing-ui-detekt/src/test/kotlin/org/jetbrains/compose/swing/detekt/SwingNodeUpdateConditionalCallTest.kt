@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class SwingNodeUpdateConditionalCallTest {
     @ParameterizedTest(name = "{0}")
@@ -45,25 +46,26 @@ class SwingNodeUpdateConditionalCallTest {
         """.trimIndent()
 
     private fun lint(code: String): List<Finding> =
-        SwingNodeUpdateConditionalCall(Config.empty).lintWithContext(
-            environment,
-            code,
-            COMPOSABLE_STUBS,
-            NODE_UPDATER_STUBS,
-            UPDATING_NODE_STUBS,
-            """
-            package org.jetbrains.compose.swing.node
-            import java.awt.Component
-            class MirrorState<V>
-            fun <C : Component, V> SwingNodeUpdater<C>.declare(
-                value: V,
-                mirror: MirrorState<V>,
-                read: C.() -> V,
-                write: C.(V) -> Unit,
-            ) {}
-            fun <C : Component> SwingNodeUpdater<C>.declare(debug: String) {}
-            """.trimIndent(),
-        )
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateConditionalCall"))
+            .lintWithContext(
+                environment,
+                code,
+                COMPOSABLE_STUBS,
+                NODE_UPDATER_STUBS,
+                UPDATING_NODE_STUBS,
+                """
+                package org.jetbrains.compose.swing.node
+                import java.awt.Component
+                class MirrorState<V>
+                fun <C : Component, V> SwingNodeUpdater<C>.declare(
+                    value: V,
+                    mirror: MirrorState<V>,
+                    read: C.() -> V,
+                    write: C.(V) -> Unit,
+                ) {}
+                fun <C : Component> SwingNodeUpdater<C>.declare(debug: String) {}
+                """.trimIndent(),
+            )
 
     @Test
     fun `says why the call must not be skipped`() {
@@ -76,7 +78,7 @@ class SwingNodeUpdateConditionalCallTest {
             }
             """.trimIndent()
         val finding =
-            SwingNodeUpdateConditionalCall(Config.empty)
+            assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateConditionalCall"))
                 .lintWithContext(environment, code, COMPOSABLE_STUBS, NODE_UPDATER_STUBS, UPDATING_NODE_STUBS)
                 .single()
         assertEquals(
@@ -100,7 +102,7 @@ class SwingNodeUpdateConditionalCallTest {
             }
             """.trimIndent()
         val finding =
-            SwingNodeUpdateConditionalCall(Config.empty)
+            assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateConditionalCall"))
                 .lintWithContext(environment, code, COMPOSABLE_STUBS, NODE_UPDATER_STUBS, UPDATING_NODE_STUBS)
                 .single()
         assertEquals(
@@ -124,7 +126,7 @@ class SwingNodeUpdateConditionalCallTest {
             }
             """.trimIndent()
         val finding =
-            SwingNodeUpdateConditionalCall(Config.empty)
+            assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateConditionalCall"))
                 .lintWithContext(environment, code, COMPOSABLE_STUBS, NODE_UPDATER_STUBS, UPDATING_NODE_STUBS)
                 .single()
         assertEquals(

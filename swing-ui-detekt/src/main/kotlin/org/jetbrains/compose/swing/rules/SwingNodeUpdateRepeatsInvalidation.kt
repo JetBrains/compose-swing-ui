@@ -1,11 +1,6 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -26,6 +21,7 @@ import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtThisExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
 
@@ -57,28 +53,32 @@ import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
  * The rule resolves calls and symbols, so it runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`). A call or write that does not resolve is never reported.
  */
-public class SwingNodeUpdateRepeatsInvalidation(
-    config: Config,
-) : Rule(
-        config,
-        "An updater block should not repeat the layout or repaint request its setters make",
-    ),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeUpdateRepeatsInvalidation")
+internal object SwingNodeUpdateRepeatsInvalidation : ComposeSwingRule {
+    override val id: String = "SwingNodeUpdateRepeatsInvalidation"
+    override val description: String =
+        "An updater block should not repeat the layout or repaint request its setters make"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) { findingsIn(expression) }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) { findingsIn(expression) }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
-    private fun KaSession.findingsIn(call: KtCallExpression): List<Finding> =
+    private fun KaSession.findingsIn(call: KtCallExpression): List<RuleFinding> =
         nodeUpdate(call)?.blocks.orEmpty().flatMap { findingsIn(it.block, it.receiver) }
 
     private fun KaSession.findingsIn(
         block: KtLambdaExpression,
         receiver: KaSymbol,
-    ): List<Finding> {
+    ): List<RuleFinding> {
         val statements =
             block.bodyExpression
                 ?.statements
@@ -96,8 +96,8 @@ public class SwingNodeUpdateRepeatsInvalidation(
         return invalidations
             .filter { (_, request) -> repeated.all { request in it.requests } }
             .map { (statement, _) ->
-                Finding(
-                    entity = Entity.from(statement),
+                RuleFinding(
+                    entity = statement,
                     message = repeatedInvalidationMessage(statement, repeated.map { it.setter }),
                 )
             }
@@ -195,29 +195,27 @@ public class SwingNodeUpdateRepeatsInvalidation(
 
     private enum class InvalidationRequest { LAYOUT, REPAINT }
 
-    private companion object {
-        private fun setter(
-            owner: String,
-            name: String,
-            vararg requests: InvalidationRequest,
-        ): Pair<CallableId, Set<InvalidationRequest>> =
-            CallableId(ClassId(FqName("javax.swing"), Name.identifier(owner)), Name.identifier(name)) to
-                requests.toSet()
+    private fun setter(
+        owner: String,
+        name: String,
+        vararg requests: InvalidationRequest,
+    ): Pair<CallableId, Set<InvalidationRequest>> =
+        CallableId(ClassId(FqName("javax.swing"), Name.identifier(owner)), Name.identifier(name)) to
+            requests.toSet()
 
-        private val SETTERS: Map<CallableId, Set<InvalidationRequest>> =
-            mapOf(
-                setter("JComponent", "setFont", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
-                setter("JComponent", "setBorder", InvalidationRequest.REPAINT),
-                setter("JComponent", "setForeground", InvalidationRequest.REPAINT),
-                setter("JComponent", "setBackground", InvalidationRequest.REPAINT),
-                setter("JLabel", "setText", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
-                setter("JLabel", "setIcon", InvalidationRequest.REPAINT),
-                setter("JLabel", "setHorizontalAlignment", InvalidationRequest.REPAINT),
-                setter("AbstractButton", "setText", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
-                setter("AbstractButton", "setIcon", InvalidationRequest.REPAINT),
-                setter("AbstractButton", "setHorizontalAlignment", InvalidationRequest.REPAINT),
-            )
-    }
+    private val SETTERS: Map<CallableId, Set<InvalidationRequest>> =
+        mapOf(
+            setter("JComponent", "setFont", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
+            setter("JComponent", "setBorder", InvalidationRequest.REPAINT),
+            setter("JComponent", "setForeground", InvalidationRequest.REPAINT),
+            setter("JComponent", "setBackground", InvalidationRequest.REPAINT),
+            setter("JLabel", "setText", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
+            setter("JLabel", "setIcon", InvalidationRequest.REPAINT),
+            setter("JLabel", "setHorizontalAlignment", InvalidationRequest.REPAINT),
+            setter("AbstractButton", "setText", InvalidationRequest.LAYOUT, InvalidationRequest.REPAINT),
+            setter("AbstractButton", "setIcon", InvalidationRequest.REPAINT),
+            setter("AbstractButton", "setHorizontalAlignment", InvalidationRequest.REPAINT),
+        )
 }
 
 private fun List<String>.joinedWithAnd(): String =

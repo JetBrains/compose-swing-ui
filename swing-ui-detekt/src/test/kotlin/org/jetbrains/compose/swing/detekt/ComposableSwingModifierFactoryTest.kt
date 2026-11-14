@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lint
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,7 +8,7 @@ import kotlin.test.assertTrue
 
 class ComposableSwingModifierFactoryTest {
     private fun lint(source: String) =
-        ComposableSwingModifierFactory(Config.empty).lint(sourceWithLibrarySwingModifierImport(source))
+        composeSwingRule("ComposableSwingModifierFactory").lint(sourceWithLibrarySwingModifierImport(source))
 
     @Test
     fun `reports a composable extension on the chain`() {

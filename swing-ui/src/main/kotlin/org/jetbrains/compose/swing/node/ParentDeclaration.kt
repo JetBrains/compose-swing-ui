@@ -574,13 +574,21 @@ internal fun ParentLayoutElement.isLeftOutUnder(host: Container): Boolean =
 /** Represents folded parent data for the shared acceptance pass. */
 private class ParentDataProtocolElement(
     override val parentProtocol: ParentProtocol,
-) : ParentLayoutElement
+) : ParentLayoutElement {
+    override val name: String get() = "parentData"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("protocol" to parentProtocol)
+}
 
 /** Represents a recorded slot for the shared acceptance pass. */
 private class SlotParentElement(
     override val parentProtocol: ParentProtocol,
     val slotName: String,
-) : ParentSlotElement
+) : ParentSlotElement {
+    override val name: String get() = "slot"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("region" to slotName)
+}
 
 /** Explains why [element] cannot declare data to [host]. */
 private fun wrongParentHost(

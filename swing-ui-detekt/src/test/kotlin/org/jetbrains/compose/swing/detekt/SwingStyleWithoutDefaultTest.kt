@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lint
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
@@ -10,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SwingStyleWithoutDefaultTest {
-    private fun lint(source: String) = SwingStyleWithoutDefault(Config.empty).lint(source.trimIndent())
+    private fun lint(source: String) = composeSwingRule("SwingStyleWithoutDefault").lint(source.trimIndent())
 
     @TestFactory
     fun validStyles(): List<DynamicTest> =

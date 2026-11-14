@@ -29,10 +29,9 @@ adds one line rather than two.
 | `UnusedTransitionTargetState` | the state-to-value lambda of `animateValue`, `animateFloat`, `animateInt` or `animateColor` that never reads the state it is handed, so every state animates toward one value |
 | `UnusedAnimatedContentTargetState` | an `AnimatedContent` or `Crossfade` content or content-key lambda that never reads the state it is handed, so the two states share content |
 
-The rules below resolve calls, symbols and types, so they run only under the type-resolving tasks
-(`detektMain`, `detektTest`, `detektTestFixtures`) and detekt skips them under plain `detekt`. A call, reference or
-type that does not resolve is never reported.
+Run the following rules with the type-resolving Detekt tasks `detektMain`, `detektTest`, or `detektTestFixtures`.
 
+- `ModifierNodeInspectableProperties`
 - `SwingComponentInComposableSignature`
 - `MultipleSwingModifierParameters`
 - `MultipleSwingNodeCalls`

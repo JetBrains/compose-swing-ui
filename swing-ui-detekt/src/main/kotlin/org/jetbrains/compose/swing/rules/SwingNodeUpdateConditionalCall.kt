@@ -1,12 +1,7 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
 import com.intellij.psi.util.PsiTreeUtil
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -28,6 +23,7 @@ import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtThisExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.anyDescendantOfType
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
@@ -42,20 +38,26 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
  * The rule resolves calls and symbols, so it runs only under the type-resolving tasks (`detektMain`, `detektTest`,
  * `detektTestFixtures`). A call or reference that does not resolve is never reported.
  */
-public class SwingNodeUpdateConditionalCall(
-    config: Config,
-) : Rule(config, "Updater calls must run on every recomposition, in the same order"),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeUpdateConditionalCall")
+internal object SwingNodeUpdateConditionalCall : ComposeSwingRule {
+    override val id: String = "SwingNodeUpdateConditionalCall"
+    override val description: String = "Updater calls must run on every recomposition, in the same order"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) { findingsIn(expression) }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) { findingsIn(expression) }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
     @OptIn(KaExperimentalApi::class)
-    private fun KaSession.findingsIn(node: KtCallExpression): List<Finding> {
+    private fun KaSession.findingsIn(node: KtCallExpression): List<RuleFinding> {
         val update = nodeUpdate(node)?.call?.argumentExpression(UPDATE) as? KtLambdaExpression
         val receiver = update?.functionLiteral?.symbol?.receiverParameter
         if (update == null || receiver == null) return emptyList()
@@ -70,7 +72,7 @@ public class SwingNodeUpdateConditionalCall(
                     } else {
                         conditionalCallSkippedMessage(name)
                     }
-                Finding(Entity.from(call), message)
+                RuleFinding(call, message)
             }
     }
 

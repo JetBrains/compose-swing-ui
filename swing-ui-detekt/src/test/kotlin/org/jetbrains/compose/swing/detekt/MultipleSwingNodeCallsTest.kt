@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.params.ParameterizedTest
@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class MultipleSwingNodeCallsTest {
     @ParameterizedTest(name = "reports {0}")
@@ -50,11 +51,12 @@ class MultipleSwingNodeCallsTest {
         lint(source).map { positionOf(source, it.entity.location.text.start, it.entity.location.text.end) }
 
     private fun lint(source: String) =
-        MultipleSwingNodeCalls(Config.empty).lintWithContext(
-            environment,
-            source,
-            COMPOSABLE_STUBS,
-            """
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("MultipleSwingNodeCalls"))
+            .lintWithContext(
+                environment,
+                source,
+                COMPOSABLE_STUBS,
+                """
 package org.jetbrains.compose.swing.node
 
 import java.awt.Component
@@ -67,14 +69,14 @@ public fun <T : Component> MenuNode(factory: () -> T) {}
 
 public fun <T : Component> ExistingSwingNode(component: T) {}
 """,
-            """
+                """
 package other
 
 import javax.swing.JPanel
 
 fun SwingNode(factory: () -> JPanel) {}
 """,
-        )
+            )
 
     companion object {
         private val environment = createEnvironment()

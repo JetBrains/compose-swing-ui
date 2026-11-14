@@ -109,6 +109,13 @@ naming:
     ignoreAnnotated: ["Composable"]
 
 style:
+  ForbiddenImport:
+    active: true
+    # A rule is written against the host-neutral API, so the same class runs under detekt and in the IDE.
+    includes: ['**/org/jetbrains/compose/swing/rules/**']
+    forbiddenImports:
+      - value: 'dev.detekt.*'
+        reason: 'A rule in this package stays independent of detekt; the adapters in the detekt package carry it there.'
   MagicNumber:
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts', "**/src/fixtures/**"]
     # Default UI dimensions / parameters inside @Composable functions read fine inline.

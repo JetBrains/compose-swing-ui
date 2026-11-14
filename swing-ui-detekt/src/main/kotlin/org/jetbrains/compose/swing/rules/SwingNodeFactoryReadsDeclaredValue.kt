@@ -1,13 +1,8 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -29,6 +24,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtReturnExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.anyDescendantOfType
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
@@ -63,26 +59,32 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
  * The rule resolves calls and symbols, so it runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`). A call or reference that does not resolve is never reported.
  */
-public class SwingNodeFactoryReadsDeclaredValue(
-    config: Config,
-) : Rule(config, "A parameter that only a `SwingNode` factory reads never updates the component"),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeFactoryReadsDeclaredValue")
+internal object SwingNodeFactoryReadsDeclaredValue : ComposeSwingRule {
+    override val id: String = "SwingNodeFactoryReadsDeclaredValue"
+    override val description: String = "A parameter that only a `SwingNode` factory reads never updates the component"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        val function = expression.getStrictParentOfType<KtNamedFunction>() ?: return
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) {
-            if (function.symbol.hasComposableAnnotation()) findingsIn(expression, function) else emptyList()
-        }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                val function = expression.getStrictParentOfType<KtNamedFunction>() ?: return
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) {
+                    if (function.symbol.hasComposableAnnotation()) findingsIn(expression, function) else emptyList()
+                }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
     @OptIn(KaExperimentalApi::class)
     private fun KaSession.findingsIn(
         call: KtCallExpression,
         function: KtNamedFunction,
-    ): List<Finding> {
+    ): List<RuleFinding> {
         val (resolved, factory) = nodeCallWithFactory(call) ?: return emptyList()
         val exempt = appliedSymbols(resolved.argumentExpression(UPDATE)) + keyedSymbols(call, function)
         val declared = function.symbol.valueParameters + enclosingLambdaParameters(call, function)
@@ -103,7 +105,7 @@ public class SwingNodeFactoryReadsDeclaredValue(
                     } else {
                         parameterMessage(name)
                     }
-                Finding(entity = Entity.from(reference), message = message)
+                RuleFinding(entity = reference, message = message)
             }
     }
 

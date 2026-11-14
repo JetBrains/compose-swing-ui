@@ -1,5 +1,7 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
+import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.KaCallableMemberCall
@@ -19,14 +21,11 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
-import java.util.Collections
-import java.util.WeakHashMap
 
 internal val NODE_PACKAGE_NAME: FqName = FqName("org.jetbrains.compose.swing.node")
 private val NODE_CALLEE_NAMES: Set<Name> = setOf(Name.identifier("SwingNode"), Name.identifier("MenuNode"))
@@ -34,28 +33,14 @@ internal val UPDATE: Name = Name.identifier("update")
 internal val BLOCK: Name = Name.identifier("block")
 internal val SWING_NODE_UPDATER: ClassId = ClassId(NODE_PACKAGE_NAME, Name.identifier("SwingNodeUpdater"))
 
-/**
- * Whether [this] names `SwingNode` or `MenuNode`, or an import alias of one, so that it can be a node call. It reads
- * the syntax only, so a rule runs it before it pays for an analysis session. The names that can denote a node call
- * are collected once per file.
- */
+/** Whether [this] names a node function or an import alias of one. */
 internal fun KtCallExpression.mayBeNodeCall(): Boolean {
     val callee = (calleeExpression as? KtNameReferenceExpression)?.getReferencedName() ?: return false
-    return callee in containingKtFile.nodeCalleeNames()
+    return NODE_CALLEE_NAMES.any { it.asString() == callee } ||
+        containingKtFile.importDirectives.any {
+            it.aliasName == callee && it.importedFqName?.shortName() in NODE_CALLEE_NAMES
+        }
 }
-
-/** The names in [this] file that can denote a node function, kept for as long as the file object lives. */
-private val nodeCalleeNamesByFile: MutableMap<KtFile, Set<String>> = Collections.synchronizedMap(WeakHashMap())
-
-/** The two node names and the import aliases of them in [this] file. */
-private fun KtFile.nodeCalleeNames(): Set<String> =
-    nodeCalleeNamesByFile.getOrPut(this) {
-        val aliases =
-            importDirectives
-                .filter { it.importedFqName?.shortName() in NODE_CALLEE_NAMES }
-                .mapNotNull { it.aliasName }
-        NODE_CALLEE_NAMES.mapTo(mutableSetOf()) { it.asString() } + aliases
-    }
 
 /** Whether [this] calls the top-level `SwingNode` or `MenuNode` of the node package. */
 internal fun KaFunctionCall<*>.isNodeCall(): Boolean {
@@ -170,3 +155,11 @@ private fun KaSession.isReceiver(
             false
         }
     }
+
+/**
+ * A problem a rule's analysis finds before the rule reports it: the element to report at, and the message.
+ */
+internal class RuleFinding(
+    val entity: PsiElement,
+    val message: String,
+)

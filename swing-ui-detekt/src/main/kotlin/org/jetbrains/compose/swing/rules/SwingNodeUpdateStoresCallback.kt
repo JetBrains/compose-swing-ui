@@ -1,12 +1,7 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
 import com.intellij.psi.util.PsiTreeUtil
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -46,6 +41,7 @@ import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtValueArgumentList
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
 
@@ -81,22 +77,26 @@ import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
  * The rule resolves calls, types and symbols, so it runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`). An expression that does not resolve is never reported.
  */
-public class SwingNodeUpdateStoresCallback(
-    config: Config,
-) : Rule(
-        config,
-        "A node should report events through a listener modifier, not a callback stored on its component",
-    ),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeUpdateStoresCallback")
+internal object SwingNodeUpdateStoresCallback : ComposeSwingRule {
+    override val id: String = "SwingNodeUpdateStoresCallback"
+    override val description: String =
+        "A node should report events through a listener modifier, not a callback stored on its component"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) { findingsIn(expression) }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) { findingsIn(expression) }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
-    private fun KaSession.findingsIn(call: KtCallExpression): List<Finding> =
+    private fun KaSession.findingsIn(call: KtCallExpression): List<RuleFinding> =
         nodeUpdate(call)?.blocks.orEmpty().flatMap { updater ->
             updater.component?.let { assignmentFindings(updater.block, updater.receiver, it) }.orEmpty()
         }
@@ -105,7 +105,7 @@ public class SwingNodeUpdateStoresCallback(
         block: KtLambdaExpression,
         receiver: KaSymbol,
         component: KaClassSymbol,
-    ): List<Finding> {
+    ): List<RuleFinding> {
         val registrations by lazy(LazyThreadSafetyMode.NONE) { selfRegistrations(component) }
         return block
             .collectDescendantsOfType<KtBinaryExpression> { it.operationToken == KtTokens.EQ }
@@ -114,8 +114,8 @@ public class SwingNodeUpdateStoresCallback(
                 val listener =
                     registrations.firstOrNull { readsProperty(it.call, property, it.owner) }
                         ?: return@mapNotNull null
-                Finding(
-                    entity = Entity.from(assignment),
+                RuleFinding(
+                    entity = assignment,
                     message =
                         storedCallbackMessage(
                             property.name.asString(),

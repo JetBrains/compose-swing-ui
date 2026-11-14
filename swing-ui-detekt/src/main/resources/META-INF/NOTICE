@@ -1,17 +1,9 @@
 compose-swing-ui :: swing-ui-detekt
 
-This module contains source code copied and adapted from the Android Open Source
-Project's Android Lint checks, redistributed under the Apache License, Version
-2.0.
+This module includes source code adapted from the following projects under the
+Apache License, Version 2.0.
 
-  Original: compose/ui/ui-lint, ModifierNodeInspectablePropertiesDetector
-            Copyright The Android Open Source Project
-
-Adaptations: the detector reads the code through detekt's rule types and PSI in
-place of Lint's own, and answers about this library's SwingModifier element
-contract in place of Compose UI's ModifierNodeElement. The port is named
-ModifierNodeInspectableProperties and sits in the package
-org.jetbrains.compose.swing.detekt. See its file header for what the port
-substitutes or drops, and for the original copyright year.
+  AndroidX frameworks/support (androidx commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
+  Copyright The Android Open Source Project
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

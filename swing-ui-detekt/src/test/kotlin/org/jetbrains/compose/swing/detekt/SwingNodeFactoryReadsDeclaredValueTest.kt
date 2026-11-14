@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.params.ParameterizedTest
@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class SwingNodeFactoryReadsDeclaredValueTest {
     @ParameterizedTest(name = "reports {0}")
@@ -58,7 +59,7 @@ class SwingNodeFactoryReadsDeclaredValueTest {
             lint(code).map { positionOf(code, it.entity.location.text.start, it.entity.location.text.end) }
 
         internal fun lint(code: String) =
-            SwingNodeFactoryReadsDeclaredValue(Config.empty)
+            assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeFactoryReadsDeclaredValue"))
                 .lintWithContext(environment, code, *stubSources().toTypedArray())
 
         private fun stubSources(): List<String> = composeStubs() + swingNodeStubs()

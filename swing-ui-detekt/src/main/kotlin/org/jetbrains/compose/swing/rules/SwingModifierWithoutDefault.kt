@@ -1,11 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -18,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiUtil
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.parents
 
 /**
@@ -29,38 +25,39 @@ import org.jetbrains.kotlin.psi.psiUtil.parents
  * Only a declaration a caller outside its module can reach is checked. A private helper is always
  * called with a chain by the composable that owns it, and a default there would stand for nothing.
  */
-public class SwingModifierWithoutDefault(
-    config: Config,
-) : Rule(config, "A composable's `SwingModifier` parameter should default to the empty modifier") {
-    override val ruleName: RuleName = RuleName("SwingModifierWithoutDefault")
+internal object SwingModifierWithoutDefault : ComposeSwingRule {
+    override val id: String = "SwingModifierWithoutDefault"
+    override val description: String = "A composable's `SwingModifier` parameter should default to the empty modifier"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        if (!function.isComposable() || !function.isReachableFromOutside() || function.isImplementingSomething()) {
-            return
-        }
-        function.valueParameters.filter { it.declaresSwingModifier() }.forEach(::reportUnlessDefaultsToTheEmptyChain)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                if (!function.isComposable() || !function.isReachableFromOutside() ||
+                    function.isImplementingSomething()
+                ) {
+                    return
+                }
+                function.valueParameters
+                    .filter { it.declaresSwingModifier() }
+                    .forEach(::reportUnlessDefaultsToTheEmptyChain)
+            }
 
-    private fun reportUnlessDefaultsToTheEmptyChain(parameter: KtParameter) {
-        val default = parameter.defaultValue
-        if (default == null) {
-            report(
-                Finding(
-                    entity = Entity.from(parameter),
-                    message = missingDefaultMessage(parameter.name),
-                ),
-            )
-            return
+            private fun reportUnlessDefaultsToTheEmptyChain(parameter: KtParameter) {
+                val default = parameter.defaultValue
+                if (default == null) {
+                    reporter.report(parameter, missingDefaultMessage(parameter.name))
+                    return
+                }
+                if (default.isLibraryCompanionDefault(SWING_MODIFIER_FQN)) return
+                reporter.report(default, wrongDefaultMessage(parameter.name, default.text))
+            }
         }
-        if (default.isLibraryCompanionDefault(SWING_MODIFIER_FQN)) return
-        report(
-            Finding(
-                entity = Entity.from(default),
-                message = wrongDefaultMessage(parameter.name, default.text),
-            ),
-        )
-    }
 }
 
 internal const val SWING_MODIFIER: String = "SwingModifier"

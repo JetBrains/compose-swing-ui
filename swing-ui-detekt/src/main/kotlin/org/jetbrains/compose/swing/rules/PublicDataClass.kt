@@ -1,14 +1,10 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
@@ -29,21 +25,24 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  * A class is taken to be out of reach when it, or anything it is declared inside, is `private` or
  * `internal`. `protected` is reported, being the surface a subclass outside the module compiles against.
  */
-internal class PublicDataClass(
-    config: Config,
-) : Rule(config, "A data class in the public API cannot gain a constructor parameter without breaking callers.") {
-    override val ruleName: RuleName = RuleName("PublicDataClass")
+internal object PublicDataClass : ComposeSwingRule {
+    override val id: String = "PublicDataClass"
+    override val description: String =
+        "A data class in the public API cannot gain a constructor parameter without breaking callers."
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = false
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitClass(klass: KtClass) {
-        super.visitClass(klass)
-        if (!klass.isData() || klass.isLocal || !klass.isReachableFromOutside()) return
-        report(
-            Finding(
-                entity = Entity.from(klass.nameIdentifier ?: klass),
-                message = MESSAGE,
-            ),
-        )
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitClass(klass: KtClass) {
+                if (!klass.isData() || klass.isLocal || !klass.isReachableFromOutside()) return
+                reporter.report(klass.nameIdentifier ?: klass, MESSAGE)
+            }
+        }
 }
 
 private const val MESSAGE: String =

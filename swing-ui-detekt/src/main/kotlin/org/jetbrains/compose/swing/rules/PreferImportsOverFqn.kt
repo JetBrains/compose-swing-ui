@@ -1,13 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
 import com.intellij.psi.util.PsiTreeUtil
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -22,6 +16,7 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPackageDirective
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
 
 /**
@@ -41,37 +36,46 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  * The expression check resolves names, so the rule runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`).
  */
-internal class PreferImportsOverFqn(
-    config: Config,
-) : Rule(config, "Direct fully-qualified names should be replaced with imports."),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("PreferImportsOverFqn")
+internal object PreferImportsOverFqn : ComposeSwingRule {
+    override val id: String = "PreferImportsOverFqn"
+    override val description: String = "Direct fully-qualified names should be replaced with imports."
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = false
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitTypeReference(typeReference: KtTypeReference) {
-        super.visitTypeReference(typeReference)
-        val userType = typeReference.typeElement?.unwrapNullability() as? KtUserType ?: return
-        val candidate = normalizeTypeCandidate(userType.text)
-        if (!looksLikeDirectFqnType(candidate)) {
-            return
-        }
-        reportViolation(entity = Entity.from(userType), text = candidate)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitTypeReference(typeReference: KtTypeReference) {
+                val userType = typeReference.typeElement?.unwrapNullability() as? KtUserType ?: return
+                val candidate = normalizeTypeCandidate(userType.text)
+                if (!looksLikeDirectFqnType(candidate)) {
+                    return
+                }
+                reporter.report(userType, "Use import instead of direct FQN: $candidate")
+            }
 
-    override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
-        super.visitDotQualifiedExpression(expression)
-        val inDirective =
-            PsiTreeUtil.getParentOfType(expression, KtImportDirective::class.java, KtPackageDirective::class.java)
-        if (inDirective != null) {
-            return
+            override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
+                val inDirective =
+                    PsiTreeUtil.getParentOfType(
+                        expression,
+                        KtImportDirective::class.java,
+                        KtPackageDirective::class.java,
+                    )
+                if (inDirective != null) {
+                    return
+                }
+                val selectorName = selectorName(expression) ?: return
+                if (analyze(expression) { isPackageQualifiedMember(expression, selectorName) }) {
+                    reporter.report(
+                        expression,
+                        "Use import instead of direct FQN: ${expression.receiverExpression.text}.${selectorName.text}",
+                    )
+                }
+            }
         }
-        val selectorName = selectorName(expression) ?: return
-        if (analyze(expression) { isPackageQualifiedMember(expression, selectorName) }) {
-            reportViolation(
-                entity = Entity.from(expression),
-                text = "${expression.receiverExpression.text}.${selectorName.text}",
-            )
-        }
-    }
 
     private fun selectorName(expression: KtDotQualifiedExpression): KtNameReferenceExpression? =
         when (val selector = expression.selectorExpression) {
@@ -110,18 +114,6 @@ internal class PreferImportsOverFqn(
                 }
             } == true
 
-    private fun reportViolation(
-        entity: Entity,
-        text: String,
-    ) {
-        report(
-            Finding(
-                entity = entity,
-                message = "Use import instead of direct FQN: $text",
-            ),
-        )
-    }
-
     private fun normalizeTypeCandidate(text: String): String =
         text
             .substringBefore('<')
@@ -150,7 +142,5 @@ internal class PreferImportsOverFqn(
 
     private fun lowercasePrefixLength(segments: List<String>): Int = segments.takeWhile(::looksLikePackageToken).size
 
-    private companion object {
-        private const val MIN_SEGMENTS_FOR_TYPE_FQN = 2
-    }
+    private const val MIN_SEGMENTS_FOR_TYPE_FQN = 2
 }

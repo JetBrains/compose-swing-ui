@@ -46,6 +46,8 @@ dependencies {
     // the same classpath, already pointed at this library's types by the config this jar carries.
     api(libs.composeRulesDetekt)
 
+    testImplementation(libs.composeRuntime)
+
     // detekt-test asks for detekt-api's test-fixtures capability at runtime, but detekt 2.0.0-alpha
     // publishes only the sources jar of those fixtures, so that variant cannot resolve. The fixtures
     // back detekt-test's file-process-listener helpers alone, which nothing here touches.

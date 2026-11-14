@@ -1,14 +1,10 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
  * Reports a `SwingModifier` factory marked `@Composable`.
@@ -24,30 +20,31 @@ import org.jetbrains.kotlin.psi.KtProperty
  * Because this rule is PSI-only, it checks factories with an explicit `SwingModifier` return type and
  * leaves inferred return types alone rather than guessing their semantic type.
  */
-public class ComposableSwingModifierFactory(
-    config: Config,
-) : Rule(config, "A `SwingModifier` factory should not be `@Composable`") {
-    override val ruleName: RuleName = RuleName("ComposableSwingModifierFactory")
+internal object ComposableSwingModifierFactory : ComposeSwingRule {
+    override val id: String = "ComposableSwingModifierFactory"
+    override val description: String = "A `SwingModifier` factory should not be `@Composable`"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        reportIfComposableFactory(function)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                reportIfComposableFactory(function)
+            }
 
-    override fun visitProperty(property: KtProperty) {
-        super.visitProperty(property)
-        if (property.isFactoryCandidate()) reportIfComposableFactory(property)
-    }
+            override fun visitProperty(property: KtProperty) {
+                if (property.isFactoryCandidate()) reportIfComposableFactory(property)
+            }
 
-    private fun reportIfComposableFactory(declaration: KtCallableDeclaration) {
-        if (!declaration.typeReference.declaresSwingModifier() || !declaration.isComposable()) return
-        report(
-            Finding(
-                entity = Entity.from(declaration),
-                message = composableSwingModifierFactoryMessage(declaration.name),
-            ),
-        )
-    }
+            private fun reportIfComposableFactory(declaration: KtCallableDeclaration) {
+                if (!declaration.typeReference.declaresSwingModifier() || !declaration.isComposable()) return
+                reporter.report(declaration, composableSwingModifierFactoryMessage(declaration.name))
+            }
+        }
 }
 
 private fun composableSwingModifierFactoryMessage(name: String?): String =

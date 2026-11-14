@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class SwingNodeUpdateWritesComponentPartTest {
     @ParameterizedTest(name = "reports {0}")
@@ -60,18 +61,19 @@ class SwingNodeUpdateWritesComponentPartTest {
         map { positionOf(code, it.entity.location.text.start, it.entity.location.text.end) }
 
     private fun lint(code: String) =
-        SwingNodeUpdateWritesComponentPart(Config.empty).lintWithContext(
-            environment,
-            code,
-            COMPOSABLE_STUBS,
-            NODE_UPDATER_STUBS,
-            UPDATING_NODE_STUBS,
-            """
-            package other
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateWritesComponentPart"))
+            .lintWithContext(
+                environment,
+                code,
+                COMPOSABLE_STUBS,
+                NODE_UPDATER_STUBS,
+                UPDATING_NODE_STUBS,
+                """
+                package other
 
-            fun outside(): javax.swing.JLabel = javax.swing.JLabel()
-            """.trimIndent(),
-        )
+                fun outside(): javax.swing.JLabel = javax.swing.JLabel()
+                """.trimIndent(),
+            )
 
     companion object {
         private val environment = createEnvironment()

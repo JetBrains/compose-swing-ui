@@ -1,11 +1,6 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -32,6 +27,7 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
@@ -77,22 +73,25 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
  * The rule resolves calls, symbols and types, so it runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`). A call, reference or type that does not resolve is never reported.
  */
-public class SwingNodeUpdateWritesComponentPart(
-    config: Config,
-) : Rule(
-        config,
-        "A node's `update` should not write the children a component creates itself",
-    ),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeUpdateWritesComponentPart")
+internal object SwingNodeUpdateWritesComponentPart : ComposeSwingRule {
+    override val id: String = "SwingNodeUpdateWritesComponentPart"
+    override val description: String = "A node's `update` should not write the children a component creates itself"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) { findingsIn(expression) }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) { findingsIn(expression) }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
-    private fun KaSession.findingsIn(call: KtCallExpression): List<Finding> {
+    private fun KaSession.findingsIn(call: KtCallExpression): List<RuleFinding> {
         val node = nodeUpdate(call)
         if (node == null) return emptyList()
         return node.blocks
@@ -100,7 +99,7 @@ public class SwingNodeUpdateWritesComponentPart(
             .distinctBy { it.partSymbol }
             .map {
                 val message = writesComponentPartMessage(it.part, it.component)
-                Finding(entity = Entity.from(it.write), message = message)
+                RuleFinding(entity = it.write, message = message)
             }
     }
 

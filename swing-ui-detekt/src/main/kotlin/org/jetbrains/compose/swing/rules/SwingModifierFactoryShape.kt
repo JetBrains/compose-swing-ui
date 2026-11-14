@@ -1,11 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
@@ -21,6 +16,7 @@ import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
@@ -37,34 +33,37 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  * nothing short of resolving types tells a plain declaration's return type apart from any other type
  * with the same name, so a declaration is checked only once its receiver already marks it as one.
  */
-public class SwingModifierFactoryReturnType(
-    config: Config,
-) : Rule(config, "A `SwingModifier` factory should declare `SwingModifier` as its return type") {
-    override val ruleName: RuleName = RuleName("SwingModifierFactoryReturnType")
+internal object SwingModifierFactoryReturnType : ComposeSwingRule {
+    override val id: String = "SwingModifierFactoryReturnType"
+    override val description: String = "A `SwingModifier` factory should declare `SwingModifier` as its return type"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        reportIfReturnTypeIsNotTheChain(function)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                reportIfReturnTypeIsNotTheChain(function)
+            }
 
-    override fun visitProperty(property: KtProperty) {
-        super.visitProperty(property)
-        if (property.isFactoryCandidate()) reportIfReturnTypeIsNotTheChain(property)
-    }
+            override fun visitProperty(property: KtProperty) {
+                if (property.isFactoryCandidate()) reportIfReturnTypeIsNotTheChain(property)
+            }
 
-    private fun reportIfReturnTypeIsNotTheChain(declaration: KtCallableDeclaration) {
-        if (!declaration.receiverTypeReference.declaresSwingModifier() || !declaration.isReachableFromOutside()) {
-            return
+            private fun reportIfReturnTypeIsNotTheChain(declaration: KtCallableDeclaration) {
+                if (!declaration.receiverTypeReference.declaresSwingModifier() ||
+                    !declaration.isReachableFromOutside()
+                ) {
+                    return
+                }
+                val returnType = declaration.typeReference
+                if (returnType == null || returnType.declaresSwingModifier()) return
+                reporter.report(returnType, factoryReturnTypeMessage(declaration.name, returnType.text))
+            }
         }
-        val returnType = declaration.typeReference
-        if (returnType == null || returnType.declaresSwingModifier()) return
-        report(
-            Finding(
-                entity = Entity.from(returnType),
-                message = factoryReturnTypeMessage(declaration.name, returnType.text),
-            ),
-        )
-    }
 
     private fun factoryReturnTypeMessage(
         name: String?,
@@ -85,36 +84,41 @@ public class SwingModifierFactoryReturnType(
  * short of resolving types tells a plain declaration's return type apart from any other type with the
  * same name, so a declaration is checked only once its own return type already marks it as one.
  */
-public class SwingModifierFactoryExtensionFunction(
-    config: Config,
-) : Rule(config, "A `SwingModifier` factory should be an extension on `SwingModifier`") {
-    override val ruleName: RuleName = RuleName("SwingModifierFactoryExtensionFunction")
+internal object SwingModifierFactoryExtensionFunction : ComposeSwingRule {
+    override val id: String = "SwingModifierFactoryExtensionFunction"
+    override val description: String = "A `SwingModifier` factory should be an extension on `SwingModifier`"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        reportIfNotAnExtension(function)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                reportIfNotAnExtension(function)
+            }
 
-    override fun visitProperty(property: KtProperty) {
-        super.visitProperty(property)
-        if (property.isFactoryCandidate()) {
-            reportIfNotAnExtension(property)
+            override fun visitProperty(property: KtProperty) {
+                if (property.isFactoryCandidate()) {
+                    reportIfNotAnExtension(property)
+                }
+            }
+
+            private fun reportIfNotAnExtension(declaration: KtCallableDeclaration) {
+                val returnType = declaration.typeReference
+                if (returnType == null || !returnType.declaresSwingModifier() ||
+                    !declaration.isReachableFromOutside()
+                ) {
+                    return
+                }
+                if (declaration.receiverTypeReference.declaresSwingModifier() || declaration.isMemberOfTheChain()) {
+                    return
+                }
+                reporter.report(declaration, factoryNotExtensionMessage(declaration.name))
+            }
         }
-    }
-
-    private fun reportIfNotAnExtension(declaration: KtCallableDeclaration) {
-        val returnType = declaration.typeReference
-        if (returnType == null || !returnType.declaresSwingModifier() || !declaration.isReachableFromOutside()) {
-            return
-        }
-        if (declaration.receiverTypeReference.declaresSwingModifier() || declaration.isMemberOfTheChain()) return
-        report(
-            Finding(
-                entity = Entity.from(declaration),
-                message = factoryNotExtensionMessage(declaration.name),
-            ),
-        )
-    }
 
     private fun factoryNotExtensionMessage(name: String?): String =
         "The `$name` factory is not an extension on `$SWING_MODIFIER`. " +

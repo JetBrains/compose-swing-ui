@@ -1186,6 +1186,10 @@ private val Unconstrained = Constraints()
 private class EnterExitTransitionElement(
     val layout: EnterExitTransitionLayout,
 ) : LayoutModifierNodeElement<EnterExitTransitionModifierNode>() {
+    override val name: String get() = "enterExitTransition"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("transition" to layout.transition)
+
     override fun create(): EnterExitTransitionModifierNode = EnterExitTransitionModifierNode(layout)
 
     override fun update(node: EnterExitTransitionModifierNode) {

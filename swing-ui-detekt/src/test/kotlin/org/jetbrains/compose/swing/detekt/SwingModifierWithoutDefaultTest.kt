@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.api.Rule
 import dev.detekt.test.lint
 import org.junit.jupiter.api.DynamicTest
@@ -12,7 +11,7 @@ import kotlin.test.assertEquals
 
 class SwingModifierWithoutDefaultTest {
     private fun lint(source: String) =
-        SwingModifierWithoutDefault(Config.empty).lint(sourceWithLibrarySwingModifierImport(source))
+        composeSwingRule("SwingModifierWithoutDefault").lint(sourceWithLibrarySwingModifierImport(source))
 
     @Test
     fun `does not report an unrelated qualified chain type`() {
@@ -428,17 +427,17 @@ class SwingModifierWithoutDefaultTest {
     fun `reports a composable declared through an imported alias of Composable`(): List<DynamicTest> =
         listOf(
             Triple(
-                SwingModifierWithoutDefault(Config.empty),
+                composeSwingRule("SwingModifierWithoutDefault"),
                 "",
                 "fun Widget(modifier: SwingModifier) = Unit",
             ),
             Triple(
-                SwingStyleWithoutDefault(Config.empty),
+                composeSwingRule("SwingStyleWithoutDefault"),
                 "import org.jetbrains.compose.swing.style.SwingStyle",
                 "fun Button(style: SwingStyle<Any>) = Unit",
             ),
             Triple(
-                ComposableSwingModifierFactory(Config.empty),
+                composeSwingRule("ComposableSwingModifierFactory"),
                 "",
                 "fun SwingModifier.highlighted(): SwingModifier = this",
             ),

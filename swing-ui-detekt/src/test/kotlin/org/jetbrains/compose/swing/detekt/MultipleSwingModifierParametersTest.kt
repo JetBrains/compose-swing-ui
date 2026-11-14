@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.params.ParameterizedTest
@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class MultipleSwingModifierParametersTest {
@@ -127,7 +128,7 @@ class MultipleSwingModifierParametersTest {
     }
 
     private fun lint(source: String) =
-        MultipleSwingModifierParameters(Config.empty)
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("MultipleSwingModifierParameters"))
             .lintWithContext(
                 environment,
                 source,
@@ -356,6 +357,15 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
                     fun host(content: Slot<SwingModifier>) = Unit
                     """,
                     "Slot<SwingModifier>",
+                ),
+                case(
+                    "a generic alias use holding a function type in its type argument",
+                    """
+                    typealias Holder<T> = List<T>
+
+                    @Composable fun Show(slots: Holder<@Composable (SwingModifier, SwingModifier) -> Unit>) {}
+                    """,
+                    "Holder<@Composable (SwingModifier, SwingModifier) -> Unit>",
                 ),
             )
 

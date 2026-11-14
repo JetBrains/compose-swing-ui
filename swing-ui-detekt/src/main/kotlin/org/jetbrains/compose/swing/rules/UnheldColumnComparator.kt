@@ -1,11 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -21,6 +16,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtThisExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.psi.psiUtil.parents
@@ -38,34 +34,34 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
  * argument is passed over, since telling it apart from `column`'s other positional arguments takes the
  * parameter's declared type.
  */
-public class UnheldColumnComparator(
-    config: Config,
-) : Rule(config, "A table column's `comparator` should be reused across recompositions") {
-    override val ruleName: RuleName = RuleName("UnheldColumnComparator")
+internal object UnheldColumnComparator : ComposeSwingRule {
+    override val id: String = "UnheldColumnComparator"
+    override val description: String = "A table column's `comparator` should be reused across recompositions"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    private companion object {
-        val COLUMN_CALL_NAMES: Set<String> = setOf("column")
-        const val TABLE_PACKAGE: String = "org.jetbrains.compose.swing.components.selection"
-        const val TABLE_FQN: String = "$TABLE_PACKAGE.Table"
-        const val TABLE_NAME: String = "Table"
-        const val COMPARATOR_ARGUMENT_NAME: String = "comparator"
-        const val COMPOSE_RUNTIME_PACKAGE: String = "androidx.compose.runtime"
-        const val COMPOSE_REMEMBER_FQN: String = "$COMPOSE_RUNTIME_PACKAGE.remember"
-        const val REMEMBER_CALL_NAME: String = "remember"
-        const val RUN_CALL_NAME: String = "run"
-    }
+    private val COLUMN_CALL_NAMES: Set<String> = setOf("column")
+    private const val TABLE_PACKAGE: String = "org.jetbrains.compose.swing.components.selection"
+    private const val TABLE_FQN: String = "$TABLE_PACKAGE.Table"
+    private const val TABLE_NAME: String = "Table"
+    private const val COMPARATOR_ARGUMENT_NAME: String = "comparator"
+    private const val COMPOSE_RUNTIME_PACKAGE: String = "androidx.compose.runtime"
+    private const val COMPOSE_REMEMBER_FQN: String = "$COMPOSE_RUNTIME_PACKAGE.remember"
+    private const val REMEMBER_CALL_NAME: String = "remember"
+    private const val RUN_CALL_NAME: String = "run"
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.isTableColumnCall()) return
-        val comparator = expression.namedComparatorArgument()?.takeIf { it.buildsANewComparator() } ?: return
-        report(
-            Finding(
-                entity = Entity.from(comparator),
-                message = UNHELD_COLUMN_COMPARATOR_MESSAGE,
-            ),
-        )
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.isTableColumnCall()) return
+                val comparator = expression.namedComparatorArgument()?.takeIf { it.buildsANewComparator() } ?: return
+                reporter.report(comparator, UNHELD_COLUMN_COMPARATOR_MESSAGE)
+            }
+        }
 
     private fun KtCallExpression.isTableColumnCall(): Boolean {
         val calleeName = calleeExpression?.text.orEmpty()

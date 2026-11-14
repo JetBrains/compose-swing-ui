@@ -1,11 +1,6 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
@@ -19,6 +14,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
  * Reports a composable that calls `SwingNode` or `MenuNode` more than once.
@@ -42,37 +38,39 @@ import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
  * The rule resolves calls, so it runs only under the type-resolving tasks (`detektMain`, `detektTest`,
  * `detektTestFixtures`). A call that does not resolve is never counted.
  */
-public class MultipleSwingNodeCalls(
-    config: Config,
-) : Rule(
-        config,
-        "A composable should not build its layout from raw Swing components",
-    ),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("MultipleSwingNodeCalls")
+internal object MultipleSwingNodeCalls : ComposeSwingRule {
+    override val id: String = "MultipleSwingNodeCalls"
+    override val description: String = "A composable should not build its layout from raw Swing components"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        val name = function.name ?: return
-        val body = function.bodyExpression
-        val candidates = if (body != null) candidateCalls(body) else emptyList()
-        if (candidates.isEmpty()) return
-        analyze(function) {
-            if (function.symbol.hasComposableAnnotation()) furtherNodes(candidates, name) else emptyList()
-        }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                val name = function.name ?: return
+                val body = function.bodyExpression
+                val candidates = if (body != null) candidateCalls(body) else emptyList()
+                if (candidates.isEmpty()) return
+                analyze(function) {
+                    if (function.symbol.hasComposableAnnotation()) furtherNodes(candidates, name) else emptyList()
+                }.forEach { reporter.report(it.entity, it.message) }
+            }
 
-    override fun visitProperty(property: KtProperty) {
-        super.visitProperty(property)
-        val name = property.name ?: return
-        val body = property.getter?.bodyExpression
-        val candidates = if (body != null) candidateCalls(body) else emptyList()
-        if (candidates.isEmpty()) return
-        analyze(property) {
-            val getter = (property.symbol as? KaPropertySymbol)?.getter
-            if (getter?.hasComposableAnnotation() == true) furtherNodes(candidates, name) else emptyList()
-        }.forEach(::report)
-    }
+            override fun visitProperty(property: KtProperty) {
+                val name = property.name ?: return
+                val body = property.getter?.bodyExpression
+                val candidates = if (body != null) candidateCalls(body) else emptyList()
+                if (candidates.isEmpty()) return
+                analyze(property) {
+                    val getter = (property.symbol as? KaPropertySymbol)?.getter
+                    if (getter?.hasComposableAnnotation() == true) furtherNodes(candidates, name) else emptyList()
+                }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
     /** The calls in [body] that name a node function, by syntax alone. */
     private fun candidateCalls(body: KtElement): List<KtCallExpression> =
@@ -81,7 +79,7 @@ public class MultipleSwingNodeCalls(
     private fun KaSession.furtherNodes(
         candidates: List<KtCallExpression>,
         owner: String,
-    ): List<Finding> {
+    ): List<RuleFinding> {
         val nodeCalls =
             candidates
                 .mapNotNull { call ->
@@ -92,8 +90,8 @@ public class MultipleSwingNodeCalls(
                         ?.let { call to it }
                 }
         return nodeCalls.drop(1).map { (call, resolved) ->
-            Finding(
-                entity = Entity.from(call),
+            RuleFinding(
+                entity = call,
                 message = multipleNodeCallMessage(owner, resolved.symbol.callableId?.callableName),
             )
         }

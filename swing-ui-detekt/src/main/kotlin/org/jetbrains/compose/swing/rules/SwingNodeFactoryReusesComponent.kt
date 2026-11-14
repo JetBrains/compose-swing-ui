@@ -1,13 +1,8 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -31,6 +26,7 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.KtTryExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.KtWhenExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
@@ -53,23 +49,29 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  * The rule resolves calls and symbols, so it runs only under the type-resolving tasks (`detektMain`,
  * `detektTest`, `detektTestFixtures`). A call or reference that does not resolve is never reported.
  */
-public class SwingNodeFactoryReusesComponent(
-    config: Config,
-) : Rule(config, "A `SwingNode` factory should create its component, not return an existing one"),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingNodeFactoryReusesComponent")
+internal object SwingNodeFactoryReusesComponent : ComposeSwingRule {
+    override val id: String = "SwingNodeFactoryReusesComponent"
+    override val description: String = "A `SwingNode` factory should create its component, not return an existing one"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (!expression.mayBeNodeCall()) return
-        analyze(expression) { findingsIn(expression) }.forEach(::report)
-    }
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (!expression.mayBeNodeCall()) return
+                analyze(expression) { findingsIn(expression) }.forEach { reporter.report(it.entity, it.message) }
+            }
+        }
 
-    private fun KaSession.findingsIn(call: KtCallExpression): List<Finding> {
+    private fun KaSession.findingsIn(call: KtCallExpression): List<RuleFinding> {
         val (_, factory) = nodeCallWithFactory(call) ?: return emptyList()
         return handedBack(factory)
             .filter { isDeclaredOutside(it, factory) }
-            .map { Finding(entity = Entity.from(it), message = reusesComponentMessage()) }
+            .map { RuleFinding(entity = it, message = reusesComponentMessage()) }
     }
 
     /** The expressions [factory] answers with: where it ends and each `return` to it by label. */

@@ -690,6 +690,10 @@ private const val MAX_INTERRUPTION_RETENTION = 3
 private class SizeModifierElement<S>(
     val sizeAnimation: ContentSizeAnimation<S>,
 ) : LayoutModifierNodeElement<SizeModifierNode<S>>() {
+    override val name: String get() = "sizeTransform"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("sizeAnimation" to sizeAnimation)
+
     override fun create(): SizeModifierNode<S> = SizeModifierNode(sizeAnimation)
 
     override fun update(node: SizeModifierNode<S>) {
@@ -981,6 +985,11 @@ private class ZIndexModifierElement(
     val zIndex: Float,
     val stateForContent: Any?,
 ) : LayoutModifierNodeElement<ZIndexModifierNode>() {
+    override val name: String get() = "targetContentZIndex"
+
+    override val declaredValues: Map<String, Any?>
+        get() = mapOf("zIndex" to zIndex, "stateForContent" to stateForContent)
+
     override fun create(): ZIndexModifierNode = ZIndexModifierNode(zIndex, stateForContent)
 
     override fun update(node: ZIndexModifierNode) {

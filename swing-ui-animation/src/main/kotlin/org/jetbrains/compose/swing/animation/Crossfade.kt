@@ -150,6 +150,10 @@ public fun <T> Transition<T>.Crossfade(
 private class AlphaLayerElement(
     val alpha: State<Float>,
 ) : LayoutModifierNodeElement<AlphaLayerNode>() {
+    override val name: String get() = "graphicsLayer"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("alpha" to alpha)
+
     override fun create(): AlphaLayerNode = AlphaLayerNode(alpha)
 
     override fun update(node: AlphaLayerNode) {

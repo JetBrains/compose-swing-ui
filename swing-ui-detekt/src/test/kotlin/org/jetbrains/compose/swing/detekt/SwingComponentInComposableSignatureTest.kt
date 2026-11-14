@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.params.ParameterizedTest
@@ -8,11 +8,13 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class SwingComponentInComposableSignatureTest {
     @ParameterizedTest(name = "reports {0}")
     @MethodSource(
         "org.jetbrains.compose.swing.detekt.SwingComponentInComposableSignatureTest\$ReportedCases#reported",
+        "org.jetbrains.compose.swing.detekt.SwingComponentInComposableSignatureTest\$AliasCases#reported",
     )
     fun `reports a component in the signature at each position`(
         label: String,
@@ -186,7 +188,7 @@ class SwingComponentInComposableSignatureTest {
     private fun lint(code: String) = lintSource("$HEADER\n$code")
 
     private fun lintSource(source: String) =
-        SwingComponentInComposableSignature(Config.empty)
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingComponentInComposableSignature"))
             .lintWithContext(
                 environment,
                 source,
@@ -233,7 +235,7 @@ import sample.base.BaseLabel
     }
 
     object ReportedCases {
-        private fun case(
+        fun case(
             label: String,
             code: String,
             vararg positions: String,
@@ -250,9 +252,6 @@ import sample.base.BaseLabel
                 reportedSupertypesAndGenerics() +
                 reportedInferredOverrides() +
                 reportedFunctionTypeOverrides() +
-                reportedNestedAliases() +
-                reportedWrappedAliases() +
-                reportedWrappedAliasOwnership() +
                 reportedFakeAndConstructorOverrides() +
                 reportedOverridesNamedByBase()
 
@@ -638,6 +637,95 @@ import sample.base.BaseLabel
                 ),
             )
 
+        private fun reportedFakeAndConstructorOverrides(): List<Arguments> =
+            listOf(
+                case(
+                    "a fake override of a generic supertype's member, once, at the override",
+                    """
+                    interface Slot<T> {
+                        @Composable fun Show(value: T)
+                    }
+
+                    abstract class Mid : Slot<JLabel>
+
+                    class Impl : Mid() {
+                        @Composable override fun Show(value: JLabel) {}
+                    }
+                    """,
+                    "value: JLabel",
+                ),
+                case(
+                    "a constructor property's function type override, once, at the interface",
+                    """
+                    interface Host {
+                        val content: @Composable (JLabel) -> Unit
+                    }
+
+                    class Impl(override val content: @Composable (JLabel) -> Unit) : Host
+                    """,
+                    "JLabel #1",
+                ),
+            )
+
+        private fun reportedOverridesNamedByBase(): List<Arguments> =
+            listOf(
+                case(
+                    "a receiver named by the base, once, at the base",
+                    """
+                    interface Slot {
+                        @Composable fun JLabel.Show()
+                    }
+
+                    class Impl : Slot {
+                        @Composable override fun JLabel.Show() {}
+                    }
+                    """,
+                    "JLabel #1",
+                ),
+                case(
+                    "a context parameter named by the base, once, at the base",
+                    """
+                    interface Slot {
+                        context(panel: JPanel)
+                        @Composable fun Show()
+                    }
+
+                    class Impl : Slot {
+                        context(panel: JPanel)
+                        @Composable override fun Show() {}
+                    }
+                    """,
+                    "panel: JPanel #1",
+                ),
+                case(
+                    "a type-parameter bound named by the base, once, at the base",
+                    """
+                    interface Slot {
+                        @Composable fun <V : Component> Show(v: V)
+                    }
+
+                    class Impl : Slot {
+                        @Composable override fun <V : Component> Show(v: V) {}
+                    }
+                    """,
+                    "Component #2",
+                ),
+            )
+    }
+
+    object AliasCases {
+        @JvmStatic
+        fun reported(): List<Arguments> =
+            reportedNestedAliases() +
+                reportedWrappedAliases() +
+                reportedWrappedAliasOwnership()
+
+        private fun case(
+            label: String,
+            code: String,
+            vararg positions: String,
+        ): Arguments = ReportedCases.case(label, code, *positions)
+
         private fun reportedNestedAliases(): List<Arguments> =
             listOf(
                 case(
@@ -726,6 +814,14 @@ import sample.base.BaseLabel
                     "SlotList #3",
                 ),
                 case(
+                    "a generic alias use holding a composable function type in its type argument",
+                    """
+                    typealias Holder<T> = List<T>
+                    fun host(slots: Holder<@Composable (JPanel) -> Unit>) {}
+                    """,
+                    "Holder<@Composable (JPanel) -> Unit>",
+                ),
+                case(
                     "an alias taking a composable function type",
                     """
                     typealias UseSlot = (@Composable (JLabel) -> Unit) -> Unit
@@ -769,81 +865,6 @@ import sample.base.BaseLabel
                     fun host(slots: Slots) {}
                     """,
                     "Slots #2",
-                ),
-            )
-
-        private fun reportedFakeAndConstructorOverrides(): List<Arguments> =
-            listOf(
-                case(
-                    "a fake override of a generic supertype's member, once, at the override",
-                    """
-                    interface Slot<T> {
-                        @Composable fun Show(value: T)
-                    }
-
-                    abstract class Mid : Slot<JLabel>
-
-                    class Impl : Mid() {
-                        @Composable override fun Show(value: JLabel) {}
-                    }
-                    """,
-                    "value: JLabel",
-                ),
-                case(
-                    "a constructor property's function type override, once, at the interface",
-                    """
-                    interface Host {
-                        val content: @Composable (JLabel) -> Unit
-                    }
-
-                    class Impl(override val content: @Composable (JLabel) -> Unit) : Host
-                    """,
-                    "JLabel #1",
-                ),
-            )
-
-        private fun reportedOverridesNamedByBase(): List<Arguments> =
-            listOf(
-                case(
-                    "a receiver named by the base, once, at the base",
-                    """
-                    interface Slot {
-                        @Composable fun JLabel.Show()
-                    }
-
-                    class Impl : Slot {
-                        @Composable override fun JLabel.Show() {}
-                    }
-                    """,
-                    "JLabel #1",
-                ),
-                case(
-                    "a context parameter named by the base, once, at the base",
-                    """
-                    interface Slot {
-                        context(panel: JPanel)
-                        @Composable fun Show()
-                    }
-
-                    class Impl : Slot {
-                        context(panel: JPanel)
-                        @Composable override fun Show() {}
-                    }
-                    """,
-                    "panel: JPanel #1",
-                ),
-                case(
-                    "a type-parameter bound named by the base, once, at the base",
-                    """
-                    interface Slot {
-                        @Composable fun <V : Component> Show(v: V)
-                    }
-
-                    class Impl : Slot {
-                        @Composable override fun <V : Component> Show(v: V) {}
-                    }
-                    """,
-                    "Component #2",
                 ),
             )
     }

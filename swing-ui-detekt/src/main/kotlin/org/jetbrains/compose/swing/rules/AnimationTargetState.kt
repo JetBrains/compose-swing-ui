@@ -1,11 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing.detekt
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtLambdaExpression
@@ -15,6 +10,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtValueArgumentName
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
@@ -29,28 +25,30 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  * require. The state-to-value mapping is the lambda passed as `targetValueByState`, else the trailing
  * lambda; the animation spec that may precede it takes no parameter of its own.
  */
-public class UnusedTransitionTargetState(
-    config: Config,
-) : Rule(config, "A transition's value lambda should use the state it receives") {
-    override val ruleName: RuleName = RuleName("UnusedTransitionTargetState")
+internal object UnusedTransitionTargetState : ComposeSwingRule {
+    override val id: String = "UnusedTransitionTargetState"
+    override val description: String = "A transition's value lambda should use the state it receives"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (expression.calleeExpression?.text !in
-            setOf("animateValue", "animateFloat", "animateInt", "animateColor")
-        ) {
-            return
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (expression.calleeExpression?.text !in
+                    setOf("animateValue", "animateFloat", "animateInt", "animateColor")
+                ) {
+                    return
+                }
+                val lambda =
+                    (expression.lambdaArgumentNamed("targetValueByState") ?: expression.trailingLambda())
+                        ?.takeUnless { it.readsTheValueItTakes() } ?: return
+                reporter.report(lambda.parameterOrSelf(), UNUSED_TRANSITION_TARGET_STATE_MESSAGE)
+            }
         }
-        val lambda =
-            (expression.lambdaArgumentNamed("targetValueByState") ?: expression.trailingLambda())
-                ?.takeUnless { it.readsTheValueItTakes() } ?: return
-        report(
-            Finding(
-                entity = Entity.from(lambda.parameterOrSelf()),
-                message = UNUSED_TRANSITION_TARGET_STATE_MESSAGE,
-            ),
-        )
-    }
 }
 
 /**
@@ -62,35 +60,35 @@ public class UnusedTransitionTargetState(
  * being entered, which then animates on top of itself; a `contentKey` lambda that does gives every state
  * one key, so the content already on screen is treated as the one to keep.
  */
-public class UnusedAnimatedContentTargetState(
-    config: Config,
-) : Rule(
-        config,
+internal object UnusedAnimatedContentTargetState : ComposeSwingRule {
+    override val id: String = "UnusedAnimatedContentTargetState"
+    override val description: String =
         "The `content` and `contentKey` lambdas of `AnimatedContent` and `Crossfade` should use the state " +
-            "they receive",
-    ) {
-    override val ruleName: RuleName = RuleName("UnusedAnimatedContentTargetState")
+            "they receive"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
 
-    override fun visitCallExpression(expression: KtCallExpression) {
-        super.visitCallExpression(expression)
-        if (expression.calleeExpression?.text !in setOf("AnimatedContent", "Crossfade")) return
-        val content = expression.lambdaArgumentNamed("content") ?: expression.trailingLambda()
-        val reported =
-            listOf(
-                content to UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_MESSAGE,
-                expression.lambdaArgumentNamed("contentKey") to
-                    UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_KEY_MESSAGE,
-            )
-        reported.forEach { (lambda, message) ->
-            if (lambda == null || lambda.readsTheValueItTakes()) return@forEach
-            report(
-                Finding(
-                    entity = Entity.from(lambda.parameterOrSelf()),
-                    message = message,
-                ),
-            )
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitCallExpression(expression: KtCallExpression) {
+                if (expression.calleeExpression?.text !in setOf("AnimatedContent", "Crossfade")) return
+                val content = expression.lambdaArgumentNamed("content") ?: expression.trailingLambda()
+                val reported =
+                    listOf(
+                        content to UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_MESSAGE,
+                        expression.lambdaArgumentNamed("contentKey") to
+                            UNUSED_ANIMATED_CONTENT_TARGET_STATE_CONTENT_KEY_MESSAGE,
+                    )
+                reported.forEach { (lambda, message) ->
+                    if (lambda == null || lambda.readsTheValueItTakes()) return@forEach
+                    reporter.report(lambda.parameterOrSelf(), message)
+                }
+            }
         }
-    }
 }
 
 /** The lambda [this] call takes outside its parentheses, if it takes one. */

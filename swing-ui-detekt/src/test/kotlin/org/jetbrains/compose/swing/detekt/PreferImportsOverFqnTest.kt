@@ -2,14 +2,16 @@
 package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.api.Config
+import dev.detekt.api.RuleName
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class PreferImportsOverFqnTest {
     private fun lint(code: String) =
-        PreferImportsOverFqn(Config.empty).lintWithContext(
+        rule().lintWithContext(
             environment,
             code,
             """
@@ -18,6 +20,11 @@ class PreferImportsOverFqnTest {
             public fun SwingNode(update: () -> Unit = {}) {}
             """.trimIndent(),
         )
+
+    private fun rule(): AnalysisComposeSwingRuleAdapter {
+        val factory = ComposeSwingInternalRuleSetProvider().instance().rules.getValue(RuleName("PreferImportsOverFqn"))
+        return assertIs<AnalysisComposeSwingRuleAdapter>(factory(Config.empty))
+    }
 
     private companion object {
         private val environment = createEnvironment()
@@ -267,7 +274,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `does not report a package-qualified call whose package declares a same-named extension`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lintWithContext(
+            rule().lintWithContext(
                 environment,
                 """
                 package sample
@@ -293,7 +300,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `reports a package-qualified property whose package declares a same-named extension`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lintWithContext(
+            rule().lintWithContext(
                 environment,
                 """
                 package sample

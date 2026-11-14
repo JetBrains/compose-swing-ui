@@ -1,14 +1,13 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lint
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class UnusedAnimatedContentTargetStateTest {
-    private fun lint(source: String) = UnusedAnimatedContentTargetState(Config.empty).lint(source)
+    private fun lint(source: String) = composeSwingRule("UnusedAnimatedContentTargetState").lint(source)
 
     private fun assertReported(source: String) =
         assertEquals(1, lint(source).size, "expected one finding for:\n$source")

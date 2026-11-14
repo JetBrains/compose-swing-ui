@@ -1,136 +1,38 @@
-public final class org/jetbrains/compose/swing/detekt/ComposableSwingModifierFactory : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-}
-
 public final class org/jetbrains/compose/swing/detekt/ComposeSwingRuleSetProvider : dev/detekt/api/RuleSetProvider {
 	public fun <init> ()V
 	public fun getRuleSetId ()Ldev/detekt/api/RuleSetId;
 	public fun instance ()Ldev/detekt/api/RuleSet;
 }
 
-public final class org/jetbrains/compose/swing/detekt/ModifierNodeInspectableProperties : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitClassOrObject (Lorg/jetbrains/kotlin/psi/KtClassOrObject;)V
+public abstract interface class org/jetbrains/compose/swing/rules/ComposeSwingRule {
+	public abstract fun createVisitor (Lorg/jetbrains/compose/swing/rules/ComposeSwingRuleReporter;Lorg/jetbrains/compose/swing/rules/ComposeSwingRuleConfig;)Lorg/jetbrains/kotlin/psi/KtVisitorVoid;
+	public abstract fun getActiveByDefault ()Z
+	public abstract fun getDescription ()Ljava/lang/String;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getRequiresAnalysisApi ()Z
+	public abstract fun getSeverity ()Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
 }
 
-public final class org/jetbrains/compose/swing/detekt/MultipleSwingModifierParameters : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-	public fun visitTypeReference (Lorg/jetbrains/kotlin/psi/KtTypeReference;)V
+public final class org/jetbrains/compose/swing/rules/ComposeSwingRule$Severity : java/lang/Enum {
+	public static final field Error Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
+	public static final field Info Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
+	public static final field Warning Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
+	public static fun values ()[Lorg/jetbrains/compose/swing/rules/ComposeSwingRule$Severity;
 }
 
-public final class org/jetbrains/compose/swing/detekt/MultipleSwingNodeCalls : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
+public abstract interface class org/jetbrains/compose/swing/rules/ComposeSwingRuleConfig {
+	public abstract fun valueOrDefault (Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;
+	public abstract fun valueOrDefault (Ljava/lang/String;Ljava/util/List;)Ljava/util/List;
 }
 
-public final class org/jetbrains/compose/swing/detekt/SwingComponentInComposableSignature : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-	public fun visitTypeReference (Lorg/jetbrains/kotlin/psi/KtTypeReference;)V
+public abstract interface class org/jetbrains/compose/swing/rules/ComposeSwingRuleReporter {
+	public abstract fun report (Lcom/intellij/psi/PsiElement;Ljava/lang/String;)V
 }
 
-public final class org/jetbrains/compose/swing/detekt/SwingModifierFactoryExtensionFunction : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingModifierFactoryReturnType : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingModifierThen : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitBinaryExpression (Lorg/jetbrains/kotlin/psi/KtBinaryExpression;)V
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingModifierUnreferencedReceiver : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-	public fun visitProperty (Lorg/jetbrains/kotlin/psi/KtProperty;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingModifierWithoutDefault : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeFactoryReadsDeclaredValue : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeFactoryReusesComponent : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateConditionalCall : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateRepeatsInvalidation : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateStoresCallback : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingNodeUpdateWritesComponentPart : dev/detekt/api/Rule, dev/detekt/api/RequiresAnalysisApi {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/SwingStyleWithoutDefault : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitNamedFunction (Lorg/jetbrains/kotlin/psi/KtNamedFunction;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/UnheldColumnComparator : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/UnusedAnimatedContentTargetState : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
-}
-
-public final class org/jetbrains/compose/swing/detekt/UnusedTransitionTargetState : dev/detekt/api/Rule {
-	public fun <init> (Ldev/detekt/api/Config;)V
-	public fun getRuleName ()Ldev/detekt/api/RuleName;
-	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
+public final class org/jetbrains/compose/swing/rules/ComposeSwingRuleSets {
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/rules/ComposeSwingRuleSets;
+	public final fun getRuleSets ()Ljava/util/Map;
 }
 

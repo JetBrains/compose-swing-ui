@@ -1,11 +1,7 @@
-package org.jetbrains.compose.swing.detekt
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.rules
 
-import dev.detekt.api.Config
-import dev.detekt.api.Entity
-import dev.detekt.api.Finding
-import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
+import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -35,6 +31,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
 
@@ -69,55 +66,59 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
  * The rule resolves types, so it runs only under the type-resolving detekt tasks, and a type that does
  * not resolve is never reported.
  */
-public class SwingComponentInComposableSignature(
-    config: Config,
-) : Rule(config, "A composable's signature should not name a Swing component"),
-    RequiresAnalysisApi {
-    override val ruleName: RuleName = RuleName("SwingComponentInComposableSignature")
+internal object SwingComponentInComposableSignature : ComposeSwingRule {
+    override val id: String = "SwingComponentInComposableSignature"
+    override val description: String = "A composable's signature should not name a Swing component"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = true
 
-    override fun visitNamedFunction(function: KtNamedFunction) {
-        super.visitNamedFunction(function)
-        analyze(function) {
-            if (isCheckedComposable(function) && !isExempt(function)) {
-                findingsIn(function, function.symbol)
-            } else {
-                emptyList()
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid =
+        object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                analyze(function) {
+                    if (isCheckedComposable(function) && !isExempt(function)) {
+                        findingsIn(function, function.symbol)
+                    } else {
+                        emptyList()
+                    }
+                }.forEach { reporter.report(it.entity, it.message) }
             }
-        }.forEach(::report)
-    }
 
-    override fun visitProperty(property: KtProperty) {
-        super.visitProperty(property)
-        analyze(property) {
-            if (isCheckedComposable(property) && !isExempt(property)) {
-                findingsIn(property, property.symbol)
-            } else {
-                emptyList()
+            override fun visitProperty(property: KtProperty) {
+                analyze(property) {
+                    if (isCheckedComposable(property) && !isExempt(property)) {
+                        findingsIn(property, property.symbol)
+                    } else {
+                        emptyList()
+                    }
+                }.forEach { reporter.report(it.entity, it.message) }
             }
-        }.forEach(::report)
-    }
 
-    override fun visitTypeReference(typeReference: KtTypeReference) {
-        if (typeReference.parents.any { it is KtTypeAlias }) return
-        super.visitTypeReference(typeReference)
-        val typeElement = typeReference.typeElement?.unwrapNullability()
-        if (typeElement !is KtFunctionType && typeElement !is KtUserType) return
-        analyze(typeReference) {
-            val functionType = composableFunctionType(typeReference)
-            when {
-                isCoveredByASignature(typeReference) -> emptyList<Finding>()
-                typeReference.parents.any { it is KtDeclaration && isExempt(it) } -> emptyList<Finding>()
-                ComposableAliasUses.isInsideExpansion(this, typeReference) -> emptyList<Finding>()
-                functionType != null -> findingsIn(functionType)
-                else -> expandedFunctionTypeFindingsIn(typeReference)
+            override fun visitTypeReference(typeReference: KtTypeReference) {
+                if (typeReference.parents.any { it is KtTypeAlias }) return
+                val typeElement = typeReference.typeElement?.unwrapNullability()
+                if (typeElement !is KtFunctionType && typeElement !is KtUserType) return
+                analyze(typeReference) {
+                    val functionType = composableFunctionType(typeReference)
+                    when {
+                        isCoveredByASignature(typeReference) -> emptyList<RuleFinding>()
+                        typeReference.parents.any { it is KtDeclaration && isExempt(it) } -> emptyList<RuleFinding>()
+                        ComposableAliasUses.isInsideExpansion(this, typeReference) -> emptyList<RuleFinding>()
+                        functionType != null -> findingsIn(functionType)
+                        else -> expandedFunctionTypeFindingsIn(typeReference)
+                    }
+                }.forEach { reporter.report(it.entity, it.message) }
             }
-        }.forEach(::report)
-    }
+        }
 
     private fun KaSession.findingsIn(
         declaration: KtCallableDeclaration,
         symbol: KaCallableSymbol,
-    ): List<Finding> {
+    ): List<RuleFinding> {
         val overridden =
             if (declaration.hasModifier(KtTokens.OVERRIDE_KEYWORD)) {
                 symbol.directlyOverriddenSymbols.map { it.fakeOverrideOriginal }.toList()
@@ -152,7 +153,7 @@ public class SwingComponentInComposableSignature(
             } else {
                 add(
                     Position(
-                        entity = Entity.atName(declaration),
+                        entity = (declaration.nameIdentifier ?: declaration),
                         subject = "The inferred return type",
                         written = null,
                         type = symbol.returnType,
@@ -178,14 +179,14 @@ public class SwingComponentInComposableSignature(
         }
 
     /** An alias use gets one finding even when its expansion contains several component positions. */
-    private fun KaSession.expandedFunctionTypeFindingsIn(typeReference: KtTypeReference): List<Finding> =
+    private fun KaSession.expandedFunctionTypeFindingsIn(typeReference: KtTypeReference): List<RuleFinding> =
         ComposableAliasUses
             .expandedFunctionTypes(this, typeReference)
             .flatMap { findingsNaming(aliasPositions(typeReference, it), emptySet()).asSequence() }
             .take(1)
             .toList()
 
-    private fun KaSession.findingsIn(functionType: KtFunctionType): List<Finding> {
+    private fun KaSession.findingsIn(functionType: KtFunctionType): List<RuleFinding> {
         val positions =
             buildList {
                 functionType.receiverTypeReference?.let { add(positionAt(it, "The receiver")) }
@@ -203,10 +204,10 @@ public class SwingComponentInComposableSignature(
     private fun KaSession.findingsNaming(
         positions: List<Position>,
         ownTypeParameters: Set<KaTypeParameterSymbol>,
-    ): List<Finding> =
+    ): List<RuleFinding> =
         positions.filter { namesComponent(it.type, ownTypeParameters) }.map {
             val written = it.written?.let { text -> ", `$text`," }.orEmpty()
-            Finding(
+            RuleFinding(
                 entity = it.entity,
                 message = namesComponentMessage(it.subject, written),
             )
@@ -298,7 +299,7 @@ private object ComposableAliasUses {
 
 /** A signature position: where it is written, the type written there, and how a base declaration types it. */
 private class Position(
-    val entity: Entity,
+    val entity: PsiElement,
     val subject: String,
     val written: String?,
     val type: KaType,
@@ -327,7 +328,7 @@ private fun KaSession.positionAt(
     typeIn: (KaCallableSymbol) -> List<KaType> = NO_TYPES,
 ): Position =
     Position(
-        entity = Entity.from(typeReference),
+        entity = typeReference,
         subject = subject,
         written = typeReference.text,
         type = typeReference.type,
@@ -340,7 +341,7 @@ private fun KaSession.parameterPosition(
     typeIn: (KaCallableSymbol) -> List<KaType>,
 ): Position =
     Position(
-        entity = Entity.from(parameter),
+        entity = parameter,
         subject = "The `${parameter.name}` parameter",
         written = typeReference.text,
         type = typeReference.type,
@@ -358,7 +359,7 @@ private fun aliasPositions(
         valueType: KaType,
     ): Position =
         Position(
-            entity = Entity.from(typeReference),
+            entity = typeReference,
             subject = subject,
             written = typeReference.text,
             type = valueType,

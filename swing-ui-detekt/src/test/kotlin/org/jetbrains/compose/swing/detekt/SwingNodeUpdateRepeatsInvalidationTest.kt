@@ -1,6 +1,6 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.params.ParameterizedTest
@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class SwingNodeUpdateRepeatsInvalidationTest {
     @ParameterizedTest(name = "reports {0}")
@@ -63,7 +64,7 @@ class SwingNodeUpdateRepeatsInvalidationTest {
     }
 
     private fun lint(code: String) =
-        SwingNodeUpdateRepeatsInvalidation(Config.empty)
+        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("SwingNodeUpdateRepeatsInvalidation"))
             .lintWithContext(
                 environment,
                 code,
@@ -317,7 +318,7 @@ class SwingNodeUpdateRepeatsInvalidationTest {
                 clean(
                     "a revalidate with a call beside the write",
                     "JLabel",
-                    "set(f) { font = it; println(it); revalidate() }",
+                    "set(f) { font = it; it.toString(); revalidate() }",
                 ),
                 clean(
                     "a revalidate after a write in a condition",

@@ -1,13 +1,12 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.Config
 import dev.detekt.test.lint
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class UnusedTransitionTargetStateTest {
-    private fun lint(source: String) = UnusedTransitionTargetState(Config.empty).lint(source)
+    private fun lint(source: String) = composeSwingRule("UnusedTransitionTargetState").lint(source)
 
     private fun assertReported(source: String) =
         assertEquals(1, lint(source).size, "expected one finding for:\n$source")
@@ -152,8 +151,8 @@ class UnusedTransitionTargetStateTest {
             package sample
 
             fun show() {
-                animatable.animateTo(1f) { println("done") }
-                animateFloatAsState(1f) { println("done") }
+                animatable.animateTo(1f) { listOf("done") }
+                animateFloatAsState(1f) { listOf("done") }
             }
             """.trimIndent(),
         )
