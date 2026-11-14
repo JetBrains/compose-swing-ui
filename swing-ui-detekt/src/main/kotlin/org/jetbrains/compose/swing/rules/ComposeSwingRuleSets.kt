@@ -27,6 +27,10 @@ import org.jetbrains.compose.swing.rules.runtime.OpaqueUnitKey
 import org.jetbrains.compose.swing.rules.runtime.ProduceStateDoesNotAssignValue
 import org.jetbrains.compose.swing.rules.runtime.RememberInComposition
 import org.jetbrains.compose.swing.rules.runtime.RememberReturnType
+import org.jetbrains.compose.swing.rules.runtime.RememberSaveableSaverParameter
+import org.jetbrains.compose.swing.rules.runtime.RetainRememberObserver
+import org.jetbrains.compose.swing.rules.runtime.RetainUnitType
+import org.jetbrains.compose.swing.rules.runtime.RetainingDoNotRetainType
 import org.jetbrains.compose.swing.rules.runtime.StateFlowValueCalledInComposition
 
 /** Every rule this library carries, by the id of the rule set that holds it. */
@@ -180,6 +184,10 @@ public object ComposeSwingRuleSets {
                     RememberInComposition,
                     RememberMissing,
                     RememberReturnType,
+                    RememberSaveableSaverParameter,
+                    RetainRememberObserver,
+                    RetainUnitType,
+                    RetainingDoNotRetainType,
                     StateFlowValueCalledInComposition,
                 ),
         )

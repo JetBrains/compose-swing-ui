@@ -53,6 +53,8 @@ dependencies {
     "testLibraryImplementation"(libs.composeRuntime)
 
     testImplementation(libs.composeRuntime)
+    testImplementation(libs.composeRuntimeRetain)
+    testImplementation(libs.composeRuntimeSaveable)
     testImplementation(libs.detekt.api)
 
     // detekt-test asks for detekt-api's test-fixtures capability at runtime, but detekt 2.0.0-alpha

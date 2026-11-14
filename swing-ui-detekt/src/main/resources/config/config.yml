@@ -199,5 +199,13 @@ compose-runtime:
     active: true
   RememberReturnType:
     active: true
+  RememberSaveableSaverParameter:
+    active: true
+  RetainRememberObserver:
+    active: true
+  RetainUnitType:
+    active: true
+  RetainingDoNotRetainType:
+    active: true
   StateFlowValueCalledInComposition:
     active: true
