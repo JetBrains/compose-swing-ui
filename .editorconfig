@@ -30,6 +30,12 @@ ktlint_standard_function-type-modifier-spacing = disabled
 max_line_length = 100
 ktlint_standard = disabled
 
+# The composerules helpers in swing-ui-detekt are copied from compose-rules and kept in upstream's format
+# so a re-sync diff stays readable. ktlint skips them here; some carry a file-level detekt suppression.
+[swing-ui-detekt/src/main/**/composerules/{Composables.analysis,ComposeFqNames,KotlinFqNames,KtCallExpressions.analysis,KtDotQualifiedExpressions.analysis,KtExpressions.analysis,KtLambdaExpressions.analysis,KtProperties.analysis,KtSimpleNameExpressions.analysis}.kt]
+max_line_length = 100
+ktlint_standard = disabled
+
 # Tests host their body in a trailing-lambda call (e.g. `fun x() = runComposeSwingTest {`). Keep that
 # single-expression body on the signature line instead of wrapping it after `=`, so the test reads as
 # its name followed directly by the scenario. Only the wrapping of an expression body that already

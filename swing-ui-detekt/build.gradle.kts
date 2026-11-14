@@ -44,9 +44,13 @@ dependencies {
 
     // The Compose rules travel with this artifact: a consumer adding it to detektPlugins gets them on
     // the same classpath, already pointed at this library's types by the config this jar carries.
-    api(libs.composeRulesDetekt)
+    implementation(libs.composeRulesCommonDetekt) {
+        exclude(group = "dev.detekt", module = "detekt-core")
+        exclude(group = "dev.detekt", module = "detekt-psi-utils")
+    }
 
     testImplementation(libs.composeRuntime)
+    testImplementation(libs.detekt.api)
 
     // detekt-test asks for detekt-api's test-fixtures capability at runtime, but detekt 2.0.0-alpha
     // publishes only the sources jar of those fixtures, so that variant cannot resolve. The fixtures
@@ -54,10 +58,10 @@ dependencies {
     testImplementation(libs.detekt.test) {
         exclude(group = "dev.detekt", module = "detekt-api")
     }
-    testImplementation(libs.detekt.api)
-    testImplementation(testLibrary.output)
-    testImplementation(kotlin("test"))
     testImplementation(libs.junitJupiterParams)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinxCoroutinesCore)
+    testImplementation(testLibrary.output)
 }
 
 // Leave headroom below current coverage; do not chase unreachable PSI branches with empty tests.

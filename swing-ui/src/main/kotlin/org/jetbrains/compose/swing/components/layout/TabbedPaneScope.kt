@@ -148,10 +148,12 @@ internal class TabbedPaneScopeImpl(
      * Builds the header beside the page's own modifier nodes, so the header composition belongs to the
      * page's composition identity rather than to a synthetic tab body.
      */
+    @Suppress("ModifierComposed")
     private fun SwingModifier.tabWithHeader(
         metadata: TabMetadata,
         header: @Composable () -> Unit,
     ): SwingModifier =
+        // The header composition needs the page's composition context, which only a composable factory reaches.
         composed {
             val parentContext = rememberCompositionContext()
             val currentHeader = rememberUpdatedState(header)

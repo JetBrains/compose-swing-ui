@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.rules
 
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -70,9 +71,11 @@ internal fun KtCallableDeclaration.isComposable(): Boolean =
         }
 
         else -> {
-            annotationEntries.any { it.isComposableAnnotation() }
+            hasComposableAnnotation()
         }
     }
+
+internal fun KtAnnotated.hasComposableAnnotation(): Boolean = annotationEntries.any { it.isComposableAnnotation() }
 
 /**
  * Whether [this] is `@Composable`, written by its own name or, unqualified, by an alias the file imports it

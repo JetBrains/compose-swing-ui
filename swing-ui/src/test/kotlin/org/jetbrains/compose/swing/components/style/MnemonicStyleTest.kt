@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.style
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -213,33 +212,26 @@ class MnemonicStyleTest {
         var text by mutableStateOf("Save As")
         val tint = mutableStateOf(Color.RED)
         setContent {
-            if (readTintInStyle) {
-                SaveAsButtonAndLabel(text) { tint.value }
-            } else {
-                val color = tint.value
-                SaveAsButtonAndLabel(text) { color }
-            }
+            val styleTint: () -> Color =
+                if (readTintInStyle) {
+                    { tint.value }
+                } else {
+                    tint.value.let { color -> { color } }
+                }
+            Button(text, {}, SwingModifier.testTag("button"), style = {
+                foreground(styleTint())
+                saveAsSecondA()
+            })
+            Label(text, SwingModifier.testTag("label"), style = {
+                foreground(styleTint())
+                saveAsSecondA()
+            })
         }
 
         assertShortenedIndexSurvivesTint(tint) {
             text = "Hi"
             if (!readTintInStyle) tint.value = Color.BLUE
         }
-    }
-
-    @Composable
-    private fun SaveAsButtonAndLabel(
-        text: String,
-        tint: () -> Color,
-    ) {
-        Button(text, {}, SwingModifier.testTag("button"), style = {
-            foreground(tint())
-            saveAsSecondA()
-        })
-        Label(text, SwingModifier.testTag("label"), style = {
-            foreground(tint())
-            saveAsSecondA()
-        })
     }
 
     private suspend fun ComposeSwingTest.assertShortenedIndexSurvivesTint(

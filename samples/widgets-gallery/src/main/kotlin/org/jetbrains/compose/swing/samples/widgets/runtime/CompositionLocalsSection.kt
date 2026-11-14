@@ -22,9 +22,7 @@ import java.awt.Color
 @Suppress("CompositionLocalAllowlist")
 private val LocalAccent = staticCompositionLocalOf { Color.BLUE }
 
-// A staticCompositionLocalOf driving Swing components: a picker provides the chosen accent near the top,
-// and helpers nested several layers deep read LocalAccent.current to color their labels - so changing
-// the selection repaints the whole subtree without threading the value through every level.
+// The picker provides the accent once. The labels in MiddlePanel and InnerPanel read it through AccentedLabel.
 @Preview
 @Composable
 internal fun CompositionLocalsSection() {
@@ -50,6 +48,8 @@ internal fun CompositionLocalsSection() {
             }
             CompositionLocalProvider(LocalAccent provides accent.second) {
                 OuterPanel()
+                MiddlePanel()
+                InnerPanel()
             }
         }
     }
@@ -60,7 +60,6 @@ private fun OuterPanel() {
     Panel {
         Label("Outer level (does not read the local)")
     }
-    MiddlePanel()
 }
 
 @Composable
@@ -68,7 +67,6 @@ private fun MiddlePanel() {
     Panel {
         AccentedLabel("Middle-level accented label")
     }
-    InnerPanel()
 }
 
 @Composable

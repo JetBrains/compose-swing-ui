@@ -115,8 +115,8 @@ private fun TaskRows(
     tasks: List<Task>,
     onToggle: (Int, Boolean) -> Unit,
     onRename: (Int, String) -> Unit,
-    modifier: SwingModifier = SwingModifier,
     onRemove: (Int) -> Unit,
+    modifier: SwingModifier = SwingModifier,
 ) {
     // Rows are added to and removed from the Swing tree as the list changes, not merely shown or hidden.
     ScrollPane(modifier = modifier, style = { preferredSize(0, 320) }) {

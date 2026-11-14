@@ -15,6 +15,8 @@ import javax.swing.JComponent
 
 /** Test-only drawing leaf used where tests need a raw Swing view; [onDraw] draws inside the border. */
 @Composable
+// The trailing lambda is the drawing slot, as in androidx's Canvas, not an event.
+@Suppress("LambdaParameterEventTrailing")
 internal fun Canvas(
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<SwingComponentStyleScope> = SwingStyle,

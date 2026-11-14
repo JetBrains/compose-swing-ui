@@ -135,6 +135,8 @@ internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension
 
 /** Test-only drawing leaf used where tests need a raw Swing view. */
 @Composable
+// The trailing lambda is the drawing slot, as in androidx's Canvas, not an event.
+@Suppress("LambdaParameterEventTrailing")
 internal fun Canvas(
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<ComponentStyleScope> = SwingStyle,

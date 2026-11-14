@@ -1,6 +1,9 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.tooling
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Composer
+import org.jetbrains.compose.swing.components.Label
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 import kotlin.test.Test
@@ -20,13 +23,6 @@ annotation class PreviewThemesFixture
  * or renders, which is the separate artifact's to do.
  */
 class PreviewTest {
-    @Preview
-    fun statesNothingOfItsOwn() = Unit
-
-    @Preview(name = "first")
-    @Preview(name = "second")
-    fun statesTwoRenderings() = Unit
-
     @Test
     fun theAnnotationIsReadableAtRuntime() {
         val retention = Preview::class.java.getAnnotation(Retention::class.java)
@@ -40,7 +36,7 @@ class PreviewTest {
 
     @Test
     fun aComposableCarriesEveryRenderingItDeclaresInOrder() {
-        val method = javaClass.getDeclaredMethod("statesTwoRenderings")
+        val method = previewMethod("RepeatedPreview")
 
         val renderings = method.getAnnotationsByType(Preview::class.java)
 
@@ -64,7 +60,7 @@ class PreviewTest {
 
     @Test
     fun aRenderingThatStatesNothingReportsEveryDefault() {
-        val stated = javaClass.getDeclaredMethod("statesNothingOfItsOwn").getAnnotation(Preview::class.java)
+        val stated = previewMethod("DefaultPreview").getAnnotation(Preview::class.java)
 
         assertNotNull(stated, "the fixture carries a Preview")
         assertEquals("", stated.name, "an unnamed rendering is labeled by whatever renders it")
@@ -73,3 +69,16 @@ class PreviewTest {
         assertEquals("", stated.lookAndFeel, "a rendering that names none keeps what the environment installed")
     }
 }
+
+@Preview
+@Composable
+internal fun DefaultPreview() = Label("Default")
+
+@Preview(name = "first")
+@Preview(name = "second")
+@Composable
+internal fun RepeatedPreview() = Label("Repeated")
+
+private fun previewMethod(name: String) = Class
+    .forName("${PreviewTest::class.java.name}Kt")
+    .getDeclaredMethod(name, Composer::class.java, Int::class.java)

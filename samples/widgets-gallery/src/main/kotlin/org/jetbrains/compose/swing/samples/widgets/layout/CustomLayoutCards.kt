@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.samples.widgets.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,7 +70,7 @@ internal fun ColumnScope.CustomLayoutCards() {
 @Composable
 private fun ColumnScope.MeasurePolicyCard() {
     ExampleCard("Layout + MeasurePolicy (relative and physical placement)") {
-        var gap by remember { mutableStateOf(CUSTOM_GAPS.first()) }
+        var gap by remember { mutableIntStateOf(CUSTOM_GAPS.first()) }
         var rightToLeft by remember { mutableStateOf(false) }
         var relativeBounds by remember { mutableStateOf<Rectangle?>(null) }
         var physicalBounds by remember { mutableStateOf<Rectangle?>(null) }
@@ -159,7 +160,7 @@ private fun ColumnScope.DirectionAwareModifierCard() {
 private fun ColumnScope.ConstraintSizingCard() {
     ExampleCard("aspectRatio / defaultMinSize under one changing parent") {
         var compactParent by remember { mutableStateOf(false) }
-        var aspectRatioIndex by remember { mutableStateOf(ASPECT_RATIOS.lastIndex) }
+        var aspectRatioIndex by remember { mutableIntStateOf(ASPECT_RATIOS.lastIndex) }
         var aspectBounds by remember { mutableStateOf<Rectangle?>(null) }
         var minimumBounds by remember { mutableStateOf<Rectangle?>(null) }
         val parentSize = if (compactParent) COMPACT_PARENT_SIZE else ROOMY_PARENT_SIZE

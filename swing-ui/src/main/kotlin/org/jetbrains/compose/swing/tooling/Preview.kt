@@ -5,7 +5,7 @@ package org.jetbrains.compose.swing.tooling
  * Marks a composable that an IDE may render on its own, so a component can be seen without running
  * the application.
  *
- * The composable must take no parameters: nothing supplies arguments to it.
+ * Use a top-level `@Composable` function with no value parameters, extension receiver, or context parameters.
  *
  * A [PreviewEnvironment] on the same classpath prepares the process every preview in it renders under;
  * what this annotation states is what that preview alone needs on top.

@@ -1,10 +1,6 @@
 # Module swing-ui-detekt
 
-This library's own detekt rules: the contracts its API carries that neither the compiler nor the
-formatter can hold.
-
-Adding this artifact also brings the Compose rules ([mrmans0n/compose-rules]) with it, so a consumer
-adds one line rather than two.
+Detekt rules for Compose Swing UI and the Compose runtime. Add `swing-ui-detekt` to `detektPlugins` to load the rules.
 
 | Rule | Reports |
 | --- | --- |
@@ -28,10 +24,13 @@ adds one line rather than two.
 | `UnheldColumnComparator` | a table column given a comparator built where the column is declared, which sorts the rows again on every pass |
 | `UnusedTransitionTargetState` | the state-to-value lambda of `animateValue`, `animateFloat`, `animateInt` or `animateColor` that never reads the state it is handed, so every state animates toward one value |
 | `UnusedAnimatedContentTargetState` | an `AnimatedContent` or `Crossfade` content or content-key lambda that never reads the state it is handed, so the two states share content |
+| `PreviewNeedsComposableAnnotation` | a Swing preview function missing the Compose Runtime `@Composable` annotation |
+| `PreviewSignature` | a Swing preview declared inside another declaration or requiring arguments |
 
 Run the following rules with the type-resolving Detekt tasks `detektMain`, `detektTest`, or `detektTestFixtures`.
 
 - `ModifierNodeInspectableProperties`
+- `PreviewNeedsComposableAnnotation`
 - `SwingComponentInComposableSignature`
 - `MultipleSwingModifierParameters`
 - `MultipleSwingNodeCalls`
@@ -64,48 +63,30 @@ dependencies {
 }
 ```
 
-The rules above are on as soon as the artifact is there. The Compose rules arrive with it, but detekt
-reads every plugin's bundled configuration as one document, so a section two plugins both declare
-would be a duplicate key - which means the Compose rules cannot be pointed at this library's types
-from here. Copy this into your own `detekt.yml`:
+The Compose rules recognize `SwingModifier` and the library's Swing widgets and layouts. Use `customModifiers` and `contentEmitters` to add your own modifier types and emitters. Where a rule offers `contentEmittersDenylist`, use it to mark content boundaries such as separate windows.
 
-```yaml
-Compose:
-  ModifierMissing:
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierNaming:
-    customModifiers: ['SwingModifier']
-  ModifierNotUsedAtRoot:
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierReused:
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ContentEmitterReturningValues:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  MultipleEmitters:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ConditionHoist:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  LambdaParameterEventTrailing:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierClickableOrder:
-    active: false
-  ModifierComposed:
-    active: false
-  ModifierWithoutDefault:
-    active: false
+`ConditionHoist` checks `Panel`, `Box`, `Column`, and `Row` calls that use their layout defaults. Its `contentEmitters` setting can also identify custom layouts.
+
+Use `buildUponDefaultConfig` to apply the bundled defaults alongside your own configuration.
+
+```kotlin
+detekt {
+    buildUponDefaultConfig.set(true)
+    config.setFrom(file("config/detekt.yml"))
+}
 ```
 
-`SwingModifier` is the chain those rules are about, and every widget this library declares bottoms out
-in `SwingNode` or `MenuNode`, so a call reaching either is what emits content. The last three read
-androidx types that have no counterpart here: `Modifier.clickable`, `Modifier.composed`, and a
-without-default check with no visibility threshold, which `SwingModifierWithoutDefault` replaces.
+```yaml
+compose-swing:
+  ModifierMissing:
+    contentEmitters: ['CustomNode', 'OtherNode']
+  MultipleEmitters:
+    contentEmitters: 'CustomNode;OtherNode'
+  ModifierNaming:
+    customModifiers: 'CustomModifier, OtherModifier'
+```
 
 ## Related
 
 - [`../swing-ui/README.md`](../swing-ui/README.md) - the core library.
 - [`../docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md) - writing a component the rules apply to.
-
-[mrmans0n/compose-rules]: https://mrmans0n.github.io/compose-rules/

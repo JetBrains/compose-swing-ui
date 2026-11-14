@@ -2,7 +2,6 @@
 #
 # A module cannot contribute its ruleset to itself, and buildSrc is an included build that cannot
 # depend on it; neither sees the Compose rules that arrive with it either. Config validation rejects a
-# section whose ruleset is absent, so those sections are excluded here rather than in detekt.yml, which
-# keeps them validated everywhere the rules do run.
+# section whose rule set is absent. The exclusions here apply only to those two builds.
 config:
-  excludes: ["Compose", "compose-swing", "compose-swing-internal"]
+  excludes: ["compose-runtime", "compose-swing", "compose-swing-internal"]

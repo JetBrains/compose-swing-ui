@@ -6,4 +6,9 @@ Apache License, Version 2.0.
   AndroidX frameworks/support (androidx commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
   Copyright The Android Open Source Project
 
+  compose-rules v0.6.8 (commit 84794e3175a8ab6e1d024a5db6c299be2454ae6b)
+  https://github.com/mrmans0n/compose-rules
+  Rule sources and tests from rules/common and rules/detekt.
+  Copyright 2023-2026 Nacho Lopez
+
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

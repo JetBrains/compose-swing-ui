@@ -107,12 +107,16 @@ internal fun ColumnScope.GeometryCard() {
                 "layout - here, a LayeredPane, which positions each child itself.",
         )
         Panel {
-            GeometrySpinner("x:", frameX, { frameX = it }, min = 0, max = 200)
-            GeometrySpinner("y:", frameY, { frameY = it }, min = 0, max = 140)
+            Label("x:")
+            GeometrySpinner(frameX, { frameX = it }, min = 0, max = 200)
+            Label("y:")
+            GeometrySpinner(frameY, { frameY = it }, min = 0, max = 140)
         }
         Panel {
-            GeometrySpinner("width:", frameWidth, { frameWidth = it }, min = 40, max = 240)
-            GeometrySpinner("height:", frameHeight, { frameHeight = it }, min = 30, max = 100)
+            Label("width:")
+            GeometrySpinner(frameWidth, { frameWidth = it }, min = 40, max = 240)
+            Label("height:")
+            GeometrySpinner(frameHeight, { frameHeight = it }, min = 30, max = 100)
         }
         GeometryPreview(
             frameX = frameX,
@@ -150,16 +154,13 @@ private fun GeometryPreview(
     }
 }
 
-/** One labeled bound of the geometry card, all four of which are spun the same way. */
 @Composable
 private fun GeometrySpinner(
-    label: String,
     value: Int,
     onValueChange: (Int) -> Unit,
     min: Int,
     max: Int,
 ) {
-    Label(label)
     Spinner(
         value,
         onValueChange = { onValueChange(it.toInt()) },

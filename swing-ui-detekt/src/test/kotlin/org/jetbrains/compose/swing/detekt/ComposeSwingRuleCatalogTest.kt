@@ -11,6 +11,58 @@ import kotlin.test.assertTrue
 class ComposeSwingRuleCatalogTest {
     private val rules = ComposeSwingRuleSets.ruleSets.flatMap { (setId, rules) -> rules.map { setId to it } }
 
+    private val emitters = mapOf("contentEmitters" to "[]", "contentEmittersDenylist" to "[]")
+    private val modifiers = mapOf("customModifiers" to "[]")
+    private val lambdas = mapOf("treatAsLambda" to "[]", "treatAsComposableLambda" to "[]")
+
+    private val upstreamSettings =
+        mapOf(
+            "ComposableAnnotationNaming" to emptyMap(),
+            "ComposableNestingDepth" to emitters + ("composableNestingDepthThreshold" to "3"),
+            "ComposableParamOrder" to modifiers + lambdas,
+            "CompositionLocalAllowlist" to mapOf("allowedCompositionLocals" to "[]"),
+            "ConditionHoist" to
+                mapOf(
+                    "contentEmitters" to "[]",
+                    "ignoreCallsWithArgumentNames" to
+                        "[\"modifier\", \"contentAlignment\", \"horizontalArrangement\", \"verticalAlignment\"]",
+                ),
+            "ContentEmitterReturningValues" to emitters,
+            "ContentSlotReused" to lambdas,
+            "ContentTrailingLambda" to lambdas,
+            "DefaultsVisibility" to emptyMap(),
+            "LambdaParameterEventTrailing" to modifiers + emitters,
+            "LambdaParameterInRestartableEffect" to mapOf("treatAsLambda" to "[]"),
+            "MissingNonRestartableComposable" to mapOf("ignoresPreviews" to "true"),
+            "ModifierComposed" to modifiers,
+            "ModifierMissing" to
+                modifiers + emitters +
+                mapOf(
+                    "ignoreAnnotated" to "[]",
+                    "modifierMissingIgnoreAnnotated" to "[]",
+                    "checkModifiersForVisibility" to "'only_public'",
+                ),
+            "ModifierNaming" to modifiers,
+            "ModifierNotUsedAtRoot" to modifiers + emitters,
+            "ModifierReused" to modifiers + emitters,
+            "ModifierShouldBeForwardedToEveryBranch" to modifiers,
+            "MultipleEmitters" to emitters,
+            "MutableParams" to emptyMap(),
+            "MutableStateParam" to emptyMap(),
+            "ParameterNaming" to mapOf("treatAsLambda" to "[]", "allowedLambdaParameterNames" to "[]"),
+            "PreviewAnnotationNaming" to emptyMap(),
+            "PreviewNaming" to mapOf("previewNamingStrategy" to "'suffix'"),
+            "PreviewPublic" to emptyMap(),
+            "RememberContentMissing" to emptyMap(),
+            "StateParam" to emptyMap(),
+            "UnnecessaryLaunchedEffect" to
+                mapOf(
+                    "allowedCallReceiverTypes" to "[]",
+                    "allowedCallNames" to "[]",
+                ),
+            "UnstableCollections" to emptyMap(),
+        )
+
     @Test
     fun `rule sets are the three the library declares`() {
         assertEquals(
@@ -38,6 +90,15 @@ class ComposeSwingRuleCatalogTest {
                     else -> rule.severity.name.lowercase()
                 }
             assertEquals(severity, block["severity"], "severity of $setId>${rule.id}")
+        }
+    }
+
+    @Test
+    fun `adapted rules declare their upstream configuration keys and defaults`() {
+        val config = configLines()
+        upstreamSettings.forEach { (id, defaults) ->
+            val (setId, _) = rules.single { (_, rule) -> rule.id == id }
+            assertEquals(defaults, config.ruleBlock(setId, id) - setOf("active", "severity"), id)
         }
     }
 

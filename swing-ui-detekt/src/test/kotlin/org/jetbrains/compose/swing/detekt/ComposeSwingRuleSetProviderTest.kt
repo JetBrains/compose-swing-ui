@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 class ComposeSwingRuleSetProviderTest {
     @Test
-    fun `service loader discovers both providers`() {
+    fun `service loader discovers all providers`() {
         val expected =
             setOf(
                 ComposeSwingRuleSetProvider::class.java,
@@ -27,34 +27,73 @@ class ComposeSwingRuleSetProviderTest {
         assertEquals(expected, discovered)
     }
 
+    private val publishedRuleNames =
+        setOf(
+            RuleName("ComposableAnnotationNaming"),
+            RuleName("ComposableNestingDepth"),
+            RuleName("ComposableParamOrder"),
+            RuleName("ComposableSwingModifierFactory"),
+            RuleName("CompositionLocalAllowlist"),
+            RuleName("ConditionHoist"),
+            RuleName("ContentEmitterReturningValues"),
+            RuleName("ContentSlotReused"),
+            RuleName("ContentTrailingLambda"),
+            RuleName("DefaultsVisibility"),
+            RuleName("InvalidReadOnlyComposable"),
+            RuleName("LambdaParameterEventTrailing"),
+            RuleName("LambdaParameterInRestartableEffect"),
+            RuleName("MissingNonRestartableComposable"),
+            RuleName("MissingReadOnlyComposable"),
+            RuleName("ModifierComposed"),
+            RuleName("ModifierMissing"),
+            RuleName("ModifierNaming"),
+            RuleName("ModifierNodeInspectableProperties"),
+            RuleName("ModifierNotUsedAtRoot"),
+            RuleName("ModifierReused"),
+            RuleName("ModifierShouldBeForwardedToEveryBranch"),
+            RuleName("MultipleEmitters"),
+            RuleName("MultipleSwingModifierParameters"),
+            RuleName("MultipleSwingNodeCalls"),
+            RuleName("MutableParams"),
+            RuleName("MutableStateParam"),
+            RuleName("ParameterNaming"),
+            RuleName("PreviewAnnotationNaming"),
+            RuleName("PreviewNaming"),
+            RuleName("PreviewNeedsComposableAnnotation"),
+            RuleName("PreviewPublic"),
+            RuleName("PreviewSignature"),
+            RuleName("RememberContentMissing"),
+            RuleName("StaleRememberUpdatedStateInRemember"),
+            RuleName("StateParam"),
+            RuleName("SwingComponentInComposableSignature"),
+            RuleName("SwingModifierFactoryExtensionFunction"),
+            RuleName("SwingModifierFactoryReturnType"),
+            RuleName("SwingModifierThen"),
+            RuleName("SwingModifierUnreferencedReceiver"),
+            RuleName("SwingModifierWithoutDefault"),
+            RuleName("SwingNodeFactoryReadsDeclaredValue"),
+            RuleName("SwingNodeFactoryReusesComponent"),
+            RuleName("SwingNodeUpdateConditionalCall"),
+            RuleName("SwingNodeUpdateRepeatsInvalidation"),
+            RuleName("SwingNodeUpdateStoresCallback"),
+            RuleName("SwingNodeUpdateWritesComponentPart"),
+            RuleName("SwingStyleWithoutDefault"),
+            RuleName("UnheldColumnComparator"),
+            RuleName("UnnecessaryComposable"),
+            RuleName("UnnecessaryLaunchedEffect"),
+            RuleName("UnstableCollections"),
+            RuleName("UnusedAnimatedContentTargetState"),
+            RuleName("UnusedTransitionTargetState"),
+            RuleName("VarsWithoutStateBacking"),
+        )
+
     @Test
     fun `public provider registers every published rule`() {
         val ruleSet = ComposeSwingRuleSetProvider().instance()
 
         assertEquals(RuleSetId("compose-swing"), ruleSet.id)
         assertEquals(
-            setOf(
-                RuleName("ComposableSwingModifierFactory"),
-                RuleName("ModifierNodeInspectableProperties"),
-                RuleName("MultipleSwingModifierParameters"),
-                RuleName("MultipleSwingNodeCalls"),
-                RuleName("SwingComponentInComposableSignature"),
-                RuleName("SwingModifierFactoryExtensionFunction"),
-                RuleName("SwingModifierFactoryReturnType"),
-                RuleName("SwingModifierThen"),
-                RuleName("SwingModifierUnreferencedReceiver"),
-                RuleName("SwingModifierWithoutDefault"),
-                RuleName("SwingNodeFactoryReadsDeclaredValue"),
-                RuleName("SwingNodeFactoryReusesComponent"),
-                RuleName("SwingNodeUpdateConditionalCall"),
-                RuleName("SwingNodeUpdateRepeatsInvalidation"),
-                RuleName("SwingNodeUpdateStoresCallback"),
-                RuleName("SwingNodeUpdateWritesComponentPart"),
-                RuleName("SwingStyleWithoutDefault"),
-                RuleName("UnheldColumnComparator"),
-                RuleName("UnusedAnimatedContentTargetState"),
-                RuleName("UnusedTransitionTargetState"),
-            ),
+            publishedRuleNames,
             ruleSet.rules.keys,
         )
         ruleSet.rules.forEach { (name, createRule) -> assertEquals(name, createRule(Config.empty).ruleName) }

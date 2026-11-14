@@ -69,6 +69,8 @@ public val DefaultCanvasRenderingHints: Map<RenderingHints.Key, Any> =
  * @see org.jetbrains.compose.swing.foundation.graphics.DrawModifierNode
  */
 @Composable
+// The trailing lambda is the drawing slot, as in androidx's Canvas, not an event.
+@Suppress("LambdaParameterEventTrailing")
 public fun Canvas(
     modifier: SwingModifier = SwingModifier,
     renderingHints: Map<RenderingHints.Key, Any>? = DefaultCanvasRenderingHints,

@@ -19,6 +19,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import org.jetbrains.compose.swing.animation.AnimatedVisibility
 import org.jetbrains.compose.swing.animation.expandHorizontally
 import org.jetbrains.compose.swing.animation.shrinkHorizontally
+import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -53,6 +54,7 @@ import javax.swing.ListSelectionModel
 // The menu bar is its own composition, mounted on the frame's menu bar, and reads that frame as its
 // LocalWindow.
 @Composable
+@SwingMenuComposable
 internal fun ShowcaseMenuBar(
     alignmentGuidesShown: Boolean,
     onAlignmentGuidesShownChange: (Boolean) -> Unit,

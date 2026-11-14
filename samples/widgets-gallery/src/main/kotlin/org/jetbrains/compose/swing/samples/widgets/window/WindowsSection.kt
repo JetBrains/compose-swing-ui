@@ -106,7 +106,8 @@ private fun ColumnScope.SecondaryWindowCard() {
         }
         // The remaining Window(...) arguments are reactive too: each check box writes straight into
         // the parameter it names.
-        WindowChromeControls(chrome)
+        WindowBehaviorControls(chrome)
+        WindowAppearanceControls(chrome)
         if (open) {
             Window(
                 onCloseRequest = { open = false },
@@ -146,12 +147,16 @@ private class WindowChromeState {
 }
 
 @Composable
-private fun WindowChromeControls(state: WindowChromeState) {
+private fun WindowBehaviorControls(state: WindowChromeState) {
     Panel {
         CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
         CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
         CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
     }
+}
+
+@Composable
+private fun WindowAppearanceControls(state: WindowChromeState) {
     Panel {
         CheckBox("Custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
         CheckBox(

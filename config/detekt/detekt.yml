@@ -36,46 +36,9 @@ complexity:
     # precedented exemption as MagicNumber below.
     ignoreAnnotated: ["Composable"]
 
-# The Compose rules (io.nlopez.compose.rules), which arrive with `:swing-ui-detekt`, pointed at this
-# library's own types: SwingModifier is the chain the modifier rules are about, and every widget bottoms
-# out in one of two node primitives, so a call reaching either is what "emits content" means here. A
-# consumer configures the same block; swing-ui-detekt/README.md carries it.
-#
 # Several of these rules ask how an API is shaped or what a composition costs. A test fixture is
 # neither: it stands a composable up to drive one assertion and is gone.
-Compose:
-  ConditionHoist:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ContentEmitterReturningValues:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  LambdaParameterEventTrailing:
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierClickableOrder:
-    # Reads androidx's Modifier.clickable, which has no counterpart here.
-    active: false
-  ModifierComposed:
-    # Reads androidx's Modifier.composed, which has no counterpart here.
-    active: false
-  ModifierMissing:
-    excludes: ["**/src/fixtures/**"]
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  MissingNonRestartableComposable:
-    excludes: ["**/src/fixtures/**"]
-  ModifierNaming:
-    customModifiers: ['SwingModifier']
-  ModifierNotUsedAtRoot:
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierReused:
-    customModifiers: ['SwingModifier']
-    contentEmitters: ['SwingNode', 'MenuNode']
-  ModifierWithoutDefault:
-    # No visibility threshold upstream, so it reports every private node helper a widget is built from.
-    # SwingModifierWithoutDefault checks the same thing where a caller outside the module sees it.
-    active: false
-  MultipleEmitters:
-    contentEmitters: ['SwingNode', 'MenuNode']
+compose-swing:
   CompositionLocalAllowlist:
     excludes: ["**/src/test/**"]
     # Layout constraints and the window a content composition has settled on are part of this
@@ -83,8 +46,10 @@ Compose:
     allowedCompositionLocals: ['LocalProvidableWindow']
   LambdaParameterInRestartableEffect:
     excludes: ["**/src/test/**"]
-  MutableStateAutoboxing:
-    excludes: ["**/src/test/**"]
+  MissingNonRestartableComposable:
+    excludes: ["**/src/fixtures/**"]
+  ModifierMissing:
+    excludes: ["**/src/fixtures/**"]
   ParameterNaming:
     excludes: ["**/src/fixtures/**"]
     # Settlement is this library's own vocabulary, and the callback fires once the value has settled.
@@ -116,8 +81,10 @@ style:
     forbiddenImports:
       - value: 'dev.detekt.*'
         reason: 'A rule in this package stays independent of detekt; the adapters in the detekt package carry it there.'
+      - value: 'io.nlopez.compose.rules.detekt.*'
+        reason: 'compose-rules'' detekt classes extend detekt''s Rule, so a rule in this package must not depend on them either.'
   MagicNumber:
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts', "**/src/fixtures/**"]
+    excludes: ['**/test/**', '**/*.kts', "**/src/fixtures/**"]
     # Default UI dimensions / parameters inside @Composable functions read fine inline.
     ignoreAnnotated: ["Composable"]
   # ktlint reports no unused import, whatever the import is, so without this rule nothing in the

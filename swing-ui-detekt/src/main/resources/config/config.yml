@@ -1,21 +1,121 @@
-# What this artifact turns on for anyone who adds it, before their own detekt.yml has a say.
-#
-# Only this artifact's own rulesets appear here. The Compose rules arrive with it and are configured in
-# the consumer's own detekt.yml, because detekt reads every plugin's bundled config as one document and
-# a section two plugins both declare is a duplicate key. swing-ui-detekt/README.md carries that block.
+# Default rules and settings for consumers of this artifact.
 
 compose-swing:
+  ComposableAnnotationNaming:
+    active: true
+  ComposableNestingDepth:
+    active: false
+    composableNestingDepthThreshold: 3
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ComposableParamOrder:
+    active: true
+    customModifiers: []
+    treatAsLambda: []
+    treatAsComposableLambda: []
   ComposableSwingModifierFactory:
     active: true
+  CompositionLocalAllowlist:
+    active: true
+    allowedCompositionLocals: []
+  ConditionHoist:
+    active: true
+    contentEmitters: []
+    ignoreCallsWithArgumentNames: ["modifier", "contentAlignment", "horizontalArrangement", "verticalAlignment"]
+  ContentEmitterReturningValues:
+    active: true
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ContentSlotReused:
+    active: true
+    treatAsLambda: []
+    treatAsComposableLambda: []
+  ContentTrailingLambda:
+    active: true
+    treatAsLambda: []
+    treatAsComposableLambda: []
+  DefaultsVisibility:
+    active: true
+  InvalidReadOnlyComposable:
+    active: true
+  LambdaParameterEventTrailing:
+    active: true
+    customModifiers: []
+    contentEmitters: []
+    contentEmittersDenylist: []
+  LambdaParameterInRestartableEffect:
+    active: true
+    treatAsLambda: []
+  MissingNonRestartableComposable:
+    active: true
+    ignoresPreviews: true
+  MissingReadOnlyComposable:
+    active: true
+  ModifierComposed:
+    active: true
+    customModifiers: []
+  ModifierMissing:
+    active: true
+    modifierMissingIgnoreAnnotated: []
+    checkModifiersForVisibility: 'only_public'
+    ignoreAnnotated: []
+    customModifiers: []
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ModifierNaming:
+    active: true
+    customModifiers: []
   ModifierNodeInspectableProperties:
     active: true
     # An element declared in a test describes itself to nothing - no tool reads a fixture. Scoped to
     # the test source set rather than detekt's default `test` segment match, so a published module
     # whose own package is named "test" stays covered.
     excludes: ["**/src/test/**"]
+  ModifierNotUsedAtRoot:
+    active: true
+    customModifiers: []
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ModifierReused:
+    active: true
+    customModifiers: []
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ModifierShouldBeForwardedToEveryBranch:
+    active: true
+    customModifiers: []
+  MultipleEmitters:
+    active: true
+    contentEmitters: []
+    contentEmittersDenylist: []
   MultipleSwingModifierParameters:
     active: true
   MultipleSwingNodeCalls:
+    active: true
+  MutableParams:
+    active: true
+  MutableStateParam:
+    active: true
+  ParameterNaming:
+    active: true
+    allowedLambdaParameterNames: []
+    treatAsLambda: []
+  PreviewAnnotationNaming:
+    active: true
+  PreviewNaming:
+    active: false
+    previewNamingStrategy: 'suffix'
+  PreviewNeedsComposableAnnotation:
+    active: true
+  PreviewPublic:
+    active: true
+  PreviewSignature:
+    active: true
+  RememberContentMissing:
+    active: true
+  StaleRememberUpdatedStateInRemember:
+    active: true
+  StateParam:
     active: true
   SwingComponentInComposableSignature:
     active: true
@@ -45,9 +145,19 @@ compose-swing:
     active: true
   UnheldColumnComparator:
     active: true
+  UnnecessaryComposable:
+    active: true
+  UnnecessaryLaunchedEffect:
+    active: true
+    allowedCallReceiverTypes: []
+    allowedCallNames: []
+  UnstableCollections:
+    active: false
   UnusedAnimatedContentTargetState:
     active: true
   UnusedTransitionTargetState:
+    active: true
+  VarsWithoutStateBacking:
     active: true
 
 compose-swing-internal:

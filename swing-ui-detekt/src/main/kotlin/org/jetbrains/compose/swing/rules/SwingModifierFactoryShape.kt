@@ -2,16 +2,23 @@
 package org.jetbrains.compose.swing.rules
 
 import org.jetbrains.kotlin.psi.KtBlockExpression
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPsiUtil
+import org.jetbrains.kotlin.psi.KtReturnExpression
+import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
 import org.jetbrains.kotlin.psi.KtTypeReference
@@ -153,7 +160,7 @@ internal fun KtUserType.declaresLibraryType(fullyQualifiedName: String): Boolean
         ?: (containingFile as? KtFile)?.let { file ->
             !isShadowedLexically(referencedName) &&
                 !file.declaresTypeName(referencedName) &&
-                file.resolvesImportedName(referencedName, fullyQualifiedName)
+                file.resolvesImportedName(referencedName, fullyQualifiedName, allowMultipleWildcardImports = true)
         }
         ?: false
 }
@@ -178,6 +185,7 @@ private fun KtDeclaration.isTypeNamed(name: String?): Boolean =
 internal fun KtFile.resolvesImportedName(
     referencedName: String?,
     fullyQualifiedName: String,
+    allowMultipleWildcardImports: Boolean = false,
 ): Boolean {
     val exactImports = importDirectives.filter { !it.isAllUnder && it.importedName() == referencedName }
     val packageName = fullyQualifiedName.substringBeforeLast('.')
@@ -197,11 +205,8 @@ internal fun KtFile.resolvesImportedName(
 
         else -> {
             val wildcardImports = importDirectives.filter(KtImportDirective::isAllUnder)
-            wildcardImports
-                .singleOrNull()
-                ?.importPath
-                ?.pathStr
-                ?.removeSuffix(".*") == packageName
+            (allowMultipleWildcardImports || wildcardImports.size == 1) &&
+                wildcardImports.any { it.importedFqName?.asString() == packageName }
         }
     }
 }
@@ -219,9 +224,18 @@ internal fun KtNameReferenceExpression.isLibraryCompanionValue(fullyQualifiedNam
 private fun KtNameReferenceExpression.isShadowedByValue(): Boolean {
     val name = getReferencedName()
     val hasParameter =
-        parents.filterIsInstance<KtNamedFunction>().firstOrNull()?.valueParameters?.any {
-            it.name == name && it.startOffset < startOffset
-        } == true
+        parents.filterIsInstance<KtFunction>().any { function ->
+            function.valueParameters.any { parameter ->
+                parameter.startOffset < startOffset &&
+                    (
+                        parameter.name == name ||
+                            parameter.destructuringDeclaration
+                                ?.entries
+                                .orEmpty()
+                                .any { it.name == name }
+                    )
+            }
+        }
     val hasLocal =
         parents.filterIsInstance<KtBlockExpression>().any { block ->
             block.statements.filterIsInstance<KtProperty>().any {
@@ -266,3 +280,66 @@ internal fun KtCallableDeclaration.isMemberOfTheChain(): Boolean =
  * takes when it acts as a `SwingModifier` factory.
  */
 internal fun KtProperty.isFactoryCandidate(): Boolean = containingClassOrObject == null && !isVar && getter != null
+
+internal object ModifierComposed : ComposeSwingRule {
+    override val id: String = "ModifierComposed"
+    override val description: String = "SwingModifier.composed should be used with caution"
+    override val severity: ComposeSwingRule.Severity = ComposeSwingRule.Severity.Error
+    override val activeByDefault: Boolean = true
+    override val requiresAnalysisApi: Boolean = false
+
+    override fun createVisitor(
+        reporter: ComposeSwingRuleReporter,
+        config: ComposeSwingRuleConfig,
+    ): KtVisitorVoid {
+        val customModifiers = config.valueOrDefault("customModifiers", emptyList<String>()).toSet()
+        return object : KtVisitorVoid() {
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                val receiver = function.receiverTypeReference ?: return
+                val isModifier = receiver.declaresSwingModifier() || receiver.text in customModifiers
+                if (!isModifier || function.isComposable()) return
+                if (function.returnedExpressions().any { it.isSwingComposedCall(function) }) {
+                    reporter.report(function.nameIdentifier ?: function, MODIFIER_COMPOSED_MESSAGE)
+                }
+            }
+        }
+    }
+
+    private fun KtNamedFunction.returnedExpressions(): Sequence<KtExpression> =
+        if (hasBlockBody()) {
+            bodyBlockExpression
+                ?.statements
+                .orEmpty()
+                .asSequence()
+                .filterIsInstance<KtReturnExpression>()
+                .mapNotNull { it.returnedExpression }
+        } else {
+            sequenceOf(bodyExpression).filterNotNull()
+        }
+
+    private fun KtExpression.isSwingComposedCall(factory: KtNamedFunction): Boolean {
+        val expression = KtPsiUtil.safeDeparenthesize(this)
+        val qualified = expression as? KtDotQualifiedExpression
+        val call = (qualified?.selectorExpression ?: expression) as? KtCallExpression ?: return false
+        val callee = (call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName()
+        return callee != null &&
+            containingKtFile.resolvesImportedName(callee, SWING_COMPOSED_FQN) &&
+            !call.hasVisibleNamesake(callee) &&
+            qualified?.receiverExpression.isSwingModifierReceiver(factory)
+    }
+
+    private fun KtExpression?.isSwingModifierReceiver(factory: KtNamedFunction): Boolean =
+        when (val receiver = this?.let(KtPsiUtil::safeDeparenthesize)) {
+            null -> true
+            is KtThisExpression -> receiver.getLabelName()?.let { it == factory.name } ?: true
+            is KtNameReferenceExpression -> receiver.isLibraryCompanionValue(SWING_MODIFIER_FQN)
+            else -> false
+        }
+}
+
+private const val SWING_COMPOSED_FQN = "$SWING_MODIFIER_PACKAGE.composed"
+
+private const val MODIFIER_COMPOSED_MESSAGE =
+    "This modifier factory uses `composed`. Each call creates a new element, so a composable taking it cannot skip. " +
+        "Consider a `SwingModifier.ComponentNode` for per-component state and behavior. " +
+        "Keep `composed` when the modifier must call composables."

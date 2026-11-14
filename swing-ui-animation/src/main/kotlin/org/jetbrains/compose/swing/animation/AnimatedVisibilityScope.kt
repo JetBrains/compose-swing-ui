@@ -62,11 +62,14 @@ public sealed interface AnimatedVisibilityScope : ConstrainedScope {
      * @param label prefixes the name of every animation this modifier registers.
      * @return this modifier with the enter and exit declared on it.
      */
+    @Suppress("ModifierComposed")
     public fun SwingModifier.animateEnterExit(
         enter: EnterTransition = fadeIn(),
         exit: ExitTransition = fadeOut(),
         label: String = "animateEnterExit",
     ): SwingModifier =
+        // As in androidx's Modifier.animateEnterExit: the enter and exit state is remembered
+        // during composition, so the modifier is built with composed.
         composed {
             this.then(
                 transition.createEnterExitModifier(
