@@ -16,8 +16,11 @@ class ComposeRuntimeRuleSetProviderTest {
             setOf(
                 RuleName("ComposableNaming"),
                 RuleName("CompositionLocalNaming"),
+                RuleName("CoroutineCreationDuringComposition"),
+                RuleName("FlowOperatorInvokedInComposition"),
                 RuleName("MutableStateAutoboxing"),
                 RuleName("OpaqueUnitKey"),
+                RuleName("ProduceStateDoesNotAssignValue"),
                 RuleName("RememberInComposition"),
                 RuleName("RememberMissing"),
                 RuleName("RememberReturnType"),

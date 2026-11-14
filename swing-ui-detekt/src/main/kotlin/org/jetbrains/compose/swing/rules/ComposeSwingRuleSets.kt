@@ -18,7 +18,10 @@ import org.jetbrains.compose.swing.rules.composerules.StaleRememberUpdatedStateI
 import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
 import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
 import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
+import org.jetbrains.compose.swing.rules.runtime.CoroutineCreationDuringComposition
+import org.jetbrains.compose.swing.rules.runtime.FlowOperatorInvokedInComposition
 import org.jetbrains.compose.swing.rules.runtime.OpaqueUnitKey
+import org.jetbrains.compose.swing.rules.runtime.ProduceStateDoesNotAssignValue
 import org.jetbrains.compose.swing.rules.runtime.RememberInComposition
 import org.jetbrains.compose.swing.rules.runtime.RememberReturnType
 
@@ -162,8 +165,11 @@ public object ComposeSwingRuleSets {
                 listOf(
                     ComposableNaming,
                     CompositionLocalNaming,
+                    CoroutineCreationDuringComposition,
+                    FlowOperatorInvokedInComposition,
                     MutableStateAutoboxing,
                     OpaqueUnitKey,
+                    ProduceStateDoesNotAssignValue,
                     RememberInComposition,
                     RememberMissing,
                     RememberReturnType,

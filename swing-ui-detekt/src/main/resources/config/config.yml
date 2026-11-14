@@ -172,12 +172,18 @@ compose-runtime:
     allowedComposableFunctionNames: []
   CompositionLocalNaming:
     active: true
+  CoroutineCreationDuringComposition:
+    active: true
+  FlowOperatorInvokedInComposition:
+    active: true
   MutableStateAutoboxing:
     active: true
     severity: warning
   OpaqueUnitKey:
     active: true
     severity: warning
+  ProduceStateDoesNotAssignValue:
+    active: true
   RememberInComposition:
     active: true
   RememberMissing:
