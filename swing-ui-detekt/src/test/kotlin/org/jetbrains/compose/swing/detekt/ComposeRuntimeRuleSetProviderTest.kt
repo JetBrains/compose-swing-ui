@@ -15,6 +15,8 @@ class ComposeRuntimeRuleSetProviderTest {
         assertEquals(
             setOf(
                 RuleName("AutoboxingStateValueProperty"),
+                RuleName("ComposableLambdaParameterNaming"),
+                RuleName("ComposableLambdaParameterPosition"),
                 RuleName("ComposableNaming"),
                 RuleName("CompositionLocalNaming"),
                 RuleName("CoroutineCreationDuringComposition"),

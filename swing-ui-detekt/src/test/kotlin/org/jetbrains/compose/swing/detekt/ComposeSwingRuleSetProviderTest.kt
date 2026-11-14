@@ -8,15 +8,17 @@ import dev.detekt.api.RuleSetProvider
 import java.util.ServiceLoader
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class ComposeSwingRuleSetProviderTest {
     @Test
     fun `service loader discovers all providers`() {
         val expected =
             setOf(
-                ComposeSwingRuleSetProvider::class.java,
-                ComposeSwingInternalRuleSetProvider::class.java,
                 ComposeRuntimeRuleSetProvider::class.java,
+                ComposeSwingInternalRuleSetProvider::class.java,
+                ComposeSwingRuleSetProvider::class.java,
             )
         val discovered =
             ServiceLoader
@@ -30,6 +32,7 @@ class ComposeSwingRuleSetProviderTest {
 
     private val publishedRuleNames =
         setOf(
+            RuleName("ArgumentOutsideDeclaredRange"),
             RuleName("ComposableAnnotationNaming"),
             RuleName("ComposableNestingDepth"),
             RuleName("ComposableParamOrder"),
@@ -64,6 +67,7 @@ class ComposeSwingRuleSetProviderTest {
             RuleName("PreviewPublic"),
             RuleName("PreviewSignature"),
             RuleName("RememberContentMissing"),
+            RuleName("RestrictedApi"),
             RuleName("StaleRememberUpdatedStateInRemember"),
             RuleName("StateParam"),
             RuleName("SwingComponentInComposableSignature"),
@@ -86,6 +90,7 @@ class ComposeSwingRuleSetProviderTest {
             RuleName("UnusedAnimatedContentTargetState"),
             RuleName("UnusedTransitionTargetState"),
             RuleName("VarsWithoutStateBacking"),
+            RuleName("VisibleForTests"),
         )
 
     @Test
@@ -113,5 +118,28 @@ class ComposeSwingRuleSetProviderTest {
             ruleSet.rules.keys,
         )
         ruleSet.rules.forEach { (name, createRule) -> assertEquals(name, createRule(Config.empty).ruleName) }
+    }
+
+    @Test
+    fun `every provider registers exactly the rules config yml declares for its rule set`() {
+        val config = assertNotNull(javaClass.getResource("/config/config.yml"), "config.yml").readText().lines()
+        listOf(
+            ComposeRuntimeRuleSetProvider(),
+            ComposeSwingInternalRuleSetProvider(),
+            ComposeSwingRuleSetProvider(),
+        ).forEach { provider ->
+            val setId = provider.ruleSetId.value
+            val setStart = config.indexOfFirst { it == "$setId:" }
+            assertTrue(setStart >= 0, "config.yml has no rule set $setId")
+            val declared =
+                config
+                    .drop(setStart + 1)
+                    .takeWhile { it.isBlank() || it.startsWith(" ") || it.startsWith("#") }
+                    .filter { it.startsWith("  ") && !it.startsWith("   ") && it.endsWith(":") }
+                    .map { RuleName(it.trim().removeSuffix(":")) }
+                    .toSet()
+
+            assertEquals(declared, provider.instance().rules.keys, "rules of $setId against config.yml")
+        }
     }
 }

@@ -1,6 +1,8 @@
 # Default rules and settings for consumers of this artifact.
 
 compose-swing:
+  ArgumentOutsideDeclaredRange:
+    active: true
   ComposableAnnotationNaming:
     active: true
   ComposableNestingDepth:
@@ -113,6 +115,8 @@ compose-swing:
     active: true
   RememberContentMissing:
     active: true
+  RestrictedApi:
+    active: true
   StaleRememberUpdatedStateInRemember:
     active: true
   StateParam:
@@ -159,6 +163,8 @@ compose-swing:
     active: true
   VarsWithoutStateBacking:
     active: true
+  VisibleForTests:
+    active: true
 
 compose-swing-internal:
   PreferImportsOverFqn:
@@ -169,6 +175,12 @@ compose-swing-internal:
 compose-runtime:
   AutoboxingStateValueProperty:
     active: true
+    severity: warning
+  ComposableLambdaParameterNaming:
+    active: false
+    severity: warning
+  ComposableLambdaParameterPosition:
+    active: false
     severity: warning
   ComposableNaming:
     active: true

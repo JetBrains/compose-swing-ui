@@ -50,8 +50,10 @@ dependencies {
     }
 
     // The fixtures compile against the published Compose runtime artifacts, so their annotations are the real ones.
+    "testLibraryImplementation"(libs.androidxAnnotation)
     "testLibraryImplementation"(libs.composeRuntime)
 
+    testImplementation(libs.androidxAnnotation)
     testImplementation(libs.composeRuntime)
     testImplementation(libs.composeRuntimeRetain)
     testImplementation(libs.composeRuntimeSaveable)

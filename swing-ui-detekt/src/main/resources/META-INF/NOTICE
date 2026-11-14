@@ -7,6 +7,10 @@ Apache License, Version 2.0.
   Android Lint checks and shared lint code, including Compose 1.13.0 UI and runtime checks.
   Copyright The Android Open Source Project
 
+  Android Open Source Project tools/base
+  Android Lint checks from lint/libs/lint-checks.
+  Copyright The Android Open Source Project
+
   compose-rules v0.6.8 (commit 84794e3175a8ab6e1d024a5db6c299be2454ae6b)
   https://github.com/mrmans0n/compose-rules
   Rule sources and tests from rules/common and rules/detekt.

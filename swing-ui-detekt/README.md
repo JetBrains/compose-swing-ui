@@ -4,6 +4,9 @@ Detekt rules for Compose Swing UI and the Compose runtime. Add `swing-ui-detekt`
 
 | Rule | Reports |
 | --- | --- |
+| `ArgumentOutsideDeclaredRange` | a value outside its parameter's declared range or a range that holds no values |
+| `RestrictedApi` | a reference outside the scope declared by `@RestrictTo` |
+| `VisibleForTests` | a production reference outside the visibility set by the `otherwise` argument of `@VisibleForTesting` |
 | `SwingModifierWithoutDefault` | a composable a caller outside the module can reach whose chain parameter has no default, or defaults to something other than the empty chain |
 | `SwingStyleWithoutDefault` | a composable a caller outside the module can reach whose `SwingStyle` parameter has no default, or defaults to something other than `SwingStyle`, the empty style |
 | `ComposableSwingModifierFactory` | a chain factory marked `@Composable`, which ties the value it builds to the composition that called it |
@@ -40,6 +43,9 @@ Run the following rules with the type-resolving Detekt tasks `detektMain`, `dete
 - `SwingNodeUpdateRepeatsInvalidation`
 - `SwingNodeUpdateStoresCallback`
 - `SwingNodeUpdateWritesComponentPart`
+- `ArgumentOutsideDeclaredRange`
+- `RestrictedApi`
+- `VisibleForTests`
 - `ComposableNaming`
 - `CompositionLocalNaming`
 - `MutableStateAutoboxing`
@@ -57,7 +63,8 @@ Run the following rules with the type-resolving Detekt tasks `detektMain`, `dete
 The `compose-runtime` rule set also uses type resolution.
 
 `SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a
-class marked with it. Every rule in the bundled config except `ModifierNodeInspectableProperties` runs on test sources.
+class marked with it. Every active rule in the bundled config except `ModifierNodeInspectableProperties`, `ArgumentOutsideDeclaredRange` and
+`VisibleForTests` runs on test sources.
 
 See [`META-INF/NOTICE`](src/main/resources/META-INF/NOTICE) for source attribution.
 

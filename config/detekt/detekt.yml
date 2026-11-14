@@ -58,6 +58,10 @@ compose-swing:
     excludes: ["**/src/test/**"]
   VarsWithoutStateBacking:
     excludes: ["**/src/test/**"]
+  # swing-ui-test is test infrastructure: it reaches APIs widened for tests, as the audience they were
+  # widened for, and production code never does.
+  VisibleForTests:
+    excludes: ["**/swing-ui-test/**"]
 
 compose-runtime:
   MutableStateAutoboxing:

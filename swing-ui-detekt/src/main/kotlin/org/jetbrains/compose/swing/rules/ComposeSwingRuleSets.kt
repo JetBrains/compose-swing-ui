@@ -19,6 +19,8 @@ import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
 import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
 import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
 import org.jetbrains.compose.swing.rules.runtime.AutoboxingStateValueProperty
+import org.jetbrains.compose.swing.rules.runtime.ComposableLambdaParameterNaming
+import org.jetbrains.compose.swing.rules.runtime.ComposableLambdaParameterPosition
 import org.jetbrains.compose.swing.rules.runtime.CoroutineCreationDuringComposition
 import org.jetbrains.compose.swing.rules.runtime.FlowOperatorInvokedInComposition
 import org.jetbrains.compose.swing.rules.runtime.FrequentlyChangingValue
@@ -40,6 +42,7 @@ public object ComposeSwingRuleSets {
         mapOf(
             "compose-swing" to
                 listOf(
+                    ArgumentOutsideDeclaredRange,
                     ComposeRulesRule(
                         id = "ComposableAnnotationNaming",
                         description = "Composable annotation classes should be properly named",
@@ -134,6 +137,7 @@ public object ComposeSwingRuleSets {
                         visitor = ::RememberContentMissing,
                         findingMessage = REMEMBER_CONTENT_MISSING_MESSAGE,
                     ),
+                    RestrictedApi,
                     StaleRememberUpdatedStateInRemember,
                     ComposeRulesRule(
                         id = "StateParam",
@@ -167,11 +171,14 @@ public object ComposeSwingRuleSets {
                     UnusedAnimatedContentTargetState,
                     UnusedTransitionTargetState,
                     VarsWithoutStateBacking,
+                    VisibleForTests,
                 ),
             "compose-swing-internal" to listOf(PreferImportsOverFqn, PublicDataClass),
             "compose-runtime" to
                 listOf(
                     AutoboxingStateValueProperty,
+                    ComposableLambdaParameterNaming,
+                    ComposableLambdaParameterPosition,
                     ComposableNaming,
                     CompositionLocalNaming,
                     CoroutineCreationDuringComposition,
