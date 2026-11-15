@@ -5,11 +5,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.button.ButtonActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.button.ButtonFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,6 +25,12 @@ import kotlin.test.assertEquals
  * reflected on the component, and that a state-driven label change is mirrored after recomposition.
  */
 class ButtonTest {
+    @TestFactory
+    fun rawSwing() = ButtonFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = ButtonFixture.countTests()
+
     @Test
     fun clickFiresOnClick() = runComposeSwingTest {
         var clicks = 0
@@ -72,4 +83,10 @@ class ButtonTest {
         awaitIdle()
         onNodeWithText("Toggle").assertIsNotEnabled()
     }
+
+    @TestFactory
+    fun buttonActionListenerRawSwing() = ButtonActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun buttonActionListenerCounts() = ButtonActionListenerFixture.countTests()
 }

@@ -7,14 +7,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.layout.SplitPaneDividerLocationListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.SplitPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.preferredSize
-import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
 import org.jetbrains.compose.swing.underSynth
+import org.junit.jupiter.api.TestFactory
 import java.awt.image.BufferedImage
 import javax.swing.JSplitPane
 import javax.swing.LookAndFeel
@@ -257,18 +261,6 @@ class SplitPaneBehaviorTest {
             pane.rightComponent,
             "the second side should hold the replacement",
         )
-    }
-
-    @Test
-    fun resizeWeightMapsThrough() = runComposeSwingTest {
-        setContent {
-            SplitPane(resizeWeight = 0.25) {
-                Label(text = "A", modifier = SwingModifier.first())
-                Label(text = "B", modifier = SwingModifier.second())
-            }
-        }
-
-        onNodeOfType<JSplitPane>().assertProperty(0.25) { resizeWeight }
     }
 
     @Test
@@ -559,6 +551,18 @@ class SplitPaneBehaviorTest {
             }
         }
     }
+
+    @TestFactory
+    fun splitPaneRawSwing() = SplitPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun splitPaneCounts() = SplitPaneFixture.countTests()
+
+    @TestFactory
+    fun splitPaneDividerLocationListenerRawSwing() = SplitPaneDividerLocationListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun splitPaneDividerLocationListenerCounts() = SplitPaneDividerLocationListenerFixture.countTests()
 }
 
 /** The divider size the look and feel under test installs from its style, apart from any declared one. */

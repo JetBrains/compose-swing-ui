@@ -10,9 +10,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.menu.PopupMenuFixture
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -21,6 +24,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.awt.GraphicsEnvironment
 import javax.swing.JCheckBoxMenuItem
@@ -597,6 +601,12 @@ class PopupMenuTest {
         assertEquals("updated", label.text, "the closed declaration was applied again")
         assertSame(callerMenu, label.componentPopupMenu, "the caller's native context menu remains installed")
     }
+
+    @TestFactory
+    fun rawSwing() = PopupMenuFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = PopupMenuFixture.countTests()
 }
 
 private const val WINDOW_TITLE = "popup-menu-test"

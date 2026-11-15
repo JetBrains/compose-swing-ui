@@ -1,26 +1,27 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.layout
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.layout.GlueFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.RigidAreaFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.SpacerFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.StrutFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onParent
-import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.junit.jupiter.api.Named
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.api.TestFactory
 import java.awt.Dimension
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -41,32 +42,6 @@ class BoxFillersTest {
     /** The three size requests of [this], as (minimum, preferred, maximum). */
     private fun Box.Filler.sizeRequests(): Triple<Dimension, Dimension, Dimension> =
         Triple(minimumSize, preferredSize, maximumSize)
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("fillers")
-    fun aFillerAsksForItsDeclaredSizeRequests(
-        content: @Composable () -> Unit,
-        expected: Triple<Dimension, Dimension, Dimension>,
-        message: String,
-    ) = runComposeSwingTest {
-        setContent { content() }
-        onNodeOfType<Box.Filler>().assertProperty(expected, message) { sizeRequests() }
-    }
-
-    @Test
-    fun aSpacerAndARigidAreaOfEqualSidesAskForTheSame() = runComposeSwingTest {
-        setContent {
-            Spacer(size = 9)
-            RigidArea(width = 9, height = 9)
-        }
-
-        val (spacer, rigidArea) = onAllNodesOfType<Box.Filler>().fetchAll()
-        assertEquals(
-            rigidArea.sizeRequests(),
-            spacer.sizeRequests(),
-            "a spacer must be the rigid area whose sides are both its size",
-        )
-    }
 
     @Test
     fun aSpacerSizeDrivenByStateFollowsItsRecomposition() = runComposeSwingTest {
@@ -154,6 +129,17 @@ class BoxFillersTest {
     }
 
     @Test
+    fun glueWithoutAnOrientationAbsorbsSpaceOnBothAxes() = runComposeSwingTest {
+        setContent { Glue() }
+
+        val unbounded = Short.MAX_VALUE.toInt()
+        onNodeOfType<Box.Filler>().assertProperty(
+            Triple(Dimension(0, 0), Dimension(0, 0), Dimension(unbounded, unbounded)),
+            "glue must ask for no space of its own and accept any amount on either axis",
+        ) { sizeRequests() }
+    }
+
+    @Test
     fun anOrientationAStrutCannotOccupyIsRejected() = runComposeSwingTest {
         assertFailsWith<IllegalArgumentException>("a strut must refuse an orientation it cannot occupy") {
             setContent { Strut(orientation = SwingConstants.LEADING, size = 4) }
@@ -169,48 +155,29 @@ class BoxFillersTest {
         }
     }
 
-    companion object {
-        private val unbounded = Short.MAX_VALUE.toInt()
+    @TestFactory
+    fun glueRawSwing() = GlueFixture.rawSwingTests()
 
-        @JvmStatic
-        fun fillers(): List<Arguments> = listOf(
-            Arguments.of(
-                Named.of("rigid area", @Composable { RigidArea(width = 12, height = 7) }),
-                Triple(Dimension(12, 7), Dimension(12, 7), Dimension(12, 7)),
-                "a rigid area must ask for its size as its minimum, preferred and maximum alike",
-            ),
-            Arguments.of(
-                Named.of("spacer", @Composable { Spacer(6) }),
-                Triple(Dimension(6, 6), Dimension(6, 6), Dimension(6, 6)),
-                "a spacer must ask for its one size as its width and height, on every request",
-            ),
-            Arguments.of(
-                Named.of("horizontal strut", @Composable { Strut(orientation = SwingConstants.HORIZONTAL, size = 9) }),
-                Triple(Dimension(9, 0), Dimension(9, 0), Dimension(9, unbounded)),
-                "a horizontal strut must hold its width and leave its height unconstrained",
-            ),
-            Arguments.of(
-                Named.of("vertical strut", @Composable { Strut(orientation = SwingConstants.VERTICAL, size = 9) }),
-                Triple(Dimension(0, 9), Dimension(0, 9), Dimension(unbounded, 9)),
-                "a vertical strut must hold its height and leave its width unconstrained",
-            ),
-            Arguments.of(
-                Named.of("glue", @Composable { Glue() }),
-                Triple(Dimension(0, 0), Dimension(0, 0), Dimension(unbounded, unbounded)),
-                "glue must ask for no space of its own and accept any amount on either axis",
-            ),
-            Arguments.of(
-                Named.of("horizontal glue", @Composable { Glue(orientation = SwingConstants.HORIZONTAL) }),
-                Triple(Dimension(0, 0), Dimension(0, 0), Dimension(unbounded, 0)),
-                "horizontal glue must absorb width only",
-            ),
-            Arguments.of(
-                Named.of("vertical glue", @Composable { Glue(orientation = SwingConstants.VERTICAL) }),
-                Triple(Dimension(0, 0), Dimension(0, 0), Dimension(0, unbounded)),
-                "vertical glue must absorb height only",
-            ),
-        )
-    }
+    @TestFactory
+    fun glueCounts() = GlueFixture.countTests()
+
+    @TestFactory
+    fun rigidAreaRawSwing() = RigidAreaFixture.rawSwingTests()
+
+    @TestFactory
+    fun spacerRawSwing() = SpacerFixture.rawSwingTests()
+
+    @TestFactory
+    fun spacerCounts() = SpacerFixture.countTests()
+
+    @TestFactory
+    fun strutRawSwing() = StrutFixture.rawSwingTests()
+
+    @TestFactory
+    fun strutCounts() = StrutFixture.countTests()
+
+    @TestFactory
+    fun rigidAreaCounts() = RigidAreaFixture.countTests()
 }
 
 /**

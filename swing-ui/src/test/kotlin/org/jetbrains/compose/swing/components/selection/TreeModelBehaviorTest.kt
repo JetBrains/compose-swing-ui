@@ -7,11 +7,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeModelListener
@@ -45,15 +51,6 @@ class TreeModelBehaviorTest {
         root.add(fruit)
         root.add(veg)
         return DefaultTreeModel(root)
-    }
-
-    @Test
-    fun callerModelBacksTheTreeAsIs() = runComposeSwingTest {
-        val model = sampleModel()
-        setContent { Tree(model = model) }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        assertSame(model, tree.model, "the caller-supplied model should back the tree as-is")
     }
 
     @Test
@@ -227,4 +224,22 @@ class TreeModelBehaviorTest {
             "the controlled selection should remain applied",
         ) { selectionPath }
     }
+
+    @TestFactory
+    fun rawSwing() = TreeModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TreeModelFixture.countTests()
+
+    @TestFactory
+    fun treeModelListenerRawSwing() = TreeModelListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeModelListenerCounts() = TreeModelListenerFixture.countTests()
+
+    @TestFactory
+    fun treeModelStateRawSwing() = TreeModelStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeModelStateCounts() = TreeModelStateFixture.countTests()
 }

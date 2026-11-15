@@ -13,9 +13,13 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.Table
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.failureOf
+import org.jetbrains.compose.swing.fixtures.components.LayerFixture
+import org.jetbrains.compose.swing.fixtures.components.LayerUiFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.performMouseMove
 import org.jetbrains.compose.swing.test.interaction.performMousePress
@@ -23,6 +27,7 @@ import org.jetbrains.compose.swing.test.interaction.performMouseWheel
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.TestFactory
 import java.awt.AWTEvent
 import java.awt.Color
 import java.awt.Component
@@ -478,6 +483,18 @@ class LayerTest {
         val VIEW_COLOR: Color = Color.RED
         val PANE_COLOR: Color = Color.BLUE
     }
+
+    @TestFactory
+    fun layerCounts() = LayerFixture.countTests()
+
+    @TestFactory
+    fun layerRawSwing() = LayerFixture.rawSwingTests()
+
+    @TestFactory
+    fun layerUiCounts() = LayerUiFixture.countTests()
+
+    @TestFactory
+    fun layerUiRawSwing() = LayerUiFixture.rawSwingTests()
 }
 
 /**

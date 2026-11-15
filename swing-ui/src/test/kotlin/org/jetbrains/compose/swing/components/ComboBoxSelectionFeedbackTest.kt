@@ -6,11 +6,16 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.ComboBoxActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.ComboBoxFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import javax.swing.JComboBox
@@ -378,4 +383,16 @@ class ComboBoxSelectionFeedbackTest {
             read = { it.selectedItem },
         )
     }
+
+    @TestFactory
+    fun comboBoxActionListenerRawSwing() = ComboBoxActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun comboBoxActionListenerCounts() = ComboBoxActionListenerFixture.countTests()
+
+    @TestFactory
+    fun comboBoxCounts() = ComboBoxFixture.countTests()
+
+    @TestFactory
+    fun comboBoxRawSwing() = ComboBoxFixture.rawSwingTests()
 }

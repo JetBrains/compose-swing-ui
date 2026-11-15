@@ -5,11 +5,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.TableStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performMouseDrag
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTable
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
@@ -57,25 +61,6 @@ class TableStateOrderAndLayoutTest {
         table.assertProperty(listOf(1, 0), "the initial column order") { columnModel.modelIndices() }
         table.assertProperty(120, "the initial width of the first column") { columnModel.getColumn(0).preferredWidth }
         assertEquals(setOf(1), state.shownSelectedRowIndices, "the initial selection")
-    }
-
-    @Test
-    fun assigningTheStatesSortKeysSortsTheRows() = runComposeSwingTest {
-        val state = TableState()
-        setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, state = state, sortable = true)
-        }
-
-        val table = onNodeOfType<JTable>()
-        table.assertProperty(listOf("Ada", "Alan", "Grace"), "an empty order leaves the rows unsorted") { shownNames() }
-
-        state.sortKeys = listOf(SortKey(0, SortOrder.DESCENDING))
-        awaitIdle()
-
-        table.assertProperty(
-            listOf("Grace", "Alan", "Ada"),
-            "the order the state names sorts the rows",
-        ) { shownNames() }
     }
 
     @Test
@@ -492,4 +477,10 @@ class TableStateOrderAndLayoutTest {
         assertEquals(order, state.sortKeys, "and the state is left holding the order")
         assertEquals(layout, state.columnLayout, "and the layout")
     }
+
+    @TestFactory
+    fun rawSwing() = TableStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TableStateFixture.countTests()
 }

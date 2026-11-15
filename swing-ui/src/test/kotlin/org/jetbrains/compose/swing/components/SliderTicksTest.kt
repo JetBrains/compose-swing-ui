@@ -6,8 +6,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.SliderChangeListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.SliderFixture
+import org.jetbrains.compose.swing.fixtures.components.SliderModelChangeListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.SliderModelFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JLabel
 import javax.swing.JSlider
 import kotlin.test.Test
@@ -459,4 +466,25 @@ class SliderTicksTest {
             "a table built from texts that stand unchanged should not be installed afresh",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = SliderFixture.rawSwingTests()
+
+    @TestFactory
+    fun sliderChangeListenerRawSwing() = SliderChangeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun sliderChangeListenerCounts() = SliderChangeListenerFixture.countTests()
+
+    @TestFactory
+    fun sliderModelChangeListenerRawSwing() = SliderModelChangeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun sliderModelChangeListenerCounts() = SliderModelChangeListenerFixture.countTests()
+
+    @TestFactory
+    fun sliderModelRawSwing() = SliderModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun sliderModelCounts() = SliderModelFixture.countTests()
 }

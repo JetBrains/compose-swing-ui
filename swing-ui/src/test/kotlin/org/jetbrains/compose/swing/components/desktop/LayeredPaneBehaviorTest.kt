@@ -8,9 +8,12 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.desktop.LayeredPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.bounds
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -19,6 +22,7 @@ import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Rectangle
 import java.awt.event.ActionListener
 import javax.swing.JButton
@@ -339,27 +343,6 @@ class LayeredPaneBehaviorTest {
     }
 
     @Test
-    fun aChildsContentFollowsTheDeclarationDrivingIt() = runComposeSwingTest {
-        var label by mutableStateOf("first")
-        setContent {
-            LayeredPane {
-                Label(text = label, modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
-            }
-        }
-
-        onNodeWithText("first").assertExists()
-
-        label = "second"
-        awaitIdle()
-        onNodeWithText("second").assertExists()
-        onNodeWithText("first").assertDoesNotExist()
-
-        label = "first"
-        awaitIdle()
-        onNodeWithText("first").assertExists()
-    }
-
-    @Test
     fun theLayeredPanesOwnModifierFollowsTheStateDrivingIt() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Canvas")
         setContent {
@@ -370,10 +353,6 @@ class LayeredPaneBehaviorTest {
 
         val pane = onNodeOfType<JLayeredPane>().fetch()
         assertEquals("Canvas", pane.name, "the modifier applies to the layered pane itself")
-
-        tip = "Stacked children"
-        awaitIdle()
-        assertEquals("Stacked children", pane.name, "the modifier follows the state driving it")
 
         tip = null
         awaitIdle()
@@ -429,4 +408,10 @@ class LayeredPaneBehaviorTest {
             "a child the layer gains between two siblings stacks between them: back=$back middle=$middle front=$front",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = LayeredPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = LayeredPaneFixture.countTests()
 }

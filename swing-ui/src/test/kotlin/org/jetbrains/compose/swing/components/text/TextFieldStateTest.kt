@@ -7,6 +7,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.TextFieldFixture
+import org.jetbrains.compose.swing.fixtures.components.text.TextFieldListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.text.TextFieldStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextInput
@@ -15,6 +20,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -59,8 +65,6 @@ class TextFieldStateTest {
             state = rememberDocumentState("ab")
             TextField(state = state)
         }
-
-        onNodeOfType<JTextField>().assertTextEquals("ab")
 
         state.edit { append("c") }
         awaitIdle()
@@ -358,4 +362,22 @@ class TextFieldStateTest {
 
         assertEquals(listOf("one", "one!", "three"), collected.map { it.toString() })
     }
+
+    @TestFactory
+    fun rawSwing() = TextFieldStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TextFieldStateFixture.countTests()
+
+    @TestFactory
+    fun textFieldRawSwing() = TextFieldFixture.rawSwingTests()
+
+    @TestFactory
+    fun textFieldCounts() = TextFieldFixture.countTests()
+
+    @TestFactory
+    fun textFieldListenerRawSwing() = TextFieldListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun textFieldListenerCounts() = TextFieldListenerFixture.countTests()
 }

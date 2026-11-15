@@ -1,8 +1,12 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,6 +35,12 @@ class TreeStateProjectionTest {
                 Shelf("veg", listOf(Shelf("carrot"))),
             ),
         )
+
+    @TestFactory
+    fun rawSwing() = TreeStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TreeStateFixture.countTests()
 
     @Test
     fun theRowCountFollowsWhatTheTreeOpened() = runComposeSwingTest {

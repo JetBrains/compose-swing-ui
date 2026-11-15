@@ -7,14 +7,18 @@ import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.desktop.DesktopPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.TestFactory
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JDesktopPane
@@ -53,6 +57,12 @@ class DesktopPaneBehaviorTest {
      */
     private val JInternalFrame.declaredInternalFrameListenerCount: Int
         get() = internalFrameListeners.size - JInternalFrame().internalFrameListeners.size
+
+    @TestFactory
+    fun rawSwing() = DesktopPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = DesktopPaneFixture.countTests()
 
     @Test
     fun anUndeclaredDesktopPaneIsTheWidgetsOwn() = runComposeSwingTest {

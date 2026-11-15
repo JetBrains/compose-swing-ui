@@ -9,9 +9,13 @@ import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.button.CheckBoxActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.button.CheckBoxFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
@@ -22,6 +26,7 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 import javax.swing.JPanel
@@ -48,22 +53,6 @@ class CheckBoxBehaviorTest {
     fun anUndeclaredCheckBoxIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { CheckBox(text = "", checked = false, onCheckedChange = {}) }
         onNodeOfType<JCheckBox>().assertTreeMatches(JCheckBox())
-    }
-
-    @Test
-    fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
-        var text by mutableStateOf("Word wrap")
-        setContent { CheckBox(text = text, checked = false, onCheckedChange = {}) }
-
-        onNodeOfType<JCheckBox>().assertTextEquals("Word wrap")
-
-        text = "Wrap lines"
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertTextEquals("Wrap lines")
-
-        text = "Word wrap"
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertTextEquals("Word wrap")
     }
 
     @Test
@@ -183,10 +172,6 @@ class CheckBoxBehaviorTest {
 
         val box = onNodeOfType<JCheckBox>()
         box.assertProperty("Wraps long lines", "the modifier applies to the box") { name }
-
-        tip = "Wraps text at the viewport edge"
-        awaitIdle()
-        box.assertProperty("Wraps text at the viewport edge", "the modifier follows its state") { name }
 
         tip = null
         awaitIdle()
@@ -378,4 +363,16 @@ class CheckBoxBehaviorTest {
             read = { it.isSelected },
         )
     }
+
+    @TestFactory
+    fun checkBoxRawSwing() = CheckBoxFixture.rawSwingTests()
+
+    @TestFactory
+    fun checkBoxCounts() = CheckBoxFixture.countTests()
+
+    @TestFactory
+    fun checkBoxActionListenerRawSwing() = CheckBoxActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun checkBoxActionListenerCounts() = CheckBoxActionListenerFixture.countTests()
 }

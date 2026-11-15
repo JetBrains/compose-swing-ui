@@ -9,7 +9,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.LabelFixture
+import org.jetbrains.compose.swing.fixtures.components.SeparatorFixture
 import org.jetbrains.compose.swing.pressKey
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -18,6 +22,7 @@ import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.KeyEvent
@@ -28,7 +33,6 @@ import javax.swing.JSeparator
 import javax.swing.JSlider
 import javax.swing.JSpinner
 import javax.swing.JTextArea
-import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -378,50 +382,16 @@ class ValueComponentsTest {
         onNodeOfType<JTextArea>().assertTreeMatches(JTextArea())
     }
 
-    @Test
-    fun separatorRendersRequestedOrientation() = runComposeSwingTest {
-        setContent {
-            Separator(orientation = SwingConstants.VERTICAL)
-        }
-        onNodeOfType<JSeparator>().assertProperty(
-            SwingConstants.VERTICAL,
-            "the separator should render the declared orientation",
-        ) { orientation }
-    }
+    @TestFactory
+    fun rawSwing() = SeparatorFixture.rawSwingTests()
 
-    @Test
-    fun separatorReflectsOrientationOnRecomposition() = runComposeSwingTest {
-        var vertical by mutableStateOf(false)
-        setContent {
-            Separator(orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL)
-        }
-        val separator = onNodeOfType<JSeparator>().fetch()
-        assertEquals(SwingConstants.HORIZONTAL, separator.orientation, "the separator should start horizontal")
-
-        vertical = true
-        awaitIdle()
-        assertEquals(
-            SwingConstants.VERTICAL,
-            separator.orientation,
-            "the separator should reflect the vertical orientation",
-        )
-    }
+    @TestFactory
+    fun counts() = SeparatorFixture.countTests()
 
     @Test
     fun anUndeclaredSeparatorIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { Separator() }
         onNodeOfType<JSeparator>().assertTreeMatches(JSeparator())
-    }
-
-    @Test
-    fun labelRendersTextAndReactsToState() = runComposeSwingTest {
-        var caption by mutableStateOf("before")
-        setContent { Label(text = caption) }
-        onNodeOfType<JLabel>().assertTextEquals("before")
-
-        caption = "after"
-        awaitIdle()
-        onNodeOfType<JLabel>().assertTextEquals("after")
     }
 
     @Test
@@ -456,4 +426,10 @@ class ValueComponentsTest {
             read = { it.value },
         )
     }
+
+    @TestFactory
+    fun labelRawSwing() = LabelFixture.rawSwingTests()
+
+    @TestFactory
+    fun labelCounts() = LabelFixture.countTests()
 }

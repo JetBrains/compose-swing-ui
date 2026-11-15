@@ -9,9 +9,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.TreeListenerFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -707,4 +712,16 @@ class TreeExpansionTest {
             "the node the structure dropped stands at no child position, so only the root is reported",
         )
     }
+
+    @TestFactory
+    fun treeRawSwing() = TreeFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeCounts() = TreeFixture.countTests()
+
+    @TestFactory
+    fun treeListenerRawSwing() = TreeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeListenerCounts() = TreeListenerFixture.countTests()
 }

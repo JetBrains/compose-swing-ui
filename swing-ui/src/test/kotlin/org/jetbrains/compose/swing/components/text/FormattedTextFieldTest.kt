@@ -5,10 +5,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldFixture
+import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.ParseException
@@ -265,6 +271,24 @@ class FormattedTextFieldTest {
         setContent { FormattedTextField(value = null, onValueChange = {}) }
         onNodeOfType<JFormattedTextField>().assertTreeMatches(JFormattedTextField())
     }
+
+    @TestFactory
+    fun formattedTextFieldListenerRawSwing() = FormattedTextFieldListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun formattedTextFieldListenerCounts() = FormattedTextFieldListenerFixture.countTests()
+
+    @TestFactory
+    fun formattedTextFieldStateRawSwing() = FormattedTextFieldStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun formattedTextFieldCounts() = FormattedTextFieldFixture.countTests()
+
+    @TestFactory
+    fun formattedTextFieldStateCounts() = FormattedTextFieldStateFixture.countTests()
+
+    @TestFactory
+    fun rawSwing() = FormattedTextFieldFixture.rawSwingTests()
 }
 
 // A factory formatting integers by [pattern], with US symbols so the grouping separator is the same

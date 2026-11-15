@@ -8,12 +8,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.menu.ContextMenuFixture
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
 import java.awt.IllegalComponentStateException
 import java.awt.event.MouseEvent
@@ -47,6 +51,12 @@ import kotlin.test.assertTrue
  * the user's dismissal travels its production path.
  */
 class ContextMenuTest {
+    @TestFactory
+    fun rawSwing() = ContextMenuFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = ContextMenuFixture.countTests()
+
     @Test
     fun popupTriggerBuildsAPopupMirroringTheComposedMenu() = runComposeSwingTest {
         var captured: JPopupMenu? = null

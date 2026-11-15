@@ -2,8 +2,12 @@
 package org.jetbrains.compose.swing.components.menu
 
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.menu.MenuSeparatorFixture
 import org.jetbrains.compose.swing.menuItemTexts
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JComponent
 import javax.swing.JPopupMenu
 import kotlin.test.Test
@@ -18,6 +22,12 @@ import kotlin.test.assertIs
  * asserted against the one a hand-built menu holds, not merely against being a separator of some kind.
  */
 class MenuSeparatorBehaviorTest {
+    @TestFactory
+    fun counts() = MenuSeparatorFixture.countTests()
+
+    @TestFactory
+    fun rawSwing() = MenuSeparatorFixture.rawSwingTests()
+
     @Test
     fun aDeclaredSeparatorIsTheWidgetAMenuDividesItsItemsWith() = runComposeSwingTest {
         val popup =

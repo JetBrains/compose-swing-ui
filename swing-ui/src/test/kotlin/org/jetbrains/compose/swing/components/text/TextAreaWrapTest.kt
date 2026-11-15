@@ -4,9 +4,14 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.TextAreaFixture
+import org.jetbrains.compose.swing.fixtures.components.text.TextAreaStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertSame
@@ -19,49 +24,32 @@ import kotlin.test.assertSame
  */
 class TextAreaWrapTest {
     @Test
-    fun wrappingParametersReachTheArea() = runComposeSwingTest {
-        setContent {
-            TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = true, wrapStyleWord = true)
-        }
-
-        val area = onNodeOfType<JTextArea>()
-        area.assertProperty(true) { lineWrap }
-        area.assertProperty(true) { wrapStyleWord }
-    }
-
-    @Test
-    fun lineWrapFollowsRecomposition() = runComposeSwingTest {
+    fun lineWrapChangeKeepsTheSameArea() = runComposeSwingTest {
         var lineWrap by mutableStateOf(true)
         setContent { TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = lineWrap) }
 
-        val area = onNodeOfType<JTextArea>()
-        area.assertProperty(true) { this.lineWrap }
         val areaBefore = onNodeOfType<JTextArea>().fetch()
 
         lineWrap = false
         awaitIdle()
-        area.assertProperty(false) { this.lineWrap }
 
         lineWrap = true
         awaitIdle()
         assertSame(areaBefore, onNodeOfType<JTextArea>().fetch(), "the component is updated in place, not rebuilt")
-        area.assertProperty(true) { this.lineWrap }
     }
 
     @Test
-    fun wrapStyleWordFollowsRecompositionIndependentlyOfLineWrap() = runComposeSwingTest {
+    fun wrapStyleWordChangeKeepsTheSameAreaAndLeavesLineWrapOff() = runComposeSwingTest {
         var wrapStyleWord by mutableStateOf(true)
         setContent { TextArea(value = "a long line of prose", onValueChange = {}, wrapStyleWord = wrapStyleWord) }
 
         val area = onNodeOfType<JTextArea>()
-        area.assertProperty(true) { this.wrapStyleWord }
         area.assertProperty(false, "wrapStyleWord must not switch wrapping on") { lineWrap }
         val areaBefore = onNodeOfType<JTextArea>().fetch()
 
         wrapStyleWord = false
         awaitIdle()
         assertSame(areaBefore, onNodeOfType<JTextArea>().fetch(), "the component is updated in place, not rebuilt")
-        area.assertProperty(false) { this.wrapStyleWord }
     }
 
     @Test
@@ -94,4 +82,16 @@ class TextAreaWrapTest {
         area.assertProperty(true) { lineWrap }
         area.assertProperty(true) { wrapStyleWord }
     }
+
+    @TestFactory
+    fun textAreaRawSwing() = TextAreaFixture.rawSwingTests()
+
+    @TestFactory
+    fun textAreaCounts() = TextAreaFixture.countTests()
+
+    @TestFactory
+    fun textAreaStateRawSwing() = TextAreaStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun textAreaStateCounts() = TextAreaStateFixture.countTests()
 }

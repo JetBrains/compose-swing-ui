@@ -6,6 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.PasswordFieldFixture
+import org.jetbrains.compose.swing.fixtures.components.text.PasswordFieldListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.text.PasswordFieldStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -13,6 +18,7 @@ import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.type
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import kotlin.test.Test
@@ -30,13 +36,6 @@ class PasswordFieldBehaviorTest {
     fun anUndeclaredPasswordFieldIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { PasswordField(value = CharArray(0), onValueChange = {}) }
         onNodeOfType<JPasswordField>().assertTreeMatches(JPasswordField())
-    }
-
-    @Test
-    fun controlledValueRoundTripsThroughGetPassword() = runComposeSwingTest {
-        setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
-
-        onNodeOfType<JPasswordField>().assertProperty("hunter2") { String(password) }
     }
 
     @Test
@@ -145,4 +144,22 @@ class PasswordFieldBehaviorTest {
         assertEquals("abc", String(field.password), "the declaration refuses the keystroke")
         assertEquals(1, field.caretPosition, "the unadopted edit should be rolled back without collapsing the caret")
     }
+
+    @TestFactory
+    fun passwordFieldRawSwing() = PasswordFieldFixture.rawSwingTests()
+
+    @TestFactory
+    fun passwordFieldCounts() = PasswordFieldFixture.countTests()
+
+    @TestFactory
+    fun passwordFieldListenerRawSwing() = PasswordFieldListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun passwordFieldStateRawSwing() = PasswordFieldStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun passwordFieldStateCounts() = PasswordFieldStateFixture.countTests()
+
+    @TestFactory
+    fun passwordFieldListenerCounts() = PasswordFieldListenerFixture.countTests()
 }

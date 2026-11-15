@@ -5,12 +5,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxModelFixture
+import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JList
 import javax.swing.ListSelectionModel
 import javax.swing.event.ListSelectionListener
@@ -26,18 +33,6 @@ class ListBoxBehaviorTest {
     fun anUndeclaredListBoxIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { ListBox(items = emptyList<String>()) }
         onNodeOfType<JList<*>>().assertTreeMatches(JList<String>())
-    }
-
-    @Test
-    fun itemsRenderIntoTheModel() = runComposeSwingTest {
-        setContent { ListBox(items = listOf("a", "b", "c")) }
-
-        val list = onNodeOfType<JList<*>>()
-        list.assertProperty(3, "the model should hold all three items") { model.size }
-        list.assertProperty(
-            listOf("a", "b", "c"),
-            "the model elements should match the declared items in order",
-        ) { (0 until model.size).map { model.getElementAt(it) } }
     }
 
     @Test
@@ -209,4 +204,25 @@ class ListBoxBehaviorTest {
         awaitIdle()
         assertEquals(1, changes, "the selection the drag settles on is reported once")
     }
+
+    @TestFactory
+    fun listBoxRawSwing() = ListBoxFixture.rawSwingTests()
+
+    @TestFactory
+    fun listBoxCounts() = ListBoxFixture.countTests()
+
+    @TestFactory
+    fun listBoxListenerRawSwing() = ListBoxListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun listBoxListenerCounts() = ListBoxListenerFixture.countTests()
+
+    @TestFactory
+    fun listBoxModelRawSwing() = ListBoxModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun listBoxModelCounts() = ListBoxModelFixture.countTests()
+
+    @TestFactory
+    fun listBoxStateRawSwing() = ListBoxStateFixture.rawSwingTests()
 }

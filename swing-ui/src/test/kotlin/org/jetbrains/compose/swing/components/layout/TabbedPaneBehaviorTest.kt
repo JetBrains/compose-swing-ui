@@ -12,7 +12,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.layout.TabbedPaneChangeListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.TabbedPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.preferredSize
@@ -21,6 +25,7 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JTabbedPane
@@ -729,6 +734,18 @@ class TabbedPaneBehaviorTest {
             "a header should compose as a child of the composition enclosing the pane",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = TabbedPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TabbedPaneFixture.countTests()
+
+    @TestFactory
+    fun tabbedPaneChangeListenerRawSwing() = TabbedPaneChangeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun tabbedPaneChangeListenerCounts() = TabbedPaneChangeListenerFixture.countTests()
 }
 
 /**

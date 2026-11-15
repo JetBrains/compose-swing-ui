@@ -10,9 +10,12 @@ import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.style.Panels
 import org.jetbrains.compose.swing.components.style.RadioGroups
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.selection.RadioGroupFixture
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.enabled
@@ -23,6 +26,7 @@ import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import javax.swing.BoxLayout
 import javax.swing.DefaultButtonModel
@@ -168,17 +172,6 @@ class RadioGroupTest {
         awaitIdle()
         onNodeWithText("Medium").assert(isSelected())
         assertEquals(emptyList(), reported, "programmatic selection should not fire onSelectionChange")
-    }
-
-    @Test
-    fun selectedIndexMinusOneSelectsNoneInitially() = runComposeSwingTest {
-        setContent {
-            RadioGroup(selectedIndex = -1, onSelectionChange = {}) { threeOptions() }
-        }
-        onAllNodesOfType<JRadioButton>()
-            .assertCountEquals(3)
-            .filter(isSelected())
-            .assertCountEquals(0)
     }
 
     @Test
@@ -403,6 +396,12 @@ class RadioGroupTest {
 
         onNodeWithText("Small").onParent().assertProperty("caller") { name }
     }
+
+    @TestFactory
+    fun rawSwing() = RadioGroupFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = RadioGroupFixture.countTests()
 }
 
 private val PanelName =

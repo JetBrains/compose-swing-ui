@@ -7,10 +7,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.desktop.InternalFrameFixture
+import org.jetbrains.compose.swing.fixtures.components.desktop.InternalFrameStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.AWTEvent
 import java.awt.Rectangle
 import java.awt.Toolkit
@@ -41,21 +46,6 @@ class InternalFrameStateTest {
         desktopManager.beginResizingFrame(frame, SwingConstants.SOUTH_EAST)
         desktopManager.resizeFrame(frame, bounds.x, bounds.y, bounds.width, bounds.height)
         desktopManager.endResizingFrame(frame)
-    }
-
-    @Test
-    fun aFrameOpensOnTheBoundsItsStateHolds() = runComposeSwingTest {
-        val state = InternalFrameState(Rectangle(10, 20, 300, 200))
-        setContent {
-            DesktopPane {
-                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
-            }
-        }
-
-        onNodeOfType<JInternalFrame>().assertProperty(
-            Rectangle(10, 20, 300, 200),
-            "the frame should open on the declared bounds",
-        ) { bounds }
     }
 
     @Test
@@ -250,7 +240,6 @@ class InternalFrameStateTest {
         }
 
         val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals(Rectangle(0, 0, 400, 300), frame.bounds, "the frame should open on the declared bounds")
 
         onNodeOfType<JDesktopPane>().fetch().dragFrameTo(frame, 60, 70)
         awaitIdle()
@@ -381,4 +370,16 @@ class InternalFrameStateTest {
             "and leaves the frame where the state put it",
         ) { bounds }
     }
+
+    @TestFactory
+    fun internalFrameRawSwing() = InternalFrameFixture.rawSwingTests()
+
+    @TestFactory
+    fun internalFrameCounts() = InternalFrameFixture.countTests()
+
+    @TestFactory
+    fun internalFrameStateRawSwing() = InternalFrameStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun internalFrameStateCounts() = InternalFrameStateFixture.countTests()
 }

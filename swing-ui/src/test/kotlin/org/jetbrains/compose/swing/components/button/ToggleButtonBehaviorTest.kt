@@ -7,8 +7,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.button.ToggleButtonActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.button.ToggleButtonFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -17,6 +21,7 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.ActionListener
@@ -60,22 +65,6 @@ class ToggleButtonBehaviorTest {
         toggle.performClick()
         toggle.assert(SwingMatcher.isSelected(false))
         assertEquals(listOf(true, false), received, "the second click reports the released state")
-    }
-
-    @Test
-    fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
-        var text by mutableStateOf("Bold")
-        setContent { ToggleButton(text = text, selected = false, onSelectedChange = {}) }
-
-        onNodeOfType<JToggleButton>().assertTextEquals("Bold")
-
-        text = "Strong"
-        awaitIdle()
-        onNodeOfType<JToggleButton>().assertTextEquals("Strong")
-
-        text = "Bold"
-        awaitIdle()
-        onNodeOfType<JToggleButton>().assertTextEquals("Bold")
     }
 
     @Test
@@ -139,24 +128,6 @@ class ToggleButtonBehaviorTest {
         }
         onNodeOfType<JToggleButton>().performClick()
         assertEquals(listOf(true), reported, "a single click reports exactly once")
-    }
-
-    @Test
-    fun theSelectedStateFollowsTheStateDrivingIt() = runComposeSwingTest {
-        // A JToggleButton is built released, so declaring `true` first proves the parameter reaches the
-        // button on the very first composition rather than the button merely keeping its own default.
-        var selected by mutableStateOf(true)
-        setContent { ToggleButton(text = "Bold", selected = selected, onSelectedChange = {}) }
-
-        onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
-
-        selected = false
-        awaitIdle()
-        onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected(false))
-
-        selected = true
-        awaitIdle()
-        onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
     }
 
     @Test
@@ -272,6 +243,18 @@ class ToggleButtonBehaviorTest {
             read = { it.isSelected },
         )
     }
+
+    @TestFactory
+    fun toggleButtonRawSwing() = ToggleButtonFixture.rawSwingTests()
+
+    @TestFactory
+    fun toggleButtonCounts() = ToggleButtonFixture.countTests()
+
+    @TestFactory
+    fun toggleButtonActionListenerRawSwing() = ToggleButtonActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun toggleButtonActionListenerCounts() = ToggleButtonActionListenerFixture.countTests()
 
     companion object {
         @JvmStatic

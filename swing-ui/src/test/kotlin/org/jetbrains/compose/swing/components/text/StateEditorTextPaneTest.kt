@@ -4,11 +4,17 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.TextPaneFixture
+import org.jetbrains.compose.swing.fixtures.components.text.TextPaneListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.text.TextPaneStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import javax.swing.text.DefaultStyledDocument
@@ -334,4 +340,22 @@ class StateEditorTextPaneTest {
         awaitIdle()
         onNodeOfType<JTextPane>().assert(isEditable(false))
     }
+
+    @TestFactory
+    fun rawSwing() = TextPaneStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = TextPaneStateFixture.countTests()
+
+    @TestFactory
+    fun textPaneRawSwing() = TextPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun textPaneCounts() = TextPaneFixture.countTests()
+
+    @TestFactory
+    fun textPaneListenerRawSwing() = TextPaneListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun textPaneListenerCounts() = TextPaneListenerFixture.countTests()
 }

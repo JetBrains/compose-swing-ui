@@ -6,7 +6,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.menu.CheckBoxMenuItemActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.menu.CheckBoxMenuItemFixture
+import org.jetbrains.compose.swing.fixtures.components.menu.RadioButtonMenuItemActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.menu.RadioButtonMenuItemFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JRadioButtonMenuItem
@@ -151,4 +158,28 @@ class MenuItemSelectionTest {
         assertEquals(listOf(true), reported, "the raw listener sees the state the click produced")
         assertFalse(item.isSelected, "the item shows the declared state again")
     }
+
+    @TestFactory
+    fun checkBoxMenuItemCounts() = CheckBoxMenuItemFixture.countTests()
+
+    @TestFactory
+    fun checkBoxMenuItemRawSwing() = CheckBoxMenuItemFixture.rawSwingTests()
+
+    @TestFactory
+    fun radioButtonMenuItemCounts() = RadioButtonMenuItemFixture.countTests()
+
+    @TestFactory
+    fun radioButtonMenuItemRawSwing() = RadioButtonMenuItemFixture.rawSwingTests()
+
+    @TestFactory
+    fun checkBoxMenuItemActionListenerCounts() = CheckBoxMenuItemActionListenerFixture.countTests()
+
+    @TestFactory
+    fun checkBoxMenuItemActionListenerRawSwing() = CheckBoxMenuItemActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun radioButtonMenuItemActionListenerCounts() = RadioButtonMenuItemActionListenerFixture.countTests()
+
+    @TestFactory
+    fun radioButtonMenuItemActionListenerRawSwing() = RadioButtonMenuItemActionListenerFixture.rawSwingTests()
 }

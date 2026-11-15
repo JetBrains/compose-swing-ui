@@ -2,18 +2,19 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.ProgressBarFixture
+import org.jetbrains.compose.swing.fixtures.components.ProgressBarModelFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.text.NumberFormat
 import javax.swing.JProgressBar
-import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the orientation and the painted text of [ProgressBar]. They assert what an
@@ -25,25 +26,14 @@ class ProgressBarTextTest {
     // locale to the next, so the expectation is formatted the same way rather than spelled "25%".
     private val quarterComplete: String get() = NumberFormat.getPercentInstance().format(0.25)
 
-    @Test
-    fun orientationMapsThrough() = runComposeSwingTest {
-        var orientation by mutableIntStateOf(SwingConstants.HORIZONTAL)
-        setContent { ProgressBar(value = 0, orientation = orientation) }
-
-        val bar = onNodeOfType<JProgressBar>().fetch()
-        assertEquals(SwingConstants.HORIZONTAL, bar.orientation, "the bar should start horizontal")
-
-        orientation = SwingConstants.VERTICAL
-        awaitIdle()
-        assertEquals(SwingConstants.VERTICAL, bar.orientation, "the orientation should map through to vertical")
-    }
+    @TestFactory
+    fun rawSwing() = ProgressBarFixture.rawSwingTests()
 
     @Test
     fun aPaintedNullStringShowsTheCompletionPercentage() = runComposeSwingTest {
         setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = true) }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
-        assertTrue(bar.isStringPainted, "the bar should paint text over itself")
         assertEquals(quarterComplete, bar.string, "with no declared string the bar shows its completion")
     }
 
@@ -52,25 +42,7 @@ class ProgressBarTextTest {
         setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = true, string = "Copying") }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
-        assertTrue(bar.isStringPainted, "the bar should paint text over itself")
         assertEquals("Copying", bar.string, "a declared string replaces the completion percentage")
-    }
-
-    @Test
-    fun stringPaintedTogglesOnRecomposition() = runComposeSwingTest {
-        var stringPainted by mutableStateOf(false)
-        setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = stringPainted) }
-
-        val bar = onNodeOfType<JProgressBar>().fetch()
-        assertFalse(bar.isStringPainted, "the bar should start without painted text")
-
-        stringPainted = true
-        awaitIdle()
-        assertTrue(bar.isStringPainted, "the bar should paint text once declared")
-
-        stringPainted = false
-        awaitIdle()
-        assertFalse(bar.isStringPainted, "the bar should stop painting text once cleared")
     }
 
     @Test
@@ -85,4 +57,13 @@ class ProgressBarTextTest {
         awaitIdle()
         assertEquals(quarterComplete, bar.string, "clearing the string returns the bar to its completion")
     }
+
+    @TestFactory
+    fun progressBarModelRawSwing() = ProgressBarModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun progressBarModelCounts() = ProgressBarModelFixture.countTests()
+
+    @TestFactory
+    fun counts() = ProgressBarFixture.countTests()
 }

@@ -7,10 +7,15 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.renderCell
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.ComboBoxModelActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.ComboBoxModelFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionListener
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
@@ -42,8 +47,6 @@ class ComboBoxModelBehaviorTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertSame(model, combo.model, "the combo box should install the caller's model instance")
-        assertEquals(3, combo.itemCount, "the model's items should render")
-        assertEquals("Green", combo.getItemAt(1), "item 1 should be Green")
     }
 
     @Test
@@ -69,12 +72,10 @@ class ComboBoxModelBehaviorTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals(2, combo.itemCount, "the initial model should render two items")
 
         model = replacement
         awaitIdle()
         assertSame(replacement, combo.model, "swapping the model should install the new instance")
-        assertEquals(3, combo.itemCount, "the swapped model's items should render")
         assertEquals(
             emptyList(),
             reported,
@@ -228,4 +229,16 @@ class ComboBoxModelBehaviorTest {
 
         assertEquals(listOf("second"), reported, "a callback the recomposition replaced is not the one that runs")
     }
+
+    @TestFactory
+    fun comboBoxModelRawSwing() = ComboBoxModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun comboBoxModelCounts() = ComboBoxModelFixture.countTests()
+
+    @TestFactory
+    fun comboBoxModelActionListenerRawSwing() = ComboBoxModelActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun comboBoxModelActionListenerCounts() = ComboBoxModelActionListenerFixture.countTests()
 }

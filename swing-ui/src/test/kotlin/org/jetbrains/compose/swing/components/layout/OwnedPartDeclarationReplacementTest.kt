@@ -8,12 +8,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.failureOf
+import org.jetbrains.compose.swing.fixtures.components.layout.HorizontalScrollbarFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.VerticalScrollbarFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import javax.swing.JLabel
 import javax.swing.JScrollBar
@@ -389,6 +394,18 @@ class OwnedPartDeclarationReplacementTest {
             }
         }
     }
+
+    @TestFactory
+    fun horizontalScrollbarRawSwing() = HorizontalScrollbarFixture.rawSwingTests()
+
+    @TestFactory
+    fun horizontalScrollbarCounts() = HorizontalScrollbarFixture.countTests()
+
+    @TestFactory
+    fun verticalScrollbarRawSwing() = VerticalScrollbarFixture.rawSwingTests()
+
+    @TestFactory
+    fun verticalScrollbarCounts() = VerticalScrollbarFixture.countTests()
 }
 
 private fun JScrollPane.bar(part: String): JScrollBar = if (part ==

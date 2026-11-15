@@ -9,8 +9,12 @@ import io.mockk.confirmVerified
 import io.mockk.mockk
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.layout.ScrollPaneFixture
+import org.jetbrains.compose.swing.fixtures.components.layout.ViewportFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.componentOrientation
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -18,6 +22,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -549,6 +554,18 @@ class ScrollPaneRegionTest {
 
         confirmVerified(listener)
     }
+
+    @TestFactory
+    fun scrollPaneRawSwing() = ScrollPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun scrollPaneCounts() = ScrollPaneFixture.countTests()
+
+    @TestFactory
+    fun viewportRawSwing() = ViewportFixture.rawSwingTests()
+
+    @TestFactory
+    fun viewportCounts() = ViewportFixture.countTests()
 
     companion object {
         private val headers =

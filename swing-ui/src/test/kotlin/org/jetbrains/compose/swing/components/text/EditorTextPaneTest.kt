@@ -7,12 +7,18 @@ import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneFixture
+import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneStateFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.net.URI
 import java.net.URL
 import javax.swing.JEditorPane
@@ -46,30 +52,6 @@ class EditorTextPaneTest {
     fun anUndeclaredTextPaneIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { TextPane(value = "", onValueChange = {}) }
         onNodeOfType<JTextPane>().assertTreeMatches(JTextPane())
-    }
-
-    @Test
-    fun editorPaneRendersMarkupThroughTheKitItsContentTypeNames() = runComposeSwingTest {
-        setContent {
-            EditorPane(markup = "<h2>Title</h2><p>Body.</p>", onLinkActivate = {}, contentType = "text/html")
-        }
-
-        val pane = onNodeOfType<JEditorPane>()
-        pane.assertProperty("text/html", "the pane renders through the kit its content type names") { contentType }
-        pane.assertProperty(true, "text/html renders into an HTML document") { document is HTMLDocument }
-        pane.assertProperty(true, "the parsed markup keeps its text content") { document.textContains("Title") }
-        pane.assertProperty(false, "the markup was parsed, not held as characters") { document.textContains("<h2>") }
-    }
-
-    @Test
-    fun plainTextMarkupIsRenderedAsTheCharactersItIs() = runComposeSwingTest {
-        setContent {
-            EditorPane(markup = "<h2>Title</h2>", onLinkActivate = {}, contentType = "text/plain")
-        }
-
-        val pane = onNodeOfType<JEditorPane>()
-        pane.assertProperty("text/plain", "the pane renders its content type") { contentType }
-        pane.assertTextEquals("<h2>Title</h2>")
     }
 
     @Test
@@ -118,7 +100,6 @@ class EditorTextPaneTest {
         awaitIdle()
 
         val pane = onNodeOfType<JEditorPane>()
-        pane.assertProperty("text/html", "the pane switches to the new content type") { contentType }
         pane.assertProperty(true, "the markup is rendered under the new content type") {
             document.textContains("keep me")
         }
@@ -322,20 +303,20 @@ class EditorTextPaneTest {
         pane.assertTextEquals("world")
     }
 
-    @Test
-    fun textPaneReflectsStateAndRespectsEditableFlag() = runComposeSwingTest {
-        var text by mutableStateOf("before")
-        var editable by mutableStateOf(true)
-        setContent {
-            TextPane(value = text, onValueChange = {}, editable = editable)
-        }
-        onNodeOfType<JTextPane>().assertTextEquals("before").assert(isEditable())
+    @TestFactory
+    fun editorPaneRawSwing() = EditorPaneFixture.rawSwingTests()
 
-        text = "after"
-        editable = false
-        awaitIdle()
-        onNodeOfType<JTextPane>().assertTextEquals("after").assert(isEditable(false))
-    }
+    @TestFactory
+    fun editorPaneListenerRawSwing() = EditorPaneListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun editorPaneListenerCounts() = EditorPaneListenerFixture.countTests()
+
+    @TestFactory
+    fun editorPaneStateRawSwing() = EditorPaneStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun editorPaneStateCounts() = EditorPaneStateFixture.countTests()
 
     private fun Document.textContains(text: String): Boolean = getText(0, length).contains(text)
 

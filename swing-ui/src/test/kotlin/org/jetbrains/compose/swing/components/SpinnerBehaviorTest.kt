@@ -5,12 +5,19 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.SpinnerDateFixture
+import org.jetbrains.compose.swing.fixtures.components.SpinnerFixture
+import org.jetbrains.compose.swing.fixtures.components.SpinnerListFixture
+import org.jetbrains.compose.swing.fixtures.components.SpinnerModelFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performAccessibleAction
 import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.accessibility.AccessibleAction
 import javax.swing.AbstractSpinnerModel
 import javax.swing.JSpinner
@@ -530,6 +537,24 @@ class SpinnerBehaviorTest {
         assertEquals(3, model.value, "the model clamps a write above its ceiling")
         assertEquals(3, stateValue, "the state reports what the model settled on, not what it was asked for")
     }
+
+    @TestFactory
+    fun spinnerListCounts() = SpinnerListFixture.countTests()
+
+    @TestFactory
+    fun spinnerModelRawSwing() = SpinnerModelFixture.rawSwingTests()
+
+    @TestFactory
+    fun spinnerModelCounts() = SpinnerModelFixture.countTests()
+
+    @TestFactory
+    fun spinnerDateRawSwing() = SpinnerDateFixture.rawSwingTests()
+
+    @TestFactory
+    fun spinnerDateCounts() = SpinnerDateFixture.countTests()
+
+    @TestFactory
+    fun spinnerRawSwing() = SpinnerFixture.rawSwingTests()
 }
 
 private class Counter(

@@ -13,9 +13,13 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.PanelScope
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.failureOf
+import org.jetbrains.compose.swing.fixtures.components.desktop.GlassPaneFixture
+import org.jetbrains.compose.swing.fixtures.components.desktop.GlassPaneLayoutFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.cursor
@@ -29,6 +33,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -250,6 +255,18 @@ class InternalFrameGlassPaneTest : OwnedGlassPaneContractTest() {
     private companion object {
         const val WINDOW_TITLE = "internal frame glass pane clicks"
     }
+
+    @TestFactory
+    fun glassPaneCounts() = GlassPaneFixture.countTests()
+
+    @TestFactory
+    fun glassPaneRawSwing() = GlassPaneFixture.rawSwingTests()
+
+    @TestFactory
+    fun glassPaneLayoutCounts() = GlassPaneLayoutFixture.countTests()
+
+    @TestFactory
+    fun glassPaneLayoutRawSwingTests() = GlassPaneLayoutFixture.rawSwingTests()
 }
 
 private class FrameGlassPaneHostScope(

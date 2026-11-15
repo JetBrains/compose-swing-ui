@@ -7,8 +7,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.button.RadioButtonActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.button.RadioButtonFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -17,6 +21,7 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.event.ActionListener
@@ -37,40 +42,6 @@ class RadioButtonBehaviorTest {
     fun anUndeclaredRadioButtonIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { RadioButton(text = "", selected = false, onSelectedChange = {}) }
         onNodeOfType<JRadioButton>().assertTreeMatches(JRadioButton())
-    }
-
-    @Test
-    fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
-        var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text, selected = false, onSelectedChange = {}) }
-
-        onNodeOfType<JRadioButton>().assertTextEquals("Compact")
-
-        text = "Comfortable"
-        awaitIdle()
-        onNodeOfType<JRadioButton>().assertTextEquals("Comfortable")
-
-        text = "Compact"
-        awaitIdle()
-        onNodeOfType<JRadioButton>().assertTextEquals("Compact")
-    }
-
-    @Test
-    fun theSelectedStateFollowsTheStateDrivingIt() = runComposeSwingTest {
-        // A JRadioButton starts unselected, so declaring `true` first proves the parameter reaches the
-        // button on the first composition, not just the button's own default.
-        var selected by mutableStateOf(true)
-        setContent { RadioButton(text = "Compact", selected = selected, onSelectedChange = {}) }
-
-        onNodeOfType<JRadioButton>().assert(SwingMatcher.isSelected())
-
-        selected = false
-        awaitIdle()
-        onNodeOfType<JRadioButton>().assert(SwingMatcher.isSelected(false))
-
-        selected = true
-        awaitIdle()
-        onNodeOfType<JRadioButton>().assert(SwingMatcher.isSelected())
     }
 
     @Test
@@ -263,6 +234,18 @@ class RadioButtonBehaviorTest {
             read = { it.isSelected },
         )
     }
+
+    @TestFactory
+    fun radioButtonRawSwing() = RadioButtonFixture.rawSwingTests()
+
+    @TestFactory
+    fun radioButtonCounts() = RadioButtonFixture.countTests()
+
+    @TestFactory
+    fun radioButtonActionListenerRawSwing() = RadioButtonActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun radioButtonActionListenerCounts() = RadioButtonActionListenerFixture.countTests()
 
     companion object {
         @JvmStatic
