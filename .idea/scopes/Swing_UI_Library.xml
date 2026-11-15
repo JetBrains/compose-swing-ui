@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Swing UI Library" pattern="src[compose-swing-ui.swing-ui*.main]:*..*" />
+</component>

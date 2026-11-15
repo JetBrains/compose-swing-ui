@@ -219,11 +219,7 @@ There are four cases:
    the first three rule out. It declares a value the user can move while letting the caller leave out the
    callback that reports the move, and the widget is then frozen as above.
 
-Where each pair sits is forced rather than preferred. The Compose lint check the build runs takes
-parameters without defaults first, then `modifier`, then parameters with defaults, then optionally one
-trailing function type without a default: a required pair therefore leads, ahead of `modifier`, and a
-defaulted pair follows it. Written the other way round, neither builds. Undeclared state in particular
-cannot lead: it carries a default, so ahead of `modifier` it fails the lint.
+Put a required value and its callback before `modifier`. Place optional state and callbacks after `modifier`. The `ComposableParamOrder` check accounts for trailing-lambda call syntax when it checks the parameter order.
 
 ```kotlin
 // Declared: `checked` is the composition's, so it and its callback lead.

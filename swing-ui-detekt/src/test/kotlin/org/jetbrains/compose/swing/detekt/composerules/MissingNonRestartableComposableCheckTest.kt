@@ -8,9 +8,9 @@ import dev.detekt.api.Config
 import dev.detekt.api.RuleName
 import dev.detekt.test.TestConfig
 import org.intellij.lang.annotations.Language
-import org.jetbrains.compose.swing.detekt.ComposeSwingRuleSetProvider
+import org.jetbrains.compose.swing.detekt.ComposeRuntimeRuleSetProvider
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.MissingNonRestartableComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingNonRestartableComposable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -20,7 +20,7 @@ class MissingNonRestartableComposableCheckTest {
 
     @Test
     fun `rule is registered`() {
-        val rules = ComposeSwingRuleSetProvider().instance().rules
+        val rules = ComposeRuntimeRuleSetProvider().instance().rules
 
         assertTrue(rules.containsKey(RuleName("MissingNonRestartableComposable")))
     }

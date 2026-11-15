@@ -8,7 +8,7 @@ import dev.detekt.api.Config
 import dev.detekt.api.SourceLocation
 import dev.detekt.test.TestConfig
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.ConditionHoist
+import org.jetbrains.compose.swing.rules.content.ConditionHoist
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

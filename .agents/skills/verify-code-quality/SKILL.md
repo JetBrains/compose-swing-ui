@@ -17,11 +17,10 @@ description: Run lint, static analysis, ABI validation and coverage gates for co
 ./gradlew build --continue
 ```
 
-Two commands, because `buildSrc` is an included build the root-level tasks do not reach, and `check`
-runs only the plain `detekt` task, not the type-resolution variants. `build` runs every module's
-`check` — compile, ktlint, plain detekt, the Compose lint checks, tests, `checkKotlinAbi` and the
-coverage floors — plus `assemble`. `--continue` reports every failure in one run instead of
-stopping at the first.
+Two commands, because `buildSrc` is an included build the root-level tasks do not reach. `build` runs
+every module's `check` — compile, `staticAnalysis` (ktlint and the type-resolution detekt tasks, not
+plain `detekt`), tests, `checkKotlinAbi` and the coverage floors — plus `assemble`. `--continue`
+reports every failure in one run instead of stopping at the first.
 
 ## Scoping a run
 
@@ -30,7 +29,7 @@ Do not add `clean` or `--rerun-tasks`: Gradle's up-to-date checks are correct he
 turns a targeted check into a full rebuild.
 
 ```bash
-./gradlew :swing-ui:ktlintCheck :swing-ui:detektMain :swing-ui:detektTest :swing-ui:lint
+./gradlew :swing-ui:ktlintCheck :swing-ui:detektMain :swing-ui:detektTest
 ./gradlew :swing-ui:checkKotlinAbi
 ./gradlew :swing-ui:jacocoTestCoverageVerification
 ```
@@ -43,17 +42,17 @@ explains what the plain task misses everywhere else.
 
 ## What applies where
 
-| Module               | ktlint / detekt / lint                     | ABI dump |
+| Module               | ktlint / detekt                            | ABI dump |
 |----------------------|---------------------------------------------|----------|
 | `buildSrc`           | ktlint and detekt only, invoked explicitly | no       |
 | `swing-ui`           | yes                                        | yes      |
 | `swing-ui-test`      | yes                                        | yes      |
-| `swing-ui-animation` | **no**                                     | yes      |
+| `swing-ui-animation` | yes, except `animation.core`               | yes      |
 | `samples/*`          | yes                                        | no       |
 
-`swing-ui-animation` redistributes the Android Open Source Project's Jetpack Compose `animation-core`
-verbatim, so it is exempt from the shared style gates by design. Keep it comparable to that upstream:
-do not restyle it, and do not bring it under those gates.
+`swing-ui-animation` applies the shared quality convention, but detekt and ktlint exclude the package
+`org.jetbrains.compose.swing.animation.core`, which is upstream-derived Compose animation-core. Keep that package
+comparable to upstream: do not restyle it, and do not bring it under those gates.
 
 Which modules carry a coverage floor, and each one's line and branch minimums, is set in that
 module's own `build.gradle.kts` - read it there rather than here. `CONTRIBUTING.md` explains how the
@@ -90,7 +89,5 @@ feature or standard-library API fails to compile even on a current JDK.
 
 - detekt: `config/detekt/detekt.yml`, layered on the default config and on the defaults
   `:swing-ui-detekt` ships. The file states the reason for each rule it turns off.
-- Android Lint, hosting the Compose lint checks: `config/lint/lint.xml`. The file states the reason
-  for each check it disables.
 - Coverage floors and ABI filters: each module's `build.gradle.kts`.
 - The gates and the code style in prose: `CONTRIBUTING.md`.

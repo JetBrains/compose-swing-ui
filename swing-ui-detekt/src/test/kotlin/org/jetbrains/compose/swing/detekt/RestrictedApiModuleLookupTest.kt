@@ -1,7 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import org.jetbrains.compose.swing.rules.ModuleBoundary
+import org.jetbrains.compose.swing.rules.androidx.ModuleBoundary
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments

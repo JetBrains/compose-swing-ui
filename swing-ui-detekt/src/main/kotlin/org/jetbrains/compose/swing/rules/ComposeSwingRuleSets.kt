@@ -10,82 +10,87 @@ import io.nlopez.compose.rules.ParameterNaming
 import io.nlopez.compose.rules.RememberContentMissing
 import io.nlopez.compose.rules.StateParameter
 import io.nlopez.compose.rules.UnstableCollections
-import org.jetbrains.compose.swing.rules.composerules.ConditionHoist
-import org.jetbrains.compose.swing.rules.composerules.InvalidReadOnlyComposable
-import org.jetbrains.compose.swing.rules.composerules.MissingNonRestartableComposable
-import org.jetbrains.compose.swing.rules.composerules.MissingReadOnlyComposable
-import org.jetbrains.compose.swing.rules.composerules.StaleRememberUpdatedStateInRemember
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
-import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
+import org.jetbrains.compose.swing.rules.androidx.ArgumentOutsideDeclaredRange
+import org.jetbrains.compose.swing.rules.androidx.RestrictedApi
+import org.jetbrains.compose.swing.rules.androidx.VisibleForTests
+import org.jetbrains.compose.swing.rules.animation.UnusedAnimatedContentTargetState
+import org.jetbrains.compose.swing.rules.animation.UnusedTransitionTargetState
+import org.jetbrains.compose.swing.rules.components.UnheldColumnComparator
+import org.jetbrains.compose.swing.rules.content.ComposableNestingDepth
+import org.jetbrains.compose.swing.rules.content.ConditionHoist
+import org.jetbrains.compose.swing.rules.content.ContentEmitterReturningValues
+import org.jetbrains.compose.swing.rules.content.DefaultsVisibility
+import org.jetbrains.compose.swing.rules.content.LambdaParameterEventTrailing
+import org.jetbrains.compose.swing.rules.content.MultipleContentEmitters
+import org.jetbrains.compose.swing.rules.content.ParameterOrder
+import org.jetbrains.compose.swing.rules.core.SwingComponentInComposableSignature
+import org.jetbrains.compose.swing.rules.core.SwingStyleWithoutDefault
+import org.jetbrains.compose.swing.rules.core.modifier.ComposableSwingModifierFactory
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierComposed
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierMissing
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierNaming
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierNodeInspectableProperties
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierNotUsedAtRoot
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierReused
+import org.jetbrains.compose.swing.rules.core.modifier.ModifierShouldBeForwardedToEveryBranch
+import org.jetbrains.compose.swing.rules.core.modifier.MultipleSwingModifierParameters
+import org.jetbrains.compose.swing.rules.core.modifier.SwingModifierFactoryExtensionFunction
+import org.jetbrains.compose.swing.rules.core.modifier.SwingModifierFactoryReturnType
+import org.jetbrains.compose.swing.rules.core.modifier.SwingModifierThen
+import org.jetbrains.compose.swing.rules.core.modifier.SwingModifierUnreferencedReceiver
+import org.jetbrains.compose.swing.rules.core.modifier.SwingModifierWithoutDefault
+import org.jetbrains.compose.swing.rules.core.node.MultipleSwingNodeCalls
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeFactoryReadsDeclaredValue
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeFactoryReusesComponent
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeUpdateConditionalCall
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeUpdateRepeatsInvalidation
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeUpdateStoresCallback
+import org.jetbrains.compose.swing.rules.core.node.SwingNodeUpdateWritesComponentPart
+import org.jetbrains.compose.swing.rules.core.preview.PreviewAnnotationNaming
+import org.jetbrains.compose.swing.rules.core.preview.PreviewNaming
+import org.jetbrains.compose.swing.rules.core.preview.PreviewNeedsComposableAnnotation
+import org.jetbrains.compose.swing.rules.core.preview.PreviewPublic
+import org.jetbrains.compose.swing.rules.core.preview.PreviewSignature
+import org.jetbrains.compose.swing.rules.internal.PreferImportsOverFqn
+import org.jetbrains.compose.swing.rules.internal.PublicDataClass
 import org.jetbrains.compose.swing.rules.runtime.AutoboxingStateValueProperty
 import org.jetbrains.compose.swing.rules.runtime.ComposableLambdaParameterNaming
 import org.jetbrains.compose.swing.rules.runtime.ComposableLambdaParameterPosition
+import org.jetbrains.compose.swing.rules.runtime.ComposableNaming
+import org.jetbrains.compose.swing.rules.runtime.CompositionLocalAllowlist
+import org.jetbrains.compose.swing.rules.runtime.CompositionLocalNaming
 import org.jetbrains.compose.swing.rules.runtime.CoroutineCreationDuringComposition
 import org.jetbrains.compose.swing.rules.runtime.FlowOperatorInvokedInComposition
 import org.jetbrains.compose.swing.rules.runtime.FrequentlyChangingValue
+import org.jetbrains.compose.swing.rules.runtime.InvalidReadOnlyComposable
+import org.jetbrains.compose.swing.rules.runtime.LambdaParameterInRestartableEffect
+import org.jetbrains.compose.swing.rules.runtime.MissingNonRestartableComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingReadOnlyComposable
 import org.jetbrains.compose.swing.rules.runtime.MutableCollectionMutableState
+import org.jetbrains.compose.swing.rules.runtime.MutableStateAutoboxing
 import org.jetbrains.compose.swing.rules.runtime.OpaqueUnitKey
 import org.jetbrains.compose.swing.rules.runtime.ProduceStateDoesNotAssignValue
 import org.jetbrains.compose.swing.rules.runtime.RememberInComposition
+import org.jetbrains.compose.swing.rules.runtime.RememberMissing
 import org.jetbrains.compose.swing.rules.runtime.RememberReturnType
 import org.jetbrains.compose.swing.rules.runtime.RememberSaveableSaverParameter
 import org.jetbrains.compose.swing.rules.runtime.RetainRememberObserver
 import org.jetbrains.compose.swing.rules.runtime.RetainUnitType
 import org.jetbrains.compose.swing.rules.runtime.RetainingDoNotRetainType
+import org.jetbrains.compose.swing.rules.runtime.StaleRememberUpdatedStateInRemember
 import org.jetbrains.compose.swing.rules.runtime.StateFlowValueCalledInComposition
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryComposable
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryLaunchedEffect
+import org.jetbrains.compose.swing.rules.runtime.VarsWithoutStateBacking
 
 /** Every rule this library carries, by the id of the rule set that holds it. */
 public object ComposeSwingRuleSets {
-    /** The rule sets: `compose-swing`, `compose-swing-internal` and `compose-runtime`. */
+    /** The library's rules grouped by the APIs and conventions they check. */
     public val ruleSets: Map<String, List<ComposeSwingRule>> =
         mapOf(
-            "compose-swing" to
+            "compose-swing-core" to
                 listOf(
-                    ArgumentOutsideDeclaredRange,
-                    ComposeRulesRule(
-                        id = "ComposableAnnotationNaming",
-                        description = "Composable annotation classes should be properly named",
-                        visitor = ::ComposableAnnotationNaming,
-                        findingMessage = COMPOSABLE_ANNOTATION_NAMING_MESSAGE,
-                    ),
-                    ComposeRulesRule(
-                        id = "ComposableNestingDepth",
-                        description = "Limit how deeply content emitters can be nested inside a @Composable",
-                        configuredVisitor = ::ComposableNestingDepth,
-                        activeByDefault = false,
-                    ),
-                    ParameterOrder,
                     ComposableSwingModifierFactory,
-                    CompositionLocalAllowlist,
-                    ConditionHoist,
-                    ContentEmitterReturningValues,
-                    ComposeRulesRule(
-                        id = "ContentSlotReused",
-                        description = "Content lambda parameters should not be invoked more than once",
-                        visitor = ::ContentSlotReused,
-                        findingMessage = CONTENT_SLOT_REUSED_MESSAGE,
-                    ),
-                    ComposeRulesRule(
-                        id = "ContentTrailingLambda",
-                        description = "Content lambda parameters should be placed at the end of parameter list",
-                        visitor = ::ContentTrailingLambda,
-                        findingMessage = CONTENT_TRAILING_LAMBDA_MESSAGE,
-                    ),
-                    ComposeRulesRule(
-                        id = "DefaultsVisibility",
-                        description = "Composable function defaults should have appropriate visibility",
-                        configuredVisitor = { DefaultsVisibility() },
-                    ),
-                    InvalidReadOnlyComposable,
-                    ComposeRulesRule(
-                        id = "LambdaParameterEventTrailing",
-                        description = "Event lambda parameters should be placed at the end of parameter list",
-                        configuredVisitor = ::LambdaParameterEventTrailing,
-                    ),
-                    LambdaParameterInRestartableEffect,
-                    MissingNonRestartableComposable,
-                    MissingReadOnlyComposable,
                     ModifierComposed,
                     ModifierMissing,
                     ComposeRulesRule(
@@ -105,46 +110,13 @@ public object ComposeSwingRuleSets {
                         configuredVisitor = ::ModifierReused,
                     ),
                     ModifierShouldBeForwardedToEveryBranch,
-                    MultipleContentEmitters,
                     MultipleSwingModifierParameters,
                     MultipleSwingNodeCalls,
-                    ComposeRulesRule(
-                        id = "MutableParams",
-                        description = "Composable function parameters should be immutable",
-                        visitor = ::MutableParameters,
-                        findingMessage = MUTABLE_PARAMS_MESSAGE,
-                    ),
-                    ComposeRulesRule(
-                        id = "MutableStateParam",
-                        description = "Avoid passing MutableState as a parameter",
-                        visitor = ::MutableStateParameter,
-                        findingMessage = MUTABLE_STATE_PARAM_MESSAGE,
-                    ),
-                    ComposeRulesRule(
-                        id = "ParameterNaming",
-                        description = "Parameters in Composable functions should follow proper naming conventions",
-                        visitor = ::ParameterNaming,
-                        findingMessage = PARAMETER_NAMING_MESSAGE,
-                    ),
                     PreviewAnnotationNaming,
                     PreviewNaming,
                     PreviewNeedsComposableAnnotation,
                     PreviewPublic,
                     PreviewSignature,
-                    ComposeRulesRule(
-                        id = "RememberContentMissing",
-                        description = "Movable content should be remembered",
-                        visitor = ::RememberContentMissing,
-                        findingMessage = REMEMBER_CONTENT_MISSING_MESSAGE,
-                    ),
-                    RestrictedApi,
-                    StaleRememberUpdatedStateInRemember,
-                    ComposeRulesRule(
-                        id = "StateParam",
-                        description = "Avoid passing State as a parameter",
-                        visitor = ::StateParameter,
-                        findingMessage = STATE_PARAM_MESSAGE,
-                    ),
                     SwingComponentInComposableSignature,
                     SwingModifierFactoryExtensionFunction,
                     SwingModifierFactoryReturnType,
@@ -158,9 +130,59 @@ public object ComposeSwingRuleSets {
                     SwingNodeUpdateStoresCallback,
                     SwingNodeUpdateWritesComponentPart,
                     SwingStyleWithoutDefault,
-                    UnheldColumnComparator,
-                    UnnecessaryComposable,
-                    UnnecessaryLaunchedEffect,
+                ),
+            "compose-swing-content" to
+                listOf(
+                    ComposeRulesRule(
+                        id = "ComposableAnnotationNaming",
+                        description = "Composable annotation classes should be properly named",
+                        visitor = ::ComposableAnnotationNaming,
+                        findingMessage = COMPOSABLE_ANNOTATION_NAMING_MESSAGE,
+                    ),
+                    ComposeRulesRule(
+                        id = "ComposableNestingDepth",
+                        description = "Limit how deeply content emitters can be nested inside a @Composable",
+                        configuredVisitor = ::ComposableNestingDepth,
+                        activeByDefault = false,
+                    ),
+                    ParameterOrder,
+                    ConditionHoist,
+                    ContentEmitterReturningValues,
+                    ComposeRulesRule(
+                        id = "ContentSlotReused",
+                        description = "Content lambda parameters should not be invoked more than once",
+                        visitor = ::ContentSlotReused,
+                        findingMessage = CONTENT_SLOT_REUSED_MESSAGE,
+                    ),
+                    ComposeRulesRule(
+                        id = "ContentTrailingLambda",
+                        description = "Content lambda parameters should be placed at the end of parameter list",
+                        visitor = ::ContentTrailingLambda,
+                        findingMessage = CONTENT_TRAILING_LAMBDA_MESSAGE,
+                    ),
+                    ComposeRulesRule(
+                        id = "DefaultsVisibility",
+                        description = "Composable function defaults should have appropriate visibility",
+                        configuredVisitor = { DefaultsVisibility() },
+                    ),
+                    ComposeRulesRule(
+                        id = "LambdaParameterEventTrailing",
+                        description = "Event lambda parameters should be placed at the end of parameter list",
+                        configuredVisitor = ::LambdaParameterEventTrailing,
+                    ),
+                    MultipleContentEmitters,
+                    ComposeRulesRule(
+                        id = "MutableParams",
+                        description = "Composable function parameters should be immutable",
+                        visitor = ::MutableParameters,
+                        findingMessage = MUTABLE_PARAMS_MESSAGE,
+                    ),
+                    ComposeRulesRule(
+                        id = "ParameterNaming",
+                        description = "Parameters in Composable functions should follow proper naming conventions",
+                        visitor = ::ParameterNaming,
+                        findingMessage = PARAMETER_NAMING_MESSAGE,
+                    ),
                     ComposeRulesRule(
                         id = "UnstableCollections",
                         description = "Avoid using unstable collections in Composable function signatures",
@@ -168,26 +190,40 @@ public object ComposeSwingRuleSets {
                         activeByDefault = false,
                         findingMessage = UNSTABLE_COLLECTIONS_MESSAGE,
                     ),
-                    UnusedAnimatedContentTargetState,
-                    UnusedTransitionTargetState,
-                    VarsWithoutStateBacking,
-                    VisibleForTests,
                 ),
-            "compose-swing-internal" to listOf(PreferImportsOverFqn, PublicDataClass),
+            "compose-swing-components" to listOf(UnheldColumnComparator),
+            "compose-swing-animation" to listOf(UnusedAnimatedContentTargetState, UnusedTransitionTargetState),
             "compose-runtime" to
                 listOf(
                     AutoboxingStateValueProperty,
                     ComposableLambdaParameterNaming,
                     ComposableLambdaParameterPosition,
                     ComposableNaming,
+                    CompositionLocalAllowlist,
                     CompositionLocalNaming,
                     CoroutineCreationDuringComposition,
                     FlowOperatorInvokedInComposition,
                     FrequentlyChangingValue,
+                    InvalidReadOnlyComposable,
+                    LambdaParameterInRestartableEffect,
+                    MissingNonRestartableComposable,
+                    MissingReadOnlyComposable,
                     MutableCollectionMutableState,
                     MutableStateAutoboxing,
+                    ComposeRulesRule(
+                        id = "MutableStateParam",
+                        description = "Avoid passing MutableState as a parameter",
+                        visitor = ::MutableStateParameter,
+                        findingMessage = MUTABLE_STATE_PARAM_MESSAGE,
+                    ),
                     OpaqueUnitKey,
                     ProduceStateDoesNotAssignValue,
+                    ComposeRulesRule(
+                        id = "RememberContentMissing",
+                        description = "Movable content should be remembered",
+                        visitor = ::RememberContentMissing,
+                        findingMessage = REMEMBER_CONTENT_MISSING_MESSAGE,
+                    ),
                     RememberInComposition,
                     RememberMissing,
                     RememberReturnType,
@@ -195,8 +231,25 @@ public object ComposeSwingRuleSets {
                     RetainRememberObserver,
                     RetainUnitType,
                     RetainingDoNotRetainType,
+                    StaleRememberUpdatedStateInRemember,
                     StateFlowValueCalledInComposition,
+                    ComposeRulesRule(
+                        id = "StateParam",
+                        description = "Avoid passing State as a parameter",
+                        visitor = ::StateParameter,
+                        findingMessage = STATE_PARAM_MESSAGE,
+                    ),
+                    UnnecessaryComposable,
+                    UnnecessaryLaunchedEffect,
+                    VarsWithoutStateBacking,
                 ),
+            "androidx-annotations" to
+                listOf(
+                    ArgumentOutsideDeclaredRange,
+                    RestrictedApi,
+                    VisibleForTests,
+                ),
+            "compose-swing-internal" to listOf(PreferImportsOverFqn, PublicDataClass),
         )
 }
 

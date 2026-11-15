@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.detekt
 import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
-import org.jetbrains.compose.swing.rules.ComposeSwingRuleSets
 
 /**
  * Provides the `compose-runtime` rule set to detekt.
@@ -13,9 +12,5 @@ import org.jetbrains.compose.swing.rules.ComposeSwingRuleSets
 internal class ComposeRuntimeRuleSetProvider : RuleSetProvider {
     override val ruleSetId: RuleSetId = RuleSetId("compose-runtime")
 
-    override fun instance(): RuleSet =
-        RuleSet(
-            id = ruleSetId,
-            rules = adaptedRules(ComposeSwingRuleSets.ruleSets.getValue(ruleSetId.value)),
-        )
+    override fun instance(): RuleSet = detektRuleSet(ruleSetId)
 }

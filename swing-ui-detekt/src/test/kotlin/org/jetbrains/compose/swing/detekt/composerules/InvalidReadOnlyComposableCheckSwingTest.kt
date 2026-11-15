@@ -7,8 +7,8 @@ import dev.detekt.api.Finding
 import dev.detekt.api.SourceLocation
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.InvalidReadOnlyComposable
-import org.jetbrains.compose.swing.rules.composerules.InvalidReadOnlyComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.InvalidReadOnlyComposable
+import org.jetbrains.compose.swing.rules.runtime.InvalidReadOnlyComposableCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource

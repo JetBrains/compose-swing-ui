@@ -19,9 +19,6 @@ dependencies {
     implementation(libs.kotlinComposePlugin)
     implementation(libs.detekt.gradle.plugin)
     implementation(libs.ktlint.gradle.plugin)
-    // The standalone Android Lint plugin, so the kotlin-quality convention plugin can apply it to JVM
-    // modules and host the Compose lint checks without pulling in AGP or the Android SDK.
-    implementation(libs.androidLint.gradle.plugin)
     // Applied by the publishing convention, and aggregated by the api-reference convention.
     implementation(libs.dokka.gradle.plugin)
 }

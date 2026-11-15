@@ -5,8 +5,8 @@ package org.jetbrains.compose.swing.detekt.composerules
 import dev.detekt.api.Config
 import dev.detekt.test.TestConfig
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffectCheck
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryLaunchedEffect
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryLaunchedEffectCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test

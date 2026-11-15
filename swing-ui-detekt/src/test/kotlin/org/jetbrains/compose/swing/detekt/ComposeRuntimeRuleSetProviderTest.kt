@@ -3,29 +3,34 @@ package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.api.RuleName
-import dev.detekt.api.RuleSetId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ComposeRuntimeRuleSetProviderTest {
     @Test
     fun `provider registers runtime rules`() {
-        val ruleSet = ComposeRuntimeRuleSetProvider().instance()
-        assertEquals(RuleSetId("compose-runtime"), ruleSet.id)
+        val ruleSet = composeDetektRuleSets.single { it.id.value == "compose-runtime" }
         assertEquals(
             setOf(
                 RuleName("AutoboxingStateValueProperty"),
                 RuleName("ComposableLambdaParameterNaming"),
                 RuleName("ComposableLambdaParameterPosition"),
                 RuleName("ComposableNaming"),
+                RuleName("CompositionLocalAllowlist"),
                 RuleName("CompositionLocalNaming"),
                 RuleName("CoroutineCreationDuringComposition"),
                 RuleName("FlowOperatorInvokedInComposition"),
                 RuleName("FrequentlyChangingValue"),
+                RuleName("InvalidReadOnlyComposable"),
+                RuleName("LambdaParameterInRestartableEffect"),
+                RuleName("MissingNonRestartableComposable"),
+                RuleName("MissingReadOnlyComposable"),
                 RuleName("MutableCollectionMutableState"),
                 RuleName("MutableStateAutoboxing"),
+                RuleName("MutableStateParam"),
                 RuleName("OpaqueUnitKey"),
                 RuleName("ProduceStateDoesNotAssignValue"),
+                RuleName("RememberContentMissing"),
                 RuleName("RememberInComposition"),
                 RuleName("RememberMissing"),
                 RuleName("RememberReturnType"),
@@ -33,7 +38,12 @@ class ComposeRuntimeRuleSetProviderTest {
                 RuleName("RetainRememberObserver"),
                 RuleName("RetainUnitType"),
                 RuleName("RetainingDoNotRetainType"),
+                RuleName("StaleRememberUpdatedStateInRemember"),
                 RuleName("StateFlowValueCalledInComposition"),
+                RuleName("StateParam"),
+                RuleName("UnnecessaryComposable"),
+                RuleName("UnnecessaryLaunchedEffect"),
+                RuleName("VarsWithoutStateBacking"),
             ),
             ruleSet.rules.keys,
         )

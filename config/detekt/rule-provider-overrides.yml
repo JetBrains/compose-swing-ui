@@ -4,4 +4,11 @@
 # depend on it; neither sees the Compose rules that arrive with it either. Config validation rejects a
 # section whose rule set is absent. The exclusions here apply only to those two builds.
 config:
-  excludes: ["compose-runtime", "compose-swing", "compose-swing-internal"]
+  excludes:
+    - "androidx-annotations"
+    - "compose-runtime"
+    - "compose-swing-animation"
+    - "compose-swing-components"
+    - "compose-swing-content"
+    - "compose-swing-core"
+    - "compose-swing-internal"

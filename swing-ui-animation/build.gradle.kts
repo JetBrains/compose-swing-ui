@@ -16,9 +16,9 @@ plugins {
 // This module holds two bodies of code. `org.jetbrains.compose.swing.animation` is hand-written project
 // code under the full quality gates. `org.jetbrains.compose.swing.animation.core` is upstream-derived
 // Compose animation-core with documented adoption edits, kept in upstream's format so re-sync diffs stay
-// readable. Each source-quality gate excludes that package where configured: detekt below, Android Lint
-// in the lint.xml beside the engine, and ktlint in `.editorconfig`, which reaches an editor as well as the
-// build. Compile, test, ABI validation and coverage cover both bodies.
+// readable. Each source-quality gate excludes that package where configured: detekt below, and ktlint in
+// `.editorconfig`, which reaches an editor as well as the build. Compile, test, ABI validation and
+// coverage cover both bodies.
 tasks.withType<Detekt>().configureEach {
     exclude("**/animation/core/**")
 }

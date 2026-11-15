@@ -79,13 +79,9 @@ See [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for the fixtures and the suites
 
 ## Quality gates (all must pass)
 
-`build` runs every module's `check` - compilation, `staticAnalysis` (ktlint, detekt and the Compose
-lint checks), tests, the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
-the convention plugins it applies: the vendored engine package under `swing-ui-animation` is
-exempt from ktlint, detekt and Compose lint checks; the hand-written animation APIs and containers
-remain under those gates. `samples/docs`, which holds generated code, carries none beyond compilation.
-One gate sits outside `build`: `buildSrc` is an included build the root-level tasks do not reach. So
-the full gate is one command, and it is what to run locally before pushing:
+`build` runs each module's `check` and `assemble` tasks. The module's conventions select its tests, static analysis, ABI validation, and coverage gates. `staticAnalysis` runs ktlint and Detekt with type resolution, including the Compose runtime checks. The vendored animation engine and copied compose-rules helpers retain their upstream formatting. `samples/docs` compiles the Kotlin examples from the documentation.
+
+Run the module gates and the included `buildSrc` checks before pushing.
 
 ```bash
 ./gradlew :buildSrc:ktlintCheck :buildSrc:detekt build

@@ -7,7 +7,7 @@ import dev.detekt.api.Finding
 import dev.detekt.api.SourceLocation
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.StaleRememberUpdatedStateInRemember
+import org.jetbrains.compose.swing.rules.runtime.StaleRememberUpdatedStateInRemember
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.Test

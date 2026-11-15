@@ -5,8 +5,8 @@ package org.jetbrains.compose.swing.detekt.composerules
 import dev.detekt.api.Config
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.MissingReadOnlyComposable
-import org.jetbrains.compose.swing.rules.composerules.MissingReadOnlyComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.MissingReadOnlyComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingReadOnlyComposableCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test

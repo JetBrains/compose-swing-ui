@@ -8,9 +8,12 @@ import dev.detekt.api.Finding
 import dev.detekt.api.RequiresAnalysisApi
 import dev.detekt.api.Rule
 import dev.detekt.api.RuleName
+import dev.detekt.api.RuleSet
+import dev.detekt.api.RuleSetId
 import org.jetbrains.compose.swing.rules.ComposeSwingRule
 import org.jetbrains.compose.swing.rules.ComposeSwingRuleConfig
-import org.jetbrains.compose.swing.rules.PublicDataClass
+import org.jetbrains.compose.swing.rules.ComposeSwingRuleSets
+import org.jetbrains.compose.swing.rules.internal.PublicDataClass
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
 /**
@@ -93,6 +96,7 @@ private class DetektRuleConfig(
 internal fun ComposeSwingRule.toDetektRule(config: Config): Rule =
     if (requiresAnalysisApi) AnalysisComposeSwingRuleAdapter(config, this) else ComposeSwingRuleAdapter(config, this)
 
-/** The detekt rule factories for [rules], keyed by rule name. */
-internal fun adaptedRules(rules: List<ComposeSwingRule>): Map<RuleName, (Config) -> Rule> =
-    rules.associate { rule -> RuleName(rule.id) to { config: Config -> rule.toDetektRule(config) } }
+internal fun detektRuleSet(id: RuleSetId): RuleSet {
+    val rules = ComposeSwingRuleSets.ruleSets.getValue(id.value)
+    return RuleSet(id, rules.associate { rule -> RuleName(rule.id) to { config: Config -> rule.toDetektRule(config) } })
+}

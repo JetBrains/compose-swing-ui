@@ -8,8 +8,8 @@ import dev.detekt.api.Config
 import dev.detekt.api.SourceLocation
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryComposable
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryComposableCheck
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

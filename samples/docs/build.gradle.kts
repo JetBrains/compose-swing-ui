@@ -7,7 +7,7 @@ plugins {
 // Compiles the Kotlin example files Knit generates from the fenced snippets in the repository's
 // Markdown, so the build checks what the documentation shows. The module has no sources of its own:
 // everything it compiles is generated into its build directory. Generated code is not hand-written
-// code, so the shared ktlint/detekt/lint, publishing, coverage and ABI gates stay off this module.
+// code, so the shared ktlint/detekt, publishing, coverage and ABI gates stay off this module.
 
 knit {
     // Only the documents that carry Knit directives. The default file set walks the whole checkout,

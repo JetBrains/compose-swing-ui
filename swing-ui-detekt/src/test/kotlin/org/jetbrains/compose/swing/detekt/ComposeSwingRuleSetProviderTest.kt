@@ -2,8 +2,9 @@
 package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.api.Config
+import dev.detekt.api.Rule
 import dev.detekt.api.RuleName
-import dev.detekt.api.RuleSetId
+import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetProvider
 import java.util.ServiceLoader
 import kotlin.test.Test
@@ -11,124 +12,48 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+internal val composeDetektRuleSets: List<RuleSet> by lazy {
+    val providerPackage = ComposeSwingRuleSetProvider::class.java.packageName
+    ServiceLoader
+        .load(RuleSetProvider::class.java)
+        .filter { it.javaClass.packageName == providerPackage }
+        .map { provider ->
+            provider.instance().also { assertEquals(provider.ruleSetId, it.id) }
+        }
+}
+
+internal fun detektRuleFactory(ruleId: String): (Config) -> Rule {
+    val name = RuleName(ruleId)
+    return composeDetektRuleSets.mapNotNull { it.rules[name] }.single()
+}
+
 class ComposeSwingRuleSetProviderTest {
     @Test
-    fun `service loader discovers all providers`() {
-        val expected =
-            setOf(
-                ComposeRuntimeRuleSetProvider::class.java,
-                ComposeSwingInternalRuleSetProvider::class.java,
-                ComposeSwingRuleSetProvider::class.java,
+    fun `service loader discovers one provider for each rule set`() {
+        val expectedIds = expectedRules.keys + "compose-runtime"
+        val discoveredIds = composeDetektRuleSets.map { it.id.value }
+
+        assertEquals(expectedIds.sorted(), discoveredIds.sorted())
+    }
+
+    @Test
+    fun `providers register only the rules belonging to their rule sets`() {
+        composeDetektRuleSets.filter { it.id.value != "compose-runtime" }.forEach { ruleSet ->
+            assertEquals(
+                expectedRules.getValue(ruleSet.id.value),
+                ruleSet.rules.keys
+                    .map { it.value }
+                    .toSet(),
             )
-        val discovered =
-            ServiceLoader
-                .load(RuleSetProvider::class.java)
-                .map { it.javaClass }
-                .filter { it in expected }
-                .toSet()
-
-        assertEquals(expected, discovered)
-    }
-
-    private val publishedRuleNames =
-        setOf(
-            RuleName("ArgumentOutsideDeclaredRange"),
-            RuleName("ComposableAnnotationNaming"),
-            RuleName("ComposableNestingDepth"),
-            RuleName("ComposableParamOrder"),
-            RuleName("ComposableSwingModifierFactory"),
-            RuleName("CompositionLocalAllowlist"),
-            RuleName("ConditionHoist"),
-            RuleName("ContentEmitterReturningValues"),
-            RuleName("ContentSlotReused"),
-            RuleName("ContentTrailingLambda"),
-            RuleName("DefaultsVisibility"),
-            RuleName("InvalidReadOnlyComposable"),
-            RuleName("LambdaParameterEventTrailing"),
-            RuleName("LambdaParameterInRestartableEffect"),
-            RuleName("MissingNonRestartableComposable"),
-            RuleName("MissingReadOnlyComposable"),
-            RuleName("ModifierComposed"),
-            RuleName("ModifierMissing"),
-            RuleName("ModifierNaming"),
-            RuleName("ModifierNodeInspectableProperties"),
-            RuleName("ModifierNotUsedAtRoot"),
-            RuleName("ModifierReused"),
-            RuleName("ModifierShouldBeForwardedToEveryBranch"),
-            RuleName("MultipleEmitters"),
-            RuleName("MultipleSwingModifierParameters"),
-            RuleName("MultipleSwingNodeCalls"),
-            RuleName("MutableParams"),
-            RuleName("MutableStateParam"),
-            RuleName("ParameterNaming"),
-            RuleName("PreviewAnnotationNaming"),
-            RuleName("PreviewNaming"),
-            RuleName("PreviewNeedsComposableAnnotation"),
-            RuleName("PreviewPublic"),
-            RuleName("PreviewSignature"),
-            RuleName("RememberContentMissing"),
-            RuleName("RestrictedApi"),
-            RuleName("StaleRememberUpdatedStateInRemember"),
-            RuleName("StateParam"),
-            RuleName("SwingComponentInComposableSignature"),
-            RuleName("SwingModifierFactoryExtensionFunction"),
-            RuleName("SwingModifierFactoryReturnType"),
-            RuleName("SwingModifierThen"),
-            RuleName("SwingModifierUnreferencedReceiver"),
-            RuleName("SwingModifierWithoutDefault"),
-            RuleName("SwingNodeFactoryReadsDeclaredValue"),
-            RuleName("SwingNodeFactoryReusesComponent"),
-            RuleName("SwingNodeUpdateConditionalCall"),
-            RuleName("SwingNodeUpdateRepeatsInvalidation"),
-            RuleName("SwingNodeUpdateStoresCallback"),
-            RuleName("SwingNodeUpdateWritesComponentPart"),
-            RuleName("SwingStyleWithoutDefault"),
-            RuleName("UnheldColumnComparator"),
-            RuleName("UnnecessaryComposable"),
-            RuleName("UnnecessaryLaunchedEffect"),
-            RuleName("UnstableCollections"),
-            RuleName("UnusedAnimatedContentTargetState"),
-            RuleName("UnusedTransitionTargetState"),
-            RuleName("VarsWithoutStateBacking"),
-            RuleName("VisibleForTests"),
-        )
-
-    @Test
-    fun `public provider registers every published rule`() {
-        val ruleSet = ComposeSwingRuleSetProvider().instance()
-
-        assertEquals(RuleSetId("compose-swing"), ruleSet.id)
-        assertEquals(
-            publishedRuleNames,
-            ruleSet.rules.keys,
-        )
-        ruleSet.rules.forEach { (name, createRule) -> assertEquals(name, createRule(Config.empty).ruleName) }
-    }
-
-    @Test
-    fun `internal provider registers only repository rules`() {
-        val ruleSet = ComposeSwingInternalRuleSetProvider().instance()
-
-        assertEquals(RuleSetId("compose-swing-internal"), ruleSet.id)
-        assertEquals(
-            setOf(
-                RuleName("PreferImportsOverFqn"),
-                RuleName("PublicDataClass"),
-            ),
-            ruleSet.rules.keys,
-        )
-        ruleSet.rules.forEach { (name, createRule) -> assertEquals(name, createRule(Config.empty).ruleName) }
+            ruleSet.rules.forEach { (name, createRule) -> assertEquals(name, createRule(Config.empty).ruleName) }
+        }
     }
 
     @Test
     fun `every provider registers exactly the rules config yml declares for its rule set`() {
         val config = assertNotNull(javaClass.getResource("/config/config.yml"), "config.yml").readText().lines()
-        listOf(
-            ComposeRuntimeRuleSetProvider(),
-            ComposeSwingInternalRuleSetProvider(),
-            ComposeSwingRuleSetProvider(),
-        ).forEach { provider ->
-            val setId = provider.ruleSetId.value
+        composeDetektRuleSets.forEach { ruleSet ->
+            val setId = ruleSet.id.value
             val setStart = config.indexOfFirst { it == "$setId:" }
             assertTrue(setStart >= 0, "config.yml has no rule set $setId")
             val declared =
@@ -139,7 +64,78 @@ class ComposeSwingRuleSetProviderTest {
                     .map { RuleName(it.trim().removeSuffix(":")) }
                     .toSet()
 
-            assertEquals(declared, provider.instance().rules.keys, "rules of $setId against config.yml")
+            assertEquals(declared, ruleSet.rules.keys, "rules of $setId against config.yml")
         }
     }
+
+    private val expectedRules =
+        mapOf(
+            "compose-swing-core" to
+                setOf(
+                    "ComposableSwingModifierFactory",
+                    "ModifierComposed",
+                    "ModifierMissing",
+                    "ModifierNaming",
+                    "ModifierNodeInspectableProperties",
+                    "ModifierNotUsedAtRoot",
+                    "ModifierReused",
+                    "ModifierShouldBeForwardedToEveryBranch",
+                    "MultipleSwingModifierParameters",
+                    "MultipleSwingNodeCalls",
+                    "PreviewAnnotationNaming",
+                    "PreviewNaming",
+                    "PreviewNeedsComposableAnnotation",
+                    "PreviewPublic",
+                    "PreviewSignature",
+                    "SwingComponentInComposableSignature",
+                    "SwingModifierFactoryExtensionFunction",
+                    "SwingModifierFactoryReturnType",
+                    "SwingModifierThen",
+                    "SwingModifierUnreferencedReceiver",
+                    "SwingModifierWithoutDefault",
+                    "SwingNodeFactoryReadsDeclaredValue",
+                    "SwingNodeFactoryReusesComponent",
+                    "SwingNodeUpdateConditionalCall",
+                    "SwingNodeUpdateRepeatsInvalidation",
+                    "SwingNodeUpdateStoresCallback",
+                    "SwingNodeUpdateWritesComponentPart",
+                    "SwingStyleWithoutDefault",
+                ),
+            "compose-swing-content" to
+                setOf(
+                    "ComposableAnnotationNaming",
+                    "ComposableNestingDepth",
+                    "ComposableParamOrder",
+                    "ConditionHoist",
+                    "ContentEmitterReturningValues",
+                    "ContentSlotReused",
+                    "ContentTrailingLambda",
+                    "DefaultsVisibility",
+                    "LambdaParameterEventTrailing",
+                    "MultipleEmitters",
+                    "MutableParams",
+                    "ParameterNaming",
+                    "UnstableCollections",
+                ),
+            "compose-swing-components" to
+                setOf(
+                    "UnheldColumnComparator",
+                ),
+            "compose-swing-animation" to
+                setOf(
+                    "UnusedAnimatedContentTargetState",
+                    "UnusedTransitionTargetState",
+                ),
+            "androidx-annotations" to
+                setOf(
+                    "ArgumentOutsideDeclaredRange",
+                    "RestrictedApi",
+                    "VisibleForTests",
+                ),
+            "compose-swing-internal" to
+                setOf(
+                    "PreferImportsOverFqn",
+                    "PublicDataClass",
+                ),
+        )
 }

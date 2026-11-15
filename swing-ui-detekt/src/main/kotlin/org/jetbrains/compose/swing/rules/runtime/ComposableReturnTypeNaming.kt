@@ -6,7 +6,7 @@ import io.nlopez.compose.rules.Naming
 import org.jetbrains.compose.swing.rules.ComposeRulesConfig
 import org.jetbrains.compose.swing.rules.ComposeSwingRuleConfig
 import org.jetbrains.compose.swing.rules.ComposeSwingRuleReporter
-import org.jetbrains.compose.swing.rules.isComposable
+import org.jetbrains.compose.swing.rules.core.modifier.isComposable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType

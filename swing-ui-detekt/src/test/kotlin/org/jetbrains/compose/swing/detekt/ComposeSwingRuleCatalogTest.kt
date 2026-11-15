@@ -68,9 +68,17 @@ class ComposeSwingRuleCatalogTest {
         )
 
     @Test
-    fun `rule sets are the three the library declares`() {
+    fun `catalog declares the seven rule sets`() {
         assertEquals(
-            setOf("compose-runtime", "compose-swing", "compose-swing-internal"),
+            setOf(
+                "compose-swing-core",
+                "compose-swing-content",
+                "compose-swing-components",
+                "compose-swing-animation",
+                "compose-runtime",
+                "androidx-annotations",
+                "compose-swing-internal",
+            ),
             ComposeSwingRuleSets.ruleSets.keys,
         )
     }

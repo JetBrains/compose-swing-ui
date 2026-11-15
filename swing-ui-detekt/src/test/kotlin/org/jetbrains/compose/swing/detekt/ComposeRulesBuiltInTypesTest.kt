@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.api.Rule
-import dev.detekt.api.RuleName
 import dev.detekt.test.TestConfig
 import dev.detekt.test.lint
 import dev.detekt.test.utils.KotlinAnalysisApiEngine
@@ -19,10 +18,7 @@ class ComposeRulesBuiltInTypesTest {
     @ValueSource(strings = ["SwingModifier", "org.jetbrains.compose.swing.modifier.SwingModifier"])
     fun `recognizes library modifier types without configuration`(type: String) {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierNaming"))(Config.empty)
+            detektRuleFactory("ModifierNaming")(Config.empty)
                 .lint(
                     """
                     import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -81,7 +77,7 @@ class ComposeRulesBuiltInTypesTest {
             )
 
         for ((ruleId, count) in counts) {
-            val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName(ruleId))
+            val createRule = detektRuleFactory(ruleId)
             val defaultCount =
                 when {
                     recognized -> count
@@ -200,10 +196,7 @@ class ComposeRulesBuiltInTypesTest {
     @ValueSource(strings = ["SwingNode", "MenuNode"])
     fun `recognizes library content emitters without configuration`(emitter: String) {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierMissing"))(Config.empty)
+            detektRuleFactory("ModifierMissing")(Config.empty)
                 .lint(
                     """
                     import org.jetbrains.compose.swing.node.$emitter
@@ -492,11 +485,7 @@ class ComposeRulesBuiltInTypesTest {
 
             fun LocalModifier.glow(): LocalModifier = composed { this }
             """.trimIndent()
-        val rule =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierComposed"))(TestConfig("customModifiers" to listOf("LocalModifier")))
+        val rule = detektRuleFactory("ModifierComposed")(TestConfig("customModifiers" to listOf("LocalModifier")))
 
         assertEquals(0, lintModifierComposed(source).size)
         assertEquals(1, rule.lint(source).size)
@@ -605,7 +594,7 @@ class ComposeRulesBuiltInTypesTest {
     private fun rule(
         id: String,
         config: Config = Config.empty,
-    ): Rule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName(id))(config)
+    ): Rule = detektRuleFactory(id)(config)
 
     private fun lintModifierComposed(source: String) = rule("ModifierComposed").lint(source)
 }

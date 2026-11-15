@@ -5,7 +5,7 @@ import dev.detekt.api.Finding
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.KotlinEnvironmentContainer
 import dev.detekt.test.utils.createEnvironment
-import org.jetbrains.compose.swing.rules.ModuleBoundary
+import org.jetbrains.compose.swing.rules.androidx.ModuleBoundary
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments

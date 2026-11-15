@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.detekt
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.api.RequiresAnalysisApi
-import dev.detekt.api.RuleName
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 
@@ -17,7 +16,7 @@ internal object ComposeSwingRuleLint {
         config: Config = Config.empty,
         vararg dependencyContents: String,
     ): List<Finding> {
-        val rule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName(id))(config)
+        val rule = detektRuleFactory(id)(config)
         require(rule is RequiresAnalysisApi)
         return rule.lintWithContext(environment, source, dependencyContents = arrayOf(*dependencyContents))
     }

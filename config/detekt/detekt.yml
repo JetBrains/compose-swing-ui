@@ -38,7 +38,17 @@ complexity:
 
 # Several of these rules ask how an API is shaped or what a composition costs. A test fixture is
 # neither: it stands a composable up to drive one assertion and is gone.
-compose-swing:
+compose-swing-core:
+  ModifierMissing:
+    excludes: ["**/src/fixtures/**"]
+
+compose-swing-content:
+  ParameterNaming:
+    excludes: ["**/src/fixtures/**"]
+    # Settlement is this library's own vocabulary, and the callback fires once the value has settled.
+    allowedLambdaParameterNames: ['onValueSettled']
+
+compose-runtime:
   CompositionLocalAllowlist:
     excludes: ["**/src/test/**"]
     # Layout constraints and the window a content composition has settled on are part of this
@@ -48,24 +58,18 @@ compose-swing:
     excludes: ["**/src/test/**"]
   MissingNonRestartableComposable:
     excludes: ["**/src/fixtures/**"]
-  ModifierMissing:
-    excludes: ["**/src/fixtures/**"]
-  ParameterNaming:
-    excludes: ["**/src/fixtures/**"]
-    # Settlement is this library's own vocabulary, and the callback fires once the value has settled.
-    allowedLambdaParameterNames: ['onValueSettled']
+  MutableStateAutoboxing:
+    excludes: ["**/src/test/**"]
   StateParam:
     excludes: ["**/src/test/**"]
   VarsWithoutStateBacking:
     excludes: ["**/src/test/**"]
+
+androidx-annotations:
   # swing-ui-test is test infrastructure: it reaches APIs widened for tests, as the audience they were
   # widened for, and production code never does.
   VisibleForTests:
     excludes: ["**/swing-ui-test/**"]
-
-compose-runtime:
-  MutableStateAutoboxing:
-    excludes: ["**/src/test/**"]
 
 # Off by default in the artifact: these say nothing about what the library requires, and are declared
 # there only because no published ruleset provides them. This repository holds itself to them.

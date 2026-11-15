@@ -6,8 +6,8 @@ import dev.detekt.api.Config
 import dev.detekt.api.SourceLocation
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
-import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBackingCheck
+import org.jetbrains.compose.swing.rules.runtime.VarsWithoutStateBacking
+import org.jetbrains.compose.swing.rules.runtime.VarsWithoutStateBackingCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test

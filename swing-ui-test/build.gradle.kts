@@ -29,13 +29,6 @@ kotlin {
     }
 }
 
-lint {
-    // This module is test infrastructure. An API marked visible for testing - androidx's
-    // LifecycleRegistry.createUnsafe among them - is reached here by the audience it was widened for,
-    // never from production code.
-    disable += "VisibleForTests"
-}
-
 dependencies {
     api(project(":swing-ui"))
     api(libs.composeRuntime)

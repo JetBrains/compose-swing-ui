@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
-import org.jetbrains.compose.swing.rules.isTestSourcePath
+import org.jetbrains.compose.swing.rules.androidx.isTestSourcePath
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import kotlin.test.Test

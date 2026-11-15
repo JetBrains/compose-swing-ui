@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.RuleName
 import dev.detekt.test.TestConfig
 import dev.detekt.test.lint
 import org.jetbrains.compose.swing.rules.ComposeSwingRuleSets
@@ -42,8 +41,7 @@ class ComposeRulesCatalogTest {
         ],
     )
     fun `every adapted rule reports through its provider`(ruleId: String) {
-        val rule =
-            ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName(ruleId))(TestConfig("active" to true))
+        val rule = detektRuleFactory(ruleId)(TestConfig("active" to true))
         val findings = rule.lint(sources.getValue(ruleId))
 
         assertEquals(if (ruleId == "ModifierReused") 2 else 1, findings.size, ruleId)
@@ -52,7 +50,10 @@ class ComposeRulesCatalogTest {
             assertFalse("http://" in finding.message || "https://" in finding.message, ruleId)
             expectedMessages[ruleId]?.let { assertEquals(it, finding.message, ruleId) }
         }
-        val catalogRule = ComposeSwingRuleSets.ruleSets.getValue("compose-swing").single { it.id == ruleId }
+        val catalogRule =
+            ComposeSwingRuleSets.ruleSets.values
+                .flatten()
+                .single { it.id == ruleId }
         assertFalse(catalogRule.requiresAnalysisApi, ruleId)
         assertEquals(
             ruleId !in setOf("ComposableNestingDepth", "PreviewNaming", "UnstableCollections"),
@@ -63,9 +64,8 @@ class ComposeRulesCatalogTest {
 
     @Test
     fun `adapted rules accept compliant code through their provider`() {
-        val rules = ComposeSwingRuleSetProvider().instance().rules
         compliantSources.forEach { (ruleId, source) ->
-            assertEquals(0, rules.getValue(RuleName(ruleId))(TestConfig("active" to true)).lint(source).size, ruleId)
+            assertEquals(0, detektRuleFactory(ruleId)(TestConfig("active" to true)).lint(source).size, ruleId)
         }
     }
 
@@ -275,10 +275,7 @@ class ComposeRulesCatalogTest {
         source: String,
         config: TestConfig = TestConfig(),
     ): List<String> =
-        ComposeSwingRuleSetProvider()
-            .instance()
-            .rules
-            .getValue(RuleName(rule))(config)
+        detektRuleFactory(rule)(config)
             .lint(source)
             .map { (it.entity.ktElement as KtNamedFunction).name.orEmpty() }
 

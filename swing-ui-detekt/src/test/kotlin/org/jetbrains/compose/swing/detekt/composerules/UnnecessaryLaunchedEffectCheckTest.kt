@@ -7,8 +7,8 @@ package org.jetbrains.compose.swing.detekt.composerules
 import dev.detekt.api.Config
 import dev.detekt.test.TestConfig
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffect
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryLaunchedEffectCheck
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryLaunchedEffect
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryLaunchedEffectCheck
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -18,5 +18,4 @@ internal fun lintInternalRule(
         .getValue(RuleName(ruleId))(Config.empty)
         .lint(source)
 
-internal fun composeSwingRule(ruleId: String): Rule =
-    ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName(ruleId))(Config.empty)
+internal fun composeSwingRule(ruleId: String): Rule = detektRuleFactory(ruleId)(Config.empty)

@@ -6,8 +6,8 @@ import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.api.SourceLocation
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposable
-import org.jetbrains.compose.swing.rules.composerules.UnnecessaryComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryComposable
+import org.jetbrains.compose.swing.rules.runtime.UnnecessaryComposableCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource

@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.detekt.composerules
 
 import dev.detekt.api.Config
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.MissingNonRestartableComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingNonRestartableComposable
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory

@@ -1,7 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.detekt
 
-import dev.detekt.api.RuleName
 import dev.detekt.test.TestConfig
 import dev.detekt.test.lint
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -14,35 +13,21 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class ComposeRulesConfigurationTest {
     @Test
     fun `provider-free validation configuration covers every library rule set`() {
-        val exclusions =
-            File("../config/detekt/rule-provider-overrides.yml")
-                .readLines()
-                .single { it.trimStart().startsWith("excludes:") }
-        val providers =
-            listOf(
-                ComposeRuntimeRuleSetProvider(),
-                ComposeSwingInternalRuleSetProvider(),
-                ComposeSwingRuleSetProvider(),
-            )
+        val overrides = File("../config/detekt/rule-provider-overrides.yml").readText()
+        val expected = composeDetektRuleSets.map { it.id.value }.sorted()
+        val configured = Regex("(?m)^    - \"([^\"]+)\"$").findAll(overrides).map { it.groupValues[1] }.toList()
 
-        providers.forEach { provider ->
-            val id = provider.instance().id.value
-            assertTrue("\"$id\"" in exclusions, "No provider-free validation configuration for $id")
-        }
+        assertEquals(expected, configured)
     }
 
     @Test
     fun `custom modifiers add to library modifier types`() {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierNaming"))(TestConfig("customModifiers" to listOf("CustomModifier")))
+            detektRuleFactory("ModifierNaming")(TestConfig("customModifiers" to listOf("CustomModifier")))
                 .lint(
                     """
                     import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -58,10 +43,7 @@ class ComposeRulesConfigurationTest {
     @Test
     fun `content emitters add to library emitters`() {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierMissing"))(TestConfig("contentEmitters" to listOf("CustomNode")))
+            detektRuleFactory("ModifierMissing")(TestConfig("contentEmitters" to listOf("CustomNode")))
                 .lint(
                     """
                     import org.jetbrains.compose.swing.node.MenuNode
@@ -94,10 +76,7 @@ class ComposeRulesConfigurationTest {
         emitter: String,
     ) {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("ModifierMissing"))(TestConfig("contentEmitters" to configured))
+            detektRuleFactory("ModifierMissing")(TestConfig("contentEmitters" to configured))
                 .lint(
                     """
                     @Composable fun Example() { $emitter() }
@@ -110,10 +89,7 @@ class ComposeRulesConfigurationTest {
     @Test
     fun `reports composition locals missing from the configured allowlist`() {
         val findings =
-            ComposeSwingRuleSetProvider()
-                .instance()
-                .rules
-                .getValue(RuleName("CompositionLocalAllowlist"))(
+            detektRuleFactory("CompositionLocalAllowlist")(
                 TestConfig("allowedCompositionLocals" to listOf("LocalAllowed")),
             ).lint(
                 """
@@ -134,7 +110,7 @@ class ComposeRulesConfigurationTest {
 
             @Composable private fun Example() { Label("text") }
             """.trimIndent()
-        val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("ModifierMissing"))
+        val createRule = detektRuleFactory("ModifierMissing")
 
         assertEquals(0, createRule(TestConfig()).lint(source).size)
         assertEquals(1, createRule(TestConfig("checkModifiersForVisibility" to "all")).lint(source).size)
@@ -149,7 +125,7 @@ class ComposeRulesConfigurationTest {
 
             @Composable fun Example() { Panel { Label("text") } }
             """.trimIndent()
-        val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("ComposableNestingDepth"))
+        val createRule = detektRuleFactory("ComposableNestingDepth")
 
         assertEquals(0, createRule(TestConfig()).lint(source).size)
         assertEquals(1, createRule(TestConfig("composableNestingDepthThreshold" to 0)).lint(source).size)
@@ -284,8 +260,7 @@ class ComposeRulesConfigurationTest {
 
             @Composable fun Example(onChange: Callback) { LaunchedEffect(Unit) { onChange() } }
             """.trimIndent()
-        val createRule =
-            ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("LambdaParameterInRestartableEffect"))
+        val createRule = detektRuleFactory("LambdaParameterInRestartableEffect")
 
         assertEquals(0, createRule(TestConfig()).lint(source).size)
         assertEquals(1, createRule(TestConfig("treatAsLambda" to listOf("Callback"))).lint(source).size)
@@ -308,8 +283,7 @@ class ComposeRulesConfigurationTest {
                 WhileResumed(Unit) { onPauseOrDispose { pause() } }
             }
             """.trimIndent()
-        val createRule =
-            ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("LambdaParameterInRestartableEffect"))
+        val createRule = detektRuleFactory("LambdaParameterInRestartableEffect")
 
         val findings = createRule(TestConfig()).lint(source)
         assertEquals(
@@ -339,8 +313,7 @@ class ComposeRulesConfigurationTest {
                 example.effects.LifecycleStartEffect(Unit) { action() }
             }
             """.trimIndent()
-        val createRule =
-            ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("LambdaParameterInRestartableEffect"))
+        val createRule = detektRuleFactory("LambdaParameterInRestartableEffect")
 
         assertEquals(0, createRule(TestConfig()).lint(source).size)
     }
@@ -348,7 +321,7 @@ class ComposeRulesConfigurationTest {
     @Test
     fun `accepts configured lambda parameter names`() {
         val source = "@Composable fun Example(onValueSettled: () -> Unit) {}"
-        val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("ParameterNaming"))
+        val createRule = detektRuleFactory("ParameterNaming")
 
         assertEquals(1, createRule(TestConfig()).lint(source).size)
         assertEquals(
@@ -365,7 +338,7 @@ class ComposeRulesConfigurationTest {
 
             @Preview @Composable private fun PreviewExample() {}
             """.trimIndent()
-        val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("PreviewNaming"))
+        val createRule = detektRuleFactory("PreviewNaming")
 
         assertEquals(1, createRule(TestConfig("active" to true)).lint(source).size)
         assertEquals(0, createRule(TestConfig("previewNamingStrategy" to "prefix")).lint(source).size)
@@ -381,7 +354,7 @@ class ComposeRulesConfigurationTest {
 
             @Ignored @Composable fun Example() { Label("text") }
             """.trimIndent()
-        val createRule = ComposeSwingRuleSetProvider().instance().rules.getValue(RuleName("ModifierMissing"))
+        val createRule = detektRuleFactory("ModifierMissing")
 
         assertEquals(1, createRule(TestConfig()).lint(source).size)
         assertEquals(0, createRule(TestConfig("ignoreAnnotated" to listOf("Ignored"))).lint(source).size)
@@ -394,10 +367,7 @@ class ComposeRulesConfigurationTest {
         source: String,
         denied: List<String> = emptyList(),
     ): Int =
-        ComposeSwingRuleSetProvider()
-            .instance()
-            .rules
-            .getValue(RuleName(ruleId))(
+        detektRuleFactory(ruleId)(
             TestConfig(
                 "active" to true,
                 "composableNestingDepthThreshold" to 0,

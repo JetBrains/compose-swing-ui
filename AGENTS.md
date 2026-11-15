@@ -7,7 +7,7 @@ rather than preserving an earlier shape.
 
 ## Quality rules
 
-- **Quality first.** Fix the code — never relax, disable or exclude a ktlint, detekt, Android Lint,
+- **Quality first.** Fix the code — never relax, disable or exclude a ktlint, detekt,
   ABI or coverage rule to make a build pass.
 - **Suppressions are narrow and explained.** A suppression carries a comment stating the invariant
   that makes it safe, not the rule it avoids.

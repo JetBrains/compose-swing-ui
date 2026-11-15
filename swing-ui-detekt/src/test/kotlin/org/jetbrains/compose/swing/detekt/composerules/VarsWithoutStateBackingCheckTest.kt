@@ -8,8 +8,8 @@ import dev.detekt.api.Config
 import dev.detekt.api.SourceLocation
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBacking
-import org.jetbrains.compose.swing.rules.composerules.VarsWithoutStateBackingCheck
+import org.jetbrains.compose.swing.rules.runtime.VarsWithoutStateBacking
+import org.jetbrains.compose.swing.rules.runtime.VarsWithoutStateBackingCheck
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

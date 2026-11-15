@@ -2,6 +2,7 @@
 package buildsrc.convention
 
 import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.extensions.FailOnSeverity
 import org.gradle.api.Task
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.tasks.TaskProvider
@@ -11,8 +12,6 @@ import org.gradle.kotlin.dsl.withType
 plugins {
     id("org.jlleitschuh.gradle.ktlint")
     id("dev.detekt")
-    // Standalone Android Lint runner (no AGP/Android SDK) hosting the checks below.
-    id("com.android.lint")
 }
 
 // Precompiled script plugins do not get generated `libs` accessors, so resolve the catalog directly.
@@ -33,6 +32,7 @@ detekt {
     buildUponDefaultConfig.set(true)
     config.setFrom(rootProject.file("config/detekt/detekt.yml"))
     ignoreFailures.set(false)
+    failOnSeverity.set(FailOnSeverity.Warning)
     parallel.set(true)
 }
 
@@ -52,20 +52,11 @@ dependencies {
     }
 }
 
-lint {
-    warningsAsErrors = true
-    lintConfig = rootProject.file("config/lint/lint.xml")
-    // Android Lint names the composable fixtures of a library module after the library itself, so in test sources
-    // it reads the fixtures in place of the library and misjudges the library's composables. Lint checks main
-    // sources only.
-    ignoreTestSources = true
-}
-
 private val staticAnalysis: TaskProvider<Task> =
     tasks.register("staticAnalysis") {
         group = "verification"
-        description = "Runs ktlint, Android Lint, and detekt with type resolution on every source set."
-        dependsOn("ktlintCheck", "lint")
+        description = "Runs ktlint and detekt with type resolution on every source set."
+        dependsOn("ktlintCheck")
         dependsOn(
             tasks.withType<Detekt>().matching { task ->
                 task.name != "detekt" && !task.name.endsWith("SourceSet")
@@ -73,28 +64,16 @@ private val staticAnalysis: TaskProvider<Task> =
         )
     }
 
-// The ktlint, detekt and Android Lint plugins each wire their task into `check`. Rewiring them behind
+// The ktlint and detekt plugins each wire their task into `check`. Rewiring them behind
 // staticAnalysis lets `-x staticAnalysis` drop every static check from `check`.
-private fun Task.isStaticCheck(): Boolean = name == "lint" || name == "detekt" || name.startsWith("ktlint")
-
 afterEvaluate {
     tasks.named("check") {
         setDependsOn(
             dependsOn.filterNot { dependency ->
-                dependency is TaskProvider<*> && dependency.get().isStaticCheck()
+                dependency is TaskProvider<*> &&
+                    dependency.get().name.let { it == "detekt" || it.startsWith("ktlint") }
             },
         )
         dependsOn(staticAnalysis)
     }
-}
-
-dependencies {
-    // The Compose runtime publishes the checks for its own contracts as an artifact. They are the
-    // authors' checks, kept current with the runtime this project compiles against, so the runtime is
-    // held to them here rather than to a reimplementation of them.
-    "lintChecks"(
-        libs
-            .findLibrary("composeRuntimeLint")
-            .orElseThrow { IllegalStateException("Missing library 'composeRuntimeLint' in gradle/libs.versions.toml") },
-    )
 }

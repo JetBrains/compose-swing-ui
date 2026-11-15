@@ -1,57 +1,7 @@
 # Default rules and settings for consumers of this artifact.
 
-compose-swing:
-  ArgumentOutsideDeclaredRange:
-    active: true
-  ComposableAnnotationNaming:
-    active: true
-  ComposableNestingDepth:
-    active: false
-    composableNestingDepthThreshold: 3
-    contentEmitters: []
-    contentEmittersDenylist: []
-  ComposableParamOrder:
-    active: true
-    customModifiers: []
-    treatAsLambda: []
-    treatAsComposableLambda: []
+compose-swing-core:
   ComposableSwingModifierFactory:
-    active: true
-  CompositionLocalAllowlist:
-    active: true
-    allowedCompositionLocals: []
-  ConditionHoist:
-    active: true
-    contentEmitters: []
-    ignoreCallsWithArgumentNames: ["modifier", "contentAlignment", "horizontalArrangement", "verticalAlignment"]
-  ContentEmitterReturningValues:
-    active: true
-    contentEmitters: []
-    contentEmittersDenylist: []
-  ContentSlotReused:
-    active: true
-    treatAsLambda: []
-    treatAsComposableLambda: []
-  ContentTrailingLambda:
-    active: true
-    treatAsLambda: []
-    treatAsComposableLambda: []
-  DefaultsVisibility:
-    active: true
-  InvalidReadOnlyComposable:
-    active: true
-  LambdaParameterEventTrailing:
-    active: true
-    customModifiers: []
-    contentEmitters: []
-    contentEmittersDenylist: []
-  LambdaParameterInRestartableEffect:
-    active: true
-    treatAsLambda: []
-  MissingNonRestartableComposable:
-    active: true
-    ignoresPreviews: true
-  MissingReadOnlyComposable:
     active: true
   ModifierComposed:
     active: true
@@ -86,22 +36,10 @@ compose-swing:
   ModifierShouldBeForwardedToEveryBranch:
     active: true
     customModifiers: []
-  MultipleEmitters:
-    active: true
-    contentEmitters: []
-    contentEmittersDenylist: []
   MultipleSwingModifierParameters:
     active: true
   MultipleSwingNodeCalls:
     active: true
-  MutableParams:
-    active: true
-  MutableStateParam:
-    active: true
-  ParameterNaming:
-    active: true
-    allowedLambdaParameterNames: []
-    treatAsLambda: []
   PreviewAnnotationNaming:
     active: true
   PreviewNaming:
@@ -112,14 +50,6 @@ compose-swing:
   PreviewPublic:
     active: true
   PreviewSignature:
-    active: true
-  RememberContentMissing:
-    active: true
-  RestrictedApi:
-    active: true
-  StaleRememberUpdatedStateInRemember:
-    active: true
-  StateParam:
     active: true
   SwingComponentInComposableSignature:
     active: true
@@ -147,30 +77,65 @@ compose-swing:
     active: true
   SwingStyleWithoutDefault:
     active: true
-  UnheldColumnComparator:
+
+compose-swing-content:
+  ComposableAnnotationNaming:
     active: true
-  UnnecessaryComposable:
+  ComposableNestingDepth:
+    active: false
+    composableNestingDepthThreshold: 3
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ComposableParamOrder:
     active: true
-  UnnecessaryLaunchedEffect:
+    customModifiers: []
+    treatAsLambda: []
+    treatAsComposableLambda: []
+  ConditionHoist:
     active: true
-    allowedCallReceiverTypes: []
-    allowedCallNames: []
+    contentEmitters: []
+    ignoreCallsWithArgumentNames: ["modifier", "contentAlignment", "horizontalArrangement", "verticalAlignment"]
+  ContentEmitterReturningValues:
+    active: true
+    contentEmitters: []
+    contentEmittersDenylist: []
+  ContentSlotReused:
+    active: true
+    treatAsLambda: []
+    treatAsComposableLambda: []
+  ContentTrailingLambda:
+    active: true
+    treatAsLambda: []
+    treatAsComposableLambda: []
+  DefaultsVisibility:
+    active: true
+  LambdaParameterEventTrailing:
+    active: true
+    customModifiers: []
+    contentEmitters: []
+    contentEmittersDenylist: []
+  MultipleEmitters:
+    active: true
+    contentEmitters: []
+    contentEmittersDenylist: []
+  MutableParams:
+    active: true
+  ParameterNaming:
+    active: true
+    allowedLambdaParameterNames: []
+    treatAsLambda: []
   UnstableCollections:
     active: false
+
+compose-swing-components:
+  UnheldColumnComparator:
+    active: true
+
+compose-swing-animation:
   UnusedAnimatedContentTargetState:
     active: true
   UnusedTransitionTargetState:
     active: true
-  VarsWithoutStateBacking:
-    active: true
-  VisibleForTests:
-    active: true
-
-compose-swing-internal:
-  PreferImportsOverFqn:
-    active: false
-  PublicDataClass:
-    active: false
 
 compose-runtime:
   AutoboxingStateValueProperty:
@@ -185,6 +150,9 @@ compose-runtime:
   ComposableNaming:
     active: true
     allowedComposableFunctionNames: []
+  CompositionLocalAllowlist:
+    active: true
+    allowedCompositionLocals: []
   CompositionLocalNaming:
     active: true
   CoroutineCreationDuringComposition:
@@ -194,16 +162,30 @@ compose-runtime:
   FrequentlyChangingValue:
     active: true
     severity: warning
+  InvalidReadOnlyComposable:
+    active: true
+  LambdaParameterInRestartableEffect:
+    active: true
+    treatAsLambda: []
+  MissingNonRestartableComposable:
+    active: true
+    ignoresPreviews: true
+  MissingReadOnlyComposable:
+    active: true
   MutableCollectionMutableState:
     active: true
     severity: warning
   MutableStateAutoboxing:
     active: true
     severity: warning
+  MutableStateParam:
+    active: true
   OpaqueUnitKey:
     active: true
     severity: warning
   ProduceStateDoesNotAssignValue:
+    active: true
+  RememberContentMissing:
     active: true
   RememberInComposition:
     active: true
@@ -219,5 +201,31 @@ compose-runtime:
     active: true
   RetainingDoNotRetainType:
     active: true
+  StaleRememberUpdatedStateInRemember:
+    active: true
   StateFlowValueCalledInComposition:
     active: true
+  StateParam:
+    active: true
+  UnnecessaryComposable:
+    active: true
+  UnnecessaryLaunchedEffect:
+    active: true
+    allowedCallReceiverTypes: []
+    allowedCallNames: []
+  VarsWithoutStateBacking:
+    active: true
+
+androidx-annotations:
+  ArgumentOutsideDeclaredRange:
+    active: true
+  RestrictedApi:
+    active: true
+  VisibleForTests:
+    active: true
+
+compose-swing-internal:
+  PreferImportsOverFqn:
+    active: false
+  PublicDataClass:
+    active: false

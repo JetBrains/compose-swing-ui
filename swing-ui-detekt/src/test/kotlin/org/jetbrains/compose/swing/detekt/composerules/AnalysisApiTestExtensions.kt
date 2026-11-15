@@ -11,7 +11,7 @@ import dev.detekt.api.SourceLocation
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.createEnvironment
 import org.intellij.lang.annotations.Language
-import org.jetbrains.compose.swing.rules.composerules.ComposeFqNames
+import org.jetbrains.compose.swing.rules.runtime.ComposeFqNames
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import kotlin.test.assertEquals

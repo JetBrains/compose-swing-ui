@@ -4,7 +4,7 @@ package org.jetbrains.compose.swing.detekt.composerules
 import dev.detekt.api.Finding
 import dev.detekt.test.TestConfig
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.ConditionHoist
+import org.jetbrains.compose.swing.rules.content.ConditionHoist
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test

@@ -1,6 +1,15 @@
 <component name="InspectionProjectProfileManager">
   <profile version="1.0">
     <option name="myName" value="Project Default" />
+    <inspection_tool class="HardCodedStringLiteral" enabled="true" level="WARNING" enabled_by_default="false">
+      <scope name="Swing UI Library" level="ERROR" enabled="true">
+        <option name="ignoreForPropertyKeyReferences" value="false" />
+        <option name="ignoreForNonAlpha" value="false" />
+        <option name="reportUnannotatedReferences" value="true" />
+        <option name="ignoreAllButNls" value="true" />
+      </scope>
+    </inspection_tool>
+    <inspection_tool class="KDocUnresolvedReference" enabled="true" level="ERROR" enabled_by_default="true" />
     <inspection_tool class="UnstableTypeUsedInSignature" enabled="true" level="ERROR" enabled_by_default="true" />
     <inspection_tool class="TestOnlyProblems" enabled="true" level="ERROR" enabled_by_default="true" />
     <inspection_tool class="MultiplatformPreviewAnnotationInFunctionWithParameters" enabled="true" level="ERROR" enabled_by_default="true">

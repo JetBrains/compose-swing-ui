@@ -6,10 +6,10 @@ import dev.detekt.api.Config
 import dev.detekt.api.Rule
 import org.intellij.lang.annotations.Language
 import org.jetbrains.compose.swing.detekt.toDetektRule
-import org.jetbrains.compose.swing.rules.composerules.MissingNonRestartableComposable
-import org.jetbrains.compose.swing.rules.composerules.MissingNonRestartableComposableCheck
-import org.jetbrains.compose.swing.rules.composerules.MissingReadOnlyComposable
-import org.jetbrains.compose.swing.rules.composerules.MissingReadOnlyComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.MissingNonRestartableComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingNonRestartableComposableCheck
+import org.jetbrains.compose.swing.rules.runtime.MissingReadOnlyComposable
+import org.jetbrains.compose.swing.rules.runtime.MissingReadOnlyComposableCheck
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
