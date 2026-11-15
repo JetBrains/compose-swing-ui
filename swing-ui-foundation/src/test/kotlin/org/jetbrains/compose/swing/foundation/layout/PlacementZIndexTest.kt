@@ -13,6 +13,8 @@ import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.ZIndexFixture
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -25,6 +27,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.awt.Component
 import java.awt.GraphicsEnvironment
@@ -226,6 +229,9 @@ class PlacementZIndexTest {
             assertTrue(container.isValidUpToTheValidateRoot(), "a replay must invalidate nothing")
             assertTrue(container.dirtyRegion().isEmpty, "a replay at unchanged bounds and zIndex must repaint nothing")
         }
+
+    @TestFactory
+    fun zIndexCounts() = ZIndexFixture.countTests()
 }
 
 /**

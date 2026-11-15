@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.kotlinxBenchmarkRuntime)
     listOf(
         "swing-ui",
+        "swing-ui-foundation",
     ).forEach { module ->
         implementation(project(":$module")) {
             capabilities { requireFeature("fixtures") }

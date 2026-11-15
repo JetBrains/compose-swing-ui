@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.ClipToBoundsFixture
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -13,6 +15,7 @@ import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Container
@@ -282,6 +285,9 @@ class ClipToBoundsTest {
                 "a repaint of the other child starts at the container, so the glass pane stays painted over it",
             )
         }
+
+    @TestFactory
+    fun counts() = ClipToBoundsFixture.countTests()
 }
 
 /**

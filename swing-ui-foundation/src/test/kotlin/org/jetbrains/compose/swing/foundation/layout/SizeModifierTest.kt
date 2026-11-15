@@ -2,10 +2,24 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.HeightFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.HeightInFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredHeightFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredHeightInFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredSizeFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredSizeInFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredWidthFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.RequiredWidthInFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.SizeFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.SizeInFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.WidthFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.WidthInFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Rectangle
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -411,4 +425,40 @@ class SizeModifierTest {
         const val OVERFLOW_WIDTH = 90
         const val OVERFLOW_HEIGHT = 80
     }
+
+    @TestFactory
+    fun sizeCounts() = SizeFixture.countTests()
+
+    @TestFactory
+    fun requiredSizeCounts() = RequiredSizeFixture.countTests()
+
+    @TestFactory
+    fun requiredHeightCounts() = RequiredHeightFixture.countTests()
+
+    @TestFactory
+    fun requiredWidthCounts() = RequiredWidthFixture.countTests()
+
+    @TestFactory
+    fun heightInCounts() = HeightInFixture.countTests()
+
+    @TestFactory
+    fun requiredHeightInCounts() = RequiredHeightInFixture.countTests()
+
+    @TestFactory
+    fun widthInCounts() = WidthInFixture.countTests()
+
+    @TestFactory
+    fun requiredSizeInCounts() = RequiredSizeInFixture.countTests()
+
+    @TestFactory
+    fun requiredWidthInCounts() = RequiredWidthInFixture.countTests()
+
+    @TestFactory
+    fun widthCounts() = WidthFixture.countTests()
+
+    @TestFactory
+    fun heightCounts() = HeightFixture.countTests()
+
+    @TestFactory
+    fun sizeInCounts() = SizeInFixture.countTests()
 }

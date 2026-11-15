@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.benchmark
 
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.fixtures.swingUiFixtures
+import org.jetbrains.compose.swing.foundation.fixtures.swingUiFoundationFixtures
 import org.jetbrains.compose.swing.runSwingTest
 import java.awt.HeadlessException
 import java.nio.file.Files
@@ -28,6 +29,7 @@ internal object BenchmarkParameters {
     val fixtures: List<ComposableFixture<*, *>> =
         buildList {
             addAll(swingUiFixtures)
+            addAll(swingUiFoundationFixtures)
         }
 
     /** Every parameter, in fixture order. Run on the event dispatch thread, which window fixtures need. */

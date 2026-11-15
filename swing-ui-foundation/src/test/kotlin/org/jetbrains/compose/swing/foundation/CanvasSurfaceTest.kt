@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.CanvasFixture
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -22,6 +24,7 @@ import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.TestFactory
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Dimension
@@ -318,4 +321,7 @@ class CanvasSurfaceTest {
             awaitIdle()
             assertEquals(Dimension(20, 10), canvas.minimumSize, "a minimum set on the surface answers as set")
         }
+
+    @TestFactory
+    fun counts() = CanvasFixture.countTests()
 }

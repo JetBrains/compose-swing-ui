@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 plugins {
     `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
+    id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
@@ -29,6 +30,9 @@ dependencies {
     api(project(":swing-ui"))
 
     // Fixtures the animation module's tests reuse.
+    fixturesImplementation(project(":swing-ui")) {
+        capabilities { requireFeature("fixtures") }
+    }
     testFixturesImplementation(kotlin("test"))
     testFixturesImplementation(testFixtures(project(":swing-ui")))
     testFixturesImplementation(project(":swing-ui-test"))
@@ -38,6 +42,9 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(project(":swing-ui-test"))
+    testImplementation(project(":swing-ui-foundation")) {
+        capabilities { requireFeature("fixtures") }
+    }
 }
 
 // The fixtures serve this project's tests and those of projects that depend on them; the library does not

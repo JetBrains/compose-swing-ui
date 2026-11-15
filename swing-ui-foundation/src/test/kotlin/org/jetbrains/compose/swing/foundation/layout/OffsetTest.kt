@@ -4,10 +4,14 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.AbsoluteOffsetFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.OffsetFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -28,6 +32,12 @@ import kotlin.test.assertEquals
  * and draw passes are internals of the Compose node it asserts on, and this tree has no counterpart.
  */
 class OffsetTest {
+    @TestFactory
+    fun offsetCounts() = OffsetFixture.countTests()
+
+    @TestFactory
+    fun absoluteOffsetCounts() = AbsoluteOffsetFixture.countTests()
+
     @Test
     fun offset_positionIsModified() =
         runComposeSwingTest {

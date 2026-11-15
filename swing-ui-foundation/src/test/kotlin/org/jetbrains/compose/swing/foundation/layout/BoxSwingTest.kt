@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.BoxEmptyFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.apply
@@ -13,6 +15,7 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JLabel
@@ -521,4 +524,7 @@ class BoxSwingTest {
             "and must report the value it was declared with",
         )
     }
+
+    @TestFactory
+    fun boxEmptyCounts() = BoxEmptyFixture.countTests()
 }

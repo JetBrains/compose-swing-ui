@@ -1,10 +1,14 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.AbsolutePaddingFixture
+import org.jetbrains.compose.swing.foundation.fixtures.layout.PaddingFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -34,6 +38,9 @@ import kotlin.test.assertFailsWith
  * the framework's own business rather than this tree's.
  */
 class PaddingTest {
+    @TestFactory
+    fun counts() = PaddingFixture.countTests()
+
     @Test
     fun allEqualToAbsoluteWithExplicitSides() {
         assertEquals(
@@ -416,4 +423,7 @@ class PaddingTest {
         const val INSPECTED_END = 30
         const val INSPECTED_BOTTOM = 40
     }
+
+    @TestFactory
+    fun absolutePaddingCounts() = AbsolutePaddingFixture.countTests()
 }

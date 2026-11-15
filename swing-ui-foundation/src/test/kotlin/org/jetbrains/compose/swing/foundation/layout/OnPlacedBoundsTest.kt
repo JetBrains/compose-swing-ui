@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.components.style.LabelStyleScope
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.OnPlacedFixture
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -25,6 +27,7 @@ import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -300,4 +303,7 @@ class OnPlacedBoundsTest {
             )
             assertEquals(listOf(Rectangle(20, 0, 10, 10)), second, "the second declaration reports the same placement")
         }
+
+    @TestFactory
+    fun counts() = OnPlacedFixture.countTests()
 }

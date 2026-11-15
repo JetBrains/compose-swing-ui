@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.OnSizeChangedFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.location
@@ -16,6 +18,7 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.size
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Dimension
 import java.awt.EventQueue
 import java.awt.Rectangle
@@ -248,6 +251,9 @@ class OnSizeChangedSwingTest {
             assertEquals(Dimension(20, 20), sizes.last(), "onSizeChanged reports after onPlaced threw")
             assertEquals(Dimension(20, 20), placements.last().size, "onPlaced reports after onSizeChanged threw")
         }
+
+    @TestFactory
+    fun counts() = OnSizeChangedFixture.countTests()
 }
 
 private class InitialZeroExtentPanel : JPanel() {

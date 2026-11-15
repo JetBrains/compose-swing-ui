@@ -1,11 +1,14 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.foundation.fixtures.layout.DefaultMinSizeFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
@@ -137,4 +140,7 @@ class DefaultMinSizeTest {
         const val TIGHT_WIDTH = 30
         const val TIGHT_HEIGHT = 40
     }
+
+    @TestFactory
+    fun counts() = DefaultMinSizeFixture.countTests()
 }
