@@ -6,12 +6,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListenerCallbackFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionListener
 import javax.swing.JButton
 import kotlin.test.Test
@@ -353,6 +357,12 @@ class LiveCallbackListenerTest {
 
         assertEquals(listOf("pressed"), pressed, "a listener the chain no longer declares is removed")
     }
+
+    @TestFactory
+    fun rawSwing() = ListenerCallbackFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = ListenerCallbackFixture.countTests()
 
     /**
      * Hands back a callback recording [label] when it runs. It is a plain function rather than anything

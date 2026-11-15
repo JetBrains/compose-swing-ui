@@ -6,10 +6,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.appearance.NameFixture
+import org.jetbrains.compose.swing.fixtures.modifier.appearance.TestTagFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.composeInNestedComposition
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.TestNodeKind
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.border
@@ -24,6 +28,7 @@ import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -529,6 +534,18 @@ class AppearanceMetadataModifierTest {
         awaitIdle()
         assertEquals(listOf<Any?>("the-tag"), seen, "applying a tag should notify a listener bound to that name")
     }
+
+    @TestFactory
+    fun nameRawSwing() = NameFixture.rawSwingTests()
+
+    @TestFactory
+    fun nameCounts() = NameFixture.countTests()
+
+    @TestFactory
+    fun testTagRawSwing() = TestTagFixture.rawSwingTests()
+
+    @TestFactory
+    fun testTagCounts() = TestTagFixture.countTests()
 }
 
 /**

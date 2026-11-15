@@ -11,12 +11,16 @@ import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.FocusRequesterFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JTextField
@@ -243,6 +247,12 @@ class FocusRequesterTest {
         shared.requestFocus()
         waitUntil { frame.mostRecentFocusOwner === lateField }
     }
+
+    @TestFactory
+    fun rawSwing() = FocusRequesterFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = FocusRequesterFixture.countTests()
 
     /**
      * Declares [requester] on a component whose chain carries [label], read here so that changing it

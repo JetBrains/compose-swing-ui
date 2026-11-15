@@ -6,11 +6,16 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ChangeListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ChangeListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import javax.swing.JColorChooser
 import javax.swing.JInternalFrame
@@ -171,4 +176,16 @@ class RawEventListenerModifierTest {
             "the wrong-target error must explain the required change-firing target, but was: $message",
         )
     }
+
+    @TestFactory
+    fun changeListenerRawSwing() = ChangeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun changeListenerCounts() = ChangeListenerFixture.countTests()
+
+    @TestFactory
+    fun changeListenerListenerRawSwing() = ChangeListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun changeListenerListenerCounts() = ChangeListenerListenerFixture.countTests()
 }

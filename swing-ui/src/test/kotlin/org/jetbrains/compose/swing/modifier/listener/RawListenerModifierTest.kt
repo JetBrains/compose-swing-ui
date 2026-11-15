@@ -12,13 +12,51 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ActionListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ActionListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ComponentListenerChangeFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ComponentListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ComponentListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ContainerListenerDirectionalFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ContainerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ContainerListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.HyperlinkListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.HyperlinkListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.InternalFrameListenerChangeFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.InternalFrameListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.InternalFrameListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListSelectionListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListSelectionListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListSelectionListenerScopedFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ListenerOnEventFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseListenerEventFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseMotionListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseMotionListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.PropertyChangeListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.PropertyChangeListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.PropertyChangeListenerNameFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.PropertyChangeListenerTargetFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeExpansionListenerCallbackFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeExpansionListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeExpansionListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeSelectionListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeSelectionListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeWillExpandListenerDirectionalFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeWillExpandListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.TreeWillExpandListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
 import java.awt.GraphicsEnvironment
 import java.awt.event.ActionEvent
@@ -435,4 +473,214 @@ class RawListenerModifierTest {
         assertDeclaredChainCarriedOnce { treeWillExpandListener(mockk<TreeWillExpandListener>(relaxed = true)) }
         assertDeclaredChainCarriedOnce { listener<JButton, ActionEvent, ActionListener>(JButton::class, callbacks) { } }
     }
+
+    @TestFactory
+    fun actionListenerRawSwing() = ActionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun actionListenerCounts() = ActionListenerFixture.countTests()
+
+    @TestFactory
+    fun actionListenerListenerRawSwing() = ActionListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun actionListenerListenerCounts() = ActionListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun mouseListenerEventRawSwing() = MouseListenerEventFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseListenerEventCounts() = MouseListenerEventFixture.countTests()
+
+    @TestFactory
+    fun mouseListenerRawSwing() = MouseListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseListenerListenerRawSwing() = MouseListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseListenerListenerCounts() = MouseListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun propertyChangeListenerRawSwing() = PropertyChangeListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun propertyChangeListenerCounts() = PropertyChangeListenerFixture.countTests()
+
+    @TestFactory
+    fun propertyChangeListenerListenerRawSwing() = PropertyChangeListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun propertyChangeListenerListenerCounts() = PropertyChangeListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun propertyChangeListenerNameRawSwing() = PropertyChangeListenerNameFixture.rawSwingTests()
+
+    @TestFactory
+    fun propertyChangeListenerTargetRawSwing() = PropertyChangeListenerTargetFixture.rawSwingTests()
+
+    @TestFactory
+    fun propertyChangeListenerTargetCounts() = PropertyChangeListenerTargetFixture.countTests()
+
+    @TestFactory
+    fun componentListenerChangeRawSwing() = ComponentListenerChangeFixture.rawSwingTests()
+
+    @TestFactory
+    fun componentListenerChangeCounts() = ComponentListenerChangeFixture.countTests()
+
+    @TestFactory
+    fun componentListenerRawSwing() = ComponentListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun componentListenerCounts() = ComponentListenerFixture.countTests()
+
+    @TestFactory
+    fun componentListenerListenerRawSwing() = ComponentListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun componentListenerListenerCounts() = ComponentListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun containerListenerDirectionalRawSwing() = ContainerListenerDirectionalFixture.rawSwingTests()
+
+    @TestFactory
+    fun containerListenerDirectionalCounts() = ContainerListenerDirectionalFixture.countTests()
+
+    @TestFactory
+    fun containerListenerRawSwing() = ContainerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun containerListenerCounts() = ContainerListenerFixture.countTests()
+
+    @TestFactory
+    fun containerListenerListenerRawSwing() = ContainerListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun containerListenerListenerCounts() = ContainerListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun hyperlinkListenerRawSwing() = HyperlinkListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun hyperlinkListenerCounts() = HyperlinkListenerFixture.countTests()
+
+    @TestFactory
+    fun hyperlinkListenerListenerRawSwing() = HyperlinkListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun hyperlinkListenerListenerCounts() = HyperlinkListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun listSelectionListenerRawSwing() = ListSelectionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun listSelectionListenerCounts() = ListSelectionListenerFixture.countTests()
+
+    @TestFactory
+    fun listSelectionListenerListenerRawSwing() = ListSelectionListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun listSelectionListenerListenerCounts() = ListSelectionListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun listSelectionListenerScopedRawSwing() = ListSelectionListenerScopedFixture.rawSwingTests()
+
+    @TestFactory
+    fun listSelectionListenerScopedCounts() = ListSelectionListenerScopedFixture.countTests()
+
+    @TestFactory
+    fun listenerRawSwing() = ListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun listenerCounts() = ListenerFixture.countTests()
+
+    @TestFactory
+    fun listenerOnEventRawSwing() = ListenerOnEventFixture.rawSwingTests()
+
+    @TestFactory
+    fun listenerOnEventCounts() = ListenerOnEventFixture.countTests()
+
+    @TestFactory
+    fun mouseMotionListenerRawSwing() = MouseMotionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseMotionListenerCounts() = MouseMotionListenerFixture.countTests()
+
+    @TestFactory
+    fun internalFrameListenerChangeRawSwing() = InternalFrameListenerChangeFixture.rawSwingTests()
+
+    @TestFactory
+    fun internalFrameListenerChangeCounts() = InternalFrameListenerChangeFixture.countTests()
+
+    @TestFactory
+    fun internalFrameListenerListenerRawSwing() = InternalFrameListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun internalFrameListenerListenerCounts() = InternalFrameListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun treeExpansionListenerCallbackRawSwing() = TreeExpansionListenerCallbackFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeExpansionListenerCallbackCounts() = TreeExpansionListenerCallbackFixture.countTests()
+
+    @TestFactory
+    fun treeExpansionListenerRawSwing() = TreeExpansionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeExpansionListenerCounts() = TreeExpansionListenerFixture.countTests()
+
+    @TestFactory
+    fun treeExpansionListenerListenerRawSwing() = TreeExpansionListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeExpansionListenerListenerCounts() = TreeExpansionListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun treeSelectionListenerRawSwing() = TreeSelectionListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeSelectionListenerCounts() = TreeSelectionListenerFixture.countTests()
+
+    @TestFactory
+    fun treeSelectionListenerListenerRawSwing() = TreeSelectionListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeSelectionListenerListenerCounts() = TreeSelectionListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun treeWillExpandListenerListenerRawSwing() = TreeWillExpandListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeWillExpandListenerListenerCounts() = TreeWillExpandListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun mouseListenerCounts() = MouseListenerFixture.countTests()
+
+    @TestFactory
+    fun propertyChangeListenerNameCounts() = PropertyChangeListenerNameFixture.countTests()
+
+    @TestFactory
+    fun mouseMotionListenerListenerRawSwing() = MouseMotionListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseMotionListenerListenerCounts() = MouseMotionListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun internalFrameListenerRawSwing() = InternalFrameListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun internalFrameListenerCounts() = InternalFrameListenerFixture.countTests()
+
+    @TestFactory
+    fun treeWillExpandListenerRawSwing() = TreeWillExpandListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeWillExpandListenerCounts() = TreeWillExpandListenerFixture.countTests()
+
+    @TestFactory
+    fun treeWillExpandListenerDirectionalRawSwing() = TreeWillExpandListenerDirectionalFixture.rawSwingTests()
+
+    @TestFactory
+    fun treeWillExpandListenerDirectionalCounts() = TreeWillExpandListenerDirectionalFixture.countTests()
 }

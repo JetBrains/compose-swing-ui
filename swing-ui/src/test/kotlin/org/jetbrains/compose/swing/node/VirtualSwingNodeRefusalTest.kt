@@ -20,6 +20,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.node.VirtualSwingNodeFixture
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -31,10 +33,12 @@ import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.containerListener
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -589,6 +593,12 @@ class VirtualSwingNodeRefusalTest {
 
         assertEquals(listOf(listOf("s")), host.components.map { host.recording.tagsOf(it) }, "grouped=$grouped")
     }
+
+    @TestFactory
+    fun rawSwing() = VirtualSwingNodeFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = VirtualSwingNodeFixture.countTests()
 
     companion object {
         @JvmStatic

@@ -8,10 +8,20 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.HierarchyListenerCallbackFixture
+import org.jetbrains.compose.swing.fixtures.modifier.HierarchyListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerCallbackFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseWheelListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseWheelListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Container
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentListener
@@ -249,6 +259,48 @@ class RawListenerBuilderAttachmentTest {
         awaitIdle()
         assertEquals(3, edits, "the remaining declaration should keep the instance notified once per edit")
     }
+
+    @TestFactory
+    fun hierarchyListenerCallbackRawSwing() = HierarchyListenerCallbackFixture.rawSwingTests()
+
+    @TestFactory
+    fun hierarchyListenerCallbackCounts() = HierarchyListenerCallbackFixture.countTests()
+
+    @TestFactory
+    fun hierarchyListenerRawSwing() = HierarchyListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun hierarchyListenerCounts() = HierarchyListenerFixture.countTests()
+
+    @TestFactory
+    fun mouseWheelListenerRawSwing() = MouseWheelListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseWheelListenerCounts() = MouseWheelListenerFixture.countTests()
+
+    @TestFactory
+    fun mouseWheelListenerListenerRawSwing() = MouseWheelListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun mouseWheelListenerListenerCounts() = MouseWheelListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun documentListenerCallbackRawSwing() = DocumentListenerCallbackFixture.rawSwingTests()
+
+    @TestFactory
+    fun documentListenerCallbackCounts() = DocumentListenerCallbackFixture.countTests()
+
+    @TestFactory
+    fun documentListenerRawSwing() = DocumentListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun documentListenerCounts() = DocumentListenerFixture.countTests()
+
+    @TestFactory
+    fun documentListenerListenerRawSwing() = DocumentListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun documentListenerListenerCounts() = DocumentListenerListenerFixture.countTests()
 
     // Counts the insertions a document reports; appended text reaches the document as an insert, so
     // that channel alone observes the edit.

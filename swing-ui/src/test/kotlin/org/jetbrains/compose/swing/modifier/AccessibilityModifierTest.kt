@@ -4,6 +4,9 @@ package org.jetbrains.compose.swing.modifier
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelForFixture
+import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelTargetFixture
 import org.jetbrains.compose.swing.modifier.accessibility.LabelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
@@ -12,8 +15,10 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.KeyEvent
 import javax.swing.JLabel
 import javax.swing.JTextField
@@ -93,4 +98,16 @@ class AccessibilityModifierTest {
         assertDeclaredChainCarriedOnce { mnemonic('a') }
         assertDeclaredChainCarriedOnce { displayedMnemonicIndex(0) }
     }
+
+    @TestFactory
+    fun labelForRawSwing() = LabelForFixture.rawSwingTests()
+
+    @TestFactory
+    fun labelForCounts() = LabelForFixture.countTests()
+
+    @TestFactory
+    fun labelTargetRawSwing() = LabelTargetFixture.rawSwingTests()
+
+    @TestFactory
+    fun labelTargetCounts() = LabelTargetFixture.countTests()
 }

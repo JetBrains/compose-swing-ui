@@ -5,12 +5,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.KeyFixture
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -249,6 +253,12 @@ class KeyTest {
         assertSame(caret, field.caret, "the rebuilt slot binds the same caret")
         assertEquals(0, field.caretPosition, "a rebuild is a teardown, so what the bound caret held does not survive")
     }
+
+    @TestFactory
+    fun rawSwing() = KeyFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = KeyFixture.countTests()
 
     private class ProbeCounts {
         val attaches: AtomicInteger = AtomicInteger()

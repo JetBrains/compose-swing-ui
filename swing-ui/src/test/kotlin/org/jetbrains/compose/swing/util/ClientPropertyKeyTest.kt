@@ -1,13 +1,32 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.util
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.ComposableFixture
+import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelForFixture
+import org.jetbrains.compose.swing.fixtures.modifier.appearance.ClientPropertyFixture
+import org.jetbrains.compose.swing.fixtures.modifier.appearance.ClientPropertyParameters
+import org.jetbrains.compose.swing.fixtures.modifier.appearance.TestTagFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.testTagOrNull
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
+import org.jetbrains.compose.swing.test.interaction.assertIsOfType
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
+import java.awt.Component
 import java.beans.PropertyChangeEvent
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -113,7 +132,78 @@ class ClientPropertyKeyTest {
         assertEquals("written", readText, "a String key should read its value back as a String")
         assertEquals(42, readCount, "an Int key should read its value back as an Int")
     }
+
+    @TestFactory
+    fun eachAlternativeReachesBothArms(): List<DynamicTest> = listOf(
+        reachesBothArms(
+            ClientPropertyFixture,
+            composed = { onNodeOfType<JLabel>() },
+            expected = { listOf(it.value, null) },
+            composedValues = { listOf(getClientProperty(it.key), getClientProperty(it.replacedKey())) },
+            rawValues = { listOf(getClientProperty(it.key), getClientProperty(it.replacedKey())) },
+        ),
+        reachesBothArms(
+            TestTagFixture,
+            composed = { onNodeOfType<JLabel>() },
+            expected = { listOf(it.tag) },
+            composedValues = { listOf(testTagOrNull()) },
+            rawValues = { listOf(getClientProperty("testTag")) },
+        ),
+        reachesBothArms(
+            LabelForFixture,
+            composed = { onNodeWithText("Caption").assertIsOfType<JLabel>() },
+            expected = { listOf(if (it.alternateTarget) "Second target" else "First target") },
+            composedValues = { listOf(labelFor?.accessibleContext?.accessibleName) },
+            rawValues = {
+                val caption = components.filterIsInstance<JLabel>().single { label -> label.text == "Caption" }
+                listOf(caption.labelFor?.accessibleContext?.accessibleName)
+            },
+        ),
+    )
+
+    @TestFactory
+    fun rawSwing() = ClientPropertyFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = ClientPropertyFixture.countTests()
 }
 
 /** The name the test tag's own key carries, which a third party could store a raw string under. */
 private const val TEST_TAG_PROPERTY_NAME = "org.jetbrains.compose.swing.testTag"
+
+/** The key [ClientPropertyFixture] stores under when these parameters do not use it. */
+private fun ClientPropertyParameters.replacedKey(): String =
+    if (key == ClientPropertyFixture.initial.key) "alternate" else ClientPropertyFixture.initial.key
+
+/**
+ * Walks [fixture] from its initial parameters to each alternative and back, and checks after every step that both
+ * arms carry the [expected] values, which the component tree comparison does not read.
+ */
+private fun <P : Any, C : Component> reachesBothArms(
+    fixture: ComposableFixture<P, C>,
+    composed: ComposeSwingTest.() -> SwingNodeInteraction<JLabel>,
+    expected: (P) -> List<Any?>,
+    composedValues: JLabel.(P) -> List<Any?>,
+    rawValues: C.(P) -> List<Any?>,
+): DynamicTest {
+    val name = fixture::class.simpleName
+    return dynamicTest(name) {
+        runComposeSwingTest {
+            var parameters by mutableStateOf(fixture.initial)
+            setContent { fixture.Content(parameters) }
+            val raw = fixture.createRawSwing()
+            fixture.updateRawSwing(raw, fixture.initial)
+            for (alternative in fixture.alternatives) {
+                for (step in listOf(fixture.initial, alternative, fixture.initial)) {
+                    parameters = step
+                    awaitIdle()
+                    fixture.updateRawSwing(raw, step)
+                    composed().assertProperty(expected(step), "the composed arm of $name should carry $step") {
+                        composedValues(step)
+                    }
+                    assertEquals(expected(step), raw.rawValues(step), "the raw arm of $name should carry $step")
+                }
+            }
+        }
+    }
+}

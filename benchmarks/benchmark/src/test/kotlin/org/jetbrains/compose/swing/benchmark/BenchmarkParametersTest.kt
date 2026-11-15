@@ -36,6 +36,18 @@ class BenchmarkParametersTest {
         }
 
     @Test
+    fun `a fixture that composes a window has no parameters and the others keep theirs`() =
+        runSwingTest {
+            val parameters = BenchmarkParameters.parameters
+            val windowFixtures = listOf("Menu", "MenuItem", "MenuBar", "Window")
+            windowFixtures.forEach { name ->
+                assertTrue(parameters.none { it.substringBefore('/') == name }, name)
+            }
+            assertTrue("Label/text/compose" in parameters)
+            assertTrue(parameters.any { it.substringBefore('/') !in windowFixtures })
+        }
+
+    @Test
     fun `the parameter file lists every parameter one per line`() {
         val file = Files.createTempFile("benchmark-ids", ".txt")
         try {

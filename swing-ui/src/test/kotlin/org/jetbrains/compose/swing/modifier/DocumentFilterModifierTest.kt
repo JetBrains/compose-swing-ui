@@ -7,10 +7,14 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.DocumentFilterFixture
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JEditorPane
 import javax.swing.JTextField
 import javax.swing.text.AbstractDocument
@@ -69,6 +73,12 @@ class DocumentFilterModifierTest {
             fb.replace(offset, length, text.orEmpty().uppercase(), attrs)
         }
     }
+
+    @TestFactory
+    fun rawSwing() = DocumentFilterFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = DocumentFilterFixture.countTests()
 
     @Test
     fun filterIsInstalledOnTheDocument() = runComposeSwingTest {

@@ -8,7 +8,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.fixtures.window.WindowFixture
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindow
@@ -16,6 +18,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -40,6 +43,9 @@ import kotlin.test.assertTrue
  * where no real peer can be realized.
  */
 class WindowReactivityTest {
+    @TestFactory
+    fun rawSwing() = WindowFixture.rawSwingTests()
+
     @Test
     fun titleReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

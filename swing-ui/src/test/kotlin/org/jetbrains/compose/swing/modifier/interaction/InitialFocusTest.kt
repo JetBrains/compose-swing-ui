@@ -14,9 +14,12 @@ import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.InitialFocusFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -25,6 +28,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -313,4 +317,10 @@ class InitialFocusTest {
         val second = window.onNodeWithText("second").fetch<JTextField>()
         waitUntil { frame.mostRecentFocusOwner === second }
     }
+
+    @TestFactory
+    fun rawSwing() = InitialFocusFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = InitialFocusFixture.countTests()
 }

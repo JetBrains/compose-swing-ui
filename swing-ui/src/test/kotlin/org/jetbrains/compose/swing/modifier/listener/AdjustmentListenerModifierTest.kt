@@ -7,13 +7,18 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.AdjustmentListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.AdjustmentListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
 import java.awt.Scrollbar
 import java.awt.event.AdjustmentEvent
@@ -161,4 +166,16 @@ class AdjustmentListenerModifierTest {
             "the wrong-target error must explain the required scrollbar target, but was: $message",
         )
     }
+
+    @TestFactory
+    fun adjustmentListenerRawSwing() = AdjustmentListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun adjustmentListenerCounts() = AdjustmentListenerFixture.countTests()
+
+    @TestFactory
+    fun adjustmentListenerListenerRawSwing() = AdjustmentListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun adjustmentListenerListenerCounts() = AdjustmentListenerListenerFixture.countTests()
 }

@@ -11,12 +11,18 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ItemListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ItemListenerListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.ItemListenerScopedFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
 import javax.swing.ButtonGroup
@@ -178,4 +184,22 @@ class ItemListenerModifierTest {
             "the wrong-target error must explain the required item-event target, but was: $message",
         )
     }
+
+    @TestFactory
+    fun itemListenerRawSwing() = ItemListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun itemListenerCounts() = ItemListenerFixture.countTests()
+
+    @TestFactory
+    fun itemListenerListenerRawSwing() = ItemListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun itemListenerListenerCounts() = ItemListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun itemListenerScopedRawSwing() = ItemListenerScopedFixture.rawSwingTests()
+
+    @TestFactory
+    fun itemListenerScopedCounts() = ItemListenerScopedFixture.countTests()
 }

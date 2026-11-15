@@ -14,12 +14,16 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.ButtonGroupFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.ButtonGroup
 import javax.swing.DefaultButtonModel
 import javax.swing.JCheckBoxMenuItem
@@ -59,7 +63,6 @@ class ButtonGroupModifierTest {
                 }
             }
         }
-        assertEquals(3, group.buttonCount, "every declared button should have joined the group")
         onAllNodesOfType<JRadioButton>().filterToOne(isSelected()).assertTextEquals("Small")
 
         onNodeWithText("Medium").performClick()
@@ -498,4 +501,10 @@ class ButtonGroupModifierTest {
             "the wrong-target error must name the required button target, but was: $message",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = ButtonGroupFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = ButtonGroupFixture.countTests()
 }

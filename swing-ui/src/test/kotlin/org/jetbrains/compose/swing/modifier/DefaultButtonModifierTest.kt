@@ -8,9 +8,13 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.DefaultButtonFixture
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JButton
@@ -150,4 +154,10 @@ class DefaultButtonModifierTest {
             test.cancel()
         }
     }
+
+    @TestFactory
+    fun rawSwing() = DefaultButtonFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = DefaultButtonFixture.countTests()
 }

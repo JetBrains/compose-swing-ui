@@ -1,13 +1,21 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.ComposableFixture
+import org.jetbrains.compose.swing.fixtures.node.RememberMirrorStateFixture
+import org.jetbrains.compose.swing.fixtures.node.SwingNodeContainerFixture
+import org.jetbrains.compose.swing.fixtures.node.SwingNodeFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.FirstDescriptor
 import org.jetbrains.compose.swing.style.PlainProbe
@@ -24,10 +32,12 @@ import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
@@ -113,28 +123,6 @@ class SwingNodeTest {
                 }
             }
         assertTrue("JLabel" in failure.message.orEmpty())
-    }
-
-    @Test
-    fun theUpdateBlockAppliesEveryStateChangeToTheComponent() = runComposeSwingTest {
-        var text by mutableStateOf("first")
-        setContent {
-            SwingNode(
-                factory = { JLabel() },
-                update = { set(text) { this.text = it } },
-            )
-        }
-
-        val label = onNodeOfType<JLabel>()
-        label.assertTextEquals("first")
-
-        text = "second"
-        awaitIdle()
-        label.assertTextEquals("second")
-
-        text = "first"
-        awaitIdle()
-        label.assertTextEquals("first")
     }
 
     @Test
@@ -324,12 +312,10 @@ class SwingNodeTest {
             )
         }
 
-        onNodeOfType<JLabel>().assertTextEquals("first")
         assertEquals(1, inits, "the init block runs once when the node is built")
 
         text = "second"
         awaitIdle()
-        onNodeOfType<JLabel>().assertTextEquals("second")
         assertEquals(1, inits, "the init block does not run again when the node recomposes")
     }
 
@@ -413,15 +399,12 @@ class SwingNodeTest {
             )
         }
 
-        val label = onNodeOfType<JLabel>()
         assertEquals(emptyList(), applied, "the factory already carried the first value, so nothing is applied")
-        label.assertTextEquals("first")
 
         text = "second"
         awaitIdle()
 
         assertEquals(listOf("second"), applied, "a value that changed is applied")
-        label.assertTextEquals("second")
     }
 
     @Test
@@ -457,6 +440,75 @@ class SwingNodeTest {
         assertEquals("tick 1", label.toolTipText, "the node recomposed")
         assertEquals(1, settledApplications, "a set block whose value did not change is skipped")
         assertTrue(reconciles > reconciledAtMount, "reconcile runs again, though nothing it reads changed")
+    }
+
+    @TestFactory
+    fun swingNodeRawSwing() = SwingNodeFixture.rawSwingTests()
+
+    @TestFactory
+    fun swingNodeCounts() = SwingNodeFixture.countTests()
+
+    @TestFactory
+    fun swingNodeContainerRawSwing() = SwingNodeContainerFixture.rawSwingTests()
+
+    @TestFactory
+    fun swingNodeContainerCounts() = SwingNodeContainerFixture.countTests()
+
+    @TestFactory
+    fun rememberMirrorStateRawSwing() = RememberMirrorStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun rememberMirrorStateCounts() = RememberMirrorStateFixture.countTests()
+
+    @Test
+    fun theCountChecksRejectSwingWorkDoneForEqualValues() {
+        val failure =
+            assertFailsWith<AssertionError> {
+                RedundantRepaintFixture.countTests().forEach { it.executable.execute() }
+            }
+        assertContains(failure.message.orEmpty(), "must do no Swing work")
+    }
+}
+
+/** The parameters [RedundantRepaintFixture] varies: the label's text. */
+internal data class RedundantRepaintParameters(
+    val text: String,
+)
+
+/** A pass of the composition that no other pass equals, so a block keyed on it runs on every recomposition. */
+private class Pass
+
+/**
+ * A fixture that repaints on every recomposition, even for values equal to the ones it shows; it proves the
+ * equal-values count check fails when a composable does Swing work that nothing changed. Its [Content] is not
+ * skippable, so an equal copy of the values still reaches the node.
+ */
+internal object RedundantRepaintFixture : ComposableFixture<RedundantRepaintParameters, JLabel>(
+    initial = RedundantRepaintParameters(text = "before"),
+) {
+    override val alternatives: List<RedundantRepaintParameters> = listOf(initial.copy(text = "after"))
+
+    @Composable
+    @NonRestartableComposable
+    override fun Content(parameters: RedundantRepaintParameters) {
+        val pass = Pass()
+        SwingNode(
+            factory = { JLabel() },
+            update = {
+                set(parameters.text) { text = it }
+                update(pass) { repaint() }
+            },
+        )
+    }
+
+    override fun createRawSwing(): JLabel = JLabel()
+
+    override fun updateRawSwing(
+        component: JLabel,
+        parameters: RedundantRepaintParameters,
+    ) {
+        component.text = parameters.text
+        component.repaint()
     }
 }
 

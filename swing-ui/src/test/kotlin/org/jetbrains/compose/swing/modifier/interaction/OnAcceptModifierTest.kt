@@ -9,11 +9,15 @@ import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.OnAcceptFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JTextField
@@ -153,4 +157,10 @@ class OnAcceptModifierTest {
         val action = checkNotNull(actionMap.get(actionKey)) { "the Enter binding must resolve to an action" }
         action.actionPerformed(null)
     }
+
+    @TestFactory
+    fun onAcceptRawSwing() = OnAcceptFixture.rawSwingTests()
+
+    @TestFactory
+    fun onAcceptCounts() = OnAcceptFixture.countTests()
 }

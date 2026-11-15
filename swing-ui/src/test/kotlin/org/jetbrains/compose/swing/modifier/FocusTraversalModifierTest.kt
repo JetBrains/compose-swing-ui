@@ -11,10 +11,14 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.FocusTraversalIndexFixture
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.OrderedFocusTraversalFixture
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.componentOrientation
@@ -26,6 +30,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.TestFactory
 import java.awt.ComponentOrientation
 import java.awt.GraphicsEnvironment
 import javax.swing.ButtonGroup
@@ -604,6 +609,18 @@ class FocusTraversalModifierTest {
             "stepping back from outside the order resumes at its last stop",
         )
     }
+
+    @TestFactory
+    fun focusTraversalIndexRawSwing() = FocusTraversalIndexFixture.rawSwingTests()
+
+    @TestFactory
+    fun focusTraversalIndexCounts() = FocusTraversalIndexFixture.countTests()
+
+    @TestFactory
+    fun orderedFocusTraversalRawSwing() = OrderedFocusTraversalFixture.rawSwingTests()
+
+    @TestFactory
+    fun orderedFocusTraversalCounts() = OrderedFocusTraversalFixture.countTests()
 }
 
 /** Asserts that Tab after Tab from the control reading the first of [texts] reaches the ones after it, in order. */

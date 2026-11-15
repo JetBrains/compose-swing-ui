@@ -6,9 +6,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.listener.CaretListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.CaretListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTextField
 import javax.swing.event.CaretEvent
 import javax.swing.event.CaretListener
@@ -130,4 +135,16 @@ class CaretListenerModifierTest {
             "the wrong-target error must name the required JTextComponent target, but was: ${error.message}",
         )
     }
+
+    @TestFactory
+    fun caretListenerRawSwing() = CaretListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun caretListenerCounts() = CaretListenerFixture.countTests()
+
+    @TestFactory
+    fun caretListenerListenerRawSwing() = CaretListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun caretListenerListenerCounts() = CaretListenerListenerFixture.countTests()
 }

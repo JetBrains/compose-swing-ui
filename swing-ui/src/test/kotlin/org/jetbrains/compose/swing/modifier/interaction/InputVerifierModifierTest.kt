@@ -5,11 +5,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.InputVerifierFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.InputVerifier
 import javax.swing.JComponent
 import javax.swing.JTextField
@@ -99,4 +102,7 @@ class InputVerifierModifierTest {
             "a text field gates nothing of its own, so nothing must be left behind",
         ) { inputVerifier }
     }
+
+    @TestFactory
+    fun counts() = InputVerifierFixture.countTests()
 }

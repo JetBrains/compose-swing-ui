@@ -7,11 +7,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.datatransfer.ClipboardFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.TestFactory
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.ClipboardOwner
@@ -425,4 +428,7 @@ class ClipboardModifierTest {
             "copy must be re-bound once recomposition declares bindKeys true again",
         )
     }
+
+    @TestFactory
+    fun counts() = ClipboardFixture.countTests()
 }

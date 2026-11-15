@@ -6,9 +6,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.datatransfer.DraggableFixture
+import org.jetbrains.compose.swing.fixtures.modifier.datatransfer.DropTargetFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
@@ -455,4 +459,10 @@ class DataTransferModifierTest {
         assertDeclaredChainCarriedOnce { dropTarget(TransferHandler.COPY, onDrop = { true }) }
         assertDeclaredChainCarriedOnce { onExportDone { _, _ -> } }
     }
+
+    @TestFactory
+    fun draggableCounts() = DraggableFixture.countTests()
+
+    @TestFactory
+    fun dropTargetCounts() = DropTargetFixture.countTests()
 }

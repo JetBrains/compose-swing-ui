@@ -5,9 +5,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.OnHoverFixture
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.OnPointerEventFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
 import java.awt.event.MouseEvent
 import javax.swing.JLabel
@@ -102,4 +107,16 @@ class PointerEventModifierTest {
         dispatch(label, pressEvent(label))
         assertEquals(1, pressed.size, "press callback must not fire after the modifier left the chain")
     }
+
+    @TestFactory
+    fun onHoverRawSwing() = OnHoverFixture.rawSwingTests()
+
+    @TestFactory
+    fun onHoverCounts() = OnHoverFixture.countTests()
+
+    @TestFactory
+    fun onPointerEventRawSwing() = OnPointerEventFixture.rawSwingTests()
+
+    @TestFactory
+    fun onPointerEventCounts() = OnPointerEventFixture.countTests()
 }

@@ -8,11 +8,20 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.keyboard.OnKeyEventFixture
+import org.jetbrains.compose.swing.fixtures.modifier.keyboard.OnKeyStrokeFixture
+import org.jetbrains.compose.swing.fixtures.modifier.keyboard.OnKeyStrokeKeyStrokeFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.KeyListenerEventFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.KeyListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.KeyListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Component
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
@@ -500,4 +509,40 @@ class KeyboardModifierTest {
         assertDeclaredChainCarriedOnce { onKeyStroke(KeyStroke.getKeyStroke("A")) { } }
         assertDeclaredChainCarriedOnce { onKeyStroke("A") { } }
     }
+
+    @TestFactory
+    fun onKeyStrokeRawSwing() = OnKeyStrokeFixture.rawSwingTests()
+
+    @TestFactory
+    fun onKeyStrokeCounts() = OnKeyStrokeFixture.countTests()
+
+    @TestFactory
+    fun onKeyStrokeKeyStrokeRawSwing() = OnKeyStrokeKeyStrokeFixture.rawSwingTests()
+
+    @TestFactory
+    fun onKeyStrokeKeyStrokeCounts() = OnKeyStrokeKeyStrokeFixture.countTests()
+
+    @TestFactory
+    fun keyListenerRawSwing() = KeyListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun keyListenerCounts() = KeyListenerFixture.countTests()
+
+    @TestFactory
+    fun keyListenerEventRawSwing() = KeyListenerEventFixture.rawSwingTests()
+
+    @TestFactory
+    fun keyListenerEventCounts() = KeyListenerEventFixture.countTests()
+
+    @TestFactory
+    fun keyListenerListenerRawSwing() = KeyListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun keyListenerListenerCounts() = KeyListenerListenerFixture.countTests()
+
+    @TestFactory
+    fun onKeyEventRawSwing() = OnKeyEventFixture.rawSwingTests()
+
+    @TestFactory
+    fun onKeyEventCounts() = OnKeyEventFixture.countTests()
 }

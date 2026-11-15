@@ -10,6 +10,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.style.StyleableFixture
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
@@ -22,11 +24,13 @@ import org.jetbrains.compose.swing.node.CreatedNodeHolder
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.node.attachedTo
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -498,6 +502,12 @@ internal class StyleNodeTest {
             Arguments.of(Named.of("component and parent layout element", DualRoleElement)),
         )
     }
+
+    @TestFactory
+    fun styleableRawSwing() = StyleableFixture.rawSwingTests()
+
+    @TestFactory
+    fun styleableCounts() = StyleableFixture.countTests()
 }
 
 private object AdditiveElement : SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>() {

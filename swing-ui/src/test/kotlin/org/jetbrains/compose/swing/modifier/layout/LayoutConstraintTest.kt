@@ -12,14 +12,18 @@ import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.layout.LayoutConstraintFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -191,7 +195,6 @@ class LayoutConstraintTest {
             }
         }
 
-        onNodeWithText("header").assertLayoutConstraint(BorderLayout.NORTH)
         onNodeWithText("body").assertLayoutConstraint(BorderLayout.CENTER)
     }
 
@@ -432,6 +435,12 @@ class LayoutConstraintTest {
             "the layout manager's own exception reaches the caller",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = LayoutConstraintFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = LayoutConstraintFixture.countTests()
 
     /**
      * The layout manager of the container holding the component reading [text]. A manager is the

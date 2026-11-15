@@ -11,14 +11,18 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.ComposedFixture
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.OpaqueDescriptor
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
@@ -146,4 +150,10 @@ class ComposedModifierTest {
             }
         }
     }
+
+    @TestFactory
+    fun composedRawSwing() = ComposedFixture.rawSwingTests()
+
+    @TestFactory
+    fun composedCounts() = ComposedFixture.countTests()
 }

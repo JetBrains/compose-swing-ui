@@ -8,11 +8,15 @@ import org.jetbrains.compose.swing.components.text.DocumentState
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.NavigationFilterFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JTextField
 import javax.swing.text.NavigationFilter
 import javax.swing.text.Position
@@ -50,19 +54,6 @@ class NavigationFilterModifierTest {
         ) {
             fb.moveDot(dot.coerceAtLeast(PROMPT_LENGTH), bias)
         }
-    }
-
-    @Test
-    fun theFilterIsInstalledOnTheField() = runComposeSwingTest {
-        setContent {
-            TextField(
-                state = rememberDocumentState(TEXT),
-                modifier = SwingModifier.navigationFilter(AfterThePromptFilter),
-            )
-        }
-
-        val field = onNodeOfType<JTextField>().fetch()
-        assertSame(AfterThePromptFilter, field.navigationFilter, "the declared filter should reach the field")
     }
 
     @Test
@@ -134,6 +125,12 @@ class NavigationFilterModifierTest {
             "the message should name the formatter method that owns the filter, but was: ${failure.message}",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = NavigationFilterFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = NavigationFilterFixture.countTests()
 }
 
 private const val TEXT = "> hello"

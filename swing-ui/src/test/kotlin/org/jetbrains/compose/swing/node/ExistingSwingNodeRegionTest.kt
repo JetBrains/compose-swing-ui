@@ -8,13 +8,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.failureOf
+import org.jetbrains.compose.swing.fixtures.modifier.layout.SlotFixture
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.background
@@ -245,6 +248,12 @@ class ExistingSwingNodeRegionTest {
             "the refusal should say a claimed component takes no attachment: $message",
         )
     }
+
+    @TestFactory
+    fun rawSwing() = SlotFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = SlotFixture.countTests()
 }
 
 internal const val HEADER_REGION = "Header()"

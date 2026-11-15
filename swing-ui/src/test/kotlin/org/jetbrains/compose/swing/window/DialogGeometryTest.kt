@@ -4,10 +4,13 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.fixtures.window.DialogFixture
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Named
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -27,6 +30,9 @@ import kotlin.test.assertEquals
  * loop. Skipped in headless environments where no real peer can be realized.
  */
 class DialogGeometryTest {
+    @TestFactory
+    fun rawSwing() = DialogFixture.rawSwingTests()
+
     @Test
     fun initialGeometryIsAppliedToTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

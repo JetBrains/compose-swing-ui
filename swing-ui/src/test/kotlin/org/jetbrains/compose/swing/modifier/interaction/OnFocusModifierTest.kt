@@ -5,11 +5,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.modifier.interaction.OnFocusFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.FocusListenerFixture
+import org.jetbrains.compose.swing.fixtures.modifier.listener.FocusListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.performFocusGained
 import org.jetbrains.compose.swing.test.interaction.performFocusLost
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,4 +65,22 @@ class OnFocusModifierTest {
         onNodeOfType<JButton>().performFocusGained()
         assertEquals(1, gained, "the focus listener must be removed when its element leaves the chain")
     }
+
+    @TestFactory
+    fun rawSwing() = OnFocusFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = OnFocusFixture.countTests()
+
+    @TestFactory
+    fun focusListenerRawSwing() = FocusListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun focusListenerCounts() = FocusListenerFixture.countTests()
+
+    @TestFactory
+    fun focusListenerListenerRawSwing() = FocusListenerListenerFixture.rawSwingTests()
+
+    @TestFactory
+    fun focusListenerListenerCounts() = FocusListenerListenerFixture.countTests()
 }
