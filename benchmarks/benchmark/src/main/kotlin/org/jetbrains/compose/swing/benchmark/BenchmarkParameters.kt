@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.benchmark
 
+import org.jetbrains.compose.swing.animation.fixtures.swingUiAnimationFixtures
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.fixtures.swingUiFixtures
 import org.jetbrains.compose.swing.foundation.fixtures.swingUiFoundationFixtures
@@ -30,6 +31,7 @@ internal object BenchmarkParameters {
         buildList {
             addAll(swingUiFixtures)
             addAll(swingUiFoundationFixtures)
+            addAll(swingUiAnimationFixtures)
         }
 
     /** Every parameter, in fixture order. Run on the event dispatch thread, which window fixtures need. */

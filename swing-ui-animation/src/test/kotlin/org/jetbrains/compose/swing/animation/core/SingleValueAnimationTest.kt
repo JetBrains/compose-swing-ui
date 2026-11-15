@@ -23,11 +23,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.withFrameNanos
+import org.jetbrains.compose.swing.animation.fixtures.core.AnimateFloatAsStateFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.AnimateIntAsStateFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.AnimateValueAsStateFixture
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.rawSwingTests
+import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
-import org.jetbrains.compose.swing.test.runComposeSwingTest
 
 class SingleValueAnimationTest {
 
@@ -499,4 +505,22 @@ class SingleValueAnimationTest {
         // Animation is finished at this point
         assertEquals(250f, expected)
     }
+    @TestFactory
+    fun animateFloatAsStateRawSwing() = AnimateFloatAsStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun animateFloatAsStateCounts() = AnimateFloatAsStateFixture.countTests()
+
+    @TestFactory
+    fun animateIntAsStateRawSwing() = AnimateIntAsStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun animateIntAsStateCounts() = AnimateIntAsStateFixture.countTests()
+
+    @TestFactory
+    fun animateValueAsStateRawSwing() = AnimateValueAsStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun animateValueAsStateCounts() = AnimateValueAsStateFixture.countTests()
+
 }

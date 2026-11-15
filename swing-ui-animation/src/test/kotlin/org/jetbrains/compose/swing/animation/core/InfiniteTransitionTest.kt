@@ -19,10 +19,15 @@ package org.jetbrains.compose.swing.animation.core
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.withFrameNanos
+import org.jetbrains.compose.swing.animation.fixtures.InfiniteTransitionAnimateFloatFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.InfiniteTransitionAnimateValueFixture
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.rawSwingTests
+import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import org.jetbrains.compose.swing.test.runComposeSwingTest
 
 class InfiniteTransitionTest {
 
@@ -83,4 +88,16 @@ class InfiniteTransitionTest {
         }
         assertFalse(runAnimation.value)
     }
+    @TestFactory
+    fun infiniteTransitionFloatRawSwing() = InfiniteTransitionAnimateFloatFixture.rawSwingTests()
+
+    @TestFactory
+    fun infiniteTransitionFloatCounts() = InfiniteTransitionAnimateFloatFixture.countTests()
+
+    @TestFactory
+    fun infiniteTransitionValueRawSwing() = InfiniteTransitionAnimateValueFixture.rawSwingTests()
+
+    @TestFactory
+    fun infiniteTransitionValueCounts() = InfiniteTransitionAnimateValueFixture.countTests()
+
 }

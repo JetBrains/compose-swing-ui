@@ -27,19 +27,28 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.animation.AnimatedContent
+import org.jetbrains.compose.swing.animation.fixtures.CreateDeferredAnimationFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.CreateChildTransitionFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.TransitionAnimateFloatFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.TransitionAnimateIntFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.TransitionAnimateValueFixture
+import org.jetbrains.compose.swing.animation.fixtures.core.UpdateTransitionFixture
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 // The engine's transition, including what a container built on one recomposes and how long it reports
 // itself as running: the total-duration and recomposition-count cases drive AnimatedContent.
@@ -904,6 +913,42 @@ class TransitionTest {
         assertEquals(AnimStates.From, transitionState.currentState)
         onNodeWithTag("text").assertTextEquals("2.5")
     }
+    @TestFactory
+    fun createDeferredAnimationRawSwing() = CreateDeferredAnimationFixture.rawSwingTests()
+
+    @TestFactory
+    fun createDeferredAnimationCounts() = CreateDeferredAnimationFixture.countTests()
+
+    @TestFactory
+    fun createChildTransitionRawSwing() = CreateChildTransitionFixture.rawSwingTests()
+
+    @TestFactory
+    fun createChildTransitionCounts() = CreateChildTransitionFixture.countTests()
+
+    @TestFactory
+    fun updateTransitionRawSwing() = UpdateTransitionFixture.rawSwingTests()
+
+    @TestFactory
+    fun updateTransitionCounts() = UpdateTransitionFixture.countTests()
+
+    @TestFactory
+    fun transitionAnimateFloatRawSwing() = TransitionAnimateFloatFixture.rawSwingTests()
+
+    @TestFactory
+    fun transitionAnimateFloatCounts() = TransitionAnimateFloatFixture.countTests()
+
+    @TestFactory
+    fun transitionAnimateIntRawSwing() = TransitionAnimateIntFixture.rawSwingTests()
+
+    @TestFactory
+    fun transitionAnimateIntCounts() = TransitionAnimateIntFixture.countTests()
+
+    @TestFactory
+    fun transitionAnimateValueRawSwing() = TransitionAnimateValueFixture.rawSwingTests()
+
+    @TestFactory
+    fun transitionAnimateValueCounts() = TransitionAnimateValueFixture.countTests()
+
 }
 
 /**

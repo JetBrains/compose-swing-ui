@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
+    id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
@@ -49,6 +50,15 @@ dependencies {
     // cycle: each test compilation needs only the other's main jar, and neither main compilation
     // depends on the other.
     testImplementation(project(":swing-ui-test"))
+    testImplementation(project(":swing-ui-animation")) {
+        capabilities { requireFeature("fixtures") }
+    }
+    fixturesImplementation(project(":swing-ui")) {
+        capabilities { requireFeature("fixtures") }
+    }
+    fixturesImplementation(project(":swing-ui-foundation")) {
+        capabilities { requireFeature("fixtures") }
+    }
     testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(testFixtures(project(":swing-ui-foundation")))
     testImplementation(kotlin("test"))

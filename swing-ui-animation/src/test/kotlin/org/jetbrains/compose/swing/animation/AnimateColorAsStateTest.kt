@@ -14,12 +14,18 @@ import org.jetbrains.compose.swing.animation.core.rememberInfiniteTransition
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
+import org.jetbrains.compose.swing.animation.fixtures.AnimateColorAsStateFixture
+import org.jetbrains.compose.swing.animation.fixtures.InfiniteTransitionAnimateColorFixture
+import org.jetbrains.compose.swing.animation.fixtures.TransitionAnimateColorFixture
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import javax.swing.JLabel
 import kotlin.test.Test
@@ -211,6 +217,24 @@ class AnimateColorAsStateTest {
 
             assertRampsBlackToWhite(label)
         }
+
+    @TestFactory
+    fun rawSwing() = AnimateColorAsStateFixture.rawSwingTests()
+
+    @TestFactory
+    fun counts() = AnimateColorAsStateFixture.countTests()
+
+    @TestFactory
+    fun transitionAnimateColorRawSwing() = TransitionAnimateColorFixture.rawSwingTests()
+
+    @TestFactory
+    fun transitionAnimateColorCounts() = TransitionAnimateColorFixture.countTests()
+
+    @TestFactory
+    fun infiniteTransitionAnimateColorRawSwing() = InfiniteTransitionAnimateColorFixture.rawSwingTests()
+
+    @TestFactory
+    fun infiniteTransitionAnimateColorCounts() = InfiniteTransitionAnimateColorFixture.countTests()
 
     private suspend fun ComposeSwingTest.assertRampsBlackToWhite(label: JLabel) {
         val seen =

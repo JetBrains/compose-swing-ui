@@ -7,11 +7,14 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.AnimationConstants.DefaultDurationMillis
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
+import org.jetbrains.compose.swing.animation.fixtures.CrossfadeTransitionFixture
+import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.junit.jupiter.api.TestFactory
 import java.awt.Color
 import java.awt.Component
 import java.awt.Container
@@ -222,4 +225,7 @@ class CrossfadeSwingTest {
             assertEquals(1, crossfade.componentCount, "two states with one content key were composed twice")
             assertEquals(setOf("b"), crossfade.texts(), "the content did not follow the state it shares a key with")
         }
+
+    @TestFactory
+    fun crossfadeTransitionCounts() = CrossfadeTransitionFixture.countTests()
 }
